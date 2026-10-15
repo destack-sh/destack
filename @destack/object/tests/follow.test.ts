@@ -230,9 +230,7 @@ test.each(TEST_DIALECTS)(
                 restricted === undefined
                     ? {}
                     : {
-                          delegates: [
-                              principal.personalAccessToken.reference(user, `token-${user}`),
-                          ],
+                          actors: [principal.personalAccessToken.reference(user, `token-${user}`)],
                           grant: {
                               id: Identifier.create("grant"),
                               scope: user,
@@ -245,7 +243,7 @@ test.each(TEST_DIALECTS)(
             );
 
             const created = store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [document.call("create", { spaceId, title })],
                 })
@@ -262,7 +260,7 @@ test.each(TEST_DIALECTS)(
             await create(users.carol, "Budget"),
         ];
         const listed = await store.query(
-            userContext(users.alice, spaceId).caller(),
+            userContext(users.alice, spaceId).access(),
             document.call("list", { spaceId }),
         );
 

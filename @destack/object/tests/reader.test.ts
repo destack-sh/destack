@@ -1,6 +1,6 @@
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Authorization, principal } from "@destack/access";
+import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
@@ -55,13 +55,11 @@ test("start a feed's reader at its creating commit and release it at its deletio
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
     const owner = principal.user.reference("universe", users.owner);
     const creating = await Transaction.open(database);
-    await new Authorization(store.authorizer, creating, () => ({
-        subjects: [owner],
-        now: Date.now(),
-        attributes: {},
-    })).create(space.reference("universe", SPACE_ID), { owner });
+    await new Authorization(store.authorizer, creating, () =>
+        AccessContext.of(Caller.of(owner), Date.now()),
+    ).create(space.reference("universe", SPACE_ID), { owner });
     await creating.commit();
-    const caller = subjectContext(owner, SPACE_ID).caller();
+    const caller = subjectContext(owner, SPACE_ID).access();
     const mutate = (call: ReturnType<typeof feed.call>) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
 

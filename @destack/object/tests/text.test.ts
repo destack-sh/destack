@@ -406,7 +406,7 @@ test("tell whether a document's body has the elements a reader asks about", asyn
         events: await testEvents(storage.database),
         origin: { package: document.package },
     });
-    const caller = userContext(users.frank, spaceId).caller();
+    const caller = userContext(users.frank, spaceId).access();
     const [created] = await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [document.call("create", { spaceId })],

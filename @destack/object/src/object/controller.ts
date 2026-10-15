@@ -11,7 +11,7 @@ import {
     type Table,
 } from "@destack/db";
 import type { Controller, Reconciliation } from "@destack/runtime/control";
-import { Caller } from "@destack/access";
+import { AccessContext } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
@@ -76,7 +76,7 @@ export interface ObjectReconciliation<
     /** The object store running the controller. */
     readonly store: ObjectStore;
     /** The caller the reconciliation acts as: the store's own principal. */
-    readonly caller: Caller;
+    readonly caller: AccessContext;
     /** Run calls in one transaction as the store under the controller's name, results in order. */
     readonly mutate: <const Calls extends readonly ObjectCall[]>(
         calls: Calls,
@@ -165,7 +165,7 @@ export const ObjectController = {
 
         // reconcile them, running methods as the store's principal at one time
         const now = store.clock.now();
-        const caller = Caller.of(store.principal, now);
+        const caller = store.self;
         const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
             store.mutate(
                 caller,

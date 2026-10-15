@@ -1,6 +1,6 @@
 import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Caller, none, Role } from "@destack/access";
+import { AccessContext, Caller, none, Role } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -61,7 +61,7 @@ test("keep a type's predefined rows in its table, and refuse every call writing 
         events: await testEvents(storage.database),
         origin: { package: tier.package },
     });
-    const caller = Caller.of(spacePrincipal(spaceId), Date.now());
+    const caller = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
     const mutate = (call: ObjectCall) =>
         refusal(store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }));
 

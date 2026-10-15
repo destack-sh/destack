@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Caller, none, principal, relation } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, schema } from "@destack/schema";
@@ -71,7 +71,7 @@ test.each(TEST_DIALECTS)(
             });
 
             return store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [handle.call("create", { spaceId: scope, ...input })],
                 })
@@ -168,12 +168,12 @@ test("create an object the caller has the permission on only as the creator its 
 
     // create a team as its owner and read it as that owner
     const created = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
-    const read = await store.query(context.caller(), team.call("get", { spaceId, id: created.id }));
+    const read = await store.query(context.access(), team.call("get", { spaceId, id: created.id }));
     expect(read.name).toBe("Core");
 });
 
@@ -197,7 +197,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
     // create through a token granted only the create method, then read
     const grantId = Identifier.create("grant");
     const granted = userContext(users.alice, spaceId, {
-        delegates: [principal.personalAccessToken.reference(users.alice, "token-alice")],
+        actors: [principal.personalAccessToken.reference(users.alice, "token-alice")],
         grant: {
             id: grantId,
             scope: users.alice,
@@ -208,13 +208,13 @@ test("run only the one method a one-method grant reaches, refusing every other m
         },
     });
     const created = await store
-        .mutate(granted.caller(), {
+        .mutate(granted.access(), {
             id: RequestId.create(Date.now()),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
     const read = await refusal(
-        store.query(granted.caller(), team.call("get", { spaceId, id: created.id })),
+        store.query(granted.access(), team.call("get", { spaceId, id: created.id })),
     );
 
     expect([created.name, read]).toEqual([
@@ -284,7 +284,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     });
     const create = (input: CallInput<typeof contact, "create">) =>
         store
-            .mutate(userContext(users.alice, spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).access(), {
                 id: RequestId.create(Date.now()),
                 calls: [contact.call("create", { spaceId, ...input })],
             })
@@ -302,7 +302,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     // refuse an email contact with a phone's number
     const mixed = await refusal(
         store
-            .mutate(userContext(users.alice, spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     {
@@ -376,7 +376,7 @@ test("create an object without a field its creation fills, keeping the field the
     });
     const create = (input: CallInput<typeof ticket, "create">) =>
         store
-            .mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
                 id: RequestId.create(Date.now()),
                 calls: [ticket.call("create", { spaceId, ...input })],
             })
@@ -423,7 +423,7 @@ test("create an object under a natural key the creator chooses, refusing a taken
     const context = userContext(users.alice, spaceId);
     const create = (name: string) =>
         store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     channel.call("create", { spaceId, id: "core", holderId: users.alice, name }),

@@ -1,4 +1,4 @@
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { errorOf, CallError } from "@destack/runtime/error";
@@ -65,9 +65,11 @@ export const RemoteStore = {
         principal: sync.Subject,
     ): RemoteStore {
         // run calls as the principal
+        const caller = () => AccessContext.of(Caller.of(principal), store.clock.now());
+
         return {
-            mutate: (mutation) => store.mutate(Caller.of(principal, store.clock.now()), mutation),
-            query: (call) => store.query(Caller.of(principal, store.clock.now()), call),
+            mutate: (mutation) => store.mutate(caller(), mutation),
+            query: (call) => store.query(caller(), call),
         };
     },
 };

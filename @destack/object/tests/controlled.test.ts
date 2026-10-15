@@ -1,7 +1,7 @@
 import { users } from "./fixture/user.ts";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
-import { none, principal, relation, Caller } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -67,7 +67,7 @@ test.each(TEST_DIALECTS)(
         const at = (time: number) => {
             clock.set(time);
 
-            return Caller.of(spacePrincipal(spaceId), time);
+            return AccessContext.of(Caller.of(spacePrincipal(spaceId)), time);
         };
         const read = async () => {
             const [row] = await storage.database.select().from(machine.table);
@@ -213,7 +213,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const at = (time: number) => {
         clock.set(time);
 
-        return Caller.of(spacePrincipal(spaceId), time);
+        return AccessContext.of(Caller.of(spacePrincipal(spaceId)), time);
     };
 
     // provision under a request twice, then with another size under it
@@ -273,11 +273,11 @@ test("let an object representing a principal control its own row, and refuse it 
         origin: { package: agent.package },
         clock: Clock.system,
     });
-    const mutate = (caller: Caller, call: ReturnType<typeof agent.call>) =>
+    const mutate = (caller: AccessContext, call: ReturnType<typeof agent.call>) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
     const create = async (name: string) => {
         const [created] = await mutate(
-            Caller.of(spacePrincipal(spaceId), Date.now()),
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
             agent.call("create", { spaceId, name }),
         );
 
@@ -288,7 +288,10 @@ test("let an object representing a principal control its own row, and refuse it 
     // observe the first installation as itself, then as the second, which cannot see it
     const observe = (actor: string) =>
         mutate(
-            Caller.of(principal.installation.reference(spaceId, actor), Date.now()),
+            AccessContext.of(
+                Caller.of(principal.installation.reference(spaceId, actor)),
+                Date.now(),
+            ),
             agent.call("observe", { spaceId, id: first, observedGeneration: 1, conditions: {} }),
         );
     await observe(first);

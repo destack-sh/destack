@@ -9,13 +9,13 @@ import {
     SyncError,
 } from "@destack/sync";
 import {
+    AccessContext,
     accessRelationship,
     accessRole,
     accessRolePermission,
     decisionTables,
     earliest,
     type Permission,
-    Caller,
 } from "@destack/access";
 import { journal } from "../stack/db.ts";
 import {
@@ -44,7 +44,7 @@ export class ObjectAudience implements Audience {
     /** The scope the stream follows. */
     readonly #scope: string;
     /** The caller following the stream. */
-    readonly #caller: Caller;
+    readonly #caller: AccessContext;
     /** The types whose personal values the stream showed, journaled once each. */
     readonly #revealed = new Set<ObjectType>();
     /** Admit the subscriber again, as it resolves access once access changes. */
@@ -74,7 +74,7 @@ export class ObjectAudience implements Audience {
     private constructor(
         store: ObjectStore,
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         admit: () => Promise<Authorization>,
         authorization: Authorization,
         storage: ObjectStorage,
@@ -103,7 +103,7 @@ export class ObjectAudience implements Audience {
     static async of(
         store: ObjectStore,
         scope: string,
-        reader: Caller,
+        reader: AccessContext,
         options: {
             readonly storage?: ObjectStorage;
             readonly isContained?: boolean;
@@ -124,7 +124,7 @@ export class ObjectAudience implements Audience {
 
         // authorize the reader as a principal, a contained caller or an admitted caller
         const admit = async () => {
-            const authorization = await (!Caller.isRemote(reader)
+            const authorization = await (!AccessContext.isRemote(reader)
                 ? store.authorize(Transaction.reading(store.database), scope, reader, {
                       within: options.within ?? [],
                   })
@@ -155,7 +155,7 @@ export class ObjectAudience implements Audience {
     static async #relays(
         store: ObjectStore,
         via: readonly string[],
-        reader: Caller,
+        reader: AccessContext,
     ): Promise<Relay[]> {
         // read the scopes' chains at once
         const chains = await Scope.chains(Snapshot.live(store.database), via);
@@ -284,7 +284,7 @@ export class ObjectAudience implements Audience {
         this.#until = earliest([this.#until, concealed.until]);
 
         // journal the first personal values a remote caller's stream of the type shows
-        const isFirst = !this.#revealed.has(object) && Caller.isRemote(this.#caller);
+        const isFirst = !this.#revealed.has(object) && AccessContext.isRemote(this.#caller);
         if (isFirst && object.reveals(rows, concealed.hidden)) {
             this.#revealed.add(object);
             await this.#store.recordUnmask({

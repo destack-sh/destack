@@ -1,4 +1,4 @@
-import { Caller, Decision, principal } from "@destack/access";
+import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
 import type { EventKeyShape } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
@@ -111,7 +111,10 @@ export class HookSandbox {
         // run a call as the hook's caller or as the installation, allowing the package's internal methods
         const { call } = session;
         if (asked.kind === "call") {
-            const caller = asked.as === "caller" ? call.caller : Caller.of(this.subject, call.now);
+            const caller =
+                asked.as === "caller"
+                    ? call.caller
+                    : AccessContext.of(Caller.of(this.subject), call.now);
             const result = await call.runSandboxed(
                 caller,
                 asked.call,

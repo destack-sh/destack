@@ -1,4 +1,4 @@
-import { Caller, none, principal, relation, through } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation, through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
@@ -122,22 +122,25 @@ test.for(TEST_DIALECTS)(
             duration: 1000 * (minute + 1),
             data: { referrer: null },
         });
-        const recorded = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(Date.now()),
-            calls: [
-                visit.call("record", {
-                    spaceId,
-                    items: [
-                        visited("visit-1", users.alice, "home", 0),
-                        visited("visit-2", users.alice, "about", 1),
-                        visited("visit-3", users.bob, "home", 0),
-                    ],
-                }),
-            ],
-        });
+        const recorded = await store.mutate(
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+            {
+                id: RequestId.create(Date.now()),
+                calls: [
+                    visit.call("record", {
+                        spaceId,
+                        items: [
+                            visited("visit-1", users.alice, "home", 0),
+                            visited("visit-2", users.alice, "about", 1),
+                            visited("visit-3", users.bob, "home", 0),
+                        ],
+                    }),
+                ],
+            },
+        );
 
         // list, get and fold as alice
-        const alice = userContext(users.alice, spaceId).caller();
+        const alice = userContext(users.alice, spaceId).access();
         const get = async (id: string) =>
             (await store.query(alice, visit.call("get", { spaceId, id }))).page;
         const fold = (where: object) =>
@@ -211,8 +214,8 @@ test("append a visitor's own visit publicly, refusing another's, and read visits
     });
 
     // append alice's visit as alice, and refuse bob appending one in her name
-    const alice = userContext(users.alice, spaceId).caller();
-    const bob = userContext(users.bob, spaceId).caller();
+    const alice = userContext(users.alice, spaceId).access();
+    const bob = userContext(users.bob, spaceId).access();
     const visited = (visitor: Identifier<"user">, id: string) =>
         visit.call("visit", {
             spaceId,
@@ -267,7 +270,7 @@ test("read the events a space appended after a log sequence, in commit order", a
         origin: { package: visit.package },
     });
     const record = (ids: readonly string[]) =>
-        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [
                 visit.call("record", {

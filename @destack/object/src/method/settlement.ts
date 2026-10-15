@@ -1,5 +1,5 @@
 import type { ObjectStore } from "../server/store.ts";
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 import {
     type DatabaseConnection,
     defineTable,
@@ -90,18 +90,18 @@ export class SettlementCall {
     }
 
     /** The store's principal acting as itself, such as its space or installation. */
-    get self(): Caller {
-        return Caller.of(this.store.principal, this.now);
+    get self(): AccessContext {
+        return AccessContext.of(Caller.of(this.store.principal), this.now);
     }
 
     /** Read through a method as a caller, in its own transaction. */
-    query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
+    query<Result>(caller: AccessContext, call: ObjectCall<Result>): Promise<Result> {
         return this.store.query(caller, call);
     }
 
     /** Run calls as a caller in one request of their own, committed apart from the settlement. */
     mutate<const Calls extends readonly ObjectCall[]>(
-        caller: Caller,
+        caller: AccessContext,
         calls: Calls,
     ): Promise<ResultsOf<Calls>> {
         return this.store.mutate(caller, { id: RequestId.create(this.now), calls });

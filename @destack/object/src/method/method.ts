@@ -239,12 +239,23 @@ export interface MethodDeclaration<
 /** A method as a trait declares it. */
 export type MethodDefinition<Configuration extends MethodConfiguration> = Omit<
     Method<Configuration>,
-    typeof METHOD | "execute" | "isPredicted"
+    typeof METHOD | "execute" | "isPredicted" | "handler" | "authorize"
 > & {
+    /** Authorize a call as the method types it before its external work, where it executes. */
+    readonly authorize?: (
+        call: MethodCall<Configuration, PreparedOf<Configuration> | undefined>,
+        execution: StoreExecution,
+    ) => Promise<void>;
+    /** Change rows for a call as the method types it, where it executes. */
+    readonly handler: (call: MethodCall<Configuration>, execution: Execution) => Promise<unknown>;
     /** Whether clients predict the method, true by default. */
     readonly isPredicted?: boolean;
-    /** Execute a call around `this.handler`. */
-    readonly execute?: (this: Method, call: Call, execution: Execution) => Promise<unknown>;
+    /** Execute a call as the method types it around `this.handler`. */
+    readonly execute?: (
+        this: Method,
+        call: MethodCall<Configuration>,
+        execution: Execution,
+    ) => Promise<unknown>;
 };
 
 /** What every method can report about itself. */
@@ -287,14 +298,14 @@ export const Method = {
         return { ...method, handle: (handler) => Method.handled(method, handler) };
     },
 
-    /** Decide whether a call is one of a method: its target loaded, its caller signed. */
+    /** Decide whether a call is one of a method: its target loaded, its caller identified. */
     isCall<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
         call: Call,
     ): call is MethodCall<Configuration, PreparedOf<Configuration> | undefined> {
-        // require the target a targeted method loads and the signed caller a mutation needs
+        // require the target a targeted method loads and the identified caller a mutation needs
         const isTargeted = !Method.loads(declared) || call.target !== undefined;
-        const isSigned = !declared.mutates || Caller.isSigned(call.caller);
+        const isIdentified = !declared.mutates || !Caller.isAnonymous(call.caller);
 
         // require prepared work the method's schema reads, absent before it is done
         const prepared = declared.prepared;
@@ -302,7 +313,7 @@ export const Method = {
             call.prepared === undefined ||
             (prepared !== undefined && prepared.safeParse(call.prepared).success);
 
-        return isTargeted && isSigned && isReady;
+        return isTargeted && isIdentified && isReady;
     },
 
     /** Decide whether a call is one of a method in its transaction, with its prepared work. */
@@ -520,14 +531,26 @@ export const Method = {
 export function defineMethod<Configuration extends MethodConfiguration>(
     definition: MethodDefinition<Configuration>,
 ): MethodDeclaration<Configuration> {
-    return Method.declaration({
-        ...definition,
+    // hand the handler each call as the method types it, refused once here where it is not
+    const { handler, execute, authorize, ...shared } = definition;
+    const declared: MethodDeclaration<Configuration> = Method.declaration({
+        ...shared,
         [METHOD]: true,
         isPredicted: definition.isPredicted ?? true,
-        execute:
-            definition.execute ??
-            function (this: Method, call: Call, execution: Execution) {
-                return this.handler(call, execution);
-            },
+        handler: (call: Call, execution: Execution) =>
+            handler(Method.requirePrepared(declared, call), execution),
+        ...(authorize === undefined
+            ? {}
+            : {
+                  authorize: (call: Call, execution: StoreExecution) =>
+                      authorize(Method.requireCall(declared, call), execution),
+              }),
+        execute(this: Method, call: Call, execution: Execution) {
+            return execute === undefined
+                ? this.handler(call, execution)
+                : execute.call(this, Method.requirePrepared(declared, call), execution);
+        },
     });
+
+    return declared;
 }

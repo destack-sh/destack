@@ -117,9 +117,8 @@ export const transitions: Trait<StateFields> & {
                 }),
                 output: shapes.row,
             }),
-            handler: (given) => {
+            handler: (call) => {
                 // write the state with the fields the transition records
-                const call = given;
                 const written = Object.fromEntries(
                     (transition.fields ?? []).flatMap((recorded) => {
                         const value = call.input[recorded];
@@ -137,7 +136,7 @@ export const transitions: Trait<StateFields> & {
             },
             async execute(call, execution) {
                 // refuse transitions from any other state
-                const state = schema.string().parse(call.requireTarget()[field]);
+                const state = schema.string().parse(call.target[field]);
                 if (!transition.from.includes(state)) {
                     throw new CallError("CONFLICT", {
                         message: `${call.object.name} cannot ${name} while ${field} is ${state}`,

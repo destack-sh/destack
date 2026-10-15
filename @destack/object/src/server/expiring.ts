@@ -1,4 +1,4 @@
-import { earliest, Caller } from "@destack/access";
+import { earliest } from "@destack/access";
 import { Duration } from "@destack/schema";
 import {
     Change,
@@ -104,7 +104,7 @@ export class ExpiringController implements Controller {
                         now,
                     );
                     await store.mutate(
-                        Caller.of(store.principal, now),
+                        store.self,
                         {
                             id: RequestId.create(now),
                             calls: rows.map((row) =>

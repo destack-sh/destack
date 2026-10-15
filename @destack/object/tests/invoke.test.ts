@@ -333,7 +333,7 @@ test.each(TEST_DIALECTS)(
         });
         const context = userContext(users.frank, spaceId);
         const home = await store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [shelf.call("create", { spaceId, name: "home" })],
             })
@@ -341,10 +341,10 @@ test.each(TEST_DIALECTS)(
 
         // refuse a page of no books, and an invoked creation on an unnamed shelf, as callers see it
         expect([
-            await reported(store.query(context.caller(), book.call("list", { spaceId, limit: 0 }))),
+            await reported(store.query(context.access(), book.call("list", { spaceId, limit: 0 }))),
             await reported(
                 store
-                    .mutate(context.caller(), {
+                    .mutate(context.access(), {
                         id: RequestId.create(Date.now()),
                         calls: [shelf.call("misfile", { spaceId, id: home.id })],
                     })

@@ -73,9 +73,7 @@ export const text: Trait<TextDefinition> & {
         fields: readonly [string, ...string[]],
     ) => Method<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }>;
     /** Decide whether one text field of an object has some elements, as its text readers may. */
-    readonly contains: (
-        fields: readonly [string, ...string[]],
-    ) => Method<{
+    readonly contains: (fields: readonly [string, ...string[]]) => Method<{
         kind: "contains";
         permission: string;
         output: typeof Containment;

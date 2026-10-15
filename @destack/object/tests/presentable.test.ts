@@ -63,7 +63,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
         origin: { package: board.package },
     });
     const created = await store
-        .mutate(userContext(users.frank, spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 board.call("create", {

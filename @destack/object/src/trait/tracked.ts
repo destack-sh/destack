@@ -1,6 +1,6 @@
 import { type Permission } from "@destack/access";
-import { Duration, present, type schema } from "@destack/schema";
-import { LogPosition, TABLE, type Row, Table } from "@destack/db";
+import { Duration, type JsonObject, present, type schema } from "@destack/schema";
+import { LogPosition, TABLE, type Row, type Select, Table } from "@destack/db";
 import type { ActivityTable } from "../object/history.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { Call } from "../method/call.ts";
@@ -42,7 +42,7 @@ export const tracked: Trait<TrackedDefinition> & {
     readonly revert: (permission: string) => Method;
     /** Read the call's object at the input's position, readable by the caller then and now. */
     readonly earlier: (
-        call: Call,
+        call: Call<Table, JsonObject, Select<Table>>,
         execution: StoreExecution,
         permission: Permission,
     ) => Promise<Row>;
@@ -77,15 +77,14 @@ export const tracked: Trait<TrackedDefinition> & {
                 input: shapes.target.extend({ ...shapes.replay, at: LogPosition }),
                 output: shapes.row,
             }),
-            handler: async (given, execution) => {
+            handler: async (call, execution) => {
                 // write back the changed fields the history keeps, sensitive ones being unlogged
-                const call = given;
                 const row = await tracked.earlier(
                     call,
                     Execution.store(execution, call),
                     present(call.object.reading, `the read permission of ${call.object.name}`),
                 );
-                const target: Row = call.requireTarget();
+                const target: Row = call.target;
                 const kept = call.object.table[TABLE].encode(row);
                 const current = call.object.table[TABLE].encode(target);
                 const changes = Object.fromEntries(
@@ -125,10 +124,14 @@ export const tracked: Trait<TrackedDefinition> & {
             },
         });
     },
-    earlier(call: Call, execution: StoreExecution, permission: Permission): Promise<Row> {
+    earlier(
+        call: Call<Table, JsonObject, Select<Table>>,
+        execution: StoreExecution,
+        permission: Permission,
+    ): Promise<Row> {
         const { database } = execution.transaction;
         const snapshot = database.log.at(LogPosition.parse(call.input["at"]));
 
-        return execution.authorization.readIn(call, call.requireId(), snapshot, permission);
+        return execution.authorization.readIn(call, call.id, snapshot, permission);
     },
 };

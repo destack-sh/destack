@@ -1,4 +1,4 @@
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
@@ -82,7 +82,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
 
     // create a page with an icon, list the subscriptions, then add a page of another icon
     const create = (title: string, icon: string | null) =>
-        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [page.call("create", { spaceId, title, ...(icon === null ? {} : { icon }) })],
         });

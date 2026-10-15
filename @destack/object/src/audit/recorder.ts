@@ -10,9 +10,9 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { Failure, Outcome, Subject } from "@destack/sync";
+import { Failure, Outcome } from "@destack/sync";
 import { findDenial, CallError } from "@destack/runtime";
-import type { Caller } from "@destack/access";
+import { AccessContext, Credential } from "@destack/access";
 import { type ProcedureAudit, type ProcedureCall } from "@destack/runtime/server";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
@@ -83,32 +83,30 @@ export class AuditRecorder {
 
     /** Record a caller's calls. */
     static from(
-        caller: Caller,
+        caller: AccessContext,
         journal: Journal,
         origin: AuditOrigin,
         requestId?: string,
     ): AuditRecorder {
-        // record the represented subject and its delegates, or anyone, and read who acted
-        const { subject, delegates, credential, grant } = caller;
-        const recorded: AuditCaller =
-            subject === undefined
-                ? AuditCaller.anyone
-                : { subject, ...(delegates === undefined ? {} : { delegates: [...delegates] }) };
-        const acting = subject === undefined ? undefined : AuditCaller.actor(recorded).subject;
+        // record the subject and its actors, and read who acted
+        const { subject, actors, credential, grant } = caller;
+        const recorded: AuditCaller = {
+            subject,
+            ...(actors.length === 0 ? {} : { actors: [...actors] }),
+        };
+        const acting = AuditCaller.actor(recorded).subject;
 
         // select the deployment the acting workload ran, and the session or token the caller presented
         const deploymentId =
-            acting === undefined
-                ? undefined
-                : caller.deployments?.find((entry) => Subject.same(entry.subject, acting))?.id;
+            credential === undefined ? undefined : Credential.deployment(credential, acting);
         const session = schema.identifier("session").safeParse(credential?.id);
-        const token = schema.identifier("token").safeParse(credential?.id);
+        const presented = schema.identifier("token").safeParse(credential?.id);
         const span = trace.getSpanContext(context.active());
 
         // read the caller's session, token and trace
         const sessionId = session.success ? session.data : origin.sessionId;
         const clientId = credential?.client ?? origin.clientId;
-        const tokenId = token.success ? token.data : origin.tokenId;
+        const tokenId = presented.success ? presented.data : origin.tokenId;
         const traceId = span && isSpanContextValid(span) ? span.traceId : undefined;
 
         return new AuditRecorder(
@@ -131,7 +129,7 @@ export class AuditRecorder {
     static scoped(
         journal: Journal,
         origin: Omit<AuditOrigin, "scope">,
-    ): (scope: string, caller: Caller, called?: AuditCalled) => AuditRecorder {
+    ): (scope: string, caller: AccessContext, called?: AuditCalled) => AuditRecorder {
         return (scope, caller, called = {}) =>
             AuditRecorder.from(
                 caller,

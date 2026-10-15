@@ -47,7 +47,7 @@ export const specify = Execution.handle(
         await DesiredState.read(Execution.snapshot(execution), call.scope, needed);
 
         // write the digests and drop the states no resource of the scope needs any more
-        const target = call.requireTarget();
+        const target = call.target;
         const updated = await call.update(call.input);
         const left = [...target.states, ...target.drainingStates].filter(
             (digest) => !needed.includes(digest),

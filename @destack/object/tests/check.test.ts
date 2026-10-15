@@ -66,7 +66,7 @@ test("check the caller's own access under its grant, and another subject's for g
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
     const token = principal.personalAccessToken.reference(users.alice, "token-alice");
     const delegated = {
-        delegates: [token],
+        actors: [token],
         grant: {
             id: Identifier.create("grant"),
             scope: users.alice,
@@ -81,7 +81,7 @@ test("check the caller's own access under its grant, and another subject's for g
     ) => {
         // answer the decision, or the refusal
         const pending = store.query(
-            subjectContext(caller, SPACE_ID, isDelegated ? delegated : {}).caller(),
+            subjectContext(caller, SPACE_ID, isDelegated ? delegated : {}).access(),
             relationship.call("check", { spaceId: SPACE_ID, subject, permission, object }),
         );
         const refused = await refusal(pending);

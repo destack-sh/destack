@@ -2,7 +2,7 @@ import { type AccessExpression, type Authorizer } from "@destack/access";
 import { Duration, Identifier, present } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
 import { TABLE, type Row, LogPosition, Table } from "@destack/db";
-import type { Call } from "../method/call.ts";
+import { type Call, RecordedRow } from "../method/call.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
 
@@ -36,12 +36,13 @@ export const TrackedHistory = {
     ): Promise<void> {
         // find the caller's latest activity on the object
         const { object } = call;
+        const { id } = RecordedRow.parse(after);
         const table = options.activity.table;
         const caller = ObjectReference.columns(
             "caller",
             present(call.caller.subject, "the author of a tracked change"),
         );
-        const latest = await TrackedHistory.latestActivity(options, call, execution, caller);
+        const latest = await TrackedHistory.latestActivity(options, call, id, execution, caller);
 
         // list the fields the change wrote, comparing their JSON forms
         const encoded = object.table[TABLE].encode(after);
@@ -77,7 +78,7 @@ export const TrackedHistory = {
                     scope: call.scope,
                     parentPackageId: object.policy.definition.packageId,
                     parentType: object.name,
-                    parentId: call.requireId(),
+                    parentId: id,
                     ...caller,
                     startedAt: call.now,
                     endedAt: call.now,
@@ -168,6 +169,7 @@ export const TrackedHistory = {
     async latestActivity(
         options: TrackedDefinition,
         call: Call,
+        id: string,
         execution: StoreExecution,
         caller: ReferenceColumns<"caller">,
     ) {
@@ -178,7 +180,7 @@ export const TrackedHistory = {
             where: {
                 parentPackageId: object.policy.definition.packageId,
                 parentType: object.name,
-                parentId: call.requireId(),
+                parentId: id,
                 ...caller,
             },
             orderBy: { endedAt: "desc" },

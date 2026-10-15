@@ -109,20 +109,20 @@ test.each(TEST_DIALECTS)(
             Promise.all([
                 outcome(
                     store
-                        .query(context.caller(), document.call("get", { spaceId, id: shared }))
+                        .query(context.access(), document.call("get", { spaceId, id: shared }))
                         .then((row) => ({ id: row.id, title: row.title })),
                 ),
                 outcome(
                     store
-                        .query(context.caller(), document.call("list", { spaceId }))
+                        .query(context.access(), document.call("list", { spaceId }))
                         .then((page) => page.items.map((item) => item.title)),
                 ),
                 outcome(
-                    store.query(context.caller(), document.call("get", { spaceId, id: other })),
+                    store.query(context.access(), document.call("get", { spaceId, id: other })),
                 ),
                 outcome(
                     store
-                        .mutate(context.caller(), {
+                        .mutate(context.access(), {
                             id: RequestId.create(Date.now()),
                             calls: [
                                 document.call("update", { spaceId, id: shared, title: "Draft" }),
@@ -143,7 +143,7 @@ test.each(TEST_DIALECTS)(
         // answer a stranger's listing of the space exactly as a listing of a space nobody created
         const missing = `space-${v7()}`;
         const list = (id: string) =>
-            refusal(store.query(context.caller(), document.call("list", { spaceId: id })));
+            refusal(store.query(context.access(), document.call("list", { spaceId: id })));
         expect([await list(spaceId), await list(missing)]).toEqual([
             ["NOT_FOUND", `no scope ${spaceId}`],
             ["NOT_FOUND", `no scope ${missing}`],
@@ -151,7 +151,7 @@ test.each(TEST_DIALECTS)(
 
         // show a delegate granted no reading what alice sees, asking her for the grant it lacks
         context = userContext(users.alice, spaceId, {
-            delegates: [principal.installation.reference(spaceId, `installation-${v7()}`)],
+            actors: [principal.installation.reference(spaceId, `installation-${v7()}`)],
             grant: {
                 id: Identifier.create("grant"),
                 scope: "alice",
@@ -207,10 +207,10 @@ test.each(TEST_DIALECTS)(
         const context = userContext(users.alice, undefined);
 
         // list the room's desks and find no documents there
-        const desks = await store.query(context.caller(), desk.call("list", { roomId }));
+        const desks = await store.query(context.access(), desk.call("list", { roomId }));
         expect(
             await refusal(
-                store.query(context.caller(), document.call("list", { spaceId: roomId })),
+                store.query(context.access(), document.call("list", { spaceId: roomId })),
             ),
         ).toEqual(["NOT_FOUND", `no documents in scope ${roomId}`]);
         expect(desks.items).toEqual([]);

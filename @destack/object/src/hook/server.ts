@@ -1,4 +1,4 @@
-import { Caller, Decision, principal } from "@destack/access";
+import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
 import type { HookHandler, ServerContext } from "@destack/runtime/workload";
@@ -111,11 +111,10 @@ export class HookServer implements HookHandler {
             scope: record.scope,
             chain: record.chain,
             input: record.input,
-            ...(record.id === undefined ? {} : { id: record.id }),
+            id: record.id,
             target:
                 record.target === undefined ? undefined : Table.decode(object.table, record.target),
-            caller: record.caller,
-            now: record.now,
+            caller: AccessContext.of(record.caller, record.now),
             location: {
                 kind: "sandbox",
                 session: this.#open(mutation),
@@ -242,7 +241,7 @@ export class HookServer implements HookHandler {
     }
 
     /** Read whom a hook's call runs as: the hook's own caller, or its installation. */
-    #as(record: CallRecord, caller: Caller): "caller" | "installation" {
+    #as(record: CallRecord, caller: AccessContext): "caller" | "installation" {
         // run as the hook's own caller
         const server = this.#server;
         if (Caller.key(caller) === Caller.key(record.caller)) {

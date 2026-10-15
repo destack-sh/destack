@@ -71,7 +71,7 @@ test.each(TEST_DIALECTS)(
             times: { createdAt: number; readAt: number | null },
         ) => {
             const created = await store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [alert.call("create", { spaceId, title })],
                 })

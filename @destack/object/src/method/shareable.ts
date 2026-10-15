@@ -1,13 +1,13 @@
 import type { InputObject } from "./input.ts";
-import { Explanation, Invitation, Relationship } from "@destack/access";
+import { AccessContext, Caller, Explanation, Invitation, Relationship } from "@destack/access";
 import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Page } from "./page.ts";
-import { Call } from "./call.ts";
+import { Call, type MethodCall } from "./call.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
-import { defineMethod, type Method, type MethodKind, type MethodConfiguration } from "./method.ts";
+import { defineMethod, type Method, type MethodKind } from "./method.ts";
 import {
     Empty,
     PageShape,
@@ -30,6 +30,16 @@ import {
 } from "../trait/shareable.ts";
 import { Execution, type StoreExecution } from "./execution.ts";
 
+/** The signature of a sharing method, acting on one object by its identifier. */
+type SharingConfiguration = {
+    kind: MethodKind;
+    permission: string;
+    mutates: boolean;
+    target: "object" | "id";
+};
+
+/** The call of a sharing method. */
+type SharingCall = MethodCall<SharingConfiguration>;
 /** The shareable methods' handlers: sharing an object and paging its relationships. */
 export const ShareableMethod = {
     /** Declare an object's sharing methods: relationships, grants, invitations and explanations. */
@@ -156,7 +166,7 @@ export const ShareableMethod = {
                     );
                 },
             ),
-            explain: defineMethod<MethodConfiguration>({
+            explain: defineMethod<SharingConfiguration>({
                 kind: "explain",
                 permission: read,
                 mutates: false,
@@ -198,10 +208,10 @@ export const ShareableMethod = {
         route: Route,
         input: (schema: ObjectSchema) => InputObject,
         output: MethodProcedure["output"],
-        handler: (call: Call, execution: StoreExecution) => Promise<unknown>,
+        handler: (call: SharingCall, execution: StoreExecution) => Promise<unknown>,
         inverse?: (step: Step) => readonly sync.Call[] | undefined,
     ): Method {
-        return defineMethod<MethodConfiguration>({
+        return defineMethod<SharingConfiguration>({
             kind,
             permission: access.permission,
             mutates: access.mutates,
@@ -215,7 +225,7 @@ export const ShareableMethod = {
     },
 
     /** Explain a subject's permission on an object. */
-    async explain(call: Call, { authorization }: StoreExecution): Promise<Explanation> {
+    async explain(call: SharingCall, { authorization }: StoreExecution): Promise<Explanation> {
         // resolve access in the governing scope
         const { authorizer, snapshot } = authorization;
         const { permission: asked, subject } = schema.object(ExplainShape).parse(call.input);
@@ -238,11 +248,11 @@ export const ShareableMethod = {
                     message: `explaining access to ${object.name} needs ${grant}`,
                 });
             }
-            const resolved = await authorizer.resolve(snapshot, scope, {
-                subjects: [subject],
-                now: call.now,
-                attributes: {},
-            });
+            const resolved = await authorizer.resolve(
+                snapshot,
+                scope,
+                AccessContext.of(Caller.of(subject), call.now),
+            );
 
             return authorizer.explain(snapshot, explained(), target, resolved);
         }
@@ -274,11 +284,11 @@ export const ShareableMethod = {
     },
 
     /** Require the given object to exist, outside the trash when live. */
-    async requirePresent(call: Call, state: "live" | "stored"): Promise<void> {
+    async requirePresent(call: SharingCall, state: "live" | "stored"): Promise<void> {
         // read the object
         const [row]: readonly Row[] = await call
             .read(call.object.table)
-            .findMany({ where: { id: call.requireId(), scope: call.scope } });
+            .findMany({ where: { id: call.id, scope: call.scope } });
 
         // refuse a missing or trashed object
         if (row === undefined) {
@@ -293,11 +303,7 @@ export const ShareableMethod = {
     },
 
     /** Read the page a sharing listing asks for, bound to its object. */
-    sharingPage(call: Call, list: string) {
-        return new Page(
-            call.input,
-            [call.object.name, call.scope, call.requireId(), list],
-            schema.string(),
-        );
+    sharingPage(call: SharingCall, list: string) {
+        return new Page(call.input, [call.object.name, call.scope, call.id, list], schema.string());
     },
 };

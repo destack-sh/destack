@@ -1,5 +1,5 @@
 import { type Identifier, present, schema } from "@destack/schema";
-import { type Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import type { RequestContext } from "@destack/runtime/server";
 import { subjectContext, type SubjectContextOptions } from "@destack/runtime/test";
@@ -45,7 +45,7 @@ export function userContext(
 export function bearerUser(
     audience: PackageId,
     scope: string,
-): (request: Request) => Promise<Caller | undefined> {
+): (request: Request) => Promise<Authentication | undefined> {
     return async (request) => {
         // read the user in the bearer token
         const bearer = request.headers.get("authorization");
@@ -57,8 +57,7 @@ export function bearerUser(
         const now = Date.now();
 
         return {
-            subject,
-            subjects: [subject],
+            caller: Caller.of(subject),
             credential: {
                 kind: "session",
                 id: subject.id,

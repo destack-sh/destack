@@ -1,6 +1,7 @@
 import { testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import {
+    AccessContext,
     accessRelationship,
     accessRole,
     accessRolePermission,
@@ -121,7 +122,11 @@ test("decide again after changes of the caller's own access, and leave other ide
         events: await testEvents(database),
         origin: { package: notebook.package },
     });
-    const audience = await ObjectAudience.of(store, spaceId, Caller.of(ada, Date.now()));
+    const audience = await ObjectAudience.of(
+        store,
+        spaceId,
+        AccessContext.of(Caller.of(ada), Date.now()),
+    );
     const decided = async (write: () => PromiseLike<unknown>, tables: readonly Table[]) => {
         const { sequence } = await database.log.position();
         await write();
@@ -248,8 +253,8 @@ test("drop a notebook from a live replica once the relationship sharing it expir
         origin: { package: notebook.package },
     });
     const [following, identical] = await Promise.all([
-        ObjectAudience.of(store, spaceId, Caller.of(ada, clock.now())),
-        ObjectAudience.of(store, spaceId, Caller.of(ada, clock.now())),
+        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), Date.now())),
+        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), Date.now())),
     ]);
     const subscription = new AbortController();
     onTestFinished(() => subscription.abort());

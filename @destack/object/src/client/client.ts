@@ -54,7 +54,7 @@ import { createClient, type ClientOptions } from "@destack/runtime/client";
 import type { Package } from "@destack/package";
 import { errorOf, CallError } from "@destack/runtime/error";
 import { Replay } from "../audit/replay.ts";
-import { Authorization, Authorizer, decisionTables } from "@destack/access";
+import { AccessContext, Authorization, Authorizer, Caller, decisionTables } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import { Observable } from "@destack/runtime/observable";
 import { RetryPolicy } from "@destack/runtime/timer";
@@ -1223,11 +1223,7 @@ export class ObjectClient<
         const authorization = new Authorization(
             this.#authorizer,
             Transaction.reading(this.database),
-            () => ({
-                subjects: [this.caller],
-                now: this.clock.now(),
-                attributes: {},
-            }),
+            () => AccessContext.of(Caller.of(this.caller), this.clock.now()),
         );
         const decision = await authorization.check(
             object.permission(permission),
@@ -2220,14 +2216,13 @@ export class ObjectClient<
             scope,
             chain: object.storage === "local" ? [scope] : await this.replica.chain(database),
             input: fields,
-            ...(targetId === undefined ? {} : { id: targetId }),
+            id: targetId,
             target: undefined,
             prepared: undefined,
-            caller:
-                this.caller === undefined
-                    ? { subjects: [] }
-                    : { subject: this.caller, subjects: [this.caller] },
-            now: this.clock.now(),
+            caller: AccessContext.of(
+                this.caller === undefined ? Caller.anonymous() : Caller.of(this.caller),
+                this.clock.now(),
+            ),
             location: { kind: "client", database },
             objects: this.objects,
             run: (entry, _caller, mutates, code) => {

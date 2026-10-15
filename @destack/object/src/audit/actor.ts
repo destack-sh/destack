@@ -1,11 +1,10 @@
 import { defineSchema, schema } from "@destack/schema";
-import { anyone } from "@destack/access";
 import { Subject } from "@destack/sync";
 
 /** The principal that performed a call. */
 export const AuditActor = defineSchema(
     schema.object({
-        /** The principal that acted, anyone for an unauthenticated caller. */
+        /** The principal that acted, the anonymous one for a caller proving no identity. */
         subject: Subject,
         /** The display name captured when recording. */
         name: schema.string().exactOptional(),
@@ -17,10 +16,10 @@ export type AuditActor = schema.Infer<typeof AuditActor>;
 /** The schema of a recorded caller. */
 const auditCaller = defineSchema(
     schema.object({
-        /** The represented principal, anyone for an unauthenticated caller. */
+        /** Who the call was for, the anonymous principal for a caller proving no identity. */
         subject: Subject,
         /** The principals acting for the subject in order, the last one sending the call. */
-        delegates: schema.array(Subject).exactOptional(),
+        actors: schema.array(Subject).exactOptional(),
         /** The represented subject's display name captured when recording. */
         name: schema.string().exactOptional(),
     }),
@@ -30,12 +29,9 @@ export type AuditCaller = schema.Infer<typeof auditCaller>;
 
 /** The caller of a call as the history keeps it, and the actor it derives. */
 export const AuditCaller = Object.assign(auditCaller, {
-    /** The caller every unauthenticated call records. */
-    anyone: auditCaller.parse({ subject: anyone.reference("*", "*") }),
-
-    /** Read who acted: the last delegate, else the represented subject. */
+    /** Read who acted: the last actor, else the subject. */
     actor(caller: AuditCaller): AuditActor {
-        const sender = caller.delegates?.at(-1);
+        const sender = caller.actors?.at(-1);
 
         return sender === undefined
             ? {

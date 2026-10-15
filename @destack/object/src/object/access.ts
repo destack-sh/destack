@@ -1,12 +1,14 @@
 import * as access from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import {
+    AccessContext,
+    type AccessExpression,
     Authorizer,
+    Caller,
     Policy,
     principal,
-    relationsOf,
-    type AccessExpression,
     type RelationInput,
+    relationsOf,
 } from "@destack/access";
 import type { Package, PackageId } from "@destack/package";
 import { Field } from "../field/field.ts";
@@ -221,12 +223,11 @@ export const ObjectAccess = {
                 message: `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
             });
         }
-        const checked = await authorizer.resolve(snapshot, scope, {
-            subject,
-            subjects: [subject],
-            now: call.now,
-            attributes: {},
-        });
+        const checked = await authorizer.resolve(
+            snapshot,
+            scope,
+            AccessContext.of(Caller.of(subject), call.now),
+        );
 
         return { isAllowed: (await authorizer.check(snapshot, asked, object, checked)).isAllowed };
     },

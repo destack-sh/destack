@@ -87,7 +87,7 @@ export const bindable: Trait<true | Gated> & {
                 });
 
                 // bind exactly them with the target added or removed, as the store's own work binds
-                const id = call.requireId();
+                const id = call.id;
                 const kept = rows.map((row) => row.objectId).filter((each) => each !== id);
                 const ids = action === "bind" ? [...kept, id] : kept;
                 await call.mutate(call.caller, [

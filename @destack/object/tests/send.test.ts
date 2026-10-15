@@ -1,7 +1,7 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessTables, principal, relation, Caller } from "@destack/access";
+import { AccessContext, accessTables, Caller, principal, relation } from "@destack/access";
 
 import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -120,7 +120,7 @@ test.each(TEST_DIALECTS)(
         const context = userContext(users.frank, spaceId);
         const signUp = (name: string) =>
             store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [member.call("create", { spaceId, name })],
                 })
@@ -180,7 +180,7 @@ test.each(TEST_DIALECTS)(
             origin: { package: note.package },
         });
         const written = await home
-            .mutate(userContext(users.ada, spaceId).caller(), {
+            .mutate(userContext(users.ada, spaceId).access(), {
                 id: RequestId.create(Date.now()),
                 calls: [note.call("create", { spaceId, title: "Ada's" })],
             })
@@ -208,7 +208,7 @@ test.each(TEST_DIALECTS)(
                     yield* [];
                 },
                 receive: (mutation) =>
-                    home.receiveFrom(mutation, userContext(users.bob, spaceId).caller()),
+                    home.receiveFrom(mutation, userContext(users.bob, spaceId).access()),
             },
         });
 
@@ -341,7 +341,7 @@ test("send a change of replicated rows to the publisher of the replica keeping t
                 yield* [];
             },
             receive: (mutation: Mutation) =>
-                home.receiveFrom(mutation, userContext(users.bob, spaceId).caller()),
+                home.receiveFrom(mutation, userContext(users.bob, spaceId).access()),
         }),
         uplink: {
             stream: async function* (_subscription, signal) {
@@ -406,11 +406,14 @@ test("refuse an in-process change of replicated rows, and send it toward their h
     // refuse writing a note through the replica as an installation acting for a person under a grant
     const person = principal.user.reference("universe", users.frank);
     const grant = { id: Identifier.create("grant"), scope: person.id, permissions: [] };
-    const caller: Caller = {
-        ...Caller.of(person, Date.now()),
-        delegates: [principal.installation.reference(spaceId, "installation-notes")],
-        grant,
-    };
+    const caller = AccessContext.of(
+        {
+            ...Caller.of(person),
+            actors: [principal.installation.reference(spaceId, "installation-notes")],
+            grant,
+        },
+        Date.now(),
+    );
     const call = note.call("create", { spaceId, title: "First" });
     await expect(
         follower.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }),

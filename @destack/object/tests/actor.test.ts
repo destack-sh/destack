@@ -8,7 +8,7 @@ import { AuditCaller } from "../src/index.ts";
 import { ObjectReference } from "@destack/sync";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
-import { anyone, type Caller, principal } from "@destack/access";
+import { AccessContext, ANONYMOUS, Caller, type Credential, principal } from "@destack/access";
 
 test("persist verified caller identities with their delegates and grant, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
@@ -22,7 +22,8 @@ test("persist verified caller identities with their delegates and grant, record 
         const deploymentId = schema
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-000000000001");
-        const requests = [
+        const requests: (Pick<Caller, "subject"> &
+            Partial<Pick<Caller, "actors" | "grant"> & Pick<Credential, "deployments">>)[] = [
             { subject: represented },
             { subject: { ...represented, scope: "machine-example" } },
             {
@@ -36,33 +37,32 @@ test("persist verified caller identities with their delegates and grant, record 
                     },
                     { subject: actor, id: deploymentId },
                 ],
-                delegates: [actor],
+                actors: [actor],
                 grant: { id: grantId, scope: represented.id, permissions: [] },
             },
             { subject: principal.installation.reference("space-example", "share") },
         ];
         const calls = [];
         const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
-        for (const claims of requests) {
-            const caller: Caller = {
-                ...claims,
-                subjects: [claims.subject],
-                credential: {
-                    ...credential,
-                    audience: origin.package.id,
-                    verifiedAt: now,
-                    expiresAt: now + 60000,
-                },
-            };
+        for (const { deployments, ...claims } of requests) {
             const request = new RequestContext(new Request("https://example.test"), {
                 clock: Clock.system,
                 audience: origin.package.id,
                 scope: "universe",
-                caller,
+                authentication: {
+                    caller: { ...Caller.of(claims.subject), ...claims },
+                    credential: {
+                        ...credential,
+                        audience: origin.package.id,
+                        verifiedAt: now,
+                        expiresAt: now + 60000,
+                        ...(deployments === undefined ? {} : { deployments: [...deployments] }),
+                    },
+                },
                 resources: new ResourceContext(),
             });
             const recorder = AuditRecorder.from(
-                request.caller(),
+                request.access(),
                 storage.journal,
                 origin,
                 request.requestId,
@@ -85,7 +85,7 @@ test("persist verified caller identities with their delegates and grant, record 
             }),
         });
         const recorder = AuditRecorder.from(
-            { subjects: [] },
+            AccessContext.of(Caller.anonymous(), Date.now()),
             storage.journal,
             origin,
             rejected.requestId,
@@ -107,12 +107,12 @@ test("persist verified caller identities with their delegates and grant, record 
             { ...origin, caller: local },
             {
                 ...origin,
-                caller: { ...person, delegates: [actor] },
+                caller: { ...person, actors: [actor] },
                 deploymentId,
                 grantId,
             },
             { ...origin, caller: share },
-            { ...origin, caller: { subject: anyone.reference("*", "*") } },
+            { ...origin, caller: { subject: ANONYMOUS } },
         ]);
 
         // read the identities back through queries of the call events

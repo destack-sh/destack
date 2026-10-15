@@ -2,7 +2,13 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 
-import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
+import {
+    AccessContext,
+    accessRelationship,
+    Caller,
+    principal,
+    Relationship,
+} from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Package, PackageId } from "@destack/package";
@@ -222,7 +228,7 @@ async function serve(boxes: Boxes) {
         await Transaction.run(database, async (transaction) => {
             await DesiredState.keep(transaction, spaceId, [...states, ...drainingStates]);
             await store.mutate(
-                Caller.of(spacePrincipal(spaceId), Date.now()),
+                AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
                 {
                     id: RequestId.create(Date.now()),
                     calls: [
@@ -289,7 +295,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     // keep the one state the box needs, and refuse a digest of a state the space keeps none of
     const kept = await database.select({ state: desiredState.state }).from(desiredState);
     const unknown = await refusal(
-        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [
                 box.call("specify", {
@@ -532,7 +538,7 @@ test("name a resource after another kind's resource in its space, refusing a sec
     const { store } = await serve(new Boxes());
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>
-        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [kind.call("create", { ...kind.in(scope), ...written, name: "main" })],
         });

@@ -77,7 +77,7 @@ test.for(TEST_DIALECTS)(
         const context = userContext(users.frank, spaceId);
         const create = (name: string, parentId?: string) =>
             store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [
                         item.call("create", {
@@ -101,7 +101,7 @@ test.for(TEST_DIALECTS)(
         // move the last child between the first two
         const [alpha, beta, gamma] = children;
         await store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     item.call("update", {
@@ -114,7 +114,7 @@ test.for(TEST_DIALECTS)(
             .then(([written]) => written);
 
         // read each parent's children in order
-        const listed = await store.query(context.caller(), item.call("list", { spaceId }));
+        const listed = await store.query(context.access(), item.call("list", { spaceId }));
         const under = (parentId: string | null) =>
             listed.items
                 .filter((row) => (row.parentId ?? null) === parentId)
@@ -134,7 +134,7 @@ test.for(TEST_DIALECTS)(
         const context = userContext(users.frank, spaceId);
         const create = (name: string, status: "todo" | "done") =>
             store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [card.call("create", { spaceId, name, status })],
                 })
@@ -145,7 +145,7 @@ test.for(TEST_DIALECTS)(
         await create("ship", "done");
         await create("review", "todo");
         await create("celebrate", "done");
-        const listed = await store.query(context.caller(), card.call("list", { spaceId }));
+        const listed = await store.query(context.access(), card.call("list", { spaceId }));
         const column = (status: string) =>
             listed.items.filter((row) => row.status === status).map((row) => row.name);
 

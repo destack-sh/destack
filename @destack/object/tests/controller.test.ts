@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { none, principal, relation, Caller } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
@@ -91,7 +91,7 @@ test.each(TEST_DIALECTS)(
         const now = Date.now();
         const create = async (topic: string, dueAt: number) =>
             store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [reminder.call("create", { spaceId, topic, dueAt })],
                 })
@@ -172,7 +172,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
     );
     await openSpace(storage.database, spaceId);
     const created = await store
-        .mutate(userContext(users.frank, spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).access(), {
             id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: 1 })],
         })
@@ -218,7 +218,7 @@ test("run a controller's calls as the space, audited as the space with the contr
 
     // send a due reminder of frank through the controller
     const due = await store
-        .mutate(userContext(users.frank, spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).access(), {
             id: RequestId.create(Date.now()),
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: Date.now() - 1000 })],
         })
@@ -230,10 +230,16 @@ test("run a controller's calls as the space, audited as the space with the contr
     const [row] = await database.select().from(reminder.table);
     const send = (as: Identifier<"user">) =>
         refusal(
-            store.mutate(Caller.of(principal.user.reference(Scope.universe.id, as), Date.now()), {
-                id: RequestId.create(Date.now()),
-                calls: [reminder.call("send", reminder.target(present(row, "the reminder")))],
-            }),
+            store.mutate(
+                AccessContext.of(
+                    Caller.of(principal.user.reference(Scope.universe.id, as)),
+                    Date.now(),
+                ),
+                {
+                    id: RequestId.create(Date.now()),
+                    calls: [reminder.call("send", reminder.target(present(row, "the reminder")))],
+                },
+            ),
         );
 
     // record the send as the space and the controller, and refuse both users

@@ -2,7 +2,7 @@ import { users } from "./fixture/user.ts";
 import { Transaction } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Scope } from "@destack/sync";
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, Clock, schema } from "@destack/schema";
@@ -92,7 +92,7 @@ test("admit the calls of moving permissions in a fenced scope and refuse every o
         origin: { package: pin.package },
     });
     const mutate = (call: ReturnType<typeof pin.call>) =>
-        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [call],
         });

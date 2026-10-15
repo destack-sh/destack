@@ -144,7 +144,7 @@ const rename = page.call("rename", { ...page.target(row), title: "Plans" });
 const create = page.call("create", { spaceId, title: "Ideas" });
 ```
 
-## Stores
+## Servers
 
 `defineServer` is the one way to serve a package: its handled types, controllers, providers, follows, external files and adapters; `at` serves it as an installation inside a store of other packages.
 
@@ -154,6 +154,8 @@ import { defineServer } from "@destack/object/server";
 export default defineServer(pages, { objects: [page.implement({ methods })], controllers: [] });
 const vault = vaultServer.at(installation); // served as its installation in a space's store
 ```
+
+## Stores
 
 `ObjectStore` serves package servers over one database: `query` reads, `mutate` runs calls in one transaction, once per id, and `packages` answers each package below its mount.
 
@@ -171,7 +173,7 @@ const store = new ObjectStore({
 const row = await store.query(caller, page.call("get", { spaceId, id }));
 const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
 // the store's own principal
-await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls: [create] });
+await store.mutate(store.self, { id: RequestId.create(), calls: [create] });
 ```
 
 ## Events
@@ -215,7 +217,7 @@ const store = new ObjectStore({
     events,
     origin,
 });
-await store.mutate(Caller.of(space, now), {
+await store.mutate(store.self, {
     id: requestId,
     calls: [call.call("record", { scope, items: [{ id, time, data, actor, method }] })],
 });

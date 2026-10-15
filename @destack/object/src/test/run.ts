@@ -1,4 +1,4 @@
-import { type Caller, Grant, principal } from "@destack/access";
+import { type AccessContext, Grant, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import type { ExchangeAsk } from "@destack/runtime/authentication";
 import { RequestId } from "@destack/runtime/request";
@@ -53,19 +53,19 @@ export class TestRunClient implements RunClient {
         store: ObjectStore,
         installation: Subject,
         exchange: ExchangeAsk | undefined,
-    ): Promise<Caller> {
+    ): Promise<AccessContext> {
         // act as the installation in its space
         const { clock } = store;
         const scope = installation.scope;
         if (exchange === undefined) {
-            return subjectContext(installation, scope, { clock }).caller();
+            return subjectContext(installation, scope, { clock }).access();
         }
 
         // act for the subject through the installation, under its grant when asked
-        const delegates = [installation];
+        const actors = [installation];
         const asked = exchange.grant;
         if (asked === undefined) {
-            return subjectContext(exchange.subject, scope, { clock, delegates }).caller();
+            return subjectContext(exchange.subject, scope, { clock, actors }).access();
         }
 
         // require the asked grant live between the subject and the installation
@@ -73,6 +73,6 @@ export class TestRunClient implements RunClient {
         const parties = { delegator: exchange.subject, delegate: installation };
         const grant = Grant.claim(Grant.require(read, asked, parties, clock.now()));
 
-        return subjectContext(exchange.subject, scope, { clock, delegates, grant }).caller();
+        return subjectContext(exchange.subject, scope, { clock, actors, grant }).access();
     }
 }

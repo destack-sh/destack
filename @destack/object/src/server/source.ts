@@ -1,19 +1,20 @@
 import {
+    AccessContext,
     accessRelationship,
     accessRole,
     accessRolePermission,
     Authorizer,
+    Caller,
     CHAIN_PUBLICATION,
     type ChainOptions,
     ChainParameters,
-    decisionTables,
     CONTAINED,
+    decisionTables,
+    type Policy,
     principal,
     Relationship,
-    Caller,
     UNIVERSE_PUBLICATION,
     UniverseParameters,
-    type Policy,
 } from "@destack/access";
 import { Scope, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
@@ -199,8 +200,8 @@ export class ObjectSource {
         }
 
         // decide for the scope's principal or a caller living in it, bound to the called space or the scope below
-        const { subjects } = context.caller(context.scope ?? request.below);
-        const kept = subjects.filter(
+        const following = context.access(context.scope ?? request.below);
+        const kept = [following.subject, ...following.groups].filter(
             (subject) => subject.id === request.below || subject.scope === request.below,
         );
         if (kept.length === 0) {
@@ -224,12 +225,12 @@ export class ObjectSource {
 
     /** Read the principal following, refusing an anonymous follower as unauthenticated. */
     static #principal(context: RequestContext): Subject {
-        const acting = Caller.principal(context.caller());
-        if (acting === undefined) {
+        const caller = context.caller();
+        if (Caller.isAnonymous(caller)) {
             throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
         }
 
-        return acting;
+        return Caller.principal(caller);
     }
 
     /** Require the caller to be a principal, or to have `follow` on the principal's object. */
@@ -250,8 +251,11 @@ export class ObjectSource {
 
         // decide `follow` on the principal from the caller's identity and stated sets
         const { database } = this.store;
-        const caller = context.caller();
-        const { scope: _bound, ...credential } = Caller.requireCredential(caller);
+        const caller = context.access();
+        const { scope: _bound, ...credential } = present(
+            caller.credential,
+            "a follower's credential",
+        );
         const authorization = await this.store.authorize(
             Transaction.reading(database),
             subject.scope,
@@ -270,7 +274,7 @@ export class ObjectSource {
         const authorization = await this.store.authorize(
             Transaction.reading(this.store.database),
             below,
-            context.caller(below),
+            context.access(below),
         );
         const standings = await Promise.all(kept.map((subject) => this.#standing(subject.id)));
         const personal = standings.flatMap((standing) =>
@@ -529,7 +533,7 @@ export class ObjectSource {
                 const { action, values } = object.auditCall("watch", {}, scope);
 
                 return this.store
-                    .audit(scope, context.caller(scope), { requestId: context.requestId })
+                    .audit(scope, context.access(scope), { requestId: context.requestId })
                     .stream(action, values, source);
             },
             () => follow(this.store.feed),
@@ -601,7 +605,7 @@ export class ObjectSource {
         const { scope, after, previous, refresh, origin } = subscription;
         const { queries, writerId } = EphemeralParameters.parse(subscription.parameters);
         const store = this.store.requireEphemeral();
-        const release = store.track(EphemeralStorage.writerKey(context.caller(scope), writerId));
+        const release = store.track(EphemeralStorage.writerKey(context.access(scope), writerId));
         const compiled = ObjectType.queries(store.objects, queries, [scope]);
         const earlier =
             previous === undefined ? undefined : EphemeralParameters.parse(previous).queries;
@@ -744,10 +748,10 @@ export class ObjectSource {
     }
 
     /** Read the caller deciding a follower's rows in a scope: its principal, or the caller. */
-    #reader(follower: ReplicaFollower, scope: string): Caller {
+    #reader(follower: ReplicaFollower, scope: string): AccessContext {
         return "subject" in follower
-            ? Caller.of(follower.subject, this.store.clock.now())
-            : follower.context.caller(scope);
+            ? AccessContext.of(Caller.of(follower.subject), this.store.clock.now())
+            : follower.context.access(scope);
     }
 
     /** Revise a decided stream once the access rows of its chain change, failing with the log. */
@@ -797,7 +801,7 @@ export class ObjectSource {
         const authorization = await this.store.admit(
             Transaction.reading(this.store.database),
             scope,
-            context.caller(scope),
+            context.access(scope),
         );
         if (!(await this.#lists(authorization, reference))) {
             throw new CallError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
@@ -1348,7 +1352,7 @@ export class ObjectSource {
     }
 
     /** Require a reader to have `replicate` on the scope it replicates a chain via. */
-    async requireReplicateVia(via: string, reader: Caller): Promise<void> {
+    async requireReplicateVia(via: string, reader: AccessContext): Promise<void> {
         // require a scope type keeping replicas of its chain
         const { database } = this.store;
         const scope = await Scope.object(Snapshot.live(database), via);
@@ -1360,7 +1364,7 @@ export class ObjectSource {
         }
 
         // decide for the principal standing for the follower, or for the caller
-        const authorization = !Caller.isRemote(reader)
+        const authorization = !AccessContext.isRemote(reader)
             ? await this.store.authorize(Transaction.reading(database), via, reader, { within: [] })
             : await this.store.authorize(Transaction.reading(database), via, reader);
         await authorization.require(policy.permission(REPLICATE), scope);
@@ -1382,7 +1386,7 @@ export class ObjectSource {
             return ObjectAudience.of(
                 this.store,
                 Scope.universe.id,
-                Caller.of(follower.subject, this.store.clock.now()),
+                AccessContext.of(Caller.of(follower.subject), this.store.clock.now()),
                 {
                     isContained,
                     within: await this.#within(follower.parent ?? request.below),
@@ -1398,7 +1402,7 @@ export class ObjectSource {
             return ObjectAudience.of(
                 this.store,
                 request.scope,
-                Caller.of(follower.subject, this.store.clock.now()),
+                AccessContext.of(Caller.of(follower.subject), this.store.clock.now()),
                 { within },
             );
         }
@@ -1407,7 +1411,7 @@ export class ObjectSource {
             return ObjectAudience.of(
                 this.store,
                 request.below,
-                follower.context.caller(request.below),
+                follower.context.access(request.below),
                 {
                     isContained,
                     ...replicating,
@@ -1425,7 +1429,7 @@ export class ObjectSource {
             );
             const scope = replicated.every(Boolean) ? request.below : request.scope;
 
-            return ObjectAudience.of(this.store, scope, follower.context.caller(scope));
+            return ObjectAudience.of(this.store, scope, follower.context.access(scope));
         }
     }
 

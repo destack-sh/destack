@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { accessTables, Caller, CONTAINED, principal } from "@destack/access";
+import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { RequestId } from "@destack/runtime/request";
 import { Scope, type Subject } from "@destack/sync";
@@ -172,10 +172,10 @@ test("refuse to serve local objects at another principal's store, and refuse loc
 });
 
 /** Call as a signed-in user who lives inside the given subjects. */
-function newCaller(id: string, inside: readonly Subject[]): Caller {
-    const person = Caller.of(principal.user.reference(Scope.universe.id, id), Date.now());
+function newCaller(id: string, inside: readonly Subject[]): AccessContext {
+    const person = Caller.of(principal.user.reference(Scope.universe.id, id));
 
-    return { ...person, subjects: [...person.subjects, ...inside] };
+    return AccessContext.of({ ...person, groups: [...person.groups, ...inside] }, Date.now());
 }
 
 test("serve a client's local objects at its own store to the people signed in on it alone", async () => {
@@ -209,14 +209,14 @@ test("serve a client's local objects at its own store to the people signed in on
         ada: newCaller(ada, [{ ...laptop, relation: CONTAINED }]),
         bob: newCaller(bob, []),
     };
-    const write = (caller: Caller, text: string) =>
+    const write = (caller: AccessContext, text: string) =>
         refusal(
             store.mutate(caller, {
                 id: RequestId.create(Date.now()),
                 calls: [sticky.call("create", { clientId: laptop.id, text })],
             }),
         );
-    const list = async (caller: Caller) => {
+    const list = async (caller: AccessContext) => {
         const listed = store.query(caller, sticky.call("list", { clientId: laptop.id }));
 
         return listed.then((page) => page.items.map((row) => row.text), readRefusal);

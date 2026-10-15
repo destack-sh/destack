@@ -10,11 +10,22 @@ import { RevisionShape } from "./procedure.ts";
 import { declarable } from "../trait/declarable.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Execution } from "./execution.ts";
+import type { DeclarableDefinition } from "../trait/declarable.ts";
+import type { TraitTable } from "../object/table.ts";
+
+/** The table of an object type stacks declare. */
+type DeclarableTable = TraitTable<{ readonly declarable: DeclarableDefinition }>;
+
 /** Detach an object from its stack declaration. */
 export function detach<const Permission extends string>(
     permission: Permission,
 ): Method<{ kind: "detach"; permission: Permission; mutates: true }> {
-    return defineMethod<{ kind: "detach"; permission: Permission; mutates: true }>({
+    return defineMethod<{
+        kind: "detach";
+        permission: Permission;
+        mutates: true;
+        table: DeclarableTable;
+    }>({
         kind: "detach",
         permission,
         mutates: true,
@@ -25,7 +36,7 @@ export function detach<const Permission extends string>(
             input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
             output: shapes.row,
         }),
-        handler: (call) => call.requireManaged().update({ detachedAt: call.now }),
+        handler: (call) => call.update({ detachedAt: call.now }),
         async execute(call, execution) {
             // require an object its declaration still manages
             if (!declarable.isManaging(call.target)) {
@@ -59,7 +70,12 @@ const ManagerColumns = schema.looseObject({
 export function adopt<const Permission extends string>(
     permission: Permission,
 ): Method<{ kind: "adopt"; permission: Permission; mutates: true }> {
-    return defineMethod<{ kind: "adopt"; permission: Permission; mutates: true }>({
+    return defineMethod<{
+        kind: "adopt";
+        permission: Permission;
+        mutates: true;
+        table: DeclarableTable;
+    }>({
         kind: "adopt",
         permission,
         mutates: true,
@@ -77,7 +93,7 @@ export function adopt<const Permission extends string>(
         handler: (call) => {
             const { manager } = AdoptInput.parse(call.input);
 
-            return call.requireManaged().update({ ...Manager.values(manager), detachedAt: null });
+            return call.update({ ...Manager.values(manager), detachedAt: null });
         },
         async execute(call, execution) {
             await DeclarableMethod.requireAdoptable(call);

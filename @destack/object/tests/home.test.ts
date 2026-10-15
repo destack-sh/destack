@@ -238,7 +238,7 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
 
 /** Write alice's theme at her person's home, answering its identifier. */
 async function setTheme(home: ObjectStore, value: string): Promise<string> {
-    const [created] = await home.mutate(userContext(users.alice, personId).caller(), {
+    const [created] = await home.mutate(userContext(users.alice, personId).access(), {
         id: RequestId.create(Date.now()),
         calls: [preference.call("create", { scope: personId, name: "theme", value })],
     });

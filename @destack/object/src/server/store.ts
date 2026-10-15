@@ -205,7 +205,7 @@ type MutationRun = {
     /** The scope the calls act in. */
     readonly scope: string;
     /** The caller the mutation runs as. */
-    readonly caller: Caller;
+    readonly caller: AccessContext;
     /** The code making the calls for a principal's own code, such as a controller's name. */
     readonly component?: string;
     /** The expanded calls, in order. */
@@ -451,7 +451,7 @@ export class ObjectStore {
     /** The outbox of sent calls and replicated row changes, absent if nothing receives them. */
     readonly #sends?: Outbox;
     /** Open an audit recorder for a scope and caller, with its calls' request and component. */
-    readonly audit: (scope: string, caller: Caller, called?: AuditCalled) => AuditRecorder;
+    readonly audit: (scope: string, caller: AccessContext, called?: AuditCalled) => AuditRecorder;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
     /** The clock calls run and controllers reconcile at. */
@@ -847,6 +847,11 @@ export class ObjectStore {
             : new Journal(options.database, callKey, { events, clock: options.clock });
     }
 
+    /** The store's principal acting as itself now, as its controllers and settlements call. */
+    get self(): AccessContext {
+        return AccessContext.of(Caller.of(this.principal), this.clock.now());
+    }
+
     /** The event log keeping the store's calls and events, failing for a store without methods. */
     get events(): EventStore {
         return this.journal.events;
@@ -1058,7 +1063,7 @@ export class ObjectStore {
                     object,
                     name,
                     input: called,
-                } = this.#resolve(input.call, false, context.caller(input.scope));
+                } = this.#resolve(input.call, false, context.access(input.scope));
                 if (object.readScope(name, called) !== input.scope) {
                     throw new CallError("BAD_REQUEST", {
                         message: `${object.name}.${name} reads a scope other than ${input.scope}`,
@@ -1069,7 +1074,7 @@ export class ObjectStore {
             }),
             receive: replica.receive.handler(async ({ input, context }) => {
                 // run the follower's mutation as the caller the route's identity verified
-                await this.receiveFrom(input.mutation, context.caller());
+                await this.receiveFrom(input.mutation, context.access());
 
                 return {};
             }),
@@ -1094,7 +1099,12 @@ export class ObjectStore {
     }
 
     /** Refuse a method of a type in a scope that the caller's grant binds to other methods. */
-    static #requireReached(caller: Caller, object: ObjectType, scope: string, name: string): void {
+    static #requireReached(
+        caller: AccessContext,
+        object: ObjectType,
+        scope: string,
+        name: string,
+    ): void {
         const { grant } = caller;
         const type = { packageId: object.policy.definition.packageId, type: object.policy.name };
         if (grant !== undefined && !GrantPermission.reaches(type, scope, name, grant.permissions)) {
@@ -1105,8 +1115,10 @@ export class ObjectStore {
     }
 
     /** Read a request's caller for its audit: anonymous when its credential failed. */
-    static #requestCaller(context: RequestContext): Caller {
-        return context.authenticationError === undefined ? context.caller() : { subjects: [] };
+    static #requestCaller(context: RequestContext): AccessContext {
+        return context.authenticationError === undefined
+            ? context.access()
+            : AccessContext.of(Caller.anonymous(), context.clock.now());
     }
 
     /** Answer one routed procedure as its request's caller. */
@@ -1122,7 +1134,7 @@ export class ObjectStore {
         const { [isEphemeral ? "writerId" : "requestId"]: named, ...rest } = input;
         const scope = object.readScope(name, rest);
         await this.enter(context, scope);
-        const caller = context.caller(scope);
+        const caller = context.access(scope);
 
         // read through a query
         const call = Call.record(object, name, rest);
@@ -1144,7 +1156,7 @@ export class ObjectStore {
     }
 
     /** Read through a method as a caller in a read-only transaction, recording audited reads. */
-    async query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
+    async query<Result>(caller: AccessContext, call: ObjectCall<Result>): Promise<Result> {
         const callable = this.#callable(call, false, this.replicas);
         const [result] = Call.results(callable, [call], [await this.#query(caller, call)]);
 
@@ -1152,7 +1164,7 @@ export class ObjectStore {
     }
 
     /** Read through a method as a caller, answering its untyped result. */
-    async #query(caller: Caller, call: ObjectCall): Promise<unknown> {
+    async #query(caller: AccessContext, call: ObjectCall): Promise<unknown> {
         // resolve the call, reading only a method the caller's grant allows
         const { object, name, input } = this.#resolve(call, false, caller);
         const method = object.method(name);
@@ -1226,7 +1238,7 @@ export class ObjectStore {
 
     /** Run a mutation's calls as a caller in one transaction, once per caller and identifier. */
     async mutate<const Calls extends readonly ObjectCall[]>(
-        caller: Caller,
+        caller: AccessContext,
         transaction: { readonly id: string; readonly calls: Calls },
         options: MutateOptions = {},
     ): Promise<ResultsOf<Calls>> {
@@ -1237,7 +1249,7 @@ export class ObjectStore {
 
     /** Run a mutation's calls as a caller in one transaction, answering untyped results. */
     async #mutate(
-        caller: Caller,
+        caller: AccessContext,
         submitted: { readonly id: string; readonly calls: readonly ObjectCall[] },
         options: MutateOptions,
     ): Promise<readonly unknown[]> {
@@ -1324,7 +1336,7 @@ export class ObjectStore {
     async #mutateInside(
         transaction: Transaction,
         mutation: { readonly id: string; readonly calls: readonly ObjectCall[] },
-        caller: Caller,
+        caller: AccessContext,
         options: MutateOptions,
     ): Promise<unknown[]> {
         // run each call in order as the caller under the mutation's request, recorded under the component making it
@@ -1354,7 +1366,7 @@ export class ObjectStore {
     async #runInside(
         transaction: Transaction,
         entry: ObjectCall,
-        caller: Caller,
+        caller: AccessContext,
         mutates: boolean,
         code: CallCode,
         parent: { readonly call: Call; readonly authorization: Authorization } | undefined,
@@ -1420,7 +1432,7 @@ export class ObjectStore {
         originals: readonly ReturnType<typeof Call.resolve>[],
         calls: readonly Expansion[],
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         options: MutateOptions,
     ): Promise<MutationRun> {
         // require an authenticated caller the journal keys the mutation by
@@ -1629,7 +1641,7 @@ export class ObjectStore {
     async #expand(
         calls: readonly ReturnType<typeof Call.resolve>[],
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
     ): Promise<Expansion[]> {
         // keep calls whose methods expand into nothing
         const methods = calls.map((call) => this.served(call.object).method(call.name));
@@ -1687,7 +1699,7 @@ export class ObjectStore {
     ): Promise<PushResult> {
         // enter the pushed scope as the request's caller
         await this.enter(context, scope);
-        const caller = context.caller(scope);
+        const caller = context.access(scope);
 
         // run each mutation in its own transaction
         const outcomes: PushResult["outcomes"][number][] = [];
@@ -1783,18 +1795,14 @@ export class ObjectStore {
     async receive(mutation: sync.Mutation, as: Subject): Promise<void> {
         // pass changes of replicated rows to their home, else run them here under the sent request
         if (!(await this.#forward(mutation))) {
-            await this.mutate(Caller.of(as, this.clock.now()), mutation);
+            await this.mutate(AccessContext.of(Caller.of(as), this.clock.now()), mutation);
         }
     }
 
     /** Run a follower's mutation of the served rows as the caller. */
-    async receiveFrom(transaction: sync.Mutation, caller: Caller): Promise<void> {
+    async receiveFrom(transaction: sync.Mutation, caller: AccessContext): Promise<void> {
         // pass an installation's change of replicated rows toward their home
-        if (
-            Caller.isSigned(caller) &&
-            principal.installation.is(caller.subject) &&
-            this.#isForwarded(transaction)
-        ) {
+        if (principal.installation.is(caller.subject) && this.#isForwarded(transaction)) {
             await (await this.#readHomeAll(transaction)).receive(transaction, caller.subject);
         }
         // run the served rows' change as the caller, refusing anyone else's change of replicated rows
@@ -2003,7 +2011,7 @@ export class ObjectStore {
     async authorize(
         transaction: Transaction,
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         options: AuthorizeOptions = {},
     ): Promise<Authorization> {
         // place the caller inside the scopes given, else those its principal's row places it, read once per caller and database
@@ -2029,12 +2037,12 @@ export class ObjectStore {
 
         // bind the caller with the scopes it sits inside, at the work's time
         const now = options.now ?? this.clock.now();
-        const bind = (): AccessContext =>
-            AccessContext.of(
-                { ...caller, subjects: [...caller.subjects, ...within] },
-                now,
-                request,
-            );
+        const bind = (): AccessContext => ({
+            ...caller,
+            groups: [...caller.groups, ...within],
+            now,
+            ...(request === undefined ? {} : { request }),
+        });
 
         // resolve its access
         const access = await this.authorizer.resolve(transaction.view(), scope, bind(), links);
@@ -2046,7 +2054,7 @@ export class ObjectStore {
     async admit(
         transaction: Transaction,
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         options: AdmitOptions = {},
     ): Promise<Authorization> {
         // resolve its access, then require an unmoved scope unless every call runs during a move
@@ -2182,7 +2190,7 @@ export class ObjectStore {
     async #mutateEphemeral(
         calls: readonly { object: ObjectType; name: string; input: JsonObject }[],
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         requestId: string,
         writerId: string | undefined,
     ): Promise<unknown[]> {
@@ -2225,7 +2233,11 @@ export class ObjectStore {
     }
 
     /** Resolve a recorded call against the served types. */
-    #resolve(entry: ObjectCall, mutates: boolean, caller: Caller): ReturnType<typeof Call.resolve> {
+    #resolve(
+        entry: ObjectCall,
+        mutates: boolean,
+        caller: AccessContext,
+    ): ReturnType<typeof Call.resolve> {
         return Call.resolve(
             this.#callable(entry, mutates, this.replicas),
             entry,
@@ -2275,7 +2287,7 @@ export class ObjectStore {
         object: ObjectType,
         name: string,
         input: JsonObject,
-        caller: Caller,
+        caller: AccessContext,
         options: Pick<CallOptions, "as" | "expansion"> = {},
     ): Promise<{
         call: Call;
@@ -2307,6 +2319,7 @@ export class ObjectStore {
             transaction,
             view: snapshot ?? transaction,
         };
+        const { now } = authorization.access.context;
         const call: Call = new Call({
             object,
             name,
@@ -2314,15 +2327,14 @@ export class ObjectStore {
             scope,
             chain: authorization.chain,
             input: fields,
-            ...(targetId === undefined ? {} : { id: targetId }),
+            id: targetId,
             target: undefined,
             prepared: undefined,
             caller:
                 options.as === undefined
-                    ? caller
-                    : Caller.of(options.as, authorization.access.context.now),
+                    ? { ...caller, now }
+                    : AccessContext.of(Caller.of(options.as), now),
             ...(options.expansion === undefined ? {} : { expansion: options.expansion }),
-            now: authorization.access.context.now,
             location: execution,
             objects: this.objects,
         });
@@ -2459,7 +2471,7 @@ export class ObjectStore {
     async #prepare(
         calls: readonly { object: ObjectType; name: string; input: JsonObject }[],
         scope: string,
-        caller: Caller,
+        caller: AccessContext,
         requestId: string,
         request?: RequestIdentity,
     ): Promise<Prepared[]> {
@@ -2613,7 +2625,7 @@ export class ObjectStore {
         object: ObjectType,
         name: string,
         input: JsonObject,
-        caller: Caller,
+        caller: AccessContext,
         options: CallOptions = {},
     ): Promise<unknown> {
         const attributes = { "destack.object.type": object.name, "destack.object.method": name };
@@ -2630,11 +2642,11 @@ export class ObjectStore {
     /** Hide a remote caller's refusal in a scope it cannot see, unless it reads the target. */
     #conceal(
         authorization: Authorization,
-        caller: Caller,
+        caller: AccessContext,
         target: unknown,
         error: unknown,
     ): Promise<unknown> {
-        return Caller.isRemote(caller) && target === undefined
+        return AccessContext.isRemote(caller) && target === undefined
             ? authorization.concealDenial(error, this.objects)
             : Promise.resolve(error);
     }
@@ -2646,17 +2658,17 @@ export class ObjectStore {
         object: ObjectType,
         name: string,
         input: JsonObject,
-        caller: Caller,
+        caller: AccessContext,
         options: CallOptions,
     ): Promise<unknown> {
-        // build the call on the served type, hiding a refused target the caller cannot see
+        // build the call on the served type, a creation identified, hiding a refused target the caller cannot see
         const { prepared, from, writerId, requestId } = options;
         const { call, execution, method, scope, targetId } = await this.#call(
             transaction,
             authorization,
             this.served(object),
             name,
-            input,
+            ObjectStore.#named(transaction, object, name, input, requestId),
             caller,
             options,
         ).catch(async (error: unknown) => {
@@ -2770,7 +2782,7 @@ export class ObjectStore {
     /** Record a read that showed guarded personal values unmasked, of one object or a scope's. */
     async recordUnmask(read: {
         readonly scope: string;
-        readonly caller: Caller;
+        readonly caller: AccessContext;
         readonly object: ObjectType;
         readonly operation: string;
         readonly id?: string;
@@ -2868,11 +2880,8 @@ export class ObjectStore {
         }
 
         // record the row after the call against the target before it
-        const after = await execution.transaction.read(object.table).findFirst({
-            where: {
-                id: present(call.id, "the tracked object"),
-            },
-        });
+        const id = present(call.id, "the tracked object");
+        const after = await execution.transaction.read(object.table).findFirst({ where: { id } });
         if (after !== undefined) {
             const before = present(from, "the log position before a tracked call");
             await TrackedHistory.record(history, call, execution, call.target, after, before);
@@ -2886,7 +2895,7 @@ export class ObjectStore {
         call: Call,
         id: string | undefined,
         presented: unknown,
-        caller: Caller,
+        caller: AccessContext,
         request: CallRequest | undefined,
         component: string | undefined,
     ): void {
@@ -2966,6 +2975,25 @@ export class ObjectStore {
         return isUnnamed
             ? { ...call, input: { ...call.input, id: `${call.object.identity}-${v7()}` } }
             : call;
+    }
+
+    /** Identify a creation its caller leaves unnamed at the transaction's next position. */
+    static #named(
+        transaction: Transaction,
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        requestId: string | undefined,
+    ): JsonObject {
+        const isUnnamed =
+            object.method(name).kind === "create" &&
+            input["id"] === undefined &&
+            requestId !== undefined &&
+            !transaction.isReading;
+
+        return isUnnamed
+            ? { ...input, id: object.deriveId(requestId, transaction.takePosition()) }
+            : input;
     }
 
     /** Project a read's result onto the audit details its method declares. */
@@ -3349,12 +3377,16 @@ export class ObjectStore {
                 return undefined;
             }
 
-            // admit the signed callers of the types the adapter declares, and anyone where it declares none
+            // admit identified callers of the types the adapter declares, leaving an adapter declaring none its own protocol
             const { callers } = adapter;
-            const caller = callers === undefined ? undefined : context.requireCaller();
-            if (
+            const caller =
+                callers === undefined
+                    ? AccessContext.of(Caller.anonymous(), context.clock.now())
+                    : context.access();
+            if (callers !== undefined && Caller.isAnonymous(caller)) {
+                throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+            } else if (
                 callers !== undefined &&
-                caller !== undefined &&
                 !callers.some(
                     (type) =>
                         type.packageId === caller.subject.packageId &&

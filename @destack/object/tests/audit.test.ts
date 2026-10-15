@@ -72,7 +72,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
 
     // record the version in the result, never the value
     expect(
-        await store.query(context.caller(), handled.call("open", { spaceId: SPACE_ID, id })),
+        await store.query(context.access(), handled.call("open", { spaceId: SPACE_ID, id })),
     ).toEqual({
         version: 3,
         value: "secret",

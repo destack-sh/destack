@@ -227,7 +227,7 @@ function summary(answer: HandlerAnswer): JsonValue {
 
 /** Run a call of a card method as a user, alice by default, answering the card. */
 async function run(store: ObjectStore, call: ObjectCall, user = users.alice) {
-    const [result] = await store.mutate(userContext(user, spaceId).caller(), {
+    const [result] = await store.mutate(userContext(user, spaceId).access(), {
         id: RequestId.create(Date.now()),
         calls: [call],
     });
@@ -276,7 +276,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext(users.alice, spaceId).caller(),
+        userContext(users.alice, spaceId).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -378,7 +378,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
     const stored = await store.query(
-        userContext(users.alice, spaceId).caller(),
+        userContext(users.alice, spaceId).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -448,7 +448,7 @@ test("read every card of the package in a hook, and read as the caller through a
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
     const stored = await store.query(
-        userContext(users.alice, spaceId).caller(),
+        userContext(users.alice, spaceId).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -486,7 +486,7 @@ test("call an internal method of the hook's own package in its session", async (
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext(users.alice, spaceId).caller(),
+        userContext(users.alice, spaceId).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -600,7 +600,7 @@ test("read the rows of a type the installation serves without hooks", async () =
     );
 
     // write a note and a card as alice, then remark on the card
-    const caller = userContext(users.alice, spaceId).caller();
+    const caller = userContext(users.alice, spaceId).access();
     await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [note.call("create", { spaceId, text: "ship it" })],

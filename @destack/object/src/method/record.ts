@@ -409,73 +409,6 @@ type CreationShape<Object extends ObjectType> = Object["storage"] extends "event
 
 /** The record methods' definitions and handlers: creation, update, deletion and their checks. */
 export const RecordMethod = {
-    /** Describe a custom method on one object, reading or changing it. */
-    custom<
-        const Permission extends string,
-        Input extends InputSchema,
-        Output extends schema.Schema,
-        Prepared extends schema.Schema,
-        const Mutates extends boolean,
-        const Internal extends boolean,
-        const Target extends MethodTarget,
-    >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
-        mutates: Mutates,
-    ): MethodDefinition<{
-        kind: "custom";
-        permission: Permission;
-        input: Input;
-        output: Output;
-        prepared: Prepared;
-        mutates: Mutates;
-        internal: Internal;
-        target: Target;
-    }> {
-        // act in the scope for a method without a target
-        const { inverse, selected, ...declared } = definition;
-        const isScoped = definition.target === "scope";
-
-        return {
-            kind: "custom",
-            source: { builder: mutates ? "mutation" : "query", arguments: [definition] },
-            ...declared,
-            ...(isScoped
-                ? {
-                      authorize: (call: Call, execution: StoreExecution) =>
-                          RecordMethod.authorizeScoped(call, execution, selected),
-                  }
-                : {}),
-            ...(inverse === undefined
-                ? {}
-                : {
-                      inverse:
-                          typeof inverse === "string"
-                              ? (step: Step) => [Step.record(step, inverse, step.input)]
-                              : inverse,
-                  }),
-            mutates,
-            isPredicted: false,
-            ...(definition.target === undefined ? {} : { target: definition.target }),
-            result: definition.output === undefined ? "object" : "value",
-            procedure: (name, shapes) => {
-                // select the target, else the scope
-                const selection = isScoped ? shapes.scope : shapes.target;
-
-                return {
-                    route: {
-                        method: "POST",
-                        path: isScoped ? `/${Casing.kebab(name)}` : `/{id}/${Casing.kebab(name)}`,
-                    },
-                    input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
-                        selection.extend({ ...(mutates ? shapes.replay : {}), ...input.shape }),
-                    ),
-                    output: definition.output ?? shapes.row,
-                };
-            },
-            handler: (call) => RecordMethod.missingHandler(call),
-        };
-    },
-
     /** Read a method's own input fields. */
     fields(input: InputObject | undefined): InputObject["shape"] {
         return input?.shape ?? {};
@@ -629,7 +562,7 @@ export const RecordMethod = {
     async insertAuthorized(
         call: MutationCall,
         execution: StoreExecution,
-        insert: (created: MutationCall) => Promise<unknown>,
+        insert: (created: MutationCall<Table, JsonObject, string>) => Promise<unknown>,
     ): Promise<{ readonly id: string; readonly row: unknown }> {
         const { id, created, row } = await RecordMethod.insertCreated(call, execution, insert);
         await execution.authorization.requireWritable(created, id, execution);
@@ -665,14 +598,15 @@ export const RecordMethod = {
         const ids = await RecordMethod.eachItem(call, async (item) => {
             // insert a prediction under the client's identifier
             if (execution.kind === "client") {
-                if (item.id === undefined) {
+                const { id } = item;
+                if (id === undefined) {
                     throw new TypeError(
                         `predicted ${item.object.name} creations need an identifier`,
                     );
                 }
-                await RecordMethod.createObject(item, execution);
+                await RecordMethod.createObject(item.identify(id), execution);
 
-                return item.id;
+                return id;
             }
             // insert under an unused identifier and record its access
             else {
@@ -709,10 +643,12 @@ export const RecordMethod = {
                     call,
                     ...created.map(({ row }) => ({ table, before: null, after: row })),
                 );
-                for (const [index, { item }] of created.entries()) {
-                    await RecordMethod.recordCreation(item, execution).catch((error: unknown) => {
-                        throw RecordMethod.itemFailure(call.object, index, error);
-                    });
+                for (const [index, { item, id }] of created.entries()) {
+                    await RecordMethod.recordCreation(item, id, execution).catch(
+                        (error: unknown) => {
+                            throw RecordMethod.itemFailure(call.object, index, error);
+                        },
+                    );
                 }
             });
         } catch (error) {
@@ -898,7 +834,7 @@ export const RecordMethod = {
         const values = RecordMethod.writtenValues(table, call.input, written);
         const rows = await RecordMethod.matchingRows(call, execution);
         const changes = rows.map((row) => {
-            const each = call.with({ id: RecordedRow.parse(row).id, target: row });
+            const each = call.at(row);
             RecordMethod.requireUnmanaged(each);
 
             return {
@@ -952,7 +888,7 @@ export const RecordMethod = {
             }
 
             // write the item's fields over its target, refusing a managed object
-            const each = call.with({ id, target });
+            const each = call.at(target);
             RecordMethod.requireUnmanaged(each);
             const values = RecordMethod.writtenValues(table, item, written);
 
@@ -987,9 +923,7 @@ export const RecordMethod = {
     async deleteMatching(call: Call, execution: Execution): Promise<{ count: number }> {
         // take each match as its target
         const rows = await RecordMethod.matchingRows(call, execution);
-        const targets = rows.map((row) =>
-            call.with({ id: RecordedRow.parse(row).id, target: row }),
-        );
+        const targets = rows.map((row) => call.at(row));
         for (const target of targets) {
             RecordMethod.requireUnmanaged(target);
         }
@@ -1014,10 +948,13 @@ export const RecordMethod = {
     },
 
     /** Read a loaded target's deletion: its trashed row under a trash, else its removal. */
-    deletion(target: Call): { readonly before: Row; readonly after: Row | null } {
+    deletion(target: Call<Table, JsonObject, Select<Table>>): {
+        readonly before: Row;
+        readonly after: Row | null;
+    } {
         // remove an object deleting at once
-        const before: Row = target.requireTarget();
-        if (!target.isTrashable()) {
+        const before: Row = target.target;
+        if (!target.object.isTrashable()) {
             return { before, after: null };
         }
 
@@ -1066,7 +1003,10 @@ export const RecordMethod = {
     },
 
     /** Insert a created object. */
-    async createObject(call: MutationCall, execution: Execution): Promise<Select<Table>> {
+    async createObject(
+        call: MutationCall<Table, JsonObject, string>,
+        execution: Execution,
+    ): Promise<Select<Table>> {
         // write the created row, then record its access
         const row = RecordMethod.createdRow(
             call.object.table,
@@ -1077,17 +1017,17 @@ export const RecordMethod = {
             before: null,
             after: row,
         });
-        await RecordMethod.recordCreation(call, execution);
+        await RecordMethod.recordCreation(call, call.id, execution);
 
         return row;
     },
 
     /** Record a created object's access: a new scope's chain and its first relationships. */
-    async recordCreation(call: MutationCall, execution: Execution): Promise<void> {
+    async recordCreation(call: MutationCall, id: string, execution: Execution): Promise<void> {
         const creating = RecordMethod.readCreation(call);
         const isScope = call.object.policy.definition.scope === true;
         if (execution.kind === "store" && (isScope || creating !== undefined)) {
-            const object = call.object.reference(call.scope, call.requireId());
+            const object = call.object.reference(call.scope, id);
             await execution.authorization.create(object, (await creating?.(call, object)) ?? {});
         }
     },
@@ -1166,10 +1106,10 @@ export const RecordMethod = {
     async insertCreated(
         call: MutationCall,
         execution: StoreExecution,
-        insert: (created: MutationCall) => Promise<unknown>,
+        insert: (created: MutationCall<Table, JsonObject, string>) => Promise<unknown>,
     ): Promise<{
         readonly id: string;
-        readonly created: MutationCall;
+        readonly created: MutationCall<Table, JsonObject, string>;
         readonly row: unknown;
     }> {
         // insert within a savepoint
@@ -1177,7 +1117,7 @@ export const RecordMethod = {
             return await execution.transaction.savepoint(async () => {
                 // insert under an unused identifier
                 const id = await RecordMethod.createdId(call, execution);
-                const created = call.with({ id });
+                const created = call.identify(id);
 
                 return { id, created, row: await insert(created) };
             });
@@ -1297,16 +1237,18 @@ export const RecordMethod = {
     },
 
     /** Delete an object, or request deletion when a trash or controller finishes it. */
-    async deleteObject(call: Call): Promise<Record<string, never>> {
+    async deleteObject(
+        call: Call<Table, JsonObject, Select<Table>>,
+    ): Promise<Record<string, never>> {
         // refuse deleting an object twice
         const { object } = call;
-        const target: Row = call.requireTarget();
+        const target: Row = call.target;
         if (target["deletedAt"] !== undefined && target["deletedAt"] !== null) {
             throw new CallError("CONFLICT", { message: `${object.name} is already deleted` });
         }
 
         // request deletion when a trash or controller finishes it
-        if (call.isTrashable()) {
+        if (object.isTrashable()) {
             await call.update(RecordMethod.trashed(call));
 
             return {};
@@ -1487,10 +1429,8 @@ export class MethodBuilder<
             result: "object",
             procedure: (name, shapes) => RecordMethod.createProcedure(name, shapes, options),
             ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
-            handler: (call, execution) =>
-                RecordMethod.createObject(call.requireSigned(), execution),
-            authorize: (call, execution) =>
-                RecordMethod.authorizeCreate(call.requireSigned(), execution),
+            handler: (call, execution) => RecordMethod.createObject(call, execution),
+            authorize: (call, execution) => RecordMethod.authorizeCreate(call, execution),
             inverse: (step) => {
                 // delete the created object
                 const call = Step.call(step, "delete", Step.target(step));
@@ -1521,11 +1461,8 @@ export class MethodBuilder<
                 }
 
                 // insert under an unused identifier and record its access
-                const recorded = call.requireSigned();
-                const { row } = await RecordMethod.insertAuthorized(
-                    recorded,
-                    execution,
-                    (inserted) => this.handler(inserted, execution),
+                const { row } = await RecordMethod.insertAuthorized(call, execution, (inserted) =>
+                    this.handler(inserted, execution),
                 );
 
                 return row;
@@ -1579,9 +1516,8 @@ export class MethodBuilder<
             }),
             validate: (object) => RecordMethod.requireUnrecorded(object),
             ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
-            handler: (call, execution) => RecordMethod.createItems(call.requireSigned(), execution),
-            authorize: (call, execution) =>
-                RecordMethod.authorizeItems(call.requireSigned(), execution),
+            handler: (call, execution) => RecordMethod.createItems(call, execution),
+            authorize: (call, execution) => RecordMethod.authorizeItems(call, execution),
             inverse: (step) => RecordMethod.deleteCreated(step),
         });
     }
@@ -1626,11 +1562,7 @@ export class MethodBuilder<
                 // refuse managed objects and unwritable fields
                 RecordMethod.requireUnmanaged(call);
                 if (execution.kind === "store") {
-                    await execution.authorization.requireWritable(
-                        call,
-                        call.requireId(),
-                        execution,
-                    );
+                    await execution.authorization.requireWritable(call, call.id, execution);
                 }
 
                 return this.handler(call, execution);
@@ -1786,7 +1718,7 @@ export class MethodBuilder<
             table: Definition;
             internal: NoInfer<Internal>;
             target: NoInfer<Target>;
-        }>(RecordMethod.custom(definition, false));
+        }>(this.#custom(definition, false));
     }
 
     /** Declare a method changing one object, as tRPC's `mutation`. */
@@ -1808,7 +1740,75 @@ export class MethodBuilder<
             table: Definition;
             internal: NoInfer<Internal>;
             target: NoInfer<Target>;
-        }>(RecordMethod.custom(definition, true));
+        }>(this.#custom(definition, true));
+    }
+
+    /** Describe a custom method on one object, reading or changing it. */
+    #custom<
+        const Permission extends string,
+        Input extends InputSchema,
+        Output extends schema.Schema,
+        Prepared extends schema.Schema,
+        const Mutates extends boolean,
+        const Internal extends boolean,
+        const Target extends MethodTarget,
+    >(
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
+        mutates: Mutates,
+    ): MethodDefinition<{
+        kind: "custom";
+        permission: Permission;
+        input: Input;
+        output: Output;
+        prepared: Prepared;
+        mutates: Mutates;
+        table: Definition;
+        internal: Internal;
+        target: Target;
+    }> {
+        // act in the scope for a method without a target
+        const { inverse, selected, ...declared } = definition;
+        const isScoped = definition.target === "scope";
+
+        return {
+            kind: "custom",
+            source: { builder: mutates ? "mutation" : "query", arguments: [definition] },
+            ...declared,
+            ...(isScoped
+                ? {
+                      authorize: (call: Call, execution: StoreExecution) =>
+                          RecordMethod.authorizeScoped(call, execution, selected),
+                  }
+                : {}),
+            ...(inverse === undefined
+                ? {}
+                : {
+                      inverse:
+                          typeof inverse === "string"
+                              ? (step: Step) => [Step.record(step, inverse, step.input)]
+                              : inverse,
+                  }),
+            mutates,
+            isPredicted: false,
+            ...(definition.target === undefined ? {} : { target: definition.target }),
+            result: definition.output === undefined ? "object" : "value",
+            procedure: (name, shapes) => {
+                // select the target, else the scope
+                const selection = isScoped ? shapes.scope : shapes.target;
+
+                return {
+                    route: {
+                        method: "POST",
+                        path: isScoped ? `/${Casing.kebab(name)}` : `/{id}/${Casing.kebab(name)}`,
+                    },
+                    input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
+                        selection.extend({ ...(mutates ? shapes.replay : {}), ...input.shape }),
+                    ),
+                    output: definition.output ?? shapes.row,
+                };
+            },
+            handler: (call) => RecordMethod.missingHandler(call),
+        };
     }
 }
 

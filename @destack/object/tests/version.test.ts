@@ -66,7 +66,7 @@ test.each(TEST_DIALECTS)(
         // point the task at each version in turn through its own update
         const point = async (id: string, revision: number) =>
             store
-                .mutate(context.caller(), {
+                .mutate(context.access(), {
                     id: RequestId.create(Date.now()),
                     calls: [task.call("update", { spaceId, id: taskId, revision, currentId: id })],
                 })

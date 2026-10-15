@@ -1,4 +1,4 @@
-import { none, through, Caller } from "@destack/access";
+import { AccessContext, Caller, none, through } from "@destack/access";
 import { call, journal } from "../src/index.ts";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -76,7 +76,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     const invalid = "pk-refused-0123456789";
     const create = (key: string) =>
         store
-            .mutate(userContext(users.alice, spaceId).caller(), {
+            .mutate(userContext(users.alice, spaceId).access(), {
                 id: RequestId.create(Date.now()),
                 calls: [holder.call("create", { spaceId, label: "deploy", key, token })],
             })
@@ -87,7 +87,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         (error: unknown) => error,
     );
     const refusedSystem = await store
-        .mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+        .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [
                 holder.call("provision", {

@@ -57,7 +57,7 @@ test.for(TEST_DIALECTS)(
         const context = userContext(users.alice, spaceId);
 
         // create and rename a card through calls of the release before the rename
-        const [result] = await store.mutate(context.caller(), {
+        const [result] = await store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 {
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
             ],
         });
         const created = schema.looseObject({ id: schema.string() }).parse(result);
-        await store.mutate(context.caller(), {
+        await store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 {
@@ -82,7 +82,7 @@ test.for(TEST_DIALECTS)(
         });
 
         // refuse a call made against a release the server does not serve yet
-        const later = store.mutate(context.caller(), {
+        const later = store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 {
@@ -99,7 +99,7 @@ test.for(TEST_DIALECTS)(
                 "card.update was made against release 2026.10.0 of card, but card is at 2026.9.0",
         });
         const stored = await store.query(
-            context.caller(),
+            context.access(),
             card.call("get", { spaceId, id: created.id }),
         );
         expect(stored.name).toBe("Roadmap");

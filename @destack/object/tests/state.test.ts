@@ -76,7 +76,7 @@ test("record a transition's declared fields with its state, refusing a call with
         origin: { package: article.package },
     });
     await openSpace(database, SPACE_ID);
-    const caller = subjectContext(spacePrincipal(SPACE_ID), SPACE_ID).caller();
+    const caller = subjectContext(spacePrincipal(SPACE_ID), SPACE_ID).access();
     const mutate = (call: ObjectCall) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
 

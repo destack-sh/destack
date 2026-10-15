@@ -109,7 +109,7 @@ export const NestedMethod = {
         }
 
         // climb from the new parent through the call's view, which has the call's own moves
-        const moved = call.requireId();
+        const moved = call.id;
         const reader = call.read(call.object.table);
         const visited = new Set<string>();
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {

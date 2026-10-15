@@ -5,13 +5,13 @@ import { AuditCaller } from "./actor.ts";
 /** The authority and origin of an executed call, as its machine supplied them. */
 export const AuditContext = defineSchema(
     schema.object({
-        /** The caller: a verified principal with its delegates, or anyone when unauthenticated. */
+        /** The caller: who the call was for and who acted for them. */
         caller: AuditCaller,
         /** The code that made the call on its principal's behalf, such as a controller's name. */
         component: schema.string().min(1).exactOptional(),
         /** The scope whose history receives the call. */
         scope: schema.string().min(1),
-        /** The grant the caller's delegates acted under. */
+        /** The grant the caller's actors acted under. */
         grantId: schema.identifier("grant").exactOptional(),
         /** The package serving the call. */
         package: Package,

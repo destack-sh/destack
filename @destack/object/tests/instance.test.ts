@@ -46,7 +46,7 @@ test.for(TEST_DIALECTS)(
 
         // write on the east instance and follow on the west
         const created = await east
-            .mutate(context(controller.signal).caller(), {
+            .mutate(context(controller.signal).access(), {
                 id: RequestId.create(Date.now()),
                 calls: [notebook.call("create", { spaceId, name: "Travel" })],
             })

@@ -55,7 +55,7 @@ test.for(TEST_DIALECTS)(
         const context = userContext(users.frank, spaceId);
 
         // write three notes, then rename one
-        const written = await store.mutate(context.caller(), {
+        const written = await store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 note.call("create", { spaceId, title: "Ada Lovelace", status: "draft" }),
@@ -63,7 +63,7 @@ test.for(TEST_DIALECTS)(
                 note.call("create", { spaceId, title: "Café notes", status: "published" }),
             ],
         });
-        await store.mutate(context.caller(), {
+        await store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [note.call("update", { spaceId, id: written[1].id, title: "Engine of Ada" })],
         });
@@ -72,7 +72,7 @@ test.for(TEST_DIALECTS)(
         const titles = async (where: object) =>
             (
                 await store.query(
-                    context.caller(),
+                    context.access(),
                     note.call("list", { spaceId, where, orderBy: { title: "asc" } }),
                 )
             ).items.map((item: { readonly title: string }) => item.title);

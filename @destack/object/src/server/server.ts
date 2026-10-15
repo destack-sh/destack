@@ -1,4 +1,4 @@
-import type { SignedCaller } from "@destack/access";
+import type { AccessContext } from "@destack/access";
 import type { PackageHandle } from "@destack/runtime";
 import type { PackageImplementation, RequestContext } from "@destack/runtime/server";
 import type { Controller } from "@destack/runtime/control";
@@ -12,7 +12,7 @@ import type { ObjectStore } from "./store.ts";
 /** Answer a request below an adapter's mount over the package's store, as the admitted caller. */
 export type AdapterFetch = (
     request: Request,
-    caller: SignedCaller | undefined,
+    caller: AccessContext,
     context: RequestContext,
     store: ObjectStore,
 ) => Promise<Response>;

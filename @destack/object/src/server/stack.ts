@@ -1,6 +1,6 @@
 import { Address, type Plan, type Step } from "@destack/resource";
 import { Scope, type Subject } from "@destack/sync";
-import { Authorizer, Manager, type Policy } from "@destack/access";
+import { AccessContext, Authorizer, Manager, type Policy } from "@destack/access";
 import {
     type ColumnValue,
     type DatabaseConnection,
@@ -437,8 +437,8 @@ export class Stack {
     }
 
     /** The caller the stack's calls run as: its principal, at the stack's time. */
-    get caller(): Caller {
-        return Caller.of(this.as, this.now);
+    get caller(): AccessContext {
+        return AccessContext.of(Caller.of(this.as), this.now);
     }
 
     /** Open a package release's build in the scope, the installation's if given, via the step. */

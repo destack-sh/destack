@@ -1,12 +1,12 @@
 import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
 import {
+    AccessContext,
     Caller,
     type Creation,
     type Decision,
     type Permission,
     type PermissionReference,
     principal,
-    type SignedCaller,
 } from "@destack/access";
 import {
     and,
@@ -45,9 +45,6 @@ import { Exchange } from "@destack/runtime/authentication";
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
-import type { TraitTable } from "../object/table.ts";
-import type { DeclarableDefinition } from "../trait/declarable.ts";
-import type { RecoverableDefinition } from "../trait/recoverable.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import type { MethodKind } from "./kind.ts";
 import { InputSchema } from "./input.ts";
@@ -168,8 +165,8 @@ export class Call<
     Definition extends Table = Table,
     Input extends JsonObject = JsonObject,
     Target extends Select<Definition> | undefined = Select<Definition> | undefined,
-    Signer extends Caller = Caller,
     Prepared = unknown,
+    Id extends string | undefined = undefined extends Target ? string | undefined : string,
 > {
     /** The object type. */
     readonly object: ObjectOf<{ table: Definition }>;
@@ -183,14 +180,12 @@ export class Call<
     readonly chain: readonly string[];
     /** The method's input, as its schema reads it. */
     readonly input: Input;
-    /** The target's or created object's identifier. */
-    readonly id?: string;
+    /** The target's or created object's identifier, absent for a method on its scope. */
+    readonly id: Id;
     /** The target at the start of the call, loaded for targeted methods. */
     readonly target: Target;
-    /** The caller: who calls and what it presented, a signed one for mutations. */
-    readonly caller: Signer;
-    /** The time of the call in UTC epoch milliseconds. */
-    readonly now: number;
+    /** The caller: who the call is for, who acts, and what it presented, at the call's time. */
+    readonly caller: AccessContext;
     /** Where the call runs: predicted on a client replica, or served by an authorized store. */
     readonly #location: CallLocation;
     /** The object types served together. */
@@ -208,12 +203,12 @@ export class Call<
     /** The calls the method's expansion ran before it in its mutation. */
     readonly expansion?: readonly BranchCall[];
     /** The fields the call was made of, which replicates change. */
-    readonly #fields: CallFields<Definition, Input, Target, Signer, Prepared>;
+    readonly #fields: CallFields<Definition, Input, Target, Prepared, Id>;
 
     /** Keep one call's fields. */
-    constructor(fields: CallFields<Definition, Input, Target, Signer, Prepared>) {
-        // refuse a mutation without a represented subject, which its handlers read as signed
-        if (fields.method.mutates && !Caller.isSigned(fields.caller)) {
+    constructor(fields: CallFields<Definition, Input, Target, Prepared, Id>) {
+        // refuse a mutation by a caller proving no identity
+        if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
             throw new CallError("UNAUTHORIZED", {
                 message: "a mutation needs an authenticated caller",
             });
@@ -227,17 +222,14 @@ export class Call<
         this.scope = fields.scope;
         this.chain = fields.chain;
         this.input = fields.input;
+        this.id = fields.id;
         this.target = fields.target;
         this.caller = fields.caller;
         this.prepared = fields.prepared;
-        this.now = fields.now;
         this.objects = fields.objects;
         this.#location = fields.location;
 
         // take the present optional fields
-        if (fields.id !== undefined) {
-            this.id = fields.id;
-        }
         if (fields.idempotencyKey !== undefined) {
             this.idempotencyKey = fields.idempotencyKey;
         }
@@ -350,7 +342,7 @@ export class Call<
 
     /** Run calls in this call's transaction as a caller, returning each result in order. */
     async mutate<const Calls extends readonly ObjectCall[]>(
-        caller: Caller,
+        caller: AccessContext,
         calls: Calls,
     ): Promise<ResultsOf<Calls>> {
         const results: unknown[] = [];
@@ -428,7 +420,7 @@ export class Call<
     }
 
     /** Read through a method in this call's transaction as a caller. */
-    async query<Result>(caller: Caller, call: ObjectCall<Result>): Promise<Result> {
+    async query<Result>(caller: AccessContext, call: ObjectCall<Result>): Promise<Result> {
         const [result] = Call.results(
             this.objects,
             [call],
@@ -440,7 +432,7 @@ export class Call<
 
     /** Run a call a package's sandboxed hook sent in this call's transaction. */
     runSandboxed(
-        caller: Caller,
+        caller: AccessContext,
         entry: ObjectCall,
         mutates: boolean,
         packageId: PackageId,
@@ -450,7 +442,7 @@ export class Call<
 
     /** Run one platform call in this call's transaction and scope, refusing it without a runner. */
     async #run(
-        caller: Caller,
+        caller: AccessContext,
         entry: ObjectCall,
         mutates: boolean,
         code: CallCode,
@@ -500,9 +492,19 @@ export class Call<
 
     /** Copy the call with some fields changed, keeping its types. */
     with(
-        changes: Partial<CallFields<Definition, Input, Target, Signer, Prepared>>,
-    ): Call<Definition, Input, Target, Signer, Prepared> {
+        changes: Partial<CallFields<Definition, Input, Target, Prepared, Id>>,
+    ): Call<Definition, Input, Target, Prepared, Id> {
         return new Call({ ...this.#fields, ...changes });
+    }
+
+    /** Read the call as creating or acting on the object under an identifier. */
+    identify(id: string): Call<Definition, Input, Target, Prepared, string> {
+        return new Call({ ...this.#fields, id });
+    }
+
+    /** Read the call as acting on one target row, loaded. */
+    at(row: Select<Definition>): Call<Definition, Input, Select<Definition>, Prepared, string> {
+        return new Call({ ...this.#fields, id: RecordedRow.parse(row).id, target: row });
     }
 
     /** The client replica a prediction reads and writes, refusing a store's or a sandbox's call. */
@@ -652,7 +654,12 @@ export class Call<
             // run each call apart as its author's remote call, skipping a refusal for good
             for (const { author, ...entry } of calls) {
                 await Call.#attempt(transaction, () =>
-                    this.#run(Caller.of(author, this.now), entry, true, CallCode.client),
+                    this.#run(
+                        AccessContext.of(Caller.of(author), this.now),
+                        entry,
+                        true,
+                        CallCode.client,
+                    ),
                 );
             }
         });
@@ -710,17 +717,8 @@ export class Call<
     }
 
     /** Reference the object the call acts on, in the call's scope. */
-    reference(): ObjectReference {
-        return this.object.reference(this.scope, this.requireId());
-    }
-
-    /** Read the identifier of the object the call acts on, which an instance call requires. */
-    requireId(): string {
-        if (this.id === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} has no object`);
-        }
-
-        return this.id;
+    reference(this: Call<Definition, Input, Target, Prepared, string>): ObjectReference {
+        return this.object.reference(this.scope, this.id);
     }
 
     /** Read the parent the call's input refers to. */
@@ -794,16 +792,19 @@ export class Call<
 
     /** Update the target's desired state at its revision, advancing a controlled generation. */
     async update<Recorded extends Table>(
-        this: Call<Recorded>,
+        this: Call<Recorded, JsonObject, Select<Recorded>>,
         changes: Readonly<Partial<InsertValue<Recorded>>>,
     ): Promise<Select<Recorded>> {
         return Table.complete(this.object.table, await this.#write(this.revised(changes)));
     }
 
     /** Stamp changes with the next revision, time and author, advancing a controlled generation. */
-    revised(changes: Readonly<Record<string, unknown>>): Row {
+    revised(
+        this: Call<Table, JsonObject, Select<Table>>,
+        changes: Readonly<Record<string, unknown>>,
+    ): Row {
         // advance the generation of a controlled target
-        const target: Row = this.requireTarget();
+        const target: Row = this.target;
         const generation = this.object.isControlled
             ? { generation: GENERATION.parse(target["generation"]) + 1 }
             : {};
@@ -812,9 +813,12 @@ export class Call<
     }
 
     /** Stamp changes with the target's next revision, the call's time and its author. */
-    #stamped(changes: Readonly<Record<string, unknown>>): Row {
+    #stamped(
+        this: Call<Table, JsonObject, Select<Table>>,
+        changes: Readonly<Record<string, unknown>>,
+    ): Row {
         // stamp the next revision, and the time and author where the table records them
-        const target = RecordedRow.parse(this.requireTarget());
+        const target = RecordedRow.parse(this.target);
         const columns = this.object.table[TABLE].columns;
 
         return {
@@ -829,17 +833,17 @@ export class Call<
 
     /** Update the target's observed state at the loaded revision and generation. */
     async updateStatus<Recorded extends Table>(
-        this: Call<Recorded>,
+        this: Call<Recorded, JsonObject, Select<Recorded>>,
         changes: Readonly<Partial<InsertValue<Recorded>>>,
     ): Promise<Select<Recorded>> {
         return Table.complete(this.object.table, await this.#write(this.#stamped(changes)));
     }
 
     /** Delete the target at the loaded revision. */
-    async remove(): Promise<void> {
+    async remove(this: Call<Table, JsonObject, Select<Table>>): Promise<void> {
         // remove the loaded target through the mutation, whose commit refuses a target changed since
         const table: Table = this.object.table;
-        const target = RecordedRow.parse(this.requireTarget());
+        const target = RecordedRow.parse(this.target);
         const location = this.#location;
         if (location.kind === "store") {
             await Execution.write(location, this, {
@@ -864,9 +868,12 @@ export class Call<
     }
 
     /** Read the target's row after the call's writes, refusing a target removed since. */
-    async #current(transaction: Transaction): Promise<Row> {
+    async #current(
+        this: Call<Table, JsonObject, Select<Table>>,
+        transaction: Transaction,
+    ): Promise<Row> {
         // refuse a target the transaction removed
-        const { id } = RecordedRow.parse(this.requireTarget());
+        const { id } = RecordedRow.parse(this.target);
         const table: Table = this.object.table;
         const row = await transaction.read(table).findFirst({ where: { id } });
         if (row === undefined) {
@@ -877,10 +884,10 @@ export class Call<
     }
 
     /** Write stamped changes to the target at the loaded revision. */
-    async #write(stamped: Row): Promise<Row> {
+    async #write(this: Call<Table, JsonObject, Select<Table>>, stamped: Row): Promise<Row> {
         // write the stamped changes over the target
         const table: Table = this.object.table;
-        const target = RecordedRow.parse(this.requireTarget());
+        const target = RecordedRow.parse(this.target);
 
         // write over the target as the transaction has it, whose commit refuses a target changed since
         if (this.#location.kind === "store") {
@@ -913,16 +920,22 @@ export class Call<
         return row;
     }
 
+    /** The time of the call in UTC epoch milliseconds: its caller's. */
+    get now(): number {
+        return this.caller.now;
+    }
+
     /** The principal the call's code runs as: its store's, or its sandbox's installation. */
-    get self(): Caller {
+    get self(): AccessContext {
         // act as the store's principal, else as the sandbox's installation
         const location = this.#location;
         if (location.kind === "store") {
-            return Caller.of(location.store.principal, this.now);
+            return AccessContext.of(Caller.of(location.store.principal), this.now);
         } else if (location.kind === "sandbox") {
             const { space, installation } = location.server;
+            const subject = principal.installation.reference(space, installation);
 
-            return Caller.of(principal.installation.reference(space, installation), this.now);
+            return AccessContext.of(Caller.of(subject), this.now);
         }
 
         throw new TypeError(`${this.object.name}.${this.name} acts as itself only in its store`);
@@ -945,94 +958,24 @@ export class Call<
 
         return undefined;
     }
-
-    /** Decide whether the call's caller represents a subject, as a mutation's does. */
-    isSigned(): this is MutationCall<Definition> {
-        return Caller.isSigned(this.caller);
-    }
-
-    /** Read the call as a mutation's, refusing a caller without a subject. */
-    requireSigned(): MutationCall<Definition> {
-        if (!this.isSigned()) {
-            throw new CallError("UNAUTHORIZED", {
-                message: "a mutation needs an authenticated caller",
-            });
-        }
-
-        return this;
-    }
-
-    /** Decide whether the call's object deletes to a trash. */
-    isTrashable(): this is Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>> {
-        return this.object.isTrashable();
-    }
-
-    /** Read the call as one of a type deleting to a trash, refusing another type. */
-    requireTrashable(): Call<TraitTable<{ readonly recoverable: RecoverableDefinition }>> {
-        if (!this.isTrashable()) {
-            throw new TypeError(`${this.object.name} deletes no objects to a trash`);
-        }
-
-        return this;
-    }
-
-    /** Decide whether the call's object keeps purged records. */
-    isKept(): this is Call<
-        TraitTable<{ readonly recoverable: RecoverableDefinition & { readonly keep: "record" } }>
-    > {
-        return this.object.isKept();
-    }
-
-    /** Read the call as one of a type keeping purged records, refusing another type. */
-    requireKept(): Call<
-        TraitTable<{ readonly recoverable: RecoverableDefinition & { readonly keep: "record" } }>
-    > {
-        if (!this.isKept()) {
-            throw new TypeError(`${this.object.name} keeps no purged records`);
-        }
-
-        return this;
-    }
-
-    /** Decide whether stacks declare the call's object. */
-    isManaged(): this is Call<TraitTable<{ readonly declarable: DeclarableDefinition }>> {
-        return this.object.isManaged();
-    }
-
-    /** Read the call as one of a type stacks declare, refusing another type. */
-    requireManaged(): Call<TraitTable<{ readonly declarable: DeclarableDefinition }>> {
-        if (!this.isManaged()) {
-            throw new TypeError(`${this.object.name} has no stack declarations`);
-        }
-
-        return this;
-    }
-
-    /** Read the target an instance call loaded, which a record write requires. */
-    requireTarget(): Select<Definition> {
-        if (this.target === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} has no target to write`);
-        }
-
-        return this.target;
-    }
 }
 
 /** A call of a mutating method, whose caller represents a subject. */
 export type MutationCall<
     Definition extends Table = Table,
     Input extends JsonObject = JsonObject,
-> = Call<Definition, Input, Select<Definition> | undefined, SignedCaller>;
+    Id extends string | undefined = string | undefined,
+> = Call<Definition, Input, Select<Definition> | undefined, unknown, Id>;
 
 /** The fields of a call. */
 export type CallFields<
     Definition extends Table = Table,
     Input extends JsonObject = JsonObject,
     Target extends Select<Definition> | undefined = Select<Definition> | undefined,
-    Signer extends Caller = Caller,
     Prepared = unknown,
+    Id extends string | undefined = undefined extends Target ? string | undefined : string,
 > = Pick<
-    Call<Definition, Input, Target, Signer, Prepared>,
+    Call<Definition, Input, Target, Prepared, Id>,
     | "object"
     | "name"
     | "method"
@@ -1042,7 +985,6 @@ export type CallFields<
     | "id"
     | "target"
     | "caller"
-    | "now"
     | "objects"
     | "prepared"
     | "idempotencyKey"
@@ -1085,7 +1027,7 @@ export type ResultsOf<Calls extends readonly ObjectCall[]> = {
 /** Run a call in the calling method's transaction and scope. */
 export type Run = (
     entry: ObjectCall,
-    caller: Caller,
+    caller: AccessContext,
     mutates: boolean,
     code: CallCode,
 ) => Promise<unknown>;
@@ -1105,8 +1047,8 @@ export const CallCode = {
     client: { kind: "client" } as const satisfies CallCode,
 
     /** Read the code of a caller: a client's for a remote caller, else the store's. */
-    of(caller: Caller): CallCode {
-        return Caller.isRemote(caller) ? CallCode.client : CallCode.store;
+    of(caller: AccessContext): CallCode {
+        return AccessContext.isRemote(caller) ? CallCode.client : CallCode.store;
     },
 
     /** Decide whether code can call a method: internal ones only from the store and the package. */
@@ -1126,7 +1068,7 @@ export type InputOf<Input extends schema.Schema> = [Input] extends [never]
       ? JsonObject
       : schema.Output<Input> & JsonObject;
 
-/** A call as a method's phases see it: typed input, target and caller, and its prepared work. */
+/** A call as a method's phases see it, typed by its method's declaration. */
 export type MethodCall<
     Configuration extends MethodConfiguration,
     Prepared = PreparedOf<Configuration>,
@@ -1134,9 +1076,17 @@ export type MethodCall<
     TableOf<Configuration>,
     InputValueOf<Configuration>,
     TargetOf<Configuration>,
-    SignerOf<Configuration>,
-    Prepared
+    Prepared,
+    IdOf<Configuration>
 >;
+
+/** A method's object identifier: present for a creation and for a method acting on one object. */
+type IdOf<Configuration extends MethodConfiguration> =
+    OptionOf<Configuration, "target", "object"> extends "object" | "id"
+        ? string
+        : OptionOf<Configuration, "kind", MethodKind> extends "create"
+          ? string
+          : string | undefined;
 
 /** The table of a method's object type. */
 type TableOf<Configuration extends MethodConfiguration> = OptionOf<Configuration, "table", Table>;
@@ -1163,10 +1113,6 @@ type TargetOf<Configuration extends MethodConfiguration> =
     OptionOf<Configuration, "target", "object"> extends "object"
         ? Select<TableOf<Configuration>>
         : Select<TableOf<Configuration>> | undefined;
-
-/** A method's caller: a signed one for mutations. */
-type SignerOf<Configuration extends MethodConfiguration> =
-    OptionOf<Configuration, "mutates", boolean> extends true ? SignedCaller : Caller;
 
 /** The external work a method prepares, as its schema reads it, absent without one. */
 export type PreparedOf<Configuration extends MethodConfiguration> = [

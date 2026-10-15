@@ -60,7 +60,7 @@ test.for(TEST_DIALECTS)(
         const context = userContext(users.frank, spaceId);
 
         // write a long body whose first and last words land in different chunks, and a short one
-        const [physics, notes] = await store.mutate(context.caller(), {
+        const [physics, notes] = await store.mutate(context.access(), {
             id: request(),
             calls: [
                 document.call("create", { spaceId, title: "Physics" }),
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
         });
         const filler = "wave ".repeat(CHUNK_CHARACTERS / 5);
         const long = `quantum ${filler}entanglement`;
-        await store.mutate(context.caller(), {
+        await store.mutate(context.access(), {
             id: request(),
             calls: [
                 document.call("edit", {
@@ -95,7 +95,7 @@ test.for(TEST_DIALECTS)(
         const titles = async (search: string) =>
             (
                 await store.query(
-                    context.caller(),
+                    context.access(),
                     document.call("list", {
                         spaceId,
                         where: { SEARCH: search },

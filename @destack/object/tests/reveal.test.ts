@@ -103,7 +103,7 @@ test("reveal a type's sensitive field to its own package's handler, and withhold
         origin: { package: holder.package },
     });
     await openSpace(storage.database, spaceId);
-    const caller = userContext(users.alice, spaceId).caller();
+    const caller = userContext(users.alice, spaceId).access();
 
     // create a holder with a token
     const [created] = await store.mutate(caller, {

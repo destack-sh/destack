@@ -236,7 +236,7 @@ export class Authorization extends access.Authorization {
     ): Promise<void> {
         // pass a caller under no grant
         const { object, scope } = call;
-        const { grant, delegates: _delegates, ...subject } = governing.context;
+        const { grant, ...subject } = { ...governing.context, actors: [] };
         if (grant === undefined) {
             return;
         }
@@ -284,7 +284,7 @@ export class Authorization extends access.Authorization {
 
         // decide for the caller, or only for its subject where its grant gives something in the scope
         const own = this.access.scopes[0];
-        const { grant, delegates: _delegates, ...subject } = this.access.context;
+        const { grant, ...subject } = { ...this.access.context, actors: [] };
         const isScope = own?.id === scope && objects.some((object) => object.livesIn(own));
 
         return (

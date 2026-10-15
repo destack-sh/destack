@@ -1,4 +1,4 @@
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 import { found } from "@destack/schema";
 import { TABLE, type DatabaseConnection, type Table, type Channel } from "@destack/db";
 import * as sync from "@destack/sync";
@@ -146,7 +146,7 @@ export class EphemeralStorage implements AsyncDisposable {
     }
 
     /** Key a writer by its caller and identifier. */
-    static writerKey(caller: Caller, writerId: string): string {
+    static writerKey(caller: AccessContext, writerId: string): string {
         return JSON.stringify([Caller.key(caller), writerId]);
     }
 

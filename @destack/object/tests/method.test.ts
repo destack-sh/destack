@@ -16,13 +16,14 @@ import { Call, defineObject, field, method, settlement, suspendable } from "../s
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import {
+    AccessContext,
     accessInvitation,
-    INVITATION_LIFETIME_MILLISECONDS,
-    none,
-    principal,
     Caller,
     type GrantPermission,
     Invitation,
+    INVITATION_LIFETIME_MILLISECONDS,
+    none,
+    principal,
 } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
@@ -783,7 +784,7 @@ test("prepare external work after the access check, settle it after commit, comp
     });
     external.length = 0;
     await expect(
-        store.mutate(context.caller(), {
+        store.mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 Call.record(handled, "export", { spaceId, id: other.id }),
@@ -801,7 +802,7 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
     await expect(
-        store.mutate(userContext(users.frank, undefined).caller(), {
+        store.mutate(userContext(users.frank, undefined).access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 Call.record(handled, "export", { spaceId, id: other.id }),
@@ -932,7 +933,7 @@ test("authorize a creation before its external work, and settle committed work t
     });
     let context = userContext(users.frank, spaceId);
     const created = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
@@ -943,7 +944,7 @@ test("authorize a creation before its external work, and settle committed work t
     const version = { spaceId, parentId: created.id, title: "Draft" };
     await expect(
         store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [copies.call("create", { ...version })],
             })
@@ -954,7 +955,7 @@ test("authorize a creation before its external work, and settle committed work t
     // commit and keep the settlement despite a failed confirmation
     context = userContext(users.frank, spaceId);
     const drafted = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [copies.call("create", { ...version })],
         })
@@ -1011,21 +1012,24 @@ test("name a system creation's prepared work by the fresh identifier it creates 
         origin: { package: task.package },
     });
     const created = await store
-        .mutate(userContext(users.frank, spaceId).caller(), {
+        .mutate(userContext(users.frank, spaceId).access(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
-    const [drafted] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-        id: RequestId.create(Date.now()),
-        calls: [
-            copies.call("create", {
-                ...copies.in(spaceId),
-                parentId: created.id,
-                title: "Draft",
-            }),
-        ],
-    });
+    const [drafted] = await store.mutate(
+        AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+        {
+            id: RequestId.create(Date.now()),
+            calls: [
+                copies.call("create", {
+                    ...copies.in(spaceId),
+                    parentId: created.id,
+                    title: "Draft",
+                }),
+            ],
+        },
+    );
 
     expect(external).toEqual([`copy-${present(drafted, "the copy").id}`]);
 });
@@ -1079,7 +1083,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     });
     const context = userContext(users.frank, spaceId);
     const created = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
@@ -1101,7 +1105,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     };
     await expect(
         store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [copies.call("create", version)],
             })
@@ -1137,10 +1141,13 @@ test.each(TEST_DIALECTS)(
         }).catch((error: unknown) => error);
 
         // archive the rest as the space, which owns it
-        const [archived] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: RequestId.create(Date.now()),
-            calls: [task.call("archiveAll", task.in(spaceId))],
-        });
+        const [archived] = await store.mutate(
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+            {
+                id: RequestId.create(Date.now()),
+                calls: [task.call("archiveAll", task.in(spaceId))],
+            },
+        );
         const left = await execute("list", { where: { archived: false } });
         expect([refused, archived, left.items]).toEqual([
             new CallError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
@@ -1155,7 +1162,10 @@ test("create the same identifiers and draw the same numbers from the same reques
     const [creation, drawing] = [RequestId.create(Date.now()), RequestId.create(Date.now())];
     const run = async () => {
         const { store } = await serveTasks("sqlite");
-        const caller = Caller.of(principal.user.reference("universe", users.frank), Date.now());
+        const caller = AccessContext.of(
+            Caller.of(principal.user.reference("universe", users.frank)),
+            Date.now(),
+        );
         const created = await store.mutate(caller, {
             id: creation,
             calls: [
@@ -1163,10 +1173,13 @@ test("create the same identifiers and draw the same numbers from the same reques
                 task.call("create", { ...task.in(spaceId), title: "Second" }),
             ],
         });
-        const [drawn] = await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
-            id: drawing,
-            calls: [folder.call("draw", folder.in(spaceId))],
-        });
+        const [drawn] = await store.mutate(
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+            {
+                id: drawing,
+                calls: [folder.call("draw", folder.in(spaceId))],
+            },
+        );
 
         return [
             ...created.map((row) => schema.looseObject({ id: schema.string() }).parse(row).id),
@@ -1258,7 +1271,7 @@ async function serveTasks(dialect: Dialect) {
             ...(agent === undefined
                 ? {}
                 : {
-                      delegates: [agent],
+                      actors: [agent],
                       grant: { id: grantId, scope: current, permissions: granted },
                   }),
         });
@@ -1358,7 +1371,7 @@ test("carry a key of the call's place in its request, the same for every retry o
     });
     const context = userContext(users.frank, spaceId);
     const created = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
@@ -1373,7 +1386,7 @@ test("carry a key of the call's place in its request, the same for every retry o
     const requestId = RequestId.create(Date.now());
     await expect(
         store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: requestId,
                 calls: [copies.call("create", version)],
             })
@@ -1382,7 +1395,7 @@ test("carry a key of the call's place in its request, the same for every retry o
         code: "SERVICE_UNAVAILABLE",
     });
     await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: requestId,
             calls: [copies.call("create", version)],
         })
@@ -1427,7 +1440,7 @@ test("settle each call's prepared work once under its own key in its request", a
     });
     const context = userContext(users.frank, spaceId);
     const created = await store
-        .mutate(context.caller(), {
+        .mutate(context.access(), {
             id: RequestId.create(Date.now()),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
@@ -1436,7 +1449,7 @@ test("settle each call's prepared work once under its own key in its request", a
     // create two copies of one title in one mutation, confirming each under its own key and keeping no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
     const requestId = RequestId.create(Date.now());
-    await store.mutate(context.caller(), {
+    await store.mutate(context.access(), {
         id: requestId,
         calls: [Call.record(copies, "create", copy), Call.record(copies, "create", copy)],
     });

@@ -1,6 +1,13 @@
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessGrant, Authorization, Policy, principal } from "@destack/access";
+import {
+    AccessContext,
+    accessGrant,
+    Authorization,
+    Caller,
+    Policy,
+    principal,
+} from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
@@ -57,11 +64,9 @@ test.for(TEST_DIALECTS)(
             .insert(space.table)
             .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
         const creating = await Transaction.open(database);
-        await new Authorization(store.authorizer, creating, () => ({
-            subjects: [owner],
-            now: Date.now(),
-            attributes: {},
-        })).create(object, { owner });
+        await new Authorization(store.authorizer, creating, () =>
+            AccessContext.of(Caller.of(owner), Date.now()),
+        ).create(object, { owner });
         await creating.commit();
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
@@ -110,7 +115,7 @@ test.for(TEST_DIALECTS)(
 
         // keep a new role at once and its binding to a member
         const reviewer = await store
-            .mutate(context.caller(), {
+            .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
                 calls: [
                     role.call("create", {
@@ -124,7 +129,7 @@ test.for(TEST_DIALECTS)(
             .then(([written]) => written);
         expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
         const granting = await Transaction.open(database);
-        const authorization = await store.authorize(granting, SPACE_ID, context.caller());
+        const authorization = await store.authorize(granting, SPACE_ID, context.access());
         await authorization.grant({
             object,
             role: reviewer.id,
@@ -214,15 +219,13 @@ test("delete the grants of a token as the token is deleted", async () => {
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
     const owner = principal.user.reference("universe", users.owner);
     const creating = await Transaction.open(database);
-    await new Authorization(store.authorizer, creating, () => ({
-        subjects: [owner],
-        now: Date.now(),
-        attributes: {},
-    })).create(space.reference("universe", SPACE_ID), { owner });
+    await new Authorization(store.authorizer, creating, () =>
+        AccessContext.of(Caller.of(owner), Date.now()),
+    ).create(space.reference("universe", SPACE_ID), { owner });
     await creating.commit();
 
     // create a token, and a grant of the owner to it beside another delegate's
-    const caller = subjectContext(owner, SPACE_ID).caller();
+    const caller = subjectContext(owner, SPACE_ID).access();
     const [created] = await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [token.call("create", { spaceId: SPACE_ID, name: "deploy" })],

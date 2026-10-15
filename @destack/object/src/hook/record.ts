@@ -98,6 +98,7 @@ export const CallRecord = Object.assign(callRecord, {
         // read the call's fields, and the start of a served mutation
         const { object, target, prepared, id, requestId, idempotencyKey, expansion } = call;
         const base = call.started;
+        const { subject, actors, groups, contacts, grant } = call.caller;
 
         return {
             type: object.typeReference,
@@ -107,7 +108,9 @@ export const CallRecord = Object.assign(callRecord, {
             input: JsonObject.parse(call.input),
             ...(id === undefined ? {} : { id }),
             ...(target === undefined ? {} : { target: object.table[TABLE].encode(target) }),
-            caller: Caller.schema.parse(call.caller),
+            caller: Caller.schema.parse(
+                schema.defined({ subject, actors, groups, contacts, grant }),
+            ),
             now: call.now,
             ...(requestId === undefined ? {} : { requestId }),
             ...(prepared === undefined ? {} : { prepared: schema.json().parse(prepared) }),

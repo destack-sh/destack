@@ -1,5 +1,5 @@
 import { users } from "./fixture/user.ts";
-import { AccessError, Caller, none, principal, relation } from "@destack/access";
+import { AccessContext, AccessError, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -81,16 +81,19 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
         origin: { package: mention.package },
     });
     const alice = principal.user.reference("universe", users.alice);
-    const [created] = await store.mutate(Caller.of(spacePrincipal(other), Date.now()), {
-        id: RequestId.create(Date.now()),
-        calls: [
-            mention.call("create", {
-                spaceId: other,
-                ...ObjectReference.columns("recipient", alice),
-                text: "@alice",
-            }),
-        ],
-    });
+    const [created] = await store.mutate(
+        AccessContext.of(Caller.of(spacePrincipal(other)), Date.now()),
+        {
+            id: RequestId.create(Date.now()),
+            calls: [
+                mention.call("create", {
+                    spaceId: other,
+                    ...ObjectReference.columns("recipient", alice),
+                    text: "@alice",
+                }),
+            ],
+        },
+    );
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
 
     // follow the home's mentions as alice, then keep the mention in a replica decided for her below the home, as a follow on her behalf writes it
@@ -98,7 +101,10 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
         const { items } = schema
             .looseObject({ items: schema.array(schema.looseObject({ id: schema.string() })) })
             .parse(
-                await store.query(Caller.of(alice, Date.now()), mention.call("list", { spaceId })),
+                await store.query(
+                    AccessContext.of(Caller.of(alice), Date.now()),
+                    mention.call("list", { spaceId }),
+                ),
             );
 
         return items.map((item) => item.id);
@@ -189,7 +195,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     const aliceId = Identifier.create("user");
     const alice = principal.user.reference("universe", aliceId);
     const bob = principal.user.reference("universe", Identifier.create("user"));
-    await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
         id: RequestId.create(Date.now()),
         calls: [alice, bob].map((recipient) =>
             mention.call("create", {
@@ -254,7 +260,7 @@ test("admit a home's follow on its person's behalf with a token bound to the fol
     });
     const aliceId = Identifier.create("user");
     const alice = principal.user.reference("universe", aliceId);
-    await store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
         id: RequestId.create(Date.now()),
         calls: [
             mention.call("create", {
@@ -280,9 +286,8 @@ test("admit a home's follow on its person's behalf with a token bound to the fol
         return new RequestContext(request, {
             audience: mention.package.id,
             scope: spaceId,
-            caller: {
-                subject: home,
-                subjects: [home, ...sets],
+            authentication: {
+                caller: { ...Caller.of(home), groups: sets },
                 credential: {
                     kind: "space-key",
                     id: home.id,
@@ -415,7 +420,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
             }),
         }))
         .implement({
-            methods: { describe: async (call) => ({ title: call.requireTarget().title }) },
+            methods: { describe: async (call) => ({ title: call.target.title }) },
         });
     const note = defineObject({
         name: "note",
@@ -461,7 +466,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     });
 
     // answer the realm's query as its owner, and refuse renaming it, which its home does
-    const caller = subjectContext(owner, realmId).caller();
+    const caller = subjectContext(owner, realmId).access();
     expect({
         described: await store.query(caller, realm.call("describe", { id: realmId })),
         renamed: await refusal(

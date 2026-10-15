@@ -69,7 +69,7 @@ test("read external objects named by their key from the database their files ope
         origin: { package: entry.package },
     });
     const travel = await store
-        .mutate(context(users.alice).caller(), {
+        .mutate(context(users.alice).access(), {
             id: RequestId.create(Date.now()),
             calls: [notebook.call("create", { spaceId, name: "Travel" })],
         })
@@ -86,11 +86,11 @@ test("read external objects named by their key from the database their files ope
 
     // read the entry through its notebook's read permission
     const read = await store.query(
-        context(users.alice).caller(),
+        context(users.alice).access(),
         entry.call("get", { spaceId, id }),
     );
     const listed = await store.query(
-        context(users.alice).caller(),
+        context(users.alice).access(),
         entry.call("list", { spaceId }),
     );
     expect([read.term, listed.items.map((row) => row.term), opened]).toEqual([
