@@ -1,5 +1,5 @@
 import { Scope } from "@destack/sync";
-import type { Call, CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { SpaceAddress } from "../address/address.ts";
@@ -17,7 +17,7 @@ export function implementSpace(stacks: PlatformDeclaration["stacks"]): typeof sp
                 // let the space own itself, written at its home as it is born
                 creation: (_call, created) =>
                     Space.creation({ id: schema.identifier("space").parse(created.id) }),
-                handle: (call, next) => create(call, next, stacks),
+                handle: (context, next) => create(context, next, stacks),
             },
             address,
         },
@@ -26,11 +26,11 @@ export function implementSpace(stacks: PlatformDeclaration["stacks"]): typeof sp
 
 /** Read a space's address from its name and its account's handle. */
 async function address(
-    call: CallOf<typeof space, "address">,
+    context: MethodContextOf<typeof space, "address">,
 ): Promise<ResultOf<typeof space, "address">> {
-    const { target } = call;
+    const { target } = context;
     const owner = present(
-        await call
+        await context
             .read(account)
             .findFirst({ where: { id: schema.identifier("account").parse(target.scope) } }),
         `the account of ${target.id}`,
@@ -41,22 +41,22 @@ async function address(
 
 /** Create a space with its stack, placed at the first epoch. */
 async function create(
-    call: CallOf<typeof space, "create">,
+    context: MethodContextOf<typeof space, "create">,
     next: NextOf<typeof space, "create">,
     stacks: PlatformDeclaration["stacks"],
 ): Promise<ResultOf<typeof space, "create">> {
     // create the space with its stack, the space stack by default
-    const accountId = schema.identifier("account").parse(call.scope);
-    const spaceId = space.identifier(call.id);
-    const target = await pickMachine(call, accountId, spaceId, call.input.machine);
-    const stack = call.input.stack ?? stacks.space;
-    const created = await next(call.with({ input: { ...call.input, stack } }));
+    const accountId = schema.identifier("account").parse(context.scope);
+    const spaceId = space.identifier(context.id);
+    const target = await pickMachine(context, accountId, spaceId, context.input.machine);
+    const stack = context.input.stack ?? stacks.space;
+    const created = await next(context.with({ input: { ...context.input, stack } }));
 
     // place it at the first epoch in the same transaction
-    await call.mutate(call.self, [
+    await context.mutate(context.self, [
         placement.call("create", {
             ...placement.in(accountId),
-            id: call.id,
+            id: context.id,
             machineId: target,
             epoch: 1,
         }),
@@ -67,22 +67,22 @@ async function create(
 
 /** Read the machine a new space of an account runs on. */
 async function pickMachine(
-    call: Pick<Call, "read">,
+    context: Pick<MethodContext, "read">,
     accountId: Identifier<"account">,
     spaceId: Identifier<"space">,
     machineId: Identifier<"machine"> | undefined,
 ): Promise<Identifier<"machine">> {
     // place it on the given machine the account may use
     if (machineId !== undefined) {
-        return Placement.requireAdmitted(call, { scope: accountId }, machineId);
+        return Placement.requireAdmitted(context, { scope: accountId }, machineId);
     }
 
     // place it on the enabled shared machine of the account's residency scoring highest for it
-    const owner = await call.read(account).findFirst({ where: { id: accountId } });
+    const owner = await context.read(account).findFirst({ where: { id: accountId } });
     if (owner === undefined) {
         throw new CallError("NOT_FOUND", { message: `no account ${accountId}` });
     }
-    const shared = await call.read(machine).findMany({
+    const shared = await context.read(machine).findMany({
         where: {
             scope: Scope.universe.id,
             kind: "cloud",

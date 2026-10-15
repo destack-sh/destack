@@ -1,5 +1,5 @@
 import { type Select } from "@destack/db";
-import { type Call, defineAuditAction, defineObject, field } from "@destack/object";
+import { type MethodContext, defineAuditAction, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Revocation } from "../credential/revocation.ts";
 import { client } from "./client.ts";
@@ -92,19 +92,19 @@ export const session = defineObject({
 export type Session = Select<typeof session.table>;
 
 /** End every active session of the target's user but the target. */
-async function revokeOthers(call: Call, kept: Session["id"]): Promise<void> {
+async function revokeOthers(context: MethodContext, kept: Session["id"]): Promise<void> {
     // read the other active sessions
-    const others = await call.read(session).findMany({
+    const others = await context.read(session).findMany({
         where: {
-            scope: schema.identifier("user").parse(call.scope),
+            scope: schema.identifier("user").parse(context.scope),
             id: { ne: kept },
             revokedAt: { isNull: true },
         },
     });
 
     // revoke them in one mutation
-    await call.mutate(
-        call.caller,
+    await context.mutate(
+        context.caller,
         others.map((other) => session.call("revoke", session.target(other))),
     );
 }

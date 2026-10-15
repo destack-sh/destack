@@ -1,6 +1,6 @@
 import { none, permission, principal, relation, through, union } from "@destack/access";
 import { type Select, type Snapshot } from "@destack/db";
-import { type Call, defineObject, field } from "@destack/object";
+import { type MethodContext, defineObject, field } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
 import { defineSchema, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -307,12 +307,12 @@ export const Machine = {
 
     /** Take a preferred machine name, or its first free numbered variant in the account. */
     async uniqueName(
-        call: Pick<Call, "read">,
+        context: Pick<MethodContext, "read">,
         accountId: string,
         preferred: string,
     ): Promise<string> {
         // read the names of the account's standing machines
-        const rows = await call
+        const rows = await context
             .read(machine)
             .findMany({ where: { scope: accountId, revokedAt: { isNull: true } } });
         const taken = new Set(rows.map((row) => row.name));

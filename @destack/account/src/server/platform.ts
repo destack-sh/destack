@@ -1,3 +1,4 @@
+import type { Call } from "@destack/sync";
 import {
     accessRole,
     Contact,
@@ -28,7 +29,7 @@ import { Residency, residency, ResidencyCode } from "../object/residency.ts";
 import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
 import { SpaceStack } from "../object/space-stack.ts";
-import { Claim, type ObjectCall, type ResultsOf } from "@destack/object";
+import { Claim, type ResultsOf } from "@destack/object";
 
 /** The universe role of the platform organisation's owners. */
 const OPERATOR_ROLE = {
@@ -318,7 +319,7 @@ export class Platform {
     }
 
     /** Run calls as the universe in one platform request. */
-    #mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>> {
+    #mutate<const Calls extends readonly Call[]>(calls: Calls): Promise<ResultsOf<Calls>> {
         return this.#objects.mutate(
             this.#objects.self,
             { id: RequestId.create(this.#now), calls },

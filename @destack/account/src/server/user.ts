@@ -1,7 +1,13 @@
 import { aligned, TimeZone } from "@destack/schema";
 import { Contact, INVITATION_PAGE, Invitation, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { type CallOf, type NextOf, type ResultOf, Claim, claimTable } from "@destack/object";
+import {
+    type MethodContextOf,
+    type NextOf,
+    type ResultOf,
+    Claim,
+    claimTable,
+} from "@destack/object";
 import { CallError } from "@destack/runtime/error";
 import { Account, account } from "../object/account.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
@@ -28,11 +34,11 @@ export function implementUser(): typeof user {
 
 /** Change a user. */
 async function update(
-    call: CallOf<typeof user, "update">,
+    context: MethodContextOf<typeof user, "update">,
     next: NextOf<typeof user, "update">,
 ): Promise<ResultOf<typeof user, "update">> {
     // refuse an unknown time zone
-    const timeZone = call.input.timeZone;
+    const timeZone = context.input.timeZone;
     if (typeof timeZone === "string" && !TimeZone.isKnown(timeZone)) {
         throw new CallError("BAD_REQUEST", { message: `unknown time zone ${timeZone}` });
     }
@@ -42,10 +48,10 @@ async function update(
 
 /** Suggest a free handle to a user, past the ones accounts claim. */
 async function suggestHandle(
-    call: CallOf<typeof user, "suggestHandle">,
+    context: MethodContextOf<typeof user, "suggestHandle">,
 ): Promise<{ handle: string }> {
     // make the stem a valid handle
-    const { target } = call;
+    const { target } = context;
     if (target.email === null) {
         throw new TypeError(`user ${target.id} has its email concealed`);
     }
@@ -63,7 +69,7 @@ async function suggestHandle(
             numbered(stem, first + index),
         );
         const keys = candidates.map((candidate) => Claim.key(account, "handle", [candidate]).key);
-        const claimed = await Claim.claimed(call.read(claimTable), {
+        const claimed = await Claim.claimed(context.read(claimTable), {
             index: Claim.index(account, "handle"),
             keys,
         });
@@ -84,19 +90,19 @@ function numbered(stem: string, number: number): string {
 
 /** Report to a user whether a handle is free, claimed by an account, or not a handle at all. */
 async function checkHandle(
-    call: CallOf<typeof user, "checkHandle">,
+    context: MethodContextOf<typeof user, "checkHandle">,
 ): Promise<{ handle: string; availability: HandleAvailability }> {
-    const { handle } = call.input;
+    const { handle } = context.input;
 
-    return { handle, availability: await Account.availability(call.read(claimTable), handle) };
+    return { handle, availability: await Account.availability(context.read(claimTable), handle) };
 }
 
 /** List the pending invitations addressed to a user, or to the user's email once verified. */
 async function invited(
-    call: CallOf<typeof user, "invited">,
+    context: MethodContextOf<typeof user, "invited">,
 ): Promise<ResultOf<typeof user, "invited">> {
     // address the user and the email's contact
-    const { target } = call;
+    const { target } = context;
     const person = principal.user.reference(Scope.universe.id, target.id);
     const contacts =
         target.email === null || target.emailVerified !== true
@@ -105,10 +111,10 @@ async function invited(
 
     // read a page of the pending invitations to either
     const items = await Invitation.addressed(
-        call,
+        context,
         [person, ...contacts],
         { limit: INVITATION_PAGE },
-        call.now,
+        context.now,
     );
 
     return { items };

@@ -1,4 +1,4 @@
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { DnsResolver } from "./dns-resolver.ts";
@@ -24,8 +24,8 @@ export function implementDomain(options: DomainOptions): typeof domain {
                 return next();
             },
             verify: {
-                prepare: (call) => verify(call, options),
-                handle: (call) => call.update({ verifiedAt: call.now }),
+                prepare: (context) => verify(context, options),
+                handle: (context) => context.update({ verifiedAt: context.now }),
             },
             delete: remove,
         },
@@ -34,12 +34,12 @@ export function implementDomain(options: DomainOptions): typeof domain {
 
 /** Require an unverified claim, its domain free of other verified claims. */
 async function verify(
-    call: Pick<CallOf<typeof domain, "verify">, "target" | "read">,
+    context: Pick<MethodContextOf<typeof domain, "verify">, "target" | "read">,
     options: DomainOptions,
 ): Promise<DomainChallenge> {
     // read the claim and any verified claim of its domain
-    const claimed = call.target;
-    const verified = await call
+    const claimed = context.target;
+    const verified = await context
         .read(domain)
         .findFirst({ where: { name: claimed.name, verifiedAt: { isNotNull: true } } });
 
@@ -68,16 +68,16 @@ async function verify(
 
 /** Delete a domain, refusing while a hostname below it serves an account it covers. */
 async function remove(
-    call: CallOf<typeof domain, "delete">,
+    context: MethodContextOf<typeof domain, "delete">,
     next: NextOf<typeof domain, "delete">,
 ): Promise<ResultOf<typeof domain, "delete">> {
     // read the hostnames of the domain's account or its organisation's accounts
-    const { name, scope } = call.target;
+    const { name, scope } = context.target;
     const owner = schema.identifier("account").safeParse(scope);
     const accounts = owner.success
         ? [owner.data]
-        : (await call.read(account).findMany({ where: { scope } })).map((row) => row.id);
-    const rows = await call.read(hostname).findMany({ where: { scope: { in: accounts } } });
+        : (await context.read(account).findMany({ where: { scope } })).map((row) => row.id);
+    const rows = await context.read(hostname).findMany({ where: { scope: { in: accounts } } });
 
     // refuse while any lie below the domain, naming them all
     const covered = rows

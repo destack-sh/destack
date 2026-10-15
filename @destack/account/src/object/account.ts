@@ -11,7 +11,14 @@ import {
 } from "@destack/access";
 import { Scope, type ObjectReference } from "@destack/sync";
 import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
-import { Claim, claimTable, defineObject, defineShape, field, type Call } from "@destack/object";
+import {
+    Claim,
+    claimTable,
+    defineObject,
+    defineShape,
+    field,
+    type MethodContext,
+} from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Label } from "../address/label.ts";
@@ -282,12 +289,12 @@ export const Account = {
     },
 
     /** Relate a new account's owner, home and residency servers. */
-    async creation(call: Call, object: ObjectReference): Promise<Creation> {
+    async creation(context: MethodContext, object: ObjectReference): Promise<Creation> {
         // resolve the residency before the handler runs
-        const chosen = call.input["residencyId"];
+        const chosen = context.input["residencyId"];
         const residencyId = await Account.residency(
-            call,
-            call.scope,
+            context,
+            context.scope,
             chosen === undefined ? undefined : ResidencyCode.parse(chosen),
         );
 
@@ -300,13 +307,13 @@ export const Account = {
         };
 
         // leave an organisation's account to the organisation's members
-        const scope = await Scope.object(call, call.scope);
+        const scope = await Scope.object(context, context.scope);
         if (organisation.is(scope)) {
             return { relationships: [resident, claimant, home] };
         }
 
         // require a creator of a user's account
-        const creator = call.caller.subject;
+        const creator = context.caller.subject;
         if (creator === undefined) {
             throw new CallError("FORBIDDEN", { message: "account needs a creator" });
         }

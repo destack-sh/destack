@@ -1,7 +1,8 @@
+import type { Call } from "@destack/sync";
 import { Relationship } from "@destack/access";
 import type { Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
-import type { CallOf, NextOf, ObjectCall, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { Account, HOME_SPACE, account } from "../object/account.ts";
 import { organisation } from "../object/organisation.ts";
@@ -15,8 +16,8 @@ export function implementAccount(stacks: PlatformDeclaration["stacks"]): typeof 
     return account.implement({
         methods: {
             create: {
-                creation: (call, object) => Account.creation(call, object),
-                handle: (call, next) => create(call, next, stacks),
+                creation: (context, object) => Account.creation(context, object),
+                handle: (context, next) => create(context, next, stacks),
             },
         },
     });
@@ -24,22 +25,22 @@ export function implementAccount(stacks: PlatformDeclaration["stacks"]): typeof 
 
 /** Create an account with its owner's residency and its home space carrying its stack. */
 async function create(
-    call: CallOf<typeof account, "create">,
+    context: MethodContextOf<typeof account, "create">,
     next: NextOf<typeof account, "create">,
     stacks: PlatformDeclaration["stacks"],
 ): Promise<ResultOf<typeof account, "create">> {
     // read the owner
-    const owner = await Scope.object(call, call.scope);
+    const owner = await Scope.object(context, context.scope);
     const isUser = !organisation.is(owner);
 
     // create the account in its residency
-    const residencyId = await Account.residency(call, call.scope, call.input.residencyId);
-    const { stack: given, ...input } = call.input;
-    const created = await next(call.with({ input: { ...input, residencyId } }));
+    const residencyId = await Account.residency(context, context.scope, context.input.residencyId);
+    const { stack: given, ...input } = context.input;
+    const created = await next(context.with({ input: { ...input, residencyId } }));
 
     // create its home with its stack as the universe, a personal home's by default
     const stack = given ?? (created.kind === "personal" ? stacks.person : undefined);
-    await call.mutate(call.self, [
+    await context.mutate(context.self, [
         space.call("create", {
             ...space.target({ scope: created.id, id: Account.home(created.id) }),
             name: HOME_SPACE,
@@ -50,7 +51,7 @@ async function create(
     // relate an owning organisation to the servers of the account's residency
     if (!isUser) {
         const organisationId = schema.identifier("organisation").parse(owner.id);
-        await call.mutate(call.self, await residentCalls(call, organisationId));
+        await context.mutate(context.self, await residentCalls(context, organisationId));
     }
 
     return created;
@@ -60,7 +61,7 @@ async function create(
 export async function residentCalls(
     reader: Pick<Snapshot, "read">,
     organisationId: Identifier<"organisation">,
-): Promise<ObjectCall[]> {
+): Promise<Call[]> {
     // read the residencies of its accounts and the ones it relates now
     const accounts = await reader
         .read(account.table)

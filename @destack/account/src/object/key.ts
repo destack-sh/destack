@@ -2,7 +2,7 @@ import { none, permission, through, union } from "@destack/access";
 import { Condition, type Select } from "@destack/db";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
-import { type Call, defineObject, field, type ObjectType } from "@destack/object";
+import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
 import { proof } from "./proof.ts";
 import { defineSchema, Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
@@ -106,8 +106,8 @@ export const Key = {
     },
 
     /** Read the unrevoked keys of a client or machine. */
-    unrevoked(call: Pick<Call, "read">, parent: ObjectType, parentId: string) {
-        return call.read(key).findMany({
+    unrevoked(context: Pick<MethodContext, "read">, parent: ObjectType, parentId: string) {
+        return context.read(key).findMany({
             where: {
                 parentPackageId: parent.typeReference.packageId,
                 parentType: parent.name,
@@ -128,10 +128,10 @@ export const Key = {
     },
 
     /** Spend a verified proof once in the call's mutation, refusing a proof its key used before. */
-    async spend(call: Pick<Call, "mutate" | "self">, presented: Proof): Promise<void> {
+    async spend(context: Pick<MethodContext, "mutate" | "self">, presented: Proof): Promise<void> {
         const digest = await Digest.of(JSON.stringify([presented.thumbprint, presented.id]));
-        await call
-            .mutate(call.self, [
+        await context
+            .mutate(context.self, [
                 proof.call("create", { id: digest, expiresAt: presented.expiresAt }),
             ])
             .catch((error: unknown) => {

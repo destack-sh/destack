@@ -1,5 +1,5 @@
 import { INVITATION_PAGE, principal, type Relationship } from "@destack/access";
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import { CallError } from "@destack/runtime/error";
@@ -13,9 +13,9 @@ export function implementOrganisation(): typeof organisation {
     return organisation.implement({
         methods: {
             create: {
-                creation: (call, object) => {
+                creation: (context, object) => {
                     // relate its creating user as an owner
-                    const creator = call.caller.subject;
+                    const creator = context.caller.subject;
                     const owners =
                         creator === undefined || !principal.user.is(creator)
                             ? []
@@ -74,27 +74,29 @@ export function implementOrganisation(): typeof organisation {
 }
 
 /** Accept an invitation to an organisation, seating the accepting user under the invited role. */
-async function accept(call: CallOf<typeof organisation, "accept">): Promise<Relationship> {
+async function accept(
+    context: MethodContextOf<typeof organisation, "accept">,
+): Promise<Relationship> {
     // relate the accepting user to the organisation
-    const [relationship] = await call.mutate(call.caller, [
+    const [relationship] = await context.mutate(context.caller, [
         invitation.call("accept", {
             ...invitation.in(Scope.universe.id),
-            object: call.reference(),
-            invitationId: call.input.invitationId,
+            object: context.reference(),
+            invitationId: context.input.invitationId,
         }),
     ]);
     const userId = schema.identifier("user").parse(relationship.subject.id);
     const role = MemberRole.parse("relation" in relationship ? relationship.relation : undefined);
 
     // refuse a user who has a seat already
-    const organisationId = schema.identifier("organisation").parse(call.id);
-    const seat = await call.read(member).findFirst({ where: { scope: organisationId, userId } });
+    const organisationId = schema.identifier("organisation").parse(context.id);
+    const seat = await context.read(member).findFirst({ where: { scope: organisationId, userId } });
     if (seat !== undefined) {
         throw new CallError("CONFLICT", { message: `member ${seat.id} is ${seat.status}` });
     }
 
     // seat the user under the invited role as the universe
-    await call.mutate(call.self, [
+    await context.mutate(context.self, [
         member.call("join", { ...member.in(organisationId), userId, role }),
     ]);
 
@@ -103,11 +105,11 @@ async function accept(call: CallOf<typeof organisation, "accept">): Promise<Rela
 
 /** Create an organisation with its account, which pays for it and keeps its home. */
 async function create(
-    call: CallOf<typeof organisation, "create">,
+    context: MethodContextOf<typeof organisation, "create">,
     next: NextOf<typeof organisation, "create">,
 ): Promise<ResultOf<typeof organisation, "create">> {
     // refuse any creator but a user or the universe
-    const creator = call.caller.subject;
+    const creator = context.caller.subject;
     const isUniverse = Subject.same(creator, Scope.universe);
     if (!isUniverse && !principal.user.is(creator)) {
         throw new CallError("FORBIDDEN", {
@@ -116,19 +118,19 @@ async function create(
     }
 
     // write it paying with the account created next
-    const { handle, residencyId, stack } = call.input;
+    const { handle, residencyId, stack } = context.input;
     const payer = account.generateId();
-    const row = await next(call.with({ input: { ...call.input, payer } }));
+    const row = await next(context.with({ input: { ...context.input, payer } }));
 
     // seat a creating user as its owner, leaving one the universe creates without members
     if (!isUniverse) {
-        await call.mutate(call.self, [
+        await context.mutate(context.self, [
             member.call("join", { ...member.in(row.id), userId: creator.id, role: "owner" }),
         ]);
     }
 
     // create its account as the universe
-    await call.mutate(call.self, [
+    await context.mutate(context.self, [
         account.call("create", {
             ...account.target({ scope: row.id, id: payer }),
             handle,
@@ -144,16 +146,16 @@ async function create(
 
 /** Change an organisation, refusing a payer outside its own accounts. */
 async function update(
-    call: CallOf<typeof organisation, "update">,
+    context: MethodContextOf<typeof organisation, "update">,
     next: NextOf<typeof organisation, "update">,
 ): Promise<ResultOf<typeof organisation, "update">> {
     // refuse a payer the organisation does not own
-    const payer = call.input.payer;
+    const payer = context.input.payer;
     if (typeof payer === "string") {
-        const row = await call.read(account).findFirst({ where: { id: payer } });
-        if (row?.scope !== call.target.id) {
+        const row = await context.read(account).findFirst({ where: { id: payer } });
+        if (row?.scope !== context.target.id) {
             throw new CallError("BAD_REQUEST", {
-                message: `account ${payer} is no account of ${call.target.id}`,
+                message: `account ${payer} is no account of ${context.target.id}`,
             });
         }
     }

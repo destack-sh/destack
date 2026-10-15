@@ -1,7 +1,7 @@
 import { through, union } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot, Transaction } from "@destack/db";
 import {
-    type Call,
+    type MethodContext,
     type Condition,
     defineObject,
     defineShape,
@@ -221,12 +221,16 @@ export const Allowance = {
     },
 
     /** Refuse a domain claim in an account or organisation whose payer's plan allows no domains. */
-    async requireCustomDomains(call: Call): Promise<void> {
+    async requireCustomDomains(context: MethodContext): Promise<void> {
         // refuse a payer whose plan has no domain allowance
-        const row = await Allowance.read(call, await Account.payer(call, call.scope), "domain");
+        const row = await Allowance.read(
+            context,
+            await Account.payer(context, context.scope),
+            "domain",
+        );
         if (row === undefined) {
             throw new CallError("QUOTA_EXCEEDED", {
-                message: `the plan of ${call.scope} allows no custom domains`,
+                message: `the plan of ${context.scope} allows no custom domains`,
             });
         }
     },

@@ -1,5 +1,5 @@
 import { type Select } from "@destack/db";
-import { type Call, defineObject, field } from "@destack/object";
+import { type MethodContext, defineObject, field } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
 import { user } from "./user.ts";
 
@@ -63,14 +63,17 @@ export type OAuthConsent = Select<typeof oauthConsent.table>;
 /** The ends of the provider's grants to clients. */
 export const OAuthConsent = {
     /** Revoke every user's consent to a deleted or revoked client, ending its tokens' use. */
-    async withdraw(call: Pick<Call, "read" | "mutate" | "self">, clientId: string): Promise<void> {
+    async withdraw(
+        context: Pick<MethodContext, "read" | "mutate" | "self">,
+        clientId: string,
+    ): Promise<void> {
         // revoke the standing consents in one mutation as the store
-        const consents = await call
+        const consents = await context
             .read(oauthConsent)
             .findMany({ where: { clientId, revokedAt: { isNull: true } } });
         if (consents.length > 0) {
-            await call.mutate(
-                call.self,
+            await context.mutate(
+                context.self,
                 consents.map((row) => oauthConsent.call("revoke", oauthConsent.target(row))),
             );
         }

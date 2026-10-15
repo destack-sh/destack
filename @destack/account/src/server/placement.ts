@@ -1,5 +1,5 @@
 import { Caller } from "@destack/access";
-import type { CallOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { assignment, Placement, placement } from "../object/placement.ts";
@@ -11,14 +11,14 @@ export function implementPlacement(): typeof placement {
 
 /** Serve a space at an epoch as the calling machine, ending any move. */
 async function place(
-    call: CallOf<typeof placement, "place">,
+    context: MethodContextOf<typeof placement, "place">,
 ): Promise<ResultOf<typeof placement, "place">> {
     // read the calling machine and its epoch
-    const caller = schema.identifier("machine").parse(Caller.sender(call.caller).id);
-    const { epoch } = call.input;
+    const caller = schema.identifier("machine").parse(Caller.sender(context.caller).id);
+    const { epoch } = context.input;
 
     // keep the placement at its epoch, advance the epoch, or take the space over
-    const current = call.target;
+    const current = context.target;
     const isKept = current.epoch === epoch && current.machineId === caller;
     const isAdvanced =
         current.epoch + 1 === epoch &&
@@ -32,46 +32,46 @@ async function place(
     }
 
     // serve the space at the epoch, ending any move
-    return call.update({ machineId: caller, epoch, targetId: null, transferId: null });
+    return context.update({ machineId: caller, epoch, targetId: null, transferId: null });
 }
 
 /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
 async function move(
-    call: CallOf<typeof placement, "move">,
+    context: MethodContextOf<typeof placement, "move">,
 ): Promise<ResultOf<typeof placement, "move">> {
     // mark the move at the machine's epoch
-    const { target } = call;
-    Placement.requireServed(target, call.input.epoch);
-    await Placement.requireAdmitted(call, target, call.input.target);
+    const { target } = context;
+    Placement.requireServed(target, context.input.epoch);
+    await Placement.requireAdmitted(context, target, context.input.target);
 
-    return call.update({ targetId: call.input.target, transferId: call.input.transferId });
+    return context.update({ targetId: context.input.target, transferId: context.input.transferId });
 }
 
 /** End a space's placement as the machine serving it, its work with it. */
 async function withdraw(
-    call: CallOf<typeof placement, "withdraw">,
+    context: MethodContextOf<typeof placement, "withdraw">,
 ): Promise<ResultOf<typeof placement, "withdraw">> {
     // remove the placement at the machine's epoch, which removes the work its assignments give
-    const { target } = call;
-    Placement.requireServed(target, call.input.epoch);
-    await call.remove();
+    const { target } = context;
+    Placement.requireServed(target, context.input.epoch);
+    await context.remove();
 
     return target;
 }
 
 /** Give a machine work in a space once, as the machine serving it at its epoch. */
 async function assign(
-    call: CallOf<typeof placement, "assign">,
+    context: MethodContextOf<typeof placement, "assign">,
 ): Promise<ResultOf<typeof placement, "assign">> {
     // read the machine's work in the space at the machine's epoch
-    const { target } = call;
-    Placement.requireServed(target, call.input.epoch);
-    const work = { placementId: target.id, machineId: call.input.machine };
-    const assigned = await call.read(assignment).findFirst({ where: work });
+    const { target } = context;
+    Placement.requireServed(target, context.input.epoch);
+    const work = { placementId: target.id, machineId: context.input.machine };
+    const assigned = await context.read(assignment).findFirst({ where: work });
 
     // give the work once
     if (assigned === undefined) {
-        await call.mutate(call.self, [assignment.call("create", work)]);
+        await context.mutate(context.self, [assignment.call("create", work)]);
     }
 
     return target;
@@ -79,17 +79,17 @@ async function assign(
 
 /** Withdraw a machine's work in a space, as the machine serving it at its epoch. */
 async function unassign(
-    call: CallOf<typeof placement, "unassign">,
+    context: MethodContextOf<typeof placement, "unassign">,
 ): Promise<ResultOf<typeof placement, "unassign">> {
     // end the machine's work at the machine's epoch
-    const { target } = call;
-    Placement.requireServed(target, call.input.epoch);
-    const assigned = await call
+    const { target } = context;
+    Placement.requireServed(target, context.input.epoch);
+    const assigned = await context
         .read(assignment)
-        .findMany({ where: { placementId: target.id, machineId: call.input.machine } });
+        .findMany({ where: { placementId: target.id, machineId: context.input.machine } });
     if (assigned.length > 0) {
-        await call.mutate(
-            call.self,
+        await context.mutate(
+            context.self,
             assigned.map((row) => assignment.call("delete", assignment.target(row))),
         );
     }

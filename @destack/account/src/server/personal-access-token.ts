@@ -1,5 +1,11 @@
 import { type GrantPermission } from "@destack/access";
-import { type Call, type CallOf, type NextOf, type ResultOf, SCOPE_READ } from "@destack/object";
+import {
+    type MethodContext,
+    type MethodContextOf,
+    type NextOf,
+    type ResultOf,
+    SCOPE_READ,
+} from "@destack/object";
 import { Identifier } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Placement } from "../object/placement.ts";
@@ -18,19 +24,23 @@ export function implementPersonalAccessToken(): typeof personalAccessToken {
 
 /** Issue a token with the holder's grant of its permissions to it, until its expiry. */
 async function issue(
-    call: CallOf<typeof personalAccessToken, "issue">,
+    context: MethodContextOf<typeof personalAccessToken, "issue">,
     next: NextOf<typeof personalAccessToken, "issue">,
 ): Promise<ResultOf<typeof personalAccessToken, "issue">> {
     // require an expiry and permissions the user may grant
-    const { permissions, expiresAt } = call.input;
-    await requireIssuable(call, call.input, await userScopes(call, scopesOf(call.input)));
+    const { permissions, expiresAt } = context.input;
+    await requireIssuable(
+        context,
+        context.input,
+        await userScopes(context, scopesOf(context.input)),
+    );
 
     // create the token, then the holder's grant to it in the same transaction
-    const created = await next(call);
-    await call.mutate(call.caller, [
+    const created = await next(context);
+    await context.mutate(context.caller, [
         grant.call("create", {
-            ...grant.in(call.scope),
-            delegate: personalAccessToken.reference(call.scope, created.id),
+            ...grant.in(context.scope),
+            delegate: personalAccessToken.reference(context.scope, created.id),
             permissions,
             expiresAt,
         }),
@@ -54,12 +64,12 @@ function scopesOf(issued: TokenRequest): string[] {
 
 /** Require a token's expiry within its lifetime, and its permissions declared. */
 async function requireIssuable(
-    call: Call,
+    context: MethodContext,
     issued: TokenRequest,
     usable: readonly string[],
 ): Promise<void> {
     // require an expiry in the future within the longest lifetime
-    if (issued.expiresAt <= call.now || issued.expiresAt > call.now + LIFETIME_MILLISECONDS) {
+    if (issued.expiresAt <= context.now || issued.expiresAt > context.now + LIFETIME_MILLISECONDS) {
         throw new CallError("BAD_REQUEST", {
             message: "token expiry must lie within 366 days from now",
         });
@@ -67,7 +77,7 @@ async function requireIssuable(
 
     // require permissions declared by the served objects
     for (const permission of issued.permissions) {
-        const served = call.objects.filter(
+        const served = context.objects.filter(
             (object) => object.typeReference.packageId === permission.packageId,
         );
         const isDeclared =
@@ -77,7 +87,7 @@ async function requireIssuable(
                     object.permissions.includes(permission.name),
             ) ||
             (permission.name === SCOPE_READ &&
-                call.objects.some((object) =>
+                context.objects.some((object) =>
                     object.scopes.some(
                         (scope) =>
                             scope.typeReference.packageId === permission.packageId &&
@@ -99,21 +109,18 @@ async function requireIssuable(
 }
 
 /** List the scopes a user's token may act in. */
-async function userScopes(
-    call: Call<typeof personalAccessToken.table>,
-    scopes: readonly string[],
-): Promise<string[]> {
+async function userScopes(context: MethodContext, scopes: readonly string[]): Promise<string[]> {
     // find the named accounts, organisations and spaces
-    const accounts = await call
+    const accounts = await context
         .read(account)
         .findMany({ where: { id: { in: Identifier.filter("account", scopes) } } });
-    const organisations = await call
+    const organisations = await context
         .read(organisation)
         .findMany({ where: { id: { in: Identifier.filter("organisation", scopes) } } });
-    const spaces = await Placement.find(call, Identifier.filter("space", scopes));
+    const spaces = await Placement.find(context, Identifier.filter("space", scopes));
 
     return [
-        call.scope,
+        context.scope,
         ...[...accounts, ...organisations].map((row) => row.id),
         ...spaces.map((row) => row.id),
     ];

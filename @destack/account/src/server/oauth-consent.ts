@@ -1,4 +1,4 @@
-import type { CallOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, ResultOf } from "@destack/object";
 import { Revocation } from "../credential/revocation.ts";
 import { oauthConsent } from "../object/oauth-consent.ts";
 
@@ -9,10 +9,10 @@ export function implementOAuthConsent(): typeof oauthConsent {
 
 /** Revoke a consent, which ends the use of the tokens issued under it until granted again. */
 async function revoke(
-    call: CallOf<typeof oauthConsent, "revoke">,
+    context: MethodContextOf<typeof oauthConsent, "revoke">,
 ): Promise<ResultOf<typeof oauthConsent, "revoke">> {
     // refuse a consent revoked before
-    Revocation.requireUnrevoked(call.target, "consent");
+    Revocation.requireUnrevoked(context.target, "consent");
 
-    return call.update({ revokedAt: call.now });
+    return context.update({ revokedAt: context.now });
 }

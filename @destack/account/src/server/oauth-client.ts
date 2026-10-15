@@ -1,4 +1,4 @@
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { oauthClient } from "../object/oauth-client.ts";
 import { OAuthConsent } from "../object/oauth-consent.ts";
 
@@ -22,12 +22,12 @@ export function implementOAuthClient(): typeof oauthClient {
 
 /** Register a client under a new random public identifier. */
 async function create(
-    call: CallOf<typeof oauthClient, "create">,
+    context: MethodContextOf<typeof oauthClient, "create">,
     next: NextOf<typeof oauthClient, "create">,
 ): Promise<ResultOf<typeof oauthClient, "create">> {
     // draw the public identifier
     const bytes = crypto.getRandomValues(new Uint8Array(CLIENT_ID_BYTES));
     const clientId = bytes.toBase64({ alphabet: "base64url", omitPadding: true });
 
-    return next(call.with({ input: { ...call.input, clientId } }));
+    return next(context.with({ input: { ...context.input, clientId } }));
 }

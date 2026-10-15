@@ -1,4 +1,4 @@
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation, type PublicKey } from "@destack/identity";
 import { CallError } from "@destack/runtime/error";
 import { Identity, operation, type Operation } from "../object/identity.ts";
@@ -15,14 +15,14 @@ export function implementOperation(): typeof operation {
 
 /** Append a signed operation after one of the identity's current operations. */
 async function create(
-    call: CallOf<typeof operation, "create">,
+    context: MethodContextOf<typeof operation, "create">,
     next: NextOf<typeof operation, "create">,
 ): Promise<ResultOf<typeof operation, "create">> {
     // read the operation and the identity's log
-    const subject = call.requireParent().id;
-    const signed = call.input.operation;
+    const subject = context.requireParent().id;
+    const signed = context.input.operation;
     const claims = IdentityOperation.read(signed);
-    const log = await Identity.log(call, subject);
+    const log = await Identity.log(context, subject);
     if (claims.subject !== subject) {
         throw new CallError("BAD_REQUEST", {
             message: `the operation changes ${claims.subject}, not ${subject}`,
@@ -43,13 +43,13 @@ async function create(
     const later =
         previous === undefined ? [] : current.filter((entry) => entry.sequence > previous.sequence);
     const [first] = later;
-    if (first !== undefined && !isRecoverable(first, priority, call.now)) {
+    if (first !== undefined && !isRecoverable(first, priority, context.now)) {
         throw new CallError("CONFLICT", {
             message: `the operation cannot nullify the later operations of ${subject}`,
         });
     }
-    await call.mutate(
-        call.caller,
+    await context.mutate(
+        context.caller,
         later.map((entry) =>
             operation.call("nullify", { ...operation.target(entry), isNullified: true }),
         ),
@@ -57,13 +57,13 @@ async function create(
 
     // append it to the log
     return next(
-        call.with({
+        context.with({
             input: {
-                ...call.input,
+                ...context.input,
                 sequence: log.length,
                 digest: await IdentityOperation.digest(signed),
                 priority,
-                appliedAt: call.now,
+                appliedAt: context.now,
                 isNullified: false,
             },
         }),

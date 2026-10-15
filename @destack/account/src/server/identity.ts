@@ -1,5 +1,5 @@
 import { Caller, principal } from "@destack/access";
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation } from "@destack/identity";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -19,12 +19,12 @@ export function implementIdentity(): typeof identity {
 
 /** Start an identity as the machine serving its space, or as the universe for itself. */
 async function create(
-    call: CallOf<typeof identity, "create">,
+    context: MethodContextOf<typeof identity, "create">,
     next: NextOf<typeof identity, "create">,
 ): Promise<ResultOf<typeof identity, "create">> {
     // require the identity's first operation
-    const subject = call.id;
-    const claims = IdentityOperation.read(call.input.operation);
+    const subject = context.id;
+    const claims = IdentityOperation.read(context.input.operation);
     if (claims.subject !== subject || claims.previous !== null) {
         throw new CallError("BAD_REQUEST", {
             message: `the operation starts no identity of ${subject}`,
@@ -32,12 +32,12 @@ async function create(
     }
 
     // require the universe for itself, else the machine serving the space
-    const sender = Caller.sender(call.caller);
+    const sender = Caller.sender(context.caller);
     const isUniverse =
-        subject === Scope.universe.id && Subject.same(sender, Caller.principal(call.self));
+        subject === Scope.universe.id && Subject.same(sender, Caller.principal(context.self));
     const spaceId = schema.identifier("space").safeParse(subject);
     const served = spaceId.success
-        ? await call.read(placement).findFirst({ where: { id: spaceId.data } })
+        ? await context.read(placement).findFirst({ where: { id: spaceId.data } })
         : undefined;
     const isServing =
         served !== undefined &&
@@ -52,11 +52,11 @@ async function create(
 
     // create the identity and append its first operation
     const created = await next();
-    await call.mutate(call.caller, [
+    await context.mutate(context.caller, [
         operation.call("create", {
             ...operation.in(Scope.universe.id),
             parentId: subject,
-            operation: call.input.operation,
+            operation: context.input.operation,
         }),
     ]);
 

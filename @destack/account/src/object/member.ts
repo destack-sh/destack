@@ -1,6 +1,6 @@
 import { none, principal, relation, Relationship, through, union } from "@destack/access";
 import { type Select } from "@destack/db";
-import { type Call, defineObject, field } from "@destack/object";
+import { type MethodContext, defineObject, field } from "@destack/object";
 import { CallError } from "@destack/runtime/error";
 import { Scope } from "@destack/sync";
 import { schema } from "@destack/schema";
@@ -50,31 +50,34 @@ export type Member = Select<typeof member.table>;
 /** Members, kept as relationships of their organisations to their users. */
 export const Member = {
     /** Require ownership of the call's organisation when any of some roles is an owner's. */
-    async requireOwner(call: Call, roles: readonly (string | undefined)[]): Promise<void> {
+    async requireOwner(
+        context: MethodContext,
+        roles: readonly (string | undefined)[],
+    ): Promise<void> {
         // let administrators change roles below owner
         if (!roles.includes("owner")) {
             return;
         }
 
         // require the organisation's ownership
-        const target = organisation.reference(Scope.universe.id, call.scope);
-        const decision = await call.check(organisation.permission("own"), target);
+        const target = organisation.reference(Scope.universe.id, context.scope);
+        const decision = await context.check(organisation.permission("own"), target);
         if (!decision.isAllowed) {
             throw new CallError("FORBIDDEN", {
-                message: `only owners of ${call.scope} change its owners`,
+                message: `only owners of ${context.scope} change its owners`,
             });
         }
     },
 
     /** Refuse losing an organisation's last active owner when a change takes an owner's seat. */
-    async requireOtherOwner(call: Call, row: Member): Promise<void> {
+    async requireOtherOwner(context: MethodContext, row: Member): Promise<void> {
         // let changes of other seats pass
         if (row.role !== "owner" || row.status !== "active") {
             return;
         }
 
         // require another active owner
-        const others = await call.read(member).findMany({
+        const others = await context.read(member).findMany({
             where: {
                 scope: row.scope,
                 role: "owner",
@@ -90,13 +93,13 @@ export const Member = {
     },
 
     /** Relate an active member's user to its organisation under its role. */
-    async relate(call: Call, row: Member): Promise<void> {
+    async relate(context: MethodContext, row: Member): Promise<void> {
         // revoke what the member related before
-        await Member.release(call, row);
+        await Member.release(context, row);
 
         // relate the user of an active member under its role, as the store
         if (row.status === "active") {
-            await call.mutate(call.self, [
+            await context.mutate(context.self, [
                 relationship.call("create", {
                     ...relationship.in(Scope.universe.id),
                     object: organisation.reference(Scope.universe.id, row.scope),
@@ -108,12 +111,12 @@ export const Member = {
     },
 
     /** Revoke every relationship of a member's organisation to the member's user. */
-    async release(call: Call, row: Pick<Member, "scope" | "userId">): Promise<void> {
+    async release(context: MethodContext, row: Pick<Member, "scope" | "userId">): Promise<void> {
         // revoke them as the store
         const object = organisation.reference(Scope.universe.id, row.scope);
-        await call.mutate(
-            call.self,
-            (await relationships(call, row)).map((relationshipId) =>
+        await context.mutate(
+            context.self,
+            (await relationships(context, row)).map((relationshipId) =>
                 relationship.call("delete", {
                     ...relationship.in(Scope.universe.id),
                     object,
@@ -125,9 +128,12 @@ export const Member = {
 };
 
 /** List the relationships of a member's organisation to the member's user. */
-async function relationships(call: Call, row: Pick<Member, "scope" | "userId">): Promise<string[]> {
+async function relationships(
+    context: MethodContext,
+    row: Pick<Member, "scope" | "userId">,
+): Promise<string[]> {
     const object = organisation.reference(Scope.universe.id, row.scope);
-    const rows = await Relationship.readOn(call, object, {
+    const rows = await Relationship.readOn(context, object, {
         subject: principal.user.reference(Scope.universe.id, row.userId),
     });
 
