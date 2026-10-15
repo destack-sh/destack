@@ -54,12 +54,12 @@ for await (const { chain, values } of SettingValue.replicate(
 
 ## Server
 
-`settingExtension` adds the setting package to a store, checking each written value against its declaration.
+`settingServer` serves the setting package in a store, checking each written value against its declaration.
 
 ```ts
-import { settingExtension } from "@destack/setting/server";
+import { settingServer } from "@destack/setting/server";
 import { settingTables } from "@destack/setting/stack";
 
-const extension = settingExtension({ declared: SettingCatalog.cached(open), after: [] });
+const server = settingServer({ declared: SettingCatalog.cached(open), after: [] });
 const database = defineDatabase({ name: "main", tables: settingTables });
 ```

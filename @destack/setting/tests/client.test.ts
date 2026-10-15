@@ -2,7 +2,7 @@ import { space } from "./fixture/space.ts";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { ACCESS_SHAPE } from "@destack/object";
+import { ACCESS_PUBLICATION } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { canonicalize, Identifier, schema, Clock } from "@destack/schema";
@@ -287,7 +287,7 @@ test("yield a person's values set before the replica starts in its first yield, 
     const late = async (request: Request) => {
         // hold the access rows back until the setting rows were answered
         const body = await request.clone().text();
-        if (body.includes(`"shape":"${ACCESS_SHAPE}"`)) {
+        if (body.includes(`"shape":"${ACCESS_PUBLICATION}"`)) {
             await settingsServed.promise;
 
             return server.fetch(request);
@@ -366,11 +366,7 @@ async function follow(
 function serve(storage: Storage, scope: string): Server {
     const server = Server.start({
         clock: Clock.system,
-        ...storage.objects.implement(
-            settingPackage,
-            storage.objects.routed,
-            storage.objects.controllers(),
-        ),
+        ...storage.objects.package(settingPackage),
         scope,
         resources: new ResourceContext(),
         health: new Health("setting"),

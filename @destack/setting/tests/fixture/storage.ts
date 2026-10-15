@@ -21,7 +21,7 @@ import { ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 
 import { settingTables } from "../../src/stack/index.ts";
-import { implementSetting } from "../../src/server/index.ts";
+import { settingServer } from "../../src/server/index.ts";
 import settingPackage from "../../src/package.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
@@ -59,7 +59,7 @@ export class Storage {
             chain: async () => undefined,
             clock: Clock.system,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
-            objects: [implementSetting({ declared: this.catalog, after: [] })],
+            servers: [settingServer({ declared: this.catalog, after: [] })],
             // decide access in the scopes the values live in
             policies: [principal.user, space.policy],
             database: test.database,
