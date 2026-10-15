@@ -115,11 +115,9 @@ export function implementVault(): typeof vault {
             },
             finalize: async (call, next) => {
                 // discard the records of its purged secrets in one request
-                const purged = await call
-                    .read(secret)
-                    .findMany({
-                        where: { parentId: call.target.id, purgedAt: { isNotNull: true } },
-                    });
+                const purged = await call.read(secret).findMany({
+                    where: { parentId: call.target.id, purgedAt: { isNotNull: true } },
+                });
                 if (purged.length > 0) {
                     await call.mutate(
                         call.caller,

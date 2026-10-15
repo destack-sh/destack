@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Identifier } from "@destack/schema";
@@ -148,7 +148,7 @@ test.each(TEST_DIALECTS)(
             spaceId,
             Identifier.create("installation"),
         );
-        await store.mutate(Caller.of(store.principal, Date.now()), {
+        await store.mutate(store.self, {
             id: RequestId.create(Date.now()),
             calls: [vault.call("bind", { ...vault.in(spaceId), consumer: bound, ids: [vaultId] })],
         });
@@ -156,7 +156,7 @@ test.each(TEST_DIALECTS)(
         // read the secret by name as each installation
         const read = (installation: typeof bound) =>
             store.query(
-                Caller.of(installation, Date.now()),
+                AccessContext.of(Caller.of(installation), Date.now()),
                 vault.call("read", {
                     ...vault.target({ scope: spaceId, id: vaultId }),
                     name: "first",

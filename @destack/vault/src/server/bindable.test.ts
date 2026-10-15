@@ -1,4 +1,3 @@
-import { Caller } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
 import type { Call } from "@destack/object";
 import { Package } from "@destack/package";
@@ -54,7 +53,7 @@ async function within<Result>(
             .where(eq(vault.table.id, fixture.vaultId)),
     );
     const now = Date.now();
-    await store.mutate(Caller.of(store.principal, now), {
+    await store.mutate(store.self, {
         id: RequestId.create(now),
         calls: [vault.call("update", { ...vault.target(row), revision: row.revision })],
     });

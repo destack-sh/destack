@@ -3,7 +3,8 @@ import {
     accessRelationship,
     accessRole,
     accessRolePermission,
-    type Caller,
+    type Authentication,
+    Caller,
     principal,
     Relationship,
 } from "@destack/access";
@@ -82,7 +83,7 @@ export class VaultFixture implements AsyncDisposable {
     /** The member's vault client, replaced by scenarios connecting to another server. */
     client: ClientOf<typeof vaultPackage>;
     /** The member the servers authenticate. */
-    #caller: Caller;
+    #authentication: Authentication;
     /** The event log keeping the stores' calls. */
     readonly #events: EventStore;
     /** The served servers, closed before the database. */
@@ -108,7 +109,7 @@ export class VaultFixture implements AsyncDisposable {
         this.roleId = previous?.roleId ?? Identifier.create("role");
 
         // serve the vault to the member
-        this.#caller = this.#member();
+        this.#authentication = this.#member();
         this.client = this.connect(this.serve());
     }
 
@@ -177,27 +178,26 @@ export class VaultFixture implements AsyncDisposable {
     }
 
     /** Authenticate a request with the member's identifier as the member. */
-    #authenticate(request: Request): Caller {
+    #authenticate(request: Request): Authentication {
         if (request.headers.get("Authorization") !== `Bearer ${this.userId}`) {
             throw new CallError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
 
-        return this.#caller;
+        return this.#authentication;
     }
 
     /** Describe the member of the space's account. */
-    #member(): Caller {
+    #member(): Authentication {
+        // sign the member in with a fixture credential, inside the account
         const now = Date.now();
+        const subject = principal.user.reference("universe", this.userId);
+        const membership = {
+            ...account.reference(this.userId, this.accountId),
+            relation: "member",
+        };
 
         return {
-            subject: principal.user.reference("universe", this.userId),
-            subjects: [
-                principal.user.reference("universe", this.userId),
-                {
-                    ...account.reference(this.userId, this.accountId),
-                    relation: "member",
-                },
-            ],
+            caller: { ...Caller.of(subject), groups: [membership] },
             credential: {
                 kind: "fixture",
                 id: "fixture-1",
@@ -211,9 +211,13 @@ export class VaultFixture implements AsyncDisposable {
     /** Authenticate the member again with a second factor just now, as a step-up does. */
     stepUp(): void {
         const now = Date.now();
-        this.#caller = {
-            ...this.#caller,
-            assurance: { level: sudo.assurance, authenticatedAt: now },
+        const { caller, credential } = this.#authentication;
+        this.#authentication = {
+            caller,
+            credential: {
+                ...credential,
+                assurance: { level: sudo.assurance, authenticatedAt: now },
+            },
         };
     }
 

@@ -1,4 +1,4 @@
-import { Caller } from "@destack/access";
+import { AccessContext, Caller } from "@destack/access";
 import { type Table } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
@@ -16,7 +16,7 @@ test.each(TEST_DIALECTS)(
         const machine = fixture.objects();
         const send = async (name: "delete" | "finalize") => {
             const stored = single(await database.select().from(vault.table));
-            await machine.mutate(Caller.of(machine.principal, Date.now()), {
+            await machine.mutate(AccessContext.of(Caller.of(machine.principal), Date.now()), {
                 id: RequestId.create(Date.now()),
                 calls: [vault.call(name, vault.target(stored))],
             });

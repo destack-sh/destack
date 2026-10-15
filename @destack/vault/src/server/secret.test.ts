@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, isNotNull } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
@@ -459,7 +459,7 @@ test("put a consumer's secret as one live version through its vault, read it as 
     const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
     const id = secret.generateId();
     const write = (mutation: ObjectCall) =>
-        objects.mutate(Caller.of(objects.principal, Date.now()), {
+        objects.mutate(objects.self, {
             id: RequestId.create(Date.now()),
             calls: [mutation],
         });
@@ -476,7 +476,9 @@ test("put a consumer's secret as one live version through its vault, read it as 
     const read = async (reader: typeof machine) => {
         const query = secret.call("read", secret.target({ scope: fixture.spaceId, id }));
 
-        return SecretReading.parse(await objects.query(Caller.of(reader, Date.now()), query)).value;
+        return SecretReading.parse(
+            await objects.query(AccessContext.of(Caller.of(reader), Date.now()), query),
+        ).value;
     };
 
     // put twice and read the live value as the machine, refusing another machine
