@@ -44,15 +44,15 @@ export interface MultipartUpload {
     /** The upload identifier. */
     readonly uploadId: string;
     /** Store or replace one numbered part. */
-    uploadPart(
+    readonly uploadPart: (
         partNumber: number,
         body: BucketBody,
         options?: UploadPartOptions,
-    ): Promise<UploadedPart>;
+    ) => Promise<UploadedPart>;
     /** Assemble the selected part uploads into one file. */
-    complete(uploaded: UploadedPart[]): Promise<BucketFile>;
+    readonly complete: (uploaded: UploadedPart[]) => Promise<BucketFile>;
     /** Discard an incomplete upload. */
-    abort(): Promise<void>;
+    readonly abort: () => Promise<void>;
 }
 
 /** Require a part number from 1 through 10000. */

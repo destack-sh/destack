@@ -1,4 +1,4 @@
-import { check, index, integer, json, defineTable, text, defineDatabase } from "@destack/db";
+import { check, index, integer, json, defineTable, text, defineDatabase, textEnum } from "@destack/db";
 import { schema } from "@destack/schema";
 import { DIGEST_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
@@ -39,7 +39,7 @@ export const file = defineTable(
             schema.record(schema.string(), schema.string()),
         ).notNull(),
         /** The storage class. */
-        storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
+        storageClass: textEnum("storage_class", STORAGE_CLASSES).notNull(),
         /** The base64 MD5 digest of the customer key that encrypts the content. */
         ssecKeyMd5: text("ssec_key_md5"),
         /** The time before which the file can be neither replaced nor deleted. */
@@ -78,11 +78,11 @@ export const upload = defineTable(
         /** The destination key. */
         key: text("key").notNull(),
         /** The upload lifecycle. */
-        state: text("state", { enum: ["active", "completed", "aborted"] }).notNull(),
+        state: textEnum("state", ["active", "completed", "aborted"]).notNull(),
         /** The automatic cleanup time. */
         expires: integer("expires").notNull(),
         /** The storage class of the completed file. */
-        storageClass: text("storage_class", { enum: STORAGE_CLASSES }).notNull(),
+        storageClass: textEnum("storage_class", STORAGE_CLASSES).notNull(),
         /** The base64 MD5 digest of the customer key that encrypts the parts. */
         ssecKeyMd5: text("ssec_key_md5"),
         /** HTTP and application metadata, with expiration encoded as an ISO date. */

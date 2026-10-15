@@ -8,19 +8,26 @@ import type { BucketListing } from "./list.ts";
 /** File storage supplied by the host. */
 export interface Bucket {
     /** Read metadata; return null when the key does not exist. */
-    head(key: string): Promise<BucketFile | null>;
+    readonly head: (key: string) => Promise<BucketFile | null>;
     /** Read a file, null when the key does not exist. */
-    get(key: string, options?: BucketGetOptions): Promise<BucketFileBody | null>;
+    readonly get: (key: string, options?: BucketGetOptions) => Promise<BucketFileBody | null>;
     /** Store a complete file, atomically replacing any previous one. */
-    put(key: string, body: BucketBody | null, options?: BucketPutOptions): Promise<BucketFile>;
+    readonly put: (
+        key: string,
+        body: BucketBody | null,
+        options?: BucketPutOptions,
+    ) => Promise<BucketFile>;
     /** Delete up to 1000 files; absent keys remain absent. */
-    delete(key: string | string[]): Promise<void>;
+    readonly delete: (key: string | string[]) => Promise<void>;
     /** List a page of entries. */
-    list(options?: BucketListOptions): Promise<BucketListing>;
+    readonly list: (options?: BucketListOptions) => Promise<BucketListing>;
     /** Create an incomplete file upload. */
-    createMultipartUpload(key: string, options?: MultipartOptions): Promise<MultipartUpload>;
+    readonly createMultipartUpload: (
+        key: string,
+        options?: MultipartOptions,
+    ) => Promise<MultipartUpload>;
     /** Reference an existing upload; subsequent operations check its existence. */
-    resumeMultipartUpload(key: string, uploadId: string): MultipartUpload;
+    readonly resumeMultipartUpload: (key: string, uploadId: string) => MultipartUpload;
 }
 
 /** Read options. */

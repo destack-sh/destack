@@ -3,9 +3,9 @@ import { createHash, type Hash } from "node:crypto";
 /** An incremental hash of a byte stream, spent by its one digest call. */
 export interface Hasher {
     /** Add bytes to the digest. */
-    update(bytes: Uint8Array): void;
+    readonly update: (bytes: Uint8Array) => void;
     /** Finish the digest and return its bytes. */
-    digest(): Uint8Array<ArrayBuffer>;
+    readonly digest: () => Uint8Array<ArrayBuffer>;
 }
 
 /** An incremental MD5, SHA-1 or SHA-256 digest from node:crypto. */

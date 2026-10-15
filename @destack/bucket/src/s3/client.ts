@@ -543,7 +543,7 @@ function written(key: string, size: number, sent: Headers, answered: Headers): B
 /** Send a body as fetch takes it, counting the bytes a stream sends. */
 function counted(body: BucketBody | null): {
     readonly body: Exclude<S3Call["body"], undefined>;
-    size(): number;
+    readonly size: () => number;
 } {
     // count a stream's bytes as they pass
     if (body instanceof ReadableStream) {

@@ -15,23 +15,38 @@ import type {
 /** A bucket that backs the S3 protocol directly, with every S3 operation in scope. */
 export interface S3Bucket extends Bucket {
     /** Copy a file, optionally under preconditions on the source. */
-    copy(source: string, destination: string, options?: BucketCopyOptions): Promise<BucketFile>;
+    readonly copy: (
+        source: string,
+        destination: string,
+        options?: BucketCopyOptions,
+    ) => Promise<BucketFile>;
     /** List incomplete multipart uploads in key order. */
-    listUploads(options?: UploadListOptions): Promise<UploadListing>;
+    readonly listUploads: (options?: UploadListOptions) => Promise<UploadListing>;
     /** Create an incomplete file upload with the operations S3 adds. */
-    createMultipartUpload(key: string, options?: MultipartOptions): Promise<S3MultipartUpload>;
+    readonly createMultipartUpload: (
+        key: string,
+        options?: MultipartOptions,
+    ) => Promise<S3MultipartUpload>;
     /** Reference an existing upload with the operations S3 adds. */
-    resumeMultipartUpload(key: string, uploadId: string): S3MultipartUpload;
+    readonly resumeMultipartUpload: (key: string, uploadId: string) => S3MultipartUpload;
 }
 
 /** An incomplete file upload with the operations S3 adds. */
 export interface S3MultipartUpload extends MultipartUpload {
     /** Store or replace one numbered part, describing it as S3 lists it. */
-    uploadPart(partNumber: number, body: BucketBody, options?: UploadPartOptions): Promise<Part>;
+    readonly uploadPart: (
+        partNumber: number,
+        body: BucketBody,
+        options?: UploadPartOptions,
+    ) => Promise<Part>;
     /** Store a numbered part copied from a file. */
-    uploadPartCopy(partNumber: number, source: string, options?: PartCopyOptions): Promise<Part>;
+    readonly uploadPartCopy: (
+        partNumber: number,
+        source: string,
+        options?: PartCopyOptions,
+    ) => Promise<Part>;
     /** List a page of the stored parts. */
-    listParts(options?: PartListOptions): Promise<PartListing>;
+    readonly listParts: (options?: PartListOptions) => Promise<PartListing>;
 }
 
 /** Copy options. */

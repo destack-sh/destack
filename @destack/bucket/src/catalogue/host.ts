@@ -8,14 +8,14 @@ import type { CatalogueBucket } from "./bucket.ts";
 /** The databases a host keeps its buckets' catalogues in, one each. */
 export interface CatalogueStore {
     /** Report whether a bucket has a catalogue. */
-    has(bucketId: Identifier<"bucket">): Promise<boolean>;
+    readonly has: (bucketId: Identifier<"bucket">) => Promise<boolean>;
     /** Connect to a bucket's catalogue declaring some tables. */
-    connect(
+    readonly connect: (
         bucketId: Identifier<"bucket">,
         tables: readonly Table[],
-    ): Promise<DatabaseConnection & { close(): Promise<void> }>;
+    ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>;
     /** Remove a bucket's catalogue. */
-    destroy(bucketId: Identifier<"bucket">): Promise<void>;
+    readonly destroy: (bucketId: Identifier<"bucket">) => Promise<void>;
 }
 
 /** A host that keeps buckets over catalogues, each opened once at a time. */

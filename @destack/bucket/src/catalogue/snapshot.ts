@@ -20,9 +20,9 @@ export interface CatalogueHandle extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
     /** Keep every blob from collection until the hold is released. */
-    hold(): Promise<AsyncDisposable>;
+    readonly hold: () => Promise<AsyncDisposable>;
     /** Collect the blobs deleted rows referenced, deleting those no row references any longer. */
-    retire(digests: readonly Digest[]): Promise<void>;
+    readonly retire: (digests: readonly Digest[]) => Promise<void>;
 }
 
 /** Copy a bucket's catalogue and blobs into a snapshot store. */
