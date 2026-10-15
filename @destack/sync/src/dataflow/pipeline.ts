@@ -262,11 +262,12 @@ export interface Context {
     readonly isMaterialized: boolean;
     /** The most rows one page of a snapshot reads. */
     readonly pageSize: number;
-    /** Read the watched changes between two sequences, absent once compacted. */
+    /** Read the watched changes between two sequences through a reader, absent once compacted. */
     changesThrough(
         watches: readonly Watch[],
         after: number,
         through: number,
+        reader: DatabaseConnection,
     ): Promise<Change[] | undefined>;
 }
 

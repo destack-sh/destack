@@ -473,16 +473,16 @@ export class Dataflow implements Arrangement {
 
     /** Start measuring a run, returning the function that records its cost. */
     #measure(run: Run): () => void {
-        // note the operations and time
-        const database = this.#context.database;
-        const operations = database.driver.state.operations;
+        // note the operations the run's own reader submits, and the time
+        const reader = run.view.database.driver;
+        const operations = reader.operations;
         const started = performance.now();
 
         return () => {
             // add up and report the cost
             const cost = {
                 changes: run.changes.length,
-                operations: database.driver.state.operations - operations,
+                operations: reader.operations - operations,
                 decided: run.decided,
                 sent: run.patch.size,
                 milliseconds: performance.now() - started,
@@ -501,8 +501,18 @@ export class Dataflow implements Arrangement {
         };
     }
 
-    /** Require the pipelines to stay within the capacity. */
+    /** Require the pipelines to stay within the capacity, shedding counted extreme values first. */
     #requireCapacity(): void {
+        // shed the counted extreme values, whose groups recount a lost extreme from the database
+        if (this.#capacity !== undefined && this.size > this.#capacity) {
+            for (const pipeline of this.#pipelines.values()) {
+                if (pipeline instanceof Aggregation) {
+                    pipeline.shed();
+                }
+            }
+        }
+
+        // refuse rows and groups beyond the capacity
         const size = this.size;
         if (this.#capacity !== undefined && size > this.#capacity) {
             throw new SyncError(

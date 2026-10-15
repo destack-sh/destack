@@ -455,7 +455,11 @@ export class Replica {
     }
 
     /** Report whether a database replicates a scope, or the scope's rows of one table. */
-    static async isReplicated(snapshot: Snapshot, scope: string, table?: Table): Promise<boolean> {
+    static async isReplicated(
+        snapshot: Pick<Snapshot, "rows">,
+        scope: string,
+        table?: Table,
+    ): Promise<boolean> {
         // read the replicas of the scope with the tables they keep
         const records = await snapshot.rows(replica, { scope });
         const name = table?.[TABLE].sqlName;

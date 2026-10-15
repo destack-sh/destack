@@ -362,8 +362,8 @@ export class Feed implements Cache {
                 audience: EVERYONE,
                 database: this.database,
                 ...(this.upstream === undefined ? {} : { upstream: this.upstream }),
-                changesThrough: (watches, after, through) =>
-                    this.changesThrough(watches, after, through),
+                changesThrough: (watches, after, through, reader) =>
+                    this.changesThrough(watches, after, through, reader),
                 isMaterialized: true,
                 pageSize: this.pageSize,
             },
@@ -470,7 +470,7 @@ export class Feed implements Cache {
             };
         }
 
-        return this.#logged(watches, sequence);
+        return this.#logged(watches, sequence, this.database);
     }
 
     /** Read the watched changes between two sequences, absent once compacted. */
@@ -478,6 +478,7 @@ export class Feed implements Cache {
         watches: readonly Watch[],
         after: number,
         through: number,
+        reader: DatabaseConnection,
     ): Promise<Change[] | undefined> {
         const changes: Change[] = [];
         for (let sequence = after; sequence < through;) {
@@ -485,7 +486,7 @@ export class Feed implements Cache {
             const read =
                 sequence >= this.#start && this.#sequence > sequence
                     ? await this.changes(watches, sequence)
-                    : await this.#logged(watches, sequence);
+                    : await this.#logged(watches, sequence, reader);
             if (read === undefined) {
                 return undefined;
             } else if (read.sequence <= sequence) {
@@ -504,10 +505,11 @@ export class Feed implements Cache {
     async #logged(
         watches: readonly Watch[],
         sequence: number,
+        reader: DatabaseConnection,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
         const scopes = Watch.scopes(watches);
         try {
-            const read = await this.database.log.read({
+            const read = await reader.log.read({
                 tables: [...new Set(watches.map((entry) => entry.table))],
                 after: sequence,
                 ...(scopes === undefined ? {} : { scopes }),
@@ -526,12 +528,17 @@ export class Feed implements Cache {
     }
 
     /** Read a table's row images before their first change between two sequences, by key. */
-    images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>> {
+    images(
+        table: Table,
+        after: number,
+        upto: number,
+        reader: DatabaseConnection,
+    ): Promise<ReadonlyMap<string, Row | null>> {
         // share the images per range
         return this.#images.share(after, `images:${table[TABLE].sqlName}:${upto}`, async () => {
             // read from the log unless memory has the range
             if (upto <= after || after < this.#start || this.#sequence < upto) {
-                return this.database.log.images(table, after, upto);
+                return reader.log.images(table, after, upto);
             }
             const images = new Map<string, Row | null>();
             for (let index = this.#after(after); index < this.#changes.length; index += 1) {

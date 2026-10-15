@@ -3,7 +3,7 @@ import { canonicalize, found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import { NOWHERE, Pipeline, type Context } from "./pipeline.ts";
 import type { Run, Work } from "./run.ts";
-import { Tally, type Result } from "./tally.ts";
+import { Tally, type Result, type TallyReading } from "./tally.ts";
 import type { Group } from "./upstream.ts";
 
 /** The most partitions one grouped read counts, bounded by the parameter budget. */
@@ -42,9 +42,21 @@ export class Aggregation extends Pipeline {
             node.isRelating;
     }
 
-    /** The groups of the tallies. */
+    /** The groups of the tallies and the distinct values their extreme measures count. */
     get size(): number {
-        return this.tallies.size;
+        let size = this.tallies.size;
+        for (const tally of this.tallies.values()) {
+            size += tally.counted;
+        }
+
+        return size;
+    }
+
+    /** Stop counting extreme values in every group, which then recounts a lost extreme. */
+    shed(): void {
+        for (const tally of this.tallies.values()) {
+            tally.shed();
+        }
     }
 
     /** Forget every group. */
@@ -348,14 +360,14 @@ export class Aggregation extends Pipeline {
             found(this.partitions, name).sequence = sequence;
         }
         for (const within of batches) {
-            for (const [name, tally] of await this.tallyAt(within, run)) {
+            for (const [name, tally] of await this.tallyAt(within, run, "extremes")) {
                 this.tallies.set(name, tally);
                 this.result(tally.group, tally, run);
             }
         }
     }
 
-    /** Count one group again as of the run's position. */
+    /** Count one group again by value as of the run's position, keeping its values counted. */
     async #recount(group: Readonly<Record<string, Scalar>>, run: Run): Promise<void> {
         // measure the group in its partition
         const node = this.node;
@@ -371,6 +383,7 @@ export class Aggregation extends Pipeline {
                           ),
                       ),
                       run,
+                      "values",
                       group,
                   )
                 : await this.tallyRows(run, group, {
@@ -382,15 +395,16 @@ export class Aggregation extends Pipeline {
         );
     }
 
-    /** Measure the groups of the rows a condition selects, as of the run's position. */
+    /** Measure the groups a condition selects as of the run's position, by extreme or by value. */
     async tallyAt(
         within: Condition,
         run: Run,
+        reading: TallyReading,
         only?: Readonly<Record<string, Scalar>>,
     ): Promise<Map<string, Tally>> {
         // read the groups in one grouped read
         const node = this.node;
-        const read = await run.view.measure(node, within, this.context.audience);
+        const read = await run.view.measure(node, within, this.context.audience, reading);
         const tallies = new Map(
             read.tallies
                 .filter(
@@ -405,6 +419,7 @@ export class Aggregation extends Pipeline {
             [{ table: node.table, scopes: node.scopes }],
             position,
             read.sequence,
+            run.view.database,
         );
         if (beyond === undefined) {
             return this.tallyRows(run, only, { within });
@@ -604,7 +619,7 @@ export class Relation extends Aggregation {
     async hydrate(run: Run): Promise<void> {
         // count every group of a linear relation
         if (!this.isTracked) {
-            for (const [name, tally] of await this.tallyAt({}, run)) {
+            for (const [name, tally] of await this.tallyAt({}, run, "extremes")) {
                 this.tallies.set(name, tally);
             }
             this.#sequence = run.view.position.sequence;

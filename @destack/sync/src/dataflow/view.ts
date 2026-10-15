@@ -22,15 +22,15 @@ import type { Node } from "../query/node.ts";
 import type { Audience } from "../feed/audience.ts";
 import type { RowChange } from "../query/page.ts";
 import type { Run } from "./run.ts";
-import { Tally } from "./tally.ts";
+import { Tally, type TallyReading } from "./tally.ts";
 
 /** The most values in one batched read, bounded by the parameter budget. */
 const BATCH_VALUES = 500;
 
 /** The database as of a log position, with batched reads shared among its readers. */
 export class View {
-    /** The database read. */
-    readonly #database: DatabaseConnection;
+    /** The connection the view reads through, counting the operations of the run it shows. */
+    readonly database: DatabaseConnection;
     /** The shared reads and images. */
     readonly #cache: Cache;
     /** The database as of the position. */
@@ -38,21 +38,22 @@ export class View {
     /** The position shown. */
     readonly position: LogPosition;
 
-    /** Show a database as of a position. */
+    /** Show a database as of a position, reading through a metered connection of its own. */
     constructor(
         database: DatabaseConnection,
         position: LogPosition,
         cache?: Cache,
         snapshot?: Snapshot,
     ) {
-        // read earlier images through the cache
-        this.#database = database;
+        // read through the view's own metered connection, and earlier images through the cache
+        const reader = database.metered();
+        this.database = reader;
         this.position = position;
-        this.#cache = cache ?? new ViewCache(database);
+        this.#cache = cache ?? new ViewCache(reader);
         this.#snapshot =
             snapshot ??
-            database.log.at(position, (table, after, upto) =>
-                this.#cache.images(table, after, upto),
+            reader.log.at(position, (table, after, upto) =>
+                this.#cache.images(table, after, upto, reader),
             );
     }
 
@@ -265,6 +266,7 @@ export class View {
         node: Node,
         within: Condition,
         audience: Audience,
+        reading: TallyReading,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
         // admit rows in memory when the audience decides none in SQL
         const admitted = (table: Table) => View.#admittedSQL(audience, table);
@@ -274,12 +276,12 @@ export class View {
             node.bind(admitted),
         );
         if (current === "memory") {
-            return Tally.measure(this.#database, node, selection, admitted, async (rows) =>
+            return Tally.measure(this.database, node, selection, reading, admitted, async (rows) =>
                 audience.admits(node.table, rows, this.position),
             );
         }
 
-        return Tally.measure(this.#database, node, and(selection, current), admitted);
+        return Tally.measure(this.database, node, and(selection, current), reading, admitted);
     }
 
     /** Read a node's rows before and after their related rows changed between two sequences. */
@@ -354,7 +356,7 @@ export class View {
     /** Read the rows of a table changed between two sequences, as they were and are. */
     async #changed(table: Table, after: number, upto: number): Promise<Row[]> {
         // take each changed row's image
-        const images = await this.#cache.images(table, after, upto);
+        const images = await this.#cache.images(table, after, upto, this.database);
         const rows = [...images.values()].filter((image): image is Row => image !== null);
         const keys = [...images.keys()].map((name) => Key.parse(table, name));
 
@@ -369,7 +371,7 @@ export class View {
                 )),
             );
         } else {
-            rows.push(...(await this.#database.get(table, keys)));
+            rows.push(...(await this.database.get(table, keys)));
         }
 
         return rows;
@@ -394,7 +396,7 @@ export class View {
         for (let start = 0; start < present.length; start += BATCH_VALUES) {
             const matches = { [column]: { in: present.slice(start, start + BATCH_VALUES) } };
             rows.push(
-                ...(await this.#database
+                ...(await this.database
                     .select()
                     .from(table)
                     .where(Condition.render(matches, table))),
@@ -561,7 +563,12 @@ export interface Cache {
     /** The shared encodings of selected rows. */
     readonly encodings: Memo<RowChange>;
     /** Read a table's row images before their first change between two sequences, by key. */
-    images(table: Table, after: number, upto: number): Promise<ReadonlyMap<string, Row | null>>;
+    images(
+        table: Table,
+        after: number,
+        upto: number,
+        reader: DatabaseConnection,
+    ): Promise<ReadonlyMap<string, Row | null>>;
 }
 
 /** One partition's ordered rows as an audience decided them, until a moment. */

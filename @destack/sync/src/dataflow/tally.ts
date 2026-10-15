@@ -1,11 +1,12 @@
 import {
     count,
-    max,
-    min,
     sql,
     sum,
     TABLE,
     type DatabaseConnection,
+    type Dialect,
+    max,
+    min,
     type SQL,
     Order,
     type Scalar,
@@ -56,6 +57,8 @@ export class Tally implements Result {
     readonly #sums: Map<string, Sum>;
     /** The extreme values by measure name, null while the group has no value. */
     readonly #extremes: Map<string, ColumnValue>;
+    /** Each extreme measure's values with their rows, absent once shed or for bytes and JSON. */
+    #counts: Map<string, Map<ColumnValue, number>> | undefined;
     /** The log sequence the tally has changes up to. */
     sequence: number;
     /** The cached measures. */
@@ -76,6 +79,10 @@ export class Tally implements Result {
         this.#summed = Tally.#summedColumns(measures);
         this.sequence = measurement.sequence;
         this.#count = measurement.rows;
+        this.#counts =
+            measurement.counts === undefined
+                ? undefined
+                : new Map([...measurement.counts].map(([name, counts]) => [name, new Map(counts)]));
         for (const [column, summed] of Object.entries(measurement.sums)) {
             this.#sums.set(column, summed);
         }
@@ -91,6 +98,7 @@ export class Tally implements Result {
         database: DatabaseConnection,
         node: Node,
         selection: SQL,
+        reading: TallyReading,
         visibility?: Visibility,
         admit?: (rows: readonly Row[]) => Promise<ReadonlySet<number>>,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
@@ -108,23 +116,37 @@ export class Tally implements Result {
                 ? [[name, measure] as const]
                 : [],
         );
-        const fields = Tally.#measuredFields(node, grouping, summed, extremes, visibility);
+        const fields = Tally.#measuredFields(node, grouping, summed, extremes, reading, visibility);
 
-        // read the groups by select list position beside the log's head
+        // read the groups by select list position beside the log's head, by each extreme measure's value when counting
+        const valued = grouping.length + 1 + summed.length * 2;
+        const positions = [
+            ...grouping.map((_, index) => index + 1),
+            ...(reading === "values" ? extremes.map((_, index) => valued + index + 1) : []),
+        ];
         const { sequence, rows } = await Tally.#headed(database, (reader) =>
             reader
                 .select({ group: fields, head: headFields(reader.dialect) })
                 .from(node.table)
                 .where(selection)
-                .groupBy(...grouping.map((_, index) => sql.raw(String(index + 1)))),
+                .groupBy(...positions.map((position) => sql.raw(String(position)))),
         );
 
-        return {
-            sequence,
-            tallies: rows.map((row) =>
-                Tally.#measuredTally(node, row, sequence, grouping, summed, extremes),
-            ),
-        };
+        // fold each read row into its group's tally, counting values only when read by value
+        const tallies = new Map<string, Tally>();
+        for (const row of rows) {
+            Tally.#fold(
+                tallies,
+                node,
+                row,
+                { sequence, reading },
+                { grouping, summed },
+                extremes,
+                database.dialect,
+            );
+        }
+
+        return { sequence, tallies: [...tallies.values()] };
     }
 
     /** Tally the matched and admitted rows by group in memory, at one log sequence. */
@@ -180,9 +202,32 @@ export class Tally implements Result {
         return { sequence, tallies: [...tallies.values()] };
     }
 
-    /** Start an empty tally at a log sequence. */
+    /** Start an empty tally at a log sequence, counting each extreme measure's values from none. */
     static empty(node: Node, group: Record<string, Scalar>, sequence: number): Tally {
-        return new Tally(node, group, { sequence, rows: 0, sums: {}, extremes: {} });
+        const counts = new Map(
+            Object.entries(Tally.#aggregate(node).values).flatMap(([name, measure]) =>
+                measure.function === "min" || measure.function === "max"
+                    ? [[name, new Map<ColumnValue, number>()] as const]
+                    : [],
+            ),
+        );
+
+        return new Tally(node, group, { sequence, rows: 0, sums: {}, extremes: {}, counts });
+    }
+
+    /** The distinct values the tally counts across its extreme measures. */
+    get counted(): number {
+        let counted = 0;
+        for (const counts of this.#counts?.values() ?? []) {
+            counted += counts.size;
+        }
+
+        return counted;
+    }
+
+    /** Stop counting the extreme measures' values, recounting a lost extreme from the database. */
+    shed(): void {
+        this.#counts = undefined;
     }
 
     /** The rows of the group. */
@@ -202,7 +247,7 @@ export class Tally implements Result {
         this.#count += sign;
         this.#add(row, sign);
 
-        // keep or lose each extreme
+        // keep each extreme from the counted values, or lose it without them
         let isExact = true;
         for (const [name, measure] of Object.entries(this.#measures)) {
             if (measure.function !== "min" && measure.function !== "max") {
@@ -212,15 +257,26 @@ export class Tally implements Result {
             if (value === null) {
                 continue;
             }
+            const counts = this.#countsOrShed(name, value);
             const extreme = this.#extremes.get(name) ?? null;
             const order = extreme === null ? undefined : Order.values(value, extreme);
-            if (sign < 0) {
+            // count the value out, reading the next extreme from the counted values once it leaves
+            if (sign < 0 && counts !== undefined) {
+                const left = Tally.#uncount(counts, value);
+                if (order === 0 && left === 0) {
+                    this.#extremes.set(name, Tally.#extremeOf(counts, measure.function));
+                }
+            }
+            // lose an extreme counted out without counted values
+            else if (sign < 0) {
                 isExact &&= order !== 0;
-            } else if (
-                order === undefined ||
-                (measure.function === "min" ? order < 0 : order > 0)
-            ) {
-                this.#extremes.set(name, value);
+            }
+            // count the value in, keeping a new extreme
+            else {
+                counts?.set(value, (counts.get(value) ?? 0) + 1);
+                if (order === undefined || (measure.function === "min" ? order < 0 : order > 0)) {
+                    this.#extremes.set(name, value);
+                }
             }
         }
 
@@ -284,6 +340,49 @@ export class Tally implements Result {
         return this.#node.scalar(measure.column, this.#extremes.get(name) ?? null);
     }
 
+    /** Read an extreme measure's counted values, shedding them all for bytes or JSON. */
+    #countsOrShed(name: string, value: ColumnValue): Map<ColumnValue, number> | undefined {
+        // count only values a map tells apart by value
+        if (typeof value === "object") {
+            this.#counts = undefined;
+        }
+
+        return this.#counts?.get(name);
+    }
+
+    /** Count a value out, answering the rows left with it. */
+    static #uncount(counts: Map<ColumnValue, number>, value: ColumnValue): number {
+        // refuse counting out a value the tally never counted in
+        const left = (counts.get(value) ?? 0) - 1;
+        if (left < 0) {
+            const shown = typeof value === "bigint" ? `${value}n` : JSON.stringify(value);
+            throw new TypeError(`a tally counted out ${shown}, which it never counted in`);
+        }
+        if (left === 0) {
+            counts.delete(value);
+        } else {
+            counts.set(value, left);
+        }
+
+        return left;
+    }
+
+    /** Read the least or greatest counted value, null for none. */
+    static #extremeOf(
+        counts: ReadonlyMap<ColumnValue, number>,
+        direction: "min" | "max",
+    ): ColumnValue {
+        let extreme: ColumnValue | null = null;
+        for (const value of counts.keys()) {
+            const order = extreme === null ? undefined : Order.values(value, extreme);
+            if (order === undefined || (direction === "min" ? order < 0 : order > 0)) {
+                extreme = value;
+            }
+        }
+
+        return extreme;
+    }
+
     /** Add or subtract a row's summed columns. */
     #add(row: Row, sign: 1 | -1): void {
         for (const column of this.#summed) {
@@ -319,6 +418,7 @@ export class Tally implements Result {
         grouping: readonly string[],
         summed: readonly string[],
         extremes: readonly (readonly [string, Extract<Measure, { readonly column: string }>])[],
+        reading: TallyReading,
         visibility: Visibility | undefined,
     ): Record<string, SQL> {
         return {
@@ -337,69 +437,108 @@ export class Tally implements Result {
             ),
             ...Object.fromEntries(
                 extremes.map(([, measure], index): [string, SQL] => [
-                    `e${index}`,
-                    Tally.#extreme(node, measure, visibility),
+                    `v${index}`,
+                    Tally.#measured(node, measure, reading, visibility),
                 ]),
             ),
         };
     }
 
-    /** Start a tally from one measured group's selected row. */
-    static #measuredTally(
+    /** Fold one selected row, a group's rows of one value per extreme measure, into its tally. */
+    static #fold(
+        tallies: Map<string, Tally>,
         node: Node,
         row: Readonly<Record<string, unknown>>,
-        sequence: number,
-        grouping: readonly string[],
-        summed: readonly string[],
-        extremes: readonly (readonly [string, Measure])[],
-    ): Tally {
-        // read the group's values
+        read: { readonly sequence: number; readonly reading: TallyReading },
+        selected: { readonly grouping: readonly string[]; readonly summed: readonly string[] },
+        extremes: readonly (readonly [string, Extract<Measure, { readonly column: string }>])[],
+        dialect: Dialect,
+    ): void {
+        // find the group's tally, starting it empty
         const group = node.rowGroup(
             Object.fromEntries(
-                grouping.map((name, index) => [name, DriverValue.parse(row[`g${index}`])]),
+                selected.grouping.map((name, index) => [name, DriverValue.parse(row[`g${index}`])]),
             ),
         );
+        const name = JSON.stringify(group);
+        let tally = tallies.get(name);
+        if (tally === undefined) {
+            tally = Tally.empty(node, group, read.sequence);
+            if (read.reading === "extremes") {
+                tally.shed();
+            }
+            tallies.set(name, tally);
+        }
 
-        // read the sums as exact decimals or partials
-        const sums = Object.fromEntries(
-            summed.map((name, index) => {
-                const text = SUM.parse(row[`s${index}`]) ?? "0";
-                const present = COUNT.parse(row[`c${index}`]);
+        // add the rows and the sums, exact decimals or partials
+        const rows = COUNT.parse(row["rows"]);
+        tally.#count += rows;
+        for (const [index, column] of selected.summed.entries()) {
+            const text = SUM.parse(row[`s${index}`]) ?? "0";
+            const present = COUNT.parse(row[`c${index}`]);
+            const before = tally.#sums.get(column);
+            tally.#sums.set(
+                column,
+                node.columnKind(column) === "bigint"
+                    ? {
+                          exact:
+                              (before !== undefined && "exact" in before ? before.exact : 0n) +
+                              BigInt(text),
+                          count: (before?.count ?? 0) + present,
+                      }
+                    : {
+                          partials: Tally.#grow(
+                              before !== undefined && "partials" in before ? before.partials : [],
+                              Number(text),
+                          ),
+                          count: (before?.count ?? 0) + present,
+                      },
+            );
+        }
 
-                return [
-                    name,
-                    node.columnKind(name) === "bigint"
-                        ? { exact: BigInt(text), count: present }
-                        : { partials: [Number(text)], count: present },
-                ];
-            }),
-        );
-        const read = Object.fromEntries(
-            extremes.map(([name], index) => [name, DriverValue.parse(row[`e${index}`])]),
-        );
-
-        return new Tally(node, group, {
-            sequence,
-            rows: COUNT.parse(row["rows"]),
-            sums,
-            extremes: read,
-        });
+        // count each extreme measure's value and keep the extreme
+        for (const [index, [measureName, measure]] of extremes.entries()) {
+            const value = Tally.#decoded(node, measure.column, row[`v${index}`], dialect);
+            if (value === null) {
+                continue;
+            }
+            const counts = tally.#countsOrShed(measureName, value);
+            counts?.set(value, (counts.get(value) ?? 0) + rows);
+            const extreme = tally.#extremes.get(measureName) ?? null;
+            const order = extreme === null ? undefined : Order.values(value, extreme);
+            if (order === undefined || (measure.function === "min" ? order < 0 : order > 0)) {
+                tally.#extremes.set(measureName, value);
+            }
+        }
     }
 
-    /** Select a measure's extreme. */
-    static #extreme(
+    /** Decode a selected measured value as the rows hold it: a column's by its column. */
+    static #decoded(node: Node, name: string, value: unknown, dialect: Dialect): DriverValue {
+        return node.extras[name] === undefined && value !== null
+            ? DriverValue.parse(node.column(name).definition.decode(value, dialect))
+            : DriverValue.parse(value);
+    }
+
+    /** Select a measure's column value, or its extreme, a number for numeric computed values. */
+    static #measured(
         node: Node,
         measure: Extract<Measure, { readonly column: string }>,
+        reading: TallyReading,
         visibility: Visibility | undefined,
     ): SQL {
-        // select the measured column's extreme as a number for numeric computed values
+        // select each value when counting values, else the group's extreme
         const operand = node.sql(measure.column, visibility);
-        const extreme = measure.function === "min" ? min(operand) : max(operand);
+        const value =
+            reading === "values"
+                ? sql`${operand}`
+                : measure.function === "min"
+                  ? min(operand)
+                  : max(operand);
         const computed = node.extras[measure.column];
 
         return computed !== undefined && node.columnKind(measure.column) !== "text"
-            ? extreme.mapWith((value) => SELECTED_NUMBER.parse(value))
-            : extreme;
+            ? value.mapWith((selected) => SELECTED_NUMBER.parse(selected))
+            : value;
     }
 
     /** List the distinct summed columns. */
@@ -550,7 +689,12 @@ export interface Measurement {
     readonly sums: Readonly<Record<string, Sum>>;
     /** The extreme values by measure name. */
     readonly extremes: Readonly<Record<string, ColumnValue>>;
+    /** Each extreme measure's values with their rows, absent when the read counted none. */
+    readonly counts: ReadonlyMap<string, ReadonlyMap<ColumnValue, number>> | undefined;
 }
+
+/** How a grouped read measures extremes: each group's extreme, or each value's rows to count. */
+export type TallyReading = "extremes" | "values";
 
 /** One column's sum over a group, with its count of present values. */
 type Sum =

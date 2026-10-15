@@ -38,8 +38,8 @@ export class Evaluation {
             audience,
             database: feed.database,
             ...(feed.upstream === undefined ? {} : { upstream: feed.upstream }),
-            changesThrough: (watches, after, through) =>
-                feed.changesThrough(watches, after, through),
+            changesThrough: (watches, after, through, reader) =>
+                feed.changesThrough(watches, after, through, reader),
             capacity: feed.capacity,
             pageSize: feed.pageSize,
             ...(feed.observe === undefined ? {} : { observe: feed.observe }),
