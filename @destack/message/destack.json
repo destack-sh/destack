@@ -24,6 +24,24 @@
         },
         "./webhook": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun", "workerd"]
+        }
+    },
+    "declarations": {
+        "defineMail": {
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeMail"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineMail": {
+            "module": 1
         }
     }
 }

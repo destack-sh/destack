@@ -1,5 +1,12 @@
 import { definePackage } from "@destack/runtime";
-import { endpoint, message } from "./object/index.ts";
+import { defineMail } from "./email/kind.ts";
+import { endpoint, mail, message, messageAttempt } from "./object/index.ts";
 
-/** The handle stores serve messages and webhook endpoints through, and clients call them by. */
-export default definePackage({ objects: { message, endpoint } });
+/** The mail the package sends through, which its host binds to its provider. */
+export const outboundMail = defineMail("outbound");
+
+/** The handle stores serve messages, their attempts and webhook endpoints through. */
+export default definePackage({
+    objects: { message, attempt: messageAttempt, endpoint, mail },
+    resources: { outbound: outboundMail },
+});
