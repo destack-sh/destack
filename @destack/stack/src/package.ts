@@ -3,7 +3,6 @@ import { defineAdapter, definePackage } from "@destack/runtime";
 import { module, symbol } from "./graph/object.ts";
 import {
     binding,
-    bindingGrant,
     branch,
     branchCall,
     branchChange,
@@ -44,7 +43,6 @@ export default definePackage({
         proof,
         declaration,
         binding,
-        bindingGrant,
         deployment,
         capture,
         instance,

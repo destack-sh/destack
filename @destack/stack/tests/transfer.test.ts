@@ -518,7 +518,6 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__stack__proof",
         "destack__stack__declaration",
         "destack__stack__binding",
-        "destack__stack__binding_grant",
         "destack__stack__deployment",
         "destack__stack__capture",
         "destack__stack__instance",

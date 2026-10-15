@@ -141,7 +141,6 @@ export const installation = defineObject({
         delete: none(),
         apply: none(),
         open: none(),
-        call: none(),
         replicate: self(),
         run: self(),
         token: self(),
@@ -152,7 +151,7 @@ export const installation = defineObject({
         unmask: none(),
     },
     reserved: ["replicate", "run", "token"],
-    // bind roles on an installation directly, or declared through binding grants
+    // bind roles on an installation directly
     shareable: { by: "update" },
     constraints: {
         space: {

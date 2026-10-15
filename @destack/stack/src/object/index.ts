@@ -17,7 +17,6 @@ export * from "./snapshot.ts";
 export * from "./branch.ts";
 export * from "./route.ts";
 export * from "./declaration.ts";
-export * from "./grant.ts";
 export * from "./bucket.ts";
 export * from "./file.ts";
 export * from "./dependency.ts";

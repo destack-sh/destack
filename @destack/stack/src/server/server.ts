@@ -36,7 +36,6 @@ import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import type { ContentStore } from "@destack/resource";
 import { Bindable, Binder, type ServedBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
-import { implementBindingGrant } from "./resource/grant.ts";
 import { implementInstallation } from "./installation/installation.ts";
 import { InstallationAssertion } from "./installation/token.ts";
 import { implementInstallationRevision } from "./installation/revision.ts";
@@ -308,7 +307,6 @@ function ownObjects(
         }),
         implementInstallationRevision(builds, registry),
         binder.declare(),
-        implementBindingGrant(),
         implementDeployment({
             providers,
             bindables: options.bindables,

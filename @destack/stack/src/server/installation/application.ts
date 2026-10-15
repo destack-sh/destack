@@ -50,7 +50,6 @@ import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
 import { InstallationGrant } from "./grant.ts";
-import { BindingGrantRole } from "../resource/grant.ts";
 
 /** The description of a declaration of a kind other than resource: its name and specification. */
 const OtherDescription = schema.object({ name: DeclarationName }).catchall(schema.json());
@@ -838,9 +837,8 @@ export async function finalizeApplication(
         ...retired.map((row) => deployment.call("delete", { id: row.id })),
     ]);
 
-    // drop its grant and the roles others have on it
+    // drop its grant
     await InstallationGrant.keep(call, target, []);
-    await BindingGrantRole.drop(call, target);
 }
 
 /** Report whether an active deployment runs a chosen output of the revision. */
