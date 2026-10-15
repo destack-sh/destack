@@ -5,7 +5,7 @@ import type { ResourceRecord } from "../provider/provider.ts";
 import { ResourceDescription } from "./declaration.ts";
 
 /** The state of a kind without a desired state: the empty object every declaration reports. */
-const NO_STATE = schema.object({});
+export const NO_STATE = schema.object({});
 
 /** The desired state a kind's providers reconcile resources toward, empty for kinds without one. */
 export type KindState<Kind extends ResourceKind> = schema.Output<Kind["state"]>;
@@ -52,6 +52,13 @@ export class ResourceKind<
             spec: this.spec.parse(stored.spec),
             reference: stored.reference,
         };
+    }
+
+    /** Whether the kind's providers reconcile toward a desired state. */
+    get isStateful(): boolean {
+        const state: schema.Schema = this.state;
+
+        return state !== NO_STATE;
     }
 
     /** Read stored desired states of this kind, refusing invalid ones. */
