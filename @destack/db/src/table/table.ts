@@ -18,7 +18,14 @@ import {
 import { check, ForeignKey, Index, Unique, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
-import { present, schema, Version, type JsonObject, type JsonValue } from "@destack/schema";
+import {
+    mapValues,
+    present,
+    schema,
+    Version,
+    type JsonObject,
+    type JsonValue,
+} from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
@@ -29,7 +36,7 @@ import { DatabaseError } from "../error/error.ts";
 import type { ColumnDescription, TableDescription } from "./description.ts";
 import type { TableState } from "../migration/state.ts";
 import type { Row } from "./row.ts";
-import { recordSchema, type JsonShape, type Shape } from "./schema.ts";
+import { recordShape, type Shape } from "./schema.ts";
 
 /** The schema of a masked column's JSON value. */
 const JSON_VALUE = schema.json();
@@ -136,6 +143,106 @@ export class Table<
                               description.name,
                           ),
             },
+        );
+    }
+
+    /** Complete an inserted row in memory with its defaults, requiring every column. */
+    static complete<Definition extends Table>(
+        table: Definition,
+        row: Row,
+    ): Select<Definition> & Row {
+        // fill the defaults and require every column
+        const definition = table[TABLE];
+        const completed = definition.defaults(row);
+        const missing = definition.entries.find(
+            ([property]) => !Object.hasOwn(completed, property),
+        );
+        if (missing !== undefined) {
+            const [property, column] = missing;
+            const isComputed =
+                column.definition.generated !== undefined ||
+                column.definition.default instanceof SQL;
+            throw new TypeError(
+                isComputed
+                    ? `column ${property} of ${definition.name} takes a value only the database computes`
+                    : `column ${property} of ${definition.name} needs a value`,
+            );
+        }
+
+        return mapValues<Row, Select<Definition> & Row>(completed, (value) => value);
+    }
+
+    /** Type a row as a table's logged record, requiring each logged column, keeping the rest. */
+    static image<Definition extends Table>(
+        table: Definition,
+        row: Row,
+    ): RowImage<Definition> & Row {
+        // require every logged column
+        const definition = table[TABLE];
+        const missing = Object.keys(definition.logged).find(
+            (property) => !Object.hasOwn(row, property),
+        );
+        if (missing !== undefined) {
+            throw new TypeError(`logged column ${missing} of ${definition.name} has no value`);
+        }
+
+        return mapValues<Row, RowImage<Definition> & Row>(row, (value) => value);
+    }
+
+    /** Take a row of a table's column values, built at runtime, failing for other properties. */
+    static values<Definition extends Table>(
+        table: Definition,
+        row: Row,
+    ): Partial<Select<Definition>> & Row {
+        // refuse other properties and null in a column without nulls
+        for (const [property, value] of Object.entries(row)) {
+            if (value === null && !table[TABLE].column(property).definition.nullable) {
+                throw new TypeError(`column ${property} of ${table[TABLE].name} is not nullable`);
+            }
+        }
+
+        return mapValues<Row, Partial<Select<Definition>> & Row>(row, (value) => value);
+    }
+
+    /** Read the columns a row has from JSON form, an undefined value being absent as in JSON. */
+    static decode<Definition extends Table>(
+        table: Definition,
+        row: JsonObject,
+    ): Partial<Select<Definition>> & Row {
+        const decoded: Row = Object.fromEntries(
+            table[TABLE].entries.flatMap(([property, column]) => {
+                const value = Object.hasOwn(row, property) ? row[property] : undefined;
+
+                return value === undefined
+                    ? []
+                    : [[property, value === null ? null : column.definition.fromJson(value)]];
+            }),
+        );
+
+        return mapValues<Row, Partial<Select<Definition>> & Row>(decoded, (value) => value);
+    }
+
+    /** Validate a table's selected record. */
+    static selectSchema<Definition extends Table>(
+        table: Definition,
+    ): schema.Object<Shape<Select<Definition>>> {
+        return schema.object(
+            mapValues<Record<string, schema.Schema>, Shape<Select<Definition>>>(
+                recordShape(table[TABLE], "select"),
+                (field) => field,
+            ),
+        );
+    }
+
+    /** Validate a table's inserted record. */
+    static insertSchema<Definition extends Table>(
+        table: Definition,
+    ): schema.Object<Shape<Insert<Definition>>> {
+        return schema.object(
+            mapValues<Record<string, schema.Schema>, Shape<Insert<Definition>>>(
+                recordShape(table[TABLE], "insert"),
+                (field) => field,
+            ),
         );
     }
 
@@ -455,110 +562,6 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return { ...row, ...Object.fromEntries(filled) };
     }
 
-    /** Complete an inserted row in memory with its defaults. */
-    complete(row: Row): Select<Table<Name, Columns>> & Row;
-    /**
-     * Complete a row with its defaults.
-     *
-     * @construct every column has a value of its type once completed, as the signature above reads.
-     */
-    complete(row: Row): Row {
-        // fill the defaults and require every column
-        const completed = this.defaults(row);
-        const missing = this.entries.find(([property]) => !Object.hasOwn(completed, property));
-        if (missing === undefined) {
-            return completed;
-        }
-
-        // refuse the first missing column
-        const [property, { definition }] = missing;
-        const isComputed = definition.generated !== undefined || definition.default instanceof SQL;
-        throw new TypeError(
-            isComputed
-                ? `column ${property} of ${this.name} takes a value only the database computes`
-                : `column ${property} of ${this.name} needs a value`,
-        );
-    }
-
-    /** Take a row of this table's column values, built at runtime, failing for other properties. */
-    values(row: Row): Partial<Select<Table<Name, Columns>>> & Row;
-    /**
-     * Return the row once each property is a table column, null only where nullable.
-     *
-     * @construct each property is a column, and its encoder parses the value when written.
-     */
-    values(row: Row): Row {
-        // refuse other properties and null in a column without nulls
-        for (const [property, value] of Object.entries(row)) {
-            if (value === null && !this.column(property).definition.nullable) {
-                throw new TypeError(`column ${property} of ${this.name} is not nullable`);
-            }
-        }
-
-        return row;
-    }
-
-    /** Read the columns a row has from JSON form. */
-    decode(row: JsonObject): Partial<Select<Table<Name, Columns>>> & Row;
-    /**
-     * Decode each column the row has by its column definition.
-     *
-     * @construct each row property is a column, decoded into its type by the column's definition.
-     */
-    decode(row: JsonObject): Row {
-        const decoded: Record<string, ColumnValue> = {};
-        for (const [property, column] of this.entries) {
-            // read the columns the row has, an undefined value being absent as in JSON
-            const value = Object.hasOwn(row, property) ? row[property] : undefined;
-            if (value !== undefined) {
-                decoded[property] = value === null ? null : column.definition.fromJson(value);
-            }
-        }
-
-        return decoded;
-    }
-
-    /** Validate a selected record in JSON form. */
-    selectSchema(form: "json"): schema.Object<JsonShape<Select<Table<Name, Columns>>>>;
-    /** Validate a selected record in application form. */
-    selectSchema(form?: "application"): schema.Object<Shape<Select<Table<Name, Columns>>>>;
-    /**
-     * Validate a selected record, typed by the table in the signatures above.
-     *
-     * @construct the schema has each column's schema in the form, and JSON schemas read JsonOf.
-     */
-    selectSchema(
-        form: "application" | "json" = "application",
-    ): schema.Object<Record<string, schema.Schema>> {
-        return recordSchema(this, "select", form);
-    }
-
-    /** Validate an inserted record in JSON form. */
-    insertSchema(form: "json"): schema.Object<JsonShape<Insert<Table<Name, Columns>>>>;
-    /** Validate an inserted record in application form. */
-    insertSchema(form?: "application"): schema.Object<Shape<Insert<Table<Name, Columns>>>>;
-    /**
-     * Validate an inserted record, typed by the table in the signatures above.
-     *
-     * @construct the schema has each column's insert schema in the form, JSON ones read JsonOf.
-     */
-    insertSchema(
-        form: "application" | "json" = "application",
-    ): schema.Object<Record<string, schema.Schema>> {
-        return recordSchema(this, "insert", form);
-    }
-
-    /** Validate a partial update. */
-    updateSchema(): schema.Object<Shape<Partial<Insert<Table<Name, Columns>>>>>;
-    /**
-     * Validate a partial update, whose signature above types it by the table.
-     *
-     * @construct the record schema has one optional entry per column, each the column's schema.
-     */
-    updateSchema(): schema.Object<Record<string, schema.Schema>> {
-        return recordSchema(this, "update");
-    }
-
     /** Read a statement over the table, building it once per name. */
     statement(name: string, build: () => Statement): Statement {
         // reuse the built statement
@@ -873,41 +876,25 @@ function keyOf(table: Table): readonly string[] {
         .map(([property]) => property);
 }
 
-/** Attach builders' columns to a table's SQL name, whose signature types them by their builders. */
+/** Attach builders' columns to a table's SQL name, in property order. */
 function attachColumns<Builders extends ColumnBuilderMap, Name extends string>(
     sqlName: string,
     builders: Builders,
-): TableColumnMap<Builders, Name>;
-/**
- * Attach builders' columns to a table's SQL name, in property order.
- *
- * @construct each builder becomes the column of its property, as the mapped type above describes.
- */
-function attachColumns(sqlName: string, builders: ColumnBuilderMap): ColumnMap {
-    return Object.fromEntries(
-        Object.entries(builders).map(([property, builder]) => [
-            property,
-            new Column(sqlName, builder.definition),
-        ]),
+): TableColumnMap<Builders, Name> {
+    return mapValues<Builders, TableColumnMap<Builders, Name>>(
+        builders,
+        (builder) => new Column(sqlName, builder.definition),
     );
 }
 
-/** Qualify a table's columns by an alias, whose signature types them by the table. */
+/** Qualify a table's columns by an alias, in property order. */
 function aliasColumns<Definition extends Table, Name extends string>(
     source: Definition,
     name: Name,
-): AliasColumnMap<Definition, Name>;
-/**
- * Qualify a table's columns by an alias, in property order.
- *
- * @construct each column keeps its definition under the alias, as the mapped type above describes.
- */
-function aliasColumns(source: Table, name: string): ColumnMap {
-    return Object.fromEntries(
-        Object.entries(source[TABLE].columns).map(([property, column]) => [
-            property,
-            new Column(name, column.definition, true),
-        ]),
+): AliasColumnMap<Definition, Name> {
+    return mapValues<ColumnMap, AliasColumnMap<Definition, Name>>(
+        source[TABLE].columns,
+        (column) => new Column(name, column.definition, true),
     );
 }
 

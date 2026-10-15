@@ -26,7 +26,7 @@ export async function rebuildTree(
 
     // lock the source against parent changes
     if (database.dialect === "postgresql") {
-        await database.execute(
+        await database.run(
             sql`LOCK TABLE ${sql.identifier(tree.table)} IN SHARE ROW EXCLUSIVE MODE`,
         );
     }
@@ -39,12 +39,12 @@ export async function rebuildTree(
 
     // remove stale paths and add missing ones
     const ancestors = sql.identifier(tree.ancestors);
-    await database.execute(sql`DELETE FROM ${ancestors}
+    await database.run(sql`DELETE FROM ${ancestors}
         WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
-    await database.execute(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
+    await database.run(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
         SELECT scope, ancestor, descendant, depth FROM ${staged}
         WHERE NOT EXISTS (SELECT 1 FROM ${ancestors} WHERE ${same(ancestors, staged)})`);
-    await database.execute(sql`DROP TABLE ${staged}`);
+    await database.run(sql`DROP TABLE ${staged}`);
 }
 
 /** Read every parent link of a tree by scope. */
@@ -115,10 +115,10 @@ async function stagePaths(
     scopes: ReadonlyMap<string, ReadonlyMap<string, string | null>>,
 ): Promise<void> {
     // stage the paths in bounded batches
-    await database.execute(sql`CREATE TEMPORARY TABLE ${staged}
+    await database.run(sql`CREATE TEMPORARY TABLE ${staged}
         (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
     const flush = async (batch: readonly SQL[]) =>
-        database.execute(sql`INSERT INTO ${staged}
+        database.all(sql`INSERT INTO ${staged}
             (scope, ancestor, descendant, depth) VALUES ${sql.join([...batch], sql`, `)}`);
     let batch: SQL[] = [];
     for (const [scope, parents] of scopes) {

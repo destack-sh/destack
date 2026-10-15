@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
@@ -106,7 +106,7 @@ test.each(TEST_DIALECTS)(
         const reads = new ReadSet();
         const changes = new ChangeSet();
         const view = database.log.at(base).recording(reads);
-        const first = await view.row(task, { id: "a" });
+        const first = present(await view.read(task).findFirst({ where: { id: "a" } }), "task a");
         changes.write({
             table: task,
             before: first,
@@ -122,7 +122,7 @@ test.each(TEST_DIALECTS)(
             before: null,
             after: { id: "d", scope: "inbox", priority: 4 },
         });
-        const second = await view.row(task, { id: "b" });
+        const second = present(await view.read(task).findFirst({ where: { id: "b" } }), "task b");
         changes.write({
             table: task,
             before: second,
@@ -133,7 +133,10 @@ test.each(TEST_DIALECTS)(
             before: { id: "b", scope: "inbox", priority: 9 },
             after: second,
         });
-        const seen = await view.layer(changes.overlay()).rows(task, { scope: "inbox" });
+        const seen = await view
+            .layer(changes.overlay())
+            .read(task)
+            .findMany({ where: { scope: "inbox" } });
 
         // commit, keeping only the changed rows
         await changes.commit(database, base, reads, async () => {});
@@ -173,11 +176,23 @@ test.each(TEST_DIALECTS)(
 
         // read one row by key, scan the inbox, and read the archive apart
         const byKey = new ReadSet();
-        await database.log.at(base).recording(byKey).row(task, { id: "a" });
+        await database.log
+            .at(base)
+            .recording(byKey)
+            .read(task)
+            .findFirst({ where: { id: "a" } });
         const byScan = new ReadSet();
-        await database.log.at(base).recording(byScan).rows(task, { scope: "inbox" });
+        await database.log
+            .at(base)
+            .recording(byScan)
+            .read(task)
+            .findMany({ where: { scope: "inbox" } });
         const apart = new ReadSet();
-        await database.log.at(base).recording(apart).rows(task, { scope: "archive" });
+        await database.log
+            .at(base)
+            .recording(apart)
+            .read(task)
+            .findMany({ where: { scope: "archive" } });
 
         // change a task and add one to the inbox after the base, as other commits do
         await database.update(task).set({ priority: 7 }).where(eq(task.id, "a"));
@@ -215,7 +230,10 @@ test.each(TEST_DIALECTS)(
 
         // write through the transaction and read the inbox with its writes
         const transaction = await Transaction.open(database);
-        const first = await transaction.row(task, { id: "a" });
+        const first = present(
+            await transaction.read(task).findFirst({ where: { id: "a" } }),
+            "task a",
+        );
         await transaction.write({
             table: task,
             before: first,
@@ -226,11 +244,9 @@ test.each(TEST_DIALECTS)(
             before: null,
             after: { id: "d", scope: "inbox", priority: 9 },
         });
-        const inbox = await transaction.rows(
-            task,
-            { scope: "inbox" },
-            { orderBy: { priority: "desc" }, limit: 2 },
-        );
+        const inbox = await transaction
+            .read(task)
+            .findMany({ where: { scope: "inbox" }, orderBy: { priority: "desc" }, limit: 2 });
         const archived = await transaction.count(task, { scope: "archive" });
 
         // commit with a record written once beside the changes
@@ -269,9 +285,18 @@ test("keep only logged columns in a transaction's images and its view, committed
         after: { id: "b", scope: "inbox", secret: "second" },
     });
     const seen = {
-        image: await transaction.image(token, { id: "a" }),
-        images: await transaction.images(token, { scope: "inbox" }, { orderBy: { id: "asc" } }),
-        view: await transaction.view().rows(token, { scope: "inbox" }),
+        image: await transaction
+            .view()
+            .read(token)
+            .findFirst({ where: { id: "a" } }),
+        images: await transaction
+            .view()
+            .read(token)
+            .findMany({ where: { scope: "inbox" }, orderBy: { id: "asc" } }),
+        view: await transaction
+            .view()
+            .read(token)
+            .findMany({ where: { scope: "inbox" } }),
     };
 
     expect(seen).toEqual({
@@ -420,7 +445,7 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
         before: null,
         after: { id: "d", scope: "inbox", priority: 4 },
     });
-    const first = await transaction.row(task, { id: "a" });
+    const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
     const rehearsed = await transaction.rehearse(async () => {
         await transaction.write({
             table: task,
@@ -433,7 +458,7 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
             after: { id: "d", scope: "inbox", priority: 8 },
         });
 
-        return (await transaction.rows(task, { scope: "inbox" })).length;
+        return (await transaction.read(task).findMany({ where: { scope: "inbox" } })).length;
     });
     await transaction.commit();
 
@@ -623,7 +648,7 @@ test.each(TEST_DIALECTS)(
         // keep the shifted slugs, real nulls for cleared details, and a statement per group of rows
         const extra = dialect === "postgresql" ? 1 : 0;
         const rows = await database.select().from(entry).orderBy(asc(entry.id));
-        const cleared = await database.execute(
+        const cleared = await database.all(
             sql`SELECT count(*) AS count FROM ${entry} WHERE ${entry.details} IS NULL`,
         );
         expect({
@@ -649,12 +674,15 @@ test.each(TEST_DIALECTS)(
         // read one task twice, write it, then read it again
         const transaction = await Transaction.open(database);
         const before = database.driver.state.statements;
-        const first = await transaction.row(task, { id: "a" });
-        const second = await transaction.row(task, { id: "a" });
+        const first = present(
+            await transaction.read(task).findFirst({ where: { id: "a" } }),
+            "task a",
+        );
+        const second = await transaction.read(task).findFirst({ where: { id: "a" } });
         const reads = database.driver.state.statements - before;
         const written = { id: "a", scope: "inbox", priority: 7 };
         await transaction.write({ table: task, before: first, after: written });
-        const third = await transaction.row(task, { id: "a" });
+        const third = await transaction.read(task).findFirst({ where: { id: "a" } });
 
         // spend one statement on the first read alone, the write showing over it
         expect({ reads, first, second, third }).toEqual({
@@ -688,7 +716,7 @@ test.each(TEST_DIALECTS)(
         const second = await write("f");
 
         // keep each identity on its own entry, the two apart
-        const entries = await database.execute(
+        const entries = await database.all(
             sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} ORDER BY sequence DESC LIMIT 2`,
         );
         expect({

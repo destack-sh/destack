@@ -1,4 +1,5 @@
 import { fill, render, sql, SQL, type SQLWrapper } from "../sql/index.ts";
+import { mapValues } from "@destack/schema";
 import { type Select, TABLE, type Table } from "../table/table.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
 import { Projection, type Selection, type SelectionResult } from "./selection.ts";
@@ -46,7 +47,7 @@ interface SelectState {
 
 /** A typed selection, a new query for each step, awaited for its rows. */
 export class SelectQuery<
-    Result,
+    Result extends object,
     Fields extends Selection = Selection,
     NullableTables extends string = never,
     Automatic extends boolean = false,
@@ -138,14 +139,8 @@ export class SelectQuery<
         return row;
     }
 
-    /** Read every row. */
-    async execute(): Promise<Result[]>;
-    /**
-     * Read every row, decoded by the query's selection.
-     *
-     * @construct the rows decode through the field and join projection, which computed Result.
-     */
-    async execute(): Promise<unknown[]> {
+    /** Read every row, decoded by the query's selection, nullable joined groups missing as null. */
+    async execute(): Promise<Result[]> {
         // run the query and decode its rows, nullable joined groups missing as null
         const projection = this.#projection();
         const rows = await this.state.driver.values(
@@ -164,11 +159,16 @@ export class SelectQuery<
                 .map((join) => join.table[TABLE].sqlName),
         );
 
-        return projection.decode(
+        // decode the rows, typed as the query's result
+        const decoded = projection.decode(
             rows,
             this.state.driver.dialect,
             nullable,
             this.state.driver.state.cipher,
+        );
+
+        return decoded.map((row) =>
+            mapValues<Record<string, unknown>, Result>(row, (value) => value),
         );
     }
 
@@ -247,12 +247,12 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
     /** The driver running the query. */
     readonly driver: DatabaseDriver;
     /** The explicitly selected fields, absent to select the source's records. */
-    readonly fields: Fields;
+    readonly fields: Fields | undefined;
     /** Whether duplicate rows are removed. */
     readonly isDistinct: boolean;
 
     /** Create the builder. */
-    constructor(driver: DatabaseDriver, fields: Fields, isDistinct: boolean) {
+    constructor(driver: DatabaseDriver, fields: Fields | undefined, isDistinct: boolean) {
         this.driver = driver;
         this.fields = fields;
         this.isDistinct = isDistinct;

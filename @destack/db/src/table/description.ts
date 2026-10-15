@@ -1,4 +1,4 @@
-import { defineSchema, schema, toJsonSchema } from "@destack/schema";
+import { defineSchema, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { inline, SQL } from "../sql/index.ts";
 import { Dialect } from "../dialect/dialect.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -195,7 +195,7 @@ function describeColumn(column: Column, dialect: Dialect): ColumnDescription {
     return {
         name: definition.name,
         kind: definition.kind,
-        value: toJsonSchema(definition.json),
+        value: JsonValue.object(toJsonSchema(definition.json)),
         type: definition.types[dialect],
         ...(dialect === "postgresql" && definition.types.postgresql === "text"
             ? { collation: BYTE_COLLATION }

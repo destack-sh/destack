@@ -157,7 +157,7 @@ export class Tree {
     ): Promise<void> {
         // update the parent of an existing node
         const tree = this.describe();
-        const rows = await database.execute(sql`UPDATE ${sql.relation(tree.table)}
+        const rows = await database.all(sql`UPDATE ${sql.relation(tree.table)}
             SET ${sql.identifier(tree.parent)} = ${parent}
             WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${id}
             RETURNING ${sql.identifier(tree.id)}`);
@@ -188,13 +188,13 @@ export class Tree {
 
                 // move the children to the parent
                 if (children === "reparent") {
-                    await transaction.execute(sql`UPDATE ${sql.relation(tree.table)}
+                    await transaction.run(sql`UPDATE ${sql.relation(tree.table)}
                     SET ${sql.identifier(tree.parent)} = ${node.parent}
                     WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.parent)} = ${id}`);
                 }
                 // delete the strict descendants in one statement
                 else if (children === "subtree") {
-                    await transaction.execute(sql`DELETE FROM ${sql.relation(tree.table)}
+                    await transaction.run(sql`DELETE FROM ${sql.relation(tree.table)}
                     WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} IN (
                         SELECT descendant FROM ${sql.relation(tree.ancestors)}
                         WHERE scope = ${scope} AND ancestor = ${id} AND depth > 0
@@ -206,7 +206,7 @@ export class Tree {
                 }
 
                 // delete the node
-                await transaction.execute(sql`DELETE FROM ${sql.relation(tree.table)}
+                await transaction.run(sql`DELETE FROM ${sql.relation(tree.table)}
                 WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${id}`);
             },
             { isolationLevel: "serializable" },

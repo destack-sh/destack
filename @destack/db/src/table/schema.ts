@@ -1,41 +1,64 @@
-import { schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import type { TableDefinition } from "./table.ts";
-import type { JsonOf } from "./column.ts";
+import type { ColumnDefinition } from "./column.ts";
 
 /** The field validators of a record. */
 export type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
 
-/** The field validators of a record in JSON form. */
-export type JsonShape<Value> = {
-    [Property in keyof Value]-?: schema.Schema<JsonOf<Exclude<Value[Property], undefined>>>;
-};
+/** The operations a record's validator checks: a selected, inserted or updated record. */
+export type RecordOperation = "select" | "insert" | "update";
 
-/** Build a validator of a table's records for an operation, in application or JSON form. */
-export function recordSchema(
+/** Build the field validators of a table's records for an operation. */
+export function recordShape(
     table: TableDefinition,
-    operation: "select" | "insert" | "update",
-    form: "application" | "json" = "application",
-) {
-    const fields: Record<string, schema.Schema> = {};
+    operation: RecordOperation,
+): Record<string, schema.Schema> {
+    return Object.fromEntries(
+        fieldsOf(table, operation).map(([property, definition]) => [
+            property,
+            fieldOf(definition.schema, definition, operation),
+        ]),
+    );
+}
 
-    // derive validators from the columns
-    for (const [property, column] of table.entries) {
-        const definition = column.definition;
-        if (operation !== "select" && definition.generated !== undefined) {
-            continue;
-        }
-        let validator: schema.Schema = form === "json" ? definition.json : definition.schema;
-        if (definition.nullable) {
-            validator = validator.nullable();
-        }
-        if (
-            operation === "update" ||
-            (operation === "insert" && (definition.nullable || definition.default !== undefined))
-        ) {
-            validator = validator.exactOptional();
-        }
-        fields[property] = validator;
-    }
+/** Build the field validators of a table's records for an operation, in JSON form. */
+export function jsonShape(
+    table: TableDefinition,
+    operation: RecordOperation,
+): Record<string, schema.Schema<JsonValue>> {
+    return Object.fromEntries(
+        fieldsOf(table, operation).map(([property, definition]) => [
+            property,
+            fieldOf(definition.json, definition, operation),
+        ]),
+    );
+}
 
-    return schema.object(fields);
+/** List the columns a record of an operation has, generated ones selected alone. */
+function fieldsOf(
+    table: TableDefinition,
+    operation: RecordOperation,
+): (readonly [string, ColumnDefinition])[] {
+    return table.entries.flatMap(([property, column]) =>
+        operation !== "select" && column.definition.generated !== undefined
+            ? []
+            : [[property, column.definition] as const],
+    );
+}
+
+/** Make a column's validator nullable where the column is, and optional where the operation is. */
+function fieldOf<Value>(
+    validator: schema.Schema<Value>,
+    definition: ColumnDefinition,
+    operation: RecordOperation,
+): schema.Schema<Value | null> {
+    // accept null in a nullable column
+    const nullable = definition.nullable ? validator.nullable() : validator;
+
+    // leave out an updated column, or an inserted one with a default or null
+    const isOptional =
+        operation === "update" ||
+        (operation === "insert" && (definition.nullable || definition.default !== undefined));
+
+    return isOptional ? nullable.exactOptional() : nullable;
 }

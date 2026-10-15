@@ -179,7 +179,7 @@ test.skipIf(ADDRESS === undefined)(
 async function explain(database: DatabaseConnection, statement: SQL): Promise<string[]> {
     // explain the statement with sequential scans disabled
     const [explained] = await database.transaction(async (transaction) => {
-        await transaction.execute(sql`SET LOCAL enable_seqscan = off`);
+        await transaction.run(sql`SET LOCAL enable_seqscan = off`);
 
         return transaction.execute(sql`EXPLAIN (FORMAT JSON) ${statement}`, QueryPlan);
     });

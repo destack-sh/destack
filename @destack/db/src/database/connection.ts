@@ -34,7 +34,7 @@ import { Key } from "../query/key.ts";
 import { elementValue, jsonElements } from "../query/statement.ts";
 import { qualify, relation } from "../table/namespace.ts";
 import { Relations } from "../query/relation.ts";
-import { RelationalQueryBuilder, type Queries } from "../query/find.ts";
+import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
@@ -74,7 +74,7 @@ export class DatabaseConnection<
 
     /** Read the tables the relations name. */
     get query(): Queries<Models> {
-        this.#query ??= RelationalQueryBuilder.of(this, this.relations);
+        this.#query ??= ModelQueryBuilder.of(this, this.relations);
 
         return this.#query;
     }
@@ -107,29 +107,17 @@ export class DatabaseConnection<
         return new Log(this);
     }
 
-    /** Select the source table's records. */
-    select(): SelectBuilder;
-    /** Select explicit fields. */
-    select<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
-    /**
-     * Select records or fields.
-     *
-     * @construct the builder keeps the fields it is given, and the source's columns without them.
-     */
-    select(fields?: Selection): SelectBuilder<Selection | undefined> {
+    /** Select explicit fields, or the source table's records without them. */
+    select<Fields extends Selection | undefined = undefined>(
+        fields?: Fields,
+    ): SelectBuilder<Fields> {
         return new SelectBuilder(this.driver, fields, false);
     }
 
-    /** Select the source table's distinct records. */
-    selectDistinct(): SelectBuilder;
-    /** Select distinct explicit fields. */
-    selectDistinct<Fields extends Selection>(fields: Fields): SelectBuilder<Fields>;
-    /**
-     * Select distinct records or fields.
-     *
-     * @construct the builder keeps the fields it is given, and the source's columns without them.
-     */
-    selectDistinct(fields?: Selection): SelectBuilder<Selection | undefined> {
+    /** Select distinct explicit fields, or the source table's distinct records without them. */
+    selectDistinct<Fields extends Selection | undefined = undefined>(
+        fields?: Fields,
+    ): SelectBuilder<Fields> {
         return new SelectBuilder(this.driver, fields, true);
     }
 
@@ -245,21 +233,16 @@ export class DatabaseConnection<
         await this.driver.commit(() => this.driver.session.exec(script), every);
     }
 
-    /** Run SQL and read its rows by column name, as the database returns them. */
-    execute(statement: SQLWrapper): Promise<Record<string, unknown>[]>;
     /** Run SQL and parse each row by a schema. */
-    execute<Row>(statement: SQLWrapper, row: schema.Schema<Row>): Promise<Row[]>;
-    /**
-     * Run SQL and read its rows.
-     *
-     * @construct a given schema parses each row, else each row is the driver's record by column.
-     */
-    async execute(statement: SQLWrapper, row?: schema.Schema): Promise<unknown[]> {
-        const rows = await this.driver.all(
+    async execute<Parsed>(statement: SQLWrapper, row: schema.Schema<Parsed>): Promise<Parsed[]> {
+        return (await this.all(statement)).map((value) => row.parse(value));
+    }
+
+    /** Run SQL and read its rows by column name, as the database returns them. */
+    all(statement: SQLWrapper): Promise<Record<string, unknown>[]> {
+        return this.driver.all(
             fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
         );
-
-        return row === undefined ? rows : rows.map((value) => row.parse(value));
     }
 
     /** Decide whether a query has rows, in one statement. */

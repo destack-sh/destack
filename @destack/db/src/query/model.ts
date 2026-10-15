@@ -1,7 +1,6 @@
 import type { Scalar, Condition } from "./condition.ts";
 import type { Extras } from "./namespace.ts";
 import type { OrderBy } from "./order.ts";
-import type { Aggregate } from "./option.ts";
 
 /** What relational reads see of a table or object type: compared rows, results and relations. */
 export interface Model {
@@ -60,12 +59,6 @@ export type FindOptions<
       }
     : {});
 
-/** Measures of a model's rows per group. */
-export type AggregateOptions<Entity extends Model> = {
-    /** The condition the measured rows meet. */
-    readonly where?: ConditionOf<Entity>;
-} & Aggregate;
-
 /** The condition a model's rows meet, over their fields, a read's extras and their relations. */
 export type ConditionOf<Entity extends Model, Computed extends Extras = {}> = Condition<
     Entity["row"] & ExtraValues<Computed>,
@@ -82,20 +75,6 @@ export type ConditionOf<Entity extends Model, Computed extends Extras = {}> = Co
 export type FindResult<Entity extends Model, Options> = SelectionOf<Entity["value"], Options> &
     ExtrasOf<Options> &
     WithOf<Entity, Options>;
-
-/** One group of an aggregate read: its group values and its measures. */
-export type Group<Options extends Aggregate = Aggregate> = {
-    /** The values of the group columns. */
-    readonly group: { readonly [Name in GroupColumnOf<Options>]: Scalar };
-    /** The measures, by name. */
-    readonly values: {
-        readonly [Name in keyof Options["values"]]: Options["values"][Name] extends {
-            readonly function: "count";
-        }
-            ? number
-            : Scalar;
-    };
-};
 
 /** The fields the options' columns select. */
 type SelectionOf<Value, Options> = Options extends {
@@ -137,10 +116,3 @@ type WithOf<Entity extends Model, Options> = Options extends { readonly with: in
                 : never;
       }
     : {};
-
-/** The group columns of an aggregate. */
-type GroupColumnOf<Options extends Aggregate> = Options extends {
-    readonly groupBy: readonly (infer Column extends string)[];
-}
-    ? Column
-    : never;

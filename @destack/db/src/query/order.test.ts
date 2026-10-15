@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import type { JsonValue } from "@destack/schema";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable, TABLE, type Table } from "../table/table.ts";
+import { defineTable, Table } from "../table/table.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
 
@@ -55,7 +55,8 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
     // insert rows that tie often
     const seed = { value: 11 };
     const rows = Array.from({ length: 50 }, (_, id) =>
-        sample[TABLE].decode(
+        Table.decode(
+            sample,
             Object.fromEntries([
                 ["id", id],
                 ...Object.entries(VALUES).map(

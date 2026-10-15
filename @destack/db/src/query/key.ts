@@ -53,20 +53,19 @@ export const Key = {
 
     /** Match the rows with any of some keys. */
     any(table: Table, keys: readonly Key[]): Condition {
-        return {
-            OR: keys.map((key) =>
-                Condition.equal(
-                    Object.fromEntries(
-                        table[TABLE].key.map((property) => [
-                            property,
-                            Scalar.parse(
-                                Key.json(table, property, Key.value(table, key, property)),
-                            ),
-                        ]),
-                    ),
-                ),
+        return { OR: keys.map((key) => Key.where(table, key)) };
+    },
+
+    /** Match the row with a key, its values in their JSON form. */
+    where(table: Table, key: Key): Condition {
+        return Condition.equal(
+            Object.fromEntries(
+                table[TABLE].key.map((property) => [
+                    property,
+                    Scalar.parse(Key.json(table, property, Key.value(table, key, property))),
+                ]),
             ),
-        };
+        );
     },
 
     /** Build a row's key name from its table and key, alike in every dialect. */
@@ -102,6 +101,26 @@ export const Key = {
         }
 
         return key;
+    },
+
+    /** Read the key a condition selects by equal values of exactly the key's columns, if any. */
+    from(table: Table, where: Condition): Key | undefined {
+        // take only a plain equality on each key column and nothing else
+        const properties = table[TABLE].key;
+        const key: Record<string, ColumnValue> = {};
+        for (const [property, value] of Object.entries(where)) {
+            if (
+                !properties.includes(property) ||
+                (typeof value !== "string" &&
+                    typeof value !== "number" &&
+                    typeof value !== "boolean")
+            ) {
+                return undefined;
+            }
+            key[property] = table[TABLE].column(property).definition.fromJson(value);
+        }
+
+        return Object.keys(key).length === properties.length ? key : undefined;
     },
 
     /** Report whether a row is one of its table's predefined rows, by key. */

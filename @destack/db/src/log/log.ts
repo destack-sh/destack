@@ -18,9 +18,8 @@ import { createLog } from "./trigger.ts";
 import { latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
-import type { ColumnValue } from "../table/column.ts";
 import { Key } from "../query/key.ts";
-import { Digest, toJsonSchema } from "@destack/schema";
+import { Digest, mapValues, toJsonSchema } from "@destack/schema";
 
 /** The default page size of a log read, in changes. */
 const PAGE_LIMIT = 1000;
@@ -320,7 +319,7 @@ export class Log {
     /** Read the position of the latest commit, as a follower of an origin sees it when given. */
     async position(origin?: string): Promise<LogPosition> {
         // read the head
-        const [row] = await this.database.execute(selectHead(this.database.dialect));
+        const [row] = await this.database.all(selectHead(this.database.dialect));
         const head = {
             epoch: LogColumn.text(row?.["epoch"]),
             logged: LogColumn.nullableInteger(row?.["logged"]),
@@ -331,7 +330,7 @@ export class Log {
         }
 
         // read the latest change of another origin, or the horizon once compacted
-        const [other] = await this.database.execute(sql`
+        const [other] = await this.database.all(sql`
             SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
             WHERE origin IS NULL OR origin <> ${origin}
         `);
@@ -349,7 +348,7 @@ export class Log {
         }
 
         // reach past the open SQLite transaction's entries
-        const [row] = await this.database.execute(sql`
+        const [row] = await this.database.all(sql`
             SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
             WHERE "transaction" = (SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)
         `);
@@ -391,11 +390,11 @@ export class Log {
             throw new TypeError("write as a replica inside a transaction");
         }
         const marker = sql.relation(LOG_REPLICA);
-        await this.database.execute(
+        await this.database.run(
             sql`INSERT INTO ${marker} (slot, origin) VALUES (1, ${origin ?? null})`,
         );
         const result = await run();
-        await this.database.execute(sql`DELETE FROM ${marker} WHERE slot = 1`);
+        await this.database.run(sql`DELETE FROM ${marker} WHERE slot = 1`);
 
         return result;
     }
@@ -403,7 +402,7 @@ export class Log {
     /** Block the log's other commits until this transaction ends. */
     async serialize(): Promise<void> {
         if (this.database.dialect === "postgresql") {
-            await this.database.execute(
+            await this.database.run(
                 sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(current_schema()))`,
             );
         }
@@ -411,7 +410,7 @@ export class Log {
 
     /** Read the log's epoch. */
     async epoch(): Promise<string> {
-        const [row] = await this.database.execute(
+        const [row] = await this.database.all(
             sql`SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1`,
         );
 
@@ -421,7 +420,7 @@ export class Log {
     /** Start a new epoch after a restore. */
     async renew(): Promise<string> {
         const epoch = v7();
-        await this.database.execute(
+        await this.database.run(
             sql`UPDATE ${sql.relation(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
         );
 
@@ -486,7 +485,7 @@ export class Log {
         }
 
         // read the identity the database stamps
-        const [row] = await this.database.execute(sql`SELECT ${this.stamp()} AS id`);
+        const [row] = await this.database.all(sql`SELECT ${this.stamp()} AS id`);
 
         return LogColumn.nullableText(row?.["id"]) ?? undefined;
     }
@@ -514,7 +513,7 @@ export class Log {
             this.database.dialect === "postgresql"
                 ? sql`sequence IS NULL ORDER BY id`
                 : sql`true ORDER BY sequence`;
-        const rows = await this.database.execute(sql`
+        const rows = await this.database.all(sql`
             SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at, origin
             FROM ${sql.relation(LOG)}
             WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
@@ -566,7 +565,7 @@ export class Log {
     /** Place a consumer's slot at a sequence, keeping later changes until a time. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
         const table = sql.relation(LOG_SLOT);
-        await this.database.execute(sql`
+        await this.database.run(sql`
             INSERT INTO ${table} (name, sequence, expires_at)
             VALUES (${slot}, ${sequence}, ${expiresAt})
             ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
@@ -575,7 +574,7 @@ export class Log {
 
     /** Place a consumer's slot at the log's start unless placed, keeping changes until a time. */
     async place(slot: string, expiresAt: number): Promise<void> {
-        await this.database.execute(sql`
+        await this.database.run(sql`
             INSERT INTO ${sql.relation(LOG_SLOT)} (name, sequence, expires_at)
             VALUES (${slot}, 0, ${expiresAt})
             ON CONFLICT (name) DO NOTHING
@@ -584,7 +583,7 @@ export class Log {
 
     /** List the names of the slots starting with a prefix, in name order. */
     async slots(prefix: string): Promise<string[]> {
-        const rows = await this.database.execute(sql`
+        const rows = await this.database.all(sql`
             SELECT name FROM ${sql.relation(LOG_SLOT)}
             WHERE substr(name, 1, ${prefix.length}) = ${prefix}
             ORDER BY name
@@ -597,7 +596,7 @@ export class Log {
     async move(slot: string, from: number, to: number, expiresAt: number): Promise<void> {
         // move a slot at the read position, placing one never placed for a consumer reading from the start
         const table = sql.relation(LOG_SLOT);
-        const moved = await this.database.execute(
+        const moved = await this.database.all(
             from === 0
                 ? sql`
                     INSERT INTO ${table} (name, sequence, expires_at)
@@ -621,7 +620,7 @@ export class Log {
 
     /** Read the position of a consumer's slot, absent without one. */
     async slot(slot: string): Promise<number | undefined> {
-        const [row] = await this.database.execute(
+        const [row] = await this.database.all(
             sql`SELECT sequence FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
         );
 
@@ -630,9 +629,7 @@ export class Log {
 
     /** Drop a consumer's slot, keeping no more changes for it. */
     async drop(slot: string): Promise<void> {
-        await this.database.execute(
-            sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`,
-        );
+        await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
     }
 
     /** Delete old windowed changes no slot keeps, and advance the horizon. */
@@ -640,7 +637,7 @@ export class Log {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
             const log = sql.relation(LOG);
-            const [newestRow] = await transaction.execute(sql`
+            const [newestRow] = await transaction.all(sql`
                 SELECT max(sequence) AS sequence
                 FROM ${log}
                 WHERE retention = 'window'
@@ -653,7 +650,7 @@ export class Log {
             }
 
             // keep the changes slots keep
-            const [keptRow] = await transaction.execute(sql`
+            const [keptRow] = await transaction.all(sql`
                 SELECT
                     (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
@@ -668,7 +665,7 @@ export class Log {
             }
 
             // stop before a split transaction
-            const [splitRow] = await transaction.execute(sql`
+            const [splitRow] = await transaction.all(sql`
                 SELECT min(earlier.sequence) AS first
                 FROM ${log} change
                 JOIN ${log} later ON later."transaction" = change."transaction" AND later.sequence > change.sequence
@@ -679,12 +676,12 @@ export class Log {
             const sequence = first === null ? cap : first - 1;
 
             // remove the windowed changes of whole transactions
-            await transaction.execute(sql`
+            await transaction.run(sql`
                 DELETE FROM ${log}
                 WHERE retention = 'window'
                     AND sequence <= ${sequence}
             `);
-            await transaction.execute(sql`
+            await transaction.run(sql`
                 UPDATE ${sql.relation(LOG_HORIZON)} SET sequence = ${sequence}
                 WHERE slot = 1 AND sequence < ${sequence}
             `);
@@ -695,7 +692,7 @@ export class Log {
     async bounds(sequence: number): Promise<TransactionBounds> {
         // read the transaction's first and last change
         const log = sql.relation(LOG);
-        const [row] = await this.database.execute(sql`
+        const [row] = await this.database.all(sql`
             SELECT min(sequence) AS first, max(sequence) AS last,
                 min(changed_at) AS "startedAt", max(changed_at) AS "committedAt"
             FROM ${log}
@@ -820,23 +817,13 @@ function decodeChange<Definition extends Table>(
     return { ...common, operation: "update", before, after: logged };
 }
 
-/** Decode a logged row's values by column name, whose signature types it by its table. */
+/** Decode a logged row's values by column name through its logged columns. */
 function decodeLogged<Definition extends Table>(
     table: Definition,
     row: Readonly<Record<string, unknown>>,
     dialect: Dialect,
-): RowImage<Definition>;
-/**
- * Decode a logged row's values by column name through its logged columns.
- *
- * @construct each logged column decodes into its type, which is how RowImage maps the table.
- */
-function decodeLogged(
-    table: Table,
-    row: Readonly<Record<string, unknown>>,
-    dialect: Dialect,
-): Record<string, ColumnValue> {
-    return Object.fromEntries(
+): RowImage<Definition> & Row {
+    const decoded = Object.fromEntries(
         Object.entries(table[TABLE].logged).map(([property, column]) => {
             // read a column added after the change as null
             const value = row[column.definition.name];
@@ -853,25 +840,17 @@ function decodeLogged(
             ];
         }),
     );
+
+    return Table.image(table, decoded);
 }
 
-/** Decode a logged key's values in key order, whose signature types it by its table. */
+/** Decode a logged key's values in key order through the key columns. */
 function decodeKey<Definition extends Table>(
     table: Definition,
     key: readonly unknown[],
     dialect: Dialect,
-): Key<Definition>;
-/**
- * Decode a logged key's values in key order through the key columns.
- *
- * @construct the key columns decode in key order into their types, as Key maps the table.
- */
-function decodeKey(
-    table: Table,
-    key: readonly unknown[],
-    dialect: Dialect,
-): Record<string, ColumnValue> {
-    return Object.fromEntries(
+): Key<Definition> {
+    const decoded: Row = Object.fromEntries(
         table[TABLE].key.map((property, index) => {
             const value = key[index];
             if (value === undefined) {
@@ -884,6 +863,8 @@ function decodeKey(
             return [property, table[TABLE].column(property).definition.decode(value, dialect)];
         }),
     );
+
+    return mapValues<Row, Key<Definition>>(decoded, (value) => value);
 }
 
 /** Read the sequenced entries of a page, leaving out the bounds row of an empty page. */

@@ -11,6 +11,7 @@ import {
     numeric,
     real,
     text,
+    textEnum,
 } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { asc, count, eq, sql } from "../index.ts";
@@ -20,7 +21,7 @@ const sample = defineTable("sample", {
     /** The sample identity. */
     id: identifier("id", "sample").primaryKey(),
     /** Text from a fixed set. */
-    kind: text("kind", { enum: ["plain", "rich"] }).notNull(),
+    kind: textEnum("kind", ["plain", "rich"]).notNull(),
     /** A whole number. */
     count: integer("count").notNull(),
     /** A double. */

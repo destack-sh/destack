@@ -1,4 +1,4 @@
-import { and, dialectSQL, or, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
+import { combine, dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { defineSchema, present, schema } from "@destack/schema";
 import { Column, type ColumnKind } from "../table/column.ts";
 import type { Row } from "../table/row.ts";
@@ -120,13 +120,18 @@ export const Order = {
     after(order: Order, table: Table, row: Row, namespace: Namespace = { extras: {} }): SQL {
         // match the leading keys and follow on the next
         const alternatives = order.map((key, position) =>
-            and(
-                ...order.slice(0, position).map((leading) => equal(table, leading, row, namespace)),
-                follow(table, key, row, namespace),
+            combine(
+                [
+                    ...order
+                        .slice(0, position)
+                        .map((leading) => equal(table, leading, row, namespace)),
+                    follow(table, key, row, namespace),
+                ],
+                "AND",
             ),
         );
 
-        return or(...alternatives) ?? sql`false`;
+        return alternatives.length === 0 ? sql`false` : combine(alternatives, "OR");
     },
 
     /** Compare two rows by an order. */

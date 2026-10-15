@@ -9,12 +9,14 @@ import { Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
 import { Namespace } from "../query/namespace.ts";
 import { Predicate } from "../query/predicate.ts";
-import { Order, type OrderBy } from "../query/order.ts";
-import { type RowImage, TABLE, type Select, type Table, type UniqueKey } from "../table/table.ts";
+import { Order } from "../query/order.ts";
+import type { QueryOptions } from "../query/option.ts";
+import { type RowImage, TABLE, type Select, Table, type UniqueKey } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import type { Change } from "./log.ts";
 import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
+import { RelationalQueryBuilder } from "./query.ts";
 
 /** How often a transaction runs at most before a lost serialization race answers as unavailable. */
 const TRANSACTION_ATTEMPTS = 5;
@@ -451,14 +453,6 @@ export class ChangeSet {
     }
 }
 
-/** How a transaction's read of several rows orders and bounds them. */
-export interface RowsOptions<Read> {
-    /** How the rows sort, completed by their key. */
-    readonly orderBy?: OrderBy<Read>;
-    /** The most rows read. */
-    readonly limit?: number;
-}
-
 /** A transaction in progress over a database: its start position, reads and writes. */
 export class Transaction {
     /** The database the transaction reads and commits to. */
@@ -549,32 +543,42 @@ export class Transaction {
         return Snapshot.live(this.database).recording(this.reads).layer(this.changes.overlay());
     }
 
-    /** Read one row by its key with the transaction's own writes, null when absent. */
-    async row<Definition extends Table>(
+    /** Read a table's whole rows with the transaction's own writes, recording each read. */
+    read<Definition extends Table>(
         table: Definition,
-        key: Key<Definition>,
-    ): Promise<Select<Definition> | null> {
-        this.reads.row(table, key);
+    ): RelationalQueryBuilder<Definition, Select<Definition>> {
+        return new RelationalQueryBuilder(
+            table,
+            async (query) => {
+                const { where = {} } = query;
+                this.reads.rows(table, where);
 
-        return this.#row(table, key);
+                return this.#rows(table, Condition.resolve(where, Namespace.fields(table)), query);
+            },
+            async (key) => {
+                this.reads.row(table, key);
+
+                return this.#row(table, key);
+            },
+        );
     }
 
     /** Read one row by its key with the transaction's own writes, unrecorded. */
     async #row<Definition extends Table>(
         table: Definition,
-        key: Key<Definition>,
+        key: Key,
     ): Promise<Select<Definition> | null> {
         // take the transaction's write of the row or the committed row
         const written = this.changes.written(table, key);
         if (written !== undefined) {
-            return written === null ? null : aligned(selected<Definition>([written]), 0);
+            return written === null ? null : Table.complete(table, written);
         }
 
         // take the committed row this transaction read before
         const name = `${table[TABLE].sqlName}\u0000${Key.name(table, key)}`;
         const known = this.#committed.get(name);
         if (known !== undefined) {
-            return known === null ? null : aligned(selected<Definition>([known]), 0);
+            return known === null ? null : Table.complete(table, known);
         }
 
         // read the committed row once
@@ -588,22 +592,11 @@ export class Transaction {
         return row;
     }
 
-    /** Read the rows meeting a condition with the transaction's writes, ordered and bounded. */
-    async rows<Definition extends Table>(
-        table: Definition,
-        where: Condition<RowImage<NoInfer<Definition>>> = {},
-        options: RowsOptions<RowImage<NoInfer<Definition>>> = {},
-    ): Promise<Select<Definition>[]> {
-        this.reads.rows(table, where);
-
-        return this.#rows(table, Condition.resolve(where, Namespace.fields(table)), options);
-    }
-
     /** Read the rows meeting a condition with the transaction's own writes, unrecorded. */
     async #rows<Definition extends Table>(
         table: Definition,
         where: Predicate,
-        options: RowsOptions<RowImage<NoInfer<Definition>>>,
+        options: QueryOptions<RowImage<NoInfer<Definition>>>,
     ): Promise<Select<Definition>[]> {
         // read enough committed rows in order to fill the limit after the writes replace some
         const order = Order.complete(Order.of(options.orderBy ?? {}), table);
@@ -628,35 +621,9 @@ export class Transaction {
 
         // order and bound the rows
         const sorted = kept.toSorted((left, right) => Order.rows(order, left, right));
+        const bounded = options.limit === undefined ? sorted : sorted.slice(0, options.limit);
 
-        return selected<Definition>(
-            options.limit === undefined ? sorted : sorted.slice(0, options.limit),
-        );
-    }
-
-    /** Read one row's logged columns by key with the transaction's writes, null if absent. */
-    async image<Definition extends Table>(
-        table: Definition,
-        key: Key<Definition>,
-    ): Promise<RowImage<Definition> | null> {
-        this.reads.image(table, key);
-        const row = await this.#row(table, key);
-
-        return row === null ? null : aligned(images(table, [row]), 0);
-    }
-
-    /** Read matching rows' logged columns with the transaction's writes, ordered and bounded. */
-    async images<Definition extends Table>(
-        table: Definition,
-        where: Condition<RowImage<NoInfer<Definition>>> = {},
-        options: RowsOptions<RowImage<NoInfer<Definition>>> = {},
-    ): Promise<RowImage<Definition>[]> {
-        this.reads.images(table, where);
-
-        return images(
-            table,
-            await this.#rows(table, Condition.resolve(where, Namespace.fields(table)), options),
-        );
+        return bounded.map((row) => Table.complete(table, row));
     }
 
     /** Count the rows meeting a condition with the transaction's own writes. */
@@ -664,7 +631,7 @@ export class Transaction {
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>> = {},
     ): Promise<number> {
-        return (await this.images(table, where)).length;
+        return (await this.view().read(table).findMany({ where })).length;
     }
 
     /** Write rows, refusing all of them when one duplicates a unique key. */
@@ -849,31 +816,6 @@ export class Transaction {
             }
         });
     }
-}
-
-/** Type rows read through a table's columns, or written as its rows, as the table's records. */
-function selected<Definition extends Table>(rows: readonly Row[]): (Select<Definition> & Row)[];
-/**
- * Pass the rows on, selected through the table's columns or written as its complete rows.
- *
- * @construct every row came from a select or a complete write of the table, as Select maps it.
- */
-function selected(rows: readonly Row[]): Row[] {
-    return [...rows];
-}
-
-/** Keep the logged columns of a table's whole rows, as its logged records. */
-function images<Definition extends Table>(
-    table: Definition,
-    rows: readonly Row[],
-): (RowImage<Definition> & Row)[];
-/**
- * Keep each row's logged columns.
- *
- * @construct every row is a whole row, and RowImage maps the table's logged columns.
- */
-function images(table: Table, rows: readonly Row[]): Row[] {
-    return rows.map((row) => table[TABLE].image(row));
 }
 
 /** What a read took: a whole row, or the logged image change readers see. */

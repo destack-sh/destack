@@ -1,4 +1,5 @@
 import { TABLE, type Select, type Table } from "../table/table.ts";
+import { mapValues } from "@destack/schema";
 import type { Many, Model, One } from "./model.ts";
 import { DatabaseError } from "../error/error.ts";
 import { sql, type SQL } from "../sql/index.ts";
@@ -411,18 +412,10 @@ export function defineRelations<
     return new Relations(relations, tables);
 }
 
-/** Build the relation builder of some tables. */
+/** Build the relation builder of some tables: one and many relations, and each table's columns. */
 function builderOf<const Tables extends Readonly<Record<string, Table>>>(
     tables: Tables,
-): RelationBuilder<Tables>;
-/**
- * Build the relation builder of some tables.
- *
- * @construct the builder has a relation declaration and column reference for every table key.
- */
-function builderOf(
-    tables: Readonly<Record<string, Table>>,
-): Record<string, Record<string, RelationColumn | RelationTo>> {
+): RelationBuilder<Tables> {
     // declare relations to each table, and name each table's columns
     const entries = Object.entries(tables);
     const one = entries.map(([name, table]): [string, RelationTo] => [
@@ -438,11 +431,14 @@ function builderOf(
         columnsOf(table),
     ]);
 
-    return {
+    // build the record of the relations and the tables' columns
+    const built: Record<string, Record<string, RelationColumn | RelationTo>> = {
         one: Object.fromEntries(one),
         many: Object.fromEntries(many),
         ...Object.fromEntries(columns),
     };
+
+    return mapValues<typeof built, RelationBuilder<Tables>>(built, (value) => value);
 }
 
 /** Name each column of a table for a relation, by property. */

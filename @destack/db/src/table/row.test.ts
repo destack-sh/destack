@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { TABLE, defineTable } from "./table.ts";
+import { defineTable, Table, TABLE } from "./table.ts";
 import {
     bigint,
     binary,
@@ -65,11 +65,11 @@ test("roundtrip every column kind through its JSON form as text", () => {
         price: "12.50",
         editedAt: 1790416800123,
     });
-    expect(sample[TABLE].decode(encoded)).toEqual(row);
+    expect(Table.decode(sample, encoded)).toEqual(row);
 
     // keep null values as null
     expect(sample[TABLE].encode({ id: "b", views: null })).toEqual({ id: "b", views: null });
-    expect(sample[TABLE].decode({ id: "b", views: null })).toEqual({ id: "b", views: null });
+    expect(Table.decode(sample, { id: "b", views: null })).toEqual({ id: "b", views: null });
 });
 
 test("conceal columns by masking the personal values their schemas mark and leaving out the rest", () => {

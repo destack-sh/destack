@@ -12,6 +12,8 @@ import { TABLE, Table, type RowImage } from "../table/table.ts";
 import { headFields, latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import type { Row } from "../table/row.ts";
 import type { ReadSet } from "./commit.ts";
+import type { QueryOptions } from "../query/option.ts";
+import { RelationalQueryBuilder } from "./query.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -24,7 +26,7 @@ const RANK = "destack_rank";
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
 
 /** A read of the first matching rows in an order. */
-export interface WindowRead<Read = Row> {
+export interface WindowRead<Read = Row> extends QueryOptions<Read> {
     /** The condition the rows meet. */
     readonly where: Condition<Read>;
     /** How the rows sort, completed by the primary key. */
@@ -138,8 +140,38 @@ export class Snapshot {
         return new Snapshot(database, undefined);
     }
 
-    /** Read a table's rows matching a condition. */
-    async rows<Definition extends Table>(
+    /** Read a table's logged images as of the position, recording each read. */
+    read<Definition extends Table>(table: Definition): RelationalQueryBuilder<Definition> {
+        return new RelationalQueryBuilder(
+            table,
+            (query) => this.#rows(table, query),
+            (key) => this.#row(table, key),
+        );
+    }
+
+    /** Read a table's rows matching a condition, ordered and bounded as asked. */
+    async #rows<Definition extends Table>(
+        table: Definition,
+        query: QueryOptions<RowImage<NoInfer<Definition>>> = {},
+    ): Promise<RowImage<Definition>[]> {
+        // read a bounded page through the ordered window
+        const { where = {}, orderBy, limit } = query;
+        if (limit !== undefined) {
+            return this.ordered(table, { where, orderBy: orderBy ?? {}, limit });
+        }
+
+        // read every row, sorted when an order is asked
+        const rows = await this.#scan(table, where);
+        if (orderBy === undefined) {
+            return rows;
+        }
+        const order = Order.complete(Order.of(orderBy), table);
+
+        return rows.toSorted((left, right) => Order.rows(order, left, right));
+    }
+
+    /** Read a table's rows matching a condition in no order. */
+    async #scan<Definition extends Table>(
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>>,
     ): Promise<RowImage<Definition>[]> {
@@ -161,7 +193,7 @@ export class Snapshot {
             }
         }
 
-        return logged(kept);
+        return kept.map((row) => Table.image(table, row));
     }
 
     /** Read a table's rows at the position whose columns have one of some tuples in JSON form. */
@@ -220,13 +252,13 @@ export class Snapshot {
             }
         }
 
-        return logged(kept);
+        return kept.map((row) => Table.image(table, row));
     }
 
     /** Read one row by its key, null when it did not exist at the position. */
-    async row<Definition extends Table>(
+    async #row<Definition extends Table>(
         table: Definition,
-        key: Key<Definition>,
+        key: Key,
     ): Promise<RowImage<Definition> | null> {
         // record the read
         this.#reads?.image(table, key);
@@ -236,9 +268,8 @@ export class Snapshot {
         const images = await this.#since(table, sequence);
         const name = Key.name(table, key);
         const row = images.has(name) ? images.get(name) : rows[0];
-        const [present = null] = row === undefined || row === null ? [] : logged<Definition>([row]);
 
-        return present;
+        return row === undefined || row === null ? null : Table.image(table, row);
     }
 
     /** Read up to a count of admitted matching rows ordered after a row, with computed values. */
@@ -251,7 +282,7 @@ export class Snapshot {
             throw new RangeError("an ordered read lacks its one window");
         }
 
-        return logged(rows);
+        return rows.map((row) => Table.image(table, row));
     }
 
     /** Read up to a count of admitted rows per partition of a column's values, in order. */
@@ -263,7 +294,7 @@ export class Snapshot {
     ): Promise<(RowImage<Definition> & Row)[][]> {
         const windows = await this.#windows(table, query, query.partition);
 
-        return windows.map((window) => logged(window));
+        return windows.map((window) => window.map((row) => Table.image(table, row)));
     }
 
     /** Read the first rows of one window, or of each partition's window in ranked rounds. */
@@ -495,7 +526,7 @@ export class Snapshot {
             sql`, `,
         )})`;
         const ranked = sql`SELECT ${projection.sql()}, ${rank} AS ${sql.identifier(RANK)} FROM ${table}
-            WHERE ${and(selection, inArray(column, partition.values))}`;
+            WHERE ${and(inArray(column, partition.values), selection)}`;
 
         // keep each partition's first rows
         const statement =
@@ -594,17 +625,6 @@ export class Snapshot {
 
         return sequence;
     }
-}
-
-/** Type rows a snapshot decoded by a table's logged columns as that table's logged records. */
-function logged<Definition extends Table>(rows: Row[]): (RowImage<Definition> & Row)[];
-/**
- * Pass the rows on, whose decoders and log keep exactly the table's logged columns.
- *
- * @construct the snapshot decoded every row through the logged columns, as RowImage maps the table.
- */
-function logged(rows: Row[]): Row[] {
-    return rows;
 }
 
 /** Render a predicate over a table. */

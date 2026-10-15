@@ -280,30 +280,25 @@ type ColumnDefinitionOf<
     Json extends JsonValue = JsonOf<Value>,
 > = ColumnDefinition<Value, Json> & { readonly kind: Kind };
 
-/** Define text. */
-export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "text">>;
-/** Define text from a set of strings. */
-export function text<const Values extends readonly [string, ...string[]]>(
-    name: string,
-    options: { readonly enum: Values },
-): ColumnBuilder<ColumnDefinitionOf<Values[number], "text">>;
-/**
- * Define text.
- *
- * @construct an enum column validates its values against the enum it is given.
- */
-export function text(
-    name: string,
-    options?: { readonly enum: readonly [string, ...string[]] },
-): ColumnBuilder<ColumnDefinitionOf<string, "text">> {
-    // keep the enum values beside the text column
-    const types = { sqlite: "text", postgresql: "text" };
-    if (options === undefined) {
-        return scalarColumn(name, "text", types, schema.string());
-    }
-    const column = scalarColumn(name, "text", types, schema.enum(options.enum));
+/** The SQL types of a text column. */
+const TEXT_TYPES = { sqlite: "text", postgresql: "text" };
 
-    return new ColumnBuilder({ ...column.definition, enumValues: options.enum });
+/** Define text. */
+export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "text">> {
+    return scalarColumn(name, "text", TEXT_TYPES, schema.string());
+}
+
+/** Define text taking one of a set of strings, kept beside the column. */
+export function textEnum<const Values extends readonly [string, ...string[]]>(
+    name: string,
+    values: Values,
+): ColumnBuilder<ColumnDefinitionOf<Values[number], "text", Values[number]>> {
+    const column = scalarColumn(name, "text", TEXT_TYPES, schema.literal(values));
+
+    return new ColumnBuilder<ColumnDefinitionOf<Values[number], "text", Values[number]>>({
+        ...column.definition,
+        enumValues: values,
+    });
 }
 
 /** Define an exact integer. */
@@ -407,27 +402,19 @@ export function json<Value extends JsonValue>(
     });
 }
 
-/** Read a JSON column's stored value, which the column's validator checked on write. */
+/** Read a JSON column's stored value by its validator, as the driver returns it. */
 function storedJson<Value extends JsonValue>(
     validator: schema.Schema<Value>,
     value: unknown,
     dialect: Dialect,
-): Value;
-/**
- * Read a JSON column's stored value as the driver returns it.
- *
- * @construct the column's encoder parsed the value by the validator before the database stored it.
- */
-function storedJson(_validator: schema.Schema, value: unknown, dialect: Dialect): unknown {
+): Value {
     // parse SQLite JSON text
     if (dialect === "sqlite") {
-        const parsed: unknown = JSON.parse(TEXT.parse(value));
-
-        return parsed;
+        return validator.parse(JSON.parse(TEXT.parse(value)));
     }
     // take parsed PostgreSQL JSON
     else if (dialect === "postgresql") {
-        return value;
+        return validator.parse(value);
     }
     // reject other dialects
     else {

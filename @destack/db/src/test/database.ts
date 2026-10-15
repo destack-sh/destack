@@ -265,7 +265,7 @@ export class TestDatabase<
 
         // start a logged copy's own epoch as a restore does
         const database = await open(tables);
-        const [log] = await database.execute(
+        const [log] = await database.all(
             sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
         );
         if (log !== undefined) {

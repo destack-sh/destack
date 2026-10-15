@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { connectBunSqlite } from "../bun/connection.ts";
 import { Transaction } from "../log/commit.ts";
 import { asc, eq, sql } from "../sql/index.ts";
@@ -59,7 +59,7 @@ async function open(dialect: (typeof TEST_DIALECTS)[number]) {
 async function stored(database: Awaited<ReturnType<typeof open>>) {
     const name = sql.identifier(credential[TABLE].sqlName);
 
-    return Stored.parse(await database.execute(sql`SELECT secret, token FROM ${name} ORDER BY id`));
+    return Stored.parse(await database.all(sql`SELECT secret, token FROM ${name} ORDER BY id`));
 }
 
 test.for(TEST_DIALECTS)(
@@ -123,7 +123,10 @@ test.for(TEST_DIALECTS)(
         // change both secrets in one transaction
         const transaction = await Transaction.open(database);
         for (const id of ["a", "b"]) {
-            const before = await transaction.row(credential, { id });
+            const before = present(
+                await transaction.read(credential).findFirst({ where: { id } }),
+                `credential ${id}`,
+            );
             await transaction.write({
                 table: credential,
                 before,

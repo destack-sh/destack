@@ -1,7 +1,7 @@
 import { sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, Table, TABLE } from "../table/table.ts";
-import { integer, json, text } from "../table/column.ts";
+import { integer, json, text, textEnum } from "../table/column.ts";
 import { index, unique } from "./constraint.ts";
 import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
@@ -14,7 +14,7 @@ const lamp = defineTable("describe_lamp", {
     /** The lamp's identifier. */
     id: text("id").primaryKey(),
     /** The state, absent before wiring. */
-    state: text("state", { enum: ["on", "off"] }),
+    state: textEnum("state", ["on", "off"]),
 });
 
 /** Lights logged under their space, with properties apart from their SQL names. */
@@ -48,7 +48,7 @@ test.for(TEST_DIALECTS)("fill JSON columns with their declared defaults on %s", 
     onTestFinished(() => storage.close());
 
     // insert through raw SQL to use the database defaults
-    await storage.database.execute(
+    await storage.database.run(
         sql`INSERT INTO ${sql.identifier(shelf[TABLE].sqlName)} (id) VALUES ('a')`,
     );
     expect(await storage.database.select().from(shelf)).toEqual([
@@ -68,7 +68,7 @@ test.for(TEST_DIALECTS)(
             { id: "b", state: null },
         ]);
         await expect(
-            storage.database.execute(
+            storage.database.all(
                 sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
             ),
         ).rejects.toThrow(new DatabaseError("INVALID_RECORD", "a record fails a declared check"));

@@ -12,7 +12,6 @@ import { Plan } from "@destack/resource";
 import { DatabaseError } from "../error/error.ts";
 import { mergeStates } from "../migration/merge.ts";
 import type { TableState } from "../migration/state.ts";
-import { and } from "../sql/operator.ts";
 import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, Table } from "../table/table.ts";
@@ -222,7 +221,7 @@ async function* pagesOf(database: DatabaseConnection, table: Table): AsyncGenera
         const rows: Row[] = await database
             .select()
             .from(table)
-            .where(and(last === undefined ? undefined : Order.after(order, table, last)))
+            .where(last === undefined ? undefined : Order.after(order, table, last))
             .orderBy(...Order.render(order, table))
             .limit(SNAPSHOT_READ_ROWS);
         last = rows.length === SNAPSHOT_READ_ROWS ? rows.at(-1) : undefined;
@@ -270,7 +269,7 @@ async function readPage(
 ): Promise<Row[]> {
     const encoded = SnapshotPage.parse(JSON.parse(await read(store, digest)));
 
-    return encoded.map((row: JsonObject) => table[TABLE].decode(row));
+    return encoded.map((row: JsonObject) => Table.decode(table, row));
 }
 
 /** Keep text in a store under its digest. */

@@ -1,9 +1,8 @@
 import { asc, sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import { defineTable, type Table } from "../table/table.ts";
+import { defineTable, Table } from "../table/table.ts";
 import { bigint, boolean, integer, real, text } from "../table/column.ts";
-import { TABLE } from "../table/table.ts";
 import { Condition, type Comparable, type Scalar } from "./condition.ts";
 import { Predicate } from "./predicate.ts";
 import { DatabaseError } from "../error/index.ts";
@@ -171,7 +170,8 @@ test.for(TEST_DIALECTS)(
         // insert every combination of a few values, read from their JSON form
         const seed = { value: 7 };
         const rows = Array.from({ length: 60 }, (_, id) =>
-            sample[TABLE].decode(
+            Table.decode(
+                sample,
                 Object.fromEntries([
                     ["id", id],
                     ...Object.entries(VALUES).map(

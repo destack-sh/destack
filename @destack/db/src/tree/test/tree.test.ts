@@ -20,7 +20,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
     ]);
 
     // reject a missing parent without applying the migration
-    await database.execute(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`);
+    await database.run(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`);
     await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
         cause: { code: "INVALID_MIGRATION", message: "tree parent is missing" },
@@ -34,12 +34,12 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
     ]);
 
     // reject a cycle, then apply after the repair
-    await database.execute(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`);
+    await database.run(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`);
     await expect(database.migrate([node])).rejects.toMatchObject({
         code: "MIGRATION_FAILED",
         cause: { code: "INVALID_MIGRATION", message: "tree contains a cycle" },
     });
-    await database.execute(sql`UPDATE ${node} SET parent = 'a' WHERE id = 'b'`);
+    await database.run(sql`UPDATE ${node} SET parent = 'a' WHERE id = 'b'`);
     await database.migrate([node]);
     await database.migrate([node]);
 

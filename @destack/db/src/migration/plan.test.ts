@@ -249,7 +249,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskTwo]);
         await database.migrate([taskOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
@@ -285,7 +285,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskThree]);
         await database.migrate([taskTwo]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
         );
         const before = (await database.log.position()).sequence;
@@ -319,10 +319,10 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [taskUnfilled]);
         await database.migrate([taskOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
         );
-        await database.execute(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
+        await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
         // report the column no task row fills and the unmanaged table
         await expect(
@@ -391,7 +391,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [preferenceConverted]);
         await database.migrate([preferenceOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
         );
 
@@ -447,7 +447,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [preferenceMisconverted]);
         await database.migrate([preferenceOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
         );
 
@@ -487,7 +487,7 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [preferenceRebuilt]);
         await database.migrate([preferenceOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
         );
 
@@ -532,7 +532,7 @@ test.for(TEST_DIALECTS)(
         // refuse the same change over a row
         const filled = await open(dialect, [preferenceStrict]);
         await filled.migrate([preferenceOne]);
-        await filled.execute(
+        await filled.run(
             sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
         );
         const refused = await filled.migrate([preferenceStrict]).then(
@@ -640,23 +640,21 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         const database = await open(dialect, [folderOne, document]);
         await database.migrate([folderOne, document]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
         );
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(document))} (id, folder_id) VALUES ('d', 'f')`,
         );
 
         // drop the referenced column and keep the reference valid
         await database.migrate([folderTwo, document]);
         expect(
-            await database.execute(
-                sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`,
-            ),
+            await database.all(sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`),
         ).toEqual([{ id: "d", folder_id: "f" }]);
-        expect(
-            await database.execute(sql`SELECT id FROM ${sql.identifier(table(folderTwo))}`),
-        ).toEqual([{ id: "f" }]);
+        expect(await database.all(sql`SELECT id FROM ${sql.identifier(table(folderTwo))}`)).toEqual(
+            [{ id: "f" }],
+        );
     },
 );
 
@@ -666,13 +664,13 @@ test.for(TEST_DIALECTS)(
         const database = await open(dialect, [labelPlain]);
         await database.migrate([labelPlain]);
         const name = sql.identifier(table(labelPlain));
-        await database.execute(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
+        await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
         // fail to make duplicate codes unique and keep the state
         await expect(database.migrate([labelUnique])).rejects.toMatchObject({
             code: "MIGRATION_FAILED",
         });
-        expect(await database.execute(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
+        expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
             { id: "a" },
             { id: "b" },
         ]);
@@ -699,12 +697,10 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
         [],
     );
     const name = sql.identifier(table(labelUnique));
-    await database.execute(
+    await database.run(
         sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x') ON CONFLICT DO NOTHING`,
     );
-    expect(await database.execute(sql`SELECT id, code FROM ${name}`)).toEqual([
-        { id: "a", code: "x" },
-    ]);
+    expect(await database.all(sql`SELECT id, code FROM ${name}`)).toEqual([{ id: "a", code: "x" }]);
 });
 
 test.for(TEST_DIALECTS)(
@@ -738,7 +734,7 @@ test.for(TEST_DIALECTS)(
         const state = (tables: readonly Table[]) =>
             defineDatabase({ name: "main", tables }).state().tables[dialect];
         await database.migrate([taskOne]);
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
@@ -769,16 +765,14 @@ test.for(TEST_DIALECTS)(
 
         // keep both names equal
         const name = sql.identifier(table(taskOne));
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
         );
-        await database.execute(
+        await database.run(
             sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
         );
-        await database.execute(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
-        expect(
-            await database.execute(sql`SELECT id, name, title FROM ${name} ORDER BY id`),
-        ).toEqual([
+        await database.run(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
+        expect(await database.all(sql`SELECT id, name, title FROM ${name} ORDER BY id`)).toEqual([
             { id: "a", name: "Plan again", title: "Plan again" },
             { id: "b", name: "Old", title: "Old" },
             { id: "c", name: "New", title: "New" },
@@ -800,7 +794,7 @@ test.for(TEST_DIALECTS)(
         await applyPlan(database, contract);
         expect(await release([taskOne]).check(database)).toEqual([table(taskOne)]);
         expect(await release([taskTwo]).check(database)).toEqual([]);
-        expect(await database.execute(sql`SELECT id, title FROM ${name} ORDER BY id`)).toEqual([
+        expect(await database.all(sql`SELECT id, title FROM ${name} ORDER BY id`)).toEqual([
             { id: "a", title: "Plan again" },
             { id: "b", title: "Old" },
             { id: "c", title: "New" },

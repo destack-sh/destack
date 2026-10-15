@@ -74,7 +74,7 @@ function byKey(rows: readonly Row[]): Row[] {
 }
 
 test.for(TEST_DIALECTS)(
-    "read tables as they were at sampled earlier positions on %s",
+    "read tables as they were at sampled earlier positions, ordered and bounded, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -125,9 +125,11 @@ test.for(TEST_DIALECTS)(
                     .slice(0, 3);
             expect([
                 position.sequence,
-                byKey(await snapshot.rows(item, where)),
-                await snapshot.row(item, { id: "i3" }),
+                byKey(await snapshot.read(item).findMany({ where })),
+                await snapshot.read(item).findFirst({ where: { id: "i3" } }),
                 await snapshot.ordered(item, { where, orderBy, limit: 3 }),
+                await snapshot.read(item).findMany({ where, orderBy, limit: 3 }),
+                await snapshot.read(item).findMany({ where, orderBy }),
                 await snapshot.windows(item, {
                     where: { rank: { gte: 2 } },
                     orderBy,
@@ -137,8 +139,10 @@ test.for(TEST_DIALECTS)(
             ]).toEqual([
                 position.sequence,
                 byKey(matching),
-                rows.find((row) => row.id === "i3") ?? null,
+                rows.find((row) => row.id === "i3"),
                 sorted.slice(0, 3),
+                sorted.slice(0, 3),
+                sorted,
                 [firstOf("inbox"), firstOf("archive"), []],
             ]);
         }
@@ -164,18 +168,20 @@ test.for(TEST_DIALECTS)(
         const snapshot = database.log.at(position);
 
         // restore the history table and refuse the window table
-        expect(await snapshot.rows(revision, everything)).toEqual([
+        expect(await snapshot.read(revision).findMany({ where: everything })).toEqual([
             { id: "r", scope: "inbox", title: "First" },
         ]);
-        await expect(snapshot.rows(item, everything)).rejects.toMatchObject({
+        await expect(snapshot.read(item).findMany({ where: everything })).rejects.toMatchObject({
             code: "CHANGES_COMPACTED",
         });
 
         // refuse reads after a new epoch
         await database.log.renew();
-        await expect(snapshot.rows(revision, everything)).rejects.toMatchObject({
-            code: "STALE_EPOCH",
-        });
+        await expect(snapshot.read(revision).findMany({ where: everything })).rejects.toMatchObject(
+            {
+                code: "STALE_EPOCH",
+            },
+        );
     },
 );
 
@@ -197,8 +203,8 @@ test.for(TEST_DIALECTS)(
 
             return [
                 head,
-                await snapshot.rows(item, { scope: "inbox" }),
-                await snapshot.row(item, { id: "i2" }),
+                await snapshot.read(item).findMany({ where: { scope: "inbox" } }),
+                await snapshot.read(item).findFirst({ where: { id: "i2" } }),
             ] as const;
         });
 
@@ -206,7 +212,7 @@ test.for(TEST_DIALECTS)(
         expect([position, rows, row]).toEqual([
             committed,
             [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
-            null,
+            undefined,
         ]);
     },
 );
@@ -274,13 +280,13 @@ test.for(TEST_DIALECTS)(
             );
             expect([
                 position?.sequence,
-                byKey(await snapshot.rows(item, where)),
-                await snapshot.row(item, { id: "i3" }),
+                byKey(await snapshot.read(item).findMany({ where })),
+                await snapshot.read(item).findFirst({ where: { id: "i3" } }),
                 await snapshot.ordered(item, { where, orderBy, limit: 3 }),
             ]).toEqual([
                 position?.sequence,
                 byKey(matching),
-                shown.find((row) => row.id === "i3") ?? null,
+                shown.find((row) => row.id === "i3"),
                 sorted.slice(0, 3),
             ]);
         }

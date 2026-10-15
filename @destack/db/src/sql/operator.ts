@@ -36,34 +36,18 @@ export const lt: Comparison = (left, right) => compare(left, "<", right);
 /** Compare a smaller or equal value. */
 export const lte: Comparison = (left, right) => compare(left, "<=", right);
 
-/** Require every supplied predicate. */
-export function and(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean>;
-/** Combine the present predicates with AND. */
-export function and(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined;
-/**
- * Combine the present predicates with AND.
- *
- * @construct a required first predicate is present, so the combination is too.
- */
-export function and(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined {
-    const present = conditions.filter((condition) => condition !== undefined);
+/** Require every present predicate of a first one and some optional others. */
+export function and(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean> {
+    const present = rest.filter((condition) => condition !== undefined);
 
-    return present.length === 0 ? undefined : combine(present, "AND");
+    return combine([first, ...present], "AND");
 }
 
-/** Require at least one supplied predicate. */
-export function or(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean>;
-/** Combine the present predicates with OR. */
-export function or(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined;
-/**
- * Combine the present predicates with OR.
- *
- * @construct a required first predicate is present, so the combination is too.
- */
-export function or(...conditions: (SQLWrapper | undefined)[]): SQL<boolean> | undefined {
-    const present = conditions.filter((condition) => condition !== undefined);
+/** Require at least one present predicate of a first one and some optional others. */
+export function or(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL<boolean> {
+    const present = rest.filter((condition) => condition !== undefined);
 
-    return present.length === 0 ? undefined : combine(present, "OR");
+    return combine([first, ...present], "OR");
 }
 
 /** Negate a predicate. */
@@ -187,37 +171,17 @@ export function avg(value: SQLWrapper): SQL<string | null> {
     return sql`avg(${value})`.mapWith(numeric("aggregate").definition);
 }
 
-/** Return the maximum column value, decoded by the column. */
-export function max<Value extends ColumnValue>(
-    value: Column<ColumnDefinition<Value>>,
-): SQL<Value | null>;
-/** Return the maximum expression value, decoded as the expression decodes. */
-export function max<Value>(value: SQL<Value>): SQL<Value | null>;
 /** Return the maximum of a column or expression, decoded as the operand decodes. */
-export function max(value: SQLWrapper): SQL;
-/**
- * Return the maximum value.
- *
- * @construct the maximum decodes as its operand: a column by definition, an expression by decoder.
- */
-export function max(value: SQLWrapper): SQL {
+export function max<Value>(
+    value: Column<ColumnDefinition<Extract<Value, ColumnValue>>> | SQL<Value>,
+): SQL<Value | null> {
     return extreme("max", value);
 }
 
-/** Return the minimum column value, decoded by the column. */
-export function min<Value extends ColumnValue>(
-    value: Column<ColumnDefinition<Value>>,
-): SQL<Value | null>;
-/** Return the minimum expression value, decoded as the expression decodes. */
-export function min<Value>(value: SQL<Value>): SQL<Value | null>;
 /** Return the minimum of a column or expression, decoded as the operand decodes. */
-export function min(value: SQLWrapper): SQL;
-/**
- * Return the minimum value.
- *
- * @construct the minimum decodes as its operand: a column by definition, an expression by decoder.
- */
-export function min(value: SQLWrapper): SQL {
+export function min<Value>(
+    value: Column<ColumnDefinition<Extract<Value, ColumnValue>>> | SQL<Value>,
+): SQL<Value | null> {
     return extreme("min", value);
 }
 
@@ -270,10 +234,13 @@ function membership(
 }
 
 /** Read the extreme of an operand, decoded by its column when it is one and as text otherwise. */
-function extreme(name: "max" | "min", value: SQLWrapper): SQL {
+function extreme<Value>(
+    name: "max" | "min",
+    value: Column<ColumnDefinition<Extract<Value, ColumnValue>>> | SQL<Value>,
+): SQL<Value | null> {
     const aggregate = sql`${sql.raw(name)}(${value})`;
 
     return Column.is(value)
         ? aggregate.mapWith(value.definition)
-        : new SQL(aggregate.chunks, value.getSQL().decoder);
+        : new SQL<Value | null>(aggregate.chunks, value.decoder);
 }

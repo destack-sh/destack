@@ -259,7 +259,9 @@ export class Notes {
             note,
             file,
         ]);
-        const found = await Snapshot.live(reader).row(note, { id: "b" });
+        const found = await Snapshot.live(reader)
+            .read(note)
+            .findFirst({ where: { id: "b" } });
         const files = await reader
             .select()
             .from(file)

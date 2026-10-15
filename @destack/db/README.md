@@ -17,6 +17,8 @@ await database
     .where(Condition.render({ title: { ilike: "q_%" } }, note));
 Filter.parse('status = open AND -title:"draft"', { fields, values }); // AIP-160
 await database.transaction(async (transaction) => transaction.update(note).set({ title }));
+await database.execute(sql`SELECT count(*) AS count FROM ${note}`, Counted); // rows parsed
+await database.run(sql`DELETE FROM ${note} WHERE ${note.scope} = ${spaceId}`); // no rows
 ```
 
 ## Tables
@@ -127,11 +129,14 @@ await database.apply(plan);
 
 ## Transactions
 
-`Transaction.open` reads at a snapshot and buffers writes, each a `RowChange`, checking unique keys once per table and committing only when nothing it read changed.
+`Transaction.open` reads at a snapshot and buffers writes, each a `RowChange`, checking unique keys once per table and committing only when nothing it read changed, and every view reads through Drizzle's `findMany` and `findFirst`.
 
 ```ts
 const transaction = await Transaction.open(database);
-const before = await transaction.row(note, { id });
+const before = present(await transaction.read(note).findFirst({ where: { id } }), "note");
+const recent = await transaction
+    .read(note)
+    .findMany({ where: { scope }, orderBy: { id: "desc" }, limit: 10 });
 await transaction.write(
     { table: note, before, after: { ...before, title: "Plans" } },
     { table: note, before: null, after: created },
@@ -151,7 +156,10 @@ for await (const page of database.log.follow(
 )) {
     apply(page.changes);
 }
-await database.log.at(position).rows(note, { scope: spaceId });
+await database.log
+    .at(position)
+    .read(note)
+    .findMany({ where: { scope: spaceId } });
 ```
 
 ## Derived columns

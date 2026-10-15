@@ -1,4 +1,5 @@
 import { Alias, SQL, sql } from "../sql/index.ts";
+import { mapValues } from "@destack/schema";
 import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -92,19 +93,13 @@ export class Projection<Selected extends Selection = Selection> {
         dialect: Dialect,
         nullable: ReadonlySet<string>,
         cipher: ColumnCipher | undefined,
-    ): SelectionResult<Selected>[];
-    /**
-     * Decode driver rows into records shaped as the selection.
-     *
-     * @construct each record nests groups and decodes fields by column or decoder, as typed.
-     */
-    decode(
-        rows: readonly (readonly unknown[])[],
-        dialect: Dialect,
-        nullable: ReadonlySet<string>,
-        cipher: ColumnCipher | undefined,
-    ): unknown[] {
-        return rows.map((values) => decodeGroup(this.#root, values, dialect, nullable, cipher));
+    ): SelectionResult<Selected>[] {
+        return rows.map((values) =>
+            mapValues<Record<string, unknown>, SelectionResult<Selected>>(
+                decodeGroup(this.#root, values, dialect, nullable, cipher),
+                (value) => value,
+            ),
+        );
     }
 }
 

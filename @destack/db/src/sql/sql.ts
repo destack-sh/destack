@@ -20,7 +20,9 @@ export type Chunk =
     | readonly Chunk[];
 
 /** Decode a selected driver value into its application value: by column kind or function. */
-export type Decoder<Value> = ColumnDefinition | ((value: unknown) => Value);
+export type Decoder<Value> =
+    | ((value: unknown) => Value)
+    | ([Value] extends [ColumnValue] ? ColumnDefinition<Value> : never);
 
 /** A SQL fragment with the type of the value it computes. */
 export class SQL<Value = unknown> implements SQLWrapper {
@@ -42,16 +44,8 @@ export class SQL<Value = unknown> implements SQLWrapper {
         return this;
     }
 
-    /** Decode the selected value as a column definition's values. */
-    mapWith<Next extends ColumnValue>(decoder: ColumnDefinition<Next>): SQL<Next>;
-    /** Decode the selected value by a function. */
-    mapWith<Next>(decoder: (value: unknown) => Next): SQL<Next>;
-    /**
-     * Decode the selected value.
-     *
-     * @construct a column definition decodes its column's values, a function to its return type.
-     */
-    mapWith(decoder: Decoder<unknown>): SQL {
+    /** Decode the selected value by a column definition or a function. */
+    mapWith<Next>(decoder: Decoder<Next>): SQL<Next> {
         return new SQL(this.chunks, decoder);
     }
 

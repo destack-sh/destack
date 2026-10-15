@@ -516,7 +516,7 @@ test.for(TEST_DIALECTS)(
         });
         await database.log.drop("subscription");
         expect(
-            await database.execute(sql`SELECT name FROM ${sql.identifier("__destack_log_slot")}`),
+            await database.all(sql`SELECT name FROM ${sql.identifier("__destack_log_slot")}`),
         ).toEqual([]);
     },
 );

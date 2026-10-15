@@ -1,4 +1,5 @@
 import { sql, type SQL } from "../sql/index.ts";
+import { mapValues } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import type { Column } from "../table/column.ts";
@@ -8,18 +9,12 @@ import { DatabaseError } from "../error/error.ts";
 import { Expression } from "../expression/expression.ts";
 import { Comparable, Condition } from "./condition.ts";
 import { Order } from "./order.ts";
-import type { QueryOptions } from "./option.ts";
+import { OpenFindOptions } from "./option.ts";
 import type { Path, Relation, Relations, TreePath } from "./relation.ts";
 import type { FindOptions, FindResult, Model } from "./model.ts";
 
 /** The most parent values one statement reads rows for, a parameter each. */
 const BATCH = 500;
-
-/** A level's options: what it selects of the rows and which columns it keeps. */
-type ReadOptions = QueryOptions & {
-    /** The columns each result keeps: only those set true, or all but those set false. */
-    readonly columns?: Readonly<Record<string, boolean | undefined>>;
-};
 
 /** The parent rows a level reads rows for: the path joining them and the parents' values. */
 interface Link {
@@ -63,11 +58,11 @@ interface Decoder<Value> {
 
 /** Relational reads of a schema's named tables. */
 export type Queries<Models extends Readonly<Record<string, Model>>> = {
-    readonly [Name in keyof Models]: RelationalQueryBuilder<Models[Name]>;
+    readonly [Name in keyof Models]: ModelQueryBuilder<Models[Name]>;
 };
 
 /** Relational reads of one table. */
-export class RelationalQueryBuilder<Entity extends Model = Model> {
+export class ModelQueryBuilder<Entity extends Model = Model> {
     /** The connection reading the rows. */
     readonly #connection: DatabaseConnection;
     /** The read table. */
@@ -86,54 +81,40 @@ export class RelationalQueryBuilder<Entity extends Model = Model> {
     static of<Models extends Readonly<Record<string, Model>>>(
         connection: DatabaseConnection,
         relations: Relations<Models>,
-    ): Queries<Models>;
-    /**
-     * Read each table of the relations through a connection.
-     *
-     * @construct the relations list each table under its model's key, as Queries maps the models.
-     */
-    static of(
-        connection: DatabaseConnection,
-        relations: Relations,
-    ): Record<string, RelationalQueryBuilder> {
-        return Object.fromEntries(
-            Object.entries(relations.tables).map(([name, table]) => [
-                name,
-                new RelationalQueryBuilder(connection, table, relations),
-            ]),
+    ): Queries<Models> {
+        return mapValues<Readonly<Record<string, Table>>, Queries<Models>>(
+            relations.tables,
+            (table) => new ModelQueryBuilder(connection, table, relations),
         );
     }
 
     /** Read the rows meeting the options, each with its included relations. */
-    findMany<const Options extends FindOptions<Entity>>(
+    async findMany<const Options extends FindOptions<Entity> = {}>(
         options?: Options,
-    ): Promise<FindResult<Entity, Options>[]>;
-    /**
-     * Read the rows meeting the options, each with its included relations.
-     *
-     * @construct each result has selected columns, extras and included results, as in FindResult.
-     */
-    findMany(options: ReadOptions = {}): Promise<unknown[]> {
-        return this.#find(options);
+    ): Promise<FindResult<Entity, Options>[]> {
+        const rows = await this.#find(OpenFindOptions.parse(options ?? {}));
+
+        return rows.map((row) =>
+            mapValues<Record<string, unknown>, FindResult<Entity, Options>>(row, (value) => value),
+        );
     }
 
     /** Read the first row meeting the options, with its included relations. */
-    findFirst<const Options extends Omit<FindOptions<Entity>, "limit">>(
+    async findFirst<const Options extends Omit<FindOptions<Entity>, "limit"> = {}>(
         options?: Options,
-    ): Promise<FindResult<Entity, Options> | undefined>;
-    /**
-     * Read the first row meeting the options, with its included relations.
-     *
-     * @construct the result is the first of findMany's, which FindResult maps the same way.
-     */
-    async findFirst(options: ReadOptions = {}): Promise<unknown> {
-        const [first] = await this.#find({ ...options, limit: 1 });
+    ): Promise<FindResult<Entity, Options> | undefined> {
+        const [first] = await this.#find({ ...OpenFindOptions.parse(options ?? {}), limit: 1 });
 
-        return first;
+        return first === undefined
+            ? undefined
+            : mapValues<Record<string, unknown>, FindResult<Entity, Options>>(
+                  first,
+                  (value) => value,
+              );
     }
 
     /** Read the rows of a level and below in one read transaction. */
-    #find(options: ReadOptions): Promise<Record<string, unknown>[]> {
+    #find(options: OpenFindOptions): Promise<Record<string, unknown>[]> {
         return this.#connection.transaction(
             async (transaction) => {
                 const reads = await read(transaction, this.#relations, this.#table, options);
@@ -163,7 +144,7 @@ class Level {
     readonly #where: SQL;
 
     /** Render a level's selection, order and condition in the table's namespace. */
-    constructor(relations: Relations, table: Table, options: ReadOptions) {
+    constructor(relations: Relations, table: Table, options: OpenFindOptions) {
         // select the columns and extras
         const extras = options.extras ?? {};
         const namespace = relations.namespace(table, extras);
@@ -346,7 +327,7 @@ async function read(
     connection: DatabaseConnection,
     relations: Relations,
     table: Table,
-    options: ReadOptions,
+    options: OpenFindOptions,
     link?: Link,
 ): Promise<Read[]> {
     // require a positive whole limit, and read nothing for no parents
@@ -383,7 +364,7 @@ async function include(
     table: Table,
     reads: readonly Read[],
     name: string,
-    options: ReadOptions,
+    options: OpenFindOptions,
 ): Promise<void> {
     // read the related rows of every distinct parent value at once
     const relation = relations.get(table, name);
@@ -415,7 +396,7 @@ async function include(
 }
 
 /** Read a relation's rows by a nested read's options, meeting the relation's condition too. */
-function related(relation: Relation, options: ReadOptions): ReadOptions {
+function related(relation: Relation, options: OpenFindOptions): OpenFindOptions {
     // keep the read's condition
     if (relation.where === undefined) {
         return options;

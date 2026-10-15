@@ -1,5 +1,6 @@
 import {
     Alias,
+    type DriverStatement,
     fill,
     isSQLWrapper,
     Parameter,
@@ -11,9 +12,10 @@ import {
 } from "../sql/index.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
 import { Column, type ColumnValue } from "../table/column.ts";
-import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
+import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
+import { mapValues } from "@destack/schema";
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
@@ -57,7 +59,7 @@ type Conflict<Definition extends Table> =
       };
 
 /** What a mutation writes, to which rows, and what it returns. */
-interface MutationState<Definition extends Table> {
+interface MutationState<Definition extends Table, Result> {
     /** The driver running the mutation. */
     readonly driver: DatabaseDriver;
     /** The changed table. */
@@ -74,6 +76,8 @@ interface MutationState<Definition extends Table> {
     readonly conflict: Conflict<Definition> | undefined;
     /** The returned fields, absent to return nothing. */
     readonly returning: ReturningSelection | undefined;
+    /** Run the rendered mutation and read its result. */
+    readonly finish: (driver: DatabaseDriver, statement: DriverStatement) => Promise<Result>;
 }
 
 /** A typed insertion, update or deletion, a new mutation for each step, awaited for its result. */
@@ -85,10 +89,10 @@ export class MutationQuery<
     /** The inferred types. */
     declare readonly _: { readonly result: Result; readonly operation: Operation };
     /** What the mutation writes, to which rows, and what it returns. */
-    readonly state: MutationState<Definition>;
+    readonly state: MutationState<Definition, Result>;
 
     /** Create the mutation. */
-    constructor(state: MutationState<Definition>) {
+    constructor(state: MutationState<Definition, Result>) {
         this.state = state;
     }
 
@@ -107,6 +111,9 @@ export class MutationQuery<
             where: undefined,
             conflict: undefined,
             returning: undefined,
+            finish: async (session, statement) => {
+                await session.execute(statement);
+            },
         });
     }
 
@@ -172,33 +179,41 @@ export class MutationQuery<
         });
     }
 
-    /** Return the changed records. */
-    returning(): MutationQuery<Definition, Select<Definition>[], Operation>;
-    /** Return selected fields of the changed records. */
-    returning<Fields extends ReturningSelection>(
-        fields: Fields,
-    ): MutationQuery<Definition, SelectionResult<Fields>[], Operation>;
-    /**
-     * Return fields of the changed records, typed by the fields in the signatures above.
-     *
-     * @construct the returned rows decode through the selected fields or all columns, as typed.
-     */
-    returning(fields?: ReturningSelection): MutationQuery<Definition, unknown[], Operation> {
+    /** Return the changed records, or selected fields of them. */
+    returning<Fields extends ReturningSelection = Definition[typeof TABLE]["columns"]>(
+        fields?: Fields,
+    ): MutationQuery<Definition, SelectionResult<Fields>[], Operation> {
+        const returned = fields ?? this.state.table[TABLE].columns;
+
         return new MutationQuery({
             ...this.state,
-            returning: fields ?? this.state.table[TABLE].columns,
+            returning: returned,
+            finish: async (driver, statement) => {
+                // read the returned rows and decode them through the returned fields
+                const rows = await driver.write(
+                    (session) => session.values(statement.text, statement.parameters),
+                    statement.tables,
+                );
+                const projection = new Projection(unqualified(returned));
+                const decoded = projection.decode(
+                    rows,
+                    driver.dialect,
+                    new Set(),
+                    driver.state.cipher,
+                );
+
+                return decoded.map((row) =>
+                    mapValues<Record<string, unknown>, SelectionResult<Fields>>(
+                        row,
+                        (value) => value,
+                    ),
+                );
+            },
         });
     }
 
     /** Run the mutation, returning the changed rows when asked. */
-    async execute(): Promise<Result>;
-    /**
-     * Run the mutation, typing its result by the returned fields in the signature above.
-     *
-     * @construct the rows decode through the returned fields' projection, which computed Result.
-     */
-    async execute(): Promise<unknown> {
-        // render the mutation for the driver's dialect
+    async execute(): Promise<Result> {
         const state = this.state;
         const statement = fill(
             render(
@@ -209,19 +224,7 @@ export class MutationQuery<
             ),
         );
 
-        // run without rows, or read and decode the returned rows
-        if (state.returning === undefined) {
-            await state.driver.execute(statement);
-
-            return undefined;
-        }
-        const projection = new Projection(unqualified(state.returning));
-        const rows = await state.driver.write(
-            (session) => session.values(statement.text, statement.parameters),
-            statement.tables,
-        );
-
-        return projection.decode(rows, state.driver.dialect, new Set(), state.driver.state.cipher);
+        return state.finish(state.driver, statement);
     }
 
     /** Run the mutation and return the first changed row. */

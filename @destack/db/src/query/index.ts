@@ -18,4 +18,4 @@ export type { InsertValue } from "./mutation.ts";
 export * from "./relation.ts";
 export * from "./option.ts";
 export * from "./model.ts";
-export { RelationalQueryBuilder, type Queries } from "./find.ts";
+export { ModelQueryBuilder, type Queries } from "./find.ts";
