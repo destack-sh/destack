@@ -75,8 +75,6 @@ export interface Caller {
     readonly assurance?: AuthenticationAssurance;
     /** The contacts, such as an email address, the caller proved control of. */
     readonly contacts?: readonly Contact[];
-    /** The procedure paths of the audience the space granted the installation. */
-    readonly calls?: readonly string[];
     /** Digests of the link secrets the caller presented. */
     readonly linkSecrets?: readonly string[];
     /** Trusted attributes access policies read. */
@@ -150,8 +148,6 @@ export const Caller = {
         assurance: AuthenticationAssurance.exactOptional(),
         /** The contacts the caller proved control of. */
         contacts: schema.array(Contact).exactOptional(),
-        /** The procedures of the audience an installation's space granted it. */
-        calls: schema.array(schema.string().min(1)).exactOptional(),
         /** Digests of the link secrets the caller presented. */
         linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
         /** Trusted attributes access policies read. */
