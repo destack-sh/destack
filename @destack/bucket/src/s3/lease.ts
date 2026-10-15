@@ -1,5 +1,6 @@
 import type { Lease, LeaseMode } from "@destack/resource";
 import type { BucketHost, BucketReference } from "./host.ts";
+import { BucketKey } from "../bucket/key.ts";
 import { S3Location } from "./location.ts";
 import { S3Signature } from "./signature.ts";
 
@@ -30,7 +31,8 @@ export const BucketLease = {
         lease: BucketLeaseRequest,
         now: number,
     ): Promise<Lease> {
-        // address the key, and the part the query selects, at the bucket's S3 location
+        // refuse a key the bucket refuses, then address it and the part the query selects
+        BucketKey.check(lease.key);
         const { location, credentials } = await host.locate(target, lease.mode);
         const url = S3Location.url(location, lease.key);
         for (const [name, value] of Object.entries(lease.query ?? {})) {

@@ -2,7 +2,7 @@ import { aligned } from "@destack/schema";
 import { BucketError } from "../error/error.ts";
 
 /** The longest file key in UTF-8 bytes, the S3 and R2 limit. */
-const MAX_KEY_BYTES = 1024;
+export const MAX_KEY_BYTES = 1024;
 /** The highest Unicode code point. */
 const MAX_CODE_POINT = 0x10ffff;
 /** The last code point before the surrogate range, which UTF-8 strings skip. */
