@@ -8,7 +8,7 @@ import type { ProcedureRouter } from "../runtime/index.ts";
 import { CallError } from "../error/index.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../bookmark/index.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
-import type { ProcedureCall } from "./procedure-call.ts";
+import type { ProcedureContext } from "./procedure-context.ts";
 import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { copyRequest } from "../request/index.ts";
@@ -77,7 +77,7 @@ export class Server implements AsyncDisposable {
         this.health = options.health;
         this.#handler = new RequestHandler(options.router, {
             ...options,
-            authorize: (call) => Server.#authorize(call, options),
+            authorize: (context) => Server.#authorize(context, options),
         });
 
         // run the controllers
@@ -335,32 +335,35 @@ export class Server implements AsyncDisposable {
 
     /** Authorize a call. */
     static async #authorize(
-        call: ProcedureCall<RequestContext>,
+        context: ProcedureContext<RequestContext>,
         options: ServerOptions,
     ): Promise<void> {
         // require an identified caller on protected routes
-        if (call.access.authentication !== "public" && Caller.isAnonymous(call.context.caller())) {
+        if (
+            context.access.authentication !== "public" &&
+            Caller.isAnonymous(context.request.caller())
+        ) {
             throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
         }
 
         // renew the call's access
-        call.context.authorization?.renew();
+        context.request.authorization?.renew();
 
         // admit anyone, and leave each row to the object store, refusing a credential that failed
-        const permission = call.access.permission;
+        const permission = context.access.permission;
         if (permission === "anyone" || permission === "rows" || "rows" in permission) {
-            Caller.requireChain(call.context.caller());
+            Caller.requireChain(context.request.caller());
         }
         // admit principals of the declared kinds calling as themselves
         else if ("principals" in permission) {
-            const caller = call.context.caller();
+            const caller = context.request.caller();
             const sender = Caller.sender(caller);
             const isDeclared = permission.principals.some(
                 (kind) => kind.packageId === sender.packageId && kind.type === sender.type,
             );
             if (!isDeclared) {
                 throw new CallError("FORBIDDEN", {
-                    message: `${sender.type} callers cannot call ${call.path.join(".")}`,
+                    message: `${sender.type} callers cannot call ${context.path.join(".")}`,
                 });
             }
             Caller.requireChain(caller);
@@ -368,19 +371,19 @@ export class Server implements AsyncDisposable {
         // decide the permission on the call's target
         else {
             const access = options.access;
-            const authorization = call.context.authorization;
+            const authorization = context.request.authorization;
             if (access?.target === undefined || authorization === undefined) {
                 throw new TypeError(
                     `procedures requiring ${permission.name} need server access with targets`,
                 );
             }
-            const target = await access.target(call);
-            call.context.target = target;
+            const target = await access.target(context);
+            context.request.target = target;
             await authorization.require(permission, target);
         }
 
         // let the host authorize the call
-        await options.authorizeMachine(call);
+        await options.authorizeMachine(context);
     }
 
     /** Keep a request open until its response body settles. */
@@ -519,7 +522,7 @@ export interface ServerOptions extends PackageImplementation {
     /** Verify credentials as the host after the package, undefined without a credential. */
     readonly authenticate: (request: Request) => Promise<Authentication | undefined>;
     /** Enforce installation and host-only requirements. */
-    readonly authorizeMachine: (call: ProcedureCall<RequestContext>) => Promise<void>;
+    readonly authorizeMachine: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
     /** This instance's lease holder name. */

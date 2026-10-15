@@ -5,24 +5,24 @@ import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
 import { findDenial, CallError } from "../error/index.ts";
 
-/** A procedure call. */
-export interface ProcedureCall<State extends Context> {
+/** The context of one call of a procedure, as the server runs it. */
+export interface ProcedureContext<State extends Context> {
     /** The access requirements. */
     access: ProcedureAccess;
     /** The procedure's key path. */
     path: readonly string[];
     /** The unvalidated input. */
     input: unknown;
-    /** The request context. */
-    context: State;
+    /** The request's context. */
+    request: State;
     /** The cancellation signal. */
     signal?: AbortSignal;
 }
 
 /** An audit event of a call. */
 export interface ProcedureAudit<State extends Context> {
-    /** The call. */
-    call: ProcedureCall<State>;
+    /** The call's context. */
+    context: ProcedureContext<State>;
     /** How the call ended. */
     outcome: "success" | "failure" | "denied" | "cancelled";
     /** The failure. */
@@ -30,10 +30,10 @@ export interface ProcedureAudit<State extends Context> {
 }
 
 /** Procedure calls as the server runs them. */
-export const ProcedureCall = {
+export const ProcedureContext = {
     /** Authorize a call and audit it after it ends. */
     async invoke<State extends Context>(
-        call: ProcedureCall<State>,
+        context: ProcedureContext<State>,
         next: () => Promise<unknown>,
         options: Pick<HandlerOptions<State>, "authorize" | "audit">,
     ): Promise<unknown> {
@@ -41,12 +41,15 @@ export const ProcedureCall = {
         const audit = options.audit;
         try {
             if (options.authorize) {
-                await options.authorize(call);
+                await options.authorize(context);
             }
         } catch (error) {
             const failure = reportError(error);
             if (audit) {
-                await recordAudit({ call, outcome: auditOutcome(failure), error: failure }, audit);
+                await recordAudit(
+                    { context: context, outcome: auditOutcome(failure), error: failure },
+                    audit,
+                );
             }
             throw failure;
         }
@@ -58,17 +61,20 @@ export const ProcedureCall = {
         } catch (error) {
             const failure = reportError(error);
             if (audit) {
-                await recordAudit({ call, outcome: auditOutcome(failure), error: failure }, audit);
+                await recordAudit(
+                    { context: context, outcome: auditOutcome(failure), error: failure },
+                    audit,
+                );
             }
             throw failure;
         }
 
         // record a stream when it closes
         if (isAsyncIterable(result)) {
-            return streamProcedure(result, call, options);
+            return streamProcedure(result, context, options);
         }
         if (audit) {
-            await recordAudit({ call, outcome: "success" }, audit);
+            await recordAudit({ context: context, outcome: "success" }, audit);
         }
 
         return result;
@@ -78,7 +84,7 @@ export const ProcedureCall = {
 /** Authorize and audit a stream. */
 function streamProcedure<State extends Context>(
     stream: AsyncIterable<unknown>,
-    call: ProcedureCall<State>,
+    context: ProcedureContext<State>,
     options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): AsyncIteratorClass<unknown> {
     // record completion apart from cancellation
@@ -92,11 +98,11 @@ function streamProcedure<State extends Context>(
             try {
                 // recheck access before each value
                 if (options.authorize) {
-                    await options.authorize(call);
+                    await options.authorize(context);
                 }
                 const result = await iterator.next();
                 if (options.authorize && result.done !== true) {
-                    await options.authorize(call);
+                    await options.authorize(context);
                 }
                 if (result.done === true) {
                     outcome = "success";
@@ -122,7 +128,7 @@ function streamProcedure<State extends Context>(
                 throw reportError(error);
             } finally {
                 if (audit) {
-                    await recordAudit({ call, outcome, error: failure }, audit);
+                    await recordAudit({ context: context, outcome, error: failure }, audit);
                 }
             }
         },

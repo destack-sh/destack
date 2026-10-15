@@ -10,7 +10,7 @@ import {
 } from "@destack/access";
 import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import type { ProcedureCall } from "./procedure-call.ts";
+import type { ProcedureContext } from "./procedure-context.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 import { Clock } from "@destack/schema";
 import { CallError } from "../error/index.ts";
@@ -182,5 +182,5 @@ export interface ServerAccess {
     /** The database with relationships and roles. */
     readonly database: DatabaseConnection;
     /** Resolve the object or scope a call acts on. */
-    readonly target?: (call: ProcedureCall<RequestContext>) => Promise<ObjectReference>;
+    readonly target?: (call: ProcedureContext<RequestContext>) => Promise<ObjectReference>;
 }

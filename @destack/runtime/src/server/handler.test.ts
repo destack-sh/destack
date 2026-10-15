@@ -16,7 +16,7 @@ import type {} from "@destack/package/import-meta";
 /** Hide the notes from carol, and refuse everyone else but alice. */
 const authorize: NonNullable<
     HandlerOptions<{ caller: string; request: Request }>["authorize"]
-> = async ({ context, access }) => {
+> = async ({ request: state, access }) => {
     // conceal the denial from carol
     const denial = new CallError("FORBIDDEN", { message: "permission denied: read" });
     const { permission } = access;
@@ -26,9 +26,9 @@ const authorize: NonNullable<
         permission.packageId === import.meta.destack.package.id &&
         permission.type === "notes" &&
         permission.name === "read";
-    if (context.caller === "carol") {
+    if (state.caller === "carol") {
         throw conceal(denial, "no notes");
-    } else if (context.caller !== "alice" || access.authentication !== "identity" || !isNotesRead) {
+    } else if (state.caller !== "alice" || access.authentication !== "identity" || !isNotesRead) {
         throw denial;
     }
 };
@@ -114,8 +114,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         package: fixturePackage,
         health,
         authorize,
-        audit: async ({ call, outcome }) => {
-            records.push({ caller: call.context.caller, outcome });
+        audit: async ({ context, outcome }) => {
+            records.push({ caller: context.request.caller, outcome });
         },
     });
     const client = createClient(

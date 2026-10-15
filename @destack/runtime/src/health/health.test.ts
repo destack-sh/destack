@@ -15,8 +15,8 @@ test("stream current health and subsequent readiness changes", async () => {
         {
             package: fixturePackage,
             health: readiness,
-            authorize: async ({ context }) => {
-                if (context.caller !== "alice") {
+            authorize: async ({ request: state }) => {
+                if (state.caller !== "alice") {
                     throw new CallError("UNAUTHORIZED", { message: "unknown caller" });
                 }
             },

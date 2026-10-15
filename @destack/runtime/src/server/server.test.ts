@@ -729,7 +729,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
             },
         }),
         audit: async (event) => {
-            audited.push(event.call.context.authenticationError?.message ?? "verified");
+            audited.push(event.context.request.authenticationError?.message ?? "verified");
         },
     });
     onTestFinished(() => server.close());

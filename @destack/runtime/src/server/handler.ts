@@ -17,7 +17,7 @@ import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { CallError } from "../error/index.ts";
 import type { Health } from "../health/health.ts";
-import { ProcedureCall, type ProcedureAudit } from "./procedure-call.ts";
+import { ProcedureContext, type ProcedureAudit } from "./procedure-context.ts";
 import { CallTelemetry } from "../procedure/call-telemetry.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
@@ -122,15 +122,15 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             async (interception) => {
                 // check access before the handler
                 const { convert: _convert, ...access } = ProcedureMeta.of(interception.procedure);
-                const call: ProcedureCall<State> = {
+                const procedure: ProcedureContext<State> = {
                     access,
                     path: interception.path,
                     input: interception.input,
-                    context: interception.context,
+                    request: interception.context,
                     ...(interception.signal === undefined ? {} : { signal: interception.signal }),
                 };
 
-                return ProcedureCall.invoke(call, () => interception.next(), options);
+                return ProcedureContext.invoke(procedure, () => interception.next(), options);
             },
         ];
     }
@@ -287,7 +287,7 @@ export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOpt
     /** The health. */
     health: Health;
     /** Authorize a call. */
-    authorize?(call: ProcedureCall<State>): Promise<void>;
+    authorize?(call: ProcedureContext<State>): Promise<void>;
     /** Record an audit event. */
     audit?(event: ProcedureAudit<State>): Promise<void>;
 }
