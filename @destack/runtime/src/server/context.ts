@@ -1,4 +1,3 @@
-import { principal } from "@destack/access";
 import type { ObjectReference, Subject } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import { AccessContext, Authorization, type Authorizer, Caller } from "@destack/access";
@@ -94,19 +93,6 @@ export class RequestContext {
             lapsed.signal,
             ...(options.draining === undefined ? [] : [options.draining]),
         ]);
-    }
-
-    /** Require an installation caller to have a grant of a procedure from its space. */
-    requireCall(path: string): Caller {
-        // admit callers other than installations by their own authority
-        const caller = this.requireCaller();
-        const { subject, calls } = caller;
-        if (!principal.installation.is(subject) || calls?.includes(path) === true) {
-            return caller;
-        }
-
-        // refuse an installation its space granted no such call
-        throw new CallError("NOT_FOUND", { message: `no procedure ${path}` });
     }
 
     /** Require a verified principal calling, current as of its credential's lapse at latest. */

@@ -25,8 +25,6 @@ export const InstallationBindingSpec = defineSchema(
          * An example is `@destack/message` for a package of the platform.
          */
         address: schema.string().min(1).exactOptional(),
-        /** The procedures the installation calls, by their dotted paths in the package's router. */
-        calls: schema.array(schema.string().min(1)).exactOptional(),
     }),
 );
 /** An installation binding's specification. */
@@ -99,48 +97,19 @@ export function defineInstallationBinding<Router extends ProcedureRouter>(
     options: {
         /** The address an installation calls unless a stack binds another. */
         readonly address?: string;
-        /** The procedures of the package's router the installation calls, granted at install. */
-        readonly calls?: readonly unknown[];
     } = {},
     module?: ModuleMetadata,
 ): InstallationBinding<Router> {
-    // stamp the declaring package and resolve each called procedure to its path
+    // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineInstallationBinding").package;
-    const calls = options.calls?.map((procedure) => procedurePath(handle.router, procedure, name));
     const description = InstallationKind.description.parse({
         name,
         kind: InstallationKind.name,
         spec: {
             package: handle.id,
             ...(options.address === undefined ? {} : { address: options.address }),
-            ...(calls === undefined ? {} : { calls }),
         },
     });
 
     return new InstallationBinding(owner, description, handle);
-}
-
-/** Find a procedure's dotted path in a package's router, refusing one the router lacks. */
-function procedurePath(router: ProcedureRouter, procedure: unknown, binding: string): string {
-    // walk the router's nested procedures for the one given
-    const visit = (node: unknown, path: readonly string[]): string | undefined => {
-        if (node === procedure) {
-            return path.join(".");
-        }
-        if (typeof node !== "object" || node === null || path.length > 4) {
-            return undefined;
-        }
-
-        return Object.entries(node)
-            .map(([key, child]) => visit(child, [...path, key]))
-            .find((found) => found !== undefined);
-    };
-    const found = visit(router, []);
-    if (found === undefined || found === "") {
-        throw new TypeError(
-            `installation binding ${binding} calls a procedure outside its package's routes`,
-        );
-    }
-
-    return found;
 }

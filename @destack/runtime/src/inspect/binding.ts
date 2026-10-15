@@ -18,12 +18,12 @@ export function describeInstallationBinding(
     });
 }
 
-/** Bind an installation binding to each procedure it calls, every one without a list. */
+/** Bind an installation binding to each procedure of the package it calls. */
 export function installationBindingSymbols(binding: InstallationBinding): graph.MemberSymbol[] {
-    const { package: packageId, calls } = describeInstallationBinding(binding).spec;
-    const called =
-        calls ??
-        describeProcedures(binding.handle.router).map((procedure) => procedure.name.join("."));
+    const { package: packageId } = describeInstallationBinding(binding).spec;
+    const called = describeProcedures(binding.handle.router).map((procedure) =>
+        procedure.name.join("."),
+    );
 
     return schema.array(graph.MemberSymbol).parse([
         {

@@ -30,8 +30,6 @@ export const ProcedureAccess = schema.object({
     permission: ProcedurePermission,
     /** The category of the event a call records when it ends, or false to record only denials. */
     audit: schema.union([schema.literal(false), schema.enum(["activity", "access"])]),
-    /** Whether an installation calls it only with its space's grant. */
-    granted: schema.boolean().exactOptional(),
 });
 
 /** The access and audit requirements of a procedure. */

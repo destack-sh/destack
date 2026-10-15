@@ -337,12 +337,9 @@ export class Server implements AsyncDisposable {
         call: ProcedureCall<RequestContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // require identity on protected routes and the space's grant on installation calls
+        // require identity on protected routes
         if (call.access.authentication !== "public") {
             call.context.requireCaller();
-        }
-        if (call.access.granted === true) {
-            call.context.requireCall(call.path.join("."));
         }
 
         // renew the call's access

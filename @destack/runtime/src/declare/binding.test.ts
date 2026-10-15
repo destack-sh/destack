@@ -1,10 +1,9 @@
-import { principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Package } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { health } from "../health/index.ts";
 import { VERSION_HEADER } from "../request/index.ts";
-import { defineProcedure, type ProcedureRouter } from "../runtime/index.ts";
+import type { ProcedureRouter } from "../runtime/index.ts";
 import { defineInstallationBinding } from "./binding.ts";
 import { definePackage, type ObjectDeclaration } from "./package.ts";
 
@@ -13,13 +12,6 @@ const NOTES = Package.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b001",
     name: "@destack/notes",
     version: "2026.9.0",
-});
-
-/** The identity of a package the binding does not bind. */
-const OTHER = Package.parse({
-    ...NOTES,
-    id: "package-01996ab0-0000-7000-8000-00000000b002",
-    name: "@destack/other",
 });
 
 /** An installation binding at a reference, as a host hands it to a workload. */
@@ -72,27 +64,6 @@ test("call a bound installation at its reference with the credential the host le
         "installation",
         { package: notes.id },
     ]);
-});
-
-test("list a binding's calls by their paths in the package's router, and refuse a procedure the package does not route", () => {
-    // declare calls of the package's health procedures and of another package's
-    const send = defineProcedure({
-        authentication: "identity",
-        permission: { principals: [principal.user, principal.machine, principal.installation] },
-        audit: false,
-    });
-    const other = definePackage({ objects: { note: note(OTHER, { send }) } }, { package: OTHER });
-    const binding = defineInstallationBinding("notes", notes, {
-        calls: [notes.router.note.check, notes.router.note.watch],
-    });
-    const stray = () =>
-        defineInstallationBinding("notes", notes, { calls: [other.router.note.send] });
-
-    // keep the dotted paths in the binding's spec and refuse the stray procedure
-    expect(binding.spec.calls).toEqual(["note.check", "note.watch"]);
-    expect(stray).toThrow(
-        "installation binding notes calls a procedure outside its package's routes",
-    );
 });
 
 test("refuse connecting an installation binding the host lends no credential", async () => {
