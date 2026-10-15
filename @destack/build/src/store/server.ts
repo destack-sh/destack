@@ -9,9 +9,9 @@ const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 /** The host's decision on reading and uploading stored builds. */
 export interface PackageAccess {
     /** Authorize reading a build and return its retention expiry, if temporary. */
-    authorize(request: Request, digest: string): Promise<{ expiresAt?: number }>;
+    readonly authorize: (request: Request, digest: string) => Promise<{ expiresAt?: number }>;
     /** Authorize an upload below a scope such as its package, absent where nobody uploads. */
-    upload?(request: Request, scope: string | undefined): Promise<void>;
+    readonly upload?: (request: Request, scope: string | undefined) => Promise<void>;
 }
 
 /** HTTP reads of stored builds, manifests, files and archives, and uploads by digest. */

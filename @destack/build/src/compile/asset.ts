@@ -89,7 +89,7 @@ async function resolveDirectory(
 
 /** Emit a directory's files under its digest and return the directory's URL expression. */
 async function emitDirectory(
-    context: { emitFile(file: EmittedAsset): string },
+    context: { readonly emitFile: (file: EmittedAsset) => string },
     path: string,
     source: string,
     entries: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,

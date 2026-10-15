@@ -796,7 +796,7 @@ function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package
 async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
     // keep the authored bytes of the version they name
     const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
-    const manifest = schema.record(schema.string(), schema.json()).parse(JSON.parse(authored));
+    const manifest = schema.jsonObject().parse(JSON.parse(authored));
     const { version } = project.declaration.package;
     if (manifest["version"] === version) {
         return new TextEncoder().encode(authored);

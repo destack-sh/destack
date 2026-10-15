@@ -20,13 +20,13 @@ import type { Workload } from "@destack/runtime/workload";
 /** A built library module exporting createNote. */
 export interface NoteModule {
     /** Create a note with a title. */
-    createNote(title: string): unknown;
+    readonly createNote: (title: string) => unknown;
 }
 
 /** A built server module whose default export answers requests. */
 export interface HandlerModule {
     /** The request handler. */
-    readonly default: { fetch(request: Request): Response | Promise<Response> };
+    readonly default: { readonly fetch: (request: Request) => Response | Promise<Response> };
 }
 
 /** A built server module exporting its workload and the package it serves. */

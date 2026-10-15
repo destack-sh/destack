@@ -11,7 +11,7 @@ import {
     type PackageExport,
     TEST_EXPORT,
 } from "@destack/package";
-import { type JsonValue, schema, type Version } from "@destack/schema";
+import { type JsonObject, type JsonValue, schema, type Version } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
 import { PackageLocator } from "@destack/package/locator";
@@ -264,7 +264,7 @@ export async function readPackageDescription(
 ): Promise<PackageDescription> {
     // read package.json and destack.json
     const metadata = schema
-        .record(schema.string(), schema.json())
+        .jsonObject()
         .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
     const configuration = PackageDefinition.read(
         await readFile(resolve(directory, "destack.json"), "utf8"),
@@ -315,8 +315,8 @@ export async function readPackageDescription(
 }
 
 /** Read a package.json field, an empty object when absent. */
-function field(metadata: Readonly<Record<string, JsonValue>>, name: string): JsonValue {
-    return metadata[name] === undefined ? {} : metadata[name];
+function field(metadata: JsonObject, name: string): JsonValue {
+    return metadata[name] ?? {};
 }
 
 /** Key a package's exports by export name, such as `.` and `./server`. */

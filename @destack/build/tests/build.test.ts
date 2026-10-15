@@ -132,7 +132,7 @@ test.concurrent.for(fixtures)(
                         version: "2026.9.0",
                     },
                     status: "enabled",
-                    alias: "stack",
+                    name: "stack",
                     bindings: {
                         [ownerId]: {
                             files: {

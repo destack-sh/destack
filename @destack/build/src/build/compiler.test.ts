@@ -845,7 +845,9 @@ function rootExport(manifest: PackageManifest, output: string): string {
 }
 
 /** Report whether a built module exports the loader's greet and load functions. */
-function isLoaderModule(module: object): module is { greet(): string; load(): Promise<unknown> } {
+function isLoaderModule(
+    module: object,
+): module is { readonly greet: () => string; readonly load: () => Promise<unknown> } {
     return (
         "greet" in module &&
         typeof module.greet === "function" &&

@@ -83,9 +83,7 @@ export const ExampleDeclaration = {
                                 await call.symbol("object", inspector),
                             ),
                             method: call.text("method"),
-                            input: schema
-                                .record(schema.string(), schema.json())
-                                .parse(call.literal("input") ?? {}),
+                            input: schema.jsonObject().parse(call.literal("input") ?? {}),
                         })),
                     );
                 }
