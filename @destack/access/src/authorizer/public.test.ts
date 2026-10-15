@@ -20,7 +20,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
-import { openFixture } from "../test/database.ts";
+import { openFixture, sessionCredential } from "../test/database.ts";
 
 /** Spaces anyone may read once shared publicly, as a public home space is. */
 const publicSpace = new Policy(module4.package, {
@@ -65,7 +65,12 @@ test.for(TEST_DIALECTS)(
         // let a stranger who signed in read it in its own scope
         const snapshot = Snapshot.live(database);
         const stranger = await authorizer.resolve(snapshot, "personal", {
-            subjects: [principal.user.reference("universe", "erin")],
+            subject: principal.user.reference("universe", "erin"),
+            actors: [],
+            groups: [],
+            contacts: [],
+            linkSecrets: [],
+            credential: sessionCredential("erin", 1000),
             now: 1000,
             attributes: {},
         });

@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import type { AccessContext } from "./context.ts";
+import type { AuthenticationAssurance } from "./context.ts";
 
 /** The highest authentication assurance level: phishing-resistant factors. */
 export const HIGHEST_ASSURANCE = 3;
@@ -41,22 +41,26 @@ export const Elevation = {
     /** The schema of an elevation. */
     schema: elevationSchema,
 
-    /** Report whether a request authenticated at the elevation's level within its age. */
-    admits(elevation: Elevation, context: AccessContext): boolean {
-        const assurance = context.assurance;
-
+    /** Report whether an authentication at a time meets the elevation's level within its age. */
+    admits(
+        elevation: Elevation,
+        assurance: AuthenticationAssurance | undefined,
+        now: number,
+    ): boolean {
         return (
             assurance !== undefined &&
             assurance.level >= elevation.assurance &&
-            context.now - assurance.authenticatedAt <= elevation.maxAge
+            now - assurance.authenticatedAt <= elevation.maxAge
         );
     },
 
-    /** Read the moment an admitted request's authentication grows too old for the elevation. */
-    until(elevation: Elevation, context: AccessContext): number | undefined {
-        const assurance = context.assurance;
-
-        return assurance !== undefined && Elevation.admits(elevation, context)
+    /** Read the moment an admitted authentication grows too old for the elevation. */
+    until(
+        elevation: Elevation,
+        assurance: AuthenticationAssurance | undefined,
+        now: number,
+    ): number | undefined {
+        return assurance !== undefined && Elevation.admits(elevation, assurance, now)
             ? assurance.authenticatedAt + elevation.maxAge
             : undefined;
     },

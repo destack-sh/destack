@@ -8,7 +8,7 @@ import {
     principal,
     type AccessContext,
     Authorization,
-    type CallerCredential,
+    type Credential,
 } from "../index.ts";
 
 /** How long a test session credential lasts: a minute, longer than any test. */
@@ -23,13 +23,20 @@ export async function openFixture(dialect = aligned(TEST_DIALECTS, TEST_DIALECTS
 
     // authenticate two independent users
     const alice: AccessContext = {
-        subjects: [principal.user.reference("universe", "alice")],
+        subject: principal.user.reference("universe", "alice"),
+        groups: [],
         now: 1000,
         attributes: {},
+        actors: [],
+        contacts: [],
+        linkSecrets: [],
+        credential: sessionCredential("alice", 1000),
     };
     const bob: AccessContext = {
         ...alice,
-        subjects: [principal.user.reference("universe", "bob")],
+        subject: principal.user.reference("universe", "bob"),
+        groups: [],
+        credential: sessionCredential("bob", 1000),
     };
 
     // populate the migrated database and grant bob one note
@@ -55,7 +62,7 @@ export function userSubject(id: string): Subject {
 }
 
 /** Build a session credential verified for access at a time, lapsing a minute later. */
-export function sessionCredential(id: string, now: number): CallerCredential {
+export function sessionCredential(id: string, now: number): Credential {
     return {
         kind: "session",
         id,

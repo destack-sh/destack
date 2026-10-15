@@ -39,7 +39,7 @@ import type {
 import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
 import { ACCESS_PACKAGE_ID, anyone, INTRINSIC_POLICIES } from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
-import { type AccessContext } from "../context/context.ts";
+import { AccessContext, Caller } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -1281,17 +1281,7 @@ export class Authorizer {
         now: number,
         known?: readonly ScopeLink[],
     ): Promise<Access> {
-        return this.resolve(
-            snapshot,
-            scope,
-            {
-                subjects: [subject],
-                now,
-                attributes: {},
-                assurance: { level: HIGHEST_ASSURANCE, authenticatedAt: now },
-            },
-            known,
-        );
+        return this.resolve(snapshot, scope, AccessContext.of(Caller.of(subject), now), known);
     }
 
     /** Resolve a caller in a scope inside its transaction: subject sets, scope chain and roles. */
@@ -1411,13 +1401,19 @@ export class Authorizer {
         // start from the caller's own level and the elevation's, whichever is higher
         const context = access.context;
         const elevation = this.elevated.get(PermissionReference.key(permission));
-        const lowest = Math.max(context.assurance?.level ?? 1, elevation?.assurance ?? 1);
+        const lowest = Math.max(
+            AccessContext.assurance(context)?.level ?? 1,
+            elevation?.assurance ?? 1,
+        );
 
         // decide again at each level as if the caller authenticated just now
         for (let level = lowest; level <= HIGHEST_ASSURANCE; level++) {
+            const assurance = { level, authenticatedAt: context.now };
             const stepped = await this.resolve(snapshot, access.scope, {
                 ...context,
-                assurance: { level, authenticatedAt: context.now },
+                ...(context.credential === undefined
+                    ? {}
+                    : { credential: { ...context.credential, assurance } }),
             });
             if (await admits(stepped)) {
                 return {

@@ -15,7 +15,6 @@ import { PermissionReference } from "../declare/policy.ts";
 import * as policies from "../declare/principal.ts";
 import { anyone, isPrincipal } from "../declare/principal.ts";
 import { AccessContext, Caller } from "../context/context.ts";
-import { HIGHEST_ASSURANCE } from "../context/elevation.ts";
 import {
     Relationship,
     type RelationshipCondition,
@@ -520,8 +519,10 @@ export class Authorization {
             }
             // require the addressed principal for an offer, and an inviter that still has the grant
             else {
-                const accepting = Caller.requirePrincipal(context);
-                if (!Invitation.addresses(invitation, accepting, context)) {
+                const accepting = Caller.principal(context);
+                if (Caller.isAnonymous(context)) {
+                    throw new AccessError("FORBIDDEN", "accepting an offer needs an identity");
+                } else if (!Invitation.addresses(invitation, accepting, context)) {
                     throw new AccessError("FORBIDDEN", "invitation is addressed to someone else");
                 }
                 subject = accepting;
@@ -576,12 +577,9 @@ export class Authorization {
 
         // decide the grant as the inviting principal, at its authentication when it sent the offer
         const inviter = invitation.inviter;
-        const authorization = new Authorization(this.authorizer, this.transaction, () => ({
-            subjects: [inviter],
-            now,
-            attributes: {},
-            assurance: { level: HIGHEST_ASSURANCE, authenticatedAt: now },
-        }));
+        const authorization = new Authorization(this.authorizer, this.transaction, () =>
+            AccessContext.of(Caller.of(inviter), now),
+        );
         await authorization.authorizeGrant(invitation.relationship);
     }
 

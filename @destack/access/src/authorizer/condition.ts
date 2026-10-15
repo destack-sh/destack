@@ -1,12 +1,12 @@
 import { jsonElements, sql, type SQL, type SQLWrapper } from "@destack/db";
-import { type AccessContext, Caller } from "../context/context.ts";
+import { AccessContext, Credential } from "../context/context.ts";
 import type { RelationshipColumnMap, RelationshipRow } from "../relationship/table.ts";
 import type { TupleFailure } from "./decision.ts";
 
 /** The request values a relationship's conditions compare against. */
 export type ConditionContext = Pick<
     AccessContext,
-    "now" | "request" | "credential" | "linkSecrets" | "assurance"
+    "subject" | "now" | "request" | "credential" | "linkSecrets"
 >;
 
 /** The request values a relationship's conditions compare, as SQL values, null if absent. */
@@ -67,17 +67,14 @@ export class TupleCondition {
         // require its request, credential and link secret to match
         if (!TupleCondition.#isBound(this.requestId, context.request)) {
             return "request";
-        } else if (!TupleCondition.#isBound(this.credential, Caller.credentialKey(context))) {
+        } else if (!TupleCondition.#isBound(this.credential, credentialKey(context))) {
             return "credential";
-        } else if (
-            this.linkSecret !== null &&
-            !(context.linkSecrets ?? []).includes(this.linkSecret)
-        ) {
+        } else if (this.linkSecret !== null && !context.linkSecrets.includes(this.linkSecret)) {
             return "linkSecret";
         }
 
         // require the authentication it asks for
-        const assurance = context.assurance;
+        const assurance = AccessContext.assurance(context);
         if (
             this.assurance !== null &&
             (assurance === undefined || this.assurance > assurance.level)
@@ -109,7 +106,7 @@ export class TupleCondition {
     ): number | undefined {
         // take the upcoming start, expiry and authentication age limit
         const now = context.now;
-        const authenticatedAt = context.assurance?.authenticatedAt;
+        const authenticatedAt = AccessContext.assurance(context)?.authenticatedAt;
         const maxAge = times.maxAge;
         const moments = [
             times.createdAt,
@@ -151,10 +148,10 @@ export class TupleCondition {
         return {
             now: context.now,
             request: context.request ?? null,
-            credential: Caller.credentialKey(context) ?? null,
-            linkSecrets: JSON.stringify((context.linkSecrets ?? []).map((digest) => [digest])),
-            level: context.assurance?.level ?? null,
-            authenticatedAt: context.assurance?.authenticatedAt ?? null,
+            credential: credentialKey(context) ?? null,
+            linkSecrets: JSON.stringify(context.linkSecrets.map((digest) => [digest])),
+            level: AccessContext.assurance(context)?.level ?? null,
+            authenticatedAt: AccessContext.assurance(context)?.authenticatedAt ?? null,
         };
     }
 
@@ -191,4 +188,9 @@ export class TupleCondition {
     static #castInteger(value: SQLWrapper): SQL {
         return sql`CAST(${value} AS BIGINT)`;
     }
+}
+
+/** Key the credential a request presented, absent for a principal running its own code. */
+function credentialKey(context: Pick<ConditionContext, "credential">): string | undefined {
+    return context.credential === undefined ? undefined : Credential.key(context.credential);
 }

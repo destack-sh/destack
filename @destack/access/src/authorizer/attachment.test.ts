@@ -149,7 +149,11 @@ test.for(TEST_DIALECTS)(
 
         // decide each remark in memory and by query
         const alice: AccessContext = {
-            subjects: [principal.user.reference("universe", "alice")],
+            subject: principal.user.reference("universe", "alice"),
+            actors: [],
+            groups: [],
+            contacts: [],
+            linkSecrets: [],
             now: 1000,
             attributes: {},
         };

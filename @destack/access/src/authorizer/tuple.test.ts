@@ -11,9 +11,11 @@ import {
     anyone,
     Authorizer,
     principal,
-    type AccessContext,
+    AccessContext,
     type PermissionReference,
     type RelationshipCondition,
+    ANONYMOUS,
+    Caller,
 } from "../index.ts";
 import {
     cell,
@@ -133,26 +135,72 @@ test.for(TEST_DIALECTS)(
             phase: "edit",
         };
 
-        // call as users, members, anonymous callers, presenters of link secrets and delegates under grants
+        // call as users, members, anonymous callers, presenters of link secrets and actors under grants
         const agent = principal.installation.reference("personal", "agent");
         const contexts: AccessContext[] = [
-            { subjects: [user("alice")], now: NOW, attributes },
-            { subjects: [user("bob")], now: NOW, attributes },
-            { subjects: [user("carol")], now: NOW, attributes },
-            { subjects: [], now: NOW, attributes },
-            { subjects: [], now: NOW, attributes, linkSecrets: ["c".repeat(64)] },
             {
-                subjects: [user("bob")],
+                subject: user("alice"),
+                groups: [],
                 now: NOW,
                 attributes,
-                assurance: { level: 2, authenticatedAt: NOW - 50 },
-                request: "request-1",
-                credential: sessionCredential("1", NOW),
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
             },
             {
-                subjects: [user("bob")],
                 subject: user("bob"),
-                delegates: [agent],
+                groups: [],
+                now: NOW,
+                attributes,
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
+            },
+            {
+                subject: user("carol"),
+                groups: [],
+                now: NOW,
+                attributes,
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
+            },
+            {
+                subject: ANONYMOUS,
+                groups: [],
+                now: NOW,
+                attributes,
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
+            },
+            {
+                subject: ANONYMOUS,
+                groups: [],
+                now: NOW,
+                attributes,
+                actors: [],
+                contacts: [],
+                linkSecrets: ["c".repeat(64)],
+            },
+            {
+                subject: user("bob"),
+                groups: [],
+                now: NOW,
+                attributes,
+                request: "request-1",
+                credential: {
+                    ...sessionCredential("1", NOW),
+                    assurance: { level: 2, authenticatedAt: NOW - 50 },
+                },
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
+            },
+            {
+                groups: [],
+                subject: user("bob"),
+                actors: [agent],
                 grant: {
                     id: Identifier.create("grant"),
                     scope: "bob",
@@ -160,11 +208,13 @@ test.for(TEST_DIALECTS)(
                 },
                 now: NOW,
                 attributes,
+                contacts: [],
+                linkSecrets: [],
             },
             {
-                subjects: [user("bob")],
+                groups: [],
                 subject: user("bob"),
-                delegates: [principal.personalAccessToken.reference("bob", "token-bob")],
+                actors: [principal.personalAccessToken.reference("bob", "token-bob")],
                 now: NOW,
                 attributes,
                 grant: {
@@ -172,6 +222,8 @@ test.for(TEST_DIALECTS)(
                     scope: "bob",
                     permissions: [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
                 },
+                contacts: [],
+                linkSecrets: [],
             },
         ];
         const permissions: PermissionReference[] = [
@@ -447,7 +499,7 @@ test("explain which grants admit a caller and why the others fail", async () => 
             explanation.tuples.map((tuple) => [tuple.path.join(" / "), tuple.failure ?? "permits"]),
         ];
     };
-    const visitor: AccessContext = { subjects: [], now: NOW, attributes: {} };
+    const visitor: AccessContext = AccessContext.of(Caller.anonymous(), NOW);
     expect(await explain(visitor)).toEqual([
         false,
         [

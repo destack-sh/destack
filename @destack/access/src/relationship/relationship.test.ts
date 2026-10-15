@@ -29,7 +29,8 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
         const carol: AccessContext = {
             ...fixture.alice,
-            subjects: [principal.user.reference("universe", "carol")],
+            subject: principal.user.reference("universe", "carol"),
+            groups: [],
         };
 
         // list the relationships each caller may read
@@ -78,7 +79,8 @@ test.for(TEST_DIALECTS)(
         );
         const dave: AccessContext = {
             ...fixture.alice,
-            subjects: [principal.user.reference("universe", "dave")],
+            subject: principal.user.reference("universe", "dave"),
+            groups: [],
         };
 
         // show every relationship to the reader, the auditor to its granter and itself only
@@ -98,7 +100,8 @@ test.for(TEST_DIALECTS)(
         const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
         const as = (id: string): AccessContext => ({
             ...fixture.alice,
-            subjects: [principal.user.reference("universe", id)],
+            subject: principal.user.reference("universe", id),
+            groups: [],
         });
 
         // let carol ask to view node b, and alice offer dave viewing it

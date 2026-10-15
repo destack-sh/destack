@@ -1,5 +1,5 @@
 import type {} from "@destack/package/import-meta";
-import { SYNC_PACKAGE, type Subject } from "@destack/sync";
+import { Scope, SYNC_PACKAGE, type Subject } from "@destack/sync";
 import { grantersOf, none, relation, readersOf, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
 
@@ -25,6 +25,8 @@ export const principal = {
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
+    /** The principal of every caller who proves no identity, like Kubernetes' anonymous user. */
+    anonymous: new Policy(OWNER, { name: "anonymous", permissions: {}, isGlobal: true }),
     /** A set of people, software and other groups that objects are shared with at once. */
     group: new Policy(OWNER, {
         name: "group",
@@ -32,6 +34,9 @@ export const principal = {
         permissions: {},
     }),
 };
+
+/** The subject of every caller who proves no identity. */
+export const ANONYMOUS: Subject = principal.anonymous.reference(Scope.universe.id, "anonymous");
 
 /** The principal kinds that sign in, whose wildcards stand for every signed-in caller. */
 const SIGNING = [
@@ -137,6 +142,7 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     principal.personalAccessToken,
     principal.space,
     principal.contact,
+    principal.anonymous,
     principal.group,
     anyone,
     role,

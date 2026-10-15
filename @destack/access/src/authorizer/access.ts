@@ -165,8 +165,6 @@ export class Access {
         const sender = Caller.sender(context);
         if (
             Caller.isDelegated(context) &&
-            subject !== undefined &&
-            sender !== undefined &&
             grant !== undefined &&
             (await authorizer.keeps(snapshot, grant.scope))
         ) {
@@ -189,12 +187,12 @@ export class Access {
         const bindings = represented.bindings;
         const roles = await Access.#readRoles(snapshot, chained, bindings, context);
 
-        // take the earliest time a subject set, inclusion or elevation of the caller changes
+        // take the earliest time a subject set, inclusion or credential's elevation changes
         const until = earliest([
             roles.until,
             represented.until,
             ...[...authorizer.elevated.values()].map((elevation) =>
-                Elevation.until(elevation, context),
+                Elevation.until(elevation, context.credential?.assurance, context.now),
             ),
         ]);
 
@@ -217,10 +215,12 @@ export class Access {
         scopes: readonly ObjectReference[],
         authorizer: Authorizer,
     ): Promise<Subject[]> {
+        const identified = [context.subject, ...context.groups];
+
         return [
-            ...context.subjects,
+            ...identified,
             ...Caller.contacts(context).map((contact) => Contact.subject(contact)),
-            ...(await Access.#contained(snapshot, context.subjects, scopes, authorizer)),
+            ...(await Access.#contained(snapshot, identified, scopes, authorizer)),
         ];
     }
 
@@ -615,7 +615,10 @@ export class Access {
     elevates(permission: PermissionReference): boolean {
         const elevation = this.#authorizer.elevated.get(PermissionReference.key(permission));
 
-        return elevation === undefined || Elevation.admits(elevation, this.context);
+        return (
+            elevation === undefined ||
+            Elevation.admits(elevation, AccessContext.assurance(this.context), this.context.now)
+        );
     }
 
     /** The state of the scope chain: its scopes, suspension, cap, fence and partition, as a key. */

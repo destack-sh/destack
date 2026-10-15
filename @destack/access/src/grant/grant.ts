@@ -2,7 +2,7 @@ import type { Select, Snapshot } from "@destack/db";
 import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import type { CallerGrant } from "../context/context.ts";
+import type { GrantClaim } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
 import { accessGrant } from "./table.ts";
 
@@ -26,7 +26,7 @@ export type Grant = Select<typeof accessGrant>;
 /** A grant: its token claim, and its liveness for a caller. */
 export const Grant = {
     /** Read the claim a token carries for a grant. */
-    claim(grant: Grant): CallerGrant {
+    claim(grant: Grant): GrantClaim {
         return { id: grant.id, scope: grant.scope, permissions: [...grant.permissions] };
     },
 

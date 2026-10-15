@@ -43,6 +43,18 @@ export const note = new Policy(import.meta.destack.package, {
 });
 ```
 
+## Callers
+
+A `Caller` is who calls, a `Credential` is what its request presented, a verifier answers both as an `Authentication`, and an `AccessContext` is what the authorizer decides on.
+
+```ts
+const { caller, credential } = await verifier.verify(token, now);
+const context = AccessContext.of(caller, now, { credential, linkSecrets });
+const own = AccessContext.of(Caller.of(space), now);
+AccessContext.assurance(context);
+Caller.principal(caller);
+```
+
 ## Decisions
 
 An `Authorizer` resolves a caller's `Access` in a scope, and `require` throws an `AccessError` with the first permission the caller lacks.
@@ -102,9 +114,8 @@ const grant = await authorization.createGrant(aliceScope, {
     permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
 });
 const caller = {
-    subject: alice,
-    subjects: [alice],
-    delegates: [installation],
+    ...Caller.of(alice),
+    actors: [installation],
     grant: Grant.claim(grant),
 };
 await authorization.revokeGrant(aliceScope, grant.id);

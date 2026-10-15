@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, integer, type DatabaseConnection, Snapshot, sql, text } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -117,8 +118,13 @@ async function decide(
 ) {
     // resolve the caller at the universe
     const snapshot = Snapshot.live(database);
+    const [subject, ...groups] = subjects;
     const access = await authorizer.resolve(snapshot, "universe", {
-        subjects,
+        subject: present(subject, "the caller"),
+        actors: [],
+        groups,
+        contacts: [],
+        linkSecrets: [],
         now: 1000,
         attributes: {},
     });

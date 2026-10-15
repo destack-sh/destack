@@ -3,7 +3,7 @@ import { PackageId } from "@destack/package";
 import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
-import { isPrincipal, principal } from "../declare/principal.ts";
+import { ANONYMOUS, principal } from "../declare/principal.ts";
 import { GrantPermission } from "../grant/permission.ts";
 import { Attribute } from "../declare/expression.ts";
 
@@ -61,67 +61,22 @@ export const AuthenticationAssurance = defineSchema(
 /** How strongly and how recently a caller authenticated. */
 export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssurance>;
 
-/** A verified caller: the represented subject, the principals acting for it, and what it proved. */
+/** A verified caller: who the call is for, who acts for them, and what they belong to. */
 export interface Caller {
-    /** The represented subject, required for delegated calls. */
-    readonly subject?: Subject;
+    /** Who the call is for: a principal, the anonymous one for a caller proving no identity. */
+    readonly subject: Subject;
     /** The principals acting for the subject in order, the last sending the call (RFC 8693 act). */
-    readonly delegates?: readonly Subject[];
-    /** The grant limiting the call to what the subject gave, absent for its whole authority. */
-    readonly grant?: CallerGrant;
-    /** The verified principals and subject sets, empty for an anonymous caller. */
-    readonly subjects: readonly Subject[];
-    /** How strongly and how recently the caller authenticated. */
-    readonly assurance?: AuthenticationAssurance;
-    /** The contacts, such as an email address, the caller proved control of. */
-    readonly contacts?: readonly Contact[];
-    /** Digests of the link secrets the caller presented. */
-    readonly linkSecrets?: readonly string[];
-    /** Trusted attributes access policies read. */
-    readonly attributes?: Readonly<Record<string, Attribute>>;
-    /** The caller's presented credential, absent if anonymous or running its own code. */
-    readonly credential?: CallerCredential;
-    /** The deployments the workload identities among the subjects run in. */
-    readonly deployments?: readonly CallerDeployment[];
+    readonly actors: readonly Subject[];
+    /** The subject sets the authenticator vouches the subject is in, such as account members. */
+    readonly groups: readonly Subject[];
+    /** The contacts, such as an email address, the subject proved control of. */
+    readonly contacts: readonly Contact[];
+    /** The grant limiting the actors to what the subject gave, absent for its whole authority. */
+    readonly grant?: GrantClaim;
 }
 
-/** A caller with a represented subject, as every mutation's caller has. */
-export type SignedCaller = Caller & { readonly subject: Subject };
-
-/** A caller's credential, verified for one audience until it lapses (RFC 7662). */
-export const CallerCredential = schema.object({
-    /** The credential kind, such as session. */
-    kind: schema.string().min(1),
-    /** The credential identifier. */
-    id: schema.string().min(1),
-    /** The client whose key the credential is bound to, absent for an unbound credential. */
-    client: schema.identifier("client").exactOptional(),
-    /** The package the credential was verified for. */
-    audience: PackageId,
-    /** The credential's scope with the scopes inside it, absent for an unscoped credential. */
-    scope: schema.string().min(1).exactOptional(),
-    /** The verification time in UTC epoch milliseconds. */
-    verifiedAt: Instant,
-    /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
-    expiresAt: Instant,
-    /** The credential's access token identifier (RFC 7519 jti), absent if presented directly. */
-    token: schema.string().min(1).exactOptional(),
-});
-/** A credential a caller presented. */
-export type CallerCredential = schema.Infer<typeof CallerCredential>;
-
-/** A workload identity authenticated within one deployment. */
-export const CallerDeployment = schema.object({
-    /** The workload identity. */
-    subject: Subject,
-    /** The deployment. */
-    id: schema.identifier("deployment"),
-});
-/** A workload identity authenticated within one deployment. */
-export type CallerDeployment = schema.Infer<typeof CallerDeployment>;
-
-/** The grant a caller acts under: its identifier, the scope keeping it, and what it gives. */
-export const CallerGrant = schema.object({
+/** The grant a delegated caller acts under: its identifier, the scope keeping it, what it gives. */
+export const GrantClaim = schema.object({
     /** The grant's identifier. */
     id: schema.identifier("grant"),
     /** The scope keeping the grant: its delegator's. */
@@ -129,168 +84,78 @@ export const CallerGrant = schema.object({
     /** The permissions the grant gives (RFC 9396 authorization details). */
     permissions: schema.array(GrantPermission.schema),
 });
-/** The grant a caller acts under. */
-export type CallerGrant = schema.Infer<typeof CallerGrant>;
+/** The grant a delegated caller acts under. */
+export type GrantClaim = schema.Infer<typeof GrantClaim>;
 
-/** A verified caller: its schema, and the principals and contacts it derives. */
-export const Caller = {
-    /** The schema of a verified caller. */
-    schema: schema.object({
-        /** The represented subject, required for delegated calls. */
-        subject: Subject.exactOptional(),
-        /** The principals acting for the subject in order, the last sending the call. */
-        delegates: schema.array(Subject).exactOptional(),
-        /** The grant limiting the call to what the subject gave. */
-        grant: CallerGrant.exactOptional(),
-        /** The verified principals and subject sets, empty for an anonymous caller. */
-        subjects: schema.array(Subject),
-        /** How strongly and how recently the caller authenticated. */
+/** The schema of the credential a request presented. */
+const credentialSchema = defineSchema(
+    schema.object({
+        /** The credential kind, such as session. */
+        kind: schema.string().min(1),
+        /** The credential identifier. */
+        id: schema.string().min(1),
+        /** The client whose key the credential is bound to, absent for an unbound one. */
+        client: schema.identifier("client").exactOptional(),
+        /** The package the credential was verified for. */
+        audience: PackageId,
+        /** The credential's scope with the scopes inside it, absent for an unscoped one. */
+        scope: schema.string().min(1).exactOptional(),
+        /** The verification time in UTC epoch milliseconds. */
+        verifiedAt: Instant,
+        /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
+        expiresAt: Instant,
+        /** The access token's identifier (RFC 7519 jti), absent for one presented directly. */
+        tokenId: schema.string().min(1).exactOptional(),
+        /** How strongly and how recently its subject authenticated (OIDC acr, auth_time). */
         assurance: AuthenticationAssurance.exactOptional(),
-        /** The contacts the caller proved control of. */
-        contacts: schema.array(Contact).exactOptional(),
-        /** Digests of the link secrets the caller presented. */
-        linkSecrets: schema.array(schema.string().min(1)).exactOptional(),
-        /** Trusted attributes access policies read. */
+        /** The deployments the workload identities among the subject and actors run in. */
+        deployments: schema
+            .array(
+                schema.object({
+                    /** The workload identity. */
+                    subject: Subject,
+                    /** The deployment. */
+                    id: schema.identifier("deployment"),
+                }),
+            )
+            .exactOptional(),
+        /** Trusted attributes access policies read, such as IAM's condition keys. */
         attributes: schema.record(schema.string(), Attribute).exactOptional(),
-        /** The credential the caller presented. */
-        credential: CallerCredential.exactOptional(),
-        /** The deployments the workload identities among the subjects run in. */
-        deployments: schema.array(CallerDeployment).exactOptional(),
     }),
+);
+/** The credential a request presented. */
+export type Credential = schema.Infer<typeof credentialSchema>;
 
-    /** Key a caller by represented subject and sending principal, for retries and writers. */
-    key(caller: Pick<Caller, "subject" | "delegates">): string {
-        const { subject } = caller;
-        const sender = Caller.sender(caller);
-
-        return JSON.stringify([
-            subject === undefined ? null : Subject.key(subject),
-            sender === undefined ? null : Subject.key(sender),
-        ]);
+/** The credential a request presented, verified for one audience until it lapses (RFC 9068). */
+export const Credential = Object.assign(credentialSchema, {
+    /** Key a credential as `<kind>:<id>`, for credential conditions. */
+    key(credential: Pick<Credential, "kind" | "id">): string {
+        return `${credential.kind}:${credential.id}`;
     },
 
-    /** Report whether a caller is remote, unlike a principal running its own code. */
-    isRemote(caller: Pick<Caller, "subject" | "credential">): boolean {
-        return caller.credential !== undefined || caller.subject === undefined;
-    },
-
-    /** The caller of a principal running its own code at a time, proven by its server's key. */
-    of(subject: Subject, now: number): Caller {
-        return {
-            subject,
-            subjects: [subject],
-            assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
-        };
-    },
-
-    /** Read the principal acting for the caller: the sender under a grant, else the subject. */
-    principal(caller: Caller): Subject | undefined {
-        const acting = Caller.isDelegated(caller) ? caller.delegates?.at(-1) : undefined;
-
-        return acting ?? caller.subject ?? caller.subjects.find(isPrincipal);
-    },
-
-    /** Require the principal acting for the caller. */
-    requirePrincipal(caller: Caller): Subject {
-        const acting = Caller.principal(caller);
-        if (acting === undefined) {
-            throw new AccessError("FORBIDDEN", "the request needs an authenticated principal");
-        }
-
-        return acting;
-    },
-
-    /** Report whether a caller represents a subject, as a mutation's caller must. */
-    isSigned(caller: Caller): caller is SignedCaller {
-        return caller.subject !== undefined;
-    },
-
-    /** Read the principal sending the call: the last delegate, else the subject. */
-    sender(caller: Pick<Caller, "subject" | "delegates">): Subject | undefined {
-        return caller.delegates?.at(-1) ?? caller.subject;
-    },
-
-    /** Require the principal sending the call, refusing an anonymous caller. */
-    requireSender(caller: Pick<Caller, "subject" | "delegates">): Subject {
-        const sender = Caller.sender(caller);
-        if (sender === undefined) {
-            throw new AccessError("UNAUTHORIZED", "the request needs an authenticated sender");
-        }
-
-        return sender;
-    },
-
-    /** Report whether a caller's delegates act for its subject under a grant. */
-    isDelegated(caller: Pick<Caller, "delegates" | "grant">): boolean {
-        return caller.grant !== undefined && (caller.delegates ?? []).length > 0;
-    },
-
-    /** Require a caller's delegates to act for one of its verified subjects. */
-    requireChain(caller: Caller): void {
-        // refuse a grant without delegates
-        const represented = caller.subject;
-        if (caller.grant !== undefined && (caller.delegates ?? []).length === 0) {
-            throw new AccessError("INVALID_CONTEXT", "a grant needs delegates");
-        }
-
-        // refuse delegates acting for a subject the caller did not verify
-        if (
-            (caller.delegates ?? []).length > 0 &&
-            (represented === undefined ||
-                !caller.subjects.some((subject) => Subject.same(subject, represented)))
-        ) {
-            throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
-        }
-    },
-
-    /** Read the contacts the represented subject proved, none for delegates under a grant. */
-    contacts(caller: Caller): readonly Contact[] {
-        return Caller.isDelegated(caller) ? [] : (caller.contacts ?? []);
-    },
-
-    /** Read a caller's credential key, `<kind>:<id>`, for credential conditions. */
-    credentialKey(caller: Pick<Caller, "credential">): string | undefined {
-        const { credential } = caller;
-
-        return credential === undefined ? undefined : `${credential.kind}:${credential.id}`;
-    },
-
-    /** Read the deployment of a workload identity among the caller's subjects, if any. */
-    deployment(caller: Caller, subject: Subject): Identifier<"deployment"> | undefined {
-        const deployments = caller.deployments ?? [];
+    /** Read the deployment a credential vouches a workload identity runs in, if any. */
+    deployment(credential: Credential, subject: Subject): Identifier<"deployment"> | undefined {
+        const deployments = credential.deployments ?? [];
 
         return deployments.find((entry) => Subject.same(entry.subject, subject))?.id;
     },
 
-    /** Require the credential a caller presented, refusing a caller without one. */
-    requireCredential(caller: Caller): CallerCredential {
-        if (caller.credential === undefined) {
-            throw new AccessError("UNAUTHORIZED", "missing caller credential");
-        }
-
-        return caller.credential;
-    },
-
-    /** Require a caller's credential verified and unlapsed at a time. */
-    requireLive(caller: Caller, now: number): void {
-        const { credential } = caller;
+    /** Require a credential verified and unlapsed at a time. */
+    requireLive(credential: Credential, now: number): void {
         if (
-            credential !== undefined &&
-            (credential.verifiedAt > now + CLOCK_TOLERANCE_MILLISECONDS ||
-                now >= credential.expiresAt)
+            credential.verifiedAt > now + CLOCK_TOLERANCE_MILLISECONDS ||
+            now >= credential.expiresAt
         ) {
             throw new AccessError("UNAUTHORIZED", "caller authentication is not current");
         }
     },
 
-    /** Require a caller current at a time for an audience and scope, with a verified subject. */
-    requireCurrent(caller: Caller, audience: PackageId, now: number, scope?: string): void {
+    /** Require a credential current at a time for an audience and scope. */
+    requireCurrent(credential: Credential, audience: PackageId, now: number, scope?: string) {
         // refuse a credential for another audience or scope
-        const { credential, subject } = caller;
         if (
-            credential !== undefined &&
-            (credential.audience !== audience ||
-                (credential.scope !== undefined && credential.scope !== scope))
+            credential.audience !== audience ||
+            (credential.scope !== undefined && credential.scope !== scope)
         ) {
             throw new AccessError(
                 "UNAUTHORIZED",
@@ -298,33 +163,110 @@ export const Caller = {
             );
         }
 
-        // refuse a lapsed credential and a subject outside the verified ones
-        Caller.requireLive(caller, now);
-        if (subject !== undefined && !caller.subjects.some((each) => Subject.same(each, subject))) {
-            throw new AccessError(
-                "UNAUTHORIZED",
-                "caller subject is missing from verified identities",
-            );
+        // refuse a lapsed credential
+        Credential.requireLive(credential, now);
+    },
+
+    /** Clamp a time to a credential's lifetime: the time, or just before it lapses. */
+    clamp(credential: Credential, now: number): number {
+        return Math.min(now, credential.expiresAt - 1);
+    },
+});
+
+/** The schema of a verified caller. */
+const callerSchema = schema.object({
+    /** Who the call is for. */
+    subject: Subject,
+    /** The principals acting for the subject in order, the last sending the call. */
+    actors: schema.array(Subject),
+    /** The subject sets the authenticator vouches the subject is in. */
+    groups: schema.array(Subject),
+    /** The contacts the subject proved control of. */
+    contacts: schema.array(contactSchema),
+    /** The grant limiting the actors to what the subject gave. */
+    grant: GrantClaim.exactOptional(),
+});
+
+/** A verified caller with the credential it presented, as a verifier returns them. */
+export interface Authentication {
+    /** The verified caller. */
+    readonly caller: Caller;
+    /** The credential it presented. */
+    readonly credential: Credential;
+}
+
+/** The schema of a verified caller with the credential it presented. */
+export const Authentication = schema.object({
+    /** The verified caller. */
+    caller: callerSchema,
+    /** The credential it presented. */
+    credential: credentialSchema,
+});
+
+/** A verified caller: its schema, and the principals and contacts it derives. */
+export const Caller = {
+    /** The schema of a verified caller. */
+    schema: callerSchema,
+
+    /** The caller of a principal running its own code, proven by its server's key. */
+    of(subject: Subject): Caller {
+        return { subject, actors: [], groups: [], contacts: [] };
+    },
+
+    /** The caller who proves no identity. */
+    anonymous(): Caller {
+        return Caller.of(ANONYMOUS);
+    },
+
+    /** Report whether a caller proves no identity. */
+    isAnonymous(caller: Pick<Caller, "subject">): boolean {
+        return principal.anonymous.is(caller.subject);
+    },
+
+    /** Key a caller by subject and sending principal, for retries and writers. */
+    key(caller: Pick<Caller, "subject" | "actors">): string {
+        return JSON.stringify([Subject.key(caller.subject), Subject.key(Caller.sender(caller))]);
+    },
+
+    /** Read the principal sending the call: the last actor, else the subject. */
+    sender(caller: Pick<Caller, "subject" | "actors">): Subject {
+        return caller.actors.at(-1) ?? caller.subject;
+    },
+
+    /** Read the principal whose authority decides: the sender under a grant, else the subject. */
+    principal(caller: Pick<Caller, "subject" | "actors" | "grant">): Subject {
+        return caller.grant === undefined ? caller.subject : Caller.sender(caller);
+    },
+
+    /** Report whether a caller's actors act for its subject under a grant. */
+    isDelegated(caller: Pick<Caller, "actors" | "grant">): boolean {
+        return caller.grant !== undefined && caller.actors.length > 0;
+    },
+
+    /** Require a grant to have actors, and actors to act for an identified subject. */
+    requireChain(caller: Caller): void {
+        if (caller.grant !== undefined && caller.actors.length === 0) {
+            throw new AccessError("INVALID_CONTEXT", "a grant needs actors");
+        } else if (caller.actors.length > 0 && Caller.isAnonymous(caller)) {
+            throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
         }
     },
 
-    /** Clamp a time to a caller's lifetime: the time, or just before its credential lapses. */
-    clamp(caller: Caller, now: number): number {
-        return caller.credential === undefined
-            ? now
-            : Math.min(now, caller.credential.expiresAt - 1);
+    /** Read the contacts the subject proved, none for actors under a grant. */
+    contacts(caller: Caller): readonly Contact[] {
+        return Caller.isDelegated(caller) ? [] : caller.contacts;
     },
 
-    /** Read the caller a host forwarded with a request, absent for a request without one. */
-    forwarded(request: Request): Caller | undefined {
-        // read no caller without the header
+    /** Read the caller and credential a host forwarded with a request, absent without them. */
+    forwarded(request: Request): Authentication | undefined {
+        // read nothing without the header
         const forwarded = request.headers.get(CALLER_HEADER);
         if (forwarded === null) {
             return undefined;
         }
 
-        // refuse a header that is not a JSON caller
-        const parsed = Caller.schema.safeParse(JsonValue.parse(forwarded));
+        // refuse a header that is not a JSON caller with its credential
+        const parsed = Authentication.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
             throw new AccessError("INVALID_CONTEXT", "the forwarded caller is malformed");
         }
@@ -332,32 +274,67 @@ export const Caller = {
         return parsed.data;
     },
 
-    /** Forward a caller to a runner in a request's headers. */
-    forward(caller: Caller, headers: Headers): void {
-        headers.set(CALLER_HEADER, JSON.stringify(caller));
+    /** Forward a caller and its credential to a runner in a request's headers. */
+    forward(authentication: Authentication, headers: Headers): void {
+        headers.set(CALLER_HEADER, JSON.stringify(authentication));
     },
 };
 
-/** What the authorizer decides on: a verified caller at a time, within a request. */
+/** What the authorizer decides on: a verified caller with what its request presented, at a time. */
 export interface AccessContext extends Caller {
+    /** The credential the request presented, absent for a principal running its own code. */
+    readonly credential?: Credential;
+    /** The digests of the link secrets the request presented. */
+    readonly linkSecrets: readonly string[];
+    /** The request context the policies' conditions read. */
+    readonly attributes: Readonly<Record<string, Attribute>>;
     /** The request's identifier, for conditions bound to one request. */
     readonly request?: string;
     /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;
-    /** Trusted attributes referenced by declarations. */
-    readonly attributes: Readonly<Record<string, Attribute>>;
 }
 
 /** Build access contexts and read their request attributes. */
 export const AccessContext = {
-    /** Decide for a caller at a time, within a request when given. */
-    of(caller: Caller, now: number, request?: string): AccessContext {
+    /** Decide for a caller at a time, with what its request presented. */
+    of(
+        caller: Caller,
+        now: number,
+        presented: {
+            /** The credential the request presented, absent for a principal's own code. */
+            readonly credential?: Credential | undefined;
+            /** The digests of the link secrets the request presented. */
+            readonly linkSecrets?: readonly string[];
+            /** The request's identifier. */
+            readonly request?: string | undefined;
+        } = {},
+    ): AccessContext {
+        const { credential, linkSecrets = [], request } = presented;
+
         return {
             ...caller,
-            attributes: caller.attributes ?? {},
+            ...(credential === undefined ? {} : { credential }),
+            linkSecrets,
+            attributes: credential?.attributes ?? {},
             now,
             ...(request === undefined ? {} : { request }),
         };
+    },
+
+    /** Read how strongly the caller authenticated, a key's strength for its own code. */
+    assurance(
+        context: Pick<AccessContext, "subject" | "credential" | "now">,
+    ): AuthenticationAssurance | undefined {
+        return context.credential !== undefined
+            ? context.credential.assurance
+            : Caller.isAnonymous(context)
+              ? undefined
+              : { level: KEY_ASSURANCE, authenticatedAt: context.now };
+    },
+
+    /** Report whether a context's caller is remote, unlike a principal running its own code. */
+    isRemote(context: Pick<AccessContext, "subject" | "credential">): boolean {
+        return context.credential !== undefined || Caller.isAnonymous(context);
     },
 
     /** Read a request attribute for a policy condition and refuse a missing or non-finite one. */

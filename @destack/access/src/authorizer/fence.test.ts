@@ -20,9 +20,13 @@ test.for(TEST_DIALECTS)(
         await access.replicateScope(account.reference(Scope.universe.id, "account-a"));
         await access.replicateScope(space.reference("account-a", "space-a"), "own");
         const context = {
-            subjects: [principal.user.reference("universe", "alice")],
+            subject: principal.user.reference("universe", "alice"),
+            groups: [],
             now: 1000,
             attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
         };
         const moved = async () =>
             await Promise.all(

@@ -32,19 +32,24 @@ const TYPES = policies.map((each) => each.typeReference);
 
 /** The owner of the account and the space. */
 const alice: AccessContext = {
-    subjects: [principal.user.reference("universe", "alice")],
+    subject: principal.user.reference("universe", "alice"),
+    groups: [],
     now: 1000,
     attributes: {},
+    actors: [],
+    contacts: [],
+    linkSecrets: [],
 };
 
 /** A member of the account who has roles through the membership. */
 const carol: AccessContext = {
-    subjects: [
-        principal.user.reference("universe", "carol"),
-        { ...account.reference("universe", "account-1"), relation: "member" },
-    ],
+    subject: principal.user.reference("universe", "carol"),
+    groups: [{ ...account.reference("universe", "account-1"), relation: "member" }],
     now: 1000,
     attributes: {},
+    actors: [],
+    contacts: [],
+    linkSecrets: [],
 };
 
 /** Build a scope's chain replica for an authorizer's database, with its subscription. */
@@ -82,9 +87,7 @@ test("relay an account's access through the space's database into an app's, and 
     const object = account.reference("universe", "account-1");
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(accounts, global.database, () => alice, call);
-    await owner((authorization) =>
-        authorization.create(object, { owner: aligned(alice.subjects, 0) }),
-    );
+    await owner((authorization) => authorization.create(object, { owner: alice.subject }));
     const reader = await owner((authorization) =>
         authorization.createRole(object, {
             name: "reader",
@@ -96,7 +99,7 @@ test("relay an account's access through the space's database into an app's, and 
         authorization.grant({
             object,
             role: reader.id,
-            subject: aligned(carol.subjects, 1),
+            subject: aligned(carol.groups, 0),
         }),
     );
 
@@ -104,7 +107,7 @@ test("relay an account's access through the space's database into an app's, and 
     await global.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await owner((authorization) =>
         authorization.create(space.reference("account-1", "personal"), {
-            owner: aligned(alice.subjects, 0),
+            owner: alice.subject,
         }),
     );
     const accountFeed = new Feed(global.database, [...accessTables, policyTable], {
@@ -199,14 +202,12 @@ test("write a home's own access at the home as it is born, beside the chain it r
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await owner((authorization) =>
         authorization.create(account.reference("universe", "account-1"), {
-            owner: aligned(alice.subjects, 0),
+            owner: alice.subject,
         }),
     );
     await global.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     const personal = space.reference("account-1", "personal");
-    await owner((authorization) =>
-        authorization.create(personal, { owner: aligned(alice.subjects, 0) }),
-    );
+    await owner((authorization) => authorization.create(personal, { owner: alice.subject }));
 
     // replicate the home's chain before it is born, keep its row, and receive it with its owner
     const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
@@ -228,8 +229,7 @@ test("write a home's own access at the home as it is born, beside the chain it r
         spaces,
         home.database,
         () => alice,
-        (authorization) =>
-            authorization.receive(personal, ["account-1"], { owner: aligned(alice.subjects, 0) }),
+        (authorization) => authorization.receive(personal, ["account-1"], { owner: alice.subject }),
     );
 
     // bind alice to the one owner role at the home, and write nothing of the space's access in the universe

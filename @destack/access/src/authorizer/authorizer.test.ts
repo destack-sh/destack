@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Snapshot, Transaction, eq, type DatabaseConnection, Table } from "@destack/db";
-import { aligned, Identifier, present, schema } from "@destack/schema";
+import { aligned, Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
@@ -16,6 +16,7 @@ import {
     through,
     type AccessContext,
     type RelationshipCondition,
+    ANONYMOUS,
 } from "../index.ts";
 import {
     account,
@@ -98,7 +99,10 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     const elevated = {
         ...bob,
         attributes: { team: 1, phase: "edit" },
-        assurance: { level: 2, authenticatedAt: bob.now },
+        credential: {
+            ...sessionCredential("bob", bob.now),
+            assurance: { level: 2, authenticatedAt: bob.now },
+        },
     };
     const examples = [
         { type: node, context: bob, editable: ["b"] },
@@ -134,7 +138,10 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     // apply the elevated edit permission only after recent strong authentication
     const stale = {
         ...elevated,
-        assurance: { level: 2, authenticatedAt: bob.now - 3_600_000 },
+        credential: {
+            ...sessionCredential("bob", bob.now),
+            assurance: { level: 2, authenticatedAt: bob.now - 3_600_000 },
+        },
     };
     expect(
         await database
@@ -192,9 +199,10 @@ databaseTest(
         );
         const carol = {
             ...alice,
-            subjects: [principal.user.reference("universe", "carol")],
+            subject: principal.user.reference("universe", "carol"),
+            groups: [],
         };
-        const anonymous = { ...alice, subjects: [] };
+        const anonymous = { ...alice, subject: ANONYMOUS, groups: [] };
         for (const [context, expected] of [
             [carol, [{ id: "a" }]],
             [anonymous, []],
@@ -226,12 +234,14 @@ databaseTest(
         // let anyone presenting the link edit the subtree until it expires
         const visitor = {
             ...anonymous,
+            contacts: [],
             linkSecrets: [await LinkSecret.digest(shared.secret)],
         };
         await expectEditable(database, authorizer, node, visitor, ["b", "c"]);
         await expectEditable(database, authorizer, node, { ...visitor, now: 2000 }, []);
         const stranger = {
             ...anonymous,
+            contacts: [],
             linkSecrets: [(await LinkSecret.create()).digest],
         };
         await expectEditable(database, authorizer, node, stranger, []);
@@ -292,12 +302,14 @@ databaseTest(
         const { database, authorizer, alice, bob } = fixture;
         const carol: AccessContext = {
             ...alice,
-            subjects: [principal.user.reference("universe", "carol")],
+            subject: principal.user.reference("universe", "carol"),
+            groups: [],
             contacts: [Contact.email("carol@example.com")],
         };
         const dave: AccessContext = {
             ...alice,
-            subjects: [principal.user.reference("universe", "dave")],
+            subject: principal.user.reference("universe", "dave"),
+            groups: [],
         };
 
         // let carol ask for access without it applying until the owner accepts
@@ -449,7 +461,7 @@ databaseTest(
                 () => ({
                     ...carol,
                     subject: userSubject("carol"),
-                    delegates: [agent],
+                    actors: [agent],
                     grant: { id: Identifier.create("grant"), scope: "carol", permissions: [] },
                 }),
                 (authorization) => authorization.accept(offered.relationship.object, offered.id),
@@ -552,7 +564,8 @@ databaseTest(
             );
         const carol: AccessContext = {
             ...bob,
-            subjects: [principal.user.reference("universe", "carol")],
+            subject: principal.user.reference("universe", "carol"),
+            groups: [],
         };
         const readable = async (context: AccessContext) =>
             readableNodes(database, authorizer, context);
@@ -583,19 +596,28 @@ databaseTest(
         expect(
             await readable({
                 ...carol,
-                assurance: { level: 1, authenticatedAt: 1000 },
+                credential: {
+                    ...sessionCredential("1", carol.now),
+                    assurance: { level: 1, authenticatedAt: 1000 },
+                },
             }),
         ).toEqual([]);
         expect(
             await readable({
                 ...carol,
-                assurance: { level: 2, authenticatedAt: 800 },
+                credential: {
+                    ...sessionCredential("1", carol.now),
+                    assurance: { level: 2, authenticatedAt: 800 },
+                },
             }),
         ).toEqual(["c"]);
         expect(
             await readable({
                 ...carol,
-                assurance: { level: 3, authenticatedAt: 600 },
+                credential: {
+                    ...sessionCredential("1", carol.now),
+                    assurance: { level: 3, authenticatedAt: 600 },
+                },
             }),
         ).toEqual([]);
 
@@ -651,8 +673,8 @@ databaseTest(
         // allow the assistant what its subject may and the grant gives, and its subject's whole authority when impersonated
         const delegated = (context: AccessContext, granted: typeof forAlice) => ({
             ...context,
-            subject: present(context.subjects[0], "the delegator"),
-            delegates: [assistant],
+            subject: context.subject,
+            actors: [assistant],
             grant: Grant.claim(granted),
         });
         await expectEditable(database, authorizer, node, delegated(alice, forAlice), ["a", "b"]);
@@ -661,7 +683,7 @@ databaseTest(
             database,
             authorizer,
             node,
-            { ...alice, subject: userSubject("alice"), delegates: [userSubject("support")] },
+            { ...alice, subject: userSubject("alice"), actors: [userSubject("support")] },
             ["a", "b", "c"],
         );
 

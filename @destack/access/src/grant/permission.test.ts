@@ -109,8 +109,8 @@ function restricted(
 
     return {
         subject: alice,
-        subjects: [alice],
-        delegates: [principal.personalAccessToken.reference("alice", "token-alice")],
+        groups: [],
+        actors: [principal.personalAccessToken.reference("alice", "token-alice")],
         attributes: {},
         now: 1000,
         grant: {
@@ -118,6 +118,8 @@ function restricted(
             scope: "alice",
             permissions: [{ ...source, ...entry }],
         },
+        contacts: [],
+        linkSecrets: [],
     };
 }
 

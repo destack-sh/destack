@@ -107,7 +107,15 @@ test.for(TEST_DIALECTS)(
             subject = principal.installation.reference(scope, "app"),
             name = "reside",
         ) => {
-            const caller = { subjects: [subject], now: 1000, attributes: {} };
+            const caller = {
+                subject: subject,
+                groups: [],
+                now: 1000,
+                attributes: {},
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
+            };
             const isScope = target.type === realm.name || target.type === district.name;
             const holder = isScope ? target.id : target.scope;
             const access = await authorizer.resolve(snapshot, holder, caller);
@@ -192,7 +200,16 @@ test.for(TEST_DIALECTS)(
         // resolve a caller whose credential is bound to the near realm in each scope
         const subject = principal.user.reference("universe", "ada");
         const credential = { ...sessionCredential("1", 1000), scope: "near" };
-        const caller = { subjects: [subject], credential, now: 1000, attributes: {} };
+        const caller = {
+            subject: subject,
+            groups: [],
+            credential: credential,
+            now: 1000,
+            attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        };
         const snapshot = Snapshot.live(database);
         const resolved = await Promise.all(
             ["near", "inside", "far", "outside", "universe"].map((scope) =>
@@ -261,9 +278,13 @@ test.for(TEST_DIALECTS)(
         const target = person.reference("universe", "alice");
         const decide = async (scope: string) => {
             const caller = {
-                subjects: [principal.installation.reference(scope, "app")],
+                subject: principal.installation.reference(scope, "app"),
+                groups: [],
                 now: 1000,
                 attributes: {},
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
             };
             const resolved = await authorizer.resolve(snapshot, "universe", caller);
             const permission = { ...target, name: "contact" };
@@ -345,7 +366,11 @@ test.for(TEST_DIALECTS)(
         const target = home.reference("near", "own");
         const decide = async (id: string) => {
             const caller = {
-                subjects: [home.reference("universe", id)],
+                subject: home.reference("universe", id),
+                actors: [],
+                groups: [],
+                contacts: [],
+                linkSecrets: [],
                 now: 1000,
                 attributes: {},
             };

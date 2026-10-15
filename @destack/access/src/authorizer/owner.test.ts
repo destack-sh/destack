@@ -89,7 +89,15 @@ async function openOwned() {
     const authorizer = new Authorizer([...policies, asset], [...homeMappings, assetMapping]);
     const readable = async () => {
         const snapshot = Snapshot.live(database);
-        const context: AccessContext = { subjects: [carol], now: Date.now(), attributes: {} };
+        const context: AccessContext = {
+            subject: carol,
+            groups: [],
+            now: Date.now(),
+            attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        };
         const access = await authorizer.resolve(snapshot, home.id, context);
         const selected = await database
             .select({ id: assetTable.id })

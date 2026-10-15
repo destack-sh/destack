@@ -4,7 +4,14 @@ import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { v7 } from "uuid";
 import { schema } from "@destack/schema";
-import { accessRelationship, accessRole, principal, Relationship } from "../index.ts";
+import {
+    accessRelationship,
+    accessRole,
+    principal,
+    Relationship,
+    Caller,
+    AccessContext,
+} from "../index.ts";
 import { account, group, node, space } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
 import { openFixture } from "../test/database.ts";
@@ -74,11 +81,11 @@ test.for(TEST_DIALECTS)(
             await database.insert(accessRelationship).values(row);
 
             // decide the caller's relation, then take the share back
-            const access = await authorizer.resolve(snapshot, "personal", {
-                subjects: [user(caller)],
-                now: NOW,
-                attributes: {},
-            });
+            const access = await authorizer.resolve(
+                snapshot,
+                "personal",
+                AccessContext.of(Caller.of(user(caller)), NOW),
+            );
             const isRelated = await authorizer.isRelatedIn(snapshot, "personal", access);
             await database.remove(accessRelationship, [row]);
 

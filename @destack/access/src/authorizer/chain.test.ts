@@ -174,6 +174,7 @@ test("replicate a space's chain up to the universe from a relay, with the polici
         "machine",
         "client",
         "space",
+        "anonymous",
         "user",
     ]);
 

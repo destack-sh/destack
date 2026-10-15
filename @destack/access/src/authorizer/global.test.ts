@@ -106,9 +106,13 @@ test.for(TEST_DIALECTS)(
         const target = card.reference("personal", "c1");
         const decide = async (caller: string) => {
             const resolved = await authorizer.resolve(snapshot, "personal", {
-                subjects: [principal.user.reference("universe", caller)],
+                subject: principal.user.reference("universe", caller),
+                groups: [],
                 now: 1000,
                 attributes: {},
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
             });
             const selected = async (name: "read" | "view") =>
                 (

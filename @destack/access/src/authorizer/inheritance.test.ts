@@ -7,7 +7,7 @@ import { accessRelationship } from "../relationship/table.ts";
 import { AccessFixture } from "../test/access.ts";
 import { fixtureDatabase, item, module1 } from "../test/fixture.ts";
 import {
-    type AccessContext,
+    AccessContext,
     Authorizer,
     intersection,
     Policy,
@@ -16,6 +16,7 @@ import {
     type TableMapping,
     through,
     union,
+    Caller,
 } from "../index.ts";
 
 /** Organisations, with editors and viewers that keep their permissions everywhere below them. */
@@ -135,9 +136,13 @@ test.for(TEST_DIALECTS)(
         // list the documents each reads and edits, in SQL and in memory alike
         const allowed = async (person: keyof typeof people, name: "read" | "edit") => {
             const context: AccessContext = {
-                subjects: [people[person]],
+                subject: people[person],
+                groups: [],
                 now: 1000,
                 attributes: {},
+                actors: [],
+                contacts: [],
+                linkSecrets: [],
             };
             const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
             const listed = (
@@ -248,7 +253,11 @@ test.for(TEST_DIALECTS)(
         // let the team's editor and viewer read the note, and nobody else, in SQL and in memory alike
         const reads = async (person: keyof typeof people) => {
             const context: AccessContext = {
-                subjects: [people[person]],
+                subject: people[person],
+                actors: [],
+                groups: [],
+                contacts: [],
+                linkSecrets: [],
                 now: 1000,
                 attributes: {},
             };
@@ -321,11 +330,7 @@ test.for(TEST_DIALECTS)(
 
         // let the organisation's editor and the folder's viewer read the document, and nobody else, in SQL and in memory alike
         const reads = async (person: keyof typeof people) => {
-            const context: AccessContext = {
-                subjects: [people[person]],
-                now: 1000,
-                attributes: {},
-            };
+            const context = AccessContext.of(Caller.of(people[person]), 1000);
             const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
             const listed = (
                 await database
@@ -410,7 +415,7 @@ test.for(TEST_DIALECTS)(
 
         // list and check the notes dave reads in each scope, in SQL and in memory alike
         const reads = async (scope: string, id: string) => {
-            const context: AccessContext = { subjects: [people.dave], now: 1000, attributes: {} };
+            const context = AccessContext.of(Caller.of(people.dave), 1000);
             const access = await authorizer.resolve(Snapshot.live(database), scope, context);
             const listed = (
                 await database

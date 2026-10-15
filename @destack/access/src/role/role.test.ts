@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { Scope } from "@destack/sync";
 import { Transaction, Snapshot, and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { aligned, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -39,9 +39,13 @@ const carolMembership = { ...account.reference("universe", "account-1"), relatio
 
 /** A member of an account who has roles through the membership. */
 const carol: AccessContext = {
-    subjects: [principal.user.reference("universe", "carol"), carolMembership],
+    subject: principal.user.reference("universe", "carol"),
+    groups: [carolMembership],
     now: 1000,
     attributes: {},
+    actors: [],
+    contacts: [],
+    linkSecrets: [],
 };
 
 /** Open the fixture with role grants covering ancestors. */
@@ -238,8 +242,8 @@ test("bind roles to groups, nested groups and verified subject sets", async () =
     // accept a subject set the authenticating authority verified
     const verified: AccessContext = {
         ...carol,
-        subjects: [
-            ...carol.subjects,
+        groups: [
+            ...carol.groups,
             { ...group.reference("account-1", "engineering"), relation: "member" },
         ],
     };
@@ -357,7 +361,7 @@ test("let owners have everything in their scope, make owners, and never remove t
         () => carol,
         (authorization) =>
             authorization.create(place, {
-                owner: aligned(carol.subjects, 0),
+                owner: carol.subject,
             }),
     );
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
@@ -385,7 +389,7 @@ test("let owners have everything in their scope, make owners, and never remove t
             authorization.grant({
                 object: place,
                 role: owner.id,
-                subject: aligned(alice.subjects, 0),
+                subject: alice.subject,
             }),
     );
 
@@ -402,9 +406,13 @@ test("let owners have everything in their scope, make owners, and never remove t
             }),
     );
     const dave: AccessContext = {
-        subjects: [principal.user.reference("universe", "dave")],
+        subject: principal.user.reference("universe", "dave"),
+        groups: [],
         now: 1000,
         attributes: {},
+        actors: [],
+        contacts: [],
+        linkSecrets: [],
     };
     await Authorization.run(
         home,
@@ -414,7 +422,7 @@ test("let owners have everything in their scope, make owners, and never remove t
             authorization.grant({
                 object: place,
                 role: sharer.id,
-                subject: aligned(dave.subjects, 0),
+                subject: dave.subject,
             }),
     );
     await expect(
@@ -474,9 +482,7 @@ test("create a scope without owners of its own, which the owners of its account 
     const place = space.reference("account-1", "shared");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "shared", account: "account-1" });
-    await asCarol((authorization) =>
-        authorization.create(owned, { owner: aligned(carol.subjects, 0) }),
-    );
+    await asCarol((authorization) => authorization.create(owned, { owner: carol.subject }));
     await asCarol((authorization) => authorization.create(place, {}));
 
     // let carol have everything in the space through her account
@@ -490,7 +496,7 @@ test("create a scope without owners of its own, which the owners of its account 
     await expect(
         asCarol((authorization) =>
             authorization.create(node.reference("shared", "a"), {
-                owner: aligned(carol.subjects, 0),
+                owner: carol.subject,
             }),
         ),
     ).rejects.toMatchObject({ code: "INVALID_CONTEXT", message: "only a scope can have owners" });
@@ -514,11 +520,7 @@ test("list the spaces an account contains to the account's owner", async () => {
     // record two accounts, their spaces, and carol as the first account's owner
     const access = new AccessFixture(database);
     await access.replicateScope(account.reference("universe", "account-1"));
-    await access.bindOwner(
-        account.reference("universe", "account-1"),
-        aligned(carol.subjects, 0),
-        1,
-    );
+    await access.bindOwner(account.reference("universe", "account-1"), carol.subject, 1);
     await access.replicateScope(account.reference("universe", "account-2"));
     for (const [id, owner] of [
         ["space-1", "account-1"],
@@ -566,9 +568,13 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
     const { database, query, defineRole, relate } = await openRoleFixture();
     const bob = principal.user.reference("universe", "bob");
     const dave = {
-        subjects: [principal.user.reference("universe", "dave")],
+        subject: principal.user.reference("universe", "dave"),
+        groups: [],
         now: 1000,
         attributes: {},
+        actors: [],
+        contacts: [],
+        linkSecrets: [],
     };
 
     // let bob share note a through a role, and offer dave a view of it
@@ -582,16 +588,20 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
         query,
         database,
         () => ({
-            subjects: [bob],
+            subject: bob,
+            groups: [],
             now: 1000,
             attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
         }),
         (authorization) =>
             authorization.invite({
                 relationship: {
                     object: node.reference("personal", "a"),
                     relation: "viewer",
-                    subject: aligned(dave.subjects, 0),
+                    subject: dave.subject,
                 },
             }),
     );
@@ -625,7 +635,7 @@ async function openOwnedSpace() {
         () => carol,
         (authorization) =>
             authorization.create(place, {
-                owner: aligned(carol.subjects, 0),
+                owner: carol.subject,
             }),
     );
 
@@ -727,9 +737,7 @@ test("assign a role to one subject alone, revoking the previous subject and keep
 
     // assign the role to carol, to dave and to dave again
     const dave = principal.user.reference("universe", "dave");
-    await owner(1000, (authorization) =>
-        authorization.assign(place, reader.id, aligned(carol.subjects, 0)),
-    );
+    await owner(1000, (authorization) => authorization.assign(place, reader.id, carol.subject));
     const assigned = await owner(2000, (authorization) =>
         authorization.assign(place, reader.id, dave),
     );
@@ -779,8 +787,6 @@ test("refuse keeping and assigning roles to a caller without the permissions", a
         ),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: update" });
     await expect(
-        outsider((authorization) =>
-            authorization.assign(place, reader.id, aligned(alice.subjects, 0)),
-        ),
+        outsider((authorization) => authorization.assign(place, reader.id, alice.subject)),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
 });
