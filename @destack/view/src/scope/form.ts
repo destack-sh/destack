@@ -80,15 +80,26 @@ export function useSchemaForm<Input extends object>(
     let isSubmitted = false;
     const touched = new Set<string>();
 
-    // read the whole input: the starting values with the edits over them
-    const current = (): Input => ({ ...options.values(), ...edited() });
+    // read the whole input: the starting values with the edits over them, cleared fields left out
+    const compose = (edits: Partial<Input>): Input => {
+        const composed = { ...options.values(), ...edits };
+        for (const [key, value] of Object.entries(composed)) {
+            if (value === undefined) {
+                Reflect.deleteProperty(composed, key);
+            }
+        }
+
+        return composed;
+    };
+    const current = (): Input => compose(edited());
 
     // check the input against the schema, showing refusals of edited values until the first submit
     const check = (held: Input): boolean => {
         // refuse the issues of the form's fields, leaving the rest to the caller
+        const fields = options.values();
         const parsed = input.safeParse(held);
         const issues = (parsed.success ? [] : parsed.error.issues)
-            .filter((issue) => String(issue.path[0] ?? "") in held)
+            .filter((issue) => String(issue.path[0] ?? "") in fields)
             .flatMap((issue) => closest(issue, held));
 
         // show the first refusal at each pointer of an edited value, or of every value once submitted
@@ -134,7 +145,7 @@ export function useSchemaForm<Input extends object>(
                 // keep the edit, marking the values it changes, and check or submit the input it makes
                 touch(touched, current()[name], value, [name]);
                 edit({ ...draft, [name]: value });
-                const held = { ...options.values(), ...draft };
+                const held = compose(draft);
                 if (options.mode === "change") {
                     send(held);
                 } else {
@@ -147,7 +158,7 @@ export function useSchemaForm<Input extends object>(
             // show every refusal from the first submit on
             isSubmitted = true;
 
-            return send({ ...options.values(), ...draft });
+            return send(compose(draft));
         },
         problems,
         status,

@@ -185,3 +185,30 @@ test("refuse a union's value by the issues of its closest member", () => {
     flush();
     expect([...form.problems()]).toEqual([["/shape/side", "Enter a number"]]);
 });
+
+test("submit a cleared optional field as absent", () => {
+    const submitted: Record<string, unknown>[] = [];
+    let form: Form<Record<string, unknown>> | undefined;
+    render(() => {
+        form = useSchemaForm<Record<string, unknown>>(
+            schema.object({
+                title: schema.string().min(1),
+                estimate: schema.int().exactOptional(),
+            }),
+            {
+                values: () => ({ title: "Milk", estimate: 2 }),
+                submit: (input) => {
+                    submitted.push(input);
+
+                    return { predicted: Promise.resolve(input), confirmed: Promise.resolve() };
+                },
+            },
+        );
+
+        return null;
+    });
+    form?.field("estimate").set(undefined);
+    form?.submit();
+    flush();
+    expect([submitted, [...(form?.problems() ?? [])]]).toEqual([[{ title: "Milk" }], []]);
+});
