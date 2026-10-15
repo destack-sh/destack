@@ -113,7 +113,7 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     [
         "widen record values to JSON",
         schema.record(schema.string(), schema.boolean()),
-        schema.record(schema.string(), schema.json()),
+        schema.jsonObject(),
         "wider",
     ],
     [

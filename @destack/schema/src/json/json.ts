@@ -3,10 +3,8 @@ import { json } from "../validate/json.ts";
 /** A JSON value, as readers see it. */
 export type JsonValue = string | number | boolean | null | readonly JsonValue[] | JsonObject;
 
-/** A JSON object whose optional fields may be absent, as type-fest's `JsonObject`. */
-export type JsonObject = { readonly [Key in string]: JsonValue } & {
-    readonly [Key in string]?: JsonValue | undefined;
-};
+/** A JSON object, each of its keys present or absent. */
+export type JsonObject = { readonly [Key in string]?: JsonValue };
 
 /** Tell JSON values apart, and read values in their JSON form. */
 export const JsonValue = {
@@ -18,6 +16,18 @@ export const JsonValue = {
     /** Report whether a JSON value is an array. */
     isArray(value: JsonValue): value is readonly JsonValue[] {
         return Array.isArray(value);
+    },
+
+    /** List a JSON object's present fields with their values. */
+    entries(object: JsonObject): [string, JsonValue][] {
+        return Object.entries(object).flatMap(([key, value]) =>
+            value === undefined ? [] : [[key, value]],
+        );
+    },
+
+    /** List a JSON object's present values. */
+    values(object: JsonObject): JsonValue[] {
+        return Object.values(object).filter((value) => value !== undefined);
     },
 
     /** Read an unknown value as a JSON object, refusing any other value. */

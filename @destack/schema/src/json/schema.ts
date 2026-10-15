@@ -1,11 +1,8 @@
 import { RE2JS } from "re2js";
 import { z } from "zod";
 import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/declarable.ts";
-import { canonicalize } from "./json.ts";
+import { canonicalize, type JsonValue } from "./json.ts";
 import { present } from "../presence/presence.ts";
-
-/** The descriptions of the schemas described so far, kept by schema. */
-const DESCRIBED = new WeakMap<z.ZodType, JsonSchema>();
 
 /** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
@@ -124,32 +121,10 @@ export const LocalReference = {
 
 /** Describe a schema using JSON Schema Draft 2020-12. */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
-    // reuse the description of a schema described before, as schemas never change
-    const kept = DESCRIBED.get(schema);
-    if (kept !== undefined) {
-        return kept;
-    }
-
     // describe a declarable schema
     requireDeclarable(schema);
-    const described = describe(schema);
 
-    // keep it frozen, so a reader changing it fails instead of changing every later reader's
-    DESCRIBED.set(schema, frozen(described));
-
-    return described;
-}
-
-/** Freeze a JSON value and every value inside it. */
-function frozen<Value>(value: Value): Value {
-    if (typeof value === "object" && value !== null) {
-        for (const inner of Object.values(value)) {
-            frozen(inner);
-        }
-        Object.freeze(value);
-    }
-
-    return value;
+    return describe(schema);
 }
 
 /** Describe a schema as Draft 2020-12, refusing what JSON Schema cannot represent. */
@@ -162,10 +137,13 @@ function describe(schema: z.ZodType): JsonSchema {
 }
 
 /** Build a validator from JSON Schema as `toJsonSchema` describes declarable schemas. */
-export function fromJsonSchema(description: JsonSchema): z.ZodType {
+export function fromJsonSchema(description: JsonSchema): z.ZodType<JsonValue> {
     // resolve the document's own reference to the validator built for it
-    let root: z.ZodType | undefined;
-    const context = { root: description, references: new Map<string, z.ZodType>() };
+    let root: z.ZodType<JsonValue> | undefined;
+    const context = {
+        root: description,
+        references: new Map<string, z.ZodType<JsonValue>>(),
+    };
     context.references.set(
         "#",
         z.lazy(() => present(root, "the document's validator")),
@@ -185,7 +163,7 @@ interface ImportContext {
     /** The whole document, which local references point into. */
     readonly root: JsonSchema;
     /** The validator of each local reference, by pointer. */
-    readonly references: Map<string, z.ZodType>;
+    readonly references: Map<string, z.ZodType<JsonValue>>;
 }
 
 /** A format's string builder and the pattern it describes. */
@@ -197,14 +175,18 @@ interface FormatBuilder {
 }
 
 /** Build the validator one node describes, keeping its descriptive keywords as metadata. */
-function build(node: JsonSchemaValue, context: ImportContext): z.ZodType {
+function build(node: JsonSchemaValue, context: ImportContext): z.ZodType<JsonValue> {
     // refuse a boolean schema, which no declarable schema describes
     if (typeof node === "boolean") {
         throw new TypeError(`json schema ${String(node)} is not declarable`);
     }
 
     // build the node, then keep its title, description and examples
-    const built = validator(node, context);
+    return annotated(validator(node, context), node);
+}
+
+/** Keep a node's title, description and examples on its validator. */
+function annotated<Built extends z.ZodType<JsonValue>>(built: Built, node: JsonSchema): Built {
     const meta = Object.fromEntries(
         ANNOTATIONS.flatMap((key) => (node[key] === undefined ? [] : [[key, node[key]]])),
     );
@@ -213,7 +195,7 @@ function build(node: JsonSchemaValue, context: ImportContext): z.ZodType {
 }
 
 /** Build the validator a node's validation keywords describe. */
-function validator(node: JsonSchema, context: ImportContext): z.ZodType {
+function validator(node: JsonSchema, context: ImportContext): z.ZodType<JsonValue> {
     const { type } = node;
 
     // build any JSON value
@@ -264,7 +246,7 @@ function isJsonValue(node: JsonSchema): boolean {
 }
 
 /** Build the validator of one type. */
-function typed(type: string, node: JsonSchema, context: ImportContext): z.ZodType {
+function typed(type: string, node: JsonSchema, context: ImportContext): z.ZodType<JsonValue> {
     switch (type) {
         case "string":
             return checked(string(node), node, STRING_KEYWORDS);
@@ -285,7 +267,11 @@ function typed(type: string, node: JsonSchema, context: ImportContext): z.ZodTyp
 }
 
 /** Build a value of several types: a constrained type or null, or any of several plain types. */
-function typeList(types: readonly string[], node: JsonSchema, context: ImportContext): z.ZodType {
+function typeList(
+    types: readonly string[],
+    node: JsonSchema,
+    context: ImportContext,
+): z.ZodType<JsonValue> {
     // build a constrained type followed by null, as a nullable schema describes itself
     const [only, last] = types;
     if (types.length === 2 && only !== undefined && only !== "null" && last === "null") {
@@ -302,7 +288,7 @@ function typeList(types: readonly string[], node: JsonSchema, context: ImportCon
 }
 
 /** Build a string from its format, lengths and patterns, several patterns kept as `allOf`. */
-function string(node: JsonSchema): z.ZodType {
+function string(node: JsonSchema): z.ZodType<JsonValue> {
     // collect the patterns, one or each of a list
     const { format, pattern, minLength, maxLength, allOf } = node;
     const patterns = [...(pattern === undefined ? [] : [pattern]), ...(allOf ?? []).map(patternOf)];
@@ -378,7 +364,7 @@ function formatOf(format: string, patterns: readonly string[]): FormatBuilder {
 }
 
 /** Build a number or integer from its bounds, an integer within the safe range by default. */
-function number(type: "integer" | "number", node: JsonSchema): z.ZodType {
+function number(type: "integer" | "number", node: JsonSchema): z.ZodType<JsonValue> {
     // start from an integer's safe range or any number
     const { minimum, maximum, exclusiveMinimum, exclusiveMaximum } = node;
     let built = type === "integer" ? z.int() : z.number();
@@ -406,10 +392,10 @@ function number(type: "integer" | "number", node: JsonSchema): z.ZodType {
 }
 
 /** Build a list from its items, or a tuple from its prefix items. */
-function array(node: JsonSchema, context: ImportContext): z.ZodType {
+function array(node: JsonSchema, context: ImportContext): z.ZodType<JsonValue> {
     // read the item keywords
     const { items, prefixItems, minItems, maxItems } = node;
-    let built: z.ZodType;
+    let built: z.ZodType<JsonValue>;
 
     // build a tuple of its prefix items and any rest, its length bounded as `toJsonSchema` bounds it
     if (prefixItems !== undefined) {
@@ -444,7 +430,10 @@ function array(node: JsonSchema, context: ImportContext): z.ZodType {
 }
 
 /** Build a tuple of some items and any further items of one schema. */
-function tuple(listed: readonly z.ZodType[], rest: z.ZodType | undefined): z.ZodType {
+function tuple(
+    listed: readonly z.ZodType<JsonValue>[],
+    rest: z.ZodType<JsonValue> | undefined,
+): z.ZodType<JsonValue> {
     const [first, ...others] = listed;
     if (first === undefined && rest === undefined) {
         return z.tuple([]);
@@ -456,19 +445,11 @@ function tuple(listed: readonly z.ZodType[], rest: z.ZodType | undefined): z.Zod
 }
 
 /** Build an object from its properties, or a record from its property names and values. */
-function object(node: JsonSchema, context: ImportContext): z.ZodType {
-    // build an object refusing other properties, each property not required optional
-    const { properties, required = [], additionalProperties, propertyNames } = node;
+function object(node: JsonSchema, context: ImportContext): z.ZodType<JsonValue> {
+    // build an object refusing other properties
+    const { properties, additionalProperties, propertyNames } = node;
     if (propertyNames === undefined && additionalProperties === false) {
-        const shape = Object.fromEntries(
-            Object.entries(properties ?? {}).map(([key, property]) => {
-                const built = build(property, context);
-
-                return [key, required.includes(key) ? built : built.exactOptional()];
-            }),
-        );
-
-        return z.strictObject(shape);
+        return strictObject(node, context);
     }
     // build a record of keys and values
     else if (
@@ -498,8 +479,25 @@ function object(node: JsonSchema, context: ImportContext): z.ZodType {
     throw new TypeError(`json schema object ${JSON.stringify(node)} is not declarable`);
 }
 
+/** Build an object refusing other properties, each property not required optional. */
+function strictObject(
+    node: JsonSchema,
+    context: ImportContext,
+): z.ZodObject<Readonly<Record<string, z.ZodType<JsonValue>>>> {
+    const { properties, required = [] } = node;
+    const shape = Object.fromEntries(
+        Object.entries(properties ?? {}).map(([key, property]) => {
+            const built = build(property, context);
+
+            return [key, required.includes(key) ? built : built.exactOptional()];
+        }),
+    );
+
+    return z.strictObject(shape);
+}
+
 /** Read a record's key schema, refusing one that does not validate strings. */
-function recordKey(built: z.ZodType): z.core.$ZodRecordKey {
+function recordKey(built: z.ZodType<JsonValue>): z.ZodType<string> & z.core.$ZodRecordKey {
     if (isRecordKey(built)) {
         return built;
     }
@@ -508,7 +506,7 @@ function recordKey(built: z.ZodType): z.core.$ZodRecordKey {
 }
 
 /** Decide whether a schema is a record key: text, a format, an enumeration, or their union. */
-function isRecordKey(built: z.core.$ZodType): built is z.ZodType & z.core.$ZodRecordKey {
+function isRecordKey(built: z.core.$ZodType): built is z.ZodType<string> & z.core.$ZodRecordKey {
     return (
         built instanceof z.ZodString ||
         built instanceof z.ZodStringFormat ||
@@ -519,7 +517,7 @@ function isRecordKey(built: z.core.$ZodType): built is z.ZodType & z.core.$ZodRe
 }
 
 /** Build a union, a nullable value when it lists one schema and null. */
-function union(options: readonly JsonSchemaValue[], context: ImportContext): z.ZodType {
+function union(options: readonly JsonSchemaValue[], context: ImportContext): z.ZodType<JsonValue> {
     // build a nullable value from a schema followed by null, as a nullable schema describes itself
     const [only, last] = options;
     if (
@@ -542,17 +540,20 @@ function union(options: readonly JsonSchemaValue[], context: ImportContext): z.Z
 }
 
 /** Build the values every schema of a list describes. */
-function intersection(schemas: readonly JsonSchemaValue[], context: ImportContext): z.ZodType {
+function intersection(
+    schemas: readonly JsonSchemaValue[],
+    context: ImportContext,
+): z.ZodType<JsonValue> {
     const [first, ...rest] = schemas.map((each) => build(each, context));
     if (first === undefined) {
         throw new TypeError("json schema allOf without schemas is not declarable");
     }
 
-    return rest.reduce<z.ZodType>((all, each) => z.intersection(all, each), first);
+    return rest.reduce<z.ZodType<JsonValue>>((all, each) => z.intersection(all, each), first);
 }
 
 /** Build no value, as the negation of any value describes. */
-function never(negated: JsonSchemaValue): z.ZodType {
+function never(negated: JsonSchemaValue): z.ZodType<JsonValue> {
     if (typeof negated !== "object" || Object.keys(negated).length > 0) {
         throw new TypeError("json schema not of a schema other than any value is not declarable");
     }
@@ -566,7 +567,10 @@ function isNull(node: JsonSchemaValue): boolean {
 }
 
 /** Build a union told apart by the one property every option fixes to its own constants. */
-function discriminated(options: readonly JsonSchemaValue[], context: ImportContext): z.ZodType {
+function discriminated(
+    options: readonly JsonSchemaValue[],
+    context: ImportContext,
+): z.ZodType<JsonValue> {
     // find the property every option fixes
     const objects = options.map((option) => (typeof option === "object" ? option : {}));
     const [head] = objects;
@@ -584,8 +588,14 @@ function discriminated(options: readonly JsonSchemaValue[], context: ImportConte
         throw new TypeError("json schema oneOf without a property of constants is not declarable");
     }
 
-    // build each option as an object
-    const built = options.map((option) => z.instanceof(z.ZodObject).parse(build(option, context)));
+    // build each option as an object refusing other properties, keeping its annotations
+    const built = objects.map((option) => {
+        if (option.type !== "object" || option.additionalProperties !== false) {
+            throw new TypeError("json schema oneOf options must be objects of their properties");
+        }
+
+        return annotated(checked(strictObject(option, context), option, OBJECT_KEYWORDS), option);
+    });
     const [first, ...rest] = built;
     if (first === undefined) {
         throw new TypeError("json schema oneOf without options is not declarable");
@@ -595,7 +605,7 @@ function discriminated(options: readonly JsonSchemaValue[], context: ImportConte
 }
 
 /** Build one of a fixed set of strings, or of fixed primitives. */
-function enumerated(values: readonly unknown[]): z.ZodType {
+function enumerated(values: readonly unknown[]): z.ZodType<JsonValue> {
     // build a string enum, or literals of other primitives
     const literals = values.map(primitive);
     if (literals.every((value) => typeof value === "string")) {
@@ -625,7 +635,7 @@ function primitive(value: unknown): string | number | boolean | null {
 }
 
 /** Resolve a local reference lazily, building its target once, so references may recurse. */
-function referenced(reference: string, context: ImportContext): z.ZodType {
+function referenced(reference: string, context: ImportContext): z.ZodType<JsonValue> {
     // reuse the validator a reference already resolved to
     const known = context.references.get(reference);
     if (known !== undefined) {
@@ -634,7 +644,7 @@ function referenced(reference: string, context: ImportContext): z.ZodType {
 
     // resolve the target now, and build it when first parsing
     const target = targetOf(context.root, reference);
-    let built: z.ZodType | undefined;
+    let built: z.ZodType<JsonValue> | undefined;
     const lazy = z.lazy(() => (built ??= build(target, context)));
     context.references.set(reference, lazy);
 
@@ -654,7 +664,11 @@ function targetOf(root: JsonSchema, reference: string): JsonSchemaValue {
 }
 
 /** Refuse a node with keywords its validator does not check. */
-function checked(built: z.ZodType, node: JsonSchema, keywords: readonly string[]): z.ZodType {
+function checked<Built extends z.ZodType<JsonValue>>(
+    built: Built,
+    node: JsonSchema,
+    keywords: readonly string[],
+): Built {
     const unknown = Object.keys(node).filter(
         (key) => !keywords.includes(key) && !DOCUMENT_KEYWORDS.has(key),
     );

@@ -25,15 +25,15 @@ export const Digest = Object.assign(digestSchema, {
 /** The `node:crypto` hashing a runtime offers. */
 interface NodeCrypto {
     /** Start a hash of an algorithm. */
-    createHash(algorithm: "sha256"): NodeHash;
+    readonly createHash: (algorithm: "sha256") => NodeHash;
 }
 
 /** A running `node:crypto` hash. */
 interface NodeHash {
     /** Add bytes or the UTF-8 bytes of text. */
-    update(content: string | Uint8Array): NodeHash;
+    readonly update: (content: string | Uint8Array) => NodeHash;
     /** Finish the hash as lowercase hexadecimal. */
-    digest(encoding: "hex"): string;
+    readonly digest: (encoding: "hex") => string;
 }
 
 /** Load the runtime's `node:crypto` through its built-in modules, absent in browsers. */
@@ -49,7 +49,9 @@ function loadNodeCrypto(): NodeCrypto | undefined {
 }
 
 /** Report whether a runtime loads built-in modules by name. */
-function isModuleLoader(value: unknown): value is { getBuiltinModule(id: string): unknown } {
+function isModuleLoader(
+    value: unknown,
+): value is { readonly getBuiltinModule: (id: string) => unknown } {
     return (
         typeof value === "object" &&
         value !== null &&

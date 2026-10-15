@@ -1,9 +1,9 @@
 /** A source of the current time, one per server, which its verbs read, wait on and tests set. */
 export interface Clock {
     /** Read the current time, in UTC epoch milliseconds. */
-    now(): number;
+    readonly now: () => number;
     /** Wait some milliseconds of this clock, rejecting with the signal's reason once it aborts. */
-    sleep(milliseconds: number, signal?: AbortSignal): Promise<void>;
+    readonly sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
 }
 
 /** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
