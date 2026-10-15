@@ -181,11 +181,8 @@ export function declareState(
     dialect: Dialect,
     options: DeclareOptions = {},
 ): TableState[] {
-    // attach each aggregate to its aggregated table
-    const isReplica = options.isReplica === true;
-    const aggregates = describeAggregates(tables, isReplica);
-
     // keep foreign keys to tables this database has and leave other references logical
+    const isReplica = options.isReplica === true;
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const replicated = options.replicated ?? new Set<string>();
@@ -193,6 +190,10 @@ export function declareState(
         options.package === undefined
             ? declared
             : declared.filter((table) => table[TABLE].package.id === options.package);
+
+    // attach each aggregate of a described table to it, a replica's too
+    const named = new Set(declared.map((table) => table[TABLE].sqlName));
+    const aggregates = describeAggregates(owned, named, isReplica);
 
     return owned.map((table) => {
         // describe the table with its log and tree
@@ -489,19 +490,20 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
     );
 }
 
-/** Describe the aggregates by aggregated table, skipping those a replica lacks. */
+/** Describe the described tables' aggregates, skipping those a replica lacks. */
 function describeAggregates(
-    tables: readonly Table[],
+    described: readonly Table[],
+    named: ReadonlySet<string>,
     isReplica: boolean,
 ): Map<string, AggregateDescription[]> {
-    const described = new Map<string, AggregateDescription[]>();
-    for (const table of tables) {
+    const aggregates = new Map<string, AggregateDescription[]>();
+    for (const table of described) {
         for (const aggregate of table[TABLE].aggregates) {
-            // require both tables unless a replica lacks one
+            // require both tables in the database by name unless a replica lacks one
             const source = "from" in aggregate ? aggregate.from() : table;
             const holder = "into" in aggregate ? aggregate.into() : table;
             const definition = source[TABLE];
-            const missing = [source, holder].find((entry) => !tables.includes(entry));
+            const missing = [source, holder].find((entry) => !named.has(entry[TABLE].sqlName));
             if (missing !== undefined) {
                 if (isReplica) {
                     continue;
@@ -520,7 +522,7 @@ function describeAggregates(
             }
 
             // refer to every column by its SQL name
-            const entries = described.get(definition.sqlName) ?? [];
+            const entries = aggregates.get(definition.sqlName) ?? [];
             const target = {
                 table: holder[TABLE].sqlName,
                 column: holder[TABLE].column(aggregate.column).definition.name,
@@ -541,11 +543,11 @@ function describeAggregates(
                           value: source[TABLE].column(aggregate.value).definition.name,
                       },
             );
-            described.set(definition.sqlName, entries);
+            aggregates.set(definition.sqlName, entries);
         }
     }
 
-    return described;
+    return aggregates;
 }
 
 /** Describe the rows referencing a table's rows. */
