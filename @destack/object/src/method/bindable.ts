@@ -1,4 +1,3 @@
-import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { defineMethod, type Method } from "./method.ts";
@@ -40,15 +39,8 @@ export const bind: Method<{
         output: schema.object({}),
     }),
     handler: async (call: Call, execution: Execution) => {
-        // require an installation or a machine bound
+        // keep exactly the consumer's relationships on the type's objects in the scope
         const { consumer, ids } = BindInput.parse(call.input);
-        if (!principal.installation.is(consumer) && !principal.machine.is(consumer)) {
-            throw new TypeError(
-                `${consumer.id} is not an installation or machine binding ${call.object.name}`,
-            );
-        }
-
-        // keep exactly its consumer relationships on the type's objects in the scope
         const { packageId } = call.object.policy.definition;
         await Execution.store(execution, call).authorization.keepRelationships(
             {
