@@ -101,6 +101,54 @@ export const PublicKey = Object.assign(defineSchema(publicKey), {
 /** A public key as a JSON Web Key. */
 export type PublicKey = schema.Infer<typeof publicKey>;
 
+/** The signing algorithm of key pairs: ECDSA over P-256 (ES256). */
+const SIGNING = { name: "ECDSA", namedCurve: "P-256" } as const;
+
+/** A P-256 private key as a JSON Web Key, as a keychain keeps it. */
+const privateKey = schema.looseObject({
+    /** The key type of elliptic curves. */
+    kty: schema.literal("EC"),
+    /** The curve. */
+    crv: schema.literal("P-256"),
+    /** The x coordinate, base64url encoded. */
+    x: schema.string().regex(COORDINATE),
+    /** The y coordinate, base64url encoded. */
+    y: schema.string().regex(COORDINATE),
+    /** The private scalar, base64url encoded, under its name in RFC 7518 6.2.2.1. */
+    ["d"]: schema.string().regex(COORDINATE),
+});
+
+/** A P-256 key pair: its public half, and its private half that signs. */
+export interface KeyPair {
+    /** The public half. */
+    readonly publicKey: PublicKey;
+    /** The private half, non-extractable, signing proofs and assertions. */
+    readonly privateKey: CryptoKey;
+}
+
+/** Key pairs as keychains keep them: their private half as a JSON Web Key. */
+export const KeyPair = {
+    /** Generate a key pair, with the private half a keychain keeps. */
+    async generate(): Promise<{ readonly pair: KeyPair; readonly kept: string }> {
+        const generated = await crypto.subtle.generateKey(SIGNING, true, ["sign", "verify"]);
+        const kept = JSON.stringify(await crypto.subtle.exportKey("jwk", generated.privateKey));
+
+        return { pair: await KeyPair.read(kept), kept };
+    },
+
+    /** Read the key pair a keychain keeps. */
+    async read(kept: string): Promise<KeyPair> {
+        // read the private half, and the public half from its coordinates
+        const jwk = privateKey.parse(JSON.parse(kept));
+        const { kty, crv, x, y } = jwk;
+
+        return {
+            publicKey: PublicKey.parse({ kty, crv, x, y }),
+            privateKey: await crypto.subtle.importKey("jwk", jwk, SIGNING, false, ["sign"]),
+        };
+    },
+};
+
 /** Published signing keys as a JSON Web Key Set (RFC 7517 5). */
 export const KeySet = defineSchema(
     schema.object({

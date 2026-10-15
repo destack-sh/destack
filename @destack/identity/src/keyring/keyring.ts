@@ -32,19 +32,19 @@ interface RootKey {
 /** A process's one root of custody. */
 export interface Keyring extends Deriver {
     /** Encrypt bytes under the active root key, binding an encryption context. */
-    encrypt(
+    readonly encrypt: (
         plaintext: Uint8Array<ArrayBuffer>,
         context: Uint8Array<ArrayBuffer>,
-    ): Promise<Ciphertext>;
+    ) => Promise<Ciphertext>;
     /** Decrypt a ciphertext under the root key version it names. */
-    decrypt(
+    readonly decrypt: (
         ciphertext: Ciphertext,
         context: Uint8Array<ArrayBuffer>,
-    ): Promise<Uint8Array<ArrayBuffer>>;
+    ) => Promise<Uint8Array<ArrayBuffer>>;
     /** Derive a secret under a label from every root key version, newest first. */
-    deriveEach(
+    readonly deriveEach: (
         label: string,
-    ): Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
+    ) => Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
 }
 
 /** A keyring over root keys the process holds itself, kept in a keychain or a secret. */

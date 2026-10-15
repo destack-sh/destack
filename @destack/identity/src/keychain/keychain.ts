@@ -1,17 +1,21 @@
 /** Where a host keeps its secrets by name, such as its machine key and its root keys. */
 export interface Keychain {
     /** Read a secret, absent before one was kept. */
-    load(name: string): Promise<string | undefined>;
+    readonly load: (name: string) => Promise<string | undefined>;
     /** Keep a secret, replacing the one kept before. */
-    save(name: string, value: string): Promise<void>;
+    readonly save: (name: string, value: string) => Promise<void>;
     /** Keep a secret if the kept one equals the expected one, and report whether it did. */
-    saveIf(name: string, expected: string | undefined, value: string): Promise<boolean>;
+    readonly saveIf: (
+        name: string,
+        expected: string | undefined,
+        value: string,
+    ) => Promise<boolean>;
     /** Forget a secret. */
-    remove(name: string): Promise<void>;
+    readonly remove: (name: string) => Promise<void>;
     /** Forget a secret if the kept one equals the expected one, and report whether it did. */
-    removeIf(name: string, expected: string): Promise<boolean>;
+    readonly removeIf: (name: string, expected: string) => Promise<boolean>;
     /** Lock a name exclusively until disposed. */
-    lock(name: string): Promise<AsyncDisposable>;
+    readonly lock: (name: string) => Promise<AsyncDisposable>;
 }
 
 /** The operations every keychain shares. */

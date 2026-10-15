@@ -18,9 +18,9 @@ const PKCS8_PREFIX = "3041020100301306072a8648ce3d020106082a8648ce3d030107042730
 /** What derives secrets and private keys under labels. */
 export interface Deriver {
     /** Derive a 256-bit secret under a label. */
-    derive(label: string): Promise<Uint8Array<ArrayBuffer>>;
+    readonly derive: (label: string) => Promise<Uint8Array<ArrayBuffer>>;
     /** Derive a P-256 private key under a label, as a JSON Web Key. */
-    derivePrivateKey(label: string): Promise<JWK>;
+    readonly derivePrivateKey: (label: string) => Promise<JWK>;
 }
 
 /** Derive under labels from an HKDF root key, as a key management service derives its keys. */
