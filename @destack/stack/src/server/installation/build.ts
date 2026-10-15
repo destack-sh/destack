@@ -4,7 +4,7 @@ import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Lease } from "@destack/resource";
 import { PackageStore, Retention, encodeManifest } from "@destack/build/store";
 import { Snapshot } from "@destack/db";
-import type { CallOf, NextOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { type BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
@@ -158,21 +158,21 @@ export function implementBuild(options: BuildOptions) {
         methods: {
             create: {
                 // relate the runner its creation selects, which the build's modules and symbols use
-                creation: (call) => ({
+                creation: (context) => ({
                     relationships: [
-                        { relation: "runner", subject: runnerOf(call, options.buildRunner) },
+                        { relation: "runner", subject: runnerOf(context, options.buildRunner) },
                     ],
                 }),
-                handle: async (call, next) => {
+                handle: async (context, next) => {
                     // select the runner
-                    const spaceId = schema.identifier("space").parse(call.scope);
-                    const runner = runnerOf(call, options.buildRunner);
+                    const spaceId = schema.identifier("space").parse(context.scope);
+                    const runner = runnerOf(context, options.buildRunner);
 
                     // refuse a second live build of a commit's package directory
-                    const source = BuildSource.parse(call.input.source);
+                    const source = BuildSource.parse(context.input.source);
                     const existing =
                         source.kind === "commit"
-                            ? await Build.find(call, spaceId, source)
+                            ? await Build.find(context, spaceId, source)
                             : undefined;
                     if (existing !== undefined) {
                         throw new CallError("CONFLICT", {
@@ -181,8 +181,11 @@ export function implementBuild(options: BuildOptions) {
                     }
 
                     return next(
-                        call.with({
-                            input: { ...call.input, ...ObjectReference.columns("runner", runner) },
+                        context.with({
+                            input: {
+                                ...context.input,
+                                ...ObjectReference.columns("runner", runner),
+                            },
                         }),
                     );
                 },
@@ -191,40 +194,40 @@ export function implementBuild(options: BuildOptions) {
             start,
             push: {
                 // push a succeeded build's files to its package's forge before the transaction
-                prepare: async (call) => {
+                prepare: async (context) => {
                     const files = await options.builds.packages.contents(
-                        Build.manifest(call.target),
+                        Build.manifest(context.target),
                     );
 
                     return { manifest: await options.registry.push(files) };
                 },
-                handle: async (call) => call.prepared,
+                handle: async (context) => context.prepared,
             },
             progress: {
                 // lease the files a storing build's space lacks before the transaction
-                prepare: async (call) => ({
+                prepare: async (context) => ({
                     uploads:
-                        call.input.progress.phase === "storing"
-                            ? await lease(options.builds, call.input.progress.files, call.now)
+                        context.input.progress.phase === "storing"
+                            ? await lease(options.builds, context.input.progress.files, context.now)
                             : [],
                 }),
-                handle: async (call) => {
+                handle: async (context) => {
                     // record the phase the runner reports
-                    const { target, prepared } = call;
+                    const { target, prepared } = context;
                     requireRunning(target);
-                    const { progress } = call.input;
-                    await call.update(reported(target, progress));
+                    const { progress } = context.input;
+                    await context.update(reported(target, progress));
 
                     return { uploads: prepared.uploads };
                 },
             },
             finish: {
                 // keep a succeeded build's manifest before the transaction
-                prepare: (call) => adopt(options.builds, call.input.end),
-                handle: async (call) => {
+                prepare: (context) => adopt(options.builds, context.input.end),
+                handle: async (context) => {
                     // finish a running build with its stored manifest or its failure
-                    requireRunning(call.target);
-                    await call.update(ended(call.prepared, call.now));
+                    requireRunning(context.target);
+                    await context.update(ended(context.prepared, context.now));
 
                     return {};
                 },
@@ -235,34 +238,34 @@ export function implementBuild(options: BuildOptions) {
 
 /** Start a pending build. */
 async function start(
-    call: CallOf<typeof build, "start">,
+    context: MethodContextOf<typeof build, "start">,
 ): Promise<ResultOf<typeof build, "start">> {
     // refuse a build that is not pending
-    const { target } = call;
+    const { target } = context;
     if (target.state !== "pending") {
         throw new CallError("CONFLICT", { message: `build ${target.id} is ${target.state}` });
     }
 
     // record it running
-    await call.update({ state: "running", phase: "preparing", startedAt: call.now });
+    await context.update({ state: "running", phase: "preparing", startedAt: context.now });
 
     return {};
 }
 
 /** Cancel a pending or running build for its runner to abort. */
 async function cancel(
-    call: CallOf<typeof build, "cancel">,
+    context: MethodContextOf<typeof build, "cancel">,
     next: NextOf<typeof build, "cancel">,
 ): Promise<ResultOf<typeof build, "cancel">> {
     // refuse a finished build
-    const { target } = call;
+    const { target } = context;
     if (Build.isFinished(target)) {
         throw new CallError("CONFLICT", { message: `build ${target.id} is ${target.state}` });
     }
 
     return next(
-        call.with({
-            input: { ...call.input, state: "cancelled", phase: null, finishedAt: call.now },
+        context.with({
+            input: { ...context.input, state: "cancelled", phase: null, finishedAt: context.now },
         }),
     );
 }
@@ -270,7 +273,7 @@ async function cancel(
 /** Read the fields a runner's reported phase records. */
 function reported(
     target: Pick<Build, "source">,
-    progress: CallOf<typeof build, "progress">["input"]["progress"],
+    progress: MethodContextOf<typeof build, "progress">["input"]["progress"],
 ) {
     // record the phase alone while storing
     if (progress.phase !== "building") {
@@ -357,10 +360,10 @@ async function adopt(
 
 /** Read the machine running a new build. */
 function runnerOf(
-    call: Pick<CallOf<typeof build, "create">, "input">,
+    context: Pick<MethodContextOf<typeof build, "create">, "input">,
     buildRunner: Identifier<"machine"> | null,
 ): ObjectReference {
-    const { source } = call.input;
+    const { source } = context.input;
 
     // run a checkout's build on its machine
     if (source.kind === "checkout") {

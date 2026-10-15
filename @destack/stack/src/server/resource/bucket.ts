@@ -1,7 +1,6 @@
-import type { Call, CallOf, ResultOf } from "@destack/object";
+import type { MethodContext, MethodContextOf, ResultOf } from "@destack/object";
 import { Caller } from "@destack/access";
-import type { Select } from "@destack/db";
-import { type JsonObject, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { SpaceAllowance } from "@destack/account/object";
 import { CallError } from "@destack/runtime/error";
@@ -26,35 +25,35 @@ export function implementBucket(host: BucketHost) {
         methods: {
             files: (call) => listFiles(host, call),
             file: (call) => headFile(host, call),
-            open: { authorize: authorizeOpen, handle: (call) => openLease(host, call) },
+            open: { authorize: authorizeOpen, handle: (context) => openLease(host, context) },
             remove: {
-                authorize: async (call) => requireWriter(call),
-                handle: (call) => removeFiles(host, call),
+                authorize: async (context) => requireWriter(context),
+                handle: (context) => removeFiles(host, context),
             },
             createUpload: {
-                authorize: async (call) => {
-                    requireWriter(call);
-                    await requireStorage(call);
+                authorize: async (context) => {
+                    requireWriter(context);
+                    await requireStorage(context);
                 },
-                handle: (call) => createUpload(host, call),
+                handle: (context) => createUpload(host, context),
             },
             uploadPart: {
-                authorize: async (call) => {
-                    requireWriter(call);
-                    await requireStorage(call);
+                authorize: async (context) => {
+                    requireWriter(context);
+                    await requireStorage(context);
                 },
-                handle: (call) => uploadPart(host, call),
+                handle: (context) => uploadPart(host, context),
             },
             completeUpload: {
-                authorize: async (call) => {
-                    requireWriter(call);
-                    await requireStorage(call);
+                authorize: async (context) => {
+                    requireWriter(context);
+                    await requireStorage(context);
                 },
-                handle: (call) => completeUpload(host, call),
+                handle: (context) => completeUpload(host, context),
             },
             abortUpload: {
-                authorize: async (call) => requireWriter(call),
-                handle: (call) => abortUpload(host, call),
+                authorize: async (context) => requireWriter(context),
+                handle: (context) => abortUpload(host, context),
             },
         },
     });
@@ -63,11 +62,11 @@ export function implementBucket(host: BucketHost) {
 /** List a page of a bucket's files. */
 function listFiles(
     host: BucketHost,
-    call: CallOf<typeof bucket, "files">,
+    context: MethodContextOf<typeof bucket, "files">,
 ): Promise<ResultOf<typeof bucket, "files">> {
-    return withBucket(host, call, async (opened) => {
+    return withBucket(host, context, async (opened) => {
         // list a page of files
-        const input = call.input;
+        const input = context.input;
         const page = await opened.list({
             ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
             ...(input.delimiter === undefined ? {} : { delimiter: input.delimiter }),
@@ -86,31 +85,31 @@ function listFiles(
 /** Read one file's metadata, null for a missing file. */
 function headFile(
     host: BucketHost,
-    call: CallOf<typeof bucket, "file">,
+    context: MethodContextOf<typeof bucket, "file">,
 ): Promise<ResultOf<typeof bucket, "file">> {
-    return withBucket(host, call, async (opened) => {
-        const file = await opened.head(call.input.key);
+    return withBucket(host, context, async (opened) => {
+        const file = await opened.head(context.input.key);
 
         return file === null ? null : describe(file);
     });
 }
 
 /** Require the right to upload for a write. */
-async function authorizeOpen(call: CallOf<typeof bucket, "open">): Promise<void> {
-    if (call.input.mode === "write") {
-        await call.require(bucket.permission("write"), call.reference());
-        requireWriter(call);
-        await requireStorage(call);
+async function authorizeOpen(context: MethodContextOf<typeof bucket, "open">): Promise<void> {
+    if (context.input.mode === "write") {
+        await context.require(bucket.permission("write"), context.reference());
+        requireWriter(context);
+        await requireStorage(context);
     }
 }
 
 /** Presign a lease reading or writing one file's body. */
 function openLease(
     host: BucketHost,
-    call: CallOf<typeof bucket, "open">,
+    context: MethodContextOf<typeof bucket, "open">,
 ): Promise<ResultOf<typeof bucket, "open">> {
     // bind a read's range and entity tag
-    const input = call.input;
+    const input = context.input;
     const headers = new Headers();
     if (input.mode === "read") {
         if (input.range !== undefined) {
@@ -139,19 +138,19 @@ function openLease(
 
     return BucketLease.presign(
         host,
-        reference(call),
+        reference(context),
         { mode: input.mode, key: input.key, headers },
-        call.now,
+        context.now,
     );
 }
 
 /** Delete some files of a bucket. */
 function removeFiles(
     host: BucketHost,
-    call: CallOf<typeof bucket, "remove">,
+    context: MethodContextOf<typeof bucket, "remove">,
 ): Promise<ResultOf<typeof bucket, "remove">> {
-    return withBucket(host, call, async (opened) => {
-        await opened.delete(call.input.keys);
+    return withBucket(host, context, async (opened) => {
+        await opened.delete(context.input.keys);
 
         return {};
     });
@@ -160,11 +159,11 @@ function removeFiles(
 /** Create a multipart upload with the metadata its file receives. */
 function createUpload(
     host: BucketHost,
-    call: CallOf<typeof bucket, "createUpload">,
+    context: MethodContextOf<typeof bucket, "createUpload">,
 ): Promise<ResultOf<typeof bucket, "createUpload">> {
-    return withBucket(host, call, async (opened) => {
+    return withBucket(host, context, async (opened) => {
         // create the upload with the metadata its file receives
-        const input = call.input;
+        const input = context.input;
         requireMetadata(input.customMetadata);
         const upload = await opened.createMultipartUpload(input.key, {
             httpMetadata: httpMetadata(input.httpMetadata),
@@ -181,34 +180,34 @@ function createUpload(
 /** Presign a lease writing one part of a multipart upload. */
 function uploadPart(
     host: BucketHost,
-    call: CallOf<typeof bucket, "uploadPart">,
+    context: MethodContextOf<typeof bucket, "uploadPart">,
 ): Promise<ResultOf<typeof bucket, "uploadPart">> {
     // bind the part's length and number
-    const input = call.input;
+    const input = context.input;
     const headers = new Headers({ "content-length": String(input.size) });
     setCustomerKey(headers, input.customerKey);
 
     return BucketLease.presign(
         host,
-        reference(call),
+        reference(context),
         {
             mode: "write",
             key: input.key,
             headers,
             query: { partNumber: String(input.partNumber), uploadId: input.uploadId },
         },
-        call.now,
+        context.now,
     );
 }
 
 /** Complete a multipart upload from its parts. */
 function completeUpload(
     host: BucketHost,
-    call: CallOf<typeof bucket, "completeUpload">,
+    context: MethodContextOf<typeof bucket, "completeUpload">,
 ): Promise<ResultOf<typeof bucket, "completeUpload">> {
-    return withBucket(host, call, async (opened) => {
+    return withBucket(host, context, async (opened) => {
         // assemble the parts by their entity tags without quotes
-        const input = call.input;
+        const input = context.input;
         const upload = opened.resumeMultipartUpload(input.key, input.uploadId);
         const parts = input.parts.map((part) => ({
             partNumber: part.partNumber,
@@ -222,50 +221,50 @@ function completeUpload(
 /** Abort a multipart upload. */
 function abortUpload(
     host: BucketHost,
-    call: CallOf<typeof bucket, "abortUpload">,
+    context: MethodContextOf<typeof bucket, "abortUpload">,
 ): Promise<ResultOf<typeof bucket, "abortUpload">> {
-    return withBucket(host, call, async (opened) => {
-        const input = call.input;
+    return withBucket(host, context, async (opened) => {
+        const input = context.input;
         await opened.resumeMultipartUpload(input.key, input.uploadId).abort();
 
         return {};
     });
 }
 
-/** A call of a bucket's method on a loaded bucket. */
-type BucketCall = Call<(typeof bucket)["table"], JsonObject, Select<(typeof bucket)["table"]>>;
+/** A bucket method's context on a loaded bucket. */
+type BucketContext = MethodContext<{ readonly table: (typeof bucket)["table"] }, unknown>;
 
 /** Read the bucket a call targets. */
-function reference(call: BucketCall): BucketReference {
+function reference(context: BucketContext): BucketReference {
     return {
-        scope: schema.identifier("space").parse(call.scope),
-        bucketId: schema.identifier("bucket").parse(call.target.id),
+        scope: schema.identifier("space").parse(context.scope),
+        bucketId: schema.identifier("bucket").parse(context.target.id),
     };
 }
 
 /** Refuse a write into a bucket its package alone writes, unless the package calls as itself. */
-function requireWriter(call: BucketCall): void {
+function requireWriter(context: BucketContext): void {
     // refuse a write into a package's bucket by any caller but the package itself
-    const target = call.target;
-    const { subject } = call.caller;
-    const isItself = subject !== undefined && Subject.same(subject, Caller.principal(call.self));
+    const target = context.target;
+    const { subject } = context.caller;
+    const isItself = subject !== undefined && Subject.same(subject, Caller.principal(context.self));
     if (BucketSpec.parse(target.spec).write === "package" && !isItself) {
         throw new CallError("FORBIDDEN", { message: `the space alone writes ${target.id}` });
     }
 }
 
 /** Refuse a write into a space whose storage allowance is exceeded. */
-async function requireStorage(call: BucketCall): Promise<void> {
-    SpaceAllowance.require(await SpaceAllowance.read(call, call.scope), "storage");
+async function requireStorage(context: BucketContext): Promise<void> {
+    SpaceAllowance.require(await SpaceAllowance.read(context, context.scope), "storage");
 }
 
 /** Work on the bucket a call targets. */
 async function withBucket<Value>(
     host: BucketHost,
-    call: BucketCall,
+    context: BucketContext,
     work: (opened: Awaited<ReturnType<BucketHost["open"]>>) => Promise<Value>,
 ): Promise<Value> {
-    return work(await host.open(reference(call)));
+    return work(await host.open(reference(context)));
 }
 
 /** Describe a file's metadata for callers, with times in UTC milliseconds. */

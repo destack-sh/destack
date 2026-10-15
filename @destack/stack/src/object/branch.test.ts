@@ -2,14 +2,14 @@ import { testEvents, serversOf } from "@destack/object/test";
 import { principal, relation } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineDatabase, eq, TABLE } from "@destack/db";
-import { Call, defineObject, field } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import { Identifier, present, schema, Clock } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { expect, test } from "@destack/test";
 import { ids, spaceDatabase, StackFixture } from "../test/index.ts";
-import { branch, branchCall, branchChange, branchType } from "./branch.ts";
+import { branch, branchEntry, branchChange, branchType } from "./branch.ts";
 
 /** Notes a branch drafts before the main line has them. */
 const note = defineObject({
@@ -45,7 +45,7 @@ async function serveBranches() {
         chain: async () => undefined,
         clock: Clock.system,
         principal: principal.space.reference("universe", ids.space),
-        servers: serversOf([note, branch, branchCall, branchChange]),
+        servers: serversOf([note, branch, branchEntry, branchChange]),
         database: fixture.database,
         callKey: testCallKey,
         events: await testEvents(fixture.database),
@@ -89,7 +89,7 @@ test("draft a note on a branch over the main line, then merge it into the main l
     // open a branch and push a note's creation onto it
     const { call, read, open } = await serveBranches();
     const id = await open("drafts");
-    const created = Call.record(note, "create", { spaceId: ids.space, title: "draft" });
+    const created = note.call("create", { spaceId: ids.space, title: "draft" });
     await call([branch.call("push", { spaceId: ids.space, id, calls: [created] })]);
     const drafted = await read(id);
 
@@ -117,7 +117,7 @@ test("discard a branch, dropping its changes and leaving the main line as it was
     // push a note's creation onto a branch and discard it
     const { call, read, open } = await serveBranches();
     const id = await open("abandoned");
-    const created = Call.record(note, "create", { spaceId: ids.space, title: "draft" });
+    const created = note.call("create", { spaceId: ids.space, title: "draft" });
     await call([branch.call("push", { spaceId: ids.space, id, calls: [created] })]);
     await call([branch.call("discard", { spaceId: ids.space, id })]);
 

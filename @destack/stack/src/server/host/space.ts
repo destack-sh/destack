@@ -2,7 +2,6 @@ import { Placement, placement, Space, space, SpaceAllowance } from "@destack/acc
 import { eq, Snapshot } from "@destack/db";
 import { IdentityKeystore } from "@destack/account/identity";
 import {
-    Call,
     type ObjectController,
     type ObjectReconciliation,
     ObjectWatch,
@@ -138,7 +137,7 @@ async function report(
     input: JsonObject,
     now: number,
 ): Promise<void> {
-    const call = Call.record(space, name, { accountId: row.scope, id: row.id, ...input });
+    const call = space.call(name, { accountId: row.scope, id: row.id, ...input });
     await publisher.receive(
         { id: RequestId.create(now), calls: [call] },
         principal.space.reference(Scope.universe.id, row.id),

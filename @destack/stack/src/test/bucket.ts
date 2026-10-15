@@ -15,7 +15,7 @@ import {
 import { account } from "@destack/account/object";
 import { accountDatabase } from "@destack/account/stack";
 import { STACKS, TestDirectory } from "@destack/account/test";
-import { AuditCall, call, journal } from "@destack/object";
+import { CallEvent, call, journal } from "@destack/object";
 import { Journal } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
@@ -231,14 +231,14 @@ export class BucketFixture implements AsyncDisposable {
     }
 
     /** Read the audited calls of the fixture's member and installations, oldest first. */
-    async audits(): Promise<AuditCall[]> {
+    async audits(): Promise<CallEvent[]> {
         // read the space's call events
         const page = await this.#events.query(
             call.eventKind(),
             { scopes: [this.spaceId] },
             { limit: AUDITED_CALLS },
         );
-        const calls = page.events.map((event) => Journal.kept(AuditCall.parse(event.data)));
+        const calls = page.events.map((event) => Journal.kept(CallEvent.parse(event.data)));
 
         // keep the fixture's own callers, ordered by their time-ordered identifiers
         return calls

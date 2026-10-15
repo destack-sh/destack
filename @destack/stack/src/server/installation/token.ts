@@ -1,6 +1,6 @@
 import { type Authentication, Caller, principal } from "@destack/access";
 import { and, eq, isNull, type DatabaseConnection } from "@destack/db";
-import type { CallOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
 import { PackageId } from "@destack/package";
@@ -102,16 +102,16 @@ export const InstallationAssertion = {
 
     /** Grant the calling installation a token of its space for its own key's assertion. */
     async token(
-        call: CallOf<typeof installation, "token">,
+        context: MethodContextOf<typeof installation, "token">,
         issuer: TokenIssuer,
     ): Promise<ResultOf<typeof installation, "token">> {
         // read the key the installation's assertion proved
-        const { now } = call;
-        const target = call.target;
-        const { credential } = call.caller;
+        const { now } = context;
+        const target = context.target;
+        const { credential } = context.caller;
         const keyId = schema.identifier("installation-key").safeParse(credential?.id);
         const key = keyId.success
-            ? await call.read(installationKey).findFirst({ where: { id: keyId.data } })
+            ? await context.read(installationKey).findFirst({ where: { id: keyId.data } })
             : undefined;
         if (credential?.kind !== INSTALLATION_KEY || key?.parentId !== target.id) {
             throw new CallError("UNAUTHORIZED", {
@@ -120,10 +120,12 @@ export const InstallationAssertion = {
         }
 
         // record the key's use
-        await call.mutate(call.self, [installationKey.call("use", installationKey.target(key))]);
+        await context.mutate(context.self, [
+            installationKey.call("use", installationKey.target(key)),
+        ]);
 
         // sign a token of only the installation for the audience as its space
-        const subject = principal.installation.reference(call.scope, target.id);
+        const subject = principal.installation.reference(context.scope, target.id);
 
         return issuer.issue(
             {
@@ -131,8 +133,8 @@ export const InstallationAssertion = {
                 credential: {
                     kind: INSTALLATION_KEY,
                     id: key.id,
-                    audience: call.input.audience,
-                    scope: call.scope,
+                    audience: context.input.audience,
+                    scope: context.scope,
                     verifiedAt: now,
                     expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
                 },

@@ -25,7 +25,7 @@ import {
 } from "@destack/db";
 import { Placement } from "@destack/account/object";
 import { type IdentityKeystore } from "@destack/account/identity";
-import { type SettlementCall } from "@destack/object";
+import { type SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { ResourceId, ResourceRecord, ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
@@ -101,26 +101,26 @@ export function implementTransfer(options: TransferOptions) {
     return transfer.implement({
         methods: {
             create: {
-                prepare: (call) => mark(call, options),
-                settle: async (call, settled) => {
+                prepare: (context) => mark(context, options),
+                settle: async (context, settled) => {
                     // unmark a move whose creation failed
                     if (settled.status === "rolledBack") {
-                        await unmark(call, options);
+                        await unmark(context, options);
                     }
                 },
-                handle: async (call, next) => {
+                handle: async (context, next) => {
                     // move the space from this machine at its epoch
-                    const located = call.prepared;
+                    const located = context.prepared;
 
                     return next(
-                        call.with({
+                        context.with({
                             input: {
-                                ...call.input,
+                                ...context.input,
                                 sourceId: located.machine,
                                 sourceEpoch: located.epoch,
                                 ...ObjectReference.columns(
                                     "requestedBy",
-                                    requester(call.caller.subject, call.scope),
+                                    requester(context.caller.subject, context.scope),
                                 ),
                             },
                         }),
@@ -129,12 +129,12 @@ export function implementTransfer(options: TransferOptions) {
             },
             fence: {
                 // fence the space and its resources before the call's transaction, stopping its instances
-                prepare: async (call) => {
-                    const moving = await SpaceTransfer.plan(options, call.target);
+                prepare: async (context) => {
+                    const moving = await SpaceTransfer.plan(options, context.target);
 
-                    return moving.fence(options, call.now);
+                    return moving.fence(options, context.now);
                 },
-                handle: async (call) => call.prepared,
+                handle: async (context) => context.prepared,
             },
             snapshot: async (call) => {
                 // request the resource's snapshot once, answering its digest once the machine took it
@@ -145,9 +145,9 @@ export function implementTransfer(options: TransferOptions) {
             },
             cancel: {
                 // place the space at the next epoch to refuse every later step of a running move
-                prepare: async (call) => {
+                prepare: async (context) => {
                     // refuse an ended transfer
-                    const record = call.target;
+                    const record = context.target;
                     if (record.completedAt !== null) {
                         throw new CallError("CONFLICT", {
                             message: `transfer ${record.id} has ended`,
@@ -158,41 +158,41 @@ export function implementTransfer(options: TransferOptions) {
                     const moving = await SpaceTransfer.plan(options, record);
                     const next = { ...moving.placement, epoch: moving.placement.epoch + 1 };
                     await options.publisher.receive({
-                        id: RequestId.create(call.now),
+                        id: RequestId.create(context.now),
                         calls: [SpaceTransfer.placing(next)],
                     });
 
                     return moving.placement;
                 },
                 // serve the space again, end the transfer and retire its snapshots
-                handle: async (call) => {
+                handle: async (context) => {
                     // unfence the space as the canceller
-                    const located = call.prepared;
-                    await call.mutate(call.caller, [
-                        transfer.call("unfenceScope", transfer.target(call.target)),
+                    const located = context.prepared;
+                    await context.mutate(context.caller, [
+                        transfer.call("unfenceScope", transfer.target(context.target)),
                     ]);
 
                     // retire its snapshots as the space
-                    const retired = await call
+                    const retired = await context
                         .read(snapshot.table)
                         .findMany({ where: { spaceId: located.id } });
-                    await call.mutate(
+                    await context.mutate(
                         AccessContext.of(
                             Caller.of(principal.space.reference(Scope.universe.id, located.id)),
-                            call.now,
+                            context.now,
                         ),
                         retired.map(({ id }) => snapshot.call("delete", { id })),
                     );
 
-                    return call.update({ completedAt: call.now, outcome: "cancelled" });
+                    return context.update({ completedAt: context.now, outcome: "cancelled" });
                 },
                 // lift the fences of the space's resources once cancelled
-                settle: async (call, settled) => {
+                settle: async (context, settled) => {
                     if (settled.status === "committed") {
-                        const id = schema.identifier("transfer").parse(call.id);
-                        const record = await SpaceTransfer.read(call.database, id);
+                        const id = schema.identifier("transfer").parse(context.id);
+                        const record = await SpaceTransfer.read(context.database, id);
                         await SpaceTransfer.of(
-                            call.database,
+                            context.database,
                             settled.prepared,
                             record.targetId,
                         ).lift(options.providers);
@@ -263,16 +263,16 @@ async function mark(
 }
 
 /** Clear the move a failed transfer creation marked, unless another transfer of the space runs. */
-async function unmark(call: SettlementCall, options: TransferOptions): Promise<void> {
+async function unmark(context: SettlementContext, options: TransferOptions): Promise<void> {
     // leave a space another machine serves now
-    const spaceId = schema.identifier("space").parse(call.scope);
-    const [located] = await Placement.find(Snapshot.live(call.database), [spaceId]);
+    const spaceId = schema.identifier("space").parse(context.scope);
+    const [located] = await Placement.find(Snapshot.live(context.database), [spaceId]);
     if (located === undefined || located.machine !== options.machine) {
         return;
     }
 
     // leave the move of a transfer still running
-    const [running] = await call.database
+    const [running] = await context.database
         .select({ id: transfer.table.id })
         .from(transfer.table)
         .where(and(eq(transfer.table.scope, spaceId), isNull(transfer.table.completedAt)));
@@ -283,7 +283,7 @@ async function unmark(call: SettlementCall, options: TransferOptions): Promise<v
     // serve the space at its epoch again, which clears the move
     const placed = { accountId: located.scope, id: spaceId, epoch: located.epoch };
     await options.publisher.receive({
-        id: RequestId.create(call.now),
+        id: RequestId.create(context.now),
         calls: [placement.call("place", placed)],
     });
 }

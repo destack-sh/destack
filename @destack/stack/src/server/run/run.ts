@@ -9,24 +9,22 @@ import {
     type DatabaseConnection,
     DatabaseError,
     type RowImage,
-    type Select,
     Snapshot,
 } from "@destack/db";
 import { type Controller, Reconciliation } from "@destack/runtime/control";
 import type { ObjectStore } from "@destack/object/server";
 import {
-    Call,
-    type CallOf,
+    MethodContext,
+    type MethodContextOf,
     type NextOf,
     type ObjectReconciliation,
     ObjectController,
     ObjectWatch,
     PushResult,
     type ResultOf,
-    type ObjectCall,
     type ResultsOf,
 } from "@destack/object";
-import { aligned, Clock, Identifier, type JsonObject, present } from "@destack/schema";
+import { aligned, Clock, Identifier, present } from "@destack/schema";
 import { type ExchangeAsk, TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import {
     errorOf,
@@ -211,23 +209,23 @@ export function controlRuns(store: ObjectStore, attempts: RunAttemptOptions): Co
 
 /** Record a sent or fired call once per request. */
 async function send(
-    call: CallOf<typeof run, "send">,
+    context: MethodContextOf<typeof run, "send">,
     next: NextOf<typeof run, "send">,
 ): Promise<ResultOf<typeof run, "send">> {
     // read the fired trigger's call when the request has a trigger or else the sent call
-    const { installationId, ...fields } = call.input;
+    const { installationId, ...fields } = context.input;
     const request = parseRequest(fields);
 
     // resolve the fired trigger
     const fired =
-        "triggerName" in request ? await firedTrigger(call, installationId, request) : undefined;
-    const requestId = fired === undefined ? call.requestId : RunEvent.requestId(fired.event);
+        "triggerName" in request ? await firedTrigger(context, installationId, request) : undefined;
+    const requestId = fired === undefined ? context.requestId : RunEvent.requestId(fired.event);
     if (requestId === undefined) {
         throw new CallError("BAD_REQUEST", { message: "a sent run needs its request" });
     }
 
     // answer the run its request already has
-    const recorded = await recordedRun(call, installationId, fired?.id ?? null, requestId);
+    const recorded = await recordedRun(context, installationId, fired?.id ?? null, requestId);
     if (recorded !== undefined) {
         return recorded;
     }
@@ -242,7 +240,7 @@ async function send(
         installationId,
         call: request.call,
         ...(fired === undefined ? {} : { triggerId: fired.id, event: fired.event }),
-        at: at ?? call.now,
+        at: at ?? context.now,
         state: "pending" as const,
         ...(exchange === undefined ? {} : { exchange }),
         attempts: 0,
@@ -251,11 +249,11 @@ async function send(
 
     // answer a request another delivery recorded meanwhile
     try {
-        return await next(call.with({ input }));
+        return await next(context.with({ input }));
     } catch (error) {
         const raced =
             error instanceof DatabaseError && error.code === "DUPLICATE"
-                ? await recordedRun(call, installationId, fired?.id ?? null, requestId)
+                ? await recordedRun(context, installationId, fired?.id ?? null, requestId)
                 : undefined;
         if (raced === undefined) {
             throw error;
@@ -290,12 +288,12 @@ function parseRequest(fields: Readonly<Record<string, unknown>>): RunRequest {
 
 /** Resolve the declared trigger a workload's request fired. */
 async function firedTrigger(
-    call: Call<typeof run.table>,
+    context: MethodContext,
     installationId: Identifier<"installation">,
     request: Extract<RunRequest, { readonly triggerName: string }>,
 ) {
     // find the trigger the installation's package declares under the name
-    const [found] = await call.read(trigger).findMany({
+    const [found] = await context.read(trigger).findMany({
         where: {
             installationId,
             origin: "declared",
@@ -330,32 +328,32 @@ async function firedTrigger(
 
 /** Close a live run: record its run event under its trigger's name and remove its row. */
 async function close(
-    call: Call<typeof run.table, JsonObject, Select<typeof run.table>>,
+    context: MethodContext<{ readonly table: typeof run.table }, unknown>,
     outcome: RunOutcome,
 ) {
     // read the name of the trigger that fired the run
-    const current = call.target;
+    const current = context.target;
     const fired =
         current.triggerId === null
             ? undefined
-            : await call.read(trigger).findFirst({ where: { id: current.triggerId } });
+            : await context.read(trigger).findFirst({ where: { id: current.triggerId } });
 
     // record the event and remove the row
-    const event = Run.event(current, outcome, fired?.name ?? null, call.now);
-    await call.mutate(call.self, [
+    const event = Run.event(current, outcome, fired?.name ?? null, context.now);
+    await context.mutate(context.self, [
         runOutcome.call("record", { ...runOutcome.in(current.scope), items: [event] }),
     ]);
-    await call.remove();
+    await context.remove();
 }
 
 /** Find the run a request already recorded for an installation's trigger or its sent calls. */
 async function recordedRun(
-    call: Call,
+    context: MethodContext,
     installationId: Identifier<"installation">,
     triggerId: Identifier<"trigger"> | null,
     requestId: string,
 ): Promise<Run | undefined> {
-    const [found] = await call.read(run).findMany({
+    const [found] = await context.read(run).findMany({
         where: {
             installationId,
             triggerId: triggerId === null ? { isNull: true } : triggerId,
@@ -647,7 +645,7 @@ function finished(current: Run, outcome: RunOutcome) {
 }
 
 /** Run one call on a run as the store's principal. */
-async function mutateIfCurrent<const Changed extends ObjectCall>(
+async function mutateIfCurrent<const Changed extends sync.Call>(
     reconciliation: ObjectReconciliation,
     changed: Changed,
 ): Promise<ResultsOf<readonly [Changed]> | []> {

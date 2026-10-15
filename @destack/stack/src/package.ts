@@ -4,7 +4,7 @@ import { module, symbol } from "./graph/object.ts";
 import {
     binding,
     branch,
-    branchCall,
+    branchEntry,
     branchChange,
     build,
     capture,
@@ -56,7 +56,7 @@ export default definePackage({
         route,
         socket,
         branch,
-        branchCall,
+        branchEntry,
         branchChange,
         role,
         relationship,

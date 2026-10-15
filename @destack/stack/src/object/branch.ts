@@ -89,12 +89,12 @@ export const branch = defineObject({
                 return call.update(await opened.build(call, target, appended, await opened.rows()));
             },
             merge: {
-                expand: (call) => new Branch(branchType, call, call.target.id).calls(),
-                handle: async (call) => {
+                expand: (context) => new Branch(branchType, context, context.target.id).entries(),
+                handle: async (context) => {
                     // refuse calls pushed after the server's expansion read them
-                    const target = branchType.requireOpen(call.target);
-                    const opened = new Branch(branchType, call, target.id);
-                    const expansion = call.expansion;
+                    const target = branchType.requireOpen(context.target);
+                    const opened = new Branch(branchType, context, target.id);
+                    const expansion = context.expansion;
                     if (expansion !== undefined && (await opened.count()) !== expansion.length) {
                         throw new CallError("CONFLICT", {
                             message: "branch has calls the merge did not run",
@@ -102,9 +102,9 @@ export const branch = defineObject({
                     }
 
                     // drop the rows the merge wrote for real and close the branch
-                    await opened.store(call, []);
+                    await opened.store(context, []);
 
-                    return call.update({ state: "merged" });
+                    return context.update({ state: "merged" });
                 },
             },
             discard: async (call) => {
@@ -124,15 +124,15 @@ export const branch = defineObject({
                 // replay every call over the main line
                 const opened = new Branch(branchType, call, target.id);
 
-                return call.update(await opened.build(call, target, await opened.calls(), []));
+                return call.update(await opened.build(call, target, await opened.entries(), []));
             },
         },
     });
 
 /** One call of a branch, in the order it replays. */
-export const branchCall = defineObject({
-    name: "branch-call",
-    plural: "branchCalls",
+export const branchEntry = defineObject({
+    name: "branch-entry",
+    plural: "branchEntries",
     scope: space,
     nested: { in: branch, delete: "cascade", receive: "push" },
     fields: {
@@ -199,6 +199,6 @@ export const branchChange = defineObject({
 /** A space's branch types. */
 export const branchType = new BranchType({
     object: branch,
-    call: branchCall,
+    entry: branchEntry,
     change: branchChange,
 });

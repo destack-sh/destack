@@ -3,8 +3,8 @@ import { aligned, canonicalize, Digest, type Identifier, present, schema } from 
 import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
 import {
-    type Call,
-    type CallOf,
+    type MethodContext,
+    type MethodContextOf,
     ObjectWatch,
     type ResourceType,
     type ResultOf,
@@ -91,7 +91,7 @@ export interface InstallationOptions extends StackOptions, ApplicationOptions {
 }
 
 /** A create or update call selecting a release, repository or checkout. */
-interface SelectingCall extends Pick<Call, "read"> {
+interface SelectingCall extends Pick<MethodContext, "read"> {
     /** The space the installation lives in. */
     readonly scope: string;
     /** The selection the call writes, absent for one leaving it. */
@@ -136,14 +136,15 @@ function handleInstallations(options: InstallationOptions) {
             },
             submit: {
                 // read the owner of a repository the submission selects anew
-                prepare: (call) =>
+                prepare: (context) =>
                     SelectedRepository.owner(
                         options.repositories,
-                        canonicalize(call.input.selection) === canonicalize(call.target.selection)
+                        canonicalize(context.input.selection) ===
+                            canonicalize(context.target.selection)
                             ? undefined
-                            : call.input.selection,
+                            : context.input.selection,
                     ),
-                handle: (call) => submit(call, call.prepared, options),
+                handle: (context) => submit(context, context.prepared, options),
             },
             deploy: async (call) => ({ requested: await new Application(call, options).deploy() }),
             finalize: async (call, next) => {
@@ -184,13 +185,13 @@ function handleSelection(options: Pick<InstallationOptions, "repositories">) {
 
 /** Record a submitted build as the installation's revision and follow it. */
 async function submit(
-    call: CallOf<typeof installation, "submit">,
+    context: MethodContextOf<typeof installation, "submit">,
     owner: Identifier<"account"> | null,
     options: InstallationOptions,
 ): Promise<Installation> {
     // refuse another account's repository
-    const { target, input: submission } = call;
-    await SelectedRepository.require(call, call.scope, submission.selection, owner);
+    const { target, input: submission } = context;
+    await SelectedRepository.require(context, context.scope, submission.selection, owner);
 
     // require a stack's evaluation for a stack and none for an application
     const { selection, evaluation } = submission;
@@ -204,7 +205,7 @@ async function submit(
     }
 
     // pin the submitted build and require a build of the installation's package
-    const build = await pin(call, target, submission.build, options);
+    const build = await pin(context, target, submission.build, options);
     const reader = await options.builds.packages.contents(build.manifest);
     const built = reader.manifest.package.id;
     if (built !== target.packageId) {
@@ -214,7 +215,7 @@ async function submit(
     }
 
     // retain the evaluation once
-    const [revision] = await call.mutate(call.self, [
+    const [revision] = await context.mutate(context.self, [
         await InstallationRevision.create(target, build, evaluation),
     ]);
 
@@ -241,21 +242,21 @@ async function submit(
     }
 
     // record its submitter, who consents to what it requests
-    const submittedBy = ObjectReference.columns("submittedBy", call.caller.subject);
+    const submittedBy = ObjectReference.columns("submittedBy", context.caller.subject);
 
-    return call.update({ ...followed, ...submittedBy });
+    return context.update({ ...followed, ...submittedBy });
 }
 
 /** Pin a submitted build by its manifest's digest. */
 async function pin(
-    call: Call,
+    context: MethodContext,
     target: Installation,
     reference: Submission["build"],
     options: Pick<InstallationOptions, "builds" | "registry">,
 ): Promise<InstallationBuild> {
     // take a succeeded build of the space
     if (reference.kind === "build") {
-        return Build.resolve(call, target.scope, reference.build);
+        return Build.resolve(context, target.scope, reference.build);
     }
 
     // keep the release a version or tag points at in the build store
@@ -349,16 +350,18 @@ function declaredBuild(desired: {
 
 /** Open a view the installation's revision declares at a location, in the opening person's home. */
 async function open(
-    call: CallOf<typeof declaredInstallation, "open">,
+    context: MethodContextOf<typeof declaredInstallation, "open">,
     options: Pick<InstallationOptions, "accounts">,
 ): Promise<ResultOf<typeof declaredInstallation, "open">> {
     // require a revision declaring the view
-    const { target } = call;
-    const { view, path } = call.input;
+    const { target } = context;
+    const { view, path } = context.input;
     const revision =
         target.revisionId === null
             ? undefined
-            : await call.read(installationRevision).findFirst({ where: { id: target.revisionId } });
+            : await context
+                  .read(installationRevision)
+                  .findFirst({ where: { id: target.revisionId } });
     const definition = revision?.views[view];
     if (revision === undefined || definition === undefined) {
         throw new CallError("NOT_FOUND", {
@@ -367,7 +370,7 @@ async function open(
     }
 
     // read the opening person's home
-    const opener = present(call.caller.subject, `the person opening ${target.name}`);
+    const opener = present(context.caller.subject, `the person opening ${target.name}`);
     if (!principal.user.is(opener)) {
         throw new CallError("BAD_REQUEST", { message: `${Subject.key(opener)} has no home` });
     }

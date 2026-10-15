@@ -4,7 +4,7 @@ import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { type DatabaseConnection, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
 import { type IdentityKeystore } from "@destack/account/identity";
-import type { Call } from "@destack/object";
+import type { MethodContext } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
 import { type ResourceId, type Rewrapper, type ContentStore } from "@destack/resource";
@@ -393,7 +393,7 @@ export const SourceHandoff = {
     /** Request a snapshot of a space's resource for a recipient once, answering its digest. */
     async snapshot(
         providers: ProviderIndex,
-        call: Pick<Call, "mutate" | "now" | "read">,
+        context: Pick<MethodContext, "mutate" | "now" | "read">,
         input: {
             readonly spaceId: Identifier<"space">;
             readonly resourceId: ResourceId;
@@ -401,7 +401,7 @@ export const SourceHandoff = {
         },
     ): Promise<{ readonly digest: Digest | null }> {
         // refuse a resource the space keeps no record of
-        const found = await providers.find(call, input.spaceId, input.resourceId);
+        const found = await providers.find(context, input.spaceId, input.resourceId);
         if (found === undefined) {
             throw new CallError("NOT_FOUND", {
                 message: `${input.spaceId} has no resource ${input.resourceId}`,
@@ -409,7 +409,7 @@ export const SourceHandoff = {
         }
 
         // request the snapshot once as the space, else answer the digest of the requested one
-        const [existing] = await call.read(snapshot.table).findMany({
+        const [existing] = await context.read(snapshot.table).findMany({
             where: {
                 resourceId: input.resourceId,
                 recipient: input.recipient,
@@ -417,7 +417,7 @@ export const SourceHandoff = {
         });
         if (existing === undefined) {
             const itself = principal.space.reference(Scope.universe.id, input.spaceId);
-            await call.mutate(AccessContext.of(Caller.of(itself), call.now), [
+            await context.mutate(AccessContext.of(Caller.of(itself), context.now), [
                 snapshot.call("create", input),
             ]);
 

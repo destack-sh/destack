@@ -2,7 +2,7 @@ import { Space, space } from "@destack/account/object";
 import { and, DatabaseKind, DatabaseState, eq } from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
 import accountPackage from "@destack/account/package";
-import { type CallOf, type ObjectReconciliation, type ResultOf } from "@destack/object";
+import { type MethodContextOf, type ObjectReconciliation, type ResultOf } from "@destack/object";
 import { declareInstalled } from "@destack/object/inspect";
 import {
     Capabilities,
@@ -121,21 +121,24 @@ interface Refusal {
 /** An application installation one deploy call deploys, drains and relates. */
 export class Application {
     /** The deploy call. */
-    readonly #call: CallOf<typeof installation, "deploy">;
+    readonly #context: MethodContextOf<typeof installation, "deploy">;
     /** What the machine deploys with. */
     readonly #options: ApplicationOptions;
 
     /** Create an application of the installation a deploy call deploys. */
-    constructor(call: CallOf<typeof installation, "deploy">, options: ApplicationOptions) {
-        this.#call = call;
+    constructor(
+        context: MethodContextOf<typeof installation, "deploy">,
+        options: ApplicationOptions,
+    ) {
+        this.#context = context;
         this.#options = options;
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
     async deploy(): Promise<Requested | null> {
         // read the revision it follows and its live deployments
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         const revision =
             target.revisionId === null
                 ? undefined
@@ -181,8 +184,8 @@ export class Application {
     /** Relate the application as consumer of exactly what its live deployments captured. */
     async #relate(): Promise<void> {
         // relate it as consumer of what its live deployments captured
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         const digest = await this.#options.binder.relate(
             call,
             target.scope,
@@ -205,7 +208,7 @@ export class Application {
         live: readonly Deployment[],
     ): Promise<Requested | null> {
         // read the workloads the machine runs
-        const target = this.#call.target;
+        const target = this.#context.target;
         const build = await this.#open(revision.build.manifest);
         const { workloads, stranded } = this.#selectWorkloads(build);
 
@@ -252,8 +255,8 @@ export class Application {
         rollout: RolloutPlan,
     ): Promise<Requested | null> {
         // attach what the installation owns and wait for targets not ready to capture
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         const { build, workloads, fresh, replaced, needs } = rollout;
         await this.#options.binder.attach(call, target, needs);
         if (!(await this.#options.binder.ready(call, target, needs))) {
@@ -344,7 +347,7 @@ export class Application {
 
         // refuse them, as the space's main database keeps every installation's tables
         const names = databases.map((declaration) => declaration.name).join(", ");
-        const message = `${this.#call.target.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
+        const message = `${this.#context.target.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
 
         return { reason: "DeclaredDatabase", message };
     }
@@ -352,14 +355,14 @@ export class Application {
     /** Observe the application refusing to deploy, with the reason and message why. */
     async #refuse(refusal: Refusal): Promise<void> {
         const ready = { status: "false" as const, ...refusal };
-        await this.#call.observe(installation, this.#call.target, { conditions: { ready } });
+        await this.#context.observe(installation, this.#context.target, { conditions: { ready } });
     }
 
     /** Hold the deploy for a refused or unapproved upgrade, observing why, and report a hold. */
     async #holdForUpgrade(revision: InstallationRevision, build: BuildReader): Promise<boolean> {
         // pass a first deploy and a redeploy of the applied revision
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         if (target.appliedRevisionId === null || target.appliedRevisionId === revision.id) {
             return false;
         }
@@ -414,10 +417,10 @@ export class Application {
         needs: readonly ResourceNeed[],
     ): Promise<Refusal | undefined> {
         // read the installation's bindings
-        const bound = await this.#call.read(binding).findMany({
+        const bound = await this.#context.read(binding).findMany({
             where: {
-                scope: this.#call.target.scope,
-                installationId: this.#call.target.id,
+                scope: this.#context.target.scope,
+                installationId: this.#context.target.id,
             },
         });
 
@@ -447,11 +450,11 @@ export class Application {
         workload: BuildWorkload,
         releases: Releases,
     ): Promise<void> {
-        const call = this.#call;
+        const call = this.#context;
         const [activated] = await call.mutate(call.self, [
             deployment.call("create", {
-                installationId: this.#call.target.id,
-                packageId: this.#call.target.packageId,
+                installationId: this.#context.target.id,
+                packageId: this.#context.target.packageId,
                 revisionId: revision.id,
                 output: workload.output,
                 workload: workload.name,
@@ -473,8 +476,8 @@ export class Application {
         }
 
         // read the bindings and the active deployments' captures
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         const bindings = await call.read(binding).findMany({
             where: {
                 scope: target.scope,
@@ -515,8 +518,8 @@ export class Application {
     /** Keep exactly the triggers the build declares, leaving those the installation created. */
     async #declareTriggers(build: BuildReader): Promise<void> {
         // read the package's own triggers
-        const call = this.#call;
-        const target = this.#call.target;
+        const call = this.#context;
+        const target = this.#context.target;
         const declared = (await ownDeclarations(build, "trigger", TriggerDescription)).map(
             (declaration) => declaration.description,
         );
@@ -573,7 +576,7 @@ export class Application {
         | { readonly kind: "refused"; readonly refusal: Refusal }
     > {
         // skip rollbacks
-        const target = this.#call.target;
+        const target = this.#context.target;
         const from = (await this.#open(applied.manifest)).manifest.package.version;
         if (Version.compare(next.manifest.package.version, from) <= 0) {
             return { kind: "planned", plan: { steps: [] } };
@@ -619,7 +622,7 @@ export class Application {
         readonly stranded: string[];
     } {
         // list the workloads of the emitted server outputs with their required and allowed capabilities
-        const target = this.#call.target;
+        const target = this.#context.target;
         const offered = Object.entries(build.manifest.outputs).flatMap(([output, described]) =>
             described.runtime !== "browser" && described.emit
                 ? Object.entries(described.workloads).map(([name, description]) => {
@@ -664,7 +667,7 @@ export class Application {
     /** Describe what the application allows or grants beyond what its build declares. */
     #describeUndeclaredGrants(build: BuildReader): string | undefined {
         // collect the capabilities the build's workloads and views declare
-        const target = this.#call.target;
+        const target = this.#context.target;
         const outputs = Object.values(build.manifest.outputs);
         const workloads = outputs.flatMap((output) =>
             Object.values(output.workloads).map((description) => description.capabilities),
@@ -710,7 +713,7 @@ export class Application {
         workloads: readonly BuildWorkload[],
     ): Promise<ResourceNeed[]> {
         // list the package's own resources and secrets the workloads use
-        const packageId = this.#call.target.packageId;
+        const packageId = this.#context.target.packageId;
         const declarations = await build.declarations();
         const used = new Set(
             workloads.flatMap((workload) =>
@@ -772,14 +775,14 @@ export class Application {
         }));
         const declared = declareInstalled(
             [...depended.flat(), ...owned],
-            ObjectStore.known(this.#call.objects, Object.values(accountPackage.objects)),
+            ObjectStore.known(this.#context.objects, Object.values(accountPackage.objects)),
         );
         if (!declared.some((type) => type.package.id === packageId)) {
             return [];
         }
 
         // describe its durable objects' tables, placed beside the closure's and platform's they reference
-        const served = this.#call.objects;
+        const served = this.#context.objects;
         const tables = new Set(
             [...declared, ...served]
                 .filter((type) => type.storage === "durable")
@@ -819,26 +822,30 @@ export async function reconcileApplication(
 
 /** Remove a drained application's deployments with their instances and captures. */
 export async function finalizeApplication(
-    call: CallOf<typeof installation, "finalize">,
+    context: MethodContextOf<typeof installation, "finalize">,
     options: Pick<ApplicationOptions, "binder">,
 ): Promise<void> {
     // release the resources it owns to their retention
-    const target = call.target;
-    await options.binder.attach(call, target, []);
+    const target = context.target;
+    await options.binder.attach(context, target, []);
 
     // delete its retired deployments with their instances and captures
-    const retired = await call.read(deployment).findMany({ where: { installationId: target.id } });
+    const retired = await context
+        .read(deployment)
+        .findMany({ where: { installationId: target.id } });
     const ids = retired.map((entry) => entry.id);
-    const instances = await call.read(instance).findMany({ where: { deploymentId: { in: ids } } });
-    const captures = await call.read(capture).findMany({ where: { deploymentId: { in: ids } } });
-    await call.mutate(call.self, [
+    const instances = await context
+        .read(instance)
+        .findMany({ where: { deploymentId: { in: ids } } });
+    const captures = await context.read(capture).findMany({ where: { deploymentId: { in: ids } } });
+    await context.mutate(context.self, [
         ...instances.map((row) => instance.call("delete", { id: row.id })),
         ...captures.map((row) => capture.call("delete", { id: row.id })),
         ...retired.map((row) => deployment.call("delete", { id: row.id })),
     ]);
 
     // drop its grant
-    await InstallationGrant.keep(call, target, []);
+    await InstallationGrant.keep(context, target, []);
 }
 
 /** Report whether an active deployment runs a chosen output of the revision. */

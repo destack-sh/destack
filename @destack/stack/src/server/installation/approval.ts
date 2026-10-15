@@ -1,7 +1,12 @@
 import type { Resource } from "../resource/resource.ts";
 import { space } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
-import { Call, type ObservationReport, type ResourceType, type ResourceRow } from "@destack/object";
+import {
+    MethodContext,
+    type ObservationReport,
+    type ResourceType,
+    type ResourceRow,
+} from "@destack/object";
 import { Address, Plan } from "@destack/resource";
 import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
@@ -111,7 +116,10 @@ export class Approval {
     }
 
     /** Accept each waiting plan on its object as the space, where the object lives. */
-    async approve(reviewed: string, call: Pick<Call, "mutate" | "self">): Promise<Plan> {
+    async approve(
+        reviewed: string,
+        context: Pick<MethodContext, "mutate" | "self">,
+    ): Promise<Plan> {
         // require the plan waiting now
         const plan = this.plan();
         await Approval.require(plan.steps.length === 0 ? null : plan, reviewed);
@@ -119,13 +127,13 @@ export class Approval {
         // accept each part as its controller planned it, as the space
         const approvals = await Promise.all(
             this.waiting.map(async (entry) =>
-                Call.record(entry.object, "approvePlan", {
+                entry.object.call("approvePlan", {
                     id: entry.id,
                     plan: await Plan.digest(entry.plan),
                 }),
             ),
         );
-        await call.mutate(call.self, approvals);
+        await context.mutate(context.self, approvals);
 
         return plan;
     }

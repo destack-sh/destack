@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import type { Call } from "@destack/object";
+import type { MethodContext } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { InstallationSelection } from "../../declare/installation.ts";
@@ -35,7 +35,7 @@ export const SelectedRepository = {
 
     /** Refuse a selection of a repository the space's account does not own. */
     async require(
-        call: Pick<Call, "read">,
+        context: Pick<MethodContext, "read">,
         spaceId: string,
         selection: InstallationSelection | undefined,
         owner: Identifier<"account"> | null,
@@ -46,7 +46,7 @@ export const SelectedRepository = {
         }
 
         // require the space's account
-        const selected = await call
+        const selected = await context
             .read(space)
             .findFirst({ where: { id: schema.identifier("space").parse(spaceId) } });
         if (selected?.scope !== owner) {

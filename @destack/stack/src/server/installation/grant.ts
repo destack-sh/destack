@@ -4,7 +4,7 @@ import {
     type PermissionScope,
     principal,
 } from "@destack/access";
-import type { Call } from "@destack/object";
+import type { MethodContext } from "@destack/object";
 import { type WorkloadDescription } from "@destack/package/manifest";
 import { type Installation, role } from "../../object/index.ts";
 
@@ -30,7 +30,7 @@ export const InstallationGrant = {
 
     /** Keep the installation's role in its space granting exactly the permissions. */
     async keep(
-        call: Call,
+        context: MethodContext,
         target: Installation,
         permissions: readonly PermissionReference[],
     ): Promise<void> {
@@ -40,7 +40,7 @@ export const InstallationGrant = {
             packageId: target.packageId,
             name: GRANT_NAME,
         };
-        await call.mutate(call.self, [
+        await context.mutate(context.self, [
             role.call("keep", {
                 ...role.in(target.scope),
                 name: `installation/${target.id}`,
