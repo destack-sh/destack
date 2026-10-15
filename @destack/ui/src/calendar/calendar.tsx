@@ -151,11 +151,11 @@ const MOVES: Readonly<Record<string, (day: PlainDate, isShift: boolean) => Plain
     PageDown: (day, isShift) => Day.addMonths(day, isShift ? 12 : 1),
 };
 
-/** The month, limits and look of a calendar in any mode. */
-export interface CalendarLook extends Omit<
+/** The properties of a calendar: its look and the selection of its mode. */
+export type CalendarProperties = Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "ref" | "onSelect"
-> {
+> & {
     /** The month shown at first, the selection's or today's by default. */
     readonly defaultMonth?: PlainDate;
     /** Report whether a day cannot be selected. */
@@ -178,10 +178,7 @@ export interface CalendarLook extends Omit<
     readonly showOutsideDays?: boolean;
     /** The StyleX styles applied after the calendar's styles. */
     readonly xstyle?: style.Styles;
-}
-
-/** The properties of a calendar: its look and the selection of its mode. */
-export type CalendarProperties = CalendarLook & CalendarSelection;
+} & CalendarSelection;
 
 /** The selection, focused day and months shown of a calendar, which its months and grids share. */
 class CalendarControl {

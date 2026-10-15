@@ -11,7 +11,7 @@ import {
     useContext,
 } from "@destack/view";
 import { useFieldControl } from "../field/control.ts";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import {
     ToggleInput,
     type ToggleFormProperties,
@@ -174,9 +174,12 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
 
     return (
         <CheckboxContext value={{ state, isDisabled }}>
-            {rendered(properties.render, part, rest, () => (
-                <button type="button" {...part} {...rest} />
-            ))}
+            {useRender({
+                render: properties.render,
+                defaultTagName: "button",
+                part: merge({ type: "button" }, part),
+                properties: rest,
+            })}
             <Show when={isSubmitted(properties)}>
                 <ToggleInput
                     name={properties.name}

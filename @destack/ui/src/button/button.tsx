@@ -3,7 +3,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
 
@@ -219,5 +219,10 @@ export function Button(properties: ButtonProperties): JSX.Element {
         () => style.attributes([buttonVariants(button), join(), button.xstyle], button.style),
     );
 
-    return rendered(button.render, part, rest, () => <button {...part} {...rest} />);
+    return useRender({
+        render: button.render,
+        defaultTagName: "button",
+        part: part,
+        properties: rest,
+    });
 }

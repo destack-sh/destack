@@ -87,18 +87,15 @@ const styles = style.create({
 });
 
 /** The properties of a select, the native select's attributes included. */
-export type SelectProperties = SelectLook & SelectionProperties;
-
-/** The look and prompt of a select, the native select's attributes included. */
-export interface SelectLook extends Omit<
+export type SelectProperties = Omit<
     JSX.SelectHTMLAttributes<HTMLSelectElement>,
     "class" | "value" | "multiple" | "onChange"
-> {
+> & {
     /** The prompt a single select shows until an option is chosen. */
     readonly placeholder?: string;
     /** The StyleX styles applied after the select's styles. */
     readonly xstyle?: style.Styles;
-}
+} & SelectionProperties;
 
 /** The properties of an element of a select, the native element's attributes included. */
 export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;

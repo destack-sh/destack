@@ -3,7 +3,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 
 /** The variant of a badge that sets none. */
 const DEFAULTS: Required<Pick<BadgeProperties, "variant">> = { variant: "default" };
@@ -83,5 +83,10 @@ export function Badge(properties: BadgeProperties): JSX.Element {
         () => style.attributes([badgeVariants(badge), badge.xstyle], badge.style),
     );
 
-    return rendered(badge.render, part, rest, () => <span {...part} {...rest} />);
+    return useRender({
+        render: badge.render,
+        defaultTagName: "span",
+        part: part,
+        properties: rest,
+    });
 }

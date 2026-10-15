@@ -37,7 +37,7 @@ export interface AutocompleteTarget {
     /** Report whether the arrow keys move along the search field's text, as in a vertical list. */
     readonly isVertical: boolean;
     /** Run the action of a key's item, as Enter does. */
-    act(key: string): void;
+    readonly act: (key: string) => void;
 }
 
 /** The search of an autocomplete and how it filters. */

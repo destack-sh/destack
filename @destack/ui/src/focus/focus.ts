@@ -15,7 +15,7 @@ export interface KeyboardDelegate<Key> {
     /** Read the key a key press moves the focus to from a key. */
     target(event: KeyboardEvent, from: Key, direction: Direction): Key | undefined;
     /** Read the first key that takes the focus, undefined while none does. */
-    first(): Key | undefined;
+    readonly first: () => Key | undefined;
     /** Report whether a key takes the focus. */
     has(key: Key): boolean;
 }

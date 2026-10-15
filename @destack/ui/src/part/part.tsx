@@ -68,7 +68,7 @@ function isForwarded(key: string | symbol): key is string {
 }
 
 /** Read the attributes of a part's properties that any element takes. */
-export function forwarded(source: object): PartAttributes {
+function forwarded(source: object): PartAttributes {
     return new Proxy<PartAttributes>(
         {},
         {
@@ -86,16 +86,6 @@ export function forwarded(source: object): PartAttributes {
                     : undefined,
         },
     );
-}
-
-/** Render a part's own element, or the element its caller renders. */
-export function rendered(
-    render: Render | undefined,
-    part: object,
-    properties: object,
-    own: () => JSX.Element,
-): JSX.Element {
-    return render === undefined ? own() : render(mergeProperties(part, forwarded(properties)));
 }
 
 /** Merge a part's attributes under its caller's, the caller's winning. */
@@ -145,12 +135,17 @@ export interface ElementPartProperties {
 
 /** Render a part's own element of a tag, or the element its caller renders, with its attributes. */
 export function useRender(options: UseRenderOptions): JSX.Element {
-    return rendered(options.render, options.part, options.properties, () => (
+    // render the caller's element with the attributes any element takes
+    if (options.render !== undefined) {
+        return options.render(mergeProperties(options.part, forwarded(options.properties)));
+    }
+
+    return (
         <Dynamic
             component={options.defaultTagName}
             {...mergeProperties(options.part, options.properties)}
         />
-    ));
+    );
 }
 
 /** Render an element part on its own tag or the element its caller renders. */

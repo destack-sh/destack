@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { media } from "@destack/style/media.stylex";
 import {
     color,
@@ -156,7 +156,10 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
             ),
     );
 
-    return rendered(properties.render, part, rest, () => (
-        <button type="button" {...part} {...rest} />
-    ));
+    return useRender({
+        render: properties.render,
+        defaultTagName: "button",
+        part: merge({ type: "button" }, part),
+        properties: rest,
+    });
 }

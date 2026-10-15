@@ -30,7 +30,10 @@ const ROW_HEIGHT = 36;
 const UNMEASURED_ROWS = 24;
 
 /** The grid list of the nearest grid list as its parts read it, null outside one. */
-const GridListContext = createContext<GridListParts | null>(null);
+const GridListContext = createContext<Pick<
+    GridListControl<never>,
+    "observe" | "state" | "isEmpty"
+> | null>(null);
 
 /** The styles of a grid list's parts. */
 const styles = style.create({
@@ -283,11 +286,8 @@ interface GridListHeadingAttributes extends Pick<JSX.HTMLAttributes<HTMLDivEleme
     readonly "data-index": string;
 }
 
-/** What a grid list's parts read of it, whatever its items' type. */
-export type GridListParts = Pick<GridListControl<never>, "observe" | "state" | "isEmpty">;
-
 /** Read the grid list of the nearest grid list, refusing parts outside one. */
-export function useGridList(): GridListParts {
+export function useGridList(): Pick<GridListControl<never>, "observe" | "state" | "isEmpty"> {
     const control = useContext(GridListContext);
     if (control === null) {
         throw new TypeError("a grid list part needs a grid list around it");

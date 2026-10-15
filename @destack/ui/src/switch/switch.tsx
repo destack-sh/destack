@@ -22,7 +22,7 @@ import {
     type ElementPartProperties,
     type PartAttributes,
     type Render,
-    rendered,
+    useRender,
     renderPart,
 } from "../part/index.ts";
 
@@ -160,9 +160,12 @@ export function Switch(properties: SwitchProperties): JSX.Element {
 
     return (
         <SwitchContext value={{ isChecked: toggle.isChecked, isDisabled }}>
-            {rendered(properties.render, part, rest, () => (
-                <button type="button" {...part} {...rest} />
-            ))}
+            {useRender({
+                render: properties.render,
+                defaultTagName: "button",
+                part: merge({ type: "button" }, part),
+                properties: rest,
+            })}
             <Show when={isSubmitted(properties)}>
                 <ToggleInput
                     name={properties.name}

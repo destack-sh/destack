@@ -27,13 +27,27 @@ import {
 } from "@destack/view";
 import type {
     Cell,
+    Cell_ColumnGrouping,
+    Cell_RowAggregation,
     CellContext,
+    Column,
+    Column_ColumnVisibility,
+    Column_CoreProperties,
+    Column_RowSorting,
     ColumnDefTemplate,
     Header,
     HeaderContext,
     PaginationState,
+    Row_CoreProperties,
+    Row_RowExpanding,
+    Row_RowSelection,
     RowData,
+    Table_GlobalFiltering,
+    Table_RowPagination,
+    Table_RowSelection,
     TableFeatures,
+    TableState_GlobalFiltering,
+    TableState_RowPagination,
 } from "@tanstack/table-core";
 import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
@@ -119,122 +133,6 @@ const styles = style.create({
         gap: space[1],
     },
 });
-
-/** A column a header sorts by, as the sorting feature gives it. */
-export interface SortableColumn {
-    /** Report whether the column sorts. */
-    getCanSort(): boolean;
-    /** Report the column's sort direction, false while unsorted. */
-    getIsSorted(): false | "asc" | "desc";
-    /** Sort by the column, descending or ascending. */
-    toggleSorting(isDescending?: boolean, isMultiple?: boolean): void;
-    /** Report the direction the next toggle sorts in, false when it clears the sort. */
-    getNextSortingOrder(isMultiple?: boolean): false | "asc" | "desc";
-    /** Stop sorting by the column. */
-    clearSorting(): void;
-}
-
-/** A column a person shows and hides, as the visibility feature gives it. */
-export interface HideableColumn {
-    /** The column's id. */
-    readonly id: string;
-    /** Report whether the column hides. */
-    getCanHide(): boolean;
-    /** Report whether the column shows. */
-    getIsVisible(): boolean;
-    /** Show or hide the column. */
-    toggleVisibility(isVisible?: boolean): void;
-}
-
-/** A table a pagination pages through, as the pagination feature gives it. */
-export interface PaginatedTable {
-    /** The table's state, read to track it. */
-    readonly tracked: Accessor<unknown>;
-    /** The current page and its size. */
-    readonly store: { readonly state: { readonly pagination: PaginationState } };
-    /** Report the number of pages. */
-    getPageCount(): number;
-    /** Report the number of rows across every page. */
-    getRowCount(): number;
-    /** Report whether a page comes before the current one. */
-    getCanPreviousPage(): boolean;
-    /** Report whether a page comes after the current one. */
-    getCanNextPage(): boolean;
-    /** Go to the first page. */
-    firstPage(): void;
-    /** Go to the previous page. */
-    previousPage(): void;
-    /** Go to the next page. */
-    nextPage(): void;
-    /** Go to the last page. */
-    lastPage(): void;
-    /** Show a number of rows per page. */
-    setPageSize(size: number): void;
-    /** List the selected rows, present when rows select. */
-    getSelectedRowModel?(): { readonly rows: readonly unknown[] };
-}
-
-/** A table a person filters across every column, as the global filtering feature gives it. */
-export interface FilteredTable {
-    /** The table's state, read to track it. */
-    readonly tracked: Accessor<unknown>;
-    /** The current filter text. */
-    readonly store: { readonly state: { readonly globalFilter?: unknown } };
-    /** Filter the rows by a text. */
-    setGlobalFilter(filter: string): void;
-}
-
-/** A table whose columns a person shows and hides. */
-export interface ColumnTable {
-    /** The table's state, read to track it. */
-    readonly tracked: Accessor<unknown>;
-    /** List every leaf column. */
-    getAllLeafColumns(): readonly object[];
-}
-
-/** A table whose rows a person selects, as the selection feature gives it. */
-export interface SelectableTable {
-    /** Report whether every row of the page is selected. */
-    getIsAllPageRowsSelected(): boolean;
-    /** Report whether some rows of the page are selected. */
-    getIsSomePageRowsSelected(): boolean;
-    /** Select or deselect every row of the page. */
-    toggleAllPageRowsSelected(isSelected?: boolean): void;
-}
-
-/** A row a person selects, as the selection feature gives it. */
-export interface SelectableRow {
-    /** Report whether the row selects. */
-    getCanSelect(): boolean;
-    /** Report whether the row is selected. */
-    getIsSelected(): boolean;
-    /** Select or deselect the row. */
-    toggleSelected(isSelected?: boolean): void;
-}
-
-/** A row a person expands to show its sub rows, as the expanding feature gives it. */
-export interface ExpandableRow {
-    /** The nesting depth, 0 for a top-level row. */
-    readonly depth: number;
-    /** The rows inside it, such as a group's members. */
-    readonly subRows: readonly unknown[];
-    /** Report whether the row expands. */
-    getCanExpand(): boolean;
-    /** Report whether the row shows its sub rows. */
-    getIsExpanded(): boolean;
-    /** Show or hide the sub rows. */
-    toggleExpanded(isExpanded?: boolean): void;
-}
-
-/** A cell of a grouped table, as the grouping and aggregation features give it. */
-export interface GroupedCell {
-    /** Report whether the cell heads its row's group. */
-    getIsGrouped(): boolean;
-    /** Report whether the cell repeats its group's value and shows nothing. */
-    getIsPlaceholder(): boolean;
-    /** Report whether the cell aggregates its group's members. */
-    getIsAggregated?(): boolean;
-}
 
 /** The properties of a data table: the table it renders, its empty state and its scrolling. */
 export interface DataTableProperties<
@@ -399,7 +297,7 @@ function DataTableHeaderCell<Features extends TableFeatures, Data extends RowDat
 /** Render a row of a data table, marked with its selection, level and expansion. */
 function DataTableRow<Features extends TableFeatures, Data extends RowData>(properties: {
     /** The row the table row shows, with its cells. */
-    readonly row: { getAllCells(): Cell<Features, Data>[] };
+    readonly row: { readonly getAllCells: () => Cell<Features, Data>[] };
     /** The row's place among every row of the grid, the headers' included. */
     readonly place: number;
 }): JSX.Element {
@@ -464,19 +362,25 @@ export function useDataTableState(): Accessor<unknown> {
 }
 
 /** The properties of a sortable column's header. */
-export interface DataTableColumnHeaderProperties {
+export interface DataTableColumnHeaderProperties<
+    Features extends TableFeatures,
+    Row extends RowData,
+    Value,
+> {
     /** The column the header sorts. */
-    readonly column: object;
+    readonly column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>;
     /** The column's name. */
     readonly title: string;
 }
 
 /** Render a column's name as a button that cycles its sort ascending, descending and off. */
-export function DataTableColumnHeader(properties: DataTableColumnHeaderProperties): JSX.Element {
+export function DataTableColumnHeader<Features extends TableFeatures, Row extends RowData, Value>(
+    properties: DataTableColumnHeaderProperties<Features, Row, Value>,
+): JSX.Element {
     // show the name alone for a column that does not sort
     const tracked = useDataTableState();
     const column = properties.column;
-    if (!isSortable(column) || !column.getCanSort()) {
+    if (!column.getCanSort()) {
         return <span data-slot="data-table-column-header">{properties.title}</span>;
     }
 
@@ -511,22 +415,32 @@ export function DataTableColumnHeader(properties: DataTableColumnHeaderPropertie
 }
 
 /** The properties of a data table's pagination. */
-export interface DataTablePaginationProperties {
+export interface DataTablePaginationProperties<
+    Features extends TableFeatures,
+    Row extends RowData,
+> {
     /** The table the pagination pages through. */
-    readonly table: PaginatedTable;
+    readonly table: Table_RowPagination<Features, Row> & {
+        /** The table's state, read to track it. */
+        readonly tracked: Accessor<TableState_RowPagination>;
+    };
     /** The page sizes offered, ten to a hundred by default. */
     readonly pageSizes?: readonly number[];
 }
 
 /** Render the selected row count, the page size, the page number and the steps between pages. */
-export function DataTablePagination(properties: DataTablePaginationProperties): JSX.Element {
+export function DataTablePagination<Features extends TableFeatures, Row extends RowData>(
+    properties: DataTablePaginationProperties<Features, Row>,
+): JSX.Element {
     // read the page and the selection as the table changes
     const locale = useLocale();
     const table = properties.table;
-    const page = (): PaginationState => follow(table.tracked, () => table.store.state.pagination);
+    const page = (): PaginationState => table.tracked().pagination;
     const count = (): number => follow(table.tracked, () => table.getPageCount());
     const selected = (): number | undefined =>
-        follow(table.tracked, () => table.getSelectedRowModel?.().rows.length);
+        follow(table.tracked, () =>
+            isSelectableTable(table) ? table.getSelectedRowModel().rows.length : undefined,
+        );
     const total = (): number => follow(table.tracked, () => table.getRowCount());
     const canPrevious = (): boolean => follow(table.tracked, () => table.getCanPreviousPage());
     const canNext = (): boolean => follow(table.tracked, () => table.getCanNextPage());
@@ -611,18 +525,22 @@ function PageStep(properties: {
 }
 
 /** The properties of a data table's filter input. */
-export interface DataTableFilterProperties {
+export interface DataTableFilterProperties<Features extends TableFeatures, Row extends RowData> {
     /** The table the input filters. */
-    readonly table: FilteredTable;
+    readonly table: Table_GlobalFiltering<Features, Row> & {
+        /** The table's state, read to track it. */
+        readonly tracked: Accessor<TableState_GlobalFiltering>;
+    };
     /** The input's prompt and accessible name. */
     readonly placeholder: string;
 }
 
 /** Render an input that filters a table's rows across every column. */
-export function DataTableFilter(properties: DataTableFilterProperties): JSX.Element {
+export function DataTableFilter<Features extends TableFeatures, Row extends RowData>(
+    properties: DataTableFilterProperties<Features, Row>,
+): JSX.Element {
     const filter = (): string => {
-        properties.table.tracked();
-        const value = properties.table.store.state.globalFilter;
+        const value: unknown = properties.table.tracked().globalFilter;
 
         return typeof value === "string" ? value : "";
     };
@@ -641,15 +559,20 @@ export function DataTableFilter(properties: DataTableFilterProperties): JSX.Elem
 }
 
 /** The properties of a data table's column menu. */
-export interface DataTableViewOptionsProperties {
+export interface DataTableViewOptionsProperties<
+    Features extends TableFeatures,
+    Row extends RowData,
+> {
     /** The table whose columns the menu shows and hides. */
-    readonly table: ColumnTable;
+    readonly table: DataTableInstance<Features, Row>;
     /** Label a column by its id, the id by default. */
     readonly label?: (id: string) => string;
 }
 
 /** Render a menu that shows and hides a table's hideable columns. */
-export function DataTableViewOptions(properties: DataTableViewOptionsProperties): JSX.Element {
+export function DataTableViewOptions<Features extends TableFeatures, Row extends RowData>(
+    properties: DataTableViewOptionsProperties<Features, Row>,
+): JSX.Element {
     const locale = useLocale();
     const columns = createMemo(() => {
         properties.table.tracked();
@@ -912,17 +835,21 @@ function isElement(value: unknown): value is JSX.Element {
 }
 
 /** Report whether a column sorts through the sorting feature. */
-function isSortable(column: object): column is SortableColumn {
+function isSortable(column: object): column is Column_RowSorting<TableFeatures, RowData> {
     return "getCanSort" in column && typeof column.getCanSort === "function";
 }
 
 /** Report whether a column hides through the visibility feature. */
-function isHideable(column: object): column is HideableColumn {
+function isHideable<Value extends object>(
+    column: Value,
+): column is Value &
+    Column_ColumnVisibility &
+    Pick<Column_CoreProperties<TableFeatures, RowData>, "id"> {
     return "getCanHide" in column && typeof column.getCanHide === "function";
 }
 
 /** Report whether a table selects rows through the selection feature. */
-function isSelectableTable(table: object): table is SelectableTable {
+function isSelectableTable(table: object): table is Table_RowSelection<TableFeatures, RowData> {
     return (
         "toggleAllPageRowsSelected" in table &&
         typeof table.toggleAllPageRowsSelected === "function"
@@ -930,17 +857,19 @@ function isSelectableTable(table: object): table is SelectableTable {
 }
 
 /** Report whether a row selects through the selection feature. */
-function isSelectableRow(row: object): row is SelectableRow {
+function isSelectableRow(row: object): row is Row_RowSelection {
     return "getIsSelected" in row && typeof row.getIsSelected === "function";
 }
 
 /** Report whether a row expands through the expanding feature. */
-function isExpandableRow(row: object): row is ExpandableRow {
+function isExpandableRow(
+    row: object,
+): row is Row_RowExpanding & Pick<Row_CoreProperties<TableFeatures, RowData>, "depth" | "subRows"> {
     return "getCanExpand" in row && typeof row.getCanExpand === "function";
 }
 
 /** Report whether a cell belongs to a table that groups rows. */
-function isGroupedCell(cell: object): cell is GroupedCell {
+function isGroupedCell(cell: object): cell is Cell_ColumnGrouping & Partial<Cell_RowAggregation> {
     return "getIsPlaceholder" in cell && typeof cell.getIsPlaceholder === "function";
 }
 

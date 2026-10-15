@@ -204,10 +204,7 @@ export class ComboboxControl {
 }
 
 /** The properties of a combobox root. */
-export type ComboboxProperties = ComboboxBehaviour & SelectionProperties;
-
-/** The open state, search and creation of a combobox. */
-export interface ComboboxBehaviour {
+export type ComboboxProperties = {
     /** Whether the list is open, which makes the open state controlled. */
     readonly open?: boolean;
     /** Whether the list starts open when its state is uncontrolled. */
@@ -226,7 +223,7 @@ export interface ComboboxBehaviour {
     readonly onCreate?: (text: string) => void;
     /** The input and list. */
     readonly children?: JSX.Element;
-}
+} & SelectionProperties;
 
 /** Read the combobox of the nearest combobox root, refusing elements outside one. */
 export function useCombobox(): ComboboxControl {

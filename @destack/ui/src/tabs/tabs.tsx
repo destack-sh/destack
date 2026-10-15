@@ -25,7 +25,7 @@ import {
     type ElementPartProperties,
     type PartAttributes,
     type Render,
-    rendered,
+    useRender,
     renderPart,
 } from "../part/index.ts";
 import { ListState, type Orientation } from "../focus/index.ts";
@@ -326,9 +326,12 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
             ),
     );
 
-    return rendered(properties.render, part, rest, () => (
-        <button type="button" {...part} {...rest} />
-    ));
+    return useRender({
+        render: properties.render,
+        defaultTagName: "button",
+        part: merge({ type: "button" }, part),
+        properties: rest,
+    });
 }
 
 /** Render the panel of a tab, hidden while another tab is selected. */

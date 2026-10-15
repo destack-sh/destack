@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, merge, omit, useContext, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { ListState, type Orientation } from "../focus/index.ts";
 import { toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
@@ -47,13 +47,10 @@ export class ToggleGroupControl {
 }
 
 /** The properties of a toggle group, the native element's attributes included. */
-export type ToggleGroupProperties = ToggleGroupLook & SelectionProperties;
-
-/** The look and layout of a toggle group, the native element's attributes included. */
-export interface ToggleGroupLook extends Omit<
+export type ToggleGroupProperties = Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onKeyDown"
-> {
+> & {
     /** The look of every item, default by default. */
     readonly variant?: ToggleVariant;
     /** The height and padding of every item, default by default. */
@@ -62,7 +59,7 @@ export interface ToggleGroupLook extends Omit<
     readonly orientation?: Exclude<Orientation, "both">;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
-}
+} & SelectionProperties;
 
 /** The properties of a toggle group's item, the native button's attributes included. */
 export interface ToggleGroupItemProperties extends Omit<
@@ -173,7 +170,10 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
             ),
     );
 
-    return rendered(properties.render, part, rest, () => (
-        <button type="button" {...part} {...rest} />
-    ));
+    return useRender({
+        render: properties.render,
+        defaultTagName: "button",
+        part: merge({ type: "button" }, part),
+        properties: rest,
+    });
 }

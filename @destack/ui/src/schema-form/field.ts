@@ -1,4 +1,4 @@
-import { LocalReference, type JsonObject, type JsonValue } from "@destack/schema";
+import { LocalReference, type JsonObject, JsonValue } from "@destack/schema";
 
 /** The control of each JSON Schema string format a dedicated control takes. */
 const STRING_FORMATS = new Map<string, SchemaTextField["control"]>([
@@ -394,7 +394,7 @@ class SchemaScope {
 
         // resolve the object's reference and descend into its schemas, leaving data keywords out
         this.resolve(object);
-        for (const [key, entry] of Object.entries(object)) {
+        for (const [key, entry] of JsonValue.entries(object)) {
             if (!DATA_KEYWORDS.has(key)) {
                 this.#check(entry);
             }

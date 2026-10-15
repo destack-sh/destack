@@ -14,7 +14,7 @@ import {
 import { ToggleInput, isSubmitted } from "../toggle-state/index.ts";
 import { ListState } from "../focus/index.ts";
 import { Selection, type SingleSelection, valuesOf } from "../selection/index.ts";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 
 /** The checked value of the nearest radio group, null outside a group. */
 const RadioGroupContext = createContext<RadioGroupControl | null>(null);
@@ -292,9 +292,12 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
 
     return (
         <RadioGroupItemContext value={{ isChecked, isDisabled }}>
-            {rendered(properties.render, part, rest, () => (
-                <button type="button" {...part} {...rest} />
-            ))}
+            {useRender({
+                render: properties.render,
+                defaultTagName: "button",
+                part: merge({ type: "button" }, part),
+                properties: rest,
+            })}
             <Show when={isSubmitted(group.properties)}>
                 <ToggleInput
                     type="radio"

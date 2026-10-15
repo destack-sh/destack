@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { markup, render } from "@destack/view/test";
-import { forwarded, mergeProperties, type PartAttributes, rendered, renderPart } from "./index.ts";
+import { mergeProperties, type PartAttributes, renderPart, useRender } from "./index.ts";
 
 /** The properties of a test part: attributes any element takes, and options only the part reads. */
 const PROPERTIES = {
@@ -15,46 +15,39 @@ const PROPERTIES = {
 /** The attributes a test part gives its element. */
 const PART: PartAttributes = { "data-slot": "button", role: "link", tabindex: 0 };
 
-test("forward the attributes any element takes and leave the part's own options behind", () => {
-    const attributes = forwarded(PROPERTIES);
-    const variant: unknown = Reflect.get(attributes, "variant");
-
-    expect({
-        keys: Object.keys(attributes),
-        spread: { ...attributes },
-        hasVariant: "variant" in attributes,
-        variant,
-    }).toEqual({
-        keys: ["id", "aria-label", "data-testid", "children"],
-        spread: { id: "save", "aria-label": "Save note", "data-testid": "save", children: "Save" },
-        hasVariant: false,
-        variant: undefined,
-    });
-});
-
-test("render a part's own element, or the caller's element with the part's and the forwarded attributes", () => {
+test("render a part's own element with every attribute, or the caller's element with the forwarded ones", () => {
     const { container } = render(() => (
         <>
-            {rendered(undefined, PART, PROPERTIES, () => (
-                <button {...PART}>Own</button>
-            ))}
-            {rendered(
-                (attributes) => (
-                    <a href="#notes" {...attributes} />
-                ),
-                PART,
-                PROPERTIES,
-                () => (
-                    <button>Own</button>
-                ),
-            )}
+            {useRender({ render: undefined, defaultTagName: "button", part: PART, properties: {} })}
+            {useRender({
+                render: (attributes) => <a href="#notes" {...attributes} />,
+                defaultTagName: "button",
+                part: PART,
+                properties: PROPERTIES,
+            })}
         </>
     ));
 
+    // leave the part's own options, such as its variant, off the caller's element
     expect(markup(container)).toBe(
-        '<button data-slot="button" role="link" tabindex="0">Own</button>' +
+        '<button data-slot="button" role="link" tabindex="0"></button>' +
             '<a href="#notes" data-slot="button" role="link" tabindex="0" id="save" aria-label="Save note" data-testid="save">Save</a>',
     );
+});
+
+test("run the caller's and the part's handlers on the part's own element", () => {
+    const calls: string[] = [];
+    const { container } = render(() =>
+        useRender({
+            render: undefined,
+            defaultTagName: "button",
+            part: { onClick: () => calls.push("part") },
+            properties: { onClick: () => calls.push("caller") },
+        }),
+    );
+    container.querySelector("button")?.click();
+
+    expect(calls).toEqual(["caller", "part"]);
 });
 
 test("render an element part on its own tag or on the element its caller renders, with its slot and the caller's attributes", () => {

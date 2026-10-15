@@ -68,8 +68,8 @@ const styles = style.create({
     },
 });
 
-/** The prompt, limits and look of a date picker in any mode. */
-export interface DatePickerLook {
+/** The properties of a date picker: its look and the selection of its mode. */
+export type DatePickerProperties = {
     /** The text a multiple date picker's trigger shows before a day is chosen. */
     readonly placeholder?: string;
     /** Report whether a day cannot be chosen. */
@@ -86,7 +86,7 @@ export interface DatePickerLook {
     readonly defaultOpen?: boolean | undefined;
     /** Handle the calendar opening or closing. */
     readonly onOpenChange?: ((open: boolean) => void) | undefined;
-}
+} & DatePickerSelection;
 
 /** A choice a date picker offers beside its calendar. */
 export interface DatePickerPreset {
@@ -110,9 +110,6 @@ export interface DatePickerRange extends Omit<CalendarRange, "onSelect"> {
 
 /** The selection of a date picker in any mode. */
 export type DatePickerSelection = DatePickerSingle | DatePickerRange | CalendarMultiple;
-
-/** The properties of a date picker: its look and the selection of its mode. */
-export type DatePickerProperties = DatePickerLook & DatePickerSelection;
 
 /** Render a date picker: fields that type a day or a range beside a button opening a calendar. */
 export function DatePicker(properties: DatePickerProperties): JSX.Element {

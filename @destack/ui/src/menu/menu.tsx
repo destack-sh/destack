@@ -25,7 +25,7 @@ import {
     type PartAttributes,
     type PartEvent,
     type Render,
-    rendered,
+    useRender,
     renderPart,
 } from "../part/index.ts";
 import type { Direction } from "@destack/locale";
@@ -500,7 +500,12 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
             ),
     );
 
-    return rendered(properties.render, part, rest, () => <div {...part} {...rest} />);
+    return useRender({
+        render: properties.render,
+        defaultTagName: "div",
+        part: part,
+        properties: rest,
+    });
 }
 
 /** Render an item that checks and unchecks, reporting its state through `aria-checked`. */

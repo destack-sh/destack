@@ -7,7 +7,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, rendered, renderPart } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
@@ -93,7 +93,12 @@ export function BreadcrumbLink(properties: BreadcrumbLinkProperties): JSX.Elemen
         style.attributes([styles.link, properties.xstyle], properties.style),
     );
 
-    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
+    return useRender({
+        render: properties.render,
+        defaultTagName: "a",
+        part: part,
+        properties: rest,
+    });
 }
 
 /** Render the current page at the end of the trail. */

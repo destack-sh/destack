@@ -106,15 +106,18 @@ export interface DateSegmentFormat {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
     /** Read the smallest and largest value of a segment, given the other segments. */
-    limits(kind: DateSegmentKind, values: DateSegmentValues): readonly [number, number];
+    readonly limits: (
+        kind: DateSegmentKind,
+        values: DateSegmentValues,
+    ) => readonly [number, number];
     /** Write a segment's value as the field shows it. */
-    text(kind: DateSegmentKind, value: number): string;
+    readonly text: (kind: DateSegmentKind, value: number) => string;
     /** Write a segment's value for assistive technology. */
-    valueText(kind: DateSegmentKind, value: number): string;
+    readonly valueText: (kind: DateSegmentKind, value: number) => string;
     /** Label a segment for assistive technology. */
-    name(kind: DateSegmentKind): string;
+    readonly name: (kind: DateSegmentKind) => string;
     /** Read a segment's value now, where stepping an empty segment starts. */
-    now(kind: DateSegmentKind): number;
+    readonly now: (kind: DateSegmentKind) => number;
 }
 
 /** The properties of a segmented field, the native element's attributes included. */

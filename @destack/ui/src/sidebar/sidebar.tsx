@@ -33,7 +33,7 @@ import {
     type PartAttributes,
     type PartEvent,
     type Render,
-    rendered,
+    useRender,
     renderPart,
 } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
@@ -709,14 +709,15 @@ function SidebarMenuButtonElement(
             ),
     );
 
-    return rendered(properties.render, part, rest, () => (
-        <Show
-            when={properties.href !== undefined}
-            fallback={<button type="button" {...part} {...rest} />}
-        >
-            <a {...part} {...rest} />
-        </Show>
-    ));
+    // render a link for an address, else a button
+    return useRender({
+        render: properties.render,
+        get defaultTagName() {
+            return properties.href === undefined ? "button" : "a";
+        },
+        part: merge(() => (properties.href === undefined ? { type: "button" } : {}), part),
+        properties: rest,
+    });
 }
 
 /** Render placeholder rows of a menu while its entries load, through the shared skeleton. */
@@ -829,5 +830,10 @@ export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties)
             ),
     );
 
-    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
+    return useRender({
+        render: properties.render,
+        defaultTagName: "a",
+        part: part,
+        properties: rest,
+    });
 }

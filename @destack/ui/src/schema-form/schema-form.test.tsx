@@ -1,4 +1,4 @@
-import { schema, toJsonSchema, type JsonObject } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema, type JsonObject } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { press, render } from "@destack/view/test";
@@ -15,13 +15,15 @@ const CLOSE = String.fromCodePoint(0x2069);
 const ISOLATES = new RegExp(`[${OPEN}${CLOSE}]`, "gu");
 
 /** The input of a command filing a task. */
-const TASK_INPUT = toJsonSchema(
-    schema.object({
-        title: schema.string().min(1).meta({ title: "Title" }),
-        priority: schema.enum(["low", "high"]).meta({ title: "Priority" }).exactOptional(),
-        done: schema.boolean().exactOptional(),
-        estimate: schema.int().exactOptional(),
-    }),
+const TASK_INPUT = JsonValue.object(
+    toJsonSchema(
+        schema.object({
+            title: schema.string().min(1).meta({ title: "Title" }),
+            priority: schema.enum(["low", "high"]).meta({ title: "Priority" }).exactOptional(),
+            done: schema.boolean().exactOptional(),
+            estimate: schema.int().exactOptional(),
+        }),
+    ),
 );
 
 /** Render a schema form, recording what it submits. */
@@ -139,12 +141,14 @@ test("refuse a missing required field on submit, then submit the kept values", (
 
 test("start fields from their constants and null, and submit them untouched", () => {
     const { container, submitted } = drawForm(
-        toJsonSchema(
-            schema.object({
-                kind: schema.literal("list"),
-                note: schema.string().nullable().meta({ title: "Note" }),
-                isShared: schema.boolean().meta({ title: "Shared" }),
-            }),
+        JsonValue.object(
+            toJsonSchema(
+                schema.object({
+                    kind: schema.literal("list"),
+                    note: schema.string().nullable().meta({ title: "Note" }),
+                    isShared: schema.boolean().meta({ title: "Shared" }),
+                }),
+            ),
         ),
     );
     submit(container);
@@ -154,18 +158,20 @@ test("start fields from their constants and null, and submit them untouched", ()
 test("wire each string format and number bound to its native input, the form validating none itself", () => {
     const { container } = render(() => (
         <SchemaForm
-            schema={toJsonSchema(
-                schema.object({
-                    email: schema.email().meta({ title: "Email" }),
-                    site: schema.url().meta({ title: "Site" }).exactOptional(),
-                    count: schema.int().min(0).max(9).meta({ title: "Count" }).exactOptional(),
-                    ratio: schema
-                        .number()
-                        .gt(0)
-                        .multipleOf(0.5)
-                        .meta({ title: "Ratio" })
-                        .exactOptional(),
-                }),
+            schema={JsonValue.object(
+                toJsonSchema(
+                    schema.object({
+                        email: schema.email().meta({ title: "Email" }),
+                        site: schema.url().meta({ title: "Site" }).exactOptional(),
+                        count: schema.int().min(0).max(9).meta({ title: "Count" }).exactOptional(),
+                        ratio: schema
+                            .number()
+                            .gt(0)
+                            .multipleOf(0.5)
+                            .meta({ title: "Ratio" })
+                            .exactOptional(),
+                    }),
+                ),
             )}
             submit="Save"
             onSubmit={() => undefined}
@@ -191,12 +197,14 @@ test("wire each string format and number bound to its native input, the form val
 
 test("type a date and a date and time into their fields, submitting the date as written and the moment in UTC", () => {
     const { container, submitted } = drawForm(
-        toJsonSchema(
-            schema.object({
-                email: schema.email().meta({ title: "Email" }),
-                day: schema.iso.date().meta({ title: "Day" }),
-                at: schema.iso.datetime().meta({ title: "At" }),
-            }),
+        JsonValue.object(
+            toJsonSchema(
+                schema.object({
+                    email: schema.email().meta({ title: "Email" }),
+                    day: schema.iso.date().meta({ title: "Day" }),
+                    at: schema.iso.datetime().meta({ title: "At" }),
+                }),
+            ),
         ),
     );
     fill(container, "Email", "milk");
@@ -237,13 +245,15 @@ test("type a date and a date and time into their fields, submitting the date as 
 
 test("add and remove items of a list, and choose several values of an enumeration", () => {
     const { container, submitted } = drawForm(
-        toJsonSchema(
-            schema.object({
-                steps: schema.array(schema.string().min(1)).meta({ title: "Step" }),
-                colors: schema
-                    .array(schema.enum(["red", "green", "blue"]))
-                    .meta({ title: "Colors" }),
-            }),
+        JsonValue.object(
+            toJsonSchema(
+                schema.object({
+                    steps: schema.array(schema.string().min(1)).meta({ title: "Step" }),
+                    colors: schema
+                        .array(schema.enum(["red", "green", "blue"]))
+                        .meta({ title: "Colors" }),
+                }),
+            ),
         ),
     );
     click(container, "Add Step");
@@ -266,19 +276,21 @@ test("add and remove items of a list, and choose several values of an enumeratio
 
 test("fill a nested object in a fieldset, refusing its own field", () => {
     const { container, submitted } = drawForm(
-        toJsonSchema(
-            schema.object({
-                address: schema
-                    .object({
-                        city: schema.string().min(1).meta({ title: "City" }),
-                        geo: schema
-                            .object({
-                                latitude: schema.number().max(90).meta({ title: "Latitude" }),
-                            })
-                            .meta({ title: "Position" }),
-                    })
-                    .meta({ title: "Address" }),
-            }),
+        JsonValue.object(
+            toJsonSchema(
+                schema.object({
+                    address: schema
+                        .object({
+                            city: schema.string().min(1).meta({ title: "City" }),
+                            geo: schema
+                                .object({
+                                    latitude: schema.number().max(90).meta({ title: "Latitude" }),
+                                })
+                                .meta({ title: "Position" }),
+                        })
+                        .meta({ title: "Address" }),
+                }),
+            ),
         ),
     );
     fill(container, "Latitude", "91");
@@ -296,21 +308,23 @@ test("fill a nested object in a fieldset, refusing its own field", () => {
 
 test("choose the kind of a union of objects, then fill its fields and submit its constant", () => {
     const { container, submitted } = drawForm(
-        toJsonSchema(
-            schema.object({
-                shape: schema
-                    .discriminatedUnion("kind", [
-                        schema.object({
-                            kind: schema.literal("circle"),
-                            radius: schema.number().meta({ title: "Radius" }),
-                        }),
-                        schema.object({
-                            kind: schema.literal("square"),
-                            side: schema.number().meta({ title: "Side" }),
-                        }),
-                    ])
-                    .meta({ title: "Shape" }),
-            }),
+        JsonValue.object(
+            toJsonSchema(
+                schema.object({
+                    shape: schema
+                        .discriminatedUnion("kind", [
+                            schema.object({
+                                kind: schema.literal("circle"),
+                                radius: schema.number().meta({ title: "Radius" }),
+                            }),
+                            schema.object({
+                                kind: schema.literal("square"),
+                                side: schema.number().meta({ title: "Side" }),
+                            }),
+                        ])
+                        .meta({ title: "Shape" }),
+                }),
+            ),
         ),
     );
     const kinds = [...(labelled(container, "Kind")?.querySelectorAll("option") ?? [])].map(
@@ -332,11 +346,13 @@ test("render a field through renderField, keeping the form's controls for the ot
     const submitted: JsonObject[] = [];
     const { container } = render(() => (
         <SchemaForm
-            schema={toJsonSchema(
-                schema.object({
-                    title: schema.string().meta({ title: "Title" }),
-                    ownerId: schema.string().meta({ title: "Owner" }),
-                }),
+            schema={JsonValue.object(
+                toJsonSchema(
+                    schema.object({
+                        title: schema.string().meta({ title: "Title" }),
+                        ownerId: schema.string().meta({ title: "Owner" }),
+                    }),
+                ),
             )}
             renderField={(field, held) =>
                 field.name === "ownerId" ? (
@@ -375,7 +391,7 @@ const NODE: schema.Schema<TreeNode> = schema.object({
 });
 
 /** The input of a command taking a tree. */
-const TREE = toJsonSchema(schema.object({ tree: NODE.meta({ title: "Tree" }) }));
+const TREE = JsonValue.object(toJsonSchema(schema.object({ tree: NODE.meta({ title: "Tree" }) })));
 
 /** Type a value into an input, as the person does. */
 function typeInto(input: HTMLInputElement | undefined, value: string): void {

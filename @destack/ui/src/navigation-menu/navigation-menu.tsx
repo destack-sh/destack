@@ -28,7 +28,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type PartAttributes, type Render, rendered, renderPart } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
 import { ListState } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
@@ -604,7 +604,12 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
         () => style.attributes([text.footnote, styles.link, properties.xstyle], properties.style),
     );
 
-    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
+    return useRender({
+        render: properties.render,
+        defaultTagName: "a",
+        part: part,
+        properties: rest,
+    });
 }
 
 /** Move Tab past a panel's ends to its trigger and to the next top-level entry. */

@@ -9,7 +9,7 @@ import {
     type ElementPartProperties,
     type PartAttributes,
     type Render,
-    rendered,
+    useRender,
     renderPart,
 } from "../part/index.ts";
 import { buttonVariants, type ButtonSize } from "../button/index.ts";
@@ -108,7 +108,12 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
             ),
     );
 
-    return rendered(properties.render, part, rest, () => <a {...part} {...rest} />);
+    return useRender({
+        render: properties.render,
+        defaultTagName: "a",
+        part: part,
+        properties: rest,
+    });
 }
 
 /** Render the link to the previous page, its arrow pointing against the text. */

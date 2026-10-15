@@ -11,7 +11,7 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 /** The bodies of inline icons. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
-/** The state units and part builders the package exports, which render nothing of their own and so show no examples. */
+/** The state units and part builders the package exports, which show no examples. */
 const STATE = new Set([
     "collection",
     "focus",
@@ -51,9 +51,9 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
         '<div _hk=200 data-slot="sidebar-wrapper">' +
             '<div _hk=2040 id="0" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
             '<div><div _hk=204230 data-slot="sidebar-content" >Notebooks</div></div></div>' +
-            '<button _hk=206 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
-            '<svg _hk=20a0 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon" ></svg></button>' +
-            '<section _hk=20d aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+            '<button _hk=2080 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
+            '<svg _hk=20840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon" ></svg></button>' +
+            '<section _hk=20b aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack"></ol></section></div>',
     );
 });

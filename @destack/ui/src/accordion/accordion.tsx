@@ -74,20 +74,17 @@ const styles = style.create({
 });
 
 /** The properties of an accordion, the native element's attributes included. */
-export type AccordionProperties = AccordionLook & SelectionProperties;
-
-/** The layout and availability of an accordion, the native element's attributes included. */
-export interface AccordionLook extends Omit<
+export type AccordionProperties = Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onKeyDown"
-> {
+> & {
     /** The direction the arrow keys move between triggers along, vertical by default. */
     readonly orientation?: "horizontal" | "vertical";
     /** Whether every trigger ignores the person. */
     readonly disabled?: boolean;
     /** The StyleX styles applied after the accordion's styles. */
     readonly xstyle?: style.Styles;
-}
+} & SelectionProperties;
 
 /** The properties of an item of an accordion, the native disclosure's attributes included. */
 export type AccordionItemProperties = AccordionElementProperties<

@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
-import { type PartAttributes, type Render, rendered } from "../part/index.ts";
+import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 
 /** The orientation and role of a separator that sets neither. */
 const DEFAULTS: Required<Pick<SeparatorProperties, "orientation" | "decorative">> = {
@@ -69,5 +69,10 @@ export function Separator(properties: SeparatorProperties): JSX.Element {
             ),
     );
 
-    return rendered(separator.render, part, rest, () => <div {...part} {...rest} />);
+    return useRender({
+        render: separator.render,
+        defaultTagName: "div",
+        part: part,
+        properties: rest,
+    });
 }
