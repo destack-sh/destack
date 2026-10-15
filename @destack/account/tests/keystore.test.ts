@@ -139,11 +139,11 @@ test("send a request as an installation with a token its space's key signs, whic
         keys: await Identity.keys(Snapshot.live(database), space),
     });
     const verified = await verifier.authenticate(present(received, "the sent request"), Date.now());
-    expect([verified.subject, verified.credential.kind, verified.deployments]).toEqual([
-        installation,
-        SPACE_KEY,
-        undefined,
-    ]);
+    expect([
+        verified.caller.subject,
+        verified.credential.kind,
+        verified.credential.deployments,
+    ]).toEqual([installation, SPACE_KEY, undefined]);
 });
 
 /** Derive 32 bytes under a label from a space's root secret in a keystore, as hexadecimal. */
@@ -250,7 +250,7 @@ test("send a request as the universe bound to the space it goes to, which a veri
         }).authenticate(present(received[0], "the sent request").clone(), clock.now(), spaceId);
     const verified = await verify(space);
     expect({
-        verified: [verified.subject, verified.credential.kind, verified.credential.scope],
+        verified: [verified.caller.subject, verified.credential.kind, verified.credential.scope],
         elsewhere: await outcome(verify("space-01996ab0-0000-7000-8000-000000000013")),
         spaceless: await universeFetch(audience)(
             new Request("https://machine.test/package-x"),

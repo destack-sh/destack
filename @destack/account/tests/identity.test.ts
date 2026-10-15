@@ -1,5 +1,5 @@
 import { Scope } from "@destack/sync";
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
@@ -241,16 +241,16 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
         Date.now(),
     );
     const subject = principal.machine.reference(Scope.universe.id, identity.machineId);
-    const credential = Caller.requireCredential(verified);
+    const { credential } = verified;
     expect([
         { kind: credential.kind, id: credential.id },
-        verified.subject,
-        verified.subjects,
+        verified.caller.subject,
+        verified.caller.groups,
         credential.expiresAt - credential.verifiedAt,
     ]).toEqual([
         { kind: "machine-key", id: enrolled.thumbprint },
         subject,
-        [subject],
+        [],
         TOKEN_LIFETIME_MILLISECONDS,
     ]);
 
@@ -335,7 +335,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
     const verifiedAt = Math.floor(clock.now() / 1000);
     const subject = principal.machine.reference(Scope.universe.id, identity.machineId);
     const { jti, caller, iat = 0, ...claims } = decodeJwt(accessToken);
-    expect([verified.subject, verifiedAt - iat <= 1, claims]).toEqual([
+    expect([verified.caller.subject, verifiedAt - iat <= 1, claims]).toEqual([
         subject,
         true,
         {

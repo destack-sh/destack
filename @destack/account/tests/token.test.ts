@@ -275,9 +275,12 @@ test("exchange an installation's token for tokens of its account's spaces with i
         });
     const { caller } = claims((await exchange(sibling)).accessToken);
     const onAccount = account.reference(owner.id, accountId);
-    expect([caller.subject, caller.subjects]).toEqual([
+    expect([caller.subject, caller.groups]).toEqual([
         automation,
-        [automation, { ...onAccount, relation: "editor" }, { ...onAccount, relation: "member" }],
+        [
+            { ...onAccount, relation: "editor" },
+            { ...onAccount, relation: "member" },
+        ],
     ]);
 
     // refuse acting as a user or in another account's spaces

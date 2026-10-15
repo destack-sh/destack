@@ -1,4 +1,4 @@
-import { accessRelationship, Caller, Relationship } from "@destack/access";
+import { accessRelationship, Relationship } from "@destack/access";
 import { and, eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -139,7 +139,7 @@ test("find an account's residency, the residencies' homes and the enabled shared
     });
 
     // drain the eu residency's shared cloud machine
-    await fixture.objects.mutate(Caller.of(fixture.objects.principal, Date.now()), {
+    await fixture.objects.mutate(fixture.objects.self, {
         id: RequestId.create(Date.now()),
         calls: [
             machine.call("drain", machine.target({ scope: Scope.universe.id, id: ids.machine })),

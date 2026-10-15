@@ -7,8 +7,6 @@ import { MachineIdentity } from "../src/client/index.ts";
 import { account, key, Key, machine } from "../src/object/index.ts";
 import { AccountFixture, type Person, outcome } from "../src/test/index.ts";
 
-import { Caller } from "@destack/access";
-
 /** A year and a day, past every key's lifetime, in milliseconds. */
 const PAST_LIFETIME = 366 * 24 * 60 * 60 * 1000;
 
@@ -97,7 +95,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
     const target = machine.reference(accountId, enrolled.machineId);
     const tenants = { ...account.reference(tenant.id, rival.accountId), relation: "member" };
     await Transaction.run(fixture.storage.database, async (transaction) => {
-        const caller = Caller.of(fixture.objects.principal, Date.now());
+        const caller = fixture.objects.self;
         const universe = await fixture.objects.authorize(transaction, accountId, caller);
         await universe.keepRelationships(
             {

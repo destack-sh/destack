@@ -23,7 +23,7 @@ async function create(
     next: NextOf<typeof identity, "create">,
 ): Promise<ResultOf<typeof identity, "create">> {
     // require the identity's first operation
-    const subject = call.requireId();
+    const subject = call.id;
     const claims = IdentityOperation.read(call.input.operation);
     if (claims.subject !== subject || claims.previous !== null) {
         throw new CallError("BAD_REQUEST", {
@@ -34,9 +34,7 @@ async function create(
     // require the universe for itself, else the machine serving the space
     const sender = Caller.sender(call.caller);
     const isUniverse =
-        subject === Scope.universe.id &&
-        sender !== undefined &&
-        Subject.same(sender, Caller.requirePrincipal(call.self));
+        subject === Scope.universe.id && Subject.same(sender, Caller.principal(call.self));
     const spaceId = schema.identifier("space").safeParse(subject);
     const served = spaceId.success
         ? await call.read(placement).findFirst({ where: { id: spaceId.data } })

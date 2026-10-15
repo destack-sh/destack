@@ -2,9 +2,11 @@ import {
     Access,
     AccessContext,
     accessGrant,
+    type Authentication,
     Authorization,
     type Authorizer,
     Caller,
+    Credential,
     Grant,
     principal,
 } from "@destack/access";
@@ -21,7 +23,7 @@ import { Identity } from "../object/identity.ts";
 import * as object from "../object/index.ts";
 import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
-import { Issuance, type VerifiedCaller } from "./issuance.ts";
+import { Issuance } from "./issuance.ts";
 import { PackageResource } from "./resource.ts";
 
 /** The grant type of a token exchanged for another (RFC 8693 2.1). */
@@ -86,13 +88,13 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
 
         // describe the subject token's caller toward the package, refusing an invalid token
         const now = options.clock.now();
-        const { caller, lapse } = await describe(options, asked, audience, now).catch(
+        const { authentication, lapse } = await describe(options, asked, audience, now).catch(
             (error: unknown) => {
                 throw isCallError(error) ? Issuance.refusal("invalid_grant", error.message) : error;
             },
         );
 
-        return Issuance.issue(input, caller, {
+        return Issuance.issue(input, authentication, {
             now,
             lifetimes: options.lifetimes,
             scopes: [],
@@ -107,7 +109,7 @@ async function describe(
     asked: schema.Infer<typeof ExchangeRequest>,
     audience: PackageId,
     now: number,
-): Promise<{ readonly caller: VerifiedCaller; readonly lapse?: number }> {
+): Promise<{ readonly authentication: Authentication; readonly lapse?: number }> {
     // verify the subject token before the transaction, a session or a token lapsing with its credential
     const verified = await subjectOf(options, asked, now);
     const isAccessToken = asked.subject_token_type === ACCESS_TOKEN_TYPE;
@@ -116,10 +118,10 @@ async function describe(
 
     return options.database.transaction(async (transaction) => {
         // describe a person acting through a delegate under a grant, outside a space toward a universe package
-        const isInstallation = principal.installation.is(verified.subject);
+        const isInstallation = principal.installation.is(verified.caller.subject);
         const granted = await readGrant(
             transaction,
-            verified,
+            verified.caller,
             {
                 ...(subject === undefined ? {} : { subject }),
                 ...(asked.grant === undefined ? {} : { grant: asked.grant }),
@@ -130,7 +132,10 @@ async function describe(
         const lapse = Math.min(...lapses, granted?.expiresAt ?? Number.POSITIVE_INFINITY);
         const lapsing = Number.isFinite(lapse) ? { lapse } : {};
         if (granted !== undefined && asked.space === undefined) {
-            return { caller: describeDelegation(verified, granted, audience, now), ...lapsing };
+            return {
+                authentication: describeDelegation(verified, granted, audience, now),
+                ...lapsing,
+            };
         }
         // describe the caller toward a universe package, outside any space
         else if (asked.space === undefined) {
@@ -142,7 +147,10 @@ async function describe(
             const { scope: _scope, ...credential } = verified.credential;
 
             return {
-                caller: { ...verified, credential: { ...credential, audience, verifiedAt: now } },
+                authentication: {
+                    caller: verified.caller,
+                    credential: { ...credential, audience, verifiedAt: now },
+                },
                 ...lapsing,
             };
         }
@@ -151,17 +159,28 @@ async function describe(
         const verification = new SpaceVerification(asked.space, audience, transaction, now);
         if (granted !== undefined) {
             return {
-                caller: await verification.delegation(verified, granted, options.authorizer),
+                authentication: await verification.delegation(
+                    verified,
+                    granted,
+                    options.authorizer,
+                ),
                 ...lapsing,
             };
         } else if (subject !== undefined) {
             return {
-                caller: await verification.impersonation(verified, subject, options.authorizer),
+                authentication: await verification.impersonation(
+                    verified,
+                    subject,
+                    options.authorizer,
+                ),
                 ...lapsing,
             };
         }
 
-        return { caller: await verification.caller(verified, options.authorizer), ...lapsing };
+        return {
+            authentication: await verification.authentication(verified, options.authorizer),
+            ...lapsing,
+        };
     });
 }
 
@@ -170,7 +189,7 @@ async function subjectOf(
     options: ExchangeOptions,
     asked: schema.Infer<typeof ExchangeRequest>,
     now: number,
-): Promise<VerifiedCaller> {
+): Promise<Authentication> {
     // verify a personal access token or a session against the account's records
     const { subject_token: token, subject_token_type: type } = asked;
     if (type === PERSONAL_ACCESS_TOKEN_TYPE) {
@@ -190,7 +209,7 @@ async function subjectOf(
 
     // refuse a machine's own token, which it asks with its assertion
     const verified = await verifier.verify(token, now);
-    if (principal.machine.is(verified.subject)) {
+    if (principal.machine.is(verified.caller.subject)) {
         throw new CallError("FORBIDDEN", {
             message: "a machine asks its tokens with its assertion",
         });
@@ -227,13 +246,14 @@ class SpaceVerification {
     }
 
     /** Describe a user or an installation of the account's spaces in the space. */
-    async caller(
-        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+    async authentication(
+        verified: Authentication,
         authorizer: Authorizer,
-        subject: Subject = caller.subject,
-    ): Promise<VerifiedCaller> {
+        subject: Subject = verified.caller.subject,
+    ): Promise<Authentication> {
         // select the account that owns the space, of which an installation acting as itself is one
-        const { credential, subject: acting } = caller;
+        const { caller, credential } = verified;
+        const acting = caller.subject;
         const accountId = await this.#account();
         if (subject === acting) {
             await this.#requireInstalled(acting, accountId);
@@ -259,20 +279,17 @@ class SpaceVerification {
         // bound the returned verification by both the credential and assertion lifetimes
         const verifiedAt = this.now;
 
+        // keep what the acting caller proved and its actors only for itself, not for a person it acts as
+        const isOwn = subject === acting;
+
         return {
-            subject,
-            ...(caller.assurance === undefined ? {} : { assurance: caller.assurance }),
-            ...(caller.contacts === undefined || subject !== acting
-                ? {}
-                : { contacts: [...caller.contacts] }),
-            subjects: [subject, ...sets],
-            ...(caller.delegates === undefined || subject !== acting
-                ? {}
-                : { delegates: [...caller.delegates] }),
-            ...(caller.deployments === undefined || subject !== acting
-                ? {}
-                : { deployments: [...caller.deployments] }),
-            ...(granted === undefined ? {} : { grant: granted }),
+            caller: {
+                subject,
+                actors: isOwn ? [...caller.actors] : [],
+                groups: sets,
+                contacts: isOwn ? [...caller.contacts] : [],
+                ...(granted === undefined ? {} : { grant: granted }),
+            },
             credential: {
                 kind: credential.kind,
                 id: credential.id,
@@ -281,6 +298,10 @@ class SpaceVerification {
                 scope: this.spaceId,
                 verifiedAt,
                 expiresAt: Math.min(credential.expiresAt, verifiedAt + TOKEN_LIFETIME_MILLISECONDS),
+                ...(credential.assurance === undefined ? {} : { assurance: credential.assurance }),
+                ...(isOwn && credential.deployments !== undefined
+                    ? { deployments: [...credential.deployments] }
+                    : {}),
             },
         };
     }
@@ -293,7 +314,7 @@ class SpaceVerification {
         const { subjects: expanded } = await Access.expand(
             snapshot,
             [subject],
-            { now: this.now },
+            { subject, now: this.now, linkSecrets: [] },
             authorizer,
             chain.map((link) => link.object),
         );
@@ -311,12 +332,12 @@ class SpaceVerification {
 
     /** Describe a user acting as another user in the space. */
     async impersonation(
-        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+        verified: Authentication,
         subject: Subject,
         authorizer: Authorizer,
-    ): Promise<VerifiedCaller> {
+    ): Promise<Authentication> {
         // require a user acting as another user
-        const acting = caller.subject;
+        const acting = verified.caller.subject;
         if (
             !principal.user.is(acting) ||
             !principal.user.is(subject) ||
@@ -326,9 +347,9 @@ class SpaceVerification {
         }
 
         // describe the represented user within the space's account
-        const represented = await this.caller(caller, authorizer, subject);
+        const represented = await this.authentication(verified, authorizer, subject);
         const accountId = await this.#account();
-        const isMember = represented.subjects.some(
+        const isMember = represented.caller.groups.some(
             (entry) =>
                 entry.packageId === object.account.typeReference.packageId &&
                 entry.type === object.account.name &&
@@ -338,10 +359,10 @@ class SpaceVerification {
 
         // require the lent authority or administration of the member's account
         const { now } = this;
-        Caller.requireCurrent(caller, accountPackage.id, now);
+        Credential.requireCurrent(verified.credential, accountPackage.id, now);
         const reading = Transaction.reading(this.transaction);
         const authorization = new Authorization(authorizer, reading, () =>
-            AccessContext.of(caller, now),
+            AccessContext.of(verified.caller, now, { credential: verified.credential }),
         );
         const lent = await authorization.check(
             object.user.permission("impersonate"),
@@ -362,30 +383,33 @@ class SpaceVerification {
             });
         }
 
-        return { ...represented, delegates: [acting] };
+        return { ...represented, caller: { ...represented.caller, actors: [acting] } };
     }
 
     /** Describe a person acting through a delegate under their grant to it in the space. */
     async delegation(
-        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+        verified: Authentication,
         grant: Grant,
         authorizer: Authorizer,
-    ): Promise<VerifiedCaller> {
-        // describe the delegator within the space's account, without the contacts it proved elsewhere
-        const { contacts: _contacts, ...represented } = await this.caller(
-            caller,
+    ): Promise<Authentication> {
+        // describe the delegator within the space's account, without what it proved elsewhere
+        const represented = await this.authentication(
+            verified,
             authorizer,
             ObjectReference.at("delegator", grant),
         );
 
         // act through the delegate under the grant, until the grant lapses
-        const credential = represented.credential;
+        const { credential } = represented;
         const lapse = grant.expiresAt ?? credential.expiresAt;
 
         return {
-            ...represented,
-            delegates: [ObjectReference.at("delegate", grant)],
-            grant: Grant.claim(grant),
+            caller: {
+                ...represented.caller,
+                actors: [ObjectReference.at("delegate", grant)],
+                contacts: [],
+                grant: Grant.claim(grant),
+            },
             credential: { ...credential, expiresAt: Math.min(credential.expiresAt, lapse) },
         };
     }
@@ -447,13 +471,13 @@ class SpaceVerification {
 
 /** Describe a person acting through a delegate under their grant toward a universe package. */
 function describeDelegation(
-    caller: Caller & Required<Pick<Caller, "credential">>,
+    verified: Authentication,
     grant: Grant,
     audience: PackageId,
     now: number,
-): VerifiedCaller {
+): Authentication {
     // lapse at the earliest of the credential, the token lifetime and the grant
-    const { credential } = caller;
+    const { credential } = verified;
     const lapse = Math.min(
         credential.expiresAt,
         now + TOKEN_LIFETIME_MILLISECONDS,
@@ -464,10 +488,11 @@ function describeDelegation(
     const delegator = ObjectReference.at("delegator", grant);
 
     return {
-        subject: delegator,
-        subjects: [delegator],
-        delegates: [ObjectReference.at("delegate", grant)],
-        grant: Grant.claim(grant),
+        caller: {
+            ...Caller.of(delegator),
+            actors: [ObjectReference.at("delegate", grant)],
+            grant: Grant.claim(grant),
+        },
         credential: {
             kind: credential.kind,
             id: credential.id,
@@ -481,7 +506,7 @@ function describeDelegation(
 /** Read the grant an exchange acts under: the caller's, or a person's to the caller. */
 async function readGrant(
     transaction: DatabaseConnection,
-    caller: Caller & Required<Pick<Caller, "subject">>,
+    caller: Caller,
     input: { readonly subject?: Subject; readonly grant?: Identifier<"grant"> },
     isInstallation: boolean,
     now: number,

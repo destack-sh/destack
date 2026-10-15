@@ -1,4 +1,11 @@
-import { accessGrant, type Caller, Contact, Grant, principal } from "@destack/access";
+import {
+    accessGrant,
+    type Authentication,
+    Caller,
+    Contact,
+    Grant,
+    principal,
+} from "@destack/access";
 import { and, eq, Snapshot, type DatabaseConnection } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
@@ -9,13 +16,12 @@ import { Identity } from "../object/identity.ts";
 import { personalAccessToken } from "../object/personal-access-token.ts";
 import { session } from "../object/session.ts";
 import { user, User } from "../object/user.ts";
-import type { VerifiedCaller } from "../oauth/issuance.ts";
 import { ActiveSession } from "./active-session.ts";
 
 /** The callers of account's packages: access tokens, and the credentials exchanged for them. */
 export const AccountAuthentication = {
     /** Verify a request's bearer access token for a package by the universe's keys. */
-    async caller(
+    async bearer(
         request: Request,
         verifier: {
             /** The account database with the universe's identity. */
@@ -27,7 +33,7 @@ export const AccountAuthentication = {
             /** The time of the verification. */
             readonly now: number;
         },
-    ): Promise<Caller | undefined> {
+    ): Promise<Authentication | undefined> {
         // leave a request without a bearer token to the protocol it speaks, such as a client's own credentials
         const authorization = request.headers.get("authorization");
         if (authorization === null || !/^bearer /iu.test(authorization)) {
@@ -52,7 +58,7 @@ export const AccountAuthentication = {
         database: DatabaseConnection,
         audience: PackageId,
         now: number,
-    ): Promise<VerifiedCaller> {
+    ): Promise<Authentication> {
         // find the session by its token
         const [found] = await database
             .select({ id: session.table.id, clientId: session.table.clientId })
@@ -67,17 +73,18 @@ export const AccountAuthentication = {
         const active = await ActiveSession.read(found.id, database, now).catch(() => {
             throw new CallError("UNAUTHORIZED", { message: "session is no longer authorized" });
         });
-        const caller = AccountAuthentication.sessionCaller(active, audience, now);
+        const authentication = AccountAuthentication.activeSession(active, audience, now);
+        const { credential } = authentication;
 
         return found.clientId === null
-            ? caller
-            : { ...caller, credential: { ...caller.credential, client: found.clientId } };
+            ? authentication
+            : { ...authentication, credential: { ...credential, client: found.clientId } };
     },
 
-    /** Describe a person signed in through an active session, with its assurance and email. */
-    sessionCaller(active: ActiveSession, audience: PackageId, now: number): VerifiedCaller {
+    /** Authenticate a person signed in through an active session, with its assurance and email. */
+    activeSession(active: ActiveSession, audience: PackageId, now: number): Authentication {
         const { assurance } = active;
-        const caller = callerOf(
+        const { caller, credential } = authenticationOf(
             "session",
             active.id,
             active.userId,
@@ -87,9 +94,10 @@ export const AccountAuthentication = {
         );
 
         return {
-            ...caller,
-            ...(assurance === undefined ? {} : { assurance }),
-            ...(active.emailVerified ? { contacts: [Contact.email(active.email)] } : {}),
+            caller: active.emailVerified
+                ? { ...caller, contacts: [Contact.email(active.email)] }
+                : caller,
+            credential: assurance === undefined ? credential : { ...credential, assurance },
         };
     },
 
@@ -99,7 +107,7 @@ export const AccountAuthentication = {
         database: DatabaseConnection,
         audience: PackageId,
         now: number,
-    ): Promise<VerifiedCaller> {
+    ): Promise<Authentication> {
         // read the token of an active user by its secret's digest
         const table = personalAccessToken.table;
         const [row] = await database
@@ -129,32 +137,35 @@ export const AccountAuthentication = {
 
         // act as the user through the token, under the grant until it lapses
         const lapse = grant.expiresAt ?? Number.POSITIVE_INFINITY;
-        const caller = callerOf("personal-access-token", row.id, row.userId, lapse, audience, now);
+        const { caller, credential } = authenticationOf(
+            "personal-access-token",
+            row.id,
+            row.userId,
+            lapse,
+            audience,
+            now,
+        );
 
-        return { ...caller, delegates: [delegate], grant: Grant.claim(grant) };
+        return {
+            caller: { ...caller, actors: [delegate], grant: Grant.claim(grant) },
+            credential,
+        };
     },
 };
 
-/** Describe the person of a credential as a caller of an audience, until the credential lapses. */
-function callerOf(
+/** Authenticate the person of a credential for an audience, until the credential lapses. */
+function authenticationOf(
     kind: string,
     id: string,
     userId: string,
     expiresAt: number,
     audience: PackageId,
     now: number,
-): VerifiedCaller {
+): Authentication {
     const subject = principal.user.reference(Scope.universe.id, userId);
 
     return {
-        subject,
-        subjects: [subject],
-        credential: {
-            kind,
-            id,
-            audience,
-            verifiedAt: now,
-            expiresAt,
-        },
+        caller: Caller.of(subject),
+        credential: { kind, id, audience, verifiedAt: now, expiresAt },
     };
 }

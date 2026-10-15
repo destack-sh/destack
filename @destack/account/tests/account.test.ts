@@ -222,13 +222,16 @@ test("exchange a token acting as a member in the account's space, naming the mem
         [administrator.subject],
         {
             subject: member.subject,
-            subjects: [
-                member.subject,
+            groups: [
                 { ...account.reference(administrator.id, accountId), relation: "editor" },
                 { ...account.reference(administrator.id, accountId), relation: "member" },
             ],
-            assurance: { level: 2, authenticatedAt: signedIn.authenticatedAt },
-            credential: { kind: "session", id: signedIn.id },
+            contacts: [],
+            credential: {
+                kind: "session",
+                id: signedIn.id,
+                assurance: { level: 2, authenticatedAt: signedIn.authenticatedAt },
+            },
         },
     ]);
 });

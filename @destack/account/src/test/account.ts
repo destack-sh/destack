@@ -16,12 +16,14 @@ import {
 } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
 import {
+    AccessContext,
     anyone,
+    type Authentication,
+    Caller,
     type PermissionReference,
     type Policy,
     principal,
     Relationship,
-    Caller,
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@destack/identity";
@@ -707,7 +709,7 @@ export class AccountFixture implements AsyncDisposable {
             this.objects.clock,
         );
         const { publicKey } = await identity.generate();
-        await this.objects.mutate(Caller.of(this.objects.principal, Date.now()), {
+        await this.objects.mutate(this.objects.self, {
             id: RequestId.create(Date.now()),
             calls: [
                 machine.call("keep", {
@@ -906,7 +908,7 @@ export class AccountFixture implements AsyncDisposable {
                 }
 
                 // verify an access token by the universe's keys, else call anonymously
-                return AccountAuthentication.caller(request, {
+                return AccountAuthentication.bearer(request, {
                     database,
                     issuer: ISSUER,
                     audience,
@@ -1207,7 +1209,7 @@ export class AccountFixture implements AsyncDisposable {
     /** Create the owner's eu accounts as the owner. */
     async #keepAccounts(): Promise<void> {
         const owner = principal.user.reference(Scope.universe.id, ids.owner);
-        await this.objects.mutate(Caller.of(owner, Date.now()), {
+        await this.objects.mutate(AccessContext.of(Caller.of(owner), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: ACCOUNTS.map((declared) =>
                 account.call("create", {
@@ -1346,12 +1348,11 @@ function freshHandle(): string {
 }
 
 /** Verify a fixture caller at a time, for a token's lifetime toward an audience. */
-function verified(verification: Verification, audience: PackageId, now: number): Caller {
+function verified(verification: Verification, audience: PackageId, now: number): Authentication {
     const { kind, id, subject } = verification;
 
     return {
-        subject,
-        subjects: [subject],
+        caller: Caller.of(subject),
         credential: {
             kind,
             id,

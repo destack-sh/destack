@@ -86,7 +86,7 @@ export function identity(current: {
 }) {
     const { kind, id } = present(current.credential, "the caller's credential");
 
-    return { subject: current.subject, credential: { kind, id }, profile: current.profile };
+    return { subject: current.subject, token: { kind, id }, profile: current.profile };
 }
 
 /** Read the claims of an exchanged access token. */

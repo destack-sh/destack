@@ -2,11 +2,10 @@ import {
     accessRole,
     Contact,
     Invitation,
-    Role,
-    type RoleRequest,
-    Caller,
     principal,
     Relationship,
+    Role,
+    type RoleRequest,
     SIGNED_IN,
 } from "@destack/access";
 import { eq, inArray, Snapshot, Transaction } from "@destack/db";
@@ -97,7 +96,10 @@ const PLATFORM_ROLE = {
 const PLATFORM_COMPONENT = "platform";
 
 /** The server the platform keeps its records through, as the universe. */
-type PlatformStore = Pick<ObjectStore, "database" | "principal" | "mutate" | "authorize" | "clock">;
+type PlatformStore = Pick<
+    ObjectStore,
+    "database" | "principal" | "self" | "mutate" | "authorize" | "clock"
+>;
 
 /** The platform's own organisation as the universe declares it, with its cloud machines. */
 export const PlatformDeclaration = defineSchema(
@@ -318,7 +320,7 @@ export class Platform {
     /** Run calls as the universe in one platform request. */
     #mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>> {
         return this.#objects.mutate(
-            Caller.of(this.#objects.principal, this.#now),
+            this.#objects.self,
             { id: RequestId.create(this.#now), calls },
             { component: PLATFORM_COMPONENT },
         );
@@ -348,14 +350,7 @@ export class Platform {
         const now = this.#now;
 
         return Transaction.run(this.#objects.database, async (transaction) =>
-            step(
-                await this.#objects.authorize(
-                    transaction,
-                    scope,
-                    Caller.of(this.#objects.principal, now),
-                    { now },
-                ),
-            ),
+            step(await this.#objects.authorize(transaction, scope, this.#objects.self, { now })),
         );
     }
 

@@ -4,7 +4,7 @@ import {
     type OAuthClaimExtensionInput,
     type OAuthProviderExtension,
 } from "@better-auth/oauth-provider";
-import { type Authorizer, principal } from "@destack/access";
+import { type Authentication, type Authorizer, principal, Caller } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
@@ -18,7 +18,7 @@ import accountPackage from "../package.ts";
 import { bearerGrant, JWT_BEARER } from "./bearer.ts";
 import { type CodeCheck, codeGrant, EMAIL_CODE } from "./code.ts";
 import { exchangeGrant, TOKEN_EXCHANGE } from "./exchange.ts";
-import { Issuance, type VerifiedCaller } from "./issuance.ts";
+import { Issuance } from "./issuance.ts";
 
 /** A client a discovery source resolves, as the provider reads it. */
 type DiscoveredClient = NonNullable<Awaited<ReturnType<ClientDiscovery["resolve"]>>>;
@@ -31,7 +31,7 @@ export interface OAuthExtensionOptions {
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which register devices' clients. */
-    readonly objects: Pick<ObjectStore, "mutate" | "database" | "principal">;
+    readonly objects: Pick<ObjectStore, "mutate" | "database" | "self">;
     /** The check of mailed sign-in codes, spending each. */
     readonly codes: CodeCheck;
     /** The policies expanding memberships. */
@@ -96,25 +96,24 @@ async function personClaims(
 
     // describe the person through the session that approved the client, else through the client
     const now = options.clock.now();
-    const caller: VerifiedCaller =
+    const authentication: Authentication =
         sessionId === undefined || sessionId === null
             ? described(user.id, input.client.clientId, now)
-            : AccountAuthentication.sessionCaller(
+            : AccountAuthentication.activeSession(
                   await ActiveSession.read(sessionId, options.database, now),
                   accountPackage.id,
                   now,
               );
 
-    return Issuance.claims(caller);
+    return Issuance.claims(authentication);
 }
 
 /** Describe a person a client acts for without a session, by the client's credential. */
-function described(userId: string, clientId: string, now: number): VerifiedCaller {
+function described(userId: string, clientId: string, now: number): Authentication {
     const subject = principal.user.reference(Scope.universe.id, userId);
 
     return {
-        subject,
-        subjects: [subject],
+        caller: Caller.of(subject),
         credential: {
             kind: "client",
             id: clientId,

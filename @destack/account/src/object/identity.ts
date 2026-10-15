@@ -1,4 +1,4 @@
-import { type Caller, none, principal, through } from "@destack/access";
+import { type Authentication, none, principal, through } from "@destack/access";
 import { type AssertionKey, Bearer, TokenVerifier } from "@destack/runtime/authentication";
 import type { PackageId } from "@destack/package";
 import { createLocalJWKSet } from "jose";
@@ -157,7 +157,7 @@ export const Identity = {
             /** The time the token is verified at. */
             readonly now: number;
         },
-    ): Promise<Caller> {
+    ): Promise<Authentication> {
         // read the issuing universe or space, refusing any other issuer
         const issuer = schema.string().safeParse(Bearer.issuer(token));
         const space = schema.identifier("space").safeParse(issuer.data);

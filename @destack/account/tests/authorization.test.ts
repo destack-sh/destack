@@ -10,6 +10,7 @@ import {
     accessRelationship,
     Authorization,
     Caller,
+    Credential,
     type Permission,
     principal,
 } from "@destack/access";
@@ -107,7 +108,7 @@ test("decide account access for its root, members, group members and installatio
             await Authorization.run(
                 authorizer,
                 database,
-                () => ({ subjects: [owner], now: time, attributes: {} }),
+                () => AccessContext.of(Caller.of(owner), time),
                 (authorization) =>
                     authorization.create(reference, {
                         relationships: [{ relation: "owner", subject: owner }],
@@ -123,7 +124,7 @@ test("decide account access for its root, members, group members and installatio
             .insert(object.group.table)
             .values({ ...record, id: groupId, scope: accountId, name: "readers" });
         const readers = object.group.reference(accountId, groupId);
-        const asOwner = (): AccessContext => ({ subjects: [owner], now: time, attributes: {} });
+        const asOwner = (): AccessContext => AccessContext.of(Caller.of(owner), time);
         const binding = await Authorization.run(authorizer, database, asOwner, async (granting) => {
             await granting.grant({ object: onAccount, relation: "editor", subject: member });
             await granting.grant({ object: readers, relation: "member", subject: reader });
@@ -144,22 +145,18 @@ test("decide account access for its root, members, group members and installatio
 
         // decide reading and updating the account as each subject
         const decide = async (subject: Subject, permission: Permission, target: string) => {
-            const context: Caller = {
-                subject,
-                subjects: [subject],
-                credential: {
-                    kind: "test",
-                    id: "test-1",
-                    audience: accountPackage.id,
-                    verifiedAt: time,
-                    expiresAt: time + 60_000,
-                },
+            const credential = {
+                kind: "test",
+                id: "test-1",
+                audience: accountPackage.id,
+                verifiedAt: time,
+                expiresAt: time + 60_000,
             };
-            Caller.requireCurrent(context, accountPackage.id, time, target);
+            Credential.requireCurrent(credential, accountPackage.id, time, target);
             const access = await authorizer.resolve(
                 Snapshot.live(database),
                 target,
-                AccessContext.of(context, time),
+                AccessContext.of(Caller.of(subject), time, { credential }),
             );
             const reference = object.account.reference(owner.id, target);
             const decision = await authorizer.check(
@@ -232,7 +229,7 @@ test("let a person's home follow on their behalf and read their contact from the
         // decide `follow` and `contact` on the person as their home and as another space
         const decide = async (space: string, permission: "follow" | "contact") => {
             const subject = principal.space.reference(Scope.universe.id, space);
-            const context = { subjects: [subject], now: time, attributes: {} };
+            const context = AccessContext.of(Caller.of(subject), time);
             const access = await authorizer.resolve(Snapshot.live(database), "universe", context);
             const decision = await authorizer.check(
                 Snapshot.live(database),

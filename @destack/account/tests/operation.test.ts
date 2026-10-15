@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
@@ -239,7 +239,10 @@ async function openRegistry(dialect: (typeof TEST_DIALECTS)[number], clock: Cloc
         origin: { package: Package.of(accountPackage) },
     });
     const call = (as: Subject, calls: Parameters<ObjectStore["mutate"]>[1]["calls"]) =>
-        store.mutate(Caller.of(as, clock.now()), { id: RequestId.create(clock.now()), calls });
+        store.mutate(AccessContext.of(Caller.of(as), Date.now()), {
+            id: RequestId.create(clock.now()),
+            calls,
+        });
 
     return {
         space,

@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
 import { aligned, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -314,11 +314,18 @@ test("remove a space's delegated grants when the space is finalized", async () =
 
     // delete the space as its owner just authenticated with a second factor, then finalize its removal as the account store
     const person = principal.user.reference(Scope.universe.id, owner.id);
+    const now = Date.now();
     await fixture.objects.mutate(
-        {
-            ...Caller.of(person, Date.now()),
-            assurance: { level: sudo.assurance, authenticatedAt: Date.now() },
-        },
+        AccessContext.of(Caller.of(person), now, {
+            credential: {
+                kind: "session",
+                id: "session-1",
+                audience: accountPackage.id,
+                verifiedAt: now,
+                expiresAt: now + 60_000,
+                assurance: { level: sudo.assurance, authenticatedAt: now },
+            },
+        }),
         {
             id: RequestId.create(Date.now()),
             calls: [accountObject.space.call("delete", { accountId, id: created.id })],
@@ -330,7 +337,7 @@ test("remove a space's delegated grants when the space is finalized", async () =
             .findFirst({ where: { id: created.id } }),
         "the deleting space",
     );
-    await fixture.objects.mutate(Caller.of(fixture.objects.principal, Date.now()), {
+    await fixture.objects.mutate(fixture.objects.self, {
         id: RequestId.create(Date.now()),
         calls: [accountObject.space.call("finalize", accountObject.space.target(deleting))],
     });

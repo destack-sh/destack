@@ -87,7 +87,7 @@ async function accept(call: CallOf<typeof organisation, "accept">): Promise<Rela
     const role = MemberRole.parse("relation" in relationship ? relationship.relation : undefined);
 
     // refuse a user who has a seat already
-    const organisationId = schema.identifier("organisation").parse(call.requireId());
+    const organisationId = schema.identifier("organisation").parse(call.id);
     const seat = await call.read(member).findFirst({ where: { scope: organisationId, userId } });
     if (seat !== undefined) {
         throw new CallError("CONFLICT", { message: `member ${seat.id} is ${seat.status}` });

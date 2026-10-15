@@ -14,7 +14,7 @@ async function place(
     call: CallOf<typeof placement, "place">,
 ): Promise<ResultOf<typeof placement, "place">> {
     // read the calling machine and its epoch
-    const caller = schema.identifier("machine").parse(Caller.requireSender(call.caller).id);
+    const caller = schema.identifier("machine").parse(Caller.sender(call.caller).id);
     const { epoch } = call.input;
 
     // keep the placement at its epoch, advance the epoch, or take the space over

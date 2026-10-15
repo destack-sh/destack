@@ -1,4 +1,4 @@
-import { principal, Role, universe } from "@destack/access";
+import { Caller, principal, Role, universe } from "@destack/access";
 import { and, type DatabaseConnection, eq, Transaction } from "@destack/db";
 import { type ClaimHome, ObjectStore, RemoteStore } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
@@ -89,8 +89,7 @@ export const TestDirectory = {
                 const now = clock.now();
 
                 return {
-                    subject,
-                    subjects: [subject],
+                    caller: Caller.of(subject),
                     credential: {
                         kind: "fixture",
                         id,

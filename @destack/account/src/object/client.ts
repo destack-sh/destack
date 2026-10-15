@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError } from "@destack/runtime/error";
@@ -170,7 +170,7 @@ export const Client = {
 
         // register it as the person
         const person = principal.user.reference(Scope.universe.id, userId);
-        await objects.mutate(Caller.of(person, now), {
+        await objects.mutate(AccessContext.of(Caller.of(person), now), {
             id: RequestId.create(now),
             calls: [
                 client.call("create", {

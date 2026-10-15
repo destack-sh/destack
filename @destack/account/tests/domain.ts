@@ -1,4 +1,4 @@
-import { type Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { Account, account, claim, user } from "../src/object/index.ts";
 import type { DatabaseConnection, Dialect } from "@destack/db";
@@ -160,7 +160,7 @@ export class DomainFixture implements AsyncDisposable {
     }
 
     /** Authenticate the user in a request's header. */
-    #authenticate(request: Request): Caller {
+    #authenticate(request: Request): Authentication {
         // require a user header
         const userId = request.headers.get(USER_HEADER);
         if (userId === null) {
@@ -172,8 +172,7 @@ export class DomainFixture implements AsyncDisposable {
         const now = Date.now();
 
         return {
-            subject,
-            subjects: [subject],
+            caller: Caller.of(subject),
             credential: {
                 kind: "fixture",
                 id: "fixture-1",

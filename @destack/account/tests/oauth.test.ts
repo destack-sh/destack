@@ -578,10 +578,10 @@ test("carry the second factor of the session approving a device's client in its 
     const { caller } = claims(Tokens.parse(await redeemed.json()).access_token);
     expect({
         reauthenticate: `${reauthenticate.origin}${reauthenticate.pathname}`,
-        assurance: caller.assurance,
+        assurance: caller.credential.assurance,
     }).toEqual({
         reauthenticate: `${ISSUER}/sign-in`,
-        assurance: { level: 2, authenticatedAt: caller.assurance?.authenticatedAt },
+        assurance: { level: 2, authenticatedAt: caller.credential.assurance?.authenticatedAt },
     });
 });
 
@@ -620,13 +620,19 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
     expect({
         wrong: [wrong.status, Refusal.parse(await wrong.json()).error],
         redeemed: [redeemed.status, tokens.scope, tokens.refresh_token !== undefined],
-        token: [sub, holder, caller.credential, caller.assurance?.level],
+        token: [
+            sub,
+            holder,
+            caller.credential.kind,
+            caller.credential.id,
+            caller.credential.assurance?.level,
+        ],
         registered,
         spent: [spent.status, Refusal.parse(await spent.json()).error],
     }).toEqual({
         wrong: [400, "invalid_grant"],
         redeemed: [200, "openid profile offline_access", true],
-        token: [owner.id, clientId, { kind: "client", id: clientId }, 1],
+        token: [owner.id, clientId, "client", clientId, 1],
         registered: { id: clientId, scope: owner.id },
         spent: [400, "invalid_grant"],
     });

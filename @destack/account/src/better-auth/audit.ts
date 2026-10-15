@@ -14,7 +14,7 @@ import {
 } from "@destack/telemetry";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
-import { principal } from "@destack/access";
+import { principal, ANONYMOUS } from "@destack/access";
 import type { Fetch } from "@destack/runtime";
 import { sessionCreate } from "../object/session.ts";
 import { Package } from "@destack/package";
@@ -61,7 +61,7 @@ export class BetterAuthAudit {
     /** Resolve the recorded caller of a request. */
     static caller(current: { user: { id: string } } | null): AuditCaller {
         return current === null
-            ? AuditCaller.anyone
+            ? { subject: ANONYMOUS }
             : {
                   subject: principal.user.reference(
                       Scope.universe.id,

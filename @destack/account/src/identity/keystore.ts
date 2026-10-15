@@ -1,4 +1,4 @@
-import { principal, universe } from "@destack/access";
+import { principal, universe, Caller } from "@destack/access";
 import { ColumnCipher, eq, type DatabaseConnection, type Select } from "@destack/db";
 import type { IdentityRegistry } from "./registry.ts";
 import { identityKey, type SigningKey } from "./key.ts";
@@ -177,8 +177,7 @@ export class IdentityKeystore {
             const now = this.clock.now();
             const { accessToken } = await signing.issuer.issue(
                 {
-                    subject,
-                    subjects: [subject],
+                    caller: Caller.of(subject),
                     credential: {
                         ...signing.credential,
                         audience,
@@ -273,8 +272,7 @@ export class IdentityKeystore {
             const now = this.clock.now();
             const { accessToken } = await tokens.issue(
                 {
-                    subject: self,
-                    subjects: [self],
+                    caller: Caller.of(self),
                     credential: {
                         kind: UNIVERSE_KEY,
                         id: Scope.universe.id,

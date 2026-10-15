@@ -1,4 +1,4 @@
-import { Authorization, type Authorizer, principal, Caller } from "@destack/access";
+import { AccessContext, Authorization, type Authorizer, Caller, principal } from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { user, User } from "../object/user.ts";
@@ -435,12 +435,12 @@ async function createUser(
 
         // make it the owner of its scope, its public profile shown to anyone
         const self = principal.user.reference(Scope.universe.id, userId);
-        const caller = { subjects: [self], now, attributes: {} };
+        const caller = AccessContext.of(Caller.of(self), now);
         await new Authorization(users, transaction, () => caller).create(self, User.creation(self));
 
         // create its personal account and home as the person
         await objects.mutate(
-            Caller.of(self, now),
+            caller,
             {
                 id: RequestId.create(now),
                 calls: [

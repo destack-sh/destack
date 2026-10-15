@@ -1,4 +1,3 @@
-import { Caller } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
@@ -25,11 +24,11 @@ export interface IdentityRegistry {
 /** The registries of identities. */
 export const IdentityRegistry = {
     /** Keep identities in the universe's own store, calling as the store's principal. */
-    of(store: Pick<ObjectStore, "mutate" | "database" | "principal" | "clock">): IdentityRegistry {
+    of(store: Pick<ObjectStore, "mutate" | "database" | "self" | "clock">): IdentityRegistry {
         // call identity methods as the store's principal
         const call = async (calls: Parameters<ObjectStore["mutate"]>[1]["calls"]) => {
             const now = store.clock.now();
-            await store.mutate(Caller.of(store.principal, now), {
+            await store.mutate(store.self, {
                 id: RequestId.create(now),
                 calls,
             });

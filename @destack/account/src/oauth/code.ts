@@ -1,5 +1,5 @@
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
-import { principal } from "@destack/access";
+import { principal, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
@@ -121,10 +121,8 @@ export function codeGrant(options: CodeOptions): OAuthExtensionGrantHandler {
 
         // issue the person's tokens to the client
         const subject = principal.user.reference(Scope.universe.id, userId);
-        const caller = {
-            subject,
-            subjects: [subject],
-            assurance: { level: 1, authenticatedAt: now },
+        const authentication = {
+            caller: Caller.of(subject),
             credential: {
                 kind: "client",
                 id: clientId,
@@ -132,10 +130,11 @@ export function codeGrant(options: CodeOptions): OAuthExtensionGrantHandler {
                 audience,
                 verifiedAt: now,
                 expiresAt: now,
+                assurance: { level: 1, authenticatedAt: now },
             },
         };
 
-        return Issuance.issue(input, caller, {
+        return Issuance.issue(input, authentication, {
             now,
             lifetimes: options.lifetimes,
             scopes: CODE_SCOPES,

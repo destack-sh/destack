@@ -1,6 +1,6 @@
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
 import type { JWTPayload } from "jose";
-import { Caller, CONTAINED, principal } from "@destack/access";
+import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -38,7 +38,7 @@ export interface BearerOptions {
     /** The account database with the machines' keys and the placements. */
     readonly database: DatabaseConnection;
     /** The account objects, which keep the spent proofs. */
-    readonly objects: Pick<ObjectStore, "mutate" | "principal">;
+    readonly objects: Pick<ObjectStore, "mutate" | "self">;
     /** The token endpoint's URL, every assertion's audience. */
     readonly endpoint: string;
     /** The clock assertions are verified at. */
@@ -60,7 +60,7 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         audience: accountPackage.id,
         keys: (thumbprint, issuer, now) => assertionKey(database, thumbprint, issuer, now),
         spend: async (digest, expiresAt, now) => {
-            await options.objects.mutate(Caller.of(options.objects.principal, now), {
+            await options.objects.mutate(options.objects.self, {
                 id: RequestId.create(now),
                 calls: [proof.call("create", { id: digest, expiresAt })],
             });
@@ -81,7 +81,9 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
 
         // verify the assertion, refusing it as an invalid grant
         const now = options.clock.now();
-        const asserted = await assertions.verify(assertion, now).catch(refuse);
+        const { caller: asserted, credential } = await assertions
+            .verify(assertion, now)
+            .catch(refuse);
 
         // bind a machine to a space it serves, receives or works in
         if (spaceId !== undefined && principal.machine.is(asserted.subject)) {
@@ -99,16 +101,16 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         }
 
         // issue the token toward the package, in the space when asked, with a space's containment in its account
-        const credential = {
-            ...asserted.credential,
+        const scoped = {
+            ...credential,
             audience,
             ...(spaceId === undefined ? {} : { scope: spaceId }),
         };
-        const subjects = [...asserted.subjects, ...(await containment(database, asserted.subject))];
+        const groups = [...asserted.groups, ...(await containment(database, asserted.subject))];
 
         return Issuance.sign(
             input,
-            { ...asserted, subjects, credential },
+            { caller: { ...asserted, groups }, credential: scoped },
             { now, lifetimes: options.lifetimes, issuer: options.issuer, sign: options.sign },
         );
     };

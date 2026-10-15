@@ -1,5 +1,5 @@
 import { STACKS } from "../src/test/index.ts";
-import { accessTables, Caller, principal } from "@destack/access";
+import { AccessContext, accessTables, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, Transaction, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -244,7 +244,7 @@ async function decideIn(
         const authorization = await store.authorize(
             transaction,
             scope,
-            Caller.of(subject, Date.now()),
+            AccessContext.of(Caller.of(subject), Date.now()),
             { now: Date.now() },
         );
 

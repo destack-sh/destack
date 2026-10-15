@@ -1,4 +1,4 @@
-import { anyone, Caller, none, principal, relation, Relationship, union } from "@destack/access";
+import { anyone, none, principal, relation, Relationship, union } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -206,7 +206,7 @@ export const Residency = {
 
     /** Keep the residencies the universe declares: create new ones and rename others. */
     async keep(
-        objects: Pick<ObjectStore, "database" | "principal" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "self" | "mutate">,
         definitions: readonly ResidencyDefinition[],
         now: number,
     ): Promise<void> {
@@ -231,7 +231,7 @@ export const Residency = {
             return [];
         });
         if (calls.length > 0) {
-            await objects.mutate(Caller.of(objects.principal, now), {
+            await objects.mutate(objects.self, {
                 id: RequestId.create(now),
                 calls,
             });

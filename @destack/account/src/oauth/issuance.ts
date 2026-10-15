@@ -1,11 +1,10 @@
-import { Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import type {
     OAuthExtensionGrantHandlerInput,
     OAuthTokenResponse,
 } from "@better-auth/oauth-provider";
 import type { JWTPayload } from "jose";
 import { PackageId } from "@destack/package";
-import { schema } from "@destack/schema";
 import {
     ACCESS_TOKEN_TYPE,
     TOKEN_LIFETIME_MILLISECONDS,
@@ -20,44 +19,19 @@ const SECOND_MILLISECONDS = 1000;
 /** The provider's default lifetime of a token without a person, in seconds. */
 const MACHINE_TOKEN_SECONDS = 3600;
 
-/** A caller a grant verified: its subject and its credential, both present. */
-export type VerifiedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
-
 /** The access tokens the token endpoint issues: Better Auth's, carrying the Destack claims. */
 export const Issuance = {
-    /** Build the Destack claims of a verified caller: its identity, delegation and space. */
-    claims(caller: VerifiedCaller) {
-        // require the caller's claims within the universe's authority
-        TokenIssuerAuthority.require({ kind: "universe" }, caller);
+    /** Build the Destack claims of an authentication within the universe's authority. */
+    claims(authentication: Authentication) {
+        TokenIssuerAuthority.require({ kind: "universe" }, authentication);
 
-        // encode the verified identity and the delegation it carries
-        const { credential, delegates = [], grant } = caller;
-        const identity = TokenIdentity.parse(
-            schema.defined({
-                subject: caller.subject,
-                subjects: caller.subjects,
-                assurance: caller.assurance,
-                contacts: caller.contacts,
-                deployments: caller.deployments,
-                attributes: caller.attributes,
-                credential: { kind: credential.kind, id: credential.id },
-            }),
-        );
-
-        return {
-            caller: identity,
-            ...(delegates.length === 0 ? {} : { act: [...delegates] }),
-            ...(grant === undefined ? {} : { grant }),
-            ...(credential.scope === undefined
-                ? {}
-                : { space: schema.identifier("space").parse(credential.scope) }),
-        };
+        return TokenIdentity.claims(authentication);
     },
 
     /** Issue a caller's token for a package, refusing one outliving its session or grant. */
     async issue(
         input: Pick<OAuthExtensionGrantHandlerInput, "ctx" | "provider">,
-        caller: VerifiedCaller,
+        authentication: Authentication,
         terms: {
             /** The time of the issuance. */
             readonly now: number;
@@ -72,7 +46,8 @@ export const Issuance = {
         },
     ): Promise<OAuthTokenResponse> {
         // refuse a token the provider would let outlive the session or grant it acts under
-        const { audience } = caller.credential;
+        const { caller, credential } = authentication;
+        const { audience } = credential;
         const lifetime = terms.lifetimes.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
         if (terms.lapse !== undefined && terms.lapse < terms.now + lifetime) {
             throw Issuance.refusal(
@@ -82,8 +57,8 @@ export const Issuance = {
         }
 
         // issue to the caller's client, else to the keyed principal sending the calls (R1)
-        const { subject, credential, delegates = [] } = caller;
-        const sender = delegates.at(-1) ?? subject;
+        const { subject } = caller;
+        const sender = Caller.sender(caller);
         const isPerson = principal.user.is(subject);
         const client = credential.client ?? (principal.user.is(sender) ? undefined : sender.id);
         if (client === undefined) {
@@ -106,19 +81,19 @@ export const Issuance = {
                 ? {}
                 : {
                       sessionId: terms.session,
-                      ...(caller.assurance === undefined
+                      ...(credential.assurance === undefined
                           ? {}
-                          : { authTime: new Date(caller.assurance.authenticatedAt) }),
+                          : { authTime: new Date(credential.assurance.authenticatedAt) }),
                   }),
             resources: [PackageId.resource(credential.audience)],
-            accessTokenClaims: Issuance.claims(caller),
+            accessTokenClaims: Issuance.claims(authentication),
         });
     },
 
     /** Sign a key holder's token for a package at the store's time, with the provider's claims. */
     async sign(
         input: Pick<OAuthExtensionGrantHandlerInput, "ctx">,
-        caller: VerifiedCaller,
+        authentication: Authentication,
         terms: {
             /** The time of the issuance. */
             readonly now: number;
@@ -134,17 +109,17 @@ export const Issuance = {
         },
     ): Promise<OAuthTokenResponse> {
         // time the token by the package's lifetime, capped at the provider's machine default
-        const { audience } = caller.credential;
+        const { caller, credential } = authentication;
+        const { audience } = credential;
         const lifetime = terms.lifetimes.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
         const issuedAt = Math.floor(terms.now / SECOND_MILLISECONDS);
         const expiresAt =
             issuedAt + Math.min(lifetime / SECOND_MILLISECONDS, MACHINE_TOKEN_SECONDS);
 
         // issue to the caller's client, else to the key holder sending the calls
-        const sender = caller.delegates?.at(-1) ?? caller.subject;
-        const client = caller.credential.client ?? sender.id;
+        const client = credential.client ?? Caller.sender(caller).id;
         const claims = {
-            ...Issuance.claims(caller),
+            ...Issuance.claims(authentication),
             sub: client,
             aud: PackageId.resource(audience),
             client_id: client,
