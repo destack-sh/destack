@@ -1,4 +1,4 @@
-import { Policy, principal, Caller } from "@destack/access";
+import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { call, JournalEntry, journal, type ObjectCall } from "@destack/object";
 import { testEvents } from "@destack/object/test";
@@ -96,7 +96,7 @@ async function startMessages(answers: readonly Outcome[]) {
 
     // request an email in the scope
     const id = message.generateId();
-    await messages.mutate(Caller.of(SPACE, Date.now()), {
+    await messages.mutate(AccessContext.of(Caller.of(SPACE), Date.now()), {
         id: RequestId.create(Date.now()),
         calls: [
             message.call("create", {
@@ -358,7 +358,10 @@ test("schedule messages, then send, defer or skip each while it waits, showing a
     const { messages, storage, scope } = await openMessages({});
     const now = Date.now();
     const mutate = (calls: readonly ObjectCall[]) =>
-        messages.mutate(Caller.of(SPACE, now), { id: RequestId.create(now), calls: [...calls] });
+        messages.mutate(AccessContext.of(Caller.of(SPACE), Date.now()), {
+            id: RequestId.create(now),
+            calls: [...calls],
+        });
     const sealed = await (
         await MessageKey.derive(ROOT)
     ).seal({ channel: "email", subject: "Mentioned", text: TEXT }, scope.id);
@@ -476,7 +479,7 @@ test("read the key a scope's pushes are signed with, refusing it on a machine se
     const silent = await openMessages({});
     const read = (opened: typeof pushing) =>
         opened.messages.query(
-            Caller.of(SPACE, Date.now()),
+            AccessContext.of(Caller.of(SPACE), Date.now()),
             message.call("serverKey", { scope: opened.scope.id }),
         );
 

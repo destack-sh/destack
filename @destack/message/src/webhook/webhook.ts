@@ -1,5 +1,4 @@
 import type { Fetch } from "@destack/runtime";
-import { Caller } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import { Secret } from "@destack/vault";
 import { secret } from "@destack/vault/object";
@@ -120,7 +119,7 @@ function isUnreachable(error: unknown): error is TypeError | DOMException {
 
 /** Read a vault secret's text as the store's principal, which consumes it. */
 function readSecret(
-    store: Pick<ObjectStore, "query" | "clock" | "principal">,
+    store: Pick<ObjectStore, "query" | "self">,
     reference: ObjectReference,
 ): Promise<string> {
     return Secret.text({
@@ -129,9 +128,8 @@ function readSecret(
                 scope: reference.scope,
                 id: secret.identifier(reference.id),
             });
-            const caller = Caller.of(store.principal, store.clock.now());
 
-            return store.query(caller, secret.call("read", target));
+            return store.query(store.self, secret.call("read", target));
         },
     });
 }

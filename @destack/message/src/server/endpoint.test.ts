@@ -1,4 +1,4 @@
-import { Policy, principal, Caller } from "@destack/access";
+import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { AuditCall, call, defineAuditAction } from "@destack/object";
 import { AuditRecorder, Journal } from "@destack/object/server";
@@ -189,7 +189,7 @@ test("refuse a webhook message to an endpoint from a sender who does not manage 
 
     // refuse its webhook message posting to the endpoint with the endpoint's secret
     const now = Date.now();
-    const created = objects.mutate(Caller.of(sender, now), {
+    const created = objects.mutate(AccessContext.of(Caller.of(sender), Date.now()), {
         id: RequestId.create(now),
         calls: [
             message.call("create", {
@@ -222,7 +222,7 @@ test("let the installation consume an endpoint's new secret as the manager who s
     const rotate = () => {
         const now = Date.now();
 
-        return objects.mutate(Caller.of(manager, now), {
+        return objects.mutate(AccessContext.of(Caller.of(manager), Date.now()), {
             id: RequestId.create(now),
             calls: [
                 endpoint.call("update", {
@@ -246,7 +246,7 @@ test("let the installation consume an endpoint's new secret as the manager who s
     // read each secret as the installation, which consumes only the second one
     const read = (kept: ObjectReference) =>
         objects.query(
-            Caller.of(INSTALLATION, Date.now()),
+            AccessContext.of(Caller.of(INSTALLATION), Date.now()),
             secret.call(
                 "read",
                 secret.target({ scope: kept.scope, id: secret.identifier(kept.id) }),
@@ -548,7 +548,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     // disable the endpoint through the space's own settings and keep a second call while it rests
     const update = async (status: "enabled" | "disabled") =>
         served.objects.mutate(
-            Caller.of(INSTALLATION, Date.now()),
+            AccessContext.of(Caller.of(INSTALLATION), Date.now()),
             {
                 id: RequestId.create(Date.now()),
                 calls: [

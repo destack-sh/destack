@@ -1,4 +1,4 @@
-import { principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import type { Outcome } from "../provider/index.ts";
 import type { Mail, MailTransport } from "../email/index.ts";
 import type { ObjectStore } from "@destack/object/server";
@@ -18,10 +18,17 @@ export class MailFixture implements MailTransport {
 }
 
 /** A server without object reads, for a provider in a test that sends without a space. */
-export const UNQUERIED: Pick<ObjectStore, "query" | "clock" | "principal"> = {
+export const UNQUERIED: Pick<ObjectStore, "query" | "clock" | "self"> = {
     query: async () => {
         throw new TypeError("the test cannot read objects");
     },
     clock: Clock.system,
-    principal: principal.space.reference("universe", "space-019f5530-8000-7000-8000-0000000000e9"),
+    get self() {
+        const space = principal.space.reference(
+            "universe",
+            "space-019f5530-8000-7000-8000-0000000000e9",
+        );
+
+        return AccessContext.of(Caller.of(space), Clock.system.now());
+    },
 };

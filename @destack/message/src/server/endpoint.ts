@@ -313,7 +313,7 @@ function deliveredCondition(last: Pick<Message, "status" | "conditions">) {
 
 /** Bind the installation as a consumer of an endpoint's secret, as the caller. */
 async function consume(mutation: Call, reference: ObjectReference): Promise<void> {
-    const consumer = Caller.requirePrincipal(mutation.self);
+    const consumer = Caller.principal(mutation.self);
     await mutation.mutate(mutation.caller, [
         secret.call("bindConsumer", { ...secretTarget(reference), consumer }),
     ]);
@@ -329,7 +329,7 @@ async function releaseUnused(mutation: Call, reference: ObjectReference): Promis
     }
 
     // release it as the caller, who may let software use the secret
-    const consumer = Caller.requirePrincipal(mutation.self);
+    const consumer = Caller.principal(mutation.self);
     await mutation.mutate(mutation.caller, [
         secret.call("releaseConsumer", { ...secretTarget(reference), consumer }),
     ]);
