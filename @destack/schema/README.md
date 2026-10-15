@@ -67,6 +67,17 @@ found(notes, id); // the map's value, or RangeError
 zip(ids, rows); // [[id, row], ...], or RangeError for lists of different lengths
 ```
 
+## Mapped records
+
+`mapValues` builds a record from an object's own keys, typed as the mapped type its caller states, and is the one place a record built from runtime keys gets its type.
+
+```ts
+const columns = mapValues<Builders, TableColumnMap<Builders, Name>>(
+    builders,
+    (builder) => new Column(sqlName, builder.definition),
+);
+```
+
 ## Digests
 
 `canonicalize` writes RFC 8785's canonical JSON, keys sorted by UTF-16 code units, and `Digest.json` hashes that form with SHA-256.

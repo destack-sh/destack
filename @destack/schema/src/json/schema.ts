@@ -1,7 +1,7 @@
 import { RE2JS } from "re2js";
 import { z } from "zod";
 import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/declarable.ts";
-import { canonicalize, type JsonObject } from "./json.ts";
+import { canonicalize } from "./json.ts";
 import { present } from "../presence/presence.ts";
 
 /** The descriptions of the schemas described so far, kept by schema. */
@@ -122,13 +122,7 @@ export const LocalReference = {
     },
 };
 
-/** Describe a schema using JSON Schema Draft 2020-12, as a JSON object. */
-export function toJsonSchema(schema: z.ZodType): JsonSchema & JsonObject;
-/**
- * Describe a schema using JSON Schema Draft 2020-12.
- *
- * @construct Zod writes JSON Schema as plain JSON values: objects, lists, scalars and null.
- */
+/** Describe a schema using JSON Schema Draft 2020-12. */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
     // reuse the description of a schema described before, as schemas never change
     const kept = DESCRIBED.get(schema);

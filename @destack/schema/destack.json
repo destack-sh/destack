@@ -2,5 +2,26 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614e-739b-bf41-8570d1151a11",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "check": {
+        "expect": [
+            {
+                "files": ["src/collection/record.ts"],
+                "rules": [
+                    "typescript/consistent-type-assertions",
+                    "typescript/no-unsafe-type-assertion",
+                    "typescript/no-unnecessary-type-parameters"
+                ],
+                "reason": "mapValues is the one typed construction of a record from runtime keys: TypeScript types such a record only by the mapped type its caller states, as Drizzle and tRPC do internally"
+            },
+            {
+                "files": ["src/identifier/brand.ts"],
+                "rules": [
+                    "typescript/consistent-type-assertions",
+                    "typescript/no-unsafe-type-assertion"
+                ],
+                "reason": "brand is the one typed construction of a nominal identifier type: TypeScript brands a value only by the type its caller states, as zod's own brand does internally"
+            }
+        ]
+    }
 }

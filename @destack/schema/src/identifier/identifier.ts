@@ -1,6 +1,7 @@
 import { v7 } from "uuid";
 import { z } from "zod";
 import { defineSchema } from "../declare/schema.ts";
+import { brand } from "./brand.ts";
 
 /** The characters of a UUID's canonical text form, RFC 9562. */
 const UUID_LENGTH = 36;
@@ -17,8 +18,8 @@ const POSITION_RANGE = { start: 26, end: 32 } as const;
 /** The positions bytes 11 to 13 take: 2^24. */
 const POSITION_LIMIT = 2 ** 24;
 
-/** The identifier validators by prefix, built once each. */
-const VALIDATORS = new Map<string, z.core.$ZodBranded<z.ZodString, string>>();
+/** The identifier validators by prefix, each built and registered once. */
+const VALIDATORS = new Map<string, z.ZodString>();
 
 /** A prefixed UUIDv7 identifier. */
 export type Identifier<Prefix extends string> = z.output<ReturnType<typeof identifier<Prefix>>>;
@@ -26,17 +27,11 @@ export type Identifier<Prefix extends string> = z.output<ReturnType<typeof ident
 /** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
 export function identifier<const Prefix extends string>(
     prefix: Prefix,
-): z.core.$ZodBranded<z.ZodString, Prefix>;
-/**
- * Define an identifier validator, whose signature above brands the prefix it reads.
- *
- * @construct the cached validator matches exactly this prefix, and its brand exists only in types.
- */
-export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, string> {
+): z.core.$ZodBranded<z.ZodString, Prefix> {
     // reuse the prefix's validator
     const known = VALIDATORS.get(prefix);
     if (known !== undefined) {
-        return known;
+        return brand<Prefix>(known);
     }
 
     // keep prefixes literal and unambiguous before appending the UUID
@@ -44,15 +39,11 @@ export function identifier(prefix: string): z.core.$ZodBranded<z.ZodString, stri
         throw new TypeError(`invalid identifier prefix: ${prefix}`);
     }
 
-    // match the prefix followed by a UUIDv7
-    const pattern = new RegExp(`^${prefix}-${UUID_V7}$`, "u");
-
-    // brand, register and keep the validator
-    const validator = z.string().regex(pattern).brand<string>();
-    defineSchema(validator);
+    // match the prefix followed by a UUIDv7, and register and keep the validator
+    const validator = defineSchema(z.string().regex(new RegExp(`^${prefix}-${UUID_V7}$`, "u")));
     VALIDATORS.set(prefix, validator);
 
-    return validator;
+    return brand<Prefix>(validator);
 }
 
 /** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 suffix. */
