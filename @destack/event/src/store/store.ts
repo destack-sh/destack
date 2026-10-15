@@ -497,8 +497,8 @@ export class EventStore {
                 ...(width === undefined ? {} : { start }),
                 events: count(),
                 sum: sum(value),
-                min: min(value),
-                max: max(value),
+                min: min(value.getSQL()),
+                max: max(value.getSQL()),
                 ...Object.fromEntries(
                     columns.map((column, index) => [
                         `key${String(index)}`,
@@ -541,7 +541,7 @@ export class EventStore {
     }
 
     /** Select a filter's scope, time range and condition over a kind's hot events. */
-    #selection(kind: EventKind, filter: EventFilter): SQL | undefined {
+    #selection(kind: EventKind, filter: EventFilter): SQL {
         const table = kind.table;
 
         return and(
@@ -569,8 +569,8 @@ export class EventStore {
         };
     }
 
-    /** Report whether the store keeps a kind. */
-    keeps(kind: EventKind): boolean {
+    /** Report whether the store has a kind. */
+    has(kind: EventKind): boolean {
         return this.#kinds.get(kind.key) === kind;
     }
 

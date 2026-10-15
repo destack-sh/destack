@@ -503,7 +503,7 @@ test.for(TEST_DIALECTS)(
         const { store, database } = fixture;
 
         // append a log line once its table is gone
-        await database.database.execute(sql`DROP TABLE ${line.table}`);
+        await database.database.run(sql`DROP TABLE ${line.table}`);
         await store.append(line, [
             {
                 scope: "space-1",
