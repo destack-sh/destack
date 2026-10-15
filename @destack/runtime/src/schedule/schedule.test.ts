@@ -1,3 +1,4 @@
+import { CallError } from "../error/index.ts";
 import { expect, test } from "@destack/test";
 import type { ScheduleTiming } from "../trigger/index.ts";
 import { Schedule } from "./schedule.ts";
@@ -47,7 +48,9 @@ test("count intervals and one-off occurrences arithmetically", () => {
 test("refuse a timing that ends before it starts", () => {
     const backwards = { ...MORNING, startsAt: 60_000, endsAt: 60_000 };
     expect(() => Schedule.require(backwards)).toThrow(
-        new RangeError("the schedule ends before its first occurrence"),
+        new CallError("BAD_REQUEST", {
+            message: "invalid schedule timing: the schedule ends before its first occurrence",
+        }),
     );
     expect(Schedule.require(MORNING)).toBe(MORNING);
 });

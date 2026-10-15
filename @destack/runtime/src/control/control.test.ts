@@ -291,6 +291,67 @@ test("list a controller of an unlogged table again after a commit to its table a
     await expect.poll(() => ({ ...listings })).toEqual({ claims: 3, tickets: 3 });
 });
 
+test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // hold the follower on its first change until the changes after it are compacted
+    const listed: string[] = [];
+    const swept: string[] = [];
+    const held = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const jobs: Controller = {
+        name: "jobs",
+        watches: [job],
+        keys: async () => {
+            held.resolve();
+            await release.promise;
+
+            return [];
+        },
+        list: async () => {
+            listed.push("jobs");
+
+            return [];
+        },
+        reconcile: async () => undefined,
+    };
+    const sweep: Controller = {
+        name: "sweep",
+        list: async () => {
+            listed.push("sweep");
+
+            return ["stores"];
+        },
+        reconcile: async (key) => {
+            swept.push(key);
+
+            return 60_000;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [jobs, sweep], { clock: Clock.system, report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await expect.poll(() => swept).toEqual(["stores"]);
+
+    // commit a change the follower holds on, then another, and compact both
+    await database.insert(job).values({ id: "first", scope: "space", runs: 1 });
+    await held.promise;
+    await database.insert(job).values({ id: "second", scope: "space", runs: 1 });
+    const now = Date.now();
+    await database.log.compact(now + 1, now);
+    release.resolve();
+
+    // list the jobs again, and leave the sweep to the delay it returned
+    await expect.poll(() => listed).toEqual(["jobs", "sweep", "jobs"]);
+    expect(swept).toEqual(["stores"]);
+});
+
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());

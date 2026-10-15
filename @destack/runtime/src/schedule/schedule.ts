@@ -1,25 +1,35 @@
 import { TimeZone } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
+import { Failure } from "@destack/sync";
+import { CallError } from "../error/index.ts";
 import type { ScheduleTiming } from "../trigger/index.ts";
 
 /** The occurrences of schedule timings: checked, listed back from a time, and found after one. */
 export const Schedule = {
     /** Require a timing's calendar and time zone to exist, and its range to end after it starts. */
     require(timing: ScheduleTiming): ScheduleTiming {
-        // check the calendar
+        // refuse a calendar or time zone the cron parser refuses
         if (timing.timing === "cron") {
-            TimeZone.require(timing.timezone);
-            CronExpressionParser.parse(timing.cron, { tz: timing.timezone });
+            try {
+                TimeZone.require(timing.timezone);
+                CronExpressionParser.parse(timing.cron, { tz: timing.timezone });
+            } catch (error) {
+                throw new CallError("BAD_REQUEST", {
+                    message: `invalid schedule timing: ${Failure.of(error).message}`,
+                });
+            }
         }
 
-        // require a nonempty range
+        // refuse an empty range
         if (
             "endsAt" in timing &&
             timing.endsAt !== undefined &&
             timing.startsAt !== undefined &&
             timing.endsAt <= timing.startsAt
         ) {
-            throw new RangeError("the schedule ends before its first occurrence");
+            throw new CallError("BAD_REQUEST", {
+                message: "invalid schedule timing: the schedule ends before its first occurrence",
+            });
         }
 
         return timing;

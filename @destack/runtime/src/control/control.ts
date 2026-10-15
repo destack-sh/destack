@@ -255,10 +255,11 @@ export class ControlLoop {
         const tables = [
             ...new Set(this.controllers.flatMap((controller) => controller.watches ?? [])),
         ].filter((table) => table[TABLE].retention !== "none");
+        let listed = this.controllers;
         while (!signal.aborted) {
             // read the position before listing
             const after = (await this.database.log.position()).sequence;
-            for (const controller of this.controllers) {
+            for (const controller of listed) {
                 for (const key of await controller.list()) {
                     this.enqueue(controller, key);
                 }
@@ -299,10 +300,13 @@ export class ControlLoop {
                     await yieldToEventLoop();
                 }
             } catch (error) {
-                // list again after compaction
+                // list again after compaction the controllers following the tables
                 if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
                     throw error;
                 }
+                listed = this.controllers.filter((controller) =>
+                    (controller.watches ?? []).some((table) => tables.includes(table)),
+                );
             }
         }
     }
