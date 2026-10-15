@@ -297,10 +297,6 @@ tester.run("no-overload-cast", rules["no-overload-cast"], {
     valid: [
         { code: "function read(id: string): Note { return notes.get(id); }", filename: SOURCE },
         {
-            code: "function read(id: string): Note;\nfunction read(ids: string[]): Note[];\n/**\n * Read one note or several.\n *\n * @construct an identifier reads its note and a list reads each note in order\n */\nfunction read(input: string | string[]): unknown { return lookup(input); }",
-            filename: SOURCE,
-        },
-        {
             code: "class Store {\n    read(id: string): Note { return this.notes.get(id); }\n}",
             filename: SOURCE,
         },
@@ -308,12 +304,18 @@ tester.run("no-overload-cast", rules["no-overload-cast"], {
             code: "function match<Value>(value: Typed<Value>, list: Value[]): SQL;\nfunction match(value: SQLWrapper, list: unknown[]): SQL;\nfunction match(value: SQLWrapper, list: unknown[]): SQL { return membership(value, list); }",
             filename: SOURCE,
         },
+    ],
+    invalid: [
+        {
+            code: "function read(id: string): Note;\nfunction read(ids: string[]): Note[];\n/**\n * Read one note or several.\n *\n * @construct an identifier reads its note and a list reads each note in order\n */\nfunction read(input: string | string[]): unknown { return lookup(input); }",
+            filename: SOURCE,
+            errors: [{ messageId: "cast" }],
+        },
         {
             code: "function methods<Object>(object: Object): Methods<Object>;\n/**\n * Build each method's caller.\n *\n * @construct each key is a method of the object, whose caller the mapped type above describes\n */\nfunction methods(object: unknown): unknown { return build(object); }",
             filename: SOURCE,
+            errors: [{ messageId: "cast" }],
         },
-    ],
-    invalid: [
         {
             code: "function read<Value>(): Value;\nfunction read(): unknown { return value; }",
             filename: SOURCE,

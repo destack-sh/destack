@@ -1,8 +1,5 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
 
-/** The tag of an implementation building a value whose type its signatures map from the input. */
-const CONSTRUCT = /@construct\s+\S/u;
-
 /** A statement or class member as the rule reads it. */
 interface Declared {
     /** The node the rule reports. */
@@ -15,14 +12,14 @@ interface Declared {
     readonly returns: string | undefined;
 }
 
-/** Reject an implementation under overload signatures, unless it states its construction. */
+/** Reject an implementation under overload signatures whose return types differ from its own. */
 export const noOverloadCast: Rule = {
     meta: {
         type: "problem",
         schema: [],
         docs: { description: "type an implementation itself instead of under overloads" },
         messages: {
-            cast: "'{{name}}' declares overloads over its implementation, which cast what callers see; type the implementation itself, or tag a mapped construction with `@construct <invariant>`",
+            cast: "'{{name}}' declares overloads over its implementation, which cast what callers see; type the implementation itself",
         },
     },
     create(context) {
@@ -47,18 +44,13 @@ export const noOverloadCast: Rule = {
                             : [declared.returns];
                     name = declared.name;
                 }
-                // report an implementation whose signatures return other than it does, unless it states its construction
+                // report an implementation whose signatures return other than it does
                 else if (
                     declared.name !== undefined &&
                     declared.name === name &&
                     returns.some((text) => text === undefined || text !== declared.returns)
                 ) {
-                    const documentation = context.sourceCode
-                        .getCommentsBefore(declared.node)
-                        .at(-1);
-                    if (documentation === undefined || !CONSTRUCT.test(documentation.value)) {
-                        context.report({ node: declared.node, messageId: "cast", data: { name } });
-                    }
+                    context.report({ node: declared.node, messageId: "cast", data: { name } });
                     name = undefined;
                     returns = [];
                 }
