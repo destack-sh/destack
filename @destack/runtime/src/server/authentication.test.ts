@@ -89,6 +89,59 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
     },
 );
 
+test("verify a credential the package keeps before the host, which answers every other request", async () => {
+    // serve the caller's name, the package verifying its own key and refusing a revoked one
+    const definition = {
+        me: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user] },
+            audit: false,
+        })
+            .route({ method: "GET", path: "/me" })
+            .output(schema.string()),
+    };
+    const implementation = implement(definition).$context<RequestContext>();
+    const verified: string[] = [];
+    await using server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        health: new Health("verify"),
+        drainTimeout: 100,
+        verify: async (request) => {
+            const key = request.headers.get("package-key");
+            verified.push(key ?? "none");
+            if (key === "revoked") {
+                throw new CallError("UNAUTHORIZED", { message: "the package key is revoked" });
+            }
+
+            return key === null ? undefined : createCaller("bob");
+        },
+        router: implementation.router({
+            me: implementation.me.handler(({ context }) =>
+                Caller.requireSender(context.requireCaller()).id,
+            ),
+        }),
+    });
+    const me = (headers: Record<string, string>) =>
+        createClient(
+            { version: fixturePackage.version, router: definition },
+            { url: "https://fixture.test", headers, fetch: (request) => server.fetch(request) },
+        ).me();
+
+    // answer the package's caller, the host's caller without the package's key, and refuse a revoked key
+    expect({
+        package: await me({ "package-key": "standing", authorization: "alice" }),
+        host: await me({ authorization: "alice" }),
+        revoked: await refusal(me({ "package-key": "revoked", authorization: "alice" })),
+        verified,
+    }).toEqual({
+        package: "bob",
+        host: "alice",
+        revoked: ["UNAUTHORIZED", "the package key is revoked"],
+        verified: ["standing", "none", "revoked"],
+    });
+});
+
 test("authorize a caller bound to a space in the scopes inside it, refusing the universe above it", async () => {
     // place a folder inside a space
     const packageId = hosting.package.id;

@@ -3,11 +3,15 @@ import type { Declaration, ResourceRequirement } from "@destack/package/declare"
 import { Version } from "@destack/schema";
 import { AdapterPath } from "../runtime/description.ts";
 import type { ProcedureRouter } from "../runtime/runtime.ts";
+import type { Policy } from "@destack/access";
+import type { ObjectTypeReference } from "@destack/sync";
 
 /** A package's handler of a protocol others define, at a path below the package's mount. */
 export interface AdapterDeclaration extends Declaration {
     /** The path below the package's mount the adapter answers, such as /npm. */
     readonly path: `/${string}`;
+    /** The principal types whose signed callers the adapter answers, anyone's when absent. */
+    readonly callers?: readonly ObjectTypeReference[];
 }
 
 /** An object type's declaration, with its derived procedures. */
@@ -140,7 +144,10 @@ export const PackageHandle = {
 /** Declare an adapter of a protocol others define, answered below the package's mount. */
 export function defineAdapter(
     name: string,
-    declaration: { readonly path: `/${string}` },
+    declaration: {
+        readonly path: `/${string}`;
+        readonly callers?: readonly Pick<Policy, "definition">[];
+    },
     module?: ModuleMetadata,
 ): AdapterDeclaration {
     // stamp the package and refuse a path of no segments
@@ -156,6 +163,14 @@ export function defineAdapter(
         package: owner,
         name: DeclarationName.parse(name),
         path: declaration.path,
+        ...(declaration.callers === undefined
+            ? {}
+            : {
+                  callers: declaration.callers.map(({ definition }) => ({
+                      packageId: definition.packageId,
+                      type: definition.name,
+                  })),
+              }),
     });
 }
 

@@ -32,9 +32,10 @@ await new StandardSignature().sign(message, secret);
 
 ```ts
 export const npm = defineAdapter("npm", { path: "/npm" });
+export const hooks = defineAdapter("hooks", { path: "/hooks", callers: [principal.installation] });
 export default definePackage({
     objects: { repository, release },
-    adapters: { npm },
+    adapters: { npm, hooks },
     since: "2026.8.0",
 });
 

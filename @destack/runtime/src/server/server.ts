@@ -277,7 +277,10 @@ export class Server implements AsyncDisposable {
         let presented: Caller | undefined;
         let authenticationError: Error | undefined;
         try {
-            const verified = caller ?? (await options.authenticate(request));
+            const verified =
+                caller ??
+                (await options.verify?.(request)) ??
+                (await options.authenticate(request));
             presented = verified;
             if (verified !== undefined) {
                 const scope = options.scope ?? verified.credential?.scope;
@@ -514,7 +517,7 @@ export interface ServerOptions extends PackageImplementation {
     scope?: string;
     /** The installation's resource clients. */
     resources: ResourceContext;
-    /** Verify credentials, answering undefined without a credential. */
+    /** Verify credentials as the host after the package, undefined without a credential. */
     authenticate(request: Request): Promise<Caller | undefined>;
     /** Enforce installation and host-only requirements. */
     authorizeMachine(call: ProcedureCall<RequestContext>): Promise<void>;
@@ -540,6 +543,8 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
     fetch?(request: Request, context: RequestContext): Promise<Response | undefined>;
     /** The package's controllers. */
     readonly controllers?: readonly Controller[];
+    /** Verify a credential the package keeps the keys of before the host, undefined for another. */
+    verify?(request: Request): Promise<Caller | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
 }
