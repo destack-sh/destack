@@ -1,11 +1,12 @@
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { For, type JSX } from "@destack/view";
 
+import { browserStyles } from "./browser";
 import { ItemBadge, type ItemMark } from "./item";
-import { ledgerSizes } from "./ledger.stylex";
+import { chrome } from "./chrome.stylex";
 import { screen } from "../../layout/screen.stylex";
 
 /** The size of a quiet figure, in rem. */
@@ -72,6 +73,7 @@ export type LedgerRow = {
 
 /** Draw a ledger: a stack of blocks, one per row, joined into one band once every row is owned. */
 export function Ledger(properties: {
+    isWindow: boolean;
     columns: readonly Column[];
     widths: readonly number[];
     rows: readonly LedgerRow[];
@@ -103,11 +105,26 @@ export function Ledger(properties: {
             <div
                 {...style.attrs(
                     styles.grid,
+                    properties.isWindow && styles.window,
                     styles.columns(tracks().join(" "), present(tracks().at(-1), "last track")),
                 )}
             >
+                {/* window strip, level with a browser's tabs */}
+                {properties.isWindow && (
+                    <div aria-hidden="true" {...style.attrs(styles.strip)}>
+                        <span {...style.attrs(browserStyles.lights)} />
+                    </div>
+                )}
+
                 {/* column heads, each caption over its unit */}
-                <div aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
+                <div
+                    aria-hidden="true"
+                    {...style.attrs(
+                        styles.row,
+                        styles.head,
+                        properties.isWindow && styles.headWindow,
+                    )}
+                >
                     <span />
                     <For each={properties.columns}>
                         {(column) => (
@@ -134,6 +151,7 @@ export function Ledger(properties: {
                                         styles.row,
                                         styles.block,
                                         properties.isPressable && styles.pressable,
+                                        properties.isWindow && styles.blockFlush,
                                         properties.isWhole && styles.blockWhole,
                                         row().isEmpty && styles.blockEmpty,
                                     ],
@@ -243,6 +261,25 @@ const styles = style.create({
         gridTemplateRows: "auto minmax(0, 1fr)",
         minHeight: 0,
     },
+    window: {
+        backgroundColor: color.card,
+        borderColor: color.border,
+        borderRadius: chrome.radius,
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        boxShadow: shadow.raised,
+        gridTemplateRows: "auto auto minmax(0, 1fr)",
+        overflow: "hidden",
+    },
+    strip: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        boxSizing: "border-box",
+        display: "flex",
+        gridColumn: "1 / -1",
+        height: chrome.strip,
+        paddingInline: "0.875rem",
+    },
     row: {
         alignItems: "center",
         borderInlineStartColor: "transparent",
@@ -276,6 +313,10 @@ const styles = style.create({
     },
     pressable: {
         cursor: "pointer",
+    },
+    blockFlush: {
+        borderRadius: 0,
+        boxShadow: { default: `inset 0 -1px 0 ${color.border}`, ":last-child": "none" },
     },
     blockWhole: {
         borderRadius: 0,
@@ -364,8 +405,13 @@ const styles = style.create({
     head: {
         borderInlineStartColor: "transparent",
         boxSizing: "border-box",
-        height: ledgerSizes.head,
-        paddingBlock: "0.25rem",
+        height: chrome.strip,
+    },
+    headWindow: {
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        height: chrome.toolbar,
     },
     wide: {
         display: { default: "grid", [media.maxMd]: "none", [NARROW]: "none" },

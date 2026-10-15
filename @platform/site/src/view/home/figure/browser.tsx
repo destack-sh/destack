@@ -2,6 +2,7 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, shadow, stroke } from "@destack/theme/tokens.stylex";
 
+import { chrome } from "./chrome.stylex";
 import { palette } from "../../palette.stylex";
 
 /** A mock narrower than a phone screen, which then takes its phone layout. */
@@ -12,7 +13,7 @@ export const browserStyles = style.create({
     browser: {
         backgroundColor: color.card,
         borderColor: color.border,
-        borderRadius: "10px",
+        borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
         boxShadow: shadow.raised,
@@ -30,7 +31,7 @@ export const browserStyles = style.create({
         backgroundColor: color.muted,
         display: { default: "flex", [NARROW]: "none" },
         gap: "0.125rem",
-        height: "2.5rem",
+        height: chrome.strip,
         minWidth: 0,
         paddingInlineStart: "0.875rem",
         paddingInlineEnd: "0.625rem",
@@ -133,7 +134,7 @@ export const browserStyles = style.create({
         borderBottomWidth: stroke.border,
         display: "flex",
         gap: "0.875rem",
-        height: "2.75rem",
+        height: chrome.toolbar,
         minWidth: 0,
         paddingInline: "0.875rem",
     },

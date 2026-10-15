@@ -185,6 +185,7 @@ export function Verb(properties: { isOpen: boolean }) {
                     </Fade>
                 </LabelRow>
                 <Bill
+                    isWindow
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
                     lines={holdings.map((entry) => ({

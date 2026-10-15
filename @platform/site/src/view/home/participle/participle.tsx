@@ -90,6 +90,7 @@ export function Participle(properties: {
                         <Label>{properties.isOpen ? "Your space" : "Your stack"}</Label>
                     </LabelRow>
                     <Bill
+                        isWindow={false}
                         lines={tallyOf(properties.picks)}
                         scale={{ people: people(), users: BASE_USERS }}
                         scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}

@@ -26,6 +26,7 @@ const columns: readonly Column[] = [
 
 /** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
 export function Bill(properties: {
+    isWindow: boolean;
     lines: readonly Line[];
     scale: Scale;
     scales: readonly Scale[];
@@ -82,6 +83,7 @@ export function Bill(properties: {
 
     return (
         <Ledger
+            isWindow={properties.isWindow}
             columns={columns}
             widths={widths()}
             rows={rows()}
