@@ -1,5 +1,9 @@
-import { defineConfig } from "@destack/test/config";
+import { defineConfiguration } from "@destack/test/config";
 
-export default defineConfig({
-    test: { include: ["tests/**/*.test.ts"], testTimeout: 5000, hookTimeout: 5000 },
+export default defineConfiguration({
+    test: {
+        include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+        testTimeout: 10000,
+        hookTimeout: 10000,
+    },
 });

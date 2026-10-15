@@ -1,1 +1,1 @@
-preload = ["@destack/package/transform/preload"]
+preload = ["@destack/package/bun/preload"]

@@ -1,29 +1,34 @@
 import {
-    condition,
-    intersection,
+    contained,
+    none,
+    permission,
     principal,
     relation,
     through,
     union,
+    universe,
     type Creation,
 } from "@destack/access";
-import { Condition } from "@destack/db/query";
 import { Scope, type ObjectReference } from "@destack/sync";
-import { Snapshot } from "@destack/db/log";
-import { check, dialectSQL, index, sql, unique, uniqueIndex, type Select } from "@destack/db";
-import { defineObject, field, method, type Call } from "@destack/object";
-import { identifier, schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { AccountHandle } from "./handle.ts";
+import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
+import { Claim, claimTable, defineObject, defineShape, field, type Call } from "@destack/object";
+import { Identifier, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
+import { Label } from "../address/label.ts";
+import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organisation } from "./organisation.ts";
-import { region, Residency, RESIDENCIES } from "./region.ts";
+import { Residency, residency, ResidencyCode, type ResidencyFound } from "./residency.ts";
+import { SpaceStack } from "./space-stack.ts";
 import { user } from "./user.ts";
-import { sudo } from "./sudo.ts";
+import { sudo } from "../authentication/sudo.ts";
+import { DisplayName } from "./display-name.ts";
+
+/** The name of every account's home space. */
+export const HOME_SPACE = "home";
 
 /** An account, the scope of its spaces. */
 export const account = defineObject({
     name: "account",
-    tier: "global",
     plural: "accounts",
     scope: [user, organisation],
     isScope: true,
@@ -31,118 +36,284 @@ export const account = defineObject({
         /** The globally unique handle scoping the account's package names. */
         handle: field.string(AccountHandle),
         /** The display name. */
-        name: field.string(schema.string().min(1).max(200)),
-        /** The residency new spaces take. */
-        defaultResidency: field.enum(RESIDENCIES).guard({ read: "use" }),
-        /** Whether the account is its user's own or shared. */
+        name: field.string(DisplayName),
+        /** The jurisdiction the account's spaces keep data in. */
+        residency: field.reference(residency, { delete: "restrict" }),
+        /** Whether the account is its user's personal account or a shared one. */
         kind: field.enum(["personal", "shared"]).default("shared"),
-
-        // the account-wide policies, held in the region administering them
-        /** The package admission policy every space of the account inherits. */
-        packagePolicyId: field
-            .string(identifier("package-policy"))
-            .optional()
-            .guard({ read: "use" }),
-        /** The region holding the package policy. */
-        packagePolicyRegion: field
-            .reference(region, { delete: "restrict" })
-            .optional()
-            .guard({ read: "use" }),
-        /** The network policy every space of the account inherits. */
-        networkPolicyId: field
-            .string(identifier("network-policy"))
-            .optional()
-            .guard({ read: "use" }),
-        /** The region holding the network policy. */
-        networkPolicyRegion: field
-            .reference(region, { delete: "restrict" })
-            .optional()
-            .guard({ read: "use" }),
     },
     attributes: { kind: "string" },
+    indexes: { handle: { on: ["handle"], across: () => universe } },
     recoverable: { within: { days: 30 }, by: "delete" },
     relations: {
-        root: { subjects: [user, organisation.members("owner")], grantedBy: "own" },
-        member: { subjects: [user] },
-        host: { subjects: [principal.host.all()], grantedBy: null },
+        resident: { subjects: [residency.members("server")], grantedBy: "place" },
+        claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
+        home: { subjects: [principal.space] },
     },
     permissions: {
+        // inherit from the organisation: its members view and its administrators manage
+        member: through("organisation", "view"),
         read: union(
-            relation("root"),
-            relation("member"),
-            relation("host"),
-            intersection(condition(Condition.eq("kind", "personal")), through("user", "read")),
+            through("user", "self"),
+            contained(principal.space, principal.machine),
+            through("organisation", "view"),
         ),
-        use: union(relation("root"), relation("member"), relation("host")),
-        replicate: relation("host"),
-        update: relation("root"),
-        delete: relation("root"),
-        share: relation("root"),
-        own: relation("root"),
-        impersonate: relation("root"),
-        verify: relation("root"),
+        comment: through("organisation", "manage"),
+        edit: through("organisation", "manage"),
+        manage: through("organisation", "manage"),
+        bill: union(permission("manage"), through("organisation", "bill")),
+        list: union(permission("read"), permission("serve")),
+        replicate: union(contained(principal.space), relation("resident")),
+        // let the residency's servers, the account's home and the account's own machines serve it
+        serve: union(relation("resident"), relation("home"), contained(principal.machine)),
+        // let the residency's platform installations claim names in the account
+        claim: relation("claimant"),
+        // let the person or the organisation's managers found accounts in their scope
+        create: union(through("user", "self"), through("organisation", "manage")),
+        update: permission("manage"),
+        delete: permission("manage"),
+        own: permission("manage"),
+        impersonate: permission("manage"),
+        verify: permission("manage"),
+        place: none(),
     },
-    shareable: { by: "share" },
-    reserved: ["own", "replicate"],
+    shareable: {},
+    reserved: ["own", "replicate", "serve", "claim", "place"],
     elevated: { delete: sudo, own: sudo, impersonate: sudo },
-    methods: {
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("update", {
-            fields: ["handle", "name", "kind"],
-            input: schema.object({
-                /** The residency new spaces take, its owner's when absent. */
-                defaultResidency: Residency.optional(),
-            }),
-            creation: rootAccount,
-            isPredicted: false,
-        }),
-        update: method.update("update", { fields: ["handle", "name", "defaultResidency"] }),
+    constraints: {
+        handle: { kind: "index", on: ["handle"] },
+        scope: { kind: "index", on: ["scope"] },
+        personal: { kind: "index", on: ["scope"], unique: true, where: { kind: "personal" } },
+        kind: {
+            kind: "check",
+            condition: { OR: [{ kind: "shared" }, { scope: { startsWith: "user-" } }] },
+        },
+        handleForm: { kind: "check", condition: { handle: Label.condition(HANDLE_LENGTH) } },
     },
-    constraints: (account) => [
-        unique("account_handle_unique").on(account.handle),
-        index("account_scope").on(account.scope),
-        uniqueIndex("account_personal")
-            .on(account.scope)
-            .where(sql`${account.kind} = 'personal'`),
-        check("account_kind", sql`${account.kind} = 'shared' OR ${account.scope} LIKE 'user-%'`),
-        check(
-            "account_network_policy",
-            sql`(${account.networkPolicyId} IS NULL) = (${account.networkPolicyRegion} IS NULL)`,
-        ),
-        check(
-            "account_package_policy",
-            sql`(${account.packagePolicyId} IS NULL) = (${account.packagePolicyRegion} IS NULL)`,
-        ),
-        check(
-            "account_handle",
-            dialectSQL({
-                sqlite: sql`length(${account.handle}) BETWEEN 1 AND 63 AND ${account.handle} NOT GLOB '*[^a-z0-9-]*' AND ${account.handle} NOT LIKE '-%' AND ${account.handle} NOT LIKE '%-'`,
-                postgresql: sql`length(${account.handle}) BETWEEN 1 AND 63 AND (${account.handle} COLLATE "C") !~ '[^a-z0-9-]' AND ${account.handle} NOT LIKE '-%' AND ${account.handle} NOT LIKE '%-'`,
-            }),
-        ),
-    ],
-});
+}).methods((method) => ({
+    list: method.list("list"),
+    create: method.create("create", {
+        fields: ["handle", "name", "kind"],
+        input: schema.object({
+            /** The jurisdiction the account keeps data in, its owner's when absent. */
+            residencyId: ResidencyCode.exactOptional(),
+            /** The stack of the account's home. */
+            stack: SpaceStack.exactOptional(),
+        }),
+        isPredicted: false,
+    }),
+    update: method.update("update", { fields: ["handle", "name"] }),
+}));
 /** A persisted account record. */
 export type Account = Select<typeof account.table>;
 
-/** Root a new account at its creator or its organisation's owners. */
-async function rootAccount(call: Call, object: ObjectReference): Promise<Creation> {
-    // require a creator
-    const creator = call.caller;
-    if (creator === undefined) {
-        throw new ServiceError("FORBIDDEN", { message: "account needs a creator" });
-    }
+/** The shape replicating every account of a residency to its home, which serves them. */
+export const residentShape = defineShape({
+    name: "residents",
+    parameters: schema.object({
+        /** The residency whose accounts are replicated. */
+        residency: ResidencyCode,
+    }),
+    objects: [account],
+    queries: ({ residency: residencyId }) => [
+        account.query({ scopes: "every", where: { residencyId } }),
+    ],
+});
 
-    // root it at the creator of a user's account, or at the owners of an organisation's
-    const owner = await Scope.object(Snapshot.live(call.database), call.scope);
-    const root = owner.type === organisation.name ? { ...owner, relation: "owner" } : creator;
+/** The residency, relations and payers of accounts. */
+export const Account = {
+    /** Read the account paying for a scope. */
+    async payer(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"account">> {
+        // read an account's owning scope, or take the organisation itself
+        const accountId = schema.identifier("account").safeParse(scope);
+        const owner = accountId.success
+            ? (await reader.read(account.table).findFirst({ where: { id: accountId.data } }))?.scope
+            : scope;
+        if (owner === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no account ${scope}` });
+        }
 
-    return {
-        relationships: [
-            { relation: "root", subject: root },
-            { relation: "host", subject: principal.host.reference(object.id, "*") },
-        ],
-        owner: { ...object, relation: "root" },
-    };
-}
+        // let an account its user owns pay for itself
+        const organisationId = schema.identifier("organisation").safeParse(owner);
+        if (accountId.success && !organisationId.success) {
+            return accountId.data;
+        }
+
+        // read the organisation's payer
+        const paying = organisationId.success
+            ? await reader
+                  .read(organisation.table)
+                  .findFirst({ where: { id: organisationId.data } })
+            : undefined;
+        if (paying === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no payer of ${scope}` });
+        }
+
+        return paying.payer;
+    },
+
+    /** Report whether a handle is free, or claimed by an account, a trashed one too. */
+    async availability(
+        claims: RelationalQueryBuilder<typeof claimTable>,
+        handle: string,
+    ): Promise<HandleAvailability> {
+        // refuse a malformed handle
+        if (!AccountHandle.safeParse(handle).success) {
+            return "invalid";
+        }
+
+        // find an account claiming it
+        const { index, key } = Claim.key(account, "handle", [handle]);
+        const claimed = await Claim.claimed(claims, { index, keys: [key] });
+
+        return claimed.has(key) ? "taken" : "available";
+    },
+
+    /** Derive the identifier of a person's personal account from the person's UUID. */
+    personal(userId: string): Identifier<"account"> {
+        return Identifier.derive(
+            "account",
+            Identifier.uuid(schema.identifier("user").parse(userId)),
+        );
+    },
+
+    /** Derive the identifier of an account's home space from the account's UUID. */
+    home(accountId: string): Identifier<"space"> {
+        return Identifier.derive(
+            "space",
+            Identifier.uuid(schema.identifier("account").parse(accountId)),
+        );
+    },
+
+    /** Derive the identifier of the account a home space belongs to, as `home` derives the home. */
+    ofHome(spaceId: string): Identifier<"account"> {
+        return Identifier.derive(
+            "account",
+            Identifier.uuid(schema.identifier("space").parse(spaceId)),
+        );
+    },
+
+    /** Read the residency a new account keeps data in. */
+    async residency(
+        reader: Pick<Snapshot, "read">,
+        scope: string,
+        chosen: ResidencyCode | undefined,
+    ): Promise<ResidencyCode> {
+        // require a chosen residency to exist
+        if (chosen !== undefined) {
+            return (await Residency.require(reader, chosen)).id;
+        }
+
+        // read the residency of the owning organisation's payer
+        const owner = await Scope.object(reader, scope);
+        let owned: Pick<Account, "residencyId"> | null | undefined;
+        if (organisation.is(owner)) {
+            const id = schema.identifier("organisation").parse(owner.id);
+            const owning = await reader.read(organisation.table).findFirst({ where: { id } });
+            owned =
+                owning === undefined
+                    ? undefined
+                    : await reader.read(account.table).findFirst({ where: { id: owning.payer } });
+        }
+        // read the residency of the owning user's personal account
+        else {
+            const person = schema.identifier("user").parse(owner.id);
+            [owned] = await reader
+                .read(account.table)
+                .findMany({ where: { scope: person, kind: "personal" } });
+        }
+
+        // refuse an owner without such an account
+        if (owned === null || owned === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no account owner ${owner.id}` });
+        }
+
+        return owned.residencyId;
+    },
+
+    /** Find the residency an account keeps its data in, none for an unknown account. */
+    async findResidency(
+        reader: Pick<Snapshot, "read">,
+        accountId: Identifier<"account">,
+    ): Promise<ResidencyFound | null> {
+        const kept = await reader.read(account.table).findFirst({ where: { id: accountId } });
+        const found =
+            kept === undefined
+                ? undefined
+                : await reader.read(residency.table).findFirst({ where: { id: kept.residencyId } });
+
+        return found === undefined ? null : { id: found.id, name: found.name, home: found.home };
+    },
+
+    /** Read the home space of a person's or organisation's paying account, or an account's. */
+    async homeOf(reader: Pick<Snapshot, "read">, owner: string): Promise<Identifier<"space">> {
+        // read a person's personal account
+        let found: Pick<Account, "id"> | null | undefined;
+        if (user.identifies(owner)) {
+            [found] = await reader.read(account.table).findMany({
+                where: {
+                    scope: user.identifier(owner),
+                    kind: "personal",
+                },
+            });
+        }
+        // read an organisation's payer
+        else if (organisation.identifies(owner)) {
+            const paying = await reader.read(organisation.table).findFirst({
+                where: {
+                    id: organisation.identifier(owner),
+                },
+            });
+            found = paying === undefined ? null : { id: paying.payer };
+        }
+        // read the account itself
+        else {
+            found = await reader
+                .read(account.table)
+                .findFirst({ where: { id: account.identifier(owner) } });
+        }
+
+        // refuse an owner without an account
+        if (found === null || found === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no ${owner}` });
+        }
+
+        return Account.home(found.id);
+    },
+
+    /** Relate a new account's owner, home and residency servers. */
+    async creation(call: Call, object: ObjectReference): Promise<Creation> {
+        // resolve the residency before the handler runs
+        const chosen = call.input["residencyId"];
+        const residencyId = await Account.residency(
+            call,
+            call.scope,
+            chosen === undefined ? undefined : ResidencyCode.parse(chosen),
+        );
+
+        // relate the servers of the residency, its platform installations claiming names, and the home
+        const resident = { relation: "resident", subject: Residency.servers(residencyId) };
+        const claimant = { relation: "claimant", subject: Residency.claimants(residencyId) };
+        const home = {
+            relation: "home",
+            subject: principal.space.reference(Scope.universe.id, Account.home(object.id)),
+        };
+
+        // leave an organisation's account to the organisation's members
+        const scope = await Scope.object(call, call.scope);
+        if (organisation.is(scope)) {
+            return { relationships: [resident, claimant, home] };
+        }
+
+        // require a creator of a user's account
+        const creator = call.caller.subject;
+        if (creator === undefined) {
+            throw new CallError("FORBIDDEN", { message: "account needs a creator" });
+        }
+
+        return {
+            relationships: [{ relation: "owner", subject: creator }, resident, claimant, home],
+            owner: { ...object, relation: "owner" },
+        };
+    },
+};

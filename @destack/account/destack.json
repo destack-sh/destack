@@ -4,16 +4,27 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./browser": {
+            "runtimes": ["browser"]
+        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
         "./stack": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        },
+        "./native": {
+            "runtimes": ["bun"]
+        },
+        "./test": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
         "defineAccount": {
-            "module": 1,
             "describes": [
                 {
                     "kind": "account",
@@ -21,5 +32,24 @@
                 }
             ]
         }
+    },
+    "stamps": {
+        "defineAccount": {
+            "module": 1
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/better-auth/adapter.ts"],
+                "rules": ["typescript/no-unnecessary-type-parameters", "destack/no-overload-cast"],
+                "reason": "Better Auth's adapter interface lets its caller choose each read's result type, so the one asRecord boundary takes it (ruling R5)"
+            },
+            {
+                "files": ["src/better-auth/authenticator.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "Better Auth types its providers by a map over its provider list, and its OAuth provider plugin declares absent items as items?: undefined, which exact optional types refuse (ruling 2026-10-16)"
+            }
+        ]
     }
 }

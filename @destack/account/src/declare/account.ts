@@ -1,14 +1,14 @@
 import { TagMap } from "@destack/object";
 import { PermissionReference } from "@destack/access/declare";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import { defineSchema, identifier, Instant, schema } from "@destack/schema";
-import { AccountError } from "../error/error.ts";
+import { defineSchema, Instant, schema } from "@destack/schema";
+import { PackageError } from "@destack/package/error";
 
-/** An account-defined environment. */
+/** An environment an account defines. */
 export const EnvironmentDefinition = defineSchema(
     schema.object({
-        /** Additional account-defined metadata. */
-        tags: TagMap.optional(),
+        /** The environment's metadata tags. */
+        tags: TagMap.exactOptional(),
     }),
 );
 
@@ -17,45 +17,52 @@ export const AccountRole = defineSchema(
     schema.object({
         /** The role's purpose. */
         description: schema.string().min(1),
-        /** Permissions granted wherever the role is bound. */
+        /** The permissions the role grants wherever it is bound. */
         permissions: schema.array(PermissionReference),
     }),
 );
 
-/** A role granted to a user, a group or a service account of the account. */
+/** A role granted to a user, a group or an installation in one of the account's spaces. */
 export const AccountRoleBinding = defineSchema(
     schema.object({
-        /** A declared role name or an existing role in this account. */
-        role: schema.union([DeclarationName, schema.object({ id: identifier("role") })]),
-        /** The user, group or service account receiving the role. */
+        /** The declared role name or an existing role of this account. */
+        role: schema.union([DeclarationName, schema.object({ id: schema.identifier("role") })]),
+        /** The user, group or installation receiving the role. */
         subject: schema.union([
-            schema.object({ user: identifier("user") }),
-            schema.object({ group: identifier("group") }),
-            schema.object({ service: identifier("service-account") }),
+            schema.object({ user: schema.identifier("user") }),
+            schema.object({ group: schema.identifier("group") }),
+            schema.object({
+                installation: schema.object({
+                    /** The space of the installation. */
+                    spaceId: schema.identifier("space"),
+                    /** The installation. */
+                    id: schema.identifier("installation"),
+                }),
+            }),
         ]),
         /** The space the role is bound on. */
-        spaceId: identifier("space").optional(),
-        /** Optional expiry in UTC epoch milliseconds. */
-        expiresAt: Instant.optional(),
+        spaceId: schema.identifier("space").exactOptional(),
+        /** The expiry, in UTC epoch milliseconds. */
+        expiresAt: Instant.exactOptional(),
     }),
 );
 
-/** Account records declared by a repository export. */
+/** The account records a repository export declares. */
 export const AccountDefinition = defineSchema(
     schema.object({
-        /** Account-local environment names. */
-        environments: schema.record(DeclarationName, EnvironmentDefinition).optional(),
-        /** Account roles available to bindings. */
-        roles: schema.record(DeclarationName, AccountRole).optional(),
-        /** Grants applied using the caller's existing authority. */
-        bindings: schema.record(DeclarationName, AccountRoleBinding).optional(),
+        /** The account's environments by name. */
+        environments: schema.record(DeclarationName, EnvironmentDefinition).exactOptional(),
+        /** The account roles that bindings refer to. */
+        roles: schema.record(DeclarationName, AccountRole).exactOptional(),
+        /** The role bindings, applied with the caller's existing authority. */
+        bindings: schema.record(DeclarationName, AccountRoleBinding).exactOptional(),
     }),
 );
 
-/** Account records declared by a repository export. */
+/** The account records a repository export declares. */
 export type AccountDefinition = schema.Infer<typeof AccountDefinition>;
 
-/** Account records with the package declaring them. */
+/** The account records and the package that declares them. */
 export interface AccountDeclaration {
     /** The declaring package, supplied by the module transform. */
     readonly package: Package;
@@ -63,7 +70,7 @@ export interface AccountDeclaration {
     readonly definition: AccountDefinition;
 }
 
-/** Declare account records without creating or changing an account. */
+/** Declare account records as data for a later apply. */
 export function defineAccount(
     definition: schema.Input<typeof AccountDefinition>,
     module?: ModuleMetadata,
@@ -72,10 +79,10 @@ export function defineAccount(
     const owner = ModuleMetadata.require(module, "defineAccount").package;
     const account = AccountDefinition.parse(definition);
 
-    // require named roles to exist in the same declaration
+    // require each role a binding refers to by name in the same declaration
     for (const binding of Object.values(account.bindings ?? {})) {
         if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) {
-            throw new AccountError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
+            throw new PackageError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
         }
     }
 

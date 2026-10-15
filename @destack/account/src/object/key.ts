@@ -1,0 +1,143 @@
+import { none, permission, through, union } from "@destack/access";
+import { Condition, type Select } from "@destack/db";
+import { account } from "./account.ts";
+import { user } from "./user.ts";
+import { type Call, defineObject, field, type ObjectType } from "@destack/object";
+import { proof } from "./proof.ts";
+import { defineSchema, Digest, schema } from "@destack/schema";
+import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
+import { Revocation } from "../credential/revocation.ts";
+import { isCallError } from "@destack/runtime/error";
+
+/** How long a key authenticates, a year in milliseconds. */
+const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
+
+/** A client's public key with a proof of its private half, which the client's machine registers. */
+export const KeyRegistration = defineSchema(
+    schema.object({
+        /** The client. */
+        client: schema.identifier("client"),
+        /** The key's public half. */
+        publicKey: PublicKey,
+        /** The client's proof that it has the private half. */
+        proof: CompactProof,
+    }),
+);
+/** A client's public key with a proof of its private half, which the client's machine registers. */
+export type KeyRegistration = schema.Infer<typeof KeyRegistration>;
+
+/** A revocable authentication key of a client or machine. */
+export const key = defineObject({
+    name: "key",
+    plural: "keys",
+    scope: [user, account, "universe"],
+    nested: { in: "any", receive: "rotate" },
+    fields: {
+        /** The public key. */
+        publicKey: field.json(PublicKey),
+        /** The RFC 7638 JWK thumbprint identifying the key in its holder's proofs and tokens. */
+        thumbprint: field.string(schema.string().min(1)),
+        /** The time the holder proved possession of the private key. */
+        verifiedAt: field.time(),
+        /** The time the key stops authenticating. */
+        expiresAt: field.time(),
+        /** The time the key was withdrawn. */
+        revokedAt: field.time().optional(),
+        /** The time the key was suspended because its machine was disabled. */
+        suspendedAt: field.time().optional(),
+    },
+    permissions: {
+        read: through("parent", "verify"),
+        list: union(permission("read"), through("parent", "list")),
+        rotate: through("parent", "rotate"),
+        revoke: through("parent", "revoke"),
+        enroll: none(),
+        suspend: none(),
+    },
+    reserved: ["rotate"],
+    constraints: {
+        thumbprint: { kind: "unique", on: ["thumbprint"] },
+        expiry: { kind: "check", condition: { expiresAt: { gt: { field: "createdAt" } } } },
+        verification: {
+            kind: "check",
+            condition: {
+                verifiedAt: { gte: { field: "createdAt" }, lt: { field: "expiresAt" } },
+            },
+        },
+    },
+})
+    .methods((method) => ({
+        list: method.list("list"),
+        create: method.create("rotate", {
+            fields: ["publicKey"],
+            input: schema.object({ proof: CompactProof }),
+            isPredicted: false,
+        }),
+        enroll: method.create("enroll", { isInternal: true }),
+        suspend: method.mutation({ permission: "suspend", isInternal: true }),
+        resume: method.mutation({ permission: "suspend", isInternal: true }),
+        revoke: method.mutation({ permission: "revoke" }),
+    }))
+    .implement({
+        methods: {
+            suspend: (call) => call.update({ suspendedAt: call.now }),
+            resume: (call) => call.update({ suspendedAt: null }),
+            revoke: (call) => {
+                // withdraw the target now, refusing one withdrawn before
+                Revocation.requireUnrevoked(call.target, call.object.name);
+
+                return call.update({ revokedAt: call.now });
+            },
+        },
+    });
+/** A persisted key record. */
+export type Key = Select<typeof key.table>;
+
+/** The key columns and reads that proofs, assertions and tokens authenticate with. */
+export const Key = {
+    /** Describe the columns of a key proven now. */
+    async columns(publicKey: PublicKey, now: number) {
+        return {
+            publicKey,
+            thumbprint: await PublicKey.thumbprint(publicKey),
+            verifiedAt: now,
+            expiresAt: now + LIFETIME_MILLISECONDS,
+        };
+    },
+
+    /** Read the unrevoked keys of a client or machine. */
+    unrevoked(call: Pick<Call, "read">, parent: ObjectType, parentId: string) {
+        return call.read(key).findMany({
+            where: {
+                parentPackageId: parent.typeReference.packageId,
+                parentType: parent.name,
+                parentId,
+                revokedAt: { isNull: true },
+            },
+        });
+    },
+
+    /** Match the keys standing at a time: unrevoked and unexpired. */
+    standing(now: number): Condition {
+        return { revokedAt: { isNull: true }, expiresAt: { gt: now } };
+    },
+
+    /** Match the keys that authenticate at a time: standing and unsuspended. */
+    authenticates(now: number): Condition {
+        return { AND: [Key.standing(now), { suspendedAt: { isNull: true } }] };
+    },
+
+    /** Spend a verified proof once in the call's mutation, refusing a proof its key used before. */
+    async spend(call: Pick<Call, "mutate" | "self">, presented: Proof): Promise<void> {
+        const digest = await Digest.of(JSON.stringify([presented.thumbprint, presented.id]));
+        await call
+            .mutate(call.self, [
+                proof.call("create", { id: digest, expiresAt: presented.expiresAt }),
+            ])
+            .catch((error: unknown) => {
+                throw isCallError(error) && error.code === "CONFLICT"
+                    ? new IdentityError("INVALID_PROOF", "key proof was used before")
+                    : error;
+            });
+    },
+};

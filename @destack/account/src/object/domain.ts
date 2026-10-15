@@ -1,83 +1,107 @@
+import { through, union } from "@destack/access";
+import { type Select } from "@destack/db";
 import { account } from "./account.ts";
-import { check, foreignKey, sql, unique, uniqueIndex, type Select } from "@destack/db";
-import { defineObject, field, method } from "@destack/object";
-import { schema } from "@destack/schema";
-
-/** The domains the platform serves itself, which no account claims or nests under. */
-export const RESERVED_DOMAINS = [
-    "destack.sh",
-    "destack.app",
-    "destack.space",
-    "destack.cloud",
-    "destack.computer",
-];
+import { organisation } from "./organisation.ts";
+import { defineObject, field } from "@destack/object";
+import { defineSchema, schema } from "@destack/schema";
 
 /** The DNS label of the TXT record proving a claim, below the claimed hostname. */
 const CHALLENGE_LABEL = "_destack";
 
-/** One DNS label: letters, digits and inner hyphens, 1 to 63 characters (RFC 1035 2.3.1). */
+/** The longest hostname in its text form (RFC 1035 2.3.4). */
+const HOSTNAME_LENGTH = 253;
+
+/** One DNS label: letters, digits and hyphens between them, 1 to 63 characters (RFC 1035 2.3.1). */
 const LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
 
-/** A lowercase ASCII hostname of two or more labels, with a top-level label that is not numeric. */
-const HOSTNAME = new RegExp(`^(?:${LABEL}\\.)+(?=[a-z0-9-]*[a-z])${LABEL}$`);
+/** A lowercase ASCII hostname of two or more labels. */
+const HOSTNAME = new RegExp(`^(?:${LABEL}\\.)+${LABEL}$`, "u");
 
-/** Any platform domain or a hostname below one. */
-const RESERVED = new RegExp(
-    `^(?!(?:.*\\.)?(?:${RESERVED_DOMAINS.map((reserved) => RegExp.escape(reserved)).join("|")})$)`,
-);
+/** A top-level label with a letter, which tells a hostname from an address. */
+const TOP_LEVEL = /[a-z][a-z0-9-]*$/u;
 
-/** A DNS hostname in its canonical lowercase ASCII form, at most 253 characters (RFC 1035 2.3.4). */
+/** A hostname, or a wildcard label before one matching every name below it. */
+const HOSTNAME_PATTERN = new RegExp(`^(?:\\*\\.)?${HOSTNAME.source.slice(1)}`, "u");
+
+/** Who administers the domains of an account or an organisation. */
+const MANAGERS = union(through("account", "manage"), through("organisation", "manage"));
+
+/** A DNS hostname in its canonical lowercase ASCII form. */
 export const Hostname = schema
     .string()
-    .max(253)
+    .max(HOSTNAME_LENGTH)
     .regex(HOSTNAME, "hostnames are lowercase ASCII labels, punycode for others")
-    .regex(RESERVED, "platform domains are reserved");
+    .regex(TOP_LEVEL, "top-level labels have a letter");
 
-/** The TXT record proving an account's claim to a hostname. */
-export const DomainChallenge = {
-    /** Read the record a claim's administrators publish: its name and its value. */
-    of(domain: { readonly id: string; readonly hostname: string }): {
-        name: string;
-        value: string;
-    } {
-        return {
-            name: `${CHALLENGE_LABEL}.${domain.hostname}`,
-            value: `destack-verify=${domain.id}`,
-        };
+/** A hostname an account serves on, or a wildcard `*.` before one for every name below it. */
+export const HostnamePattern = schema
+    .string()
+    .max(HOSTNAME_LENGTH)
+    .regex(HOSTNAME_PATTERN, "hostnames are lowercase ASCII labels, an optional *. first")
+    .regex(TOP_LEVEL, "top-level labels have a letter");
+
+/** The TXT record proving the claim to a domain. */
+export const DomainChallenge = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The record's name, below the claimed domain. */
+            name: schema.string().min(1),
+            /** The record's value, with the claim. */
+            value: schema.string().min(1),
+        }),
+    ),
+    {
+        /** Read the record a claim's administrators publish. */
+        of(domain: { readonly scope: string; readonly name: string }): DomainChallenge {
+            return {
+                name: `${CHALLENGE_LABEL}.${domain.name}`,
+                value: `destack-verify=${domain.scope}`,
+            };
+        },
     },
-};
+);
+/** The TXT record a domain claim's administrators publish. */
+export type DomainChallenge = schema.Infer<typeof DomainChallenge>;
 
-/** A DNS hostname an account claims, and serves once it proves the claim. */
+/** A DNS domain an account or an organisation proves it controls once, through a TXT record. */
 export const domain = defineObject({
     name: "domain",
-    tier: "global",
     plural: "domains",
-    scope: account,
+    scope: [account, organisation],
     fields: {
-        /** The canonical lowercase DNS hostname. */
-        hostname: field.string(Hostname),
-        /** The time the account proved its claim through the hostname's TXT record. */
+        /** The canonical lowercase domain, such as acme.com. */
+        name: field.string(Hostname),
+        /** The time the owner proved its claim through the domain's TXT record. */
         verifiedAt: field.time().optional(),
     },
-    permissions: ["read", "create", "verify", "delete"],
-    methods: {
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("create", { fields: ["hostname"] }),
-        verify: method({ permission: "verify" }),
-        delete: method.delete("delete"),
+    permissions: {
+        read: MANAGERS,
+        create: MANAGERS,
+        verify: MANAGERS,
+        delete: MANAGERS,
     },
-    constraints: (entry) => [
-        foreignKey({ columns: [entry.scope], foreignColumns: [account.table.id] }).onDelete(
-            "restrict",
-        ),
-        unique("domain_scope_hostname").on(entry.scope, entry.hostname),
-        uniqueIndex("domain_verified_hostname")
-            .on(entry.hostname)
-            .where(sql`${entry.verifiedAt} IS NOT NULL`),
-        check("domain_hostname_form", sql`${entry.hostname} = lower(${entry.hostname})`),
-    ],
-});
-
+    constraints: {
+        scopeName: { kind: "unique", on: ["scope", "name"] },
+        verifiedName: {
+            kind: "index",
+            on: ["name"],
+            unique: true,
+            where: { verifiedAt: { isNotNull: true } },
+        },
+        nameForm: { kind: "check", condition: { name: { characters: "a-z0-9.*-" } } },
+    },
+}).methods((method) => ({
+    create: method.create("create", { fields: ["name"] }),
+    verify: method.mutation({ permission: "verify", prepared: DomainChallenge }),
+    delete: method.delete("delete"),
+}));
 /** A persisted domain record. */
 export type Domain = Select<typeof domain.table>;
+
+/** The hostnames a domain covers. */
+export const Domain = {
+    /** Decide whether a domain covers a hostname: the domain itself or a name below it. */
+    covers(name: string, hostname: string): boolean {
+        return hostname === name || hostname.endsWith(`.${name}`);
+    },
+};
