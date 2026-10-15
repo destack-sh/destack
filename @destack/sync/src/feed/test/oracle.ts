@@ -13,18 +13,18 @@ import {
     Expression,
     type Row,
     type ColumnValue,
-    type Measure,
     type Path,
-    type QueryOptions,
     type Relation,
     Relations,
 } from "@destack/db";
+import { type Measure } from "../../query/aggregate.ts";
+import { type QuerySelection } from "../../query/query.ts";
 import { canonicalize, aligned } from "@destack/schema";
 import type { Query } from "../../query/query.ts";
 import type { ConditionAudience } from "./audience.ts";
 
 /** A level of a query the oracle evaluates: the root's rows, or a relation's rows under options. */
-interface Level extends QueryOptions {
+interface Level extends QuerySelection {
     /** The level's table. */
     readonly table: Table;
     /** How the level's rows join the rows above, absent for a root. */
@@ -477,7 +477,7 @@ function relationOf(
 }
 
 /** Read a relation's rows under options as an include, meeting the relation's condition too. */
-function includeOf(relation: Relation, options: QueryOptions): Level & { readonly on: Path } {
+function includeOf(relation: Relation, options: QuerySelection): Level & { readonly on: Path } {
     const where =
         relation.where === undefined || options.where === undefined
             ? (relation.where ?? options.where)

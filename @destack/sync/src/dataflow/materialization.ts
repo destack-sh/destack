@@ -1,6 +1,7 @@
 import { type Row, type Table, TABLE } from "@destack/db";
 import { aligned } from "@destack/schema";
-import type { Item, AggregateRow } from "../query/query.ts";
+import type { Item } from "../query/query.ts";
+import type { AggregateRow } from "../query/aggregate.ts";
 import type { Member, Partition } from "./pipeline.ts";
 
 /** One built result row: its selected row, its concealed columns, and the entry readers see. */

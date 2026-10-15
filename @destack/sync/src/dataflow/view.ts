@@ -149,8 +149,13 @@ export class View {
         // read compound keys one at a time
         return Promise.all(
             keys.map((key) =>
-                this.#cache.row.share(this.position.sequence, `row:${Key.name(table, key)}`, () =>
-                    this.#snapshot.row(table, key),
+                this.#cache.row.share(
+                    this.position.sequence,
+                    `row:${Key.name(table, key)}`,
+                    async () =>
+                        (await this.#snapshot
+                            .read(table)
+                            .findFirst({ where: Key.where(table, key) })) ?? null,
                 ),
             ),
         );
@@ -165,7 +170,7 @@ export class View {
 
     /** Read a table's rows matching a condition. */
     matching(table: Table, where: Condition): Promise<Row[]> {
-        return this.#snapshot.rows(table, where);
+        return this.#snapshot.read(table).findMany({ where });
     }
 
     /** Read the first visible rows of each partition after each segment's row, up to a count. */
@@ -341,16 +346,16 @@ export class View {
         }
 
         // match other columns in a condition
-        return this.#snapshot.rows(
-            table,
-            single !== undefined && others.length === 0
-                ? {
-                      [single]: {
-                          in: tuples.flatMap(([value]) => (value === undefined ? [] : [value])),
-                      },
-                  }
-                : { OR: tuples.map((tuple) => Object.fromEntries(zip(columns, tuple))) },
-        );
+        return this.#snapshot.read(table).findMany({
+            where:
+                single !== undefined && others.length === 0
+                    ? {
+                          [single]: {
+                              in: tuples.flatMap(([value]) => (value === undefined ? [] : [value])),
+                          },
+                      }
+                    : { OR: tuples.map((tuple) => Object.fromEntries(zip(columns, tuple))) },
+        });
     }
 
     /** Read the rows of a table changed between two sequences, as they were and are. */

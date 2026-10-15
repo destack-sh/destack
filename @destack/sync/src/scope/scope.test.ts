@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { eq, Snapshot, TABLE, Transaction } from "@destack/db";
+import { eq, Snapshot, Transaction, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { open } from "../test/fixture.ts";
 import { Scope } from "./scope.ts";
@@ -124,7 +124,7 @@ test.for(TEST_DIALECTS)(
                     Scope.fence(fencing, "account", "machine-b", 1000),
                 );
             }
-            const note = Scope.table[TABLE].complete(row("note", "space", ["space"]));
+            const note = Table.complete(Scope.table, row("note", "space", ["space"]));
             await transaction.write({ table: Scope.table, before: null, after: note });
 
             return chain.map((link) => link.movedTo);

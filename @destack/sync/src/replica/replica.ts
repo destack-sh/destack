@@ -21,7 +21,6 @@ import {
     TABLE,
     type DatabaseConnection,
     type SQL,
-    type Table,
     Condition,
     Order,
     Scalar,
@@ -31,18 +30,20 @@ import {
     type LogPosition,
     type Row,
     type ColumnValue,
-    type QueryOptions,
     type Relation,
     Relations,
     type Transaction,
     type Select,
+    Table,
 } from "@destack/db";
+import type { QuerySelection } from "../query/query.ts";
 import { SyncError } from "../error/error.ts";
 import { schema, canonicalize, Clock, found, zip } from "@destack/schema";
 import { Page, type ResultChange, type RowChange } from "../query/page.ts";
 import { ShapeAudience, Subscription, type Resumption } from "./shape.ts";
 import { Subject } from "../call/subject.ts";
-import type { Query, Item, AggregateRow } from "../query/query.ts";
+import type { Query, Item } from "../query/query.ts";
+import type { AggregateRow } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import { EVERYONE } from "../feed/audience.ts";
@@ -293,7 +294,7 @@ export class Replica {
     }
 
     /** Build the includes of tables replicated across scopes under a parent table, recursively. */
-    #children(parent: Table): { with?: Record<string, QueryOptions> } {
+    #children(parent: Table): { with?: Record<string, QuerySelection> } {
         // include each table living in this table's rows by its relation from the parent
         const children = this.tables.filter(
             (table) => this.within.get(table)?.includes(parent) === true,
@@ -456,12 +457,12 @@ export class Replica {
 
     /** Report whether a database replicates a scope, or the scope's rows of one table. */
     static async isReplicated(
-        snapshot: Pick<Snapshot, "rows">,
+        snapshot: Pick<Snapshot, "read">,
         scope: string,
         table?: Table,
     ): Promise<boolean> {
         // read the replicas of the scope with the tables they keep
-        const records = await snapshot.rows(replica, { scope });
+        const records = await snapshot.read(replica).findMany({ where: { scope } });
         const name = table?.[TABLE].sqlName;
 
         return records.some((record) => name === undefined || record.tables.includes(name));
@@ -532,7 +533,11 @@ export class Replica {
 
     /** Report whether the database keeps the replica's record. */
     async isRecorded(snapshot: Snapshot): Promise<boolean> {
-        return (await snapshot.row(replica, { name: this.name, scope: this.scope })) !== null;
+        return (
+            (await snapshot
+                .read(replica)
+                .findFirst({ where: { name: this.name, scope: this.scope } })) !== undefined
+        );
     }
 
     /** Report whether a database's replica of a scope is a complete snapshot, as informers sync. */
@@ -902,13 +907,14 @@ export class Replica {
     async promote(transaction: Transaction): Promise<void> {
         // require a complete replica
         const key = { name: this.name, scope: this.scope };
-        const registration = await transaction.row(replica, key);
-        const position = await transaction.row(replicaPosition, key);
-        const record =
-            registration === null || position === null
-                ? undefined
-                : Replica.#merge(registration, position);
-        if (this.#recordedPosition(record, await this.#layout) === undefined) {
+        const registration = await transaction.read(replica).findFirst({ where: key });
+        const position = await transaction.read(replicaPosition).findFirst({ where: key });
+        const layout = await this.#layout;
+        if (
+            registration === undefined ||
+            position === undefined ||
+            this.#recordedPosition(Replica.#merge(registration, position), layout) === undefined
+        ) {
             throw new SyncError("STALE", `replica of ${this.scope} has no position yet`);
         }
 
@@ -1298,9 +1304,9 @@ export class Replica {
             change.operation === "delete"
                 ? undefined
                 : Replica.#origin(
-                      replicaPosition[TABLE]
-                          .selectSchema()
-                          .parse(replicaPosition[TABLE].decode(change.row)),
+                      Table.selectSchema(replicaPosition).parse(
+                          Table.decode(replicaPosition, change.row),
+                      ),
                   );
         if (origin === undefined) {
             throw new DatabaseError("STALE_EPOCH", `source stopped replicating ${this.scope}`);
@@ -1616,7 +1622,7 @@ export class Replica {
         open: ApplyOptions["open"],
     ): Promise<void> {
         // leave a predefined row to the database, which keeps it identical everywhere
-        const decoded = table[TABLE].decode(change.row);
+        const decoded = Table.decode(table, change.row);
         if (Key.isPredefined(table, decoded)) {
             return;
         }
@@ -1832,7 +1838,7 @@ export class Replica {
     ): { readonly image: Row; readonly sign: -1 | 1 }[] {
         // require an update's before
         const table = node.table[TABLE];
-        const row = table.decode(change.row);
+        const row = Table.decode(node.table, change.row);
         if (change.operation === "update" && change.before === undefined) {
             throw new SyncError(
                 "INVALID_STREAM",
@@ -1845,7 +1851,7 @@ export class Replica {
         if (change.operation === "insert") {
             before = undefined;
         } else if (change.operation === "update" && change.before !== undefined) {
-            before = table.decode(change.before);
+            before = Table.decode(node.table, change.before);
         }
         const after = change.operation === "delete" ? undefined : row;
 

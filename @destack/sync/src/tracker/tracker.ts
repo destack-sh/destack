@@ -4,9 +4,9 @@ import {
     Key,
     TABLE,
     type DatabaseConnection,
-    type Table,
     type Channel,
     typedChannel,
+    Table,
 } from "@destack/db";
 
 /** The heartbeat interval in milliseconds: three missed beats bound a crash to 45 s. */
@@ -342,7 +342,7 @@ export class Tracker {
                         .delete(table)
                         .where(Key.match(table, Key.parse(table, tracked.key)));
                 } else {
-                    await transaction.upsert(table, [table[TABLE].decode(tracked.row)]);
+                    await transaction.upsert(table, [Table.decode(table, tracked.row)]);
                 }
             }
         });

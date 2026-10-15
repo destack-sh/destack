@@ -37,7 +37,8 @@ import {
     task,
     TABLES,
 } from "../test/fixture.ts";
-import type { AggregateRow, Query } from "../query/query.ts";
+import type { Query } from "../query/query.ts";
+import type { AggregateRow } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
 import { SyncError } from "../error/error.ts";
 import { Scope } from "../scope/scope.ts";

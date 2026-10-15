@@ -20,9 +20,9 @@ import {
     text,
     type DatabaseConnection,
     type SQL,
-    type Table,
     type LogPosition,
     Change,
+    Table,
 } from "@destack/db";
 import { schema } from "@destack/schema";
 import { RowChange } from "../query/page.ts";
@@ -388,7 +388,7 @@ export class Prediction {
         if (table === undefined) {
             throw new TypeError(`a prediction changed an unknown table: ${change.table}`);
         }
-        const row = table[TABLE].decode(change.row);
+        const row = Table.decode(table, change.row);
         const matched = Key.match(table, row);
 
         // remove an inserted row
@@ -400,7 +400,7 @@ export class Prediction {
             if (change.before === undefined) {
                 throw new TypeError(`a predicted update of ${change.table} lacks its before`);
             }
-            await transaction.update(table).set(table[TABLE].decode(change.before)).where(matched);
+            await transaction.update(table).set(Table.decode(table, change.before)).where(matched);
         }
         // reinsert a deleted row
         else {

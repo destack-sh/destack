@@ -1,14 +1,25 @@
 import {
+    type Extras,
     type QueryOptions,
     type Relation,
     Relations,
     type Row,
-    type Scalar,
     type Table,
 } from "@destack/db";
+import type { Aggregate, AggregateRow } from "./aggregate.ts";
+
+/** What a subscriber's query selects at one level: rows with extras and includes, or aggregates. */
+export interface QuerySelection extends QueryOptions {
+    /** The values computed from each row, read like fields, by name. */
+    readonly extras?: Extras;
+    /** The related rows each selected row includes, by relation: every row, or a selection. */
+    readonly with?: Readonly<Record<string, true | QuerySelection>>;
+    /** The aggregates kept instead of rows. */
+    readonly aggregate?: Aggregate;
+}
 
 /** Rows of one logged table a subscriber keeps, with their included rows, or aggregates. */
-export interface Query extends QueryOptions {
+export interface Query extends QuerySelection {
     /** The logged table. */
     readonly table: Table;
     /** The scopes whose rows the query selects, or every scope. */
@@ -25,14 +36,6 @@ export type Item = {
     readonly with: Readonly<Record<string, readonly Item[]>>;
     /** Each aggregate include's groups, a whole include's measures as one ungrouped group. */
     readonly measures: Readonly<Record<string, readonly AggregateRow[]>>;
-};
-
-/** One group of an aggregate's rows: its group values and its measures. */
-export type AggregateRow = {
-    /** The group's values in JSON form, by column. */
-    readonly group: Readonly<Record<string, Scalar>>;
-    /** The group's measures, by name. */
-    readonly values: Readonly<Record<string, Scalar>>;
 };
 
 /** Resolve a query's included relation as a query of the related table, with the relation. */

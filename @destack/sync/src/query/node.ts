@@ -20,17 +20,16 @@ import {
     DatabaseError,
     sql,
     type Tree,
-    type Aggregate,
-    type Measure,
     type Path,
-    type QueryOptions,
     Relations,
 } from "@destack/db";
+import { type Aggregate, type Measure } from "./aggregate.ts";
+import { type QuerySelection } from "./query.ts";
 import { canonicalize, type JsonValue } from "@destack/schema";
 import type { Query } from "./query.ts";
 
 /** A relation a node includes or measures: its table, path, and selection of related rows. */
-interface Include extends QueryOptions {
+interface Include extends QuerySelection {
     /** The related table. */
     readonly table: Table;
     /** How the related rows join the parent's. */
@@ -273,7 +272,7 @@ export class Node {
     }
 
     /** Include a named relation's rows, as every row or a selection of them. */
-    #include(child: string, selected: true | QueryOptions): Node {
+    #include(child: string, selected: true | QuerySelection): Node {
         // join the relation's condition and the selection's
         const relation = this.schema.get(this.table, child);
         const options = selected === true ? {} : selected;

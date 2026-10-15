@@ -1,4 +1,4 @@
-import type { RowImage, Select, Snapshot, Transaction } from "@destack/db";
+import type { RowImage, Select, Transaction, Snapshot } from "@destack/db";
 import { found } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
@@ -42,12 +42,14 @@ export const Scope = {
 
     /** Read some scopes' rows by identifier, and the universe's when asked, stored nowhere. */
     async read(
-        reader: Pick<Snapshot, "row" | "rows">,
+        reader: Pick<Snapshot, "read">,
         ids: readonly string[],
     ): Promise<RowImage<typeof scopeTable>[]> {
         // read the stored rows, and the universe's when asked
         const rows =
-            ids.length === 0 ? [] : await reader.rows(scopeTable, { scope: { in: [...ids] } });
+            ids.length === 0
+                ? []
+                : await reader.read(scopeTable).findMany({ where: { scope: { in: [...ids] } } });
 
         return ids.includes(UNIVERSE_ID) ? [...rows, UNIVERSE_ROW] : rows;
     },
@@ -58,7 +60,7 @@ export const Scope = {
     },
 
     /** Read a scope and the scopes enclosing it, nearest first. */
-    async chain(reader: Pick<Snapshot, "row" | "rows">, scope: string): Promise<ScopeLink[]> {
+    async chain(reader: Pick<Snapshot, "read">, scope: string): Promise<ScopeLink[]> {
         const chained = await Scope.chains(reader, [scope]);
 
         return found(chained, scope);
@@ -66,7 +68,7 @@ export const Scope = {
 
     /** Read the chains of some scopes, nearest first, reading each ancestor level once for all. */
     async chains(
-        reader: Pick<Snapshot, "row" | "rows">,
+        reader: Pick<Snapshot, "read">,
         scopes: readonly string[],
     ): Promise<Map<string, ScopeLink[]>> {
         // read the scopes' rows and their ancestors' rows by key
@@ -119,7 +121,7 @@ export const Scope = {
     },
 
     /** Read a scope's own object and refuse an unknown scope. */
-    async object(reader: Pick<Snapshot, "row" | "rows">, id: string): Promise<ObjectReference> {
+    async object(reader: Pick<Snapshot, "read">, id: string): Promise<ObjectReference> {
         const [link] = await Scope.chain(reader, id);
         if (link === undefined) {
             throw new SyncError("NOT_FOUND", `unknown scope: ${id}`);
@@ -154,8 +156,8 @@ export const Scope = {
         scope: string,
         changes: Partial<Select<typeof scopeTable>>,
     ): Promise<void> {
-        const row = await transaction.row(scopeTable, { scope });
-        if (row === null) {
+        const row = await transaction.read(scopeTable).findFirst({ where: { scope } });
+        if (row === undefined) {
             throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
         }
         await transaction.write({ table: scopeTable, before: row, after: { ...row, ...changes } });

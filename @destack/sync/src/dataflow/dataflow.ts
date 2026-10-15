@@ -13,7 +13,8 @@ import {
 import { canonicalize, aligned, found, zip } from "@destack/schema";
 import { type Audience, Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
-import type { Query, Item, AggregateRow } from "../query/query.ts";
+import type { Query, Item } from "../query/query.ts";
+import type { AggregateRow } from "../query/aggregate.ts";
 import { Aggregation, Mirror, Relation } from "./aggregation.ts";
 import { SyncError } from "../error/error.ts";
 import { Materialization } from "./materialization.ts";

@@ -15,7 +15,8 @@ import {
 } from "@destack/db";
 import { SyncError } from "../error/error.ts";
 import type { Page, RowChange } from "../query/page.ts";
-import type { Query, Item, AggregateRow } from "../query/query.ts";
+import type { Query, Item } from "../query/query.ts";
+import type { AggregateRow } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
 import { EVERYONE, type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";

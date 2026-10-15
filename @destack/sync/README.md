@@ -58,7 +58,7 @@ await board
 
 ## Queries
 
-A `Query` selects rows of one logged table in one or more scopes, with relations, extras and aggregates as in `@destack/db`'s relational queries.
+A `Query` selects rows of one logged table in one or more scopes with `@destack/db`'s relational options, relations and extras, or measures them per group with `aggregate`.
 
 ```ts
 const counts: Query = {

@@ -18,7 +18,7 @@ import {
 } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { Visibility, Node } from "../query/node.ts";
-import type { Aggregate, Measure } from "@destack/db";
+import type { Aggregate, Measure } from "../query/aggregate.ts";
 
 /** A selected count. */
 const COUNT = schema
@@ -532,8 +532,8 @@ export class Tally implements Result {
             reading === "values"
                 ? sql`${operand}`
                 : measure.function === "min"
-                  ? min(operand)
-                  : max(operand);
+                  ? min(operand.getSQL())
+                  : max(operand.getSQL());
         const computed = node.extras[measure.column];
 
         return computed !== undefined && node.columnKind(measure.column) !== "text"
