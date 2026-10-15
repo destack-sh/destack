@@ -53,8 +53,8 @@ import {
 } from "./object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 
-/** The access of a type's objects: deciding policy, row mapping, and multi-type authorizer. */
-export const ObjectAccess = {
+/** The access policy of a type's objects, with their row mapping and multi-type authorizer. */
+export const ObjectPolicy = {
     /** Build a type's policy of declared permissions and relations with its traits' policies. */
     policy(
         type: ObjectType,
@@ -63,11 +63,11 @@ export const ObjectAccess = {
     ): { permissions: string[]; policy: Policy } {
         // resolve the relations declared, read from fields and enclosing scopes
         const permissions = ObjectPermissions.expressions(definition.permissions ?? []);
-        const relations = ObjectAccess.declaredRelations(type, definition, owner, permissions);
+        const relations = ObjectPolicy.declaredRelations(type, definition, owner, permissions);
 
         // collect the traits' policies and the permissions they derive
         const names = Object.keys(permissions);
-        const object = ObjectAccess.traitObject(type, (definition.represents?.package ?? owner).id);
+        const object = ObjectPolicy.traitObject(type, (definition.represents?.package ?? owner).id);
         const policies = type.traits.flatMap(({ trait, options }) =>
             trait.policy === undefined ? [] : [trait.policy(options, object, names)],
         );
@@ -76,7 +76,7 @@ export const ObjectAccess = {
         );
 
         // register the policy over declared and derived permissions
-        const policy = ObjectAccess.objectPolicy(owner, definition, {
+        const policy = ObjectPolicy.objectPolicy(owner, definition, {
             relations,
             permissions,
             derived,
@@ -98,9 +98,9 @@ export const ObjectAccess = {
         }
 
         // map each declared relation to its field and add trait mappings
-        const relations = ObjectAccess.fieldRelations(type);
+        const relations = ObjectPolicy.fieldRelations(type);
         const placed: Partial<Pick<TableMapping, "parent" | "trees">> = {};
-        for (const { relations: traitRelations, ...rest } of ObjectAccess.traitMappings(type)) {
+        for (const { relations: traitRelations, ...rest } of ObjectPolicy.traitMappings(type)) {
             Object.assign(relations, traitRelations);
             Object.assign(placed, rest);
         }
@@ -268,7 +268,7 @@ export const ObjectAccess = {
         for (const [name, relation] of Object.entries(definition.relations ?? {})) {
             relations[name] = {
                 subjects: relation.subjects.map((subject) =>
-                    ObjectAccess.resolveSubject(subject, owner),
+                    ObjectPolicy.resolveSubject(subject, owner),
                 ),
                 ...(relation.grantedBy === undefined ? {} : { grantedBy: relation.grantedBy }),
                 ...(relation.concealed === true ? { concealed: true } : {}),
@@ -281,7 +281,7 @@ export const ObjectAccess = {
             const name = Casing.kebab(field.relationAt(property));
             const relation =
                 decided.has(name) && relations[name] === undefined
-                    ? ObjectAccess.fieldRelation(field)
+                    ? ObjectPolicy.fieldRelation(field)
                     : undefined;
             if (relation !== undefined && definition.isScope === true) {
                 throw new TypeError(
@@ -398,7 +398,7 @@ export const ObjectAccess = {
                 ...Object.entries(definition.attributes ?? {}),
             ]),
             relations: {
-                ...ObjectAccess.representedRelations(represented),
+                ...ObjectPolicy.representedRelations(represented),
                 ...relations,
                 ...Object.fromEntries(
                     policies.flatMap((policy) => Object.entries(policy.relations ?? {})),
@@ -471,7 +471,7 @@ export const ObjectAccess = {
 
     /** List the mappings a type's traits add. */
     traitMappings(type: ObjectType) {
-        const object = ObjectAccess.traitObject(type, type.policy.package.id);
+        const object = ObjectPolicy.traitObject(type, type.policy.package.id);
 
         return type.traits.flatMap(({ trait, options }) =>
             trait.mapping === undefined ? [] : [trait.mapping(options, object)],
@@ -510,7 +510,7 @@ export const role = {
         return {
             name: "role",
             plural: "roles",
-            [INTRINSIC]: { table: accessRole, mapping: ObjectAccess.readMapping(accessRole) },
+            [INTRINSIC]: { table: accessRole, mapping: ObjectPolicy.readMapping(accessRole) },
             scope,
             represents: access.role,
             permissions: access.role.definition.permissions,
@@ -530,11 +530,11 @@ export const role = {
                 const { name, description, permissions } = call.input;
                 const store = Execution.store(execution, call);
                 const created = await store.authorization.createRole(
-                    await ObjectAccess.scopeObject(call, execution),
+                    await ObjectPolicy.scopeObject(call, execution),
                     { name, description, permissions },
                 );
 
-                return ObjectAccess.readRow(store, created.id);
+                return ObjectPolicy.readRow(store, created.id);
             },
         ),
         update: Execution.handle(
@@ -550,7 +550,7 @@ export const role = {
                 const { name, description, permissions } = call.input;
                 const store = Execution.store(execution, call);
                 await store.authorization.updateRole(
-                    await ObjectAccess.scopeObject(call, execution),
+                    await ObjectPolicy.scopeObject(call, execution),
                     call.target.id,
                     {
                         ...(name === undefined ? {} : { name }),
@@ -560,7 +560,7 @@ export const role = {
                     },
                 );
 
-                return ObjectAccess.readRow(store, call.target.id);
+                return ObjectPolicy.readRow(store, call.target.id);
             },
         ),
         keep: defineMethod<{
@@ -590,7 +590,7 @@ export const role = {
                 const { manager, ...binding } = RoleBinding.parse(context.input);
                 await Execution.store(execution, context)
                     .authorization.applying(manager)
-                    .keepBinding(await ObjectAccess.scopeObject(context, execution), binding);
+                    .keepBinding(await ObjectPolicy.scopeObject(context, execution), binding);
 
                 return {};
             },
@@ -600,7 +600,7 @@ export const role = {
             async (call, execution) => {
                 // delete the unbound role at the loaded revision
                 await Execution.store(execution, call).authorization.deleteRole(
-                    await ObjectAccess.scopeObject(call, execution),
+                    await ObjectPolicy.scopeObject(call, execution),
                     call.target.id,
                     call.target.revision,
                 );
@@ -651,7 +651,7 @@ export const relationship = {
             plural: "relationships",
             [INTRINSIC]: {
                 table: accessRelationship,
-                mapping: ObjectAccess.readMapping(accessRelationship),
+                mapping: ObjectPolicy.readMapping(accessRelationship),
             },
             scope,
             represents: access.relationship,
@@ -685,7 +685,7 @@ export const relationship = {
                 output: CheckResult,
             }),
             handler: (context, execution) =>
-                ObjectAccess.check(context, Execution.store(execution, context)),
+                ObjectPolicy.check(context, Execution.store(execution, context)),
         }),
         create: defineMethod<{
             kind: "custom";
@@ -763,7 +763,7 @@ export const invitation = {
             plural: "invitations",
             [INTRINSIC]: {
                 table: accessInvitation,
-                mapping: ObjectAccess.readMapping(accessInvitation),
+                mapping: ObjectPolicy.readMapping(accessInvitation),
             },
             scope,
             represents: access.invitation,
@@ -922,7 +922,7 @@ export const grant = {
         return {
             name: "grant",
             plural: "grants",
-            [INTRINSIC]: { table: accessGrant, mapping: ObjectAccess.readMapping(accessGrant) },
+            [INTRINSIC]: { table: accessGrant, mapping: ObjectPolicy.readMapping(accessGrant) },
             scope,
             represents: access.grant,
             permissions: access.grant.definition.permissions,
@@ -935,7 +935,7 @@ export const grant = {
             method.create("create", { fields: [], input: GrantRequest, isPredicted: false }),
             async (call, execution) =>
                 Execution.store(execution, call).authorization.createGrant(
-                    await ObjectAccess.scopeObject(call, execution),
+                    await ObjectPolicy.scopeObject(call, execution),
                     call.input,
                 ),
         ),
@@ -953,7 +953,7 @@ export const grant = {
 
                 // revoke the grant as its delegator
                 await Execution.store(execution, call).authorization.revokeGrant(
-                    await ObjectAccess.scopeObject(call, execution),
+                    await ObjectPolicy.scopeObject(call, execution),
                     id,
                 );
 

@@ -36,5 +36,5 @@ export {
     ObjectWatch,
 } from "./controller.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";
-export { ObjectAccess } from "./access.ts";
+export { ObjectPolicy } from "./access.ts";
 export { client } from "./client.ts";

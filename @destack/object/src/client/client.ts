@@ -77,7 +77,7 @@ import {
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 import { ObjectKey, ObjectType, type ObjectStorage, type PermissionOf } from "../object/object.ts";
-import { ObjectAccess } from "../object/access.ts";
+import { ObjectPolicy } from "../object/access.ts";
 
 import type { NestedItem } from "../query/item.ts";
 import { related } from "../query/query.ts";
@@ -259,12 +259,22 @@ export type ObjectMutators<Objects extends Readonly<Record<string, ObjectType>>>
     readonly [Key in keyof Objects]: Mutator<Objects[Key]>;
 };
 
-/** Some of a client's object types by key: their relational queries and their mutators. */
+/** Some of a client's object types by key, with the verbs of the client's scope. */
 export interface ObjectAccess<Objects extends Readonly<Record<string, ObjectType>>> {
     /** The relational queries, by key. */
     readonly query: ObjectQueries<Objects>;
     /** The mutators, by key. */
     readonly mutate: ObjectMutators<Objects>;
+    /** Make several calls as one atomic mutation, predicted at once and undone as one step. */
+    readonly mutation: ObjectClient["mutation"];
+    /** Undo the person's last mutation, resolving whether there was one. */
+    readonly undo: ObjectClient["undo"];
+    /** Redo the person's last undone mutation, resolving whether there was one. */
+    readonly redo: ObjectClient["redo"];
+    /** Call an object type's mutating method by name as one mutation. */
+    readonly call: ObjectClient["call"];
+    /** Check whether the caller has a permission on an object. */
+    readonly check: ObjectClient["check"];
 }
 
 /** How a client keeps one scope's objects in its local database. */
@@ -458,7 +468,7 @@ export class ObjectClient<
             scope: options.scope,
             tables: decisionTables,
         });
-        this.#authorizer = ObjectAccess.authorizer(this.objects, [], (table) =>
+        this.#authorizer = ObjectPolicy.authorizer(this.objects, [], (table) =>
             options.database.replicates(table),
         );
 
@@ -714,6 +724,11 @@ export class ObjectClient<
         return {
             query: ObjectClient.#queries(this, objects),
             mutate: ObjectClient.#mutators(this, objects),
+            mutation: (run) => this.mutation(run),
+            undo: () => this.undo(),
+            redo: () => this.redo(),
+            call: (object, name, input) => this.call(object, name, input),
+            check: (object, id, permission) => this.check(object, id, permission),
         };
     }
 

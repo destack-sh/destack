@@ -90,7 +90,7 @@ import {
 } from "../replica/replica.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
 import { INTRINSIC } from "../object/intrinsic.ts";
-import { ObjectAccess } from "../object/access.ts";
+import { ObjectPolicy } from "../object/access.ts";
 import {
     DeclarationIndex,
     ObjectDescription,
@@ -820,7 +820,7 @@ export class ObjectStore {
             }
         }
 
-        return ObjectAccess.authorizer(
+        return ObjectPolicy.authorizer(
             objects,
             [...(options.policies ?? []), ...attached],
             (table) => options.database.replicates(table),

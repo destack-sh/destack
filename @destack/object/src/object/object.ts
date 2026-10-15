@@ -151,7 +151,7 @@ import type { ObjectController } from "./controller.ts";
 import { DeclarationIndex, type KnownDeclaration, ObjectDescription } from "./description.ts";
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { Casing } from "./name.ts";
-import { ObjectAccess } from "./access.ts";
+import { ObjectPolicy } from "./access.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
 import type { ObjectConstraint } from "./constraint.ts";
 
@@ -691,7 +691,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             definition.search === undefined ? undefined : ObjectSearch.of(definition.search);
 
         // resolve the relations, add trait policies and register the policy
-        const assembly = ObjectAccess.policy(this, definition, owner);
+        const assembly = ObjectPolicy.policy(this, definition, owner);
         this.permissions = assembly.permissions;
         this.policy = assembly.policy;
 
@@ -1466,7 +1466,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The table mapping access reads the objects through, built on its first read. */
     get mapping(): TableMapping {
-        const mapping = this.derived.mapping ?? ObjectAccess.mapping(this);
+        const mapping = this.derived.mapping ?? ObjectPolicy.mapping(this);
         this.derived.mapping = mapping;
 
         return mapping;
