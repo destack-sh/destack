@@ -1,3 +1,4 @@
+import type { Call } from "@destack/sync";
 import {
     Change,
     Condition,
@@ -16,7 +17,7 @@ import { RequestId } from "@destack/runtime/request";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "./condition.ts";
-import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
+import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 
 /** The fields of a pending object's key, as its key name keeps them. */
@@ -78,7 +79,7 @@ export interface ObjectReconciliation<
     /** The caller the reconciliation acts as: the store's own principal. */
     readonly caller: AccessContext;
     /** Run calls in one transaction as the store under the controller's name, results in order. */
-    readonly mutate: <const Calls extends readonly ObjectCall[]>(
+    readonly mutate: <const Calls extends readonly Call[]>(
         calls: Calls,
         options?: Pick<MutateOptions, "transaction" | "scope">,
     ) => Promise<ResultsOf<Calls>>;
@@ -190,7 +191,7 @@ export const ObjectController = {
                 }
 
                 // record the generation, the conditions and the fields
-                const [written] = await mutate([Call.observation(observed, row, observation)]);
+                const [written] = await mutate([Observation.call(observed, row, observation)]);
 
                 return written;
             },

@@ -1,4 +1,6 @@
 import { canonicalize, defineSchema, Instant, schema } from "@destack/schema";
+import type { Call } from "@destack/sync";
+import type { ObjectType } from "./object.ts";
 
 /** A controller's observation of a record. */
 export const StatusCondition = Object.assign(
@@ -71,6 +73,20 @@ export const Observation = Object.assign(
         }),
     ),
     {
+        /** Describe the call recording an observation of a row at its current generation. */
+        call(
+            object: ObjectType,
+            row: ObservedRecord & Readonly<Record<string, unknown>>,
+            observation: ObservationReport,
+        ): Call {
+            return object.call("observe", {
+                ...object.target({ scope: row.scope, id: row.id }),
+                observedGeneration: row.generation,
+                conditions: observation.conditions,
+                ...(observation.fields === undefined ? {} : { fields: observation.fields }),
+            });
+        },
+
         /** Report whether a record already has an observation. */
         isRecorded(
             record: ObservedRecord & Readonly<Record<string, unknown>>,

@@ -16,6 +16,7 @@ import {
     type ObjectTypeReference,
     type Query,
     type Subject,
+    Call,
 } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import {
@@ -52,7 +53,8 @@ import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
 import { type Delivery, EventKind, EventReader, EventTable } from "@destack/event";
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
-import { Call, type Handler, type TypesOf, type ObjectCall } from "../method/call.ts";
+import { type Handler, type TypesOf } from "../method/context.ts";
+import { CallSite } from "../method/site.ts";
 import { Method, type MethodKind, type Phase } from "../method/method.ts";
 import { MethodBuilder } from "../method/record.ts";
 import { InputSchema } from "../method/input.ts";
@@ -61,8 +63,8 @@ import {
     objectProcedures,
     objectSchema,
     scopeRoute,
-    type ObjectCallInput,
-    type CallOutput,
+    type CallInput,
+    type MethodOutput,
     type Calls,
     type MethodName,
     type MethodProcedure,
@@ -1155,9 +1157,59 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     call<Self extends ObjectType, Name extends MethodName<Self>>(
         this: Self,
         name: Name,
-        input: NoInfer<ObjectCallInput<Self, Name>>,
-    ): ObjectCall<CallOutput<Self, Name>> {
-        return Call.record(this, name, input);
+        input: NoInfer<CallInput<Self, Name>>,
+    ): Call<MethodOutput<Self, Name>> {
+        return ObjectType.#record(this, name, input);
+    }
+
+    /** Convert a recorded call's input to the object's release, dropping undeclared fields. */
+    upgrade(name: string, call: Call, shape?: object): JsonObject {
+        // refuse a call of a later release
+        const served = this.package.version;
+        if (Version.compare(call.release, served) > 0) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${Call.label(call)} was made against release ${call.release} of ${this.name}, but ${this.name} is at ${served}`,
+            });
+        }
+
+        // keep a call of this release as it is
+        const conversions = this.conversions(name);
+        if (Version.between(conversions, call.release, served).length === 0) {
+            return call.input;
+        }
+
+        // assign each later release's fields and drop the fields this release no longer declares
+        const converted = Expression.upgrade(conversions, call.input, call.release, served);
+
+        return shape === undefined
+            ? converted
+            : Object.fromEntries(Object.entries(converted).filter(([field]) => field in shape));
+    }
+
+    /** Read a method's answer as its result, parsed by the method's output schema. */
+    result(name: string, answer: unknown): unknown {
+        // validate the answer synchronously by the method's output schema
+        const label = `${this.name}.${name}`;
+        const output = schema.standard().parse(this.procedure(name).output);
+        const validated = output["~standard"].validate(answer);
+        if (validated instanceof Promise) {
+            throw new TypeError(`the output schema of ${label} is asynchronous`);
+        } else if (validated.issues !== undefined) {
+            throw new CallError("INTERNAL_SERVER_ERROR", {
+                message: `invalid output of ${label}`,
+                data: { issues: validated.issues },
+            });
+        }
+
+        return validated.value;
+    }
+
+    /** Decide whether a call is of one of this type's methods. */
+    isTypeOf(call: Pick<Call, "type">): boolean {
+        return (
+            this.typeReference.packageId === call.type.packageId &&
+            this.typeReference.type === call.type.type
+        );
     }
 
     /** Point a call at an object: its scope as the type's scope field, and its identifier. */
@@ -1191,7 +1243,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             mutating,
             (_declared, name) =>
                 (input: JsonObject): sync.Call =>
-                    Call.record(this, name, input),
+                    ObjectType.#record(this, name, input),
         );
     }
 
@@ -1431,6 +1483,61 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             ...(this.parent === undefined || this.parent.object === "any" ? [] : ["parentId"]),
             ...(ownerColumn === undefined ? [] : [ownerColumn]),
         ];
+    }
+
+    /** Find the type of a call's method among some types. */
+    static find(types: readonly ObjectType[], call: Pick<Call, "type">): ObjectType | undefined {
+        return types.find((type) => type.isTypeOf(call));
+    }
+
+    /** Resolve a recorded call against the served types, converting input to the served release. */
+    static resolve(
+        objects: readonly ObjectType[],
+        entry: Call,
+        mutates: boolean,
+        site: CallSite,
+    ): {
+        readonly object: ObjectType;
+        readonly name: string;
+        readonly input: JsonObject;
+    } {
+        // find the object type and a method the calling code may call
+        const object = ObjectType.find(objects, entry);
+        const name = entry.method;
+        const method = object?.methods?.[name];
+        if (
+            object === undefined ||
+            method === undefined ||
+            !CallSite.reaches(site, object, method) ||
+            (mutates && !method.mutates)
+        ) {
+            throw new CallError("BAD_REQUEST", {
+                message: `no ${mutates ? "mutating " : ""}method ${Call.label(entry)}`,
+            });
+        } else if (!mutates && method.mutates) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${Call.label(entry)} changes objects: push it from a client`,
+            });
+        }
+
+        // convert the input to the served release
+        const fields = InputSchema.fields(object.input(name)).shape;
+
+        return { object, name, input: object.upgrade(name, entry, fields) };
+    }
+
+    /** Write a call of a method as data, against the release of the type's package. */
+    static #record<Result>(
+        object: ObjectType,
+        name: string,
+        input: Readonly<Record<string, unknown>>,
+    ): Call<Result> {
+        return {
+            type: object.typeReference,
+            method: name,
+            input: schema.jsonObject().parse(input),
+            release: object.package.version,
+        };
     }
 
     /** Read how stacks declare a type: a provisioned kind's handler, or the create input as is. */
