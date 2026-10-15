@@ -1,3 +1,4 @@
+import { STACKS } from "@destack/account/test";
 import {
     accessRelationship,
     accessRole,
@@ -8,49 +9,37 @@ import {
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
-import { journal } from "@destack/audit/stack";
-import {
-    and,
-    type DatabaseConnection,
-    defineDatabase,
-    type Dialect,
-    eq,
-    inArray,
-} from "@destack/db";
+import { sudo } from "@destack/account/authentication";
+import { and, type DatabaseConnection, defineDatabase, type Dialect, eq } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
-import { TestDatabase } from "@destack/db/test";
-import { type Keyring, LocalKeyring } from "@destack/identity";
-import { ObjectStore } from "@destack/object/server";
+import { TEST_CIPHER, TestDatabase } from "@destack/db/test";
+import { defineServer, ObjectStore } from "@destack/object/server";
+import { callTables, testEvents } from "@destack/object/test";
+import type { EventStore } from "@destack/event";
 import type { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { type Identifier, schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { Health } from "@destack/service/health";
-import { RequestId } from "@destack/service/request";
-import { Server } from "@destack/service/server";
-import { testCallKey } from "@destack/service/test";
+import { Identifier, schema } from "@destack/schema";
+import { createClient, type ClientOf } from "@destack/runtime/client";
+import { CallError } from "@destack/runtime/error";
+import { Health } from "@destack/runtime/health";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
+import { testCallKey } from "@destack/runtime/test";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { Scope, type Subject } from "@destack/sync";
 import { TestClock } from "@destack/test";
-import { v7 } from "uuid";
-import { VaultClient } from "../connector/index.ts";
-import { VaultKeystore } from "../key/index.ts";
-import { SECRET_RECOVERY, secret, secretVersion, vault } from "../object/index.ts";
-import { serveKeys, serveSecrets, serveVaults } from "../server/secret.ts";
-import { CREDENTIALS_VAULT } from "../server/server.ts";
-import { vaultService } from "../service/index.ts";
+import { secret, secretVersion, vault } from "../object/index.ts";
+import { implementSecret, implementSecretVersion } from "../server/secret.ts";
+import { implementVault } from "../server/vault.ts";
+import vaultPackage from "../package.ts";
 import { vaultTables } from "../stack/index.ts";
-import { TestVault } from "./vault.ts";
 
-/** A machine's database keeping vaults beside its journal, copying the spaces they live in. */
+/** A machine's database keeping vaults beside its calls, replicating the spaces they live in. */
 export const vaultDatabase = defineDatabase({
     name: "vault",
-    tables: [...vaultTables, journal],
-    copies: [space.table, installation.table, binding.table, capture.table, deployment.table],
+    tables: [...vaultTables, ...callTables],
+    replicated: [space.table, installation.table, binding.table, capture.table, deployment.table],
 });
-
-/** The bytes of a root key, an AES-256 key. */
-const ROOT_KEY_BYTES = 32;
 
 /** How long the member's fixture credential lasts: one minute. */
 const CREDENTIAL_LIFETIME_MILLISECONDS = 60_000;
@@ -58,23 +47,23 @@ const CREDENTIAL_LIFETIME_MILLISECONDS = 60_000;
 /** How long a server drains on close: one second. */
 const DRAIN_MILLISECONDS = 1000;
 
-/** The object types whose plaintext reads the role grants. */
-const READ_TYPES = ["secret", "version"];
+/** The name of the fixture's vault. */
+const VAULT_NAME = "credentials";
 
 /** The vault package: it declares the vaults and serves their secrets. */
 export const VAULT = vault.package;
 
-/** The machine the fixture's vault keys belong to. */
+/** The machine a fixture secret is bound to as its consumer. */
 export const MACHINE = schema
     .identifier("machine")
     .parse("machine-01996ab0-0000-7000-8000-0000000000e1");
 
-/** Another machine a space moves to. */
+/** A machine no fixture secret is bound to. */
 export const OTHER_MACHINE = schema
     .identifier("machine")
     .parse("machine-01996ab0-0000-7000-8000-0000000000e2");
 
-/** A migrated vault service database, a provisioned vault, a member role and a client. */
+/** A migrated vault database, a provisioned vault, a member role and a client. */
 export class VaultFixture implements AsyncDisposable {
     /** The space with the vault. */
     readonly spaceId: Identifier<"space">;
@@ -86,18 +75,16 @@ export class VaultFixture implements AsyncDisposable {
     readonly accountId: Identifier<"account">;
     /** The role granting every vault permission in the space. */
     readonly roleId: Identifier<"role">;
-    /** The first root key, which outlives key rotations. */
-    readonly root: Uint8Array<ArrayBuffer>;
-    /** The keyring of the first root key. */
-    readonly keyring: Keyring;
-    /** The migrated vault service database. */
+    /** The migrated vault database. */
     readonly database: DatabaseConnection;
     /** The clock the fixture's stores and servers read, which tests set. */
     readonly clock = new TestClock();
     /** The member's vault client, replaced by scenarios connecting to another server. */
-    client: VaultClient;
+    client: ClientOf<typeof vaultPackage>;
     /** The member the servers authenticate. */
-    readonly #caller: Caller;
+    #caller: Caller;
+    /** The event log keeping the stores' calls. */
+    readonly #events: EventStore;
     /** The served servers, closed before the database. */
     readonly #servers: Server[] = [];
     /** Release the database. */
@@ -107,24 +94,22 @@ export class VaultFixture implements AsyncDisposable {
     private constructor(
         database: DatabaseConnection,
         close: () => Promise<void>,
-        root: { readonly key: Uint8Array<ArrayBuffer>; readonly keyring: Keyring },
+        events: EventStore,
         previous?: VaultFixture,
     ) {
         // reuse the previous fixture's identities
         this.database = database;
         this.#close = close;
-        this.root = root.key;
-        this.keyring = root.keyring;
-        this.spaceId = previous?.spaceId ?? schema.identifier("space").parse(`space-${v7()}`);
-        this.vaultId = previous?.vaultId ?? schema.identifier("vault").parse(`vault-${v7()}`);
-        this.userId = previous?.userId ?? schema.identifier("user").parse(`user-${v7()}`);
-        this.accountId =
-            previous?.accountId ?? schema.identifier("account").parse(`account-${v7()}`);
-        this.roleId = previous?.roleId ?? schema.identifier("role").parse(`role-${v7()}`);
+        this.#events = events;
+        this.spaceId = previous?.spaceId ?? Identifier.create("space");
+        this.vaultId = previous?.vaultId ?? Identifier.create("vault");
+        this.userId = previous?.userId ?? Identifier.create("user");
+        this.accountId = previous?.accountId ?? Identifier.create("account");
+        this.roleId = previous?.roleId ?? Identifier.create("role");
 
-        // serve the vault under the root key to the member
+        // serve the vault to the member
         this.#caller = this.#member();
-        this.client = this.connect(this.serve(this.keyring));
+        this.client = this.connect(this.serve());
     }
 
     /** The space's principal, which its servers' own work runs as. */
@@ -145,36 +130,31 @@ export class VaultFixture implements AsyncDisposable {
         await this.#close();
     }
 
-    /** Open the vault keys under a keyring, the fixture's first root key by default. */
-    keystore(keyring: Keyring = this.keyring): VaultKeystore {
-        return new VaultKeystore(this.database, keyring, MACHINE);
-    }
-
     /** Serve the vault's objects to the space, as a machine's controllers call them. */
-    objects(
-        keyring: Keyring = this.keyring,
-        vaults: ReturnType<typeof serveVaults> = serveVaults(this.keystore(keyring)),
-    ): ObjectStore {
-        const keystore = this.keystore(keyring);
-
+    objects(vaults: ReturnType<typeof implementVault> = implementVault()): ObjectStore {
         return new ObjectStore({
+            chain: async () => undefined,
             principal: this.spacePrincipal,
-            objects: [vaults, serveKeys(keystore), ...serveSecrets(keystore, SECRET_RECOVERY)],
+            servers: [
+                defineServer(vaultPackage, {
+                    objects: [vaults, implementSecret(), implementSecretVersion()],
+                }),
+            ],
             policies: [space],
             database: this.database,
             callKey: testCallKey,
-            origin: { package: VAULT, service: vaultService.name },
+            events: this.#events,
+            origin: { package: VAULT },
             clock: this.clock,
         });
     }
 
-    /** Serve the vault under a keyring with bearer authentication of the member. */
-    serve(keyring: Keyring): Server {
+    /** Serve the vault with bearer authentication of the member. */
+    serve(): Server {
         // serve the objects to the member
-        const objects = this.objects(keyring);
+        const objects = this.objects();
         const server = Server.start({
-            ...objects.implement(vaultService, objects.routed, objects.controllers(), {}),
-            audience: VAULT.id,
+            ...objects.package(vaultPackage),
             resources: new ResourceContext(),
             health: new Health("vault"),
             authenticate: async (request) => this.#authenticate(request),
@@ -188,8 +168,8 @@ export class VaultFixture implements AsyncDisposable {
     }
 
     /** Connect to a served vault as the fixture's member. */
-    connect(server: Server): VaultClient {
-        return new VaultClient(vaultService, {
+    connect(server: Server): ClientOf<typeof vaultPackage> {
+        return createClient(vaultPackage, {
             url: "http://vault.test",
             headers: { Authorization: `Bearer ${this.userId}` },
             fetch: (request) => server.fetch(request),
@@ -199,7 +179,7 @@ export class VaultFixture implements AsyncDisposable {
     /** Authenticate a request with the member's identifier as the member. */
     #authenticate(request: Request): Caller {
         if (request.headers.get("Authorization") !== `Bearer ${this.userId}`) {
-            throw new ServiceError("UNAUTHORIZED", { message: "invalid bearer credential" });
+            throw new CallError("UNAUTHORIZED", { message: "invalid bearer credential" });
         }
 
         return this.#caller;
@@ -228,20 +208,29 @@ export class VaultFixture implements AsyncDisposable {
         };
     }
 
-    /** Grant the role's plaintext reads of secrets and versions. */
-    async grantRead(): Promise<void> {
-        await this.#grant(READ_TYPES.map((type) => ({ type, name: "read" })));
+    /** Authenticate the member again with a second factor just now, as a step-up does. */
+    stepUp(): void {
+        const now = Date.now();
+        this.#caller = {
+            ...this.#caller,
+            assurance: { level: sudo.assurance, authenticatedAt: now },
+        };
     }
 
-    /** Withdraw the role's plaintext reads of secrets and versions. */
-    async withdrawRead(): Promise<void> {
+    /** Grant the role the reveal of secrets. */
+    async grantReveal(): Promise<void> {
+        await this.#grant([{ type: secret.name, name: "reveal" }]);
+    }
+
+    /** Withdraw the role's reveal of secrets. */
+    async withdrawReveal(): Promise<void> {
         await this.database
             .delete(accessRolePermission)
             .where(
                 and(
                     eq(accessRolePermission.roleId, this.roleId),
-                    eq(accessRolePermission.name, "read"),
-                    inArray(accessRolePermission.type, READ_TYPES),
+                    eq(accessRolePermission.type, secret.name),
+                    eq(accessRolePermission.name, "reveal"),
                 ),
             );
     }
@@ -278,6 +267,7 @@ export class VaultFixture implements AsyncDisposable {
     static async openFile(file: string, previous?: VaultFixture): Promise<VaultFixture> {
         // migrate the file
         const connection = await sqlite.connectBunSqlite(file, vaultDatabase);
+        connection.key(TEST_CIPHER);
         await connection.migrate(vaultDatabase.tables).catch(async (error: unknown) => {
             await connection.close();
             throw error;
@@ -292,10 +282,9 @@ export class VaultFixture implements AsyncDisposable {
         close: () => Promise<void>,
         previous?: VaultFixture,
     ): Promise<VaultFixture> {
-        // import the previous fixture's root key or a new one
-        const key = previous?.root ?? crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));
-        const keyring = await LocalKeyring.import(1, new Map([[1, key]]));
-        const fixture = new VaultFixture(database, close, { key, keyring }, previous);
+        // keep the events beside the database
+        const events = await testEvents(database);
+        const fixture = new VaultFixture(database, close, events, previous);
 
         // provision the space unless the previous fixture did
         try {
@@ -310,16 +299,16 @@ export class VaultFixture implements AsyncDisposable {
         }
     }
 
-    /** Provision the space, its vault with its first key, and the member role. */
+    /** Provision the space, its vault and the member role. */
     async #provision(): Promise<void> {
-        // register the space and its vault with its first key
+        // register the space and its vault
         const now = Date.now();
         await this.#register(now);
-        await this.registerVault(this.vaultId, CREDENTIALS_VAULT, now);
+        await this.registerVault(this.vaultId, VAULT_NAME, now);
 
         // bind the role and own the space as itself, as the space's creation does
         await this.#bindRole(now);
-        await new AccessFixture(this.database).copyOwner(
+        await new AccessFixture(this.database).bindOwner(
             space.reference(this.accountId, this.spaceId),
             this.spacePrincipal,
             now,
@@ -328,13 +317,15 @@ export class VaultFixture implements AsyncDisposable {
         // grant the role every vault permission
         await this.#grant([
             ...[vault, secret, secretVersion].flatMap((object) =>
-                object.permissions.map((name) => ({ type: object.name, name })),
+                object.permissions
+                    .filter((name) => !(object.policy.definition.reserved ?? []).includes(name))
+                    .map((name) => ({ type: object.name, name })),
             ),
             { type: space.name, name: "read", packageId: space.policy.definition.packageId },
         ]);
     }
 
-    /** Register a vault of the space with its first key, as the vault's creation does. */
+    /** Register a vault of the space, as the vault's creation does. */
     async registerVault(
         id: Identifier<"vault">,
         name: string,
@@ -352,9 +343,6 @@ export class VaultFixture implements AsyncDisposable {
             createdAt: now,
             updatedAt: now,
         });
-
-        // start its key at its first version
-        await TestVault.startKey(this.database, this.keystore(), { id, scope: this.spaceId }, now);
     }
 
     /** Register the space. */
@@ -363,6 +351,7 @@ export class VaultFixture implements AsyncDisposable {
             id: this.spaceId,
             scope: this.accountId,
             name: "vault-fixture",
+            stack: STACKS.space,
             createdAt: now,
             updatedAt: now,
         });
@@ -394,7 +383,7 @@ export class VaultFixture implements AsyncDisposable {
         await this.database.insert(accessRelationship).values(
             Relationship.encode(
                 {
-                    id: `relationship-${v7()}`,
+                    id: Identifier.create("relationship"),
                     object: space.reference(this.accountId, this.spaceId),
                     role: this.roleId,
                     subject: {
@@ -415,7 +404,7 @@ export class VaultFixture implements AsyncDisposable {
     ): Promise<void> {
         await this.database.insert(accessRolePermission).values(
             permissions.map(({ type, name, packageId }) => ({
-                id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
+                id: Identifier.create("role-permission"),
                 roleId: this.roleId,
                 scope: this.spaceId,
                 packageId: packageId ?? VAULT.id,

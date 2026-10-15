@@ -1,10 +1,10 @@
 import { ModuleMetadata } from "@destack/package";
 import { type Connector, ResourceDeclaration } from "@destack/resource";
-import { vaultConnector } from "../connector/connector.ts";
+import { vaultConnector } from "../secret/connector.ts";
 import type { Vault } from "../secret/secret.ts";
 import { type VaultDescription, VaultKind } from "./kind.ts";
 
-/** A package's vault, whose secrets its workloads read through the vault service. */
+/** A package's vault, whose secrets its workloads read through the vault package. */
 export class VaultDeclaration extends ResourceDeclaration<Vault, VaultDescription> {
     /** The connector reading the vault's secrets at the bound address, by provider code. */
     override get connectors(): Readonly<Record<string, Connector<Vault>>> {
@@ -12,7 +12,7 @@ export class VaultDeclaration extends ResourceDeclaration<Vault, VaultDescriptio
     }
 }
 
-/** Declare a vault resource, whose secrets its workloads read through the vault service. */
+/** Declare a vault resource, whose secrets its workloads read through the vault package. */
 export function defineVault(
     declaration: Omit<VaultDescription, "kind">,
     module?: ModuleMetadata,

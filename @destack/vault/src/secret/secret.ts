@@ -13,14 +13,28 @@ export const SECRET_ALGORITHMS = ["ES256"] as const;
 /** An algorithm a space generates a secret's first version with. */
 export type SecretAlgorithm = (typeof SECRET_ALGORITHMS)[number];
 
+/** The algorithm of generated ES256 keys: ECDSA over P-256 (RFC 7518 3.4). */
+const ES256 = { name: "ECDSA", namedCurve: "P-256" } as const;
+
 /** How a space generates a secret's first version when it installs the package. */
-export const SecretGeneration = defineSchema(
-    schema.object({
-        /** The package's vault declaration keeping the secret. */
-        vault: DeclarationName,
-        /** The algorithm writing the first version. */
-        algorithm: schema.enum(SECRET_ALGORITHMS),
-    }),
+export const SecretGeneration = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The package's vault declaration keeping the secret. */
+            vault: DeclarationName,
+            /** The algorithm writing the first version. */
+            algorithm: schema.enum(SECRET_ALGORITHMS),
+        }),
+    ),
+    {
+        /** Generate a secret's first value with an algorithm: a private JSON Web Key. */
+        async generate(algorithm: SecretAlgorithm): Promise<SecretValue> {
+            const keys = await crypto.subtle.generateKey(ES256, true, ["sign", "verify"]);
+            const jwk = await crypto.subtle.exportKey("jwk", keys.privateKey);
+
+            return { encoding: "text", value: JSON.stringify({ ...jwk, alg: algorithm }) };
+        },
+    },
 );
 /** How a space generates a secret's first version when it installs the package. */
 export type SecretGeneration = schema.Infer<typeof SecretGeneration>;
@@ -79,7 +93,7 @@ export type VaultSelection = schema.Infer<typeof VaultSelection>;
 /** A secret version a workload's deployment captured, as its code reads it. */
 export interface Secret {
     /** Read the captured version's value. */
-    read(): Promise<SecretReading>;
+    readonly read: () => Promise<SecretReading>;
 }
 
 /** Secrets as code reads them. */
@@ -103,5 +117,5 @@ export const Secret = {
 /** A vault a workload binds, as its code reads its secrets. */
 export interface Vault {
     /** Read a version of the vault's secret of a name, refusing a secret of any other vault. */
-    read(name: string, selection?: SecretSelection): Promise<SecretReading>;
+    readonly read: (name: string, selection?: SecretSelection) => Promise<SecretReading>;
 }

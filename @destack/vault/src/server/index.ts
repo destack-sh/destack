@@ -1,2 +1,2 @@
+export * from "./vault.ts";
 export * from "./secret.ts";
-export * from "./server.ts";

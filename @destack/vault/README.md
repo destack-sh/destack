@@ -1,27 +1,19 @@
 # @destack/vault
 
-`@destack/vault` keeps secrets as HashiCorp Vault's KV v2 engine does, encrypted under versioned vault keys as its Transit engine keeps them.
+`@destack/vault` keeps a space's secrets in vaults as numbered versions, staged and promoted as AWS Secrets Manager does.
+Each value is sealed at rest under the space's key and bound to its secret and version.
+Bound consumers read their version; the account's owners reveal a value after a fresh step-up; every read is audited with its version.
 
 ```ts
-export const githubToken = defineSecret({ name: "github-token" }); // a KV v2 path the package reads
-await Secret.text(githubToken.get(context.resources)); // vault kv get
-await credentials.get(context.resources).read("github", { version: 2 }); // vault kv get -version=2
-await client.version.create({ scope, parentId: secret.id, value, requestId }); // vault kv put
-await client.version.create({ scope, parentId: secret.id, value, stage: "pending", requestId }); // AWSPENDING
-await client.vaultKey.rotate({ scope, parentId: vault.id, requestId }); // vault write -f transit/keys/x/rotate
-```
-
-## Keys
-
-A vault starts with its first key version, each rotation adds the next, and the key material never leaves the vault service.
-
-```ts
-const keys = await client.vaultKey.list({ scope, where: { parentId: vault.id } }); // numbers, never material
+await client.version.create({ scope, parentId: secret.id, value, requestId });
+await client.version.create({ scope, parentId: secret.id, value, stage: "pending", requestId });
+await client.secret.promote({ scope, id: secret.id, version: 2, requestId });
+await client.secret.purge({ scope, id: secret.id, requestId }); // destroys every version's value
 ```
 
 ## Declarations
 
-`defineVault` declares a vault and `defineSecret` a secret the package reads, and a secret declaring `generated` gets its first version generated in the package's vault.
+`defineVault` declares a vault and `defineSecret` a secret a package reads; a secret with `generated` gets its first version generated.
 
 ```ts
 import { defineSecret, defineVault } from "@destack/vault/declare";
@@ -31,11 +23,12 @@ export const pushKey = defineSecret({
     name: "push-key",
     generated: { vault: pushVault.name, algorithm: "ES256" },
 });
+await Secret.text(pushKey.get(context.resources));
 ```
 
 ## Bindings
 
-A stack lists its secrets by vault and name, and an installation binds a declaration to one at a fixed version or the current one.
+A stack lists its secrets by vault and name, and an installation binds a declared secret to one at a fixed or the current version.
 
 ```ts
 export const personal = defineStack({
@@ -47,52 +40,37 @@ export const personal = defineStack({
 });
 ```
 
-## Service
+## Server
 
-`implementVault` serves a space's vaults, secrets and versions, and `VaultKeystore.reencrypt` moves the vault keys under the keyring's active root key.
+The package's server serves vaults, secrets and versions, and provides the space's vaults; `secretBindable` lets deployments capture secret versions.
 
 ```ts
-import { implementVault } from "@destack/vault/server";
+import vaultServer, { secretBindable } from "@destack/vault/server";
 
-const vault = implementVault({
-    database,
-    keyring: await LocalKeyring.read(rootKey),
-    machine: machineId,
-});
-await new VaultKeystore(database, rotated, machineId).reencrypt(previous.active);
+const { store } = serveSpace({ servers: [vaultServer], bindables: [secretBindable], ...options });
 ```
 
 ## Consumers
 
-A machine service puts its own credentials into a space's vault with `vault.put`, one live version each, bound to it as their consumer, and reads them back as itself with `secret.read`.
+A package puts its own credential into a vault with `vault.put`, reads it back with `secret.read`, and removes it with `vault.remove`.
 
 ```ts
 await store.mutate(caller, {
     id,
     calls: [
-        vault.call("put", {
-            ...vault.target(reference),
-            secret: secretId,
-            value,
-            consumer: machine,
-        }),
+        vault.call("put", { ...vault.target(reference), secret: secretId, name, value, consumer }),
     ],
 });
-await store.query(
-    Caller.of(machine, now),
-    secret.call("read", { ...secret.target(reference), version }),
-);
+await store.query(consumerCaller, secret.call("read", secret.target(reference)));
 await store.mutate(caller, {
     id,
-    calls: [
-        vault.call("remove", { ...vault.target(reference), secret: secretId, consumer: machine }),
-    ],
+    calls: [vault.call("remove", { ...vault.target(reference), secret: secretId, consumer })],
 });
 ```
 
 ## Operators
 
-`Secret.of` reads a value an operator sets, such as an environment variable, as a secret with one version.
+`Secret.of` turns a value an operator sets, such as an environment variable, into a secret with one version.
 
 ```ts
 const stripe = new StripeClient(Secret.of(stripeKey), fetch);
@@ -100,10 +78,10 @@ const stripe = new StripeClient(Secret.of(stripeKey), fetch);
 
 ## Tables
 
-`vaultTables` lists the tables a space database includes.
+`vaultTables` lists the vault package's tables.
 
 ```ts
 import { vaultTables } from "@destack/vault/stack";
 
-const space = defineDatabase({ name: "space", tables: [...vaultTables, journal] });
+const database = defineDatabase({ name: "main", tables: vaultTables });
 ```

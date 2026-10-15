@@ -1,28 +1,22 @@
-import type { Select } from "@destack/db";
-import type { Provider, Provisioner, Rewrapper } from "@destack/resource";
-import { VaultKind } from "../declare/kind.ts";
-import type { VaultKeystore } from "../key/index.ts";
-import { vault, vaultKey } from "../object/index.ts";
+import type { Provider, Provisioner } from "@destack/resource";
+import { VAULT_PROVIDER, VaultKind } from "../declare/kind.ts";
+import { vault } from "../object/index.ts";
+import vaultPackage from "../package.ts";
 
-/** The provider of one machine's vaults. */
-export type VaultProvider = Provider<
-    typeof VaultKind,
-    typeof vault,
-    never,
-    typeof vaultKey.table,
-    Select<typeof vaultKey.table>
-> & {
+/** The provider of a space's vaults, which keeps them as objects in the space's database. */
+export type VaultProvider = Provider<typeof VaultKind, typeof vault> & {
     readonly provision: Provisioner<typeof VaultKind>;
-    readonly rewrap: Rewrapper<typeof vaultKey.table, Select<typeof vaultKey.table>>;
 };
 
-/** Provide a machine's vaults through their keystore under its provider code. */
-export function vaultProvider(keystore: VaultKeystore): VaultProvider {
-    return {
-        kind: VaultKind,
-        code: keystore.provider,
-        object: vault,
-        provision: keystore,
-        rewrap: keystore.rewrap,
-    };
-}
+/** Provide a space's vaults as objects of its database, under the vault provider code. */
+export const vaultProvider: VaultProvider = {
+    kind: VaultKind,
+    code: VAULT_PROVIDER,
+    object: vault,
+    provision: {
+        // answer the vault's address for a new vault: the package's name
+        provision: async () => ({ reference: vaultPackage.name }),
+        // leave a vault's secrets to their own restriction, which refuses deleting a vault keeping any
+        destroy: async () => {},
+    },
+};

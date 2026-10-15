@@ -9,25 +9,21 @@
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./key": "./src/key/index.ts",
         "./object": "./src/object/index.ts",
         "./provider": "./src/provider/index.ts",
-        "./server": "./src/server/index.ts",
-        "./service": "./src/service/index.ts",
+        "./server": "./src/server.ts",
+        "./package": "./src/package.ts",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@destack/identity": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/audit": "workspace:*",
-        "uuid": "14.0.2",
         "@destack/stack": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/sync": "workspace:*"
@@ -37,7 +33,6 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
-        "@destack/build": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/test": "workspace:*"
     }

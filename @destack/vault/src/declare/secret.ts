@@ -1,18 +1,29 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { type Connector, ResourceDeclaration } from "@destack/resource";
 import { defineSchema, schema } from "@destack/schema";
-import { secretConnector } from "../connector/connector.ts";
+import { secretConnector } from "../secret/connector.ts";
 import { type Secret, SecretGeneration } from "../secret/secret.ts";
 import { SECRET_KIND } from "./kind.ts";
 
 /** A secret a package declares. */
-export const SecretDescription = defineSchema(
-    schema.object({
-        /** The package-local secret name. */
-        name: DeclarationName,
-        /** How the space generates the first version at install. */
-        generated: SecretGeneration.exactOptional(),
-    }),
+export const SecretDescription = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The package-local secret name. */
+            name: DeclarationName,
+            /** How the space generates the first version at install. */
+            generated: SecretGeneration.exactOptional(),
+        }),
+    ),
+    {
+        /** Read how a declared secret's spec generates it, absent for a secret a stack binds. */
+        generation(declared: {
+            readonly name: string;
+            readonly spec: Readonly<Record<string, unknown>>;
+        }): SecretGeneration | undefined {
+            return SecretDescription.parse({ ...declared.spec, name: declared.name }).generated;
+        },
+    },
 );
 /** A secret a package declares. */
 export type SecretDescription = schema.Infer<typeof SecretDescription>;

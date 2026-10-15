@@ -1,18 +1,18 @@
 import { Caller } from "@destack/access";
-import { eq, Snapshot, Transaction } from "@destack/db";
+import { eq, Snapshot } from "@destack/db";
 import type { Call } from "@destack/object";
 import { Package } from "@destack/package";
-import { schema } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
+import { schema, Identifier } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
 import { binding, installation } from "@destack/stack/object";
 import type { ResourceNeed } from "@destack/stack/server";
 import { expect, refusal, single, test } from "@destack/test";
-import { v7 } from "uuid";
 import { SECRET_KIND, VAULT_PROVIDER } from "../declare/index.ts";
 import { secret, SecretVersion, secretVersion, vault } from "../object/index.ts";
-import { vaultService } from "../service/index.ts";
+import vaultPackage from "../package.ts";
 import { VaultFixture } from "../test/index.ts";
-import { secretBindable, serveVaults } from "./secret.ts";
+import { secretBindable } from "./secret.ts";
+import { implementVault } from "./vault.ts";
 
 /** The package whose installation binds the vault and the secrets. */
 const notes = Package.parse({
@@ -37,7 +37,7 @@ async function within<Result>(
 ): Promise<Result> {
     // run the function inside an update of the vault
     const results: { readonly result: Result }[] = [];
-    const vaults = serveVaults(fixture.keystore()).implement({
+    const vaults = implementVault().implement({
         methods: {
             update: async (call, next) => {
                 results.push({ result: await run(call) });
@@ -46,7 +46,7 @@ async function within<Result>(
             },
         },
     });
-    const store = fixture.objects(fixture.keyring, vaults);
+    const store = fixture.objects(vaults);
     const row = single(
         await fixture.database
             .select()
@@ -67,19 +67,19 @@ test("provision a generated secret in the vault the installation binds, generate
     await using fixture = await VaultFixture.open("sqlite");
     const { database, spaceId, vaultId } = fixture;
     const now = Date.now();
-    const installationId = schema.identifier("installation").parse(`installation-${v7()}`);
+    const installationId = Identifier.create("installation");
     await database.insert(installation.table).values({
         id: installationId,
         scope: spaceId,
         packageId: notes.id,
         role: "application",
-        alias: "notes",
+        name: "notes",
         selection: { kind: "release", version: notes.version },
         createdAt: now,
         updatedAt: now,
     });
     const bind = async (name: string, target: string) => {
-        const id = schema.identifier("binding").parse(`binding-${v7()}`);
+        const id = Identifier.create("binding");
         const row = { id, scope: spaceId, installationId, packageId: notes.id, name, target };
         await database
             .insert(binding.table)
@@ -111,7 +111,7 @@ test("provision a generated secret in the vault the installation binds, generate
     const waiting = await ready();
     await database
         .update(vault.table)
-        .set({ provider: VAULT_PROVIDER, reference: vaultService.package.name })
+        .set({ provider: VAULT_PROVIDER, reference: vaultPackage.name })
         .where(eq(vault.table.id, vaultId));
     const generating = await ready();
     const passed = await ready();
@@ -119,9 +119,7 @@ test("provision a generated secret in the vault the installation binds, generate
     // read the generated key and what a capture of each version uses
     const row = single(await database.select().from(secret.table));
     const version = single(await database.select().from(secretVersion.table));
-    const { keyId, ciphertext } = SecretVersion.requireReadable(version, Date.now());
-    const key = await fixture.keystore().open(Transaction.reading(database), keyId);
-    const value = await SecretVersion.open(key, row, version.id, ciphertext);
+    const value = SecretVersion.requireReadable(version, Date.now());
     const jwk = schema
         .looseObject({ kty: schema.string(), crv: schema.string(), alg: schema.string() })
         .parse(JSON.parse(value.value));
