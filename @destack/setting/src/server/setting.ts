@@ -29,12 +29,15 @@ export function implementSetting(options: SettingOptions) {
     return setting.implement({
         methods: {
             create: {
-                authorize: (call) =>
-                    requireDeclared({ ...call.input, scope: call.scope }, declared),
+                authorize: (context) =>
+                    requireDeclared({ ...context.input, scope: context.scope }, declared),
             },
             update: {
-                authorize: (call) =>
-                    requireDeclared({ ...call.target, ...call.input, scope: call.scope }, declared),
+                authorize: (context) =>
+                    requireDeclared(
+                        { ...context.target, ...context.input, scope: context.scope },
+                        declared,
+                    ),
             },
         },
         declaration: {

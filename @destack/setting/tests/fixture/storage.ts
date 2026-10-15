@@ -11,10 +11,9 @@ import { space } from "./space.ts";
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import {
-    Call,
     type CallableName,
-    type CallOutput,
-    type ObjectCallInput,
+    type MethodOutput,
+    type CallInput,
     type ObjectType,
 } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
@@ -84,7 +83,7 @@ export class Storage {
         input: JsonObject,
     ): Promise<unknown> {
         const caller = subjectContext(this.subject, scope).access();
-        const call = Call.record(object, name, { scope, ...input });
+        const call = object.call(name, { scope, ...input });
 
         return object.method(name).mutates
             ? this.objects
@@ -97,8 +96,8 @@ export class Storage {
     async call<Type extends ObjectType, Name extends CallableName<Type>>(
         object: Type,
         name: Name,
-        input: NoInfer<ObjectCallInput<Type, Name>> & { readonly scope: string },
-    ): Promise<CallOutput<Type, Name>> {
+        input: NoInfer<CallInput<Type, Name>> & { readonly scope: string },
+    ): Promise<MethodOutput<Type, Name>> {
         // act in the call's scope
         const context = subjectContext(this.subject, input.scope);
         const call = object.call(name, input);
