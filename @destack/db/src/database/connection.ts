@@ -65,6 +65,13 @@ export class DatabaseConnection<
         this.relations = relations;
     }
 
+    /** Open a connection on the same session that counts the operations it submits. */
+    metered(): DatabaseConnection<Models> {
+        const driver = new DatabaseDriver(this.driver.session, this.state, this.driver.transaction);
+
+        return new DatabaseConnection(driver, this.tables, this.relations);
+    }
+
     /** Read the tables the relations name. */
     get query(): Queries<Models> {
         this.#query ??= RelationalQueryBuilder.of(this, this.relations);

@@ -1,4 +1,3 @@
-import { schema } from "@destack/schema";
 import { and, inArray, sql, type SQL } from "../sql/index.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
@@ -10,7 +9,7 @@ import { Order, type OrderBy } from "../query/order.ts";
 import { Namespace, type Extras } from "../query/namespace.ts";
 import { Expression, type RelationReader } from "../expression/expression.ts";
 import { TABLE, Table, type RowImage } from "../table/table.ts";
-import { headFields, latestOf, LogInteger, selectHead, type LogPosition } from "./position.ts";
+import { headFields, latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import type { Row } from "../table/row.ts";
 import type { ReadSet } from "./commit.ts";
 import type { Column, ColumnValue } from "../table/column.ts";
@@ -23,9 +22,6 @@ const RANK = "destack_rank";
 
 /** The head columns a tuple read selects before each row's own. */
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
-
-/** The head of a read: the epoch, the newest logged and the highest compacted sequence. */
-const HEAD = schema.tuple([schema.string(), LogInteger.nullable(), LogInteger]);
 
 /** A read of the first matching rows in an order. */
 export interface WindowRead<Read = Row> {
@@ -195,8 +191,11 @@ export class Snapshot {
         const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
-        const [epoch, latest, horizon] = HEAD.parse(read[0]?.slice(0, HEAD_COLUMNS.length));
-        const sequence = this.#require(epoch, latestOf(latest, horizon));
+        const [epoch, latest, horizon] = read[0] ?? [];
+        const sequence = this.#require(
+            LogColumn.text(epoch),
+            latestOf(LogColumn.nullableInteger(latest), LogColumn.integer(horizon)),
+        );
 
         // decode the rows
         const dialect = this.database.dialect;

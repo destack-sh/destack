@@ -27,12 +27,19 @@ export class DatabaseDriver {
     readonly state: ConnectionState;
     /** The active transaction state, when present. */
     readonly transaction: TransactionState | undefined;
+    /** The operations submitted through this driver outside a transaction. */
+    #operations = 0;
 
     /** Create the driver. */
     constructor(session: Session, state: ConnectionState, transaction?: TransactionState) {
         this.session = session;
         this.state = state;
         this.transaction = transaction;
+    }
+
+    /** The operations submitted through this driver outside a transaction. */
+    get operations(): number {
+        return this.#operations;
     }
 
     /** The SQL dialect. */
@@ -42,8 +49,11 @@ export class DatabaseDriver {
 
     /** Submit work through the transaction or connection. */
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
-        // count the statement
+        // count the statement, and the operation the connection submits outside a transaction
         this.state.statements += 1;
+        if (this.transaction === undefined) {
+            this.#operations += 1;
+        }
 
         // classify failures, and record the statement's duration
         const reported = async () => {

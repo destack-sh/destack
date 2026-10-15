@@ -255,8 +255,13 @@ export class TestDatabase<
 
             return party();
         };
-        const open: TestConnector = (connected) =>
-            sqlite.connectBunSqlite(file, connected, { openChannel }).then(keyed);
+        const open: TestConnector = async (connected) => {
+            // commit without syncing the file, which a test database has no use for
+            const opened = await sqlite.connectBunSqlite(file, connected, { openChannel });
+            await opened.executeScript("PRAGMA synchronous = OFF");
+
+            return keyed(opened);
+        };
 
         // start a logged copy's own epoch as a restore does
         const database = await open(tables);
@@ -393,7 +398,8 @@ class TestCluster {
         return postgres(this.address, {
             max: TEST_POOL_CONNECTIONS,
             idle_timeout: TEST_IDLE_SECONDS,
-            connection: { search_path: schema },
+            // commit without waiting for the WAL flush, which a test schema has no use for
+            connection: { search_path: schema, synchronous_commit: "off" },
             onnotice: postgresql.reportNotice,
         });
     }

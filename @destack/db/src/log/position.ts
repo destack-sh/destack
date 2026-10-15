@@ -1,13 +1,75 @@
 import { sql, type SQL } from "../sql/index.ts";
 import { defineSchema, schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
+import { DatabaseError } from "../error/error.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
 
-/** A log sequence or time as a safe integer, since PostgreSQL returns bigints as text. */
-export const LogInteger = schema
-    .union([schema.number(), schema.string(), schema.bigint()])
-    .transform((value) => Number(value))
-    .pipe(schema.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
+/** The log's own columns, read by the driver types they return, since the log writes them all. */
+export const LogColumn = {
+    /** Read a sequence or time from a number, big integer or numeric text, failing for others. */
+    integer(value: unknown): number {
+        // read a number, or a big integer PostgreSQL returns as text
+        const number =
+            typeof value === "number"
+                ? value
+                : typeof value === "string" || typeof value === "bigint"
+                  ? Number(value)
+                  : Number.NaN;
+        if (!Number.isSafeInteger(number) || number < 0) {
+            throw new DatabaseError(
+                "QUERY_FAILED",
+                `the log returned ${String(value)} for an integer`,
+            );
+        }
+
+        return number;
+    },
+
+    /** Read a sequence or time, null for SQL NULL. */
+    nullableInteger(value: unknown): number | null {
+        return value === null ? null : LogColumn.integer(value);
+    },
+
+    /** Read text, failing for any other value. */
+    text(value: unknown): string {
+        if (typeof value !== "string") {
+            throw new DatabaseError("QUERY_FAILED", `the log returned ${String(value)} for text`);
+        }
+
+        return value;
+    },
+
+    /** Read text, null for SQL NULL. */
+    nullableText(value: unknown): string | null {
+        return value === null ? null : LogColumn.text(value);
+    },
+
+    /** Read a JSON array: SQLite's text, which it parses, or PostgreSQL's parsed value. */
+    array(value: unknown, dialect: Dialect): readonly unknown[] {
+        const parsed = parseJson(value, dialect);
+        if (!Array.isArray(parsed)) {
+            throw new DatabaseError(
+                "QUERY_FAILED",
+                `the log returned ${String(value)} for an array`,
+            );
+        }
+
+        return parsed;
+    },
+
+    /** Read a JSON object: SQLite's text, which it parses, or PostgreSQL's parsed value. */
+    object(value: unknown, dialect: Dialect): Readonly<Record<string, unknown>> {
+        const parsed = parseJson(value, dialect);
+        if (!isObject(parsed)) {
+            throw new DatabaseError(
+                "QUERY_FAILED",
+                `the log returned ${String(value)} for an object`,
+            );
+        }
+
+        return parsed;
+    },
+};
 
 /** The schema of a position in the log. */
 const logPositionSchema = defineSchema(
@@ -49,11 +111,11 @@ export function headFields(dialect: Dialect): {
 
     return {
         epoch: sql`(SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1)`.mapWith((value) =>
-            schema.string().parse(value),
+            LogColumn.text(value),
         ),
-        logged: logged.mapWith((value) => LogInteger.nullable().parse(value)),
+        logged: logged.mapWith((value) => LogColumn.nullableInteger(value)),
         horizon: sql`(SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1)`.mapWith(
-            (value) => LogInteger.parse(value),
+            (value) => LogColumn.integer(value),
         ),
     };
 }
@@ -68,4 +130,14 @@ export function selectHead(dialect: Dialect): SQL {
 /** Read a head's latest sequence: the latest logged one, or the horizon. */
 export function latestOf(logged: number | null, horizon: number): number {
     return logged === null ? horizon : Math.max(logged, horizon);
+}
+
+/** Parse a JSON column: SQLite's text, or PostgreSQL's value its driver parsed. */
+function parseJson(value: unknown, dialect: Dialect): unknown {
+    return dialect === "sqlite" ? JSON.parse(LogColumn.text(value)) : value;
+}
+
+/** Report whether a parsed JSON value is an object. */
+function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
