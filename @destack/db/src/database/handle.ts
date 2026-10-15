@@ -38,7 +38,7 @@ const SnapshotManifest = schema.object({
 });
 
 /** A page of encoded rows. */
-const SnapshotPage = schema.array(schema.record(schema.string(), schema.json()));
+const SnapshotPage = schema.array(schema.jsonObject());
 
 /** Rewrite a row of a table, such as wrapping its host-bound values for another host. */
 type RowRewrite = (table: Table, row: Row) => Promise<Row>;
@@ -48,17 +48,17 @@ export interface DatabaseHandle {
     /** The connection. */
     readonly database: DatabaseConnection;
     /** Migrate the database to its tables and some beside them, dropping earlier ones beside. */
-    migrate(beside: readonly Table[]): Promise<void>;
+    readonly migrate: (beside: readonly Table[]) => Promise<void>;
     /** Release the database. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
 }
 
 /** Connect to a database with some tables declared, answering a connection that closes. */
 type Connect = (
     tables: readonly Table[],
 ) =>
-    | (DatabaseConnection & AsyncDisposable & { close(): Promise<void> })
-    | Promise<DatabaseConnection & AsyncDisposable & { close(): Promise<void> }>;
+    | (DatabaseConnection & AsyncDisposable & { readonly close: () => Promise<void> })
+    | Promise<DatabaseConnection & AsyncDisposable & { readonly close: () => Promise<void> }>;
 
 /** Plan, apply and open a host's databases. */
 export const DatabaseHandle = {

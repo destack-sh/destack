@@ -50,13 +50,13 @@ const OPERATORS = {
 /** How a predicate resolves: fields to values, placeholders to scalars, relations to decisions. */
 export interface Binding<Value, Decision = Value> {
     /** Resolve a field. */
-    field(name: string): Value;
+    readonly field: (name: string) => Value;
     /** Resolve a placeholder's value. */
-    placeholder(name: string): Scalar;
+    readonly placeholder: (name: string) => Scalar;
     /** Resolve whether a related row meets a condition. */
-    exists(via: string, where: Condition): Decision;
+    readonly exists: (via: string, where: Condition) => Decision;
     /** Resolve whether the row's searched text contains each word as a word's prefix. */
-    search(words: readonly string[]): Decision;
+    readonly search: (words: readonly string[]) => Decision;
 }
 
 /** A condition resolved against its row's fields, which rendering and matching walk. */

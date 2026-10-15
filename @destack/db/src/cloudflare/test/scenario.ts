@@ -356,8 +356,10 @@ export default {
         request: Request,
         environment: {
             readonly NOTES: {
-                idFromName(name: string): unknown;
-                get(id: unknown): { fetch(request: Request): Promise<Response> };
+                readonly idFromName: (name: string) => unknown;
+                readonly get: (id: unknown) => {
+                    readonly fetch: (request: Request) => Promise<Response>;
+                };
             };
         },
     ) {

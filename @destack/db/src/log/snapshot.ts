@@ -80,11 +80,11 @@ export interface Admission {
 /** How a snapshot follows a table's relations in memory. */
 export interface RelationView {
     /** Decide whether a related row met a condition, as of the position. */
-    decide(via: string, where: Condition, row: Row): Promise<boolean>;
+    readonly decide: (via: string, where: Condition, row: Row) => Promise<boolean>;
     /** Read the keys of rows with related rows that changed between two sequences. */
-    touched(after: number, upto: number): Promise<readonly Row[]>;
+    readonly touched: (after: number, upto: number) => Promise<readonly Row[]>;
     /** Resolve a row's lookups, as of the position. */
-    resolve(row: Row): Promise<RelationReader>;
+    readonly resolve: (row: Row) => Promise<RelationReader>;
 }
 
 /** The database's logged columns as they were at a log position. */

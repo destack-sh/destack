@@ -1,4 +1,4 @@
-import { DatabaseError, wraps } from "../error/index.ts";
+import { DatabaseError, isAborted, wraps } from "../error/index.ts";
 
 /** The lifetime of a transaction callback and its queries. */
 export class TransactionState {
@@ -12,11 +12,11 @@ export class TransactionState {
     readonly signal: AbortSignal | undefined;
     /** The SQL names of the tables the outermost transaction writes, which its commit announces. */
     readonly written: Set<string>;
-    /** The identity the outermost SQLite transaction's log triggers stamp, absent without a log. */
-    readonly id: string | undefined;
+    /** The identity the outermost writing transaction's log entries carry, absent without one. */
+    readonly id: Promise<string | undefined>;
 
     /** Create the state, recording its writes and identity as the outermost transaction's. */
-    constructor(written: Set<string>, id: string | undefined, signal?: AbortSignal) {
+    constructor(written: Set<string>, id: Promise<string | undefined>, signal?: AbortSignal) {
         this.written = written;
         this.id = id;
         this.signal = signal;
@@ -35,7 +35,11 @@ export class TransactionState {
             // settle the queries and keep unreported failures
             this.close();
             await Promise.all(this.#pending);
-            const unreported = this.#failures.filter((failure) => !wraps(error, failure));
+
+            // leave out the statements an earlier failure aborted, sent with it in one pipeline
+            const unreported = this.#failures.filter(
+                (failure) => !wraps(error, failure) && !isAborted(failure),
+            );
             if (unreported.length > 0) {
                 throw new AggregateError(
                     [error, ...unreported],

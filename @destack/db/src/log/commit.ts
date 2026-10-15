@@ -226,17 +226,18 @@ export class ChangeSet {
         // validate reads before the lock and check references after the writes
         await database.transaction(
             async (transaction) => {
-                // hold off other commits, and refuse once a commit after the base touched a read
-                await transaction.log.serialize();
+                // hold off other commits, and refuse once a later commit touched a read, in one round trip
+                const serialized = transaction.log.serialize();
                 await ChangeSet.requireCurrent(transaction, base, reads);
+                await serialized;
 
-                // write the records kept once, before the changes they may enable
-                await records(transaction);
-
-                // apply each run of one table's inserts, key-keeping updates or deletes in batches
-                for (const run of ChangeSet.#runs(this.changes, transaction.dialect)) {
-                    await ChangeSet.#apply(transaction, run);
-                }
+                // send the records, then each run of one table's changes, in one round trip
+                await Promise.all([
+                    records(transaction),
+                    ...ChangeSet.#runs(this.changes, transaction.dialect).map((run) =>
+                        ChangeSet.#apply(transaction, run),
+                    ),
+                ]);
             },
             { constraints: "deferred", isolationLevel: "read committed" },
         );
@@ -305,9 +306,10 @@ export class ChangeSet {
         if (operation === "insert") {
             const rows = run.flatMap((change) => (change.after === null ? [] : [change.after]));
             const size = Math.max(1, Math.floor(PARAMETER_BUDGET / table[TABLE].entries.length));
-            for (let start = 0; start < rows.length; start += size) {
-                await transaction.insert(table).values(rows.slice(start, start + size));
-            }
+            const batches = Array.from({ length: Math.ceil(rows.length / size) }, (_, index) =>
+                rows.slice(index * size, (index + 1) * size),
+            );
+            await Promise.all(batches.map((batch) => transaction.insert(table).values(batch)));
         }
         // delete removed rows by key
         else if (operation === "delete") {
@@ -355,34 +357,39 @@ export class ChangeSet {
         transaction: DatabaseConnection,
         run: readonly RowChange[],
     ): Promise<void> {
-        // group the rows by the columns they change, which no unique key reads
+        // group the rows by the columns they change, sending every group at once
         const groups = Map.groupBy(run, (change) => changedColumns(change).join(","));
-        for (const group of groups.values()) {
-            // update a lone row by its own statement
-            const first = aligned(group, 0);
-            if (group.length === 1) {
-                await ChangeSet.#set(transaction, first);
-                continue;
-            }
+        await Promise.all(
+            [...groups.values()].map((group) => ChangeSet.#updateGroup(transaction, group)),
+        );
+    }
 
-            // update the group from one JSON array of each row's key and changed values
-            const { table } = first;
-            const key = table[TABLE].key;
-            const changed = changedColumns(first);
-            const tuples = group.map((change) => {
-                const { before, after } = ChangeSet.#kept(change);
-
-                return [
-                    ...key.map((column) => jsonOf(table, column, before)),
-                    ...changed.map((column) =>
-                        ChangeSet.#element(transaction, table, column, after),
-                    ),
-                ];
-            });
-            await tupleUpdate(table, key, changed, transaction.dialect).all(transaction, {
-                tuples: JSON.stringify(tuples),
-            });
+    /** Update one group of rows changing the same columns: a lone row by itself, else together. */
+    static async #updateGroup(
+        transaction: DatabaseConnection,
+        group: readonly RowChange[],
+    ): Promise<void> {
+        // update a lone row by its own statement
+        const first = aligned(group, 0);
+        if (group.length === 1) {
+            return ChangeSet.#set(transaction, first);
         }
+
+        // update the group from one JSON array of each row's key and changed values
+        const { table } = first;
+        const key = table[TABLE].key;
+        const changed = changedColumns(first);
+        const tuples = group.map((change) => {
+            const { before, after } = ChangeSet.#kept(change);
+
+            return [
+                ...key.map((column) => jsonOf(table, column, before)),
+                ...changed.map((column) => ChangeSet.#element(transaction, table, column, after)),
+            ];
+        });
+        await tupleUpdate(table, key, changed, transaction.dialect).all(transaction, {
+            tuples: JSON.stringify(tuples),
+        });
     }
 
     /** Write a changed column's JSON array element, sealing a sensitive value. */
@@ -811,9 +818,7 @@ export class Transaction {
     /** Commit the records and changes if no read changed since the base. */
     commit(): Promise<void> {
         return this.changes.commit(this.database, this.base, this.reads, async (transaction) => {
-            for (const write of this.#records) {
-                await write(transaction);
-            }
+            await Promise.all(this.#records.map((write) => write(transaction)));
         });
     }
 }

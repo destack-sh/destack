@@ -172,10 +172,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
     }
 
     /** Reference a column in another table with the same values. */
-    references(
-        column: () => Column<ColumnDefinition<ValueOf<Definition>>>,
-        actions: ReferenceAction = {},
-    ): ColumnBuilder<Definition> {
+    references(column: () => Column, actions: ReferenceAction = {}): ColumnBuilder<Definition> {
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
     }
 
@@ -244,13 +241,13 @@ export interface ColumnDefinition<
     /** How a sensitive value is sealed, absent for an opaque copy of sealed text. */
     readonly sealing?: Sealing;
     /** Encode an application value as a driver parameter. */
-    encode(value: unknown, dialect: Dialect): DriverValue;
+    readonly encode: (value: unknown, dialect: Dialect) => DriverValue;
     /** Decode a driver value as an application value. */
-    decode(value: unknown, dialect: Dialect): Value;
+    readonly decode: (value: unknown, dialect: Dialect) => Value;
     /** Write a value as JSON: exact numbers as text, instants as epoch ms, bytes as base64. */
     toJson(value: Value): JsonValue;
     /** Read a value from its JSON form. */
-    fromJson(value: unknown): Value;
+    readonly fromJson: (value: unknown) => Value;
 }
 
 /** A column's SQL calculation. */

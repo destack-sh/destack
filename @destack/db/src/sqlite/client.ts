@@ -7,32 +7,34 @@ const TURN_WAIT_MILLISECONDS = 30_000;
 /** The statements of a SQLite connection or one of its transactions. */
 export interface SqliteQueryClient {
     /** Read every row as an array of values, integers exact where the engine keeps them. */
-    values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]>;
+    readonly values: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */
-    all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]>;
+    readonly all: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[]>;
     /** Run a statement for its effect. */
-    run(sql: string, parameters: readonly DriverValue[]): Promise<void>;
+    readonly run: (sql: string, parameters: readonly DriverValue[]) => Promise<void>;
     /** Run a script of statements. */
-    exec(script: string): Promise<void>;
+    readonly exec: (script: string) => Promise<void>;
     /** Run work in a nested transaction at a depth, undoing only its writes when it fails. */
-    nest<Value>(
+    readonly nest: <Value>(
         depth: number,
         operation: (client: SqliteQueryClient) => Promise<Value>,
-    ): Promise<Value>;
+    ) => Promise<Value>;
 }
 
 /** A SQLite connection with dedicated transactions. */
 export interface SqliteConnectionClient extends SqliteQueryClient {
     /** Close the physical connection. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
     /** Run a callback with exclusive transaction access. */
-    transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>): {
+    readonly transactionAsync: <Value>(
+        operation: (client: SqliteQueryClient) => Promise<Value>,
+    ) => {
         /** Begin a deferred transaction. */
-        deferred(): Promise<Value>;
+        readonly deferred: () => Promise<Value>;
         /** Begin a write transaction. */
-        immediate(): Promise<Value>;
+        readonly immediate: () => Promise<Value>;
         /** Begin an exclusive transaction. */
-        exclusive(): Promise<Value>;
+        readonly exclusive: () => Promise<Value>;
     };
 }
 

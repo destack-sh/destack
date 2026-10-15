@@ -3,7 +3,7 @@ import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
-import { JsonValue, schema, Version } from "@destack/schema";
+import { type JsonObject, JsonValue, schema, Version } from "@destack/schema";
 import { Condition, Scalar, type JsonCondition } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
@@ -82,9 +82,14 @@ export type Rollup = schema.Infer<typeof Rollup>;
 /** The related rows an expression reads. */
 export interface RelationReader {
     /** Read a column of the related row, as rows hold it. */
-    lookup(via: string, column: string): ColumnValue;
+    readonly lookup: (via: string, column: string) => ColumnValue;
     /** Measure the related rows meeting a condition. */
-    rollup(measure: Rollup, via: string, column: string | undefined, where: Condition): ColumnValue;
+    readonly rollup: (
+        measure: Rollup,
+        via: string,
+        column: string | undefined,
+        where: Condition,
+    ) => ColumnValue;
 }
 
 /** The schema of an expression. */
@@ -320,11 +325,11 @@ export const Expression = {
     /** Upgrade a partial record of an earlier release through later releases' assignments. */
     upgrade(
         convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>,
-        record: Readonly<Record<string, JsonValue>>,
+        record: JsonObject,
         from: Version,
         to: Version,
     ): Record<string, JsonValue> {
-        const converted: Record<string, JsonValue> = { ...record };
+        const converted: Record<string, JsonValue> = Object.fromEntries(JsonValue.entries(record));
         for (const [, assignments] of Version.between(convert, from, to)) {
             // compute each field, skipping nothing computed from absent fields alone
             const fields: Record<string, JsonValue> = {};

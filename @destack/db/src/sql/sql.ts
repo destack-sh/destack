@@ -4,7 +4,7 @@ import type { Column, ColumnDefinition, ColumnValue } from "../table/column.ts";
 /** Something that renders as SQL, such as a column, a table, a query or a fragment. */
 export interface SQLWrapper {
     /** Read the fragment this renders as. */
-    getSQL(): SQL;
+    readonly getSQL: () => SQL;
 }
 
 /** One part of a fragment: raw text or a value the renderer resolves. */

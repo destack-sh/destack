@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
@@ -13,12 +13,12 @@ import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/connection.ts";
 import { PostgresDatabase } from "../postgres/database.ts";
 import { ColumnCipher } from "../database/cipher.ts";
-import { LOG_EPOCH, LOG_HORIZON, LOG_TABLES } from "../log/schema.ts";
+import { LOG_EPOCH, LOG_HORIZON } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
 import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
-import { readState, STATE, type TableState } from "../migration/state.ts";
+import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
 
 /** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */
@@ -30,8 +30,8 @@ export const TEST_DIALECTS: readonly Dialect[] = [
 /** The cipher of every test database, a fixed key so schemas reused across test processes open. */
 export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7));
 
-/** The connections each test database pools: ten workers stay within a server's hundred. */
-const TEST_POOL_CONNECTIONS = 4;
+/** The connections each test database pools: four multi-database test workers stay under 100. */
+const TEST_POOL_CONNECTIONS = 2;
 
 /** The seconds a test pool keeps an idle connection. */
 const TEST_IDLE_SECONDS = 1;
@@ -381,8 +381,8 @@ class TestCluster {
         const expired = Date.now() - SCHEMA_RETENTION_MILLISECONDS;
         const schemas = await cluster.administration<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace
-            WHERE starts_with(nspname, 'test_s') AND coalesce(obj_description(oid, 'pg_namespace'), '0')::bigint < ${expired}
-            ORDER BY coalesce(obj_description(oid, 'pg_namespace'), '0')::bigint
+            WHERE starts_with(nspname, 'test_s') AND split_part(coalesce(obj_description(oid, 'pg_namespace'), '0'), ' ', 1)::bigint < ${expired}
+            ORDER BY split_part(coalesce(obj_description(oid, 'pg_namespace'), '0'), ' ', 1)::bigint
             LIMIT ${EXPIRED_SCHEMA_DROPS}`;
         for (const { name } of schemas) {
             if (await cluster.#lockListed(name)) {
@@ -437,7 +437,7 @@ class TestCluster {
             SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
         for (const { name } of listed) {
             if (!this.#locked.has(name) && (await this.#lockListed(name))) {
-                const schema = await this.#verify(name, state, tables);
+                const schema = await this.#verify(name);
                 if (schema !== undefined) {
                     await this.#reset(schema, state, template);
 
@@ -458,7 +458,8 @@ class TestCluster {
         const database = new PoolDatabase(this.connect(name), tables, pools);
         await database.apply(await database.plan({ declared: state }));
         await database.close();
-        const schema = await this.#adopt(name, pools);
+        const schema = await this.#adopt(name, await this.#readShape(name), pools);
+        await this.#stamp(schema);
         if (template !== undefined) {
             await this.#reset(schema, state, template);
         }
@@ -515,47 +516,49 @@ class TestCluster {
         return isPresent;
     }
 
-    /** Adopt a newly locked schema that migrates to nothing, or drop it. */
-    async #verify(
-        name: string,
-        state: readonly TableState[],
-        tables: declaration.Database | readonly Table[],
-    ): Promise<TestSchema | undefined> {
-        // refuse a schema without state, without a log, or with foreign tables
-        const pools: postgres.Sql[] = [];
-        const database = new PoolDatabase(this.connect(name), tables, pools);
-        const names = (await this.#readRelations(name))
-            .filter((relation) => relation.kind !== "S")
-            .map((relation) => relation.name);
-        const managed = names.includes(STATE)
-            ? new Set((await readState(database)).map((applied) => applied.table.name))
-            : undefined;
-        const isUsable =
-            managed !== undefined &&
-            LOG_TABLES.every((table) => names.includes(table)) &&
-            names.every((table) => managed.has(table) || table.startsWith("__destack_"));
-
-        // adopt the schema only with an empty plan
-        const isCurrent = isUsable && (await database.plan({ declared: state })).steps.length === 0;
-        await database.close();
-        if (!isCurrent) {
-            await this.#drop(name, pools);
+    /** Adopt a schema another process kept with the shape it was stamped with, else drop it. */
+    async #verify(name: string): Promise<TestSchema | undefined> {
+        // compare the schema's shape with the digest its creator stamped
+        const comment: unknown = (
+            await this.administration`
+            SELECT obj_description(to_regnamespace(${name}), 'pg_namespace')`.values()
+        )[0]?.[0];
+        const stamped = typeof comment === "string" ? comment.split(" ")[1] : undefined;
+        const shape = await this.#readShape(name);
+        if (stamped === undefined || stamped !== (await TestCluster.#digest(shape))) {
+            await this.#drop(name, []);
 
             return undefined;
         }
 
-        // stamp the claim time for retention
-        await this.administration.unsafe(`COMMENT ON SCHEMA "${name}" IS '${Date.now()}'`);
+        // adopt it, stamping the claim time for retention
+        const schema = await this.#adopt(name, shape, []);
+        await this.#stamp(schema);
 
-        return await this.#adopt(name, pools);
+        return schema;
     }
 
     /** Record a locked schema's shape and keep it with its pools. */
-    async #adopt(name: string, pools: postgres.Sql[]): Promise<TestSchema> {
-        const schema = new TestSchema(this, name, await this.#readShape(name), pools);
+    async #adopt(name: string, shape: TestSchemaShape, pools: postgres.Sql[]): Promise<TestSchema> {
+        const schema = new TestSchema(this, name, shape, pools);
         this.#schemas.push(schema);
 
         return schema;
+    }
+
+    /** Stamp a schema with its claim time and its shape's digest. */
+    async #stamp(schema: TestSchema): Promise<void> {
+        const digest = await TestCluster.#digest(schema.shape);
+        await this.administration.unsafe(
+            `COMMENT ON SCHEMA "${schema.name}" IS '${Date.now()} ${digest}'`,
+        );
+    }
+
+    /** Digest a schema's shape, as its stamp keeps it. */
+    static async #digest(shape: TestSchemaShape): Promise<string> {
+        const bytes = new TextEncoder().encode(shape.fingerprint);
+
+        return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
     }
 
     /** Replace the rows with a template's and start a new epoch, in one statement batch. */
@@ -738,7 +741,7 @@ function replicatedOf(tables: declaration.Database | readonly Table[]): Readonly
     return "tables" in tables ? tables.replicated : new Set<string>();
 }
 
-/** Migrate a SQLite template once per process and return its path. */
+/** Migrate a SQLite template once per declared state across processes, returning its path. */
 function sqliteTemplate(
     tables: readonly Table[],
     isReplica: boolean,
@@ -751,15 +754,27 @@ function sqliteTemplate(
         return known;
     }
 
-    // migrate a file and checkpoint its WAL
+    // reuse the file another process migrated for the state and log, else migrate one
     const created = (async () => {
-        // migrate in its own directory
-        const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
-        const file = join(directory, "template.db");
-        const database = await sqlite.connectBunSqlite(file, tables);
+        // name the file by the digest of the state and the log it migrates beside
+        const layout = JSON.stringify([key, createLog("sqlite", "")]);
+        const digest = new Uint8Array(
+            await crypto.subtle.digest("SHA-256", new TextEncoder().encode(layout)),
+        );
+        const directory = join(tmpdir(), "destack-template");
+        const file = join(directory, `${digest.toHex()}.db`);
+        if (await Bun.file(file).exists()) {
+            return file;
+        }
+
+        // migrate a file beside it and checkpoint its WAL, then move it in whole
+        await mkdir(directory, { recursive: true });
+        const written = join(directory, `${v7()}.db`);
+        const database = await sqlite.connectBunSqlite(written, tables);
         await database.migrate(tables, { isReplica, replicated });
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
         await database.close();
+        await rename(written, file);
 
         return file;
     })();
@@ -771,7 +786,7 @@ function sqliteTemplate(
 /** A connection to a test database. */
 type TestConnection<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
-> = DatabaseConnection<Models> & { close(): Promise<void> };
+> = DatabaseConnection<Models> & { readonly close: () => Promise<void> };
 
 /** Open a connection to a test database. */
 type TestConnector = <Models extends Readonly<Record<string, Model>>>(

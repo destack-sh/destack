@@ -13,7 +13,7 @@ export const CHAIN_TERMS = 300;
 
 /** A typed operand: a column reading the value, a fragment or a named fragment. */
 type Operand<Value> =
-    | Column<ColumnDefinition & { fromJson(value: unknown): Value }>
+    | Column<ColumnDefinition & { readonly fromJson: (value: unknown) => Value }>
     | SQL<Value>
     | Alias<Value>;
 

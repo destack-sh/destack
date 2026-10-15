@@ -20,7 +20,7 @@ declare module "bun:sqlite" {
     /** A Bun statement, with the integer mode Bun has beside its declared methods. */
     interface Statement<ReturnType, ParamsType> {
         /** Read integers as big integers, exactly, or as numbers. */
-        safeIntegers(enabled: boolean): Statement<ReturnType, ParamsType>;
+        readonly safeIntegers: (enabled: boolean) => Statement<ReturnType, ParamsType>;
     }
 }
 

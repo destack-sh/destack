@@ -182,9 +182,6 @@ const LogEntry = {
 /** The hex digits of a layout digest: 128 bits, with negligible collisions among tables. */
 const LAYOUT_LENGTH = 32;
 
-/** The logged columns of each table, described once. */
-const COLUMNS = new WeakMap<Table, unknown[]>();
-
 /** The committed changes of one database, in commit order. */
 export class Log {
     /** The database keeping the log. */
@@ -206,21 +203,16 @@ export class Log {
 
     /** Digest the layout of tables' changes: logged columns with their kinds and values. */
     static async layout(tables: readonly Table[]): Promise<string> {
-        // describe each table's logged columns once
-        const described = tables.map((table) => {
-            let columns = COLUMNS.get(table);
-            if (columns === undefined) {
-                columns = Object.values(table[TABLE].logged).map(({ definition }) => [
-                    definition.name,
-                    definition.kind,
-                    definition.nullable,
-                    toJsonSchema(definition.json),
-                ]);
-                COLUMNS.set(table, columns);
-            }
-
-            return [table[TABLE].sqlName, columns];
-        });
+        // describe each table's logged columns
+        const described = tables.map((table) => [
+            table[TABLE].sqlName,
+            Object.values(table[TABLE].logged).map(({ definition }) => [
+                definition.name,
+                definition.kind,
+                definition.nullable,
+                toJsonSchema(definition.json),
+            ]),
+        ]);
 
         return (await Digest.json(described)).slice(0, LAYOUT_LENGTH);
     }
@@ -478,16 +470,7 @@ export class Log {
 
     /** Read the open transaction's identity, absent outside a writing transaction. */
     async transaction(): Promise<string | undefined> {
-        // take the identity the open SQLite transaction keeps
-        const kept = this.database.driver.transaction?.id;
-        if (kept !== undefined) {
-            return kept;
-        }
-
-        // read the identity the database stamps
-        const [row] = await this.database.all(sql`SELECT ${this.stamp()} AS id`);
-
-        return LogColumn.nullableText(row?.["id"]) ?? undefined;
+        return await this.database.driver.transaction?.id;
     }
 
     /** Read the open transaction's changes before commit. */

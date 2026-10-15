@@ -6,9 +6,9 @@ import type { DurableObjectDatabaseHost, StorageTransaction } from "./host.ts";
 /** The rows one statement of a Durable Object's SQL storage yields. */
 export interface DurableObjectCursor {
     /** Read every row as a named object. */
-    toArray(): Record<string, unknown>[];
+    readonly toArray: () => Record<string, unknown>[];
     /** Read every row as an array of values. */
-    raw(): Iterable<unknown[]>;
+    readonly raw: () => Iterable<unknown[]>;
     /** The rows the statement read so far, all of them once its rows are read. */
     readonly rowsRead: number;
     /** The rows the statement wrote. */
@@ -20,12 +20,12 @@ export interface DurableObjectStorage {
     /** The object's SQLite database. */
     readonly sql: {
         /** Execute one statement with bound parameters. */
-        exec(query: string, ...bindings: unknown[]): DurableObjectCursor;
+        readonly exec: (query: string, ...bindings: unknown[]) => DurableObjectCursor;
         /** The bytes the object's SQLite database takes. */
         readonly databaseSize: number;
     };
     /** Run work in a transaction, nested in the current one when inside it. */
-    transaction<Value>(closure: () => Promise<Value>): Promise<Value>;
+    readonly transaction: <Value>(closure: () => Promise<Value>) => Promise<Value>;
 }
 
 /** The most parameters Durable Object SQLite storage binds to a statement, as Cloudflare limits. */

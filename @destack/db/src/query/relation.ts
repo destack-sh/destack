@@ -68,7 +68,7 @@ export interface RelationColumn {
     /** The join table's column referencing this column's rows. */
     readonly via?: RelationColumn;
     /** Join through a join table's column referencing this column's rows. */
-    through(column: RelationColumn): RelationColumn;
+    readonly through: (column: RelationColumn) => RelationColumn;
 }
 
 /** A relation joining its rows by a key or through a join table. */

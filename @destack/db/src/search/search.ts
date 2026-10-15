@@ -29,7 +29,7 @@ const KEEP_BATCH = 500;
 const SearchedValue = schema.string().nullable();
 
 /** A row's logged image: its values by SQL column name. */
-const LoggedRow = schema.record(schema.string(), schema.json());
+const LoggedRow = schema.jsonObject();
 
 /** A table's full-text search: its searched text columns and the index of their words. */
 export class FullTextIndex {

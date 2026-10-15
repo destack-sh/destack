@@ -36,16 +36,6 @@ export const CHANNEL_PREFIX = "destack_";
 /** The PostgreSQL notification channel of logged commits. */
 export const LOG_CHANNEL = `${CHANNEL_PREFIX}${LOG_TOPIC}`;
 
-/** The SQL names of every table the log keeps. */
-export const LOG_TABLES = [
-    LOG,
-    LOG_HORIZON,
-    LOG_SLOT,
-    LOG_EPOCH,
-    LOG_REPLICA,
-    LOG_TRANSACTION,
-] as const;
-
 /** Describe the columns a table's change triggers record, absent for unlogged tables. */
 export function describeLog(table: Table): ChangeDescription | undefined {
     // skip unlogged tables
@@ -136,9 +126,13 @@ export function createEpoch(epoch: string, scope?: string, namespace?: string): 
 /** The log of one dialect: its tables and change triggers, within the database's namespace. */
 export interface LogDialect {
     /** Create the log once at a first epoch, with the row scope of unscoped tables. */
-    create(epoch: string, scope?: string, namespace?: string): readonly string[];
+    readonly create: (epoch: string, scope?: string, namespace?: string) => readonly string[];
     /** Generate the triggers on a table's relation recording its changes under its SQL name. */
-    install(table: string, description: ChangeDescription, namespace?: string): string[];
+    readonly install: (
+        table: string,
+        description: ChangeDescription,
+        namespace?: string,
+    ) => string[];
     /** Remove the triggers on a table's relation recording its changes. */
-    remove(table: string): string[];
+    readonly remove: (table: string) => string[];
 }

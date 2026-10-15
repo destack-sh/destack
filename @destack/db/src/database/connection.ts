@@ -375,23 +375,42 @@ export class DatabaseConnection<
         const execute = () =>
             this.driver.session.transaction(
                 async (session) => {
-                    // defer constraints to the commit when asked
-                    if (options.constraints === "deferred") {
-                        await session.run(
-                            session.dialect === "sqlite"
-                                ? "PRAGMA defer_foreign_keys = ON"
-                                : "SET CONSTRAINTS ALL DEFERRED",
-                            [],
-                        );
-                    }
+                    // defer constraints to the commit when asked, sent ahead of the work
+                    const isWriting = !isNested && options.isReadOnly !== true;
+                    const deferring =
+                        options.constraints === "deferred"
+                            ? session.run(
+                                  session.dialect === "sqlite"
+                                      ? "PRAGMA defer_foreign_keys = ON"
+                                      : "SET CONSTRAINTS ALL DEFERRED",
+                                  [],
+                              )
+                            : undefined;
 
-                    // mark the outermost SQLite write for the log, and keep its identity in nested ones
+                    // give the outermost write its log identity: a SQLite marker, else PostgreSQL's transaction id
                     const marked =
-                        session.dialect === "sqlite" && !isNested && options.isReadOnly !== true
+                        session.dialect === "sqlite" && isWriting
                             ? await openTransaction(session, this.state)
                             : undefined;
-                    const id = marked ?? this.driver.transaction?.id;
-                    const result = await this.#transact(session, operation, written, id, signal);
+                    const id =
+                        session.dialect === "postgresql" && isWriting
+                            ? DatabaseConnection.#assignIdentity(session)
+                            : Promise.resolve(marked ?? (await this.driver.transaction?.id));
+
+                    // run the work, surfacing a failure of the statements sent ahead of it first
+                    const opening: Promise<unknown>[] =
+                        deferring === undefined ? [id] : [deferring, id];
+                    const result = await this.#transact(
+                        session,
+                        operation,
+                        written,
+                        id,
+                        signal,
+                    ).catch(async (error: unknown) => {
+                        await Promise.all(opening);
+                        throw error;
+                    });
+                    await Promise.all(opening);
                     if (marked !== undefined) {
                         await closeTransaction(session, this.state);
                     }
@@ -422,12 +441,19 @@ export class DatabaseConnection<
         }, signal);
     }
 
+    /** Assign the open PostgreSQL transaction its identity, which its log entries carry. */
+    static async #assignIdentity(session: Session): Promise<string> {
+        const [row] = await session.all("SELECT pg_current_xact_id()::TEXT AS id", []);
+
+        return schema.string().parse(row?.["id"]);
+    }
+
     /** Bind a transaction session and drain its queries. */
     #transact<Value>(
         session: Session,
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         written: Set<string>,
-        id: string | undefined,
+        id: Promise<string | undefined>,
         signal?: AbortSignal,
     ): Promise<Value> {
         const state = new TransactionState(written, id, signal);

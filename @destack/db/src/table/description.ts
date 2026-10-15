@@ -16,7 +16,7 @@ export const ColumnDescription = defineSchema(
         /** The logical value type. */
         kind: schema.enum(COLUMN_KINDS),
         /** The JSON Schema of the column's values. */
-        value: schema.record(schema.string(), schema.json()),
+        value: schema.jsonObject(),
         /** The dialect-specific SQL type. */
         type: schema.string(),
         /** The collation text compares by, absent for the dialect's byte order. */

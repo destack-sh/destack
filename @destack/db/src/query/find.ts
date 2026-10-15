@@ -9,9 +9,8 @@ import { DatabaseError } from "../error/error.ts";
 import { Expression } from "../expression/expression.ts";
 import { Comparable, Condition } from "./condition.ts";
 import { Order } from "./order.ts";
-import { OpenFindOptions } from "./option.ts";
 import type { Path, Relation, Relations, TreePath } from "./relation.ts";
-import type { FindOptions, FindResult, Model } from "./model.ts";
+import { FindOptions, type FindResult, type Model } from "./model.ts";
 
 /** The most parent values one statement reads rows for, a parameter each. */
 const BATCH = 500;
@@ -53,7 +52,7 @@ interface Parent {
 /** A selected value's decoder, as columns and SQL expressions decode. */
 interface Decoder<Value> {
     /** Decode a driver value. */
-    decode(value: unknown, dialect: Dialect): Value;
+    readonly decode: (value: unknown, dialect: Dialect) => Value;
 }
 
 /** Relational reads of a schema's named tables. */
@@ -92,7 +91,7 @@ export class ModelQueryBuilder<Entity extends Model = Model> {
     async findMany<const Options extends FindOptions<Entity> = {}>(
         options?: Options,
     ): Promise<FindResult<Entity, Options>[]> {
-        const rows = await this.#find(OpenFindOptions.parse(options ?? {}));
+        const rows = await this.#find(FindOptions.parse(options ?? {}));
 
         return rows.map((row) =>
             mapValues<Record<string, unknown>, FindResult<Entity, Options>>(row, (value) => value),
@@ -103,7 +102,7 @@ export class ModelQueryBuilder<Entity extends Model = Model> {
     async findFirst<const Options extends Omit<FindOptions<Entity>, "limit"> = {}>(
         options?: Options,
     ): Promise<FindResult<Entity, Options> | undefined> {
-        const [first] = await this.#find({ ...OpenFindOptions.parse(options ?? {}), limit: 1 });
+        const [first] = await this.#find({ ...FindOptions.parse(options ?? {}), limit: 1 });
 
         return first === undefined
             ? undefined
@@ -114,7 +113,7 @@ export class ModelQueryBuilder<Entity extends Model = Model> {
     }
 
     /** Read the rows of a level and below in one read transaction. */
-    #find(options: OpenFindOptions): Promise<Record<string, unknown>[]> {
+    #find(options: FindOptions): Promise<Record<string, unknown>[]> {
         return this.#connection.transaction(
             async (transaction) => {
                 const reads = await read(transaction, this.#relations, this.#table, options);
@@ -144,7 +143,7 @@ class Level {
     readonly #where: SQL;
 
     /** Render a level's selection, order and condition in the table's namespace. */
-    constructor(relations: Relations, table: Table, options: OpenFindOptions) {
+    constructor(relations: Relations, table: Table, options: FindOptions) {
         // select the columns and extras
         const extras = options.extras ?? {};
         const namespace = relations.namespace(table, extras);
@@ -327,7 +326,7 @@ async function read(
     connection: DatabaseConnection,
     relations: Relations,
     table: Table,
-    options: OpenFindOptions,
+    options: FindOptions,
     link?: Link,
 ): Promise<Read[]> {
     // require a positive whole limit, and read nothing for no parents
@@ -346,8 +345,8 @@ async function read(
     const reads = await level.select(connection, link);
 
     // include each named relation's rows
-    for (const [name, selected] of Object.entries(options.with ?? {})) {
-        await include(connection, relations, table, reads, name, selected === true ? {} : selected);
+    for (const [name, selected] of FindOptions.includes(options)) {
+        await include(connection, relations, table, reads, name, selected);
     }
 
     // keep the selected columns, every extra and every include
@@ -364,7 +363,7 @@ async function include(
     table: Table,
     reads: readonly Read[],
     name: string,
-    options: OpenFindOptions,
+    options: FindOptions,
 ): Promise<void> {
     // read the related rows of every distinct parent value at once
     const relation = relations.get(table, name);
@@ -396,7 +395,7 @@ async function include(
 }
 
 /** Read a relation's rows by a nested read's options, meeting the relation's condition too. */
-function related(relation: Relation, options: OpenFindOptions): OpenFindOptions {
+function related(relation: Relation, options: FindOptions): FindOptions {
     // keep the read's condition
     if (relation.where === undefined) {
         return options;

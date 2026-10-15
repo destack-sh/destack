@@ -30,7 +30,7 @@ export class ColumnCipher {
 
     /** Derive the column key from the identity root of the database's scope. */
     static async derive(root: {
-        derive(label: string): Promise<Uint8Array<ArrayBuffer>>;
+        readonly derive: (label: string) => Promise<Uint8Array<ArrayBuffer>>;
     }): Promise<ColumnCipher> {
         return new ColumnCipher(await root.derive(COLUMN_LABEL));
     }

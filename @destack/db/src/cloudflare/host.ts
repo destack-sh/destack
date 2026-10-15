@@ -424,7 +424,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 /** A Durable Object's stub, through which requests reach the object. */
 export interface DurableObjectStub {
     /** Send the object a request. */
-    fetch(request: Request): Promise<Response>;
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** Where a residency's objects and storage stay. */
@@ -441,11 +441,11 @@ export const Jurisdiction = {
 /** The Durable Objects of a binding, as a Worker addresses them. */
 export interface DurableObjectNamespace {
     /** Derive the identifier of the object of a name. */
-    idFromName(name: string): unknown;
+    readonly idFromName: (name: string) => unknown;
     /** Get an object's stub, hinting where a new one starts. */
-    get(id: unknown, options?: { readonly locationHint?: string }): DurableObjectStub;
+    readonly get: (id: unknown, options?: { readonly locationHint?: string }) => DurableObjectStub;
     /** Narrow the namespace to the objects kept in a jurisdiction. */
-    jurisdiction(name: Exclude<Jurisdiction, "local">): DurableObjectNamespace;
+    readonly jurisdiction: (name: Exclude<Jurisdiction, "local">) => DurableObjectNamespace;
 }
 
 /** The bindings of a database's object: the partition objects keeping its copies' content. */

@@ -27,7 +27,7 @@ export type Direction = schema.Infer<typeof Direction>;
 
 /** How rows sort: each field's direction, in priority order. */
 export type OrderBy<Read = Row> = string extends keyof Read
-    ? { readonly [field: string]: Direction }
+    ? { readonly [Field in string]?: Direction }
     : { readonly [Name in keyof Read]?: Direction };
 
 /** How rows sort, as callers write it. */

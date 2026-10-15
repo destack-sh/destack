@@ -1,15 +1,17 @@
-import type { Scalar, Condition } from "./condition.ts";
+import { schema } from "@destack/schema";
+import { type Scalar, Condition } from "./condition.ts";
 import type { Extras } from "./namespace.ts";
-import type { OrderBy } from "./order.ts";
+import { OrderBy } from "./order.ts";
+import { Expression } from "../expression/expression.ts";
 
 /** What relational reads see of a table or object type: compared rows, results and relations. */
 export interface Model {
     /** The fields conditions and orders compare. */
-    readonly row: object;
+    readonly row: { readonly [Field in string]?: unknown };
     /** The fields each result has. */
-    readonly value: object;
+    readonly value: { readonly [Field in string]?: unknown };
     /** The relations, by name. */
-    readonly relations: object;
+    readonly relations: { readonly [Name in string]?: One | Many };
 }
 
 /** A relation to at most one row. */
@@ -28,9 +30,9 @@ export interface Many<Target extends Model = Model> {
     readonly target: Target;
 }
 
-/** A relational read of a model's rows, a one relation's without order and limit. */
+/** A relational read of a model's rows, any model's by default, a one relation's unordered. */
 export type FindOptions<
-    Entity extends Model,
+    Entity extends Model = Model,
     Cardinality extends "one" | "many" = "many",
     Computed extends Extras = Extras,
 > = {
@@ -42,13 +44,7 @@ export type FindOptions<
     readonly where?: ConditionOf<Entity, Computed>;
     /** The related rows each result includes, by relation. */
     readonly with?: {
-        readonly [Name in keyof Entity["relations"]]?:
-            | true
-            | (Entity["relations"][Name] extends One<infer Target>
-                  ? FindOptions<Target, "one">
-                  : Entity["relations"][Name] extends Many<infer Target>
-                    ? FindOptions<Target>
-                    : never);
+        readonly [Name in keyof Entity["relations"]]?: true | IncludeOf<Entity["relations"][Name]>;
     };
 } & (Cardinality extends "many"
     ? {
@@ -59,17 +55,52 @@ export type FindOptions<
       }
     : {});
 
+/** The schema of a relational read of any model, checking options as a read receives them. */
+const findOptions: schema.Schema<FindOptions> = schema.lazy(() =>
+    schema.object({
+        where: Condition.schema.exactOptional(),
+        orderBy: OrderBy.schema.exactOptional(),
+        limit: schema.number().int().min(1).exactOptional(),
+        columns: schema.record(schema.string(), schema.boolean()).exactOptional(),
+        extras: schema.record(schema.string(), Expression.schema).exactOptional(),
+        with: schema
+            .record(schema.string(), schema.union([schema.literal(true), findOptions]))
+            .exactOptional(),
+    }),
+);
+
+/** A relational read of any model: its schema, and the relations it includes. */
+export const FindOptions = Object.assign(findOptions, {
+    /** List the relations a read includes with their reads, every row's read for `true`. */
+    includes<Selected extends FindOptions>(options: {
+        readonly with?: { readonly [Relation in string]?: true | Selected };
+    }): [string, Selected | FindOptions][] {
+        return Object.entries(options.with ?? {}).flatMap(([name, selected]) =>
+            selected === undefined ? [] : [[name, selected === true ? {} : selected]],
+        );
+    },
+});
+
+/** The read of a relation's rows: a one relation's without order and limit. */
+type IncludeOf<Relation> =
+    Relation extends One<infer Target>
+        ? FindOptions<Target, "one">
+        : Relation extends Many<infer Target>
+          ? FindOptions<Target>
+          : never;
+
 /** The condition a model's rows meet, over their fields, a read's extras and their relations. */
 export type ConditionOf<Entity extends Model, Computed extends Extras = {}> = Condition<
     Entity["row"] & ExtraValues<Computed>,
     {
-        readonly [Name in keyof Entity["relations"]]: Entity["relations"][Name] extends
-            | One<infer Target>
-            | Many<infer Target>
-            ? ConditionOf<Target>
-            : never;
+        readonly [Name in keyof Entity["relations"]]: RelatedConditionOf<Entity["relations"][Name]>;
     }
 >;
+
+/** The condition of a relation's rows. */
+type RelatedConditionOf<Relation> = Relation extends One<infer Target> | Many<infer Target>
+    ? ConditionOf<Target>
+    : never;
 
 /** One result of a relational read: the selected fields, the extras and each relation's results. */
 export type FindResult<Entity extends Model, Options> = SelectionOf<Entity["value"], Options> &

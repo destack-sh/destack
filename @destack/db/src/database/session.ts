@@ -16,18 +16,21 @@ export interface Session {
     /** The SQL dialect. */
     readonly dialect: Dialect;
     /** Read every row as an array of values, integers exact. */
-    values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]>;
+    readonly values: (text: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */
-    all(text: string, parameters: readonly DriverValue[]): Promise<Record<string, unknown>[]>;
+    readonly all: (
+        text: string,
+        parameters: readonly DriverValue[],
+    ) => Promise<Record<string, unknown>[]>;
     /** Run a statement for its effect. */
-    run(text: string, parameters: readonly DriverValue[]): Promise<void>;
+    readonly run: (text: string, parameters: readonly DriverValue[]) => Promise<void>;
     /** Run a script of statements in one round trip. */
-    exec(script: string): Promise<void>;
+    readonly exec: (script: string) => Promise<void>;
     /** Commit work in a transaction, or in a savepoint within one, rolling back when it fails. */
-    transaction<Value>(
+    readonly transaction: <Value>(
         operation: (session: Session) => Promise<Value>,
         options: SessionTransaction,
-    ): Promise<Value>;
+    ) => Promise<Value>;
 }
 
 /** Statements over a SQLite connection client, or one of its transactions at a savepoint depth. */

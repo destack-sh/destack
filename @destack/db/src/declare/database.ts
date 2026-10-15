@@ -38,10 +38,10 @@ export interface DatabaseConnector {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
     /** Open a database the caller disposes, refusing one lacking its declaration's tables. */
-    connect<Models extends Readonly<Record<string, Model>>>(
+    readonly connect: <Models extends Readonly<Record<string, Model>>>(
         binding: ResourceBinding,
         declaration: Database<Models>,
-    ): Promise<DatabaseConnection<Models> & AsyncDisposable>;
+    ) => Promise<DatabaseConnection<Models> & AsyncDisposable>;
 }
 
 /** A database declaration. */
