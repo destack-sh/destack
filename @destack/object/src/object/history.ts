@@ -1,8 +1,8 @@
 import { through } from "@destack/access";
 import { LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
-import { field } from "../field/field.ts";
-import type { MethodBuilder } from "../method/method.ts";
+import { field, type ObjectFields } from "../field/field.ts";
+import type { MethodBuilder } from "../method/record.ts";
 import type { ObjectTable } from "./table.ts";
 import type { ObjectScope } from "./object.ts";
 
@@ -26,7 +26,7 @@ const activityFields = {
 export type ActivityTable = ObjectTable<
     "activity",
     ObjectScope,
-    typeof activityFields,
+    ObjectFields<typeof activityFields>,
     { readonly nested: { readonly in: "any"; readonly receive: "activity" } }
 >;
 
@@ -44,7 +44,7 @@ export const activity = {
             constraints: {
                 session: {
                     kind: "index",
-                    on: ["parentPackageId", "parentType", "parentId", "caller", "endedAt"],
+                    on: ["parentPackageId", "parentType", "parentId", "callerId", "endedAt"],
                 },
             },
         } as const;
@@ -61,8 +61,6 @@ export const checkpoint = {
             scope,
             nested: { in: "any", receive: "checkpoint" },
             fields: {
-                /** The principal who named the checkpoint. */
-                createdBy: field.subject().caller(),
                 /** The log position the checkpoint marks. */
                 position: field.json(LogPosition),
                 /** The checkpoint's name. */
@@ -78,22 +76,12 @@ export const checkpoint = {
     },
 
     /** Declare the checkpoints' methods, a creation marking the transaction's base position. */
-    methods: (method: MethodBuilder<ObjectTable>) => ({
-        create: {
-            ...method
-                .create("checkpoint", { fields: ["title", "description"] })
-                .handle(async (call, next) =>
-                    next(
-                        call.with({
-                            input: {
-                                ...call.input,
-                                position: call.requireTransaction().base,
-                            },
-                        }),
-                    ),
-                ),
-            isPredicted: false,
-        },
+    methods: <Definition extends ObjectTable>(method: MethodBuilder<Definition>) => ({
+        create: method
+            .create("checkpoint", { fields: ["title", "description"], isPredicted: false })
+            .handle(async (call, next) =>
+                next(call.with({ input: { ...call.input, position: call.base } })),
+            ),
         update: method.update("checkpoint", { fields: ["title", "description"] }),
         delete: method.delete("checkpoint"),
     }),

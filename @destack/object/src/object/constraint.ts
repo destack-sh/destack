@@ -11,7 +11,7 @@ import {
     type Table,
     type TableConstraint,
 } from "@destack/db";
-import { snakeCase } from "./name.ts";
+import { Casing } from "./name.ts";
 import type { ObjectType } from "./object.ts";
 
 /** A constraint over an object's columns by property, which a definition keys by name. */
@@ -58,13 +58,13 @@ export type ObjectConstraint<Property extends string = string, Foreign extends s
 export const ObjectConstraint = {
     /** Build a declared constraint over an object's table, named after the table. */
     build(name: string, constraint: ObjectConstraint, table: Table): TableConstraint {
-        const sqlName = `${table[TABLE].name}_${snakeCase(name)}`;
+        const sqlName = `${table[TABLE].name}_${Casing.snake(name)}`;
         switch (constraint.kind) {
             case "check":
                 return check(sqlName, constraint.condition);
             case "index": {
                 const selected = (constraint.unique ? uniqueIndex : index)(sqlName).on(
-                    ...columnsOf(constraint.on, table),
+                    ...ObjectConstraint.readColumns(constraint.on, table),
                 );
                 const filtered =
                     constraint.where === undefined ? selected : selected.where(constraint.where);
@@ -72,14 +72,14 @@ export const ObjectConstraint = {
                 return constraint.nullsNotDistinct ? filtered.nullsNotDistinct() : filtered;
             }
             case "unique":
-                return unique(sqlName).on(...columnsOf(constraint.on, table));
+                return unique(sqlName).on(...ObjectConstraint.readColumns(constraint.on, table));
             case "foreignKey": {
                 const { object, on } = constraint.references;
                 const referenced = object === "self" ? table : object().table;
                 const built = foreignKey({
                     name: sqlName,
-                    columns: columnsOf(constraint.on, table),
-                    foreignColumns: columnsOf(on, referenced),
+                    columns: ObjectConstraint.readColumns(constraint.on, table),
+                    foreignColumns: ObjectConstraint.readColumns(on, referenced),
                 });
                 const deleted =
                     constraint.onDelete === undefined ? built : built.onDelete(constraint.onDelete);
@@ -90,16 +90,16 @@ export const ObjectConstraint = {
             }
         }
     },
+
+    /** Read a table's columns by property, in order, refusing a constraint without columns. */
+    readColumns(properties: readonly string[], table: Table): [Column, ...Column[]] {
+        // refuse a constraint without columns
+        const [first, ...rest] = properties;
+        const definition = table[TABLE];
+        if (first === undefined) {
+            throw new TypeError(`a constraint on ${definition.name} has no column`);
+        }
+
+        return [definition.column(first), ...rest.map((property) => definition.column(property))];
+    },
 };
-
-/** Read a table's columns by property, in order, refusing a constraint naming none. */
-function columnsOf(properties: readonly string[], table: Table): [Column, ...Column[]] {
-    // refuse a constraint naming no column
-    const [first, ...rest] = properties;
-    const definition = table[TABLE];
-    if (first === undefined) {
-        throw new TypeError(`a constraint on ${definition.name} names no column`);
-    }
-
-    return [definition.column(first), ...rest.map((property) => definition.column(property))];
-}

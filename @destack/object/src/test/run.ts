@@ -28,7 +28,7 @@ export class TestRunClient implements RunClient {
         const store = this.#store();
         const at = "at" in request ? request.at : undefined;
         if (at !== undefined && at > store.clock.now()) {
-            throw new TypeError("the test machine runs no call due later");
+            throw new TypeError("the test machine cannot run a call due later");
         }
 
         // key the run by its request: the sent one, or the firing event's
@@ -40,7 +40,7 @@ export class TestRunClient implements RunClient {
         // run the call under that request in the installation's space, as the machine pushes it
         const installation = store.principal;
         if (!principal.installation.is(installation)) {
-            throw new TypeError("the test machine runs calls of an installation's store alone");
+            throw new TypeError("the test machine runs only calls of an installation's store");
         }
         const { scope } = installation;
         const exchange = "exchange" in request ? request.exchange : undefined;

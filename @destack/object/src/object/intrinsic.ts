@@ -2,6 +2,7 @@ import type { TableMapping } from "@destack/access";
 import type { Table } from "@destack/db";
 import { grant, invitation, relationship, role } from "./access.ts";
 import { activity, checkpoint } from "./history.ts";
+import { proof } from "./proof.ts";
 
 /** The definition key with an intrinsic object's table. */
 export const INTRINSIC = Symbol("intrinsic");
@@ -22,4 +23,5 @@ export const Intrinsic = {
     grant,
     activity,
     checkpoint,
+    proof,
 };

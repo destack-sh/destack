@@ -19,7 +19,7 @@ import type { TraitObject } from "../trait/trait.ts";
 import type { VersionBuilderMap } from "../trait/versioned.ts";
 import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
 import { ObjectConstraint } from "./constraint.ts";
-import { snakeCase, type SnakeCase } from "./name.ts";
+import { type SnakeCase, Casing } from "./name.ts";
 import {
     ObjectScope,
     ObjectType,
@@ -73,11 +73,10 @@ type TraitBuilderMap = {
     parentPackageId: ColumnBuilder<FieldColumn<PackageId, true, false>>;
     parentType: ColumnBuilder<FieldColumn<string, true, false>>;
     parentId: ColumnBuilder<FieldColumn<string, true, false>>;
-    deletionRequestedAt: ColumnBuilder<FieldColumn<number, false, false>>;
-    deletedBy: ColumnBuilder<FieldColumn<string, false, false>>;
     purgedAt: ColumnBuilder<FieldColumn<number, false, false>>;
     number: ColumnBuilder<FieldColumn<number, true, false>>;
-} & ReturnType<typeof controlledColumns> &
+} & ReturnType<typeof deletionColumns> &
+    ReturnType<typeof controlledColumns> &
     ReturnType<typeof managedColumns>;
 
 /** The properties of the columns a definition's constraints name. */
@@ -143,173 +142,182 @@ export type ObjectTable<
         SnakeCase<Name>
     >;
 
-/** Derive an object's table from its traits, scope and fields. */
-export function deriveTable(
-    definition: ObjectDefinition,
-    applied: readonly TraitInstance[],
-    packageId: PackageId,
-    module: ModuleMetadata | undefined,
-): Table {
-    // describe the object to its traits, whose table exists once derived
-    const name = definition.name;
-    let derived: Table | undefined;
-    const table = () => present(derived, `the table of ${name}`);
-    const object: TraitObject = {
-        name,
-        identity: definition.identity ?? name,
-        packageId,
-        table,
-        storage: ObjectType.storageKind(definition.storage),
-        key: definition.key,
-    };
+/** An object type's table: derived from its traits, scope and fields. */
+export const ObjectTable = {
+    /** Derive an object's table from its traits, scope and fields. */
+    derive(
+        definition: ObjectDefinition,
+        applied: readonly TraitInstance[],
+        packageId: PackageId,
+        module: ModuleMetadata | undefined,
+    ): Table {
+        // describe the object to its traits, whose table exists once derived
+        const name = definition.name;
+        let derived: Table | undefined;
+        const table = () => present(derived, `the table of ${name}`);
+        const object: TraitObject = {
+            name,
+            identity: definition.identity ?? name,
+            packageId,
+            table,
+            storage: ObjectType.storageKind(definition.storage),
+            key: definition.key,
+            isPrincipal: definition.represents !== undefined,
+        };
 
-    // build the columns and gather the dependents, aggregates and tree the traits keep
-    const builders = objectColumns(definition, applied, object);
-    const kept = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
-    const tree = kept.find((traitTable) => traitTable.tree !== undefined)?.tree;
-    const fullText = kept
-        .flatMap((traitTable) => traitTable.fullText ?? [])
-        .filter((property) => Object.hasOwn(builders, property));
+        // build the columns and gather the dependents, aggregates and tree the traits keep
+        const builders = ObjectTable.columns(definition, applied, object);
+        const kept = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
+        const tree = kept.find((traitTable) => traitTable.tree !== undefined)?.tree;
+        const fullText = kept
+            .flatMap((traitTable) => traitTable.fullText ?? [])
+            .filter((property) => Object.hasOwn(builders, property));
 
-    // define the table
-    const tableName = snakeCase(name);
-    const defined = defineTable(
-        tableName,
-        builders,
-        {
-            constraints: (built) => [
-                ...applied.flatMap(({ trait, options }) =>
-                    trait.constraints(options, tableName, built),
-                ),
-                ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
-                    ObjectConstraint.build(constraint, declared, table()),
-                ),
-            ],
-            // keep the aggregates of these objects and of their attachments
-            aggregates: [
-                ...declaredAggregates(definition, table),
-                ...kept.flatMap((traitTable) => traitTable.aggregates ?? []),
-            ],
-            // keep the traits' dependents
-            dependents: kept.flatMap((traitTable) => traitTable.dependents ?? []),
-            // rename moved fields' columns in place and convert stored rows
-            moved: { columns: movedColumns(definition) },
-            ...(definition.convert === undefined ? {} : { convert: definition.convert }),
-            // keep history for tracked objects, append events, and index a tree
-            log: logOf(definition, object.storage),
-            ...(tree === undefined ? {} : { tree }),
-            ...(fullText.length === 0 ? {} : { fullText }),
-        },
-        module,
-    );
-    derived = defined;
-
-    return defined;
-}
-
-/** Log a table's changes: its history when tracked, appends alone for the event log. */
-function logOf(definition: ObjectDefinition, storage: ObjectStorage) {
-    // append events alone
-    if (storage === "events") {
-        return { appendOnly: true };
-    }
-    // keep a tracked object's history
-    else if (definition.tracked !== undefined) {
-        return { retention: "history" as const };
-    }
-
-    return {};
-}
-
-/** Build an object's columns: the record trait's, the scope, the other traits' and the fields'. */
-function objectColumns(
-    definition: ObjectDefinition,
-    applied: readonly TraitInstance[],
-    object: TraitObject,
-): ColumnBuilderMap {
-    // require the record trait first
-    const [record, ...others] = applied;
-    if (record === undefined) {
-        throw new TypeError(`object ${definition.name} applies no record trait`);
-    }
-
-    // build the field columns, keeping text in chunks
-    const fields = Object.fromEntries(
-        Object.entries(definition.fields ?? {})
-            .filter(([, field]) => field.type !== "text")
-            .map(([property, field]) => [
-                property,
-                field.column(snakeCase(property), object.identity, object.storage),
-            ]),
-    );
-
-    return {
-        ...record.trait.columns(record.options, object),
-        scope: scopeColumn(definition.scope ?? []),
-        ...Object.fromEntries(
-            others.flatMap(({ trait, options }) => Object.entries(trait.columns(options, object))),
-        ),
-        ...fields,
-    };
-}
-
-/** List the aggregates a definition declares, skipping an attachment's parent aggregates. */
-function declaredAggregates(definition: ObjectDefinition, table: () => Table) {
-    const isAttachment = definition.nested?.in === "any";
-
-    return Object.entries(definition.aggregates ?? {})
-        .filter(([, aggregate]) => !(aggregate.via === undefined && isAttachment))
-        .map(([column, aggregate]) => ({
-            into: () => holderOf(definition, aggregate, table()),
-            column,
-            key: aggregate.via ?? "parentId",
-            ...(aggregate.function === "count"
-                ? { function: aggregate.function }
-                : { function: aggregate.function, value: aggregate.value }),
-            ...(aggregate.where === undefined ? {} : { where: aggregate.where }),
-        }));
-}
-
-/** Map each moved field to the column of its previous name. */
-function movedColumns(definition: ObjectDefinition): Record<string, string> {
-    return Object.fromEntries(
-        Object.entries(definition.moved?.fields ?? {}).map(([field, previous]) => [
-            field,
-            snakeCase(previous),
-        ]),
-    );
-}
-
-/** Find the table with an aggregate. */
-function holderOf(definition: ObjectDefinition, aggregate: ObjectAggregate, own: Table): Table {
-    // follow the reference field or the parent
-    const field = aggregate.via === undefined ? undefined : definition.fields?.[aggregate.via];
-    const parent = definition.nested?.in;
-    const holder = field?.target?.() ?? (typeof parent === "string" ? undefined : parent);
-    if (aggregate.via !== undefined && field?.target === undefined) {
-        throw new TypeError(
-            `aggregate of ${definition.name} follows no reference ${aggregate.via}`,
+        // define the table
+        const tableName = Casing.snake(name);
+        const defined = defineTable(
+            tableName,
+            builders,
+            {
+                constraints: (built) => [
+                    ...applied.flatMap(({ trait, options }) =>
+                        trait.constraints(options, tableName, built),
+                    ),
+                    ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
+                        ObjectConstraint.build(constraint, declared, table()),
+                    ),
+                ],
+                // keep the aggregates of these objects and of their attachments
+                aggregates: [
+                    ...ObjectTable.declaredAggregates(definition, table),
+                    ...kept.flatMap((traitTable) => traitTable.aggregates ?? []),
+                ],
+                // keep the traits' dependents
+                dependents: kept.flatMap((traitTable) => traitTable.dependents ?? []),
+                // rename moved fields' columns in place and convert stored rows
+                moved: { columns: ObjectTable.movedColumns(definition) },
+                ...(definition.convert === undefined ? {} : { convert: definition.convert }),
+                // keep history for tracked objects, append events, and index a tree
+                log: ObjectTable.readLog(definition, object.storage),
+                ...(tree === undefined ? {} : { tree }),
+                ...(fullText.length === 0 ? {} : { fullText }),
+                ...(definition.predefined === undefined
+                    ? {}
+                    : { predefined: definition.predefined }),
+            },
+            module,
         );
-    }
-    if (aggregate.via === undefined && definition.nested === undefined) {
-        throw new TypeError(`aggregate of ${definition.name} needs a parent or a reference`);
-    }
+        derived = defined;
 
-    return holder?.table ?? own;
-}
+        return defined;
+    },
 
-/** Declare the objects' scope column: any scope, the universe, or one scope type's ids. */
-function scopeColumn(declared: ObjectScope | readonly ObjectScope[]) {
-    // take any scope of several types
-    if (ObjectScope.isList(declared)) {
-        return text("scope").notNull();
-    }
-    // default to the universe
-    else if (declared === Scope.universe.id) {
-        return text("scope").notNull().default(Scope.universe.id);
-    }
-    // take one scope type's identifiers
-    else {
-        return identifier("scope", declared.identity).notNull();
-    }
-}
+    /** Log a table's changes: its history when tracked, only appends for the event log. */
+    readLog(definition: ObjectDefinition, storage: ObjectStorage) {
+        // append only events
+        if (storage === "events") {
+            return { appendOnly: true };
+        }
+        // keep a tracked object's history
+        else if (definition.tracked !== undefined) {
+            return { retention: "history" as const };
+        }
+
+        return {};
+    },
+
+    /** Build an object's columns: the record trait's, the scope, other traits' and the fields'. */
+    columns(
+        definition: ObjectDefinition,
+        applied: readonly TraitInstance[],
+        object: TraitObject,
+    ): ColumnBuilderMap {
+        // require the record trait first
+        const [record, ...others] = applied;
+        if (record === undefined) {
+            throw new TypeError(`object ${definition.name} has no record trait`);
+        }
+
+        // build the field columns, keeping text in chunks
+        const fields = Object.fromEntries(
+            Object.entries(definition.fields ?? {})
+                .filter(([, field]) => field.type !== "text")
+                .map(([property, field]) => [
+                    property,
+                    field.column(Casing.snake(property), object.identity, object.storage),
+                ]),
+        );
+
+        return {
+            ...record.trait.columns(record.options, object),
+            scope: ObjectTable.scopeColumn(definition.scope ?? []),
+            ...Object.fromEntries(
+                others.flatMap(({ trait, options }) =>
+                    Object.entries(trait.columns(options, object)),
+                ),
+            ),
+            ...fields,
+        };
+    },
+
+    /** List the aggregates a definition declares, skipping an attachment's parent aggregates. */
+    declaredAggregates(definition: ObjectDefinition, table: () => Table) {
+        const isAttachment = definition.nested?.in === "any";
+
+        return Object.entries(definition.aggregates ?? {})
+            .filter(([, aggregate]) => !(aggregate.via === undefined && isAttachment))
+            .map(([column, aggregate]) => ({
+                into: () => ObjectTable.findHolder(definition, aggregate, table()),
+                column,
+                key: aggregate.via ?? "parentId",
+                ...(aggregate.function === "count"
+                    ? { function: aggregate.function }
+                    : { function: aggregate.function, value: aggregate.value }),
+                ...(aggregate.where === undefined ? {} : { where: aggregate.where }),
+            }));
+    },
+
+    /** Map each moved field to the column of its previous name. */
+    movedColumns(definition: ObjectDefinition): Record<string, string> {
+        return Object.fromEntries(
+            Object.entries(definition.moved?.fields ?? {}).map(([field, previous]) => [
+                field,
+                Casing.snake(previous),
+            ]),
+        );
+    },
+
+    /** Find the table with an aggregate. */
+    findHolder(definition: ObjectDefinition, aggregate: ObjectAggregate, own: Table): Table {
+        // follow the reference field or the parent
+        const field = aggregate.via === undefined ? undefined : definition.fields?.[aggregate.via];
+        const parent = definition.nested?.in;
+        const holder = field?.target?.() ?? (typeof parent === "string" ? undefined : parent);
+        if (aggregate.via !== undefined && field?.target === undefined) {
+            throw new TypeError(
+                `aggregate of ${definition.name} has no reference ${aggregate.via}`,
+            );
+        }
+        if (aggregate.via === undefined && definition.nested === undefined) {
+            throw new TypeError(`aggregate of ${definition.name} needs a parent or a reference`);
+        }
+
+        return holder?.table ?? own;
+    },
+
+    /** Declare the objects' scope column: any scope, the universe, or one scope type's ids. */
+    scopeColumn(declared: ObjectScope | readonly ObjectScope[]) {
+        // take any scope of several types
+        if (ObjectScope.isList(declared)) {
+            return text("scope").notNull();
+        }
+        // default to the universe
+        else if (declared === Scope.universe.id) {
+            return text("scope").notNull().default(Scope.universe.id);
+        }
+        // take one scope type's identifiers
+        else {
+            return identifier("scope", declared.identity).notNull();
+        }
+    },
+};

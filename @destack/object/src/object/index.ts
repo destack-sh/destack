@@ -1,11 +1,10 @@
 export {
     Condition,
     ConditionMap,
-    Conditions,
+    ConditionSet,
     Observation,
     type ObservationReport,
     type ObservedRecord,
-    observeCondition,
     StatusCondition,
 } from "./condition.ts";
 export {
@@ -27,7 +26,6 @@ export {
     type ObjectIndex,
     type ObjectScope,
     type ObjectStorage,
-    type EventKindOf,
 } from "./object.ts";
 export { ObjectConstraint } from "./constraint.ts";
 export { ObjectDescription, type BuilderCall, type KnownDeclaration } from "./description.ts";

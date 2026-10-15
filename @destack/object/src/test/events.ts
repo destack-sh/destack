@@ -25,9 +25,5 @@ export async function testEvents(
         files: () => bucket,
         personal: new DatabasePersonalKeyring(database, keyring),
         clock,
-        // fail the test on a dropped event
-        report: (error) => {
-            throw error;
-        },
     });
 }

@@ -1,19 +1,35 @@
 import { canonicalize, defineSchema, Instant, schema } from "@destack/schema";
 
 /** A controller's observation of a record. */
-export const StatusCondition = defineSchema(
-    schema.object({
-        /** Whether the condition is true, or has not been established. */
-        status: schema.enum(["true", "false", "unknown"]),
-        /** The desired generation the controller evaluated. */
-        observedGeneration: schema.number().int().min(1),
-        /** The machine-readable explanation. */
-        reason: schema.string().min(1),
-        /** The human-readable explanation. */
-        message: schema.string(),
-        /** The last change of condition status, in UTC epoch milliseconds. */
-        lastTransitionAt: Instant,
-    }),
+export const StatusCondition = Object.assign(
+    defineSchema(
+        schema.object({
+            /** Whether the condition is true, or has not been established. */
+            status: schema.enum(["true", "false", "unknown"]),
+            /** The desired generation the controller evaluated. */
+            observedGeneration: schema.number().int().min(1),
+            /** The machine-readable explanation. */
+            reason: schema.string().min(1),
+            /** The human-readable explanation. */
+            message: schema.string(),
+            /** The last change of condition status, in UTC epoch milliseconds. */
+            lastTransitionAt: Instant,
+        }),
+    ),
+    {
+        /** Record an observed condition, keeping its last transition time while stable. */
+        observe(
+            previous: StatusCondition | undefined,
+            observation: Omit<StatusCondition, "lastTransitionAt">,
+            now: number,
+        ): StatusCondition {
+            return {
+                ...observation,
+                lastTransitionAt:
+                    previous?.status === observation.status ? previous.lastTransitionAt : now,
+            };
+        },
+    },
 );
 /** A controller's observation of a record. */
 export type StatusCondition = schema.Infer<typeof StatusCondition>;
@@ -51,7 +67,7 @@ export const Observation = Object.assign(
             /** The conditions by name, their transition times kept while their status stays. */
             conditions: schema.record(schema.string().min(1), Condition),
             /** The observed fields the controller writes. */
-            fields: schema.record(schema.string(), schema.json()).exactOptional(),
+            fields: schema.jsonObject().exactOptional(),
         }),
     ),
     {
@@ -92,7 +108,7 @@ export interface ObservationReport {
 }
 
 /** The conditions a controller reports on its records under declared names, read typed by name. */
-export class Conditions<const Name extends string> {
+export class ConditionSet<const Name extends string> {
     /** The names the controller reports. */
     readonly names: readonly Name[];
 
@@ -108,16 +124,4 @@ export class Conditions<const Name extends string> {
     ): StatusCondition | undefined {
         return record.conditions[name];
     }
-}
-
-/** Record a controller's observed condition, keeping its last transition time while stable. */
-export function observeCondition(
-    previous: StatusCondition | undefined,
-    observation: Omit<StatusCondition, "lastTransitionAt">,
-    now: number,
-): StatusCondition {
-    return {
-        ...observation,
-        lastTransitionAt: previous?.status === observation.status ? previous.lastTransitionAt : now,
-    };
 }

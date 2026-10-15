@@ -22,11 +22,6 @@ import type { MutateOptions, ObjectStore } from "../server/store.ts";
 /** The fields of a pending object's key, as its key name keeps them. */
 const KeyFields = schema.record(schema.string(), Scalar);
 
-/** Read an object row's identifier, which every object table keeps. */
-function identifierOf(row: Row): string {
-    return schema.string().parse(row["id"]);
-}
-
 /** The fields grouping objects a controller reconciles together, in JSON form. */
 export type KeyFields = Readonly<Record<string, JsonValue>>;
 
@@ -83,16 +78,16 @@ export interface ObjectReconciliation<
     /** The caller the reconciliation acts as: the store's own principal. */
     readonly caller: Caller;
     /** Run calls in one transaction as the store under the controller's name, results in order. */
-    mutate<const Calls extends readonly ObjectCall[]>(
+    readonly mutate: <const Calls extends readonly ObjectCall[]>(
         calls: Calls,
         options?: Pick<MutateOptions, "transaction" | "scope">,
-    ): Promise<ResultsOf<Calls>>;
+    ) => Promise<ResultsOf<Calls>>;
     /** Record an object's conditions and observed fields at its generation via observe, once. */
-    observe(
+    readonly observe: (
         object: ObjectType,
         row: ObservedRecord & Readonly<Record<string, unknown>>,
         observation: ObservationReport,
-    ): Promise<unknown>;
+    ) => Promise<unknown>;
 }
 
 /** Build the controllers object types declare. */
@@ -106,7 +101,8 @@ export const ObjectController = {
             table,
         );
         const watches = new Map((declared.watches ?? []).map((watch) => [watch.table, watch]));
-        const keyOf = (row: Row): KeyFields => declared.key?.(row) ?? { id: identifierOf(row) };
+        const readKey = (row: Row): KeyFields =>
+            declared.key?.(row) ?? { id: ObjectController.readIdentifier(row) };
         const keys = async (change: Change) => {
             // select the keys a watch of the changed table reads
             const watch = watches.get(change.table);
@@ -119,7 +115,7 @@ export const ObjectController = {
                 Change.of(change, table) &&
                 change.operation !== "delete" &&
                 Predicate.matches(match, row);
-            const selected = isPending ? [...watched, keyOf(row)] : watched;
+            const selected = isPending ? [...watched, readKey(row)] : watched;
 
             return [...new Set(selected.map((fields) => canonicalize(fields)))];
         };
@@ -132,63 +128,72 @@ export const ObjectController = {
             keys,
             list: async () => {
                 // list the keys of every pending object
-                const rows = await Snapshot.live(store.database).rows(table, declared.pending);
+                const rows = await Snapshot.live(store.database)
+                    .read(table)
+                    .findMany({ where: declared.pending });
 
-                return [...new Set(rows.map((row) => canonicalize(keyOf(row))))];
+                return [...new Set(rows.map((row) => canonicalize(readKey(row))))];
             },
             reconcile: (key, reconciliation) =>
-                reconcilePending(store, object, declared, key, reconciliation),
+                ObjectController.reconcilePending(store, object, declared, key, reconciliation),
         };
     },
-};
 
-/** Reconcile one key's pending objects, if any are left. */
-async function reconcilePending(
-    store: ObjectStore,
-    object: ObjectType,
-    declared: ObjectController,
-    key: string,
-    reconciliation: Reconciliation,
-): Promise<number | undefined> {
-    // read the key's pending objects
-    const pending: Condition = {
-        AND: [declared.pending, Condition.equal(KeyFields.parse(JSON.parse(key)))],
-    };
-    const rows = await Snapshot.live(store.database).rows(object.table, pending);
-    if (rows.length === 0) {
-        return undefined;
-    }
+    /** Read an object row's identifier, which every object table keeps. */
+    readIdentifier(row: Row): string {
+        return schema.string().parse(row["id"]);
+    },
 
-    // reconcile them, running methods as the store's principal at one time
-    const now = store.clock.now();
-    const caller = Caller.of(store.principal, now);
-    const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
-        store.mutate(
+    /** Reconcile one key's pending objects, if any are left. */
+    async reconcilePending(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: ObjectController,
+        key: string,
+        reconciliation: Reconciliation,
+    ): Promise<number | undefined> {
+        // read the key's pending objects
+        const pending: Condition = {
+            AND: [declared.pending, Condition.equal(KeyFields.parse(JSON.parse(key)))],
+        };
+        const rows = await Snapshot.live(store.database)
+            .read(object.table)
+            .findMany({ where: pending });
+        if (rows.length === 0) {
+            return undefined;
+        }
+
+        // reconcile them, running methods as the store's principal at one time
+        const now = store.clock.now();
+        const caller = Caller.of(store.principal, now);
+        const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
+            store.mutate(
+                caller,
+                { id: RequestId.create(now), calls: [...calls] },
+                { ...options, component: object.name },
+            );
+
+        return declared.reconcile({
+            rows,
+            now,
+            database: store.database,
+            store,
             caller,
-            { id: RequestId.create(now), calls: [...calls] },
-            { ...options, component: object.name },
-        );
+            signal: reconciliation.signal,
+            ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
+            changed: () => reconciliation.changed(),
+            mutate,
+            observe: async (observed, row, observation) => {
+                // skip an observation the row has
+                if (Observation.isRecorded(row, observation)) {
+                    return row;
+                }
 
-    return declared.reconcile({
-        rows,
-        now,
-        database: store.database,
-        store,
-        caller,
-        signal: reconciliation.signal,
-        ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
-        changed: () => reconciliation.changed(),
-        mutate,
-        observe: async (observed, row, observation) => {
-            // skip an observation the row has
-            if (Observation.isRecorded(row, observation)) {
-                return row;
-            }
+                // record the generation, the conditions and the fields
+                const [written] = await mutate([Call.observation(observed, row, observation)]);
 
-            // record the generation, the conditions and the fields
-            const [written] = await mutate([Call.observation(observed, row, observation)]);
-
-            return written;
-        },
-    });
-}
+                return written;
+            },
+        });
+    },
+};
