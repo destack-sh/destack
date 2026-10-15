@@ -26,7 +26,9 @@ export interface Workload extends Declaration {
     /** The kind permissions the workload requests by scope. */
     readonly permissions?: PermissionRequest;
     /** Start one instance and return its packages and webhooks. */
-    start(context: WorkloadContext): WorkloadImplementation | Promise<WorkloadImplementation>;
+    readonly start: (
+        context: WorkloadContext,
+    ) => WorkloadImplementation | Promise<WorkloadImplementation>;
 }
 
 /** Declare a workload. */
@@ -48,9 +50,11 @@ export function defineWorkload(
 /** Where an instance keeps its ephemeral objects. */
 export interface EphemeralHost {
     /** Open the memory database with tables. */
-    open(tables: readonly Table[]): Promise<DatabaseConnection & { close(): Promise<void> }>;
+    readonly open: (
+        tables: readonly Table[],
+    ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>;
     /** Open the channel replicating ephemeral writes between the installation's instances. */
-    channel(durable: DatabaseConnection): Channel<unknown>;
+    readonly channel: (durable: DatabaseConnection) => Channel<unknown>;
 }
 
 /** The context of a starting workload. */
@@ -72,13 +76,13 @@ export interface WorkloadContext {
     /** The shutdown signal. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
-    shutdown(): void;
+    readonly shutdown: () => void;
     /** Start the workload again, serving the new start once it runs and draining this one. */
-    reload(): Promise<void>;
+    readonly reload: () => Promise<void>;
     /** Report a failure of the workload's background work to its host. */
-    report(error: unknown): void;
+    readonly report: (error: unknown) => void;
     /** Register cleanup, run in reverse order after draining. */
-    defer(dispose: () => void | PromiseLike<void>): void;
+    readonly defer: (dispose: () => void | PromiseLike<void>) => void;
 }
 
 /** The context a package's server runs in: its installation, bindings, keys and egress. */
@@ -102,11 +106,14 @@ export interface ServerContext {
     /** The publisher of the replicas of the space's chain and the universe's rows it reads. */
     readonly publisher: Uplink;
     /** Connect to the replicas an installation at `<installation>--<space>` publishes. */
-    publisherAt(address: string, packageId: PackageId): Publisher;
+    readonly publisherAt: (address: string, packageId: PackageId) => Publisher;
     /** Call the packages at an address through the host's egress as the installation. */
-    at(address: string): { readonly url: string; fetch(request: Request): Promise<Response> };
+    readonly at: (address: string) => {
+        readonly url: string;
+        readonly fetch: (request: Request) => Promise<Response>;
+    };
     /** Send a request to any other origin, such as a Git remote, through the host. */
-    fetch(request: Request): Promise<Response>;
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** The packages and triggers of one workload. */
@@ -124,5 +131,5 @@ export interface WorkloadImplementation {
 /** What a workload does with its space store's requests to run its objects' hooks. */
 export interface HookHandler {
     /** Answer a request to run a hook. */
-    fetch(request: Request): Promise<Response>;
+    readonly fetch: (request: Request) => Promise<Response>;
 }

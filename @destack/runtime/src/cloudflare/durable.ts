@@ -8,15 +8,15 @@ export interface DurableObjectState {
     /** The object's storage, whose alarm wakes the object. */
     readonly storage: Alarm;
     /** Block the object's other events until a closure settles. */
-    blockConcurrencyWhile<Value>(closure: () => Promise<Value>): Promise<Value>;
+    readonly blockConcurrencyWhile: <Value>(closure: () => Promise<Value>) => Promise<Value>;
 }
 
 /** A workload an object serves: its requests, and the controllers the object's alarm wakes. */
 export interface DurableObjectWorkloadInstance {
     /** Serve a request. */
-    fetch(request: Request): Promise<Response>;
+    readonly fetch: (request: Request) => Promise<Response>;
     /** Run the controllers until no key is due now or reconciling, or until a deadline. */
-    alarm(deadline: number): Promise<void>;
+    readonly alarm: (deadline: number) => Promise<void>;
 }
 
 /** A Durable Object with one workload instance. */

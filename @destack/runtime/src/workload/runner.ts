@@ -54,9 +54,9 @@ export interface RunnerOptions {
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
     /** Connect to a publisher of an installation's replicas. */
-    publisher(url: string, secret: string): Uplink;
+    readonly publisher: (url: string, secret: string) => Uplink;
     /** Connect to the machine that records the installation's runs. */
-    runs(url: string, start: WorkloadStart): RunClient;
+    readonly runs: (url: string, start: WorkloadStart) => RunClient;
     /** Keep a wake-up for the workload's earliest due controller key. */
     readonly alarm?: Alarm;
     /** Where the instance connects to the sockets its host keeps open. */

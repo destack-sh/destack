@@ -15,7 +15,7 @@ export const CallKey = {
 
     /** Derive the call key from a keyring or an installation's root. */
     async of(keyring: {
-        derive(label: string): Promise<Uint8Array<ArrayBuffer>>;
+        readonly derive: (label: string) => Promise<Uint8Array<ArrayBuffer>>;
     }): Promise<CryptoKey> {
         return CallKey.import(await keyring.derive(CALL_KEY_LABEL));
     },

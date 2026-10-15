@@ -109,7 +109,7 @@ export interface WebhookTrigger extends Declaration {
         };
     };
     /** Build the call a verified delivery runs. */
-    call(delivery: WebhookDelivery): Call;
+    readonly call: (delivery: WebhookDelivery) => Call;
 }
 
 /** A declared trigger: what fires it and the object method call each event runs. */
@@ -263,7 +263,7 @@ export interface RunDelivery {
 /** The machine recording an installation's runs, as its workload connects to it. */
 export interface RunClient {
     /** Record a call to run later, once per request and per event of a trigger. */
-    send(request: RunRequest, delivery?: RunDelivery): Promise<void>;
+    readonly send: (request: RunRequest, delivery?: RunDelivery) => Promise<void>;
 }
 
 /** Declare a trigger firing on a schedule, its call inside the schedule. */

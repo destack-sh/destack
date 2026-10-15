@@ -23,19 +23,7 @@ import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
 /** An input as a request decodes it before coercion: a JSON object. */
-const JsonInput = schema.record(schema.string(), schema.json());
-
-/** Convert Destack schemas for HTTP decoding and OpenAPI. */
-const schemaConverter: ConditionalSchemaConverter = {
-    condition: (validator) => validator instanceof schema.Schema,
-    convert: (validator) => {
-        if (!(validator instanceof schema.Schema)) {
-            throw new TypeError("expected a Destack schema");
-        }
-
-        return [true, toOpenApiSchema(toJsonSchema(validator))];
-    },
-};
+const JsonInput = schema.jsonObject();
 
 /** Read a Destack JSON Schema as oRPC's declaration of the same draft 2020-12 document. */
 function toOpenApiSchema(description: JsonSchema): Exclude<JSONSchema, boolean> {
@@ -52,14 +40,16 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
     /** Create the handler. */
     constructor(router: Router<ProcedureRouter, State>, options: HandlerOptions<State>) {
-        // reject missing enforcement
-        RequestHandler.#checkAccess(router, options, new Set());
+        // reject missing enforcement, and describe every payload once
+        const described = new Map(RequestHandler.#checkAccess(router, options, new Set()));
 
         // report failures and extract trace context
         super(router, {
             ...options,
             plugins: [
-                new SmartCoercionPlugin({ schemaConverters: [schemaConverter] }),
+                new SmartCoercionPlugin({
+                    schemaConverters: [RequestHandler.#converter(described)],
+                }),
                 RequestHandler.#releasePlugin<State>(options.package),
                 ...(options.plugins ?? []),
             ],
@@ -74,6 +64,24 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             ],
         });
         this.health = options.health;
+    }
+
+    /** Convert the described payload schemas for HTTP decoding, refusing any other schema. */
+    static #converter(
+        described: ReadonlyMap<schema.Schema, JsonSchema>,
+    ): ConditionalSchemaConverter {
+        return {
+            condition: (validator) => validator instanceof schema.Schema,
+            convert: (validator) => {
+                const description =
+                    validator instanceof schema.Schema ? described.get(validator) : undefined;
+                if (description === undefined) {
+                    throw new TypeError("the handler converts only its procedures' payloads");
+                }
+
+                return [true, toOpenApiSchema(description)];
+            },
+        };
     }
 
     /** Refuse unserved releases and convert earlier inputs as JSON. */
@@ -220,12 +228,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             : Object.fromEntries(Object.entries(converted).filter(([field]) => field in shape));
     }
 
-    /** Require enforcement for every procedure. */
+    /** Require enforcement for every procedure, answering each payload schema's description. */
     static #checkAccess<State extends Context>(
         router: Lazyable<AnyRouter>,
         options: Pick<HandlerOptions<State>, "authorize" | "audit">,
         ancestors: Set<object>,
-    ): void {
+    ): (readonly [schema.Schema, JsonSchema])[] {
         // reject lazy routers
         if (isLazy(router)) {
             throw new TypeError("procedures must be declared before hosting");
@@ -249,21 +257,22 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 throw new TypeError("audited procedures require audit recording");
             }
 
-            // require payloads the HTTP layer describes and refuse others at start
+            // describe the payloads the HTTP layer decodes, refusing others at start
             const { inputSchema, outputSchema } = router["~orpc"];
-            for (const described of [inputSchema, outputSchema]) {
-                if (described instanceof schema.Schema) {
-                    toJsonSchema(described);
-                }
-            }
+
+            return [inputSchema, outputSchema]
+                .filter((payload) => payload instanceof schema.Schema)
+                .map((payload) => [payload, toJsonSchema(payload)] as const);
         }
         // check nested routers
         else {
             ancestors.add(router);
-            for (const child of Object.values(router)) {
-                RequestHandler.#checkAccess(child, options, ancestors);
-            }
+            const described = Object.values(router).flatMap((child) =>
+                RequestHandler.#checkAccess(child, options, ancestors),
+            );
             ancestors.delete(router);
+
+            return described;
         }
     }
 }

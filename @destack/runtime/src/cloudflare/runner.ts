@@ -70,11 +70,11 @@ export type DurableObjectAlarm = schema.Infer<typeof DurableObjectAlarm>;
 /** The storage of an instance's object: its databases and the start it keeps. */
 export interface DurableObjectRunnerStorage extends DurableObjectStorage {
     /** Read a kept value. */
-    get(key: string): Promise<unknown>;
+    readonly get: (key: string) => Promise<unknown>;
     /** Keep a value. */
-    put(key: string, value: unknown): Promise<void>;
+    readonly put: (key: string, value: unknown) => Promise<void>;
     /** Forget a value. */
-    delete(key: string): Promise<boolean>;
+    readonly delete: (key: string) => Promise<boolean>;
 }
 
 /** The state of an instance's object. */
@@ -82,13 +82,13 @@ export interface DurableObjectRunnerState {
     /** The object's storage. */
     readonly storage: DurableObjectRunnerStorage;
     /** Hold the object's other events until a closure settles. */
-    blockConcurrencyWhile<Value>(closure: () => Promise<Value>): Promise<Value>;
+    readonly blockConcurrencyWhile: <Value>(closure: () => Promise<Value>) => Promise<Value>;
 }
 
 /** The bindings an instance's facet reads. */
 export interface DurableObjectRunnerEnvironment {
     /** The partition's object. */
-    readonly PARTITION: { fetch(request: Request): Promise<Response> };
+    readonly PARTITION: { readonly fetch: (request: Request) => Promise<Response> };
 }
 
 /** A workload instance in its partition's facet, beside the databases it keeps. */

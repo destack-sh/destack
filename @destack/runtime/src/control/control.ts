@@ -29,15 +29,18 @@ export interface Controller {
     /** The tables with changes or commits that select keys or list them again. */
     readonly watches?: readonly Table[];
     /** List the keys a watched change affects, when reconciling. */
-    keys?(change: Change): readonly string[] | Promise<readonly string[]>;
+    readonly keys?: (change: Change) => readonly string[] | Promise<readonly string[]>;
     /** List every key. */
-    list(): Promise<readonly string[]>;
+    readonly list: () => Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
     /** Whether a key converges and returns, or keeps its process running until stopped. */
     readonly mode?: "reconcile" | "follow";
     /** Converge one key and return the delay before looking again, or follow it until stopped. */
-    reconcile(key: string, reconciliation: Reconciliation): Promise<number | undefined>;
+    readonly reconcile: (
+        key: string,
+        reconciliation: Reconciliation,
+    ) => Promise<number | undefined>;
 }
 
 /** One running reconciliation of a key. */
@@ -47,7 +50,7 @@ export interface Reconciliation {
     /** The lease's takeover count, when instances share the loop. */
     readonly epoch?: number;
     /** Wait for the key to change again while it reconciles, as its controller's keys select it. */
-    changed(): Promise<void>;
+    readonly changed: () => Promise<void>;
 }
 
 /** Reconciliations of keys whose work another host may end, such as by cancelling it. */

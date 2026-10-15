@@ -381,13 +381,13 @@ export interface WorkloadInstanceOptions {
     /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
     readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */
-    report(error: unknown): void;
+    readonly report: (error: unknown) => void;
     /** The clock the workload runs at. */
     readonly clock: Clock;
     /** Select the server options of one served package. */
-    serverOptions(
+    readonly serverOptions: (
         handle: PackageHandle,
-    ): Omit<
+    ) => Omit<
         ServerOptions,
         keyof PackageImplementation | "health" | "resources" | "clock" | "report"
     >;

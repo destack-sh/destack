@@ -12,7 +12,7 @@ import type { ObjectDeclaration } from "../declare/package.ts";
 import type { PackageHandle } from "../declare/package.ts";
 
 /** The releases at which a procedure converts earlier callers' inputs. */
-const CONVERSIONS = schema.record(schema.string(), schema.json());
+const CONVERSIONS = schema.jsonObject();
 
 /** The address of a package's API in its release plans. */
 const API_TARGET = "api";

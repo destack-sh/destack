@@ -53,17 +53,17 @@ export interface HeldSocket {
     /** The value the instance kept beside the socket. */
     readonly attachment: JsonValue;
     /** Send one binary message, in order with the socket's other sends. */
-    send(message: Uint8Array<ArrayBuffer>): void;
+    readonly send: (message: Uint8Array<ArrayBuffer>) => void;
     /** Close the socket. */
-    close(): void;
+    readonly close: () => void;
 }
 
 /** What a workload does with its held sockets' messages and closes. */
 export interface SocketHandler {
     /** Take one binary message a held socket received. */
-    message(socket: HeldSocket, message: Uint8Array<ArrayBuffer>): Promise<void>;
+    readonly message: (socket: HeldSocket, message: Uint8Array<ArrayBuffer>) => Promise<void>;
     /** Take the close of a held socket. */
-    close(socket: HeldSocket): Promise<void>;
+    readonly close: (socket: HeldSocket) => Promise<void>;
 }
 
 /** Where an instance connects to the sockets its host keeps open. */

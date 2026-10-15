@@ -1,4 +1,4 @@
-import { JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { type AnySchema, getEventIteratorSchemaDetails, isContractProcedure } from "@orpc/contract";
 import type { ProcedureRouter } from "../runtime/index.ts";
 import { PayloadDescription, ProcedureDescription } from "../runtime/description.ts";
@@ -81,7 +81,7 @@ const Definition = schema.looseObject({
         operationId: schema.string().exactOptional(),
     }),
     /** The procedure's metadata. */
-    meta: schema.record(schema.string(), schema.json()),
+    meta: schema.jsonObject(),
     /** The procedure's declared errors by code. */
     errorMap: schema.record(
         schema.string(),
@@ -127,7 +127,7 @@ export function describePayload(
 }
 
 /** Convert a schema to JSON Schema. */
-function describeSchema(validator: AnySchema): Record<string, JsonValue> {
+function describeSchema(validator: AnySchema): JsonObject {
     // reject validators of other schema libraries
     if (!(validator instanceof schema.Schema)) {
         throw new TypeError("expected a Destack schema");

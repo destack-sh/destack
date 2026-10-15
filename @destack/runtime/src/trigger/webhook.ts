@@ -77,7 +77,10 @@ export const WebhookOn = Object.assign(shape, {
     async receive(
         on: Pick<WebhookOn, "path"> & {
             readonly signature: WebhookSignature;
-            secret?(parameters: WebhookParameters, context: WebhookContext): Promise<string>;
+            readonly secret?: (
+                parameters: WebhookParameters,
+                context: WebhookContext,
+            ) => Promise<string>;
         },
         request: Request,
         pathname: string,
@@ -156,15 +159,15 @@ export interface WebhookSignature {
     /** The scheme's name, which the manifest lists as a trigger's verification. */
     readonly name: string;
     /** Sign a message with the shared secret or the private key, returning the headers. */
-    sign(message: WebhookMessage, secret: string): Promise<Headers>;
+    readonly sign: (message: WebhookMessage, secret: string) => Promise<Headers>;
     /** Verify a request's signature, and read its delivery. */
-    verify(
+    readonly verify: (
         request: Request,
         secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
         context: WebhookContext,
-    ): Promise<WebhookDelivery>;
+    ) => Promise<WebhookDelivery>;
 }
 
 /** The keys and payloads of the signature schemes. */

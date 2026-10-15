@@ -518,9 +518,9 @@ export interface ServerOptions extends PackageImplementation {
     /** The installation's resource clients. */
     resources: ResourceContext;
     /** Verify credentials as the host after the package, undefined without a credential. */
-    authenticate(request: Request): Promise<Caller | undefined>;
+    readonly authenticate: (request: Request) => Promise<Caller | undefined>;
     /** Enforce installation and host-only requirements. */
-    authorizeMachine(call: ProcedureCall<RequestContext>): Promise<void>;
+    readonly authorizeMachine: (call: ProcedureCall<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
     /** This instance's lease holder name. */
@@ -528,7 +528,7 @@ export interface ServerOptions extends PackageImplementation {
     /** Keep a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
     alarm?: Alarm;
     /** Report a controller's failure to the host beside its telemetry. */
-    report?(error: unknown): void;
+    readonly report?: (error: unknown) => void;
 }
 
 /** The procedures and enforcement of a package. */
@@ -540,11 +540,11 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
     /** The policies deciding permissions. */
     access?: ServerAccess;
     /** Serve another HTTP protocol for an authenticated request, or return undefined. */
-    fetch?(request: Request, context: RequestContext): Promise<Response | undefined>;
+    readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
     /** The package's controllers. */
     readonly controllers?: readonly Controller[];
     /** Verify a credential the package keeps the keys of before the host, undefined for another. */
-    verify?(request: Request): Promise<Caller | undefined>;
+    readonly verify?: (request: Request) => Promise<Caller | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
 }

@@ -28,7 +28,7 @@ export interface HttpsClient {
     /** The bound address below the host's egress that calls go to. */
     readonly url: string;
     /** Call a path below the API's base URL. */
-    fetch(path: string, init?: RequestInit): Promise<Response>;
+    readonly fetch: (path: string, init?: RequestInit) => Promise<Response>;
 }
 
 /** A dependency on an HTTPS API, called through the host's egress. */

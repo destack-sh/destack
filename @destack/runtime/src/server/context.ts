@@ -190,5 +190,5 @@ export interface ServerAccess {
     /** The database with relationships and roles. */
     readonly database: DatabaseConnection;
     /** Resolve the object or scope a call acts on. */
-    target?(call: ProcedureCall<RequestContext>): Promise<ObjectReference>;
+    readonly target?: (call: ProcedureCall<RequestContext>) => Promise<ObjectReference>;
 }

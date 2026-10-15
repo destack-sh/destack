@@ -3,7 +3,7 @@ import { DeclarationName } from "@destack/package";
 import { ObjectTypeReference } from "@destack/sync";
 
 /** A JSON Schema. */
-const JsonSchema = schema.record(schema.string(), schema.json());
+const JsonSchema = schema.jsonObject();
 
 /** A procedure's value or event-stream schema. */
 export const PayloadDescription = defineSchema(
@@ -37,7 +37,7 @@ export const ProcedureDescription = defineSchema(
         /** The OpenAPI operation identifier. */
         operationId: schema.string().exactOptional(),
         /** The procedure annotations. */
-        metadata: schema.record(schema.string(), schema.json()).exactOptional(),
+        metadata: schema.jsonObject().exactOptional(),
         /** The input. */
         input: PayloadDescription.exactOptional(),
         /** The output. */

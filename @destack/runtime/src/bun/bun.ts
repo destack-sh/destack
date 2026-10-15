@@ -29,7 +29,7 @@ export type BunEndpoint = (
       }
 ) & {
     /** Handle one request. */
-    fetch(request: Request): Response | Promise<Response>;
+    readonly fetch: (request: Request) => Response | Promise<Response>;
     /** The WebSockets the endpoint keeps open for instances. */
     readonly hibernation?: BunHibernation;
 };
@@ -44,11 +44,11 @@ export interface BunProcessOptions {
     /** The signal aborted on shutdown. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
-    shutdown(): void;
+    readonly shutdown: () => void;
     /** Drain requests and release the runtime. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
     /** Publish the listener addresses, in endpoint order. */
-    ready?(addresses: readonly URL[]): Promise<void>;
+    readonly ready?: (addresses: readonly URL[]) => Promise<void>;
 }
 
 /** Serve each endpoint until shutdown and drain it on close. */
