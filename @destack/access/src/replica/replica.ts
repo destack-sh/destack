@@ -73,6 +73,7 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
         relations: {
             delegator: { column: "delegatorKey", isKey: true },
             delegate: { column: "delegateKey", isKey: true },
+            space: { column: "delegateScope", scope: Scope.universe.id },
         },
     },
 ];

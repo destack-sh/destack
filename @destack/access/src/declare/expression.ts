@@ -64,7 +64,8 @@ export type AccessExpression =
       }
     | { readonly kind: "granters"; readonly reference: string }
     | { readonly kind: "readers"; readonly reference: string; readonly relation: string }
-    | { readonly kind: "contained"; readonly principals?: readonly ObjectTypeReference[] };
+    | { readonly kind: "contained"; readonly principals?: readonly ObjectTypeReference[] }
+    | { readonly kind: "self" };
 
 /** The relation of the subject set of the principals inside a scope. */
 export const CONTAINED = "contained";
@@ -138,6 +139,11 @@ export function contained(...principals: readonly Policy[]): AccessExpression {
                   type: type.definition.name,
               })),
           };
+}
+
+/** Permit the principal the object represents, acting on its own row. */
+export function self(): AccessExpression {
+    return { kind: "self" };
 }
 
 /** Permit objects whose attributes meet a condition, reading request attributes as placeholders. */

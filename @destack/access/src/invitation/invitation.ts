@@ -1,11 +1,8 @@
 import { type ObjectReference, Subject } from "@destack/sync";
 import {
     and,
-    asc,
     Condition,
     eq,
-    inArray,
-    type DatabaseConnection,
     type Transaction,
     type Select,
     type Snapshot,
@@ -113,9 +110,11 @@ export const Invitation = {
     /** Read a pending invitation on an object in a transaction, refusing one no longer pending. */
     async read(transaction: Transaction, object: ObjectReference, id: string): Promise<Invitation> {
         // read the invitation on the object
-        const [row] = await transaction.rows(accessInvitation, {
-            ...Relationship.objectColumns(object),
-            id: Invitation.id(id),
+        const row = await transaction.read(accessInvitation).findFirst({
+            where: {
+                ...Relationship.objectColumns(object),
+                id: Invitation.id(id),
+            },
         });
         if (!row) {
             throw new AccessError("NOT_FOUND", "invitation not found");
@@ -135,9 +134,11 @@ export const Invitation = {
         object: ObjectReference,
         addressee: Subject,
     ): Promise<Invitation[]> {
-        const rows = await snapshot.rows(accessInvitation, {
-            ...Relationship.objectColumns(object),
-            addressee: Subject.key(addressee),
+        const rows = await snapshot.read(accessInvitation).findMany({
+            where: {
+                ...Relationship.objectColumns(object),
+                addressee: Subject.key(addressee),
+            },
         });
 
         return rows.map((row) => Invitation.decode(row));
@@ -145,25 +146,22 @@ export const Invitation = {
 
     /** Read a page of the pending invitations to some principals or contacts, oldest first. */
     async addressed(
-        database: DatabaseConnection,
+        reader: Pick<Snapshot, "read">,
         addressees: readonly Subject[],
         page: InvitationPage,
         now: number,
     ): Promise<Invitation[]> {
-        const rows = await database
-            .select()
-            .from(accessInvitation)
-            .where(
-                and(
-                    inArray(
-                        accessInvitation.addressee,
-                        addressees.map((addressee) => Subject.key(addressee)),
-                    ),
-                    Condition.render(Invitation.pending(page, now), accessInvitation),
-                ),
-            )
-            .orderBy(asc(accessInvitation.id))
-            .limit(page.limit);
+        // read the addressees' pending invitations in identifier order, one page
+        const rows = await reader.read(accessInvitation).findMany({
+            where: {
+                AND: [
+                    { addressee: { in: addressees.map((addressee) => Subject.key(addressee)) } },
+                    Invitation.pending(page, now),
+                ],
+            },
+            orderBy: { id: "asc" },
+            limit: page.limit,
+        });
 
         return rows.map((row) => Invitation.decode(row));
     },

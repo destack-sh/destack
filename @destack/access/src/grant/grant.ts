@@ -4,17 +4,15 @@ import { Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { CallerGrant } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
-import { accessGrant, GrantApproval } from "./table.ts";
+import { accessGrant } from "./table.ts";
 
-/** What a delegator grants: delegate, permissions, approval and lapse. */
+/** What a delegator grants: delegate, permissions and lapse. */
 export const GrantRequest = defineSchema(
     schema.object({
         /** The principal acting for the delegator. */
         delegate: Subject,
         /** The permissions the delegate may use for the delegator. */
         permissions: schema.array(GrantPermission.schema),
-        /** How often the delegator approves a call. */
-        approval: GrantApproval,
         /** The exclusive time the grant lapses, in Unix milliseconds, absent for none. */
         expiresAt: Instant.exactOptional(),
     }),
@@ -34,7 +32,7 @@ export const Grant = {
 
     /** Read a grant by identifier as a snapshot shows it, absent once revoked. */
     async read(snapshot: Snapshot, id: Identifier<"grant">): Promise<Grant | undefined> {
-        return (await snapshot.row(accessGrant, { id })) ?? undefined;
+        return snapshot.read(accessGrant).findFirst({ where: { id } });
     },
 
     /** Require a grant between a delegator and a delegate unrevoked and unexpired at a time. */
@@ -57,12 +55,6 @@ export const Grant = {
             !Subject.same(grant.delegate, parties.delegate)
         ) {
             throw new AccessError("UNAUTHORIZED", `grant ${id} belongs to another delegate`);
-        }
-
-        // refuse a grant that needs approval for each call
-        // TODO #Incomplete: phase E lands an "each" call on a one-call branch, answered APPROVAL_REQUIRED { branch }
-        if (grant.approval === "each") {
-            throw new AccessError("FORBIDDEN", `grant ${id} needs approval for each call`);
         }
 
         return grant;

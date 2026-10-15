@@ -7,6 +7,7 @@ import {
     text,
     sql,
     type Tree,
+    textEnum,
 } from "@destack/db";
 import {
     none,
@@ -233,7 +234,7 @@ export const policyTable = defineTable(
     {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
-        mode: text("mode", { enum: ["set", "require"] }).notNull(),
+        mode: textEnum("mode", ["set", "require"]).notNull(),
         value: text("value").notNull(),
     },
     { log: {} },

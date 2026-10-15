@@ -1,6 +1,6 @@
 import { AccessContext } from "../context/context.ts";
 import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
-import { type Match, Predicate, type Row, type Snapshot } from "@destack/db";
+import { type Match, Predicate, type Row, type Snapshot, TABLE } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -327,7 +327,25 @@ export class TupleReader {
                 return this.#readers(expression, mapping, row, trail);
             case "contained":
                 return this.#contained(expression, mapping, row, trail);
+            case "self":
+                return TupleReader.#self(mapping, row, trail);
         }
+    }
+
+    /** Grant a row to the principal it represents, a global one by its universe reference. */
+    static #self(mapping: TableMapping, row: Row, trail: Trail): TupleTree {
+        // read the row's object, and the principal reference it represents
+        const definition = mapping.policy.definition;
+        const object = {
+            packageId: definition.packageId,
+            type: definition.name,
+            scope: TableMapping.scope(mapping, row),
+            id: TableMapping.text(row, mapping.id),
+        };
+        const subject =
+            definition.isGlobal === true ? { ...object, scope: Scope.universe.id } : object;
+
+        return TupleTree.any([{ subject, arrows: trail.arrows, object, path: trail.path }]);
     }
 
     /** Grant a row to principals inside its scope, or inside the row as a scope, of some types. */
@@ -356,11 +374,21 @@ export class TupleReader {
             return TupleTree.some([]);
         }
 
-        // grant the scope's containment set, only to principals of the named types when given
-        return TupleReader.#containment(object, expression.principals, {
-            ...trail,
-            path: [...trail.path, CONTAINED],
-        });
+        // grant the scope's containment set, a global scope's also by its universe reference
+        const marked = { ...trail, path: [...trail.path, CONTAINED] };
+        const contained = TupleReader.#containment(object, expression.principals, marked);
+        const global =
+            definition.scope === true && definition.isGlobal === true
+                ? [
+                      TupleReader.#containment(
+                          { ...object, scope: Scope.universe.id },
+                          expression.principals,
+                          marked,
+                      ),
+                  ]
+                : [];
+
+        return global.length === 0 ? contained : TupleTree.some([contained, ...global]);
     }
 
     /** Grant an object's containment set, only to principals of the named types when given. */
@@ -501,21 +529,31 @@ export class TupleReader {
             ];
         }
 
-        // grant to the accepted subjects of the relation's relationships
+        // grant to the accepted subjects of the relation's relationships, and to the members of its set
         const relationships = await this.#rowRelationships(mapping, row);
+        const object = TupleReader.#object(mapping, row);
+        const members = {
+            subject: { ...object, relation: name },
+            object,
+            path: [...trail.path, `set ${name}`],
+            arrows: trail.arrows,
+        };
 
-        return relationships
-            .filter(
-                (entry) =>
-                    entry.relation === name && accepts(relation, TupleReader.#subject(entry)),
-            )
-            .map((entry) => ({
-                subject: TupleReader.#subject(entry),
-                condition: new TupleCondition(entry),
-                object: TupleReader.#object(mapping, row),
-                path: [...trail.path, `relation ${name}`],
-                arrows: trail.arrows,
-            }));
+        return [
+            ...relationships
+                .filter(
+                    (entry) =>
+                        entry.relation === name && accepts(relation, TupleReader.#subject(entry)),
+                )
+                .map((entry) => ({
+                    subject: TupleReader.#subject(entry),
+                    condition: new TupleCondition(entry),
+                    object,
+                    path: [...trail.path, `relation ${name}`],
+                    arrows: trail.arrows,
+                })),
+            members,
+        ];
     }
 
     /** Read a field's subject: a subject key, an identifier of the one type, or typed columns. */
@@ -934,9 +972,10 @@ export class TupleReader {
             return [];
         }
 
-        // read the unread rows in one query, and note the missing ones
+        // read the unread rows in one query, and note the missing ones, by table and type
         const { packageId, name } = mapping.policy.definition;
-        const key = (id: string) => JSON.stringify([packageId, name, scope, id]);
+        const table = mapping.table[TABLE].sqlName;
+        const key = (id: string) => JSON.stringify([table, packageId, name, scope, id]);
         const missing = ids.filter((id) => !this.#loaded.has(key(id)));
         if (missing.length > 0) {
             const read = TableMapping.read(this.#snapshot, mapping, scope, missing).then(

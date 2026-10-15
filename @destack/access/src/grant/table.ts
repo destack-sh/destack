@@ -1,15 +1,7 @@
 import { check, defineTable, identifier, index, integer, json, text } from "@destack/db";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { GrantPermission } from "./permission.ts";
-
-/** How often a grant asks its delegator to approve a call: once when created, or for each call. */
-export const GRANT_APPROVALS = ["once", "each"] as const;
-
-/** How often a grant asks its delegator to approve a call. */
-export const GrantApproval = defineSchema(schema.enum(GRANT_APPROVALS));
-/** How often a grant asks its delegator to approve a call. */
-export type GrantApproval = schema.Infer<typeof GrantApproval>;
 
 /** A delegator's grant of permissions to a delegate acting for it, in the delegator's scope. */
 export const accessGrant = defineTable(
@@ -35,8 +27,6 @@ export const accessGrant = defineTable(
         delegateScope: text("delegate_scope").notNull(),
         /** The permissions the delegate may use for the delegator. */
         permissions: json("permissions", schema.array(GrantPermission.schema)).notNull(),
-        /** How often the delegator approves a call. */
-        approval: text("approval").validate(GrantApproval).notNull(),
         /** The exclusive time the grant lapses, in Unix milliseconds, null for none. */
         expiresAt: integer("expires_at"),
     },
@@ -46,7 +36,6 @@ export const accessGrant = defineTable(
             index("grant_delegator").on(grant.delegatorKey),
             index("grant_delegate").on(grant.delegateKey),
             index("grant_delegate_scope").on(grant.delegateScope),
-            check("grant_approval", { approval: { in: [...GRANT_APPROVALS] } }),
             check("grant_expiry", {
                 OR: [
                     { expiresAt: { isNull: true } },

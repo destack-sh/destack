@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Snapshot, sql } from "@destack/db";
+import { defineTable, Snapshot, sql, text } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { Authorizer, contained, Policy, principal, through, type TableMapping } from "../index.ts";
@@ -40,6 +40,15 @@ const lot = new Policy(module4.package, {
 const parcel = new Policy(module4.package, {
     name: "parcel",
     permissions: { reside: contained(principal.installation) },
+});
+
+/** The homes, global scopes whose rows the universe keeps by identifier alone. */
+const homeTable = defineTable("example_home", { id: text("id").primaryKey() });
+
+/** Homes living in a realm, keyed in their scope. */
+const placeTable = defineTable("example_place", {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
 });
 
 /** The realms', districts' and parcels' tables. */
@@ -194,5 +203,160 @@ test.for(TEST_DIALECTS)(
         // resolve the realm and its district, refusing the other realm, its district and the universe above
         const refused = ["UNAUTHORIZED", "the caller's credential applies to near only"];
         expect(resolved).toEqual(["done", "done", refused, refused, refused]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "contain a space's principals under its global principal reference, on %s",
+    async (dialect) => {
+        // keep homes, global scopes in a realm whose rows the universe keeps, and a person relating to one home
+        const home = new Policy(module4.package, {
+            name: "home",
+            permissions: { reside: contained() },
+            scope: true,
+            isGlobal: true,
+        });
+        const person = new Policy(module4.package, {
+            name: "person",
+            relations: { home: { subjects: [home] } },
+            permissions: { contact: through("home", "reside") },
+        });
+        const authorizer = new Authorizer(
+            [realm, home, person],
+            [
+                {
+                    policy: realm,
+                    table: accountTable,
+                    id: "id",
+                    scope: "scope",
+                    attributes: {},
+                    relations: {},
+                },
+                { policy: home, table: homeTable, id: "id", attributes: {}, relations: {} },
+                { policy: person, table: groupTable, id: "id", attributes: {}, relations: {} },
+            ],
+        );
+        const opened = await TestDatabase.create(dialect, [...fixtureDatabase.tables, homeTable], {
+            isMigrated: true,
+        });
+        onTestFinished(() => opened.close());
+        const { database } = opened;
+        const access = new AccessFixture(database);
+        await access.replicateScope(realm.reference("universe", "near"));
+        await access.replicateScope(home.reference("near", "own"));
+        await access.replicateScope(home.reference("near", "other"));
+        await database.insert(accountTable).values({ id: "near", scope: "universe" });
+        await database.insert(homeTable).values([{ id: "own" }, { id: "other" }]);
+        await database.insert(groupTable).values({ id: "alice", scope: "universe" });
+        await access.replicateRelationship(
+            "universe",
+            person.reference("universe", "alice"),
+            "home",
+            home.reference("universe", "own"),
+            0,
+        );
+
+        // decide an installation of each home on the person's contact, in memory and in SQL
+        const snapshot = Snapshot.live(database);
+        const target = person.reference("universe", "alice");
+        const decide = async (scope: string) => {
+            const caller = {
+                subjects: [principal.installation.reference(scope, "app")],
+                now: 1000,
+                attributes: {},
+            };
+            const resolved = await authorizer.resolve(snapshot, "universe", caller);
+            const permission = { ...target, name: "contact" };
+            const memory = await authorizer.check(snapshot, permission, target, resolved);
+            const listed = await authorizer.checkRows(snapshot, permission, resolved, [
+                { id: "alice", scope: "universe" },
+            ]);
+            const [row] = await database.execute(
+                sql`SELECT CASE WHEN ${authorizer.permits(permission, target, resolved)} THEN 1 ELSE 0 END AS permitted`,
+                schema.record(
+                    schema.string(),
+                    schema.union([schema.number(), schema.string(), schema.bigint()]),
+                ),
+            );
+
+            return [
+                scope,
+                memory.isAllowed,
+                listed.permitted.has(0),
+                Number(row?.["permitted"]) === 1,
+            ];
+        };
+
+        // permit the person's own home's installation, which the relation names by its global reference, and refuse another home's
+        expect([await decide("own"), await decide("other")]).toEqual([
+            ["own", true, true, true],
+            ["other", false, false, false],
+        ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "contain a global scope's principal in its own scope under its universe reference, on %s",
+    async (dialect) => {
+        // keep homes in a realm, each a global scope whose principal callers present at the universe
+        const home = new Policy(module4.package, {
+            name: "home",
+            permissions: { reside: contained() },
+            scope: true,
+            isGlobal: true,
+        });
+        const authorizer = new Authorizer(
+            [realm, home],
+            [
+                {
+                    policy: realm,
+                    table: accountTable,
+                    id: "id",
+                    scope: "scope",
+                    attributes: {},
+                    relations: {},
+                },
+                {
+                    policy: home,
+                    table: placeTable,
+                    id: "id",
+                    scope: "scope",
+                    attributes: {},
+                    relations: {},
+                },
+            ],
+        );
+        const opened = await TestDatabase.create(dialect, [...fixtureDatabase.tables, placeTable], {
+            isMigrated: true,
+        });
+        onTestFinished(() => opened.close());
+        const { database } = opened;
+        const access = new AccessFixture(database);
+        await access.replicateScope(realm.reference("universe", "near"));
+        await access.replicateScope(home.reference("near", "own"));
+        await access.replicateScope(home.reference("near", "other"));
+        await database.insert(placeTable).values([
+            { id: "own", scope: "near" },
+            { id: "other", scope: "near" },
+        ]);
+
+        // decide each home's universe reference on its own home object, deciding in the realm
+        const snapshot = Snapshot.live(database);
+        const target = home.reference("near", "own");
+        const decide = async (id: string) => {
+            const caller = {
+                subjects: [home.reference("universe", id)],
+                now: 1000,
+                attributes: {},
+            };
+            const resolved = await authorizer.resolve(snapshot, "near", caller);
+
+            return (
+                await authorizer.check(snapshot, { ...target, name: "reside" }, target, resolved)
+            ).isAllowed;
+        };
+
+        // admit the home itself, and refuse another home
+        expect([await decide("own"), await decide("other")]).toEqual([true, false]);
     },
 );

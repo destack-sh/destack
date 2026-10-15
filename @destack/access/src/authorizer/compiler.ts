@@ -27,8 +27,8 @@ import { AccessContext } from "../context/context.ts";
 import { GrantPermission } from "../grant/permission.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship, type RelationshipColumnMap } from "../relationship/table.ts";
-import { type Access, UNIVERSAL } from "./access.ts";
-import type { Authority } from "./authority.ts";
+import { type Access, OWNING } from "./access.ts";
+import type { Authority, SubjectColumns } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";
 import { ANY_SCOPE, TableMapping } from "./mapping.ts";
@@ -163,15 +163,34 @@ export class Compiler {
             throw new AccessError("INVALID_CONTEXT", "target is outside the resolved scope");
         }
         const mapping = this.#authorizer.requireMapping(target);
+        const compilation = Compiler.#compilation(access);
         const row = alias(mapping.table, "access_target");
-        const predicate = evaluate(mapping, row, Compiler.#compilation(access));
-
-        return sql`EXISTS (
+        const isTarget = (
+            source: Table,
+        ) => sql`${TableMapping.column(source, mapping.id)} = ${target.id}
+            AND ${TableMapping.scopeColumn(source, mapping)} = ${target.scope}`;
+        const kept = sql`EXISTS (
             SELECT 1 FROM ${from(row)}
-            WHERE ${TableMapping.column(row, mapping.id)} = ${target.id}
-                AND ${TableMapping.scopeColumn(row, mapping)} = ${target.scope}
-                AND ${predicate}
+            WHERE ${isTarget(row)} AND ${evaluate(mapping, row, compilation)}
         )`;
+        if (mapping.policy.definition.scope !== true) {
+            return kept;
+        }
+
+        // decide a scope whose object row lives elsewhere on its ancestry row, which its chain keeps
+        const missing = alias(mapping.table, "access_missing");
+        const ancestry = TableMapping.ancestry(mapping.policy);
+        const standing = alias(Scope.table, "access_ancestry");
+
+        return sql`(${kept} OR (
+            NOT EXISTS (SELECT 1 FROM ${from(missing)} WHERE ${isTarget(missing)})
+            AND EXISTS (
+                SELECT 1 FROM ${from(standing)}
+                WHERE ${TableMapping.column(standing, ancestry.id)} = ${target.id}
+                    AND ${TableMapping.scopeColumn(standing, ancestry)} = ${target.scope}
+                    AND ${evaluate(ancestry, standing, compilation)}
+            )
+        ))`;
     }
 
     /** Match the objects the grant allows a permission on, directly or through its source. */
@@ -428,7 +447,24 @@ export class Compiler {
                 return this.#readers(expression, mapping, source, compilation);
             case "contained":
                 return Compiler.#contained(expression, mapping, source, compilation);
+            case "self":
+                return Compiler.#self(mapping, source, compilation);
         }
+    }
+
+    /** Match the principal a row represents, a global one by its universe reference. */
+    static #self(mapping: TableMapping, source: Table, compilation: Compilation): SQL {
+        const definition = mapping.policy.definition;
+
+        return compilation.authority.match({
+            packageId: sql`${definition.packageId}`,
+            type: sql`${definition.name}`,
+            scope:
+                definition.isGlobal === true
+                    ? sql`${Scope.universe.id}`
+                    : TableMapping.scopeColumn(source, mapping),
+            id: TableMapping.column(source, mapping.id),
+        });
     }
 
     /** Decide whether an authority may have a containment grant, of the named types when given. */
@@ -456,16 +492,22 @@ export class Compiler {
             return sql`false`;
         }
 
-        // match a scope's row by its own containment set
+        // match a scope's row by its own containment set, a global scope's also by its universe reference
         const definition = mapping.policy.definition;
         if (definition.scope === true) {
-            return authority.match({
-                packageId: sql`${definition.packageId}`,
-                type: sql`${definition.name}`,
-                scope: TableMapping.scopeColumn(source, mapping),
-                id: TableMapping.column(source, mapping.id),
-                relation: sql`${CONTAINED}`,
-            });
+            const set = (scope: SubjectColumns["scope"]) =>
+                authority.match({
+                    packageId: sql`${definition.packageId}`,
+                    type: sql`${definition.name}`,
+                    scope,
+                    id: TableMapping.column(source, mapping.id),
+                    relation: sql`${CONTAINED}`,
+                });
+            const own = set(TableMapping.scopeColumn(source, mapping));
+
+            return definition.isGlobal === true
+                ? sql`(${own} OR ${set(sql`${Scope.universe.id}`)})`
+                : own;
         }
 
         // match another row living in the resolved scope by that scope's containment set
@@ -637,7 +679,24 @@ export class Compiler {
         );
         const definition = mapping.policy.definition;
 
-        return sql`EXISTS (
+        // match the relation sets the authority holds
+        const isHolding = compilation.authority.subjects.some(
+            (subject) =>
+                subject.relation === name &&
+                subject.packageId === definition.packageId &&
+                subject.type === definition.name,
+        );
+        const isMember = isHolding
+            ? compilation.authority.match({
+                  packageId: sql`${definition.packageId}`,
+                  type: sql`${definition.name}`,
+                  scope: TableMapping.scopeColumn(source, mapping),
+                  id: TableMapping.column(source, mapping.id),
+                  relation: sql`${name}`,
+              })
+            : sql`false`;
+
+        return sql`(EXISTS (
             SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}
             WHERE ${relationship.objectScope} = ${TableMapping.scopeColumn(source, mapping)}
                 AND ${relationship.packageId} = ${definition.packageId}
@@ -645,7 +704,7 @@ export class Compiler {
                 AND ${relationship.objectId} = ${TableMapping.column(source, mapping.id)}
                 AND ${relationship.relation} = ${name}
                 AND ${Compiler.#accepted(relationship, relation)}
-        )`;
+        ) OR ${isMember})`;
     }
 
     /** Match a field's subject: a subject key, typed columns, or an identifier of the one type. */
@@ -926,7 +985,7 @@ export class Compiler {
         const isNaming = sql`${key} = ${PermissionReference.key(permission)}`;
         const isGranting = compilation.access.isReserved(permission)
             ? isNaming
-            : sql`(${isNaming} OR ${key} = ${UNIVERSAL})`;
+            : sql`(${isNaming} OR ${key} = ${OWNING})`;
 
         return sql`EXISTS (
             SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}

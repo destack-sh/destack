@@ -1,10 +1,11 @@
 import { expect, test } from "@destack/test";
-import { Snapshot, TABLE, eq, type DatabaseConnection } from "@destack/db";
+import { Snapshot, Transaction, eq, type DatabaseConnection, Table } from "@destack/db";
 import { aligned, Identifier, present, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
     ACCESS_PACKAGE_ID,
+    accessGrant,
     accessRelationship,
     Grant,
     Contact,
@@ -617,7 +618,7 @@ databaseTest(
         // keep alice's and bob's own scopes, where their grants live
         await database.insert(Scope.table).values(
             ["alice", "bob"].map((id) =>
-                Scope.table[TABLE].complete({
+                Table.complete(Scope.table, {
                     scope: id,
                     parent: Scope.universe.id,
                     partition: Scope.universe.id,
@@ -638,7 +639,6 @@ databaseTest(
                     authorization.createGrant(scopeOf(scope), {
                         delegate,
                         permissions: [editing("a"), editing("b")],
-                        approval: "once",
                         expiresAt: 2000,
                     }),
             );
@@ -724,6 +724,49 @@ test("follow a scope relation of several scope types to the nearest scope only, 
             "pin.scope is a scope relation: it accepts scope types only",
         ),
     );
+});
+
+databaseTest("remove a space's delegated grants when the space goes", async ({ fixture }) => {
+    const { database, authorizer, alice } = fixture;
+
+    // keep alice's own scope, where her grants live
+    await database.insert(Scope.table).values(
+        Table.complete(Scope.table, {
+            scope: "alice",
+            parent: Scope.universe.id,
+            partition: Scope.universe.id,
+            packageId: ACCESS_PACKAGE_ID,
+            type: principal.user.name,
+            ancestors: [],
+        }),
+    );
+
+    // grant editing to an installation of each of two spaces
+    const grant = (spaceId: string) =>
+        Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.createGrant(scopeOf("alice"), {
+                    delegate: principal.installation.reference(spaceId, "assistant"),
+                    permissions: [editing("a")],
+                    expiresAt: 2000,
+                }),
+        );
+    await grant("space-gone");
+    await grant("space-kept");
+
+    // remove the first space
+    await Transaction.run(database, (transaction) =>
+        authorizer.cascade(transaction, principal.space.reference(Scope.universe.id, "space-gone")),
+    );
+
+    // keep only the grant to the remaining space's installation
+    const kept = await database
+        .select({ delegateScope: accessGrant.delegateScope })
+        .from(accessGrant);
+    expect(kept).toEqual([{ delegateScope: "space-kept" }]);
 });
 
 /** Give editing one node of the personal scope. */

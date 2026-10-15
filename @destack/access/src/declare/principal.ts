@@ -45,13 +45,16 @@ const SIGNING = [
 /** Every signed-in caller: the wildcard of each signing principal kind. */
 export const SIGNED_IN: readonly Subject[] = SIGNING.map((kind) => kind.reference("*", "*"));
 
+/** The subject types of every signed-in caller, the wildcards a relation to them accepts. */
+export const SIGNED_IN_TYPES = SIGNING.map((kind) => kind.all());
+
 /** The universe, the root scope, whose roles and inherited rows apply in every scope. */
 export const universe = new Policy(SYNC_PACKAGE, {
     name: "universe",
     relations: {
         // every machine, and every signed-in caller, through their wildcards
         machine: { subjects: [principal.machine.all()] },
-        "signed-in": { subjects: SIGNING.map((kind) => kind.all()) },
+        "signed-in": { subjects: SIGNED_IN_TYPES },
     },
     permissions: { grant: none() },
     grantedBy: "grant",
@@ -74,7 +77,10 @@ export const relationship = new Policy(OWNER, {
     relations: {
         subject: { subjects: [principal.user, principal.machine, principal.installation] },
     },
-    permissions: { read: union(relation("subject"), readersOf("object", "relation")) },
+    permissions: {
+        read: union(relation("subject"), readersOf("object", "relation")),
+        grant: grantersOf("object"),
+    },
 });
 
 /** A pending grant of a relationship, awaiting its addressee or a grantor. */
@@ -93,6 +99,7 @@ export const invitation = new Policy(OWNER, {
     },
     permissions: {
         read: union(relation("inviter"), relation("addressee"), grantersOf("object")),
+        grant: grantersOf("object"),
     },
 });
 
@@ -109,7 +116,9 @@ export const grant = new Policy(OWNER, {
                 principal.installation,
                 principal.personalAccessToken,
             ],
+            onDelete: "cascade",
         },
+        space: { subjects: [principal.space], onDelete: "cascade" },
     },
     permissions: {
         create: none(),

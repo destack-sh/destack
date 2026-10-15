@@ -67,6 +67,19 @@ export interface TableMapping {
 
 /** Where a policy's objects live: reading rows and scopes, and validating mappings. */
 export const TableMapping = {
+    /** Map a scope type onto the ancestry every database keeps, its rows standing by reference. */
+    ancestry(policy: Policy): TableMapping {
+        return {
+            policy,
+            table: Scope.table,
+            id: "scope",
+            scope: "parent",
+            isShared: true,
+            attributes: {},
+            relations: {},
+        };
+    },
+
     /** Decide whether a mapping reads every attribute a policy condition reads. */
     decides(mapping: TableMapping, predicate: Predicate): boolean {
         return [...Predicate.fields(predicate)].every(

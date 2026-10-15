@@ -9,7 +9,7 @@ import { Elevation } from "../context/elevation.ts";
 /** Serialized permission expressions with no executable callbacks. */
 export const AccessExpressionDescription: schema.Schema<AccessExpression> = schema.lazy(() =>
     schema.union([
-        schema.object({ kind: schema.literal("none") }),
+        schema.object({ kind: schema.enum(["none", "self"]) }),
         schema.object({
             kind: schema.literal("contained"),
             principals: schema.array(ObjectTypeReference).exactOptional(),
@@ -71,6 +71,8 @@ export const PolicyDescription = defineSchema(
                 isScope: schema.literal(true).exactOptional(),
                 /** Whether relationships show only to holders of the granting permission. */
                 concealed: schema.literal(true).exactOptional(),
+                /** Whether the rows naming a deleted subject go with it. */
+                onDelete: schema.literal("cascade").exactOptional(),
             }),
         ),
         /** The permission whose holders see the objects' relationships, `read` by default. */

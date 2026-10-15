@@ -12,6 +12,9 @@ import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
 
+/** Marks the permission references a policy produced. */
+const DECLARED: unique symbol = Symbol("declared");
+
 /** The policy of one type of object, with typed references to its permissions and relations. */
 export class Policy<Name extends string = string> {
     /** The declaring package, supplied by the module transform. */
@@ -84,14 +87,8 @@ export class Policy<Name extends string = string> {
         });
     }
 
-    /** Reference a declared permission of this type, a Permission since the policy declares it. */
-    permission(name: Name): Permission;
-    /**
-     * Reference a declared permission of this type after checking the declaration.
-     *
-     * @construct the policy declares it, and Policy.permission alone creates a Permission brand.
-     */
-    permission(name: Name): PermissionReference {
+    /** Reference a declared permission of this type, marked declared by the policy alone. */
+    permission(name: Name): Permission {
         // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
             throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
@@ -101,6 +98,7 @@ export class Policy<Name extends string = string> {
             packageId: this.definition.packageId,
             type: this.definition.name,
             name,
+            [DECLARED]: true,
         };
     }
 
@@ -172,6 +170,7 @@ export class Policy<Name extends string = string> {
                         ...(relation.open === true ? { open: true } : {}),
                         ...(relation.isScope === true ? { isScope: true } : {}),
                         ...(relation.concealed === true ? { concealed: true } : {}),
+                        ...(relation.onDelete === undefined ? {} : { onDelete: relation.onDelete }),
                     },
                 ];
             }),
@@ -311,9 +310,6 @@ export const PermissionReference = Object.assign(permissionReference, {
     },
 });
 
-/** Marks the permission references a policy produced. */
-declare const DECLARED: unique symbol;
-
 /** A permission of a policy, produced by `Policy.permission`. */
 export type Permission = PermissionReference & { readonly [DECLARED]: true };
 
@@ -332,6 +328,8 @@ export interface RelationInput {
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
+    /** Whether the rows naming a deleted subject go with it, as SQL's ON DELETE CASCADE. */
+    readonly onDelete?: "cascade";
 }
 
 /** A policy as declared: a type of objects, of scopes, or of scopes each a partition. */
@@ -400,6 +398,7 @@ export function relationsOf(expression: AccessExpression): string[] {
         case "granters":
         case "readers":
         case "contained":
+        case "self":
             return [];
     }
 }

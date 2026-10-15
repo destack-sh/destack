@@ -23,7 +23,7 @@ await authorization.grant({ object: page, relation: "editor", subject }); // Wri
 
 ## Policies
 
-A `Policy` declares an object type's relations and permissions, and `elevated` asks for a recent stronger sign-in.
+A `Policy` declares an object type's relations and permissions, `self()` admits the principal an object represents, `onDelete: "cascade"` removes rows with their subject, and `elevated` asks for a recent stronger sign-in.
 
 ```ts
 export const note = new Policy(import.meta.destack.package, {
@@ -31,7 +31,7 @@ export const note = new Policy(import.meta.destack.package, {
     relations: {
         owner: { subjects: [principal.user], grantedBy: null },
         editor: { subjects: [principal.user, group.members("member")] },
-        parent: { subjects: ["note"], grantedBy: null },
+        parent: { subjects: ["note"], grantedBy: null, onDelete: "cascade" },
     },
     permissions: {
         read: union(relation("owner"), relation("editor"), through("parent", "read")),
@@ -65,6 +65,10 @@ await authorizer.explain(snapshot, note.permission("delete"), target, access);
 
 ```ts
 const authorization = new Authorization(authorizer, database, (scope) => caller.context(scope));
+// a scope created here, then born at its home below its account
+await authorization.create(space, { owner: alice });
+await authorization.receive(space, [accountId], { owner: alice });
+await authorization.remove(space);
 await authorization.revoke(page, relationshipId);
 // a share link
 const { id, secret } = await authorization.link({ object: page, relation: "viewer" });
@@ -76,7 +80,7 @@ await authorization.accept(page, offer.id);
 
 ## Roles
 
-`createRole` creates a role granting permissions the caller has, `keepRole` keeps a declared role by name, and `assign` binds a role to one subject.
+`createRole` creates a role granting permissions the caller has, `keepRole` keeps a declared role by name, `assign` binds a role to one subject, and `Role.OWNER` is the one owner role of every scope.
 
 ```ts
 const role = await authorization.createRole(space, {
@@ -85,6 +89,7 @@ const role = await authorization.createRole(space, {
     permissions: [note.permission("read"), note.permission("share")],
 });
 await authorization.assign(space, role.id, carol);
+await authorization.grant({ object: space, role: Role.OWNER, subject: bob });
 ```
 
 ## Grants
@@ -95,7 +100,6 @@ A `Grant` lets a delegate act for its delegator with what both allow: the delega
 const grant = await authorization.createGrant(aliceScope, {
     delegate: installation,
     permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
-    approval: "once",
 });
 const caller = {
     subject: alice,
@@ -104,12 +108,4 @@ const caller = {
     grant: Grant.claim(grant),
 };
 await authorization.revokeGrant(aliceScope, grant.id);
-```
-
-## Storage
-
-`accessTables` lists the tables every database with protected objects includes.
-
-```ts
-export const main = defineDatabase({ name: "main", tables: [...accessTables, notes] });
 ```

@@ -198,7 +198,7 @@ export const Relationship = {
 
     /** Read an object's relationships through a relation or role, held by one subject, or both. */
     async readOn(
-        snapshot: Snapshot,
+        reader: Pick<Snapshot, "read">,
         object: ObjectReference,
         match: {
             /** The declared relation, any by default. */
@@ -212,16 +212,18 @@ export const Relationship = {
         // match the object, then each given field exactly
         const { relation, role, subject } = match;
 
-        return snapshot.rows(accessRelationship, {
-            ...Relationship.objectColumns(object),
-            ...(relation === undefined ? {} : { relation }),
-            ...(role === undefined ? {} : { roleId: schema.identifier("role").parse(role) }),
-            ...(subject === undefined
-                ? {}
-                : {
-                      ...Relationship.subjectColumns(subject),
-                      subjectRelation: Relationship.nullable(subject.relation ?? null),
-                  }),
+        return reader.read(accessRelationship).findMany({
+            where: {
+                ...Relationship.objectColumns(object),
+                ...(relation === undefined ? {} : { relation }),
+                ...(role === undefined ? {} : { roleId: schema.identifier("role").parse(role) }),
+                ...(subject === undefined
+                    ? {}
+                    : {
+                          ...Relationship.subjectColumns(subject),
+                          subjectRelation: Relationship.nullable(subject.relation ?? null),
+                      }),
+            },
         });
     },
 
@@ -345,7 +347,9 @@ export const Relationship = {
             throw new AccessError("INVALID_CONTEXT", "only a declaration can manage relationships");
         }
 
-        return transaction.rows(accessRelationship, { scope: selection.scope, ...covered });
+        return transaction
+            .read(accessRelationship)
+            .findMany({ where: { scope: selection.scope, ...covered } });
     },
 
     /** Match the relationships one declaration manages. */

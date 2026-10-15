@@ -87,6 +87,9 @@ export interface Caller {
     readonly deployments?: readonly CallerDeployment[];
 }
 
+/** A caller with a represented subject, as every mutation's caller has. */
+export type SignedCaller = Caller & { readonly subject: Subject };
+
 /** A caller's credential, verified for one audience until it lapses (RFC 7662). */
 export const CallerCredential = schema.object({
     /** The credential kind, such as session. */
@@ -199,6 +202,11 @@ export const Caller = {
         }
 
         return acting;
+    },
+
+    /** Report whether a caller represents a subject, as a mutation's caller must. */
+    isSigned(caller: Caller): caller is SignedCaller {
+        return caller.subject !== undefined;
     },
 
     /** Read the principal sending the call: the last delegate, else the subject. */

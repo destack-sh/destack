@@ -1,15 +1,16 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot, asc, type DatabaseConnection } from "@destack/db";
-import { Feed, Replica, type Subscription } from "@destack/sync";
+import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
+import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
 import { aligned, Clock } from "@destack/schema";
 import {
+    AccessError,
     accessTables,
     accessRelationship,
-    accessRole,
     CHAIN_SHAPE,
     Authorization,
     Authorizer,
     principal,
+    Role,
     type AccessContext,
 } from "../index.ts";
 import {
@@ -25,6 +26,9 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
+
+/** The object types whose universe relationships the tests' decisions read: every test type's. */
+const TYPES = policies.map((each) => each.typeReference);
 
 /** The owner of the account and the space. */
 const alice: AccessContext = {
@@ -43,13 +47,19 @@ const carol: AccessContext = {
     attributes: {},
 };
 
-/** Build the replica of a scope's chain row for an authorizer's database, with its subscription. */
+/** Build a scope's chain replica for an authorizer's database, with its subscription. */
 function chainOf(authorizer: Authorizer, scope: string) {
     const subscription = Authorizer.chainSubscription({
         name: Authorizer.chainReplica(scope),
         scope,
         below: scope,
-        parameters: { local: [...authorizer.local], replicated: [...authorizer.replicated] },
+        parameters: {
+            local: [...authorizer.local],
+            replicated: [...authorizer.replicated],
+            via: [],
+            between: [],
+            types: TYPES,
+        },
     });
 
     return { replica: authorizer.replicateChain(subscription), subscription };
@@ -159,10 +169,12 @@ test("relay an account's access through the space's database into an app's, and 
                     subject: principal.user.reference("universe", "dave"),
                 }),
         ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "cannot write the access of account account-1 here: this database has a replica",
-    });
+    ).rejects.toEqual(
+        new AccessError(
+            "FORBIDDEN",
+            "cannot write the access of account account-1 here: this database has a replica",
+        ),
+    );
 
     // keep the app's own relationships, about its notes, through a fresh snapshot of the space's replica
     await replicate(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
@@ -173,14 +185,14 @@ test("relay an account's access through the space's database into an app's, and 
     expect(own.filter((row) => row.type === node.name)).toEqual([{ type: "node", objectId: "b" }]);
 });
 
-test("replicate a home's own roles and relationships from its enclosing scope, keeping the access of what lives in it", async () => {
-    // create an account and its space owned by alice in the universe, which keeps the space's own access
+test("write a home's own access at the home as it is born, beside the chain it replicates, and none where its creator keeps its row", async () => {
+    // create an account and its space owned by alice in the universe, which keeps the space's row alone
     const global = await openFixture();
     const home = await openFixture();
     onTestFinished(async () => {
         await Promise.all([global.close(), home.close()]);
     });
-    const accounts = new Authorizer(policies, homeMappings);
+    const accounts = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const spaces = new Authorizer(policies, mappings, { partition: "personal" });
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(accounts, global.database, () => alice, call);
@@ -196,12 +208,14 @@ test("replicate a home's own roles and relationships from its enclosing scope, k
         authorization.create(personal, { owner: aligned(alice.subjects, 0) }),
     );
 
-    // replicate the home's chain before it is born, then attach it below its account
+    // replicate the home's chain before it is born, keep its row, and receive it with its owner
     const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
-    const born = await spaces.chain(home.database, "personal", {
-        kind: "home",
-        parent: "account-1",
-    });
+    const born = await spaces.chain(
+        home.database,
+        "personal",
+        { kind: "home", parent: "account-1" },
+        TYPES,
+    );
     for (const subscription of born) {
         await replicate(
             home.database,
@@ -209,52 +223,57 @@ test("replicate a home's own roles and relationships from its enclosing scope, k
             feed,
         );
     }
+    await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await Authorization.run(
         spaces,
         home.database,
         () => alice,
-        (authorization) => authorization.attach(personal, ["account-1"]),
+        (authorization) =>
+            authorization.receive(personal, ["account-1"], { owner: aligned(alice.subjects, 0) }),
     );
 
-    // keep the space's owner role and alice's binding from the universe, and the space's contents' access here
-    const roles = await home.database
-        .select({ scope: accessRole.scope, name: accessRole.name })
-        .from(accessRole)
-        .orderBy(asc(accessRole.scope));
-    const bound = await home.database
-        .select({ objectId: accessRelationship.objectId, subjectId: accessRelationship.subjectId })
-        .from(accessRelationship)
-        .orderBy(asc(accessRelationship.objectId));
+    // bind alice to the one owner role at the home, and write nothing of the space's access in the universe
     expect({
-        parameters: born.map((subscription) => subscription.parameters["own"]),
-        roles: roles.filter((role) => role.scope === "personal"),
-        bound: bound.filter((row) => row.objectId === "personal"),
+        home: await bound(home.database),
+        universe: await bound(global.database),
         keeps: await spaces.keeps(Snapshot.live(home.database), "personal"),
     }).toEqual({
-        parameters: ["personal"],
-        roles: [{ scope: "personal", name: "owner" }],
-        bound: [{ objectId: "personal", subjectId: "alice" }],
+        home: [[Role.OWNER, "alice"]],
+        universe: [],
         keeps: true,
     });
 
-    // refuse writing the space's own access in its home, which keeps a replica of it
-    await expect(
+    // grant on the space at its home, and refuse it at the universe
+    const grant = (authorizer: Authorizer, database: DatabaseConnection) =>
         Authorization.run(
-            spaces,
-            home.database,
+            authorizer,
+            database,
             () => alice,
             (authorization) =>
                 authorization.grant({
                     object: personal,
-                    relation: "member",
+                    role: Role.OWNER,
                     subject: principal.user.reference("universe", "dave"),
                 }),
+        );
+    await grant(spaces, home.database);
+    await expect(grant(accounts, global.database)).rejects.toEqual(
+        new AccessError(
+            "FORBIDDEN",
+            "cannot write the access of space personal here: it lives at its home",
         ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "cannot write the access of space personal here: this database has a replica",
-    });
+    );
 });
+
+/** Read the role and subject of each relationship on the personal space. */
+async function bound(database: DatabaseConnection) {
+    const rows = await database
+        .select({ roleId: accessRelationship.roleId, subjectId: accessRelationship.subjectId })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.objectId, "personal"));
+
+    return rows.map((row) => [row.roleId, row.subjectId]);
+}
 
 /** Apply a source's feed to a replica until it reaches the source's head. */
 async function replicate(
