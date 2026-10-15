@@ -1,35 +1,32 @@
 import { schema } from "@destack/schema";
-import { ObjectReference, Subject } from "@destack/sync";
 
 /** How a webhook message encodes its body. */
 export const WEBHOOK_FORMATS = ["event", "json", "ndjson"] as const;
 
-/** The HTTPS webhook endpoint a message goes to, and how it authenticates the message. */
+/** How a webhook endpoint authenticates its messages: a signature, or a header. */
+export const WebhookAuthentication = schema.discriminatedUnion("kind", [
+    schema.object({
+        kind: schema.literal("signature"),
+    }),
+    schema.object({
+        kind: schema.literal("header"),
+        /** The header with the secret's value, such as an API key header (RFC 9110 5.1). */
+        name: schema.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u),
+    }),
+]);
+
+/** How a webhook endpoint authenticates its messages. */
+export type WebhookAuthentication = schema.Infer<typeof WebhookAuthentication>;
+
+/** A webhook message's destination: the endpoint its source names, with its URL and secret. */
 export const WebhookDestination = schema.object({
     channel: schema.literal("webhook"),
-    /** The endpoint URL. */
-    url: schema.url({ protocol: /^https$/u }),
-    /** How the endpoint authenticates the message: a Standard Webhooks signature, or a header. */
-    authentication: schema.discriminatedUnion("kind", [
-        schema.object({
-            kind: schema.literal("signature"),
-        }),
-        schema.object({
-            kind: schema.literal("header"),
-            /** The header with the secret's value, such as an API key header (RFC 9110 5.1). */
-            name: schema.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u),
-        }),
-    ]),
-    /** The vault secret authenticating the message. */
-    secret: ObjectReference,
-    /** The principal the secret is read as, such as the endpoint's user. */
-    reader: Subject,
 });
 
 /** A webhook's event, or a batch of records. */
 export const WebhookContent = schema.object({
     channel: schema.literal("webhook"),
-    /** The event type, such as `issue.regressed`, or a batch's record kind, like `audit.call`. */
+    /** The event type, such as `issue.regressed`, or a batch's record kind, like `call`. */
     type: schema.string().min(1),
     /** How the body encodes the data. */
     format: schema.enum(WEBHOOK_FORMATS),
@@ -55,7 +52,7 @@ export function encodeBody(
     // list a batch's records, refusing a batch without records
     const records = content.data;
     if (!Array.isArray(records)) {
-        throw new TypeError(`batch ${id} holds no records`);
+        throw new TypeError(`batch ${id} has no records`);
     }
 
     return content.format === "json"

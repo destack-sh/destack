@@ -1,10 +1,12 @@
-import { principal } from "@destack/access";
+import { Caller } from "@destack/access";
 import { AuditActionName } from "@destack/object";
 import { type Select } from "@destack/db";
-import { Conditions, defineObject, field } from "@destack/object";
+import type { ObjectStore } from "@destack/object/server";
+import { ConditionSet, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
 import { ObjectReference } from "@destack/sync";
-import { WEBHOOK_FORMATS, WebhookDestination } from "../webhook/message.ts";
+import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
 
 /** The most event types one endpoint subscribes to, a screen of event names. */
 const MAX_ENDPOINT_EVENTS = 100;
@@ -27,18 +29,18 @@ export const endpoint = defineObject({
         /** How each message encodes the calls: one event per call, or a JSON or NDJSON page. */
         format: field.enum(WEBHOOK_FORMATS).default("event"),
         /** How the endpoint authenticates each message with the secret. */
-        authentication: field.json(WebhookDestination.shape.authentication),
-        /** The vault secret authenticating each message. */
+        authentication: field.json(WebhookAuthentication),
+        /** The vault secret authenticating each message, which the installation consumes. */
         secret: field.json(ObjectReference),
         /** Whether the calls go to the endpoint. */
         status: field.enum(["enabled", "disabled"]).default("enabled"),
-        /** The user who created the endpoint, as whom its secret is read. */
-        user: field.reference(principal.user).caller(),
     },
     permissions: ["read", "manage"],
     constraints: {
         scope: { kind: "index", on: ["scope", "status"] },
     },
+    // read each endpoint's calls from its creation on, kept a week past its longest retry
+    readers: { endpoint: { by: "id", start: "latest", hold: { days: 7 } } },
 }).methods((method) => ({
     create: method.create("manage", {
         fields: ["url", "events", "format", "authentication", "secret", "status"],
@@ -51,5 +53,24 @@ export const endpoint = defineObject({
 /** A persisted endpoint. */
 export type Endpoint = Select<typeof endpoint.table>;
 
+/** The endpoints webhook messages go to. */
+export const Endpoint = {
+    /** Read the endpoint a webhook message's source names as the store's principal. */
+    async read(store: Pick<ObjectStore, "query" | "clock" | "principal">, source: ObjectReference) {
+        // require an endpoint as the source
+        if (!endpoint.is(source)) {
+            throw new CallError("BAD_REQUEST", {
+                message: `a webhook message's source ${source.type} ${source.id} is not an endpoint`,
+            });
+        }
+
+        // read it through the store, as the installation delivering it
+        const target = endpoint.target({ scope: source.scope, id: endpoint.identifier(source.id) });
+        const caller = Caller.of(store.principal, store.clock.now());
+
+        return store.query(caller, endpoint.call("get", target));
+    },
+};
+
 /** The conditions the endpoint controller reports: Delivered, by the last settled message. */
-export const endpointConditions = new Conditions(["Delivered"]);
+export const endpointConditions = new ConditionSet(["Delivered"]);

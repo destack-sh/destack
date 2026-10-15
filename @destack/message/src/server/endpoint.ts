@@ -1,10 +1,17 @@
-import { principal } from "@destack/access";
+import type { Deriver } from "@destack/identity";
+import { ObjectReference } from "@destack/sync";
+import { Caller } from "@destack/access";
 import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
-import { AuditCall, call, type ObjectReconciliation, ObjectWatch } from "@destack/object";
+import {
+    AuditCall,
+    call,
+    type Call,
+    type ObjectReconciliation,
+    ObjectWatch,
+} from "@destack/object";
+import { secret } from "@destack/vault/object";
 import { aligned, Identifier, type JsonValue, present } from "@destack/schema";
-import { EventReader } from "@destack/event";
 import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
 import {
     type Endpoint,
     endpoint,
@@ -19,11 +26,8 @@ import {
 /** The calls on one page of an endpoint's history: a hundred 1 KB calls post one 100 KB batch. */
 const PAGE_CALLS = 100;
 
-/** How long the history keeps unread calls: seven days, past a failing endpoint's longest retry. */
-const HOLD_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
-
 /** The record type of a batch of calls. */
-const RECORD_TYPE = "audit.call";
+const RECORD_TYPE = "call";
 
 /** The object types whose controller calls deliver messages, which no endpoint receives. */
 const DELIVERY_TYPES: ReadonlySet<string> = new Set([
@@ -32,35 +36,36 @@ const DELIVERY_TYPES: ReadonlySet<string> = new Set([
     endpoint.name,
 ]);
 
-/** Read the public key the messages of a scope are sealed to, its message home's. */
-export type MessageKeyReader = (scope: string) => Promise<string>;
-
-/** The reader of the calls an endpoint delivers, whose log position keeps its place. */
-export const EndpointReader = {
-    /** The reader of an endpoint's calls. */
-    of(id: string): EventReader {
-        return new EventReader(`endpoint:${id}`, HOLD_MILLISECONDS);
-    },
-};
-
-/** Serve endpoints: deliver each enabled endpoint's calls page by page as webhook messages. */
-export function serveEndpoints(key: MessageKeyReader) {
+/** Implement endpoints: a controller delivers each enabled endpoint's calls as webhook messages. */
+export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
     return endpoint.implement({
         methods: {
-            create: async (creating, next) => {
-                // place the endpoint's reader where the log stands as it is created
-                const row = await next();
-                creating
-                    .requireTransaction()
-                    .record((database) => EndpointReader.of(row.id).start(database, creating.now));
+            create: async (mutation, next) => {
+                // let the installation consume the secret, as its creator may let software use it
+                const created = await next();
+                await consume(mutation, created.secret);
 
-                return row;
+                return created;
             },
-            delete: async (deleting, next) => {
-                // let the log go of the calls the endpoint had not read
+            update: async (mutation, next) => {
+                // let the installation consume a new secret, and release the replaced one once unused
+                const replaced = mutation.target.secret;
+                const updated = await next();
+                const set = mutation.input.secret;
+                if (
+                    set !== undefined &&
+                    ObjectReference.key(set) !== ObjectReference.key(replaced)
+                ) {
+                    await consume(mutation, set);
+                    await releaseUnused(mutation, replaced);
+                }
+
+                return updated;
+            },
+            delete: async (mutation, next) => {
+                // release the secret once no other endpoint of the scope uses it
                 const deleted = await next();
-                const reader = EndpointReader.of(deleting.requireTarget().id);
-                deleting.requireTransaction().record((database) => reader.release(database));
+                await releaseUnused(mutation, mutation.target.secret);
 
                 return deleted;
             },
@@ -68,11 +73,14 @@ export function serveEndpoints(key: MessageKeyReader) {
         controller: {
             pending: { status: "enabled" },
             watches: [
-                ObjectWatch.of(message.table, (row) =>
-                    row.source !== null && endpoint.is(row.source) && row.status !== "pending"
-                        ? [{ id: row.source.id }]
-                        : [],
-                ),
+                ObjectWatch.of(message.table, (row) => {
+                    // wake the endpoint a sent message of it names
+                    const source = ObjectReference.at("source", row);
+
+                    return endpoint.is(source) && row.status !== "pending"
+                        ? [{ id: source.id }]
+                        : [];
+                }),
                 ObjectWatch.of(call.table, async (row, database) => {
                     // wake the enabled endpoints of the scope keeping a succeeded call
                     if (call.eventKind().event(row).keys.outcome !== "success") {
@@ -92,7 +100,7 @@ export function serveEndpoints(key: MessageKeyReader) {
                 }),
             ],
             reconcile: (reconciliation) =>
-                deliver(reconciliation, aligned(reconciliation.rows, 0), key),
+                deliver(reconciliation, aligned(reconciliation.rows, 0), keys),
         },
     });
 }
@@ -101,24 +109,23 @@ export function serveEndpoints(key: MessageKeyReader) {
 async function deliver(
     reconciliation: ObjectReconciliation<typeof endpoint>,
     row: Endpoint,
-    key: MessageKeyReader,
+    keys: Pick<Deriver, "derivePrivateKey">,
 ): Promise<number | undefined> {
     // read the succeeded calls of the endpoint's scope committed past its place, from its first read on
-    const reader = EndpointReader.of(row.id);
+    const reader = endpoint.reader("endpoint").at(row.id);
     const after = await reader.after(reconciliation.database);
-    const page = await reconciliation.store
-        .requireEvents()
-        .changes(
-            call.eventKind(),
-            { scopes: [row.scope], where: { outcome: "success" } },
-            after,
-            PAGE_CALLS,
-        );
+    const page = await reconciliation.store.events.changes(
+        call.eventKind(),
+        { scopes: [row.scope], where: { outcome: "success" } },
+        after,
+        PAGE_CALLS,
+    );
     const items = page.events.map((event) => AuditCall.parse(event.data));
 
     // hand the subscribed calls to messages, each identified by its request, leaving those a repeated page already created
     const calls = items.filter((item) => isSubscribed(row, item));
-    const described = await describeMessages(row, calls, await key(row.scope));
+    const { key } = await MessageKey.derive(keys);
+    const described = await describeMessages(row, calls, key, reconciliation.now);
     const existing = await reconciliation.database
         .select({ id: message.table.id })
         .from(message.table)
@@ -139,9 +146,9 @@ async function deliver(
         ),
     );
 
-    // keep the endpoint's place past the page, holding the calls after it
+    // keep the endpoint's place past the page, and the calls after it
     if (page.sequence > after) {
-        await reader.move(reconciliation.database, after, page.sequence, reconciliation.now);
+        await reader.move(after, page.sequence, reconciliation.now, reconciliation.database);
     }
 
     // mark the endpoint by its last settled message
@@ -194,6 +201,7 @@ async function describeMessages(
     row: Endpoint,
     calls: readonly AuditCall[],
     key: string,
+    now: number,
 ): Promise<Awaited<ReturnType<typeof describeMessage>>[]> {
     // send nothing for a page without subscribed calls
     const [first] = calls;
@@ -208,7 +216,7 @@ async function describeMessages(
             calls.map(async (ended) => {
                 const { execution } = ended;
 
-                return describeMessage(row, key, {
+                return describeMessage(row, key, now, {
                     requestId: await RequestId.derive(
                         Math.max(row.updatedAt, execution.finishedAt ?? execution.startedAt),
                         `${row.id} ${row.generation} ${execution.id}`,
@@ -226,7 +234,7 @@ async function describeMessages(
 
     // send the calls as one batch
     return [
-        await describeMessage(row, key, {
+        await describeMessage(row, key, now, {
             requestId: await RequestId.derive(
                 Math.max(row.updatedAt, first.execution.finishedAt ?? first.execution.startedAt),
                 `${row.id} ${row.generation} ${first.execution.id} ${last.execution.id}`,
@@ -241,6 +249,7 @@ async function describeMessages(
 async function describeMessage(
     row: Endpoint,
     key: string,
+    now: number,
     sent: {
         readonly requestId: string;
         readonly type: string;
@@ -252,24 +261,19 @@ async function describeMessage(
         requestId: sent.requestId,
         id: Identifier.derive("message", sent.requestId),
         input: {
-            to: {
-                channel: "webhook" as const,
-                url: row.url,
-                authentication: row.authentication,
-                secret: row.secret,
-                reader: principal.user.reference(Scope.universe.id, row.userId),
-            },
+            to: { channel: "webhook" as const },
+            dueAt: now,
             status: "pending" as const,
             ciphertext: await MessageKey.of(key).seal(
                 { channel: "webhook", type: sent.type, format: row.format, data: sent.data },
                 row.scope,
             ),
-            source: endpoint.reference(row.scope, row.id),
+            ...ObjectReference.columns("source", endpoint.reference(row.scope, row.id)),
         },
     };
 }
 
-/** Read the last message to an endpoint the message service sent or gave up. */
+/** Read the last message to an endpoint its controller sent or gave up. */
 async function lastSettled(
     database: DatabaseConnection,
     row: Endpoint,
@@ -279,7 +283,8 @@ async function lastSettled(
         .from(message.table)
         .where(
             and(
-                eq(message.table.source, endpoint.reference(row.scope, row.id)),
+                eq(message.table.sourceType, endpoint.name),
+                eq(message.table.sourceId, row.id),
                 ne(message.table.status, "pending"),
             ),
         )
@@ -304,4 +309,33 @@ function deliveredCondition(last: Pick<Message, "status" | "conditions">) {
         reason: "Failing",
         message: present(sent, "a failed message's Sent condition").message,
     };
+}
+
+/** Bind the installation as a consumer of an endpoint's secret, as the caller. */
+async function consume(mutation: Call, reference: ObjectReference): Promise<void> {
+    const consumer = Caller.requirePrincipal(mutation.self);
+    await mutation.mutate(mutation.caller, [
+        secret.call("bindConsumer", { ...secretTarget(reference), consumer }),
+    ]);
+}
+
+/** Release the installation's use of a secret no endpoint of its scope names any longer. */
+async function releaseUnused(mutation: Call, reference: ObjectReference): Promise<void> {
+    // keep a secret another endpoint still names
+    const key = ObjectReference.key(reference);
+    const others = await mutation.read(endpoint).findMany({ where: { scope: mutation.scope } });
+    if (others.some((other) => ObjectReference.key(other.secret) === key)) {
+        return;
+    }
+
+    // release it as the caller, who may let software use the secret
+    const consumer = Caller.requirePrincipal(mutation.self);
+    await mutation.mutate(mutation.caller, [
+        secret.call("releaseConsumer", { ...secretTarget(reference), consumer }),
+    ]);
+}
+
+/** Target the vault secret a reference names. */
+function secretTarget(reference: ObjectReference) {
+    return secret.target({ scope: reference.scope, id: secret.identifier(reference.id) });
 }

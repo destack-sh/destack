@@ -1,7 +1,10 @@
-import type { schema } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
-import { type ObjectReference, Subject } from "@destack/sync";
-import { encodeBody, WebhookDestination } from "./message.ts";
+import { Caller } from "@destack/access";
+import { ObjectReference } from "@destack/sync";
+import { Secret } from "@destack/vault";
+import { secret } from "@destack/vault/object";
+import { Endpoint } from "../object/endpoint.ts";
+import { encodeBody, type WebhookAuthentication } from "./message.ts";
 import { type MessageProvider, Outcome } from "../provider/index.ts";
 import type { ObjectStore } from "@destack/object/server";
 
@@ -18,37 +21,31 @@ const MEDIA_TYPES = {
     ndjson: "application/x-ndjson",
 } as const;
 
-/** Send webhook messages as HTTPS posts authenticated with each message's vault secret. */
-export function webhookProvider(
-    readSecret: (
-        store: Pick<ObjectStore, "query" | "clock">,
-        secret: ObjectReference,
-        reader: Subject,
-    ) => Promise<string>,
-    fetch: Fetch = globalThis.fetch,
-): MessageProvider {
+/** Send webhook messages as HTTPS posts to their endpoints, authenticated with its vault secret. */
+export function webhookProvider(fetch: Fetch = globalThis.fetch): MessageProvider {
     return {
         async send(message, store): Promise<Outcome> {
             // require a webhook message
             const { to, content } = message;
             if (to.channel !== "webhook" || content.channel !== "webhook") {
-                throw new TypeError(`message ${message.id} is no webhook message`);
+                throw new TypeError(`message ${message.id} is not a webhook message`);
             }
 
-            // encode the body and read the secret as the message's reader
-            const body = encodeBody(message.id, message.createdAt, content);
-            const value = await readSecret(store, to.secret, to.reader);
+            // read the endpoint the message's source names, and its secret as the installation consuming it
+            const target = await Endpoint.read(store, message.source);
+            const value = await readSecret(store, target.secret);
 
-            // sign the body with the secret or put the secret in the endpoint's header
+            // encode the body, then sign it with the secret or put the secret in the endpoint's header
+            const body = encodeBody(message.id, message.createdAt, content);
             const timestamp = String(Math.floor(store.clock.now() / 1000));
-            const authentication = await authenticate(to, value, {
+            const authentication = await authenticate(target.authentication, value, {
                 id: message.id,
                 timestamp,
                 body,
             });
 
             // post it and read the answer as an outcome
-            const request = new Request(to.url, {
+            const request = new Request(target.url, {
                 method: "POST",
                 headers: {
                     ...authentication,
@@ -78,11 +75,11 @@ export function webhookProvider(
 /** The signatures of webhook messages, after Standard Webhooks. */
 export const WebhookSignature = {
     /** Sign a message's identifier, time and body with a secret, for `webhook-signature`. */
-    async sign(secret: string, id: string, timestamp: string, body: string): Promise<string> {
+    async sign(signing: string, id: string, timestamp: string, body: string): Promise<string> {
         // key HMAC-SHA256 with the secret's bytes
         const key = await crypto.subtle.importKey(
             "raw",
-            Uint8Array.fromBase64(secret.slice(SECRET_PREFIX.length)),
+            Uint8Array.fromBase64(signing.slice(SECRET_PREFIX.length)),
             { name: "HMAC", hash: "SHA-256" },
             false,
             ["sign"],
@@ -98,17 +95,17 @@ export const WebhookSignature = {
 
 /** Build the header authenticating a webhook post: a signature, or the secret in a header. */
 async function authenticate(
-    to: Pick<schema.Infer<typeof WebhookDestination>, "authentication">,
-    secret: string,
+    authentication: WebhookAuthentication,
+    value: string,
     post: { readonly id: string; readonly timestamp: string; readonly body: string },
 ): Promise<Record<string, string>> {
     // put the secret in the endpoint's header
-    if (to.authentication.kind === "header") {
-        return { [to.authentication.name]: secret };
+    if (authentication.kind === "header") {
+        return { [authentication.name]: value };
     }
 
     // sign the identifier, time and body
-    const signature = await WebhookSignature.sign(secret, post.id, post.timestamp, post.body);
+    const signature = await WebhookSignature.sign(value, post.id, post.timestamp, post.body);
 
     return { "webhook-signature": signature };
 }
@@ -119,4 +116,22 @@ function isUnreachable(error: unknown): error is TypeError | DOMException {
         error instanceof TypeError ||
         (error instanceof DOMException && error.name === "TimeoutError")
     );
+}
+
+/** Read a vault secret's text as the store's principal, which consumes it. */
+function readSecret(
+    store: Pick<ObjectStore, "query" | "clock" | "principal">,
+    reference: ObjectReference,
+): Promise<string> {
+    return Secret.text({
+        read: () => {
+            const target = secret.target({
+                scope: reference.scope,
+                id: secret.identifier(reference.id),
+            });
+            const caller = Caller.of(store.principal, store.clock.now());
+
+            return store.query(caller, secret.call("read", target));
+        },
+    });
 }

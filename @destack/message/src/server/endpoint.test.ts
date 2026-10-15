@@ -1,26 +1,32 @@
 import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { AuditCall, call, defineAuditAction, journal } from "@destack/object";
+import { AuditCall, call, defineAuditAction } from "@destack/object";
 import { AuditRecorder, Journal } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { outbox } from "@destack/runtime/outbox";
 import { defineDatabase, type DatabaseConnection, eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
-import { ObjectStore } from "@destack/object/server";
+import { defineServer, ObjectStore } from "@destack/object/server";
 import { Package, PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { Clock, Identifier, present, schema } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
-import { type ObjectReference, Scope, Subject } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
-import { type Endpoint, endpoint, message, MessageKey } from "../object/index.ts";
+import { ObjectReference, Scope } from "@destack/sync";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { Endpoint, endpoint, mail, message, messageAttempt } from "../object/index.ts";
+import { mailProvider } from "../email/index.ts";
 import messagePackage from "../package.ts";
 import { messageTables } from "../stack/index.ts";
 import { WebhookSignature, webhookProvider } from "../webhook/index.ts";
-import { EndpointReader, serveEndpoints } from "./endpoint.ts";
-import { serveMessages } from "./server.ts";
+import { keepSecret } from "../test/index.ts";
+import { account, space } from "@destack/account/object";
+import vaultServer from "@destack/vault/server";
+import { secret } from "@destack/vault/object";
+import { vaultDatabase } from "@destack/vault/test";
+import { implementEndpoint } from "./endpoint.ts";
+import { implementMessage } from "./message.ts";
 import { RequestId } from "@destack/runtime/request";
 
 /** The scope type of the endpoints and their messages, as an organisation is in the universe. */
@@ -33,8 +39,18 @@ const place = new Policy(import.meta.destack.package, {
 /** A database with endpoints, their messages and the calls they deliver, as a space keeps them. */
 const endpointDatabase = defineDatabase({
     name: "endpoint",
-    tables: [...messageTables, journal, ...call.tables, outbox],
+    tables: [...messageTables, outbox, ...vaultDatabase.tables],
 });
+
+/** The fields of an endpoint posting each call as a signed event. */
+const EVENT_FIELDS = {
+    events: "all",
+    format: "event",
+    authentication: { kind: "signature" },
+} as const;
+
+/** A user other than the endpoint's creator. */
+const SENDER_ID = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000f9");
 
 /** The longest a test waits for an endpoint's delivery, far above three retries at 10 ms. */
 const SETTLE_MILLISECONDS = 5000;
@@ -53,16 +69,28 @@ const RETRY = {
 /** The scope whose history the endpoint receives. */
 const SCOPE = place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000f1");
 
-/** The space whose server keeps the endpoints and owns their scope. */
-const HOST = principal.space.reference(
-    Scope.universe.id,
-    "space-019f5530-8000-7000-8000-0000000000f7",
+/** The identifier of the user whose calls the endpoints receive. */
+const USER_ID = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000f2");
+
+/** The machine serving the space, which keeps its vaults. */
+const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");
+
+/** The user whose calls the endpoints receive. */
+const USER = principal.user.reference(Scope.universe.id, USER_ID);
+
+/** The account whose space keeps the endpoints' secret. */
+const ACCOUNT = schema.identifier("account").parse("account-019f5530-8000-7000-8000-0000000000f6");
+
+/** The message installation serving the endpoints, as which their messages go out. */
+const INSTALLATION = principal.installation.reference(
+    "space-019f5530-8000-7000-8000-0000000000f4",
+    "installation-019f5530-8000-7000-8000-0000000000f8",
 );
 
-/** The user who created the endpoint, as whom its secret is read. */
-const USER = principal.user.reference(
-    Scope.universe.id,
-    "user-019f5530-8000-7000-8000-0000000000f2",
+/** Another installation of the space, which writes and consumes the second secret. */
+const WRITER = principal.installation.reference(
+    "space-019f5530-8000-7000-8000-0000000000f4",
+    "installation-019f5530-8000-7000-8000-0000000000fa",
 );
 
 /** The endpoint's secret, a secret of a vault in a space. */
@@ -72,6 +100,9 @@ const SECRET: ObjectReference = {
     scope: "space-019f5530-8000-7000-8000-0000000000f4",
     id: "secret-019f5530-8000-7000-8000-0000000000f5",
 };
+
+/** The secret an endpoint rotates to, in the same vault. */
+const ROTATED: ObjectReference = { ...SECRET, id: "secret-019f5530-8000-7000-8000-0000000000f9" };
 
 /** The value the vault keeps in the endpoint's secret, the Standard Webhooks example secret. */
 const SECRET_VALUE = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
@@ -144,24 +175,104 @@ function finished(
     );
 }
 
+test("refuse a webhook message to an endpoint from a sender who does not manage it", async () => {
+    // keep an endpoint, and a sender who may send messages but not manage endpoints
+    const { database, objects } = await serveHistory([]);
+    const id = await subscribe(database, EVENT_FIELDS);
+    const sender = principal.user.reference(Scope.universe.id, SENDER_ID);
+    const role = {
+        name: "sender",
+        description: "Sends messages",
+        permissions: [message.permission("send")],
+    };
+    await new AccessFixture(database).replicateRole(SCOPE, role, sender, 0);
+
+    // refuse its webhook message posting to the endpoint with the endpoint's secret
+    const now = Date.now();
+    const created = objects.mutate(Caller.of(sender, now), {
+        id: RequestId.create(now),
+        calls: [
+            message.call("create", {
+                ...message.target({ scope: SCOPE.id, id: Identifier.create("message") }),
+                to: { channel: "webhook" },
+                ...ObjectReference.columns("source", endpoint.reference(SCOPE.id, id)),
+                dueAt: now,
+                status: "scheduled",
+            }),
+        ],
+    });
+    expect(await refusal(created)).toEqual(["FORBIDDEN", "permission denied: manage"]);
+});
+
+test("let the installation consume an endpoint's new secret as the manager who sets it, and release the old one", async () => {
+    // keep an endpoint, a second secret, and a manager of endpoints
+    const { database, objects } = await serveHistory([]);
+    const id = await subscribe(database, EVENT_FIELDS);
+    await keepSecret(objects, ROTATED, SECRET_VALUE, WRITER);
+    const manager = principal.user.reference(Scope.universe.id, SENDER_ID);
+    const access = new AccessFixture(database);
+    const managing = {
+        name: "manager",
+        description: "Manages endpoints",
+        permissions: [endpoint.permission("manage")],
+    };
+    await access.replicateRole(SCOPE, managing, manager, 0);
+
+    // point the endpoint at the second secret as the manager
+    const rotate = () => {
+        const now = Date.now();
+
+        return objects.mutate(Caller.of(manager, now), {
+            id: RequestId.create(now),
+            calls: [
+                endpoint.call("update", {
+                    ...endpoint.target({ scope: SCOPE.id, id }),
+                    secret: ROTATED,
+                }),
+            ],
+        });
+    };
+
+    // refuse a manager who may not let software use the secret, then accept one who may
+    const refused = await refusal(rotate());
+    const binding = {
+        name: "binder",
+        description: "Lets software use the space's secrets",
+        permissions: [secret.permission("bind")],
+    };
+    await access.replicateRole(space.reference(ACCOUNT, SECRET.scope), binding, manager, 0);
+    await rotate();
+
+    // read each secret as the installation, which consumes only the second one
+    const read = (kept: ObjectReference) =>
+        objects.query(
+            Caller.of(INSTALLATION, Date.now()),
+            secret.call(
+                "read",
+                secret.target({ scope: kept.scope, id: secret.identifier(kept.id) }),
+            ),
+        );
+    expect({
+        refused,
+        old: await refusal(read(SECRET)),
+        rotated: await read(ROTATED),
+    }).toEqual({
+        refused: ["NOT_FOUND", `no secret ${ROTATED.id}`],
+        old: ["NOT_FOUND", `no secret ${SECRET.id}`],
+        rotated: { version: 1, value: { encoding: "text", value: SECRET_VALUE } },
+    });
+});
+
 /** Serve endpoints over an audit history and their messages. */
 async function serveHistory(statuses: readonly number[]) {
-    // post through the webhook provider and keep the posts and the secrets read
+    // post through the webhook provider and keep the posts
     const posts: { headers: Headers; body: string }[] = [];
-    const reads: [ObjectReference, Subject][] = [];
-    const provider = webhookProvider(
-        async (_system, secret, reader) => {
-            reads.push([secret, reader]);
+    const provider = webhookProvider(async (request) => {
+        posts.push({ headers: new Headers(request.headers), body: await request.text() });
+        const status = present(statuses[posts.length - 1], "a status for each post");
 
-            return SECRET_VALUE;
-        },
-        async (request) => {
-            posts.push({ headers: new Headers(request.headers), body: await request.text() });
-            const status = present(statuses[posts.length - 1], "a status for each post");
-
-            return new Response(null, { status, statusText: `answered ${status}` });
-        },
-    );
+        return new Response(null, { status, statusText: `answered ${status}` });
+    });
 
     // keep the endpoints with their messages and the calls they read, which record their deliveries too
     const storage = await TestDatabase.create("sqlite", endpointDatabase, { isMigrated: true });
@@ -172,25 +283,41 @@ async function serveHistory(statuses: readonly number[]) {
         events: store,
     });
     const objects = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
-        principal: HOST,
-        objects: [
-            ...serveMessages({
-                providers: { webhook: provider },
-                retry: RETRY,
-                deriver: async () => ROOT,
+        principal: INSTALLATION,
+        servers: [
+            defineServer(messagePackage, {
+                objects: [
+                    implementMessage({
+                        providers: { webhook: provider },
+                        retry: RETRY,
+                        keys: ROOT,
+                    }),
+                    messageAttempt,
+                    implementEndpoint(ROOT),
+                ],
+                providers: [mailProvider("fixture", mail)],
             }),
-            serveEndpoints(async () => (await MessageKey.derive(ROOT)).key),
+            vaultServer,
         ],
-        policies: [place],
+        policies: [place, space],
         database: storage.database,
         callKey: testCallKey,
         events: store,
         origin: { package: Package.of(messagePackage) },
+        machine: MACHINE,
     });
     const access = new AccessFixture(storage.database);
-    await access.copyScope({ ...SCOPE });
-    await access.copyOwner(SCOPE, HOST);
+    await access.replicateScope({ ...SCOPE });
+    await access.bindOwner(SCOPE, INSTALLATION);
+
+    // keep the endpoints' secret in the vault of its space, consumed by the installation
+    const vaulted = space.reference(ACCOUNT, SECRET.scope);
+    await access.replicateScope(account.reference(Scope.universe.id, ACCOUNT));
+    await access.replicateScope(vaulted);
+    await access.bindOwner(vaulted, principal.space.reference(Scope.universe.id, SECRET.scope));
+    await keepSecret(objects, SECRET, SECRET_VALUE, INSTALLATION);
 
     return {
         database: storage.database,
@@ -202,7 +329,6 @@ async function serveHistory(statuses: readonly number[]) {
             ),
         objects,
         posts,
-        reads,
         read: (id: Identifier<"endpoint">) => readDelivery(storage.database, id),
         until: (id: Identifier<"endpoint">, check: (delivery: Delivery) => boolean) =>
             TestDatabase.settle(
@@ -223,7 +349,7 @@ async function readDelivery(database: DatabaseConnection, id: Identifier<"endpoi
     const sent = await database
         .select({ id: message.table.id })
         .from(message.table)
-        .where(eq(message.table.source, endpoint.reference(SCOPE.id, id)));
+        .where(eq(message.table.sourceId, id));
     const delivered = row.conditions["Delivered"];
 
     return {
@@ -244,12 +370,11 @@ async function subscribe(
         url: URL,
         ...fields,
         status: "enabled",
-        userId: USER.id,
         secret: SECRET,
         createdAt: 1,
         updatedAt: 1,
     });
-    await EndpointReader.of(id).start(database, Date.now());
+    await endpoint.reader("endpoint").at(id).start(Date.now(), database);
 
     return id;
 }
@@ -319,7 +444,7 @@ test("send each subscribed succeeded call of the scope as one event signed with 
         (delivery) => delivery.messages === 2 && delivery.delivered?.[0] === "true",
     );
     expect(await served.read(id)).toEqual({ messages: 2, delivered: ["true", "Delivered", ""] });
-    expect({ ...(await readEvents(served.posts)), reads: served.reads }).toEqual({
+    expect(await readEvents(served.posts)).toEqual({
         data: [first, second]
             .map((delivered) => ({
                 scope: delivered.execution.context.scope,
@@ -329,10 +454,6 @@ test("send each subscribed succeeded call of the scope as one event signed with 
             .toSorted((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
         types: [documentRename.name, documentRename.name],
         signatures: [true, true],
-        reads: [
-            [SECRET, USER],
-            [SECRET, USER],
-        ],
     });
 });
 
@@ -384,7 +505,7 @@ test("advance an endpoint past each page and create no message twice when a page
         format: "event",
         authentication: { kind: "signature" },
     });
-    const position = () => served.database.log.slot(EndpointReader.of(id).name);
+    const position = () => served.database.log.slot(endpoint.reader("endpoint").at(id).name);
     const before = await position();
 
     // deliver one call and advance the endpoint past it
@@ -394,7 +515,11 @@ test("advance an endpoint past each page and create no message twice when a page
     await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
 
     // repeat the page as a reconcile that failed to advance the endpoint does
-    await served.database.log.advance(EndpointReader.of(id).name, before ?? 0, Date.now() + 60_000);
+    await served.database.log.advance(
+        endpoint.reader("endpoint").at(id).name,
+        before ?? 0,
+        Date.now() + 60_000,
+    );
     await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
 
     // keep the one message the first page created, delivered once its attempt lands
@@ -423,7 +548,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     // disable the endpoint through the space's own settings and keep a second call while it rests
     const update = async (status: "enabled" | "disabled") =>
         served.objects.mutate(
-            Caller.of(HOST, Date.now()),
+            Caller.of(INSTALLATION, Date.now()),
             {
                 id: RequestId.create(Date.now()),
                 calls: [
@@ -435,7 +560,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
             },
             { component: "settings" },
         );
-    const position = () => served.database.log.slot(EndpointReader.of(id).name);
+    const position = () => served.database.log.slot(endpoint.reader("endpoint").at(id).name);
     await update("disabled");
     await loop.idle();
     const delivered = await position();
@@ -444,7 +569,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     await loop.idle();
     expect(await position()).toBe(delivered);
 
-    // enable it and send the second call alone
+    // enable it and send only the second call
     await update("enabled");
     await served.until(id, (delivery) => delivery.messages === 2 && served.posts.length === 2);
     expect({
@@ -457,7 +582,7 @@ test("keep a disabled endpoint's position and deliver only the calls after it on
     });
 });
 
-test("mark an endpoint failing once the message service gives up a message its URL keeps refusing", async () => {
+test("mark an endpoint failing once the message controller gives up a message its URL keeps refusing", async () => {
     const served = await serveHistory([500, 500]);
     const id = await subscribe(served.database, {
         events: "all",
