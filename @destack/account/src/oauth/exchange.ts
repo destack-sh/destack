@@ -1,0 +1,544 @@
+import {
+    Access,
+    AccessContext,
+    accessGrant,
+    Authorization,
+    type Authorizer,
+    Caller,
+    Grant,
+    principal,
+} from "@destack/access";
+import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
+import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
+import { PackageId } from "@destack/package";
+import { type Clock, type Identifier, schema } from "@destack/schema";
+import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
+import { CallError, isCallError } from "@destack/runtime/error";
+import { ObjectReference, Scope, Subject } from "@destack/sync";
+import { AccountAuthentication } from "../better-auth/authentication.ts";
+import { account, type Account } from "../object/account.ts";
+import { Identity } from "../object/identity.ts";
+import * as object from "../object/index.ts";
+import { Placement } from "../object/placement.ts";
+import accountPackage from "../package.ts";
+import { Issuance, type VerifiedCaller } from "./issuance.ts";
+import { PackageResource } from "./resource.ts";
+
+/** The grant type of a token exchanged for another (RFC 8693 2.1). */
+export const TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
+
+/** The type of a subject token that is an access token the token endpoint issued (RFC 8693 3). */
+export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
+
+/** The type of a subject token that is a person's personal access token. */
+export const PERSONAL_ACCESS_TOKEN_TYPE = "urn:destack:token-type:personal-access-token";
+
+/** The type of a subject token that is a signed-in person's session token. */
+export const SESSION_TOKEN_TYPE = "urn:destack:token-type:session";
+
+/** A token exchange request: the subject token, the package and space, and whom to act for. */
+const ExchangeRequest = schema.looseObject({
+    /** The token exchanged. */
+    subject_token: schema.string().min(1),
+    /** The kind of the token exchanged. */
+    subject_token_type: schema.enum([
+        ACCESS_TOKEN_TYPE,
+        SESSION_TOKEN_TYPE,
+        PERSONAL_ACCESS_TOKEN_TYPE,
+    ]),
+    /** The package the token is for, as its resource (RFC 8707). */
+    resource: schema.string().min(1),
+    /** The space the token acts in, absent under a grant toward a universe package. */
+    space: schema.identifier("space").exactOptional(),
+    /** The person to act as, or for under their grant to the caller, as a subject key. */
+    subject: schema.string().min(1).exactOptional(),
+    /** The grant to act under: the caller's, or the subject's to the caller. */
+    grant: schema.identifier("grant").exactOptional(),
+});
+
+/** What the token exchange reads and verifies with. */
+export interface ExchangeOptions {
+    /** The account database with the people, grants and placements. */
+    readonly database: DatabaseConnection;
+    /** The policies expanding memberships. */
+    readonly authorizer: Authorizer;
+    /** The universe's issuer, which the exchanged access tokens carry. */
+    readonly issuer: string;
+    /** The clock tokens are verified at. */
+    readonly clock: Clock;
+    /** The lifetimes of the packages' tokens, a minute when absent. */
+    readonly lifetimes: ReadonlyMap<PackageId, number>;
+}
+
+/** Exchange a person's, machine's or installation's token for a token of a package (RFC 8693). */
+export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHandler {
+    return async (input) => {
+        // read the request and the package it asks a token for
+        const request = ExchangeRequest.safeParse(input.ctx.body);
+        if (!request.success) {
+            throw Issuance.refusal("invalid_request", "invalid token exchange request");
+        }
+        const asked = request.data;
+        const audience = PackageResource.package(asked.resource);
+        if (audience === undefined) {
+            throw Issuance.refusal("invalid_target", `${asked.resource} names no package`);
+        }
+
+        // describe the subject token's caller toward the package, refusing an invalid token
+        const now = options.clock.now();
+        const { caller, lapse } = await describe(options, asked, audience, now).catch(
+            (error: unknown) => {
+                throw isCallError(error) ? Issuance.refusal("invalid_grant", error.message) : error;
+            },
+        );
+
+        return Issuance.issue(input, caller, {
+            now,
+            lifetimes: options.lifetimes,
+            scopes: [],
+            ...(lapse === undefined ? {} : { lapse }),
+        });
+    };
+}
+
+/** Describe the caller a token exchange asks a token for, and when its session or grant lapses. */
+async function describe(
+    options: ExchangeOptions,
+    asked: schema.Infer<typeof ExchangeRequest>,
+    audience: PackageId,
+    now: number,
+): Promise<{ readonly caller: VerifiedCaller; readonly lapse?: number }> {
+    // verify the subject token before the transaction, a session or a token lapsing with its credential
+    const verified = await subjectOf(options, asked, now);
+    const isAccessToken = asked.subject_token_type === ACCESS_TOKEN_TYPE;
+    const lapses = isAccessToken ? [] : [verified.credential.expiresAt];
+    const subject = asked.subject === undefined ? undefined : Subject.read(asked.subject);
+
+    return options.database.transaction(async (transaction) => {
+        // describe a person acting through a delegate under a grant, outside a space toward a universe package
+        const isInstallation = principal.installation.is(verified.subject);
+        const granted = await readGrant(
+            transaction,
+            verified,
+            {
+                ...(subject === undefined ? {} : { subject }),
+                ...(asked.grant === undefined ? {} : { grant: asked.grant }),
+            },
+            isInstallation,
+            now,
+        );
+        const lapse = Math.min(...lapses, granted?.expiresAt ?? Number.POSITIVE_INFINITY);
+        const lapsing = Number.isFinite(lapse) ? { lapse } : {};
+        if (granted !== undefined && asked.space === undefined) {
+            return { caller: describeDelegation(verified, granted, audience, now), ...lapsing };
+        }
+        // describe the caller toward a universe package, outside any space
+        else if (asked.space === undefined) {
+            if (subject !== undefined) {
+                throw new CallError("BAD_REQUEST", {
+                    message: "a token acting as another person acts in a space",
+                });
+            }
+            const { scope: _scope, ...credential } = verified.credential;
+
+            return {
+                caller: { ...verified, credential: { ...credential, audience, verifiedAt: now } },
+                ...lapsing,
+            };
+        }
+
+        // describe the caller in the space, a person it impersonates, or a person acting through a delegate
+        const verification = new SpaceVerification(asked.space, audience, transaction, now);
+        if (granted !== undefined) {
+            return {
+                caller: await verification.delegation(verified, granted, options.authorizer),
+                ...lapsing,
+            };
+        } else if (subject !== undefined) {
+            return {
+                caller: await verification.impersonation(verified, subject, options.authorizer),
+                ...lapsing,
+            };
+        }
+
+        return { caller: await verification.caller(verified, options.authorizer), ...lapsing };
+    });
+}
+
+/** Verify a subject token: an access token the endpoint issued, or a personal access token. */
+async function subjectOf(
+    options: ExchangeOptions,
+    asked: schema.Infer<typeof ExchangeRequest>,
+    now: number,
+): Promise<VerifiedCaller> {
+    // verify a personal access token or a session against the account's records
+    const { subject_token: token, subject_token_type: type } = asked;
+    if (type === PERSONAL_ACCESS_TOKEN_TYPE) {
+        return AccountAuthentication.personalToken(token, options.database, accountPackage.id, now);
+    } else if (type === SESSION_TOKEN_TYPE) {
+        return AccountAuthentication.session(token, options.database, accountPackage.id, now);
+    }
+
+    // verify an access token for the account package by the universe's current keys, refusing a machine's
+    const keys = await Identity.keys(Snapshot.live(options.database), Scope.universe.id);
+    const verifier = new TokenVerifier({
+        authority: { kind: "universe" },
+        issuer: options.issuer,
+        audience: accountPackage.id,
+        keys,
+    });
+
+    // refuse a machine's own token, which it asks with its assertion
+    const verified = await verifier.verify(token, now);
+    if (principal.machine.is(verified.subject)) {
+        throw new CallError("FORBIDDEN", {
+            message: "a machine asks its tokens with its assertion",
+        });
+    }
+
+    return verified;
+}
+
+/** A description of callers for one space and receiving package, under one transaction. */
+class SpaceVerification {
+    /** The space the caller acts in. */
+    readonly spaceId: Identifier<"space">;
+    /** The receiving package. */
+    readonly audience: PackageId;
+    /** The transaction reading the callers' standing. */
+    readonly transaction: DatabaseConnection;
+    /** The time of the verification, in UTC epoch milliseconds. */
+    readonly now: number;
+    /** The account owning the space, read on first use. */
+    #owner: Promise<Account["id"]> | undefined;
+
+    /** Describe callers for a space and receiving package at a time. */
+    constructor(
+        spaceId: Identifier<"space">,
+        audience: PackageId,
+        transaction: DatabaseConnection,
+        now: number,
+    ) {
+        // keep the space, the audience, the transaction and the time
+        this.spaceId = spaceId;
+        this.audience = audience;
+        this.transaction = transaction;
+        this.now = now;
+    }
+
+    /** Describe a user or an installation of the account's spaces in the space. */
+    async caller(
+        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+        authorizer: Authorizer,
+        subject: Subject = caller.subject,
+    ): Promise<VerifiedCaller> {
+        // select the account that owns the space, of which an installation acting as itself is one
+        const { credential, subject: acting } = caller;
+        const accountId = await this.#account();
+        if (subject === acting) {
+            await this.#requireInstalled(acting, accountId);
+        }
+
+        // resolve the subject's memberships and groups in the account and the scopes enclosing it
+        const sets = await this.#sets(authorizer, subject, accountId);
+
+        // pass a credential's grant on in the account or the space into the space
+        const { grant } = caller;
+        const granted =
+            grant === undefined
+                ? undefined
+                : {
+                      ...grant,
+                      permissions: grant.permissions
+                          .filter(
+                              (entry) => entry.scope === accountId || entry.scope === this.spaceId,
+                          )
+                          .map((entry) => ({ ...entry, scope: this.spaceId })),
+                  };
+
+        // bound the returned verification by both the credential and assertion lifetimes
+        const verifiedAt = this.now;
+
+        return {
+            subject,
+            ...(caller.assurance === undefined ? {} : { assurance: caller.assurance }),
+            ...(caller.contacts === undefined || subject !== acting
+                ? {}
+                : { contacts: [...caller.contacts] }),
+            subjects: [subject, ...sets],
+            ...(caller.delegates === undefined || subject !== acting
+                ? {}
+                : { delegates: [...caller.delegates] }),
+            ...(caller.deployments === undefined || subject !== acting
+                ? {}
+                : { deployments: [...caller.deployments] }),
+            ...(granted === undefined ? {} : { grant: granted }),
+            credential: {
+                kind: credential.kind,
+                id: credential.id,
+                ...(credential.client === undefined ? {} : { client: credential.client }),
+                audience: this.audience,
+                scope: this.spaceId,
+                verifiedAt,
+                expiresAt: Math.min(credential.expiresAt, verifiedAt + TOKEN_LIFETIME_MILLISECONDS),
+            },
+        };
+    }
+
+    /** Read a subject's memberships and groups in the account and its enclosing scopes. */
+    async #sets(authorizer: Authorizer, subject: Subject, accountId: Account["id"]) {
+        // expand the subject across the account's scope chain
+        const snapshot = Snapshot.live(this.transaction);
+        const chain = await Scope.chain(snapshot, accountId);
+        const { subjects: expanded } = await Access.expand(
+            snapshot,
+            [subject],
+            { now: this.now },
+            authorizer,
+            chain.map((link) => link.object),
+        );
+
+        return expanded
+            .filter(
+                (entry) =>
+                    entry.relation !== undefined &&
+                    entry.packageId === object.account.typeReference.packageId &&
+                    (entry.scope === accountId ||
+                        (entry.type === object.account.name && entry.id === accountId)),
+            )
+            .toSorted((left, right) => (Subject.key(left) < Subject.key(right) ? -1 : 1));
+    }
+
+    /** Describe a user acting as another user in the space. */
+    async impersonation(
+        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+        subject: Subject,
+        authorizer: Authorizer,
+    ): Promise<VerifiedCaller> {
+        // require a user acting as another user
+        const acting = caller.subject;
+        if (
+            !principal.user.is(acting) ||
+            !principal.user.is(subject) ||
+            Subject.same(acting, subject)
+        ) {
+            throw new CallError("FORBIDDEN", { message: "only a user acts as another user" });
+        }
+
+        // describe the represented user within the space's account
+        const represented = await this.caller(caller, authorizer, subject);
+        const accountId = await this.#account();
+        const isMember = represented.subjects.some(
+            (entry) =>
+                entry.packageId === object.account.typeReference.packageId &&
+                entry.type === object.account.name &&
+                entry.id === accountId &&
+                entry.relation === "member",
+        );
+
+        // require the lent authority or administration of the member's account
+        const { now } = this;
+        Caller.requireCurrent(caller, accountPackage.id, now);
+        const reading = Transaction.reading(this.transaction);
+        const authorization = new Authorization(authorizer, reading, () =>
+            AccessContext.of(caller, now),
+        );
+        const lent = await authorization.check(
+            object.user.permission("impersonate"),
+            principal.user.reference(Scope.universe.id, subject.id),
+        );
+        const isLent = lent.isAllowed;
+        const isAdministered =
+            isMember &&
+            (
+                await authorization.check(
+                    object.account.permission("impersonate"),
+                    await Scope.object(Snapshot.live(this.transaction), accountId),
+                )
+            ).isAllowed;
+        if (!isLent && !isAdministered) {
+            throw new CallError("FORBIDDEN", {
+                message: "acting as another user is not allowed",
+            });
+        }
+
+        return { ...represented, delegates: [acting] };
+    }
+
+    /** Describe a person acting through a delegate under their grant to it in the space. */
+    async delegation(
+        caller: Caller & Required<Pick<Caller, "subject" | "credential">>,
+        grant: Grant,
+        authorizer: Authorizer,
+    ): Promise<VerifiedCaller> {
+        // describe the delegator within the space's account, without the contacts it proved elsewhere
+        const { contacts: _contacts, ...represented } = await this.caller(
+            caller,
+            authorizer,
+            ObjectReference.at("delegator", grant),
+        );
+
+        // act through the delegate under the grant, until the grant lapses
+        const credential = represented.credential;
+        const lapse = grant.expiresAt ?? credential.expiresAt;
+
+        return {
+            ...represented,
+            delegates: [ObjectReference.at("delegate", grant)],
+            grant: Grant.claim(grant),
+            credential: { ...credential, expiresAt: Math.min(credential.expiresAt, lapse) },
+        };
+    }
+
+    /** Require an acting installation to live in a space of the account. */
+    async #requireInstalled(acting: Subject, accountId: Account["id"]): Promise<void> {
+        // leave every other principal to its credential
+        if (!principal.installation.is(acting)) {
+            return;
+        }
+
+        // locate the installation's space within the account
+        const [placement] = await Placement.find(Snapshot.live(this.transaction), [
+            schema.identifier("space").parse(acting.scope),
+        ]);
+        if (placement?.scope !== accountId) {
+            throw new CallError("FORBIDDEN", {
+                message: "the installation belongs to another account",
+            });
+        }
+    }
+
+    /** Read the live account that owns the space, once per verification. */
+    #account(): Promise<Account["id"]> {
+        this.#owner ??= this.#readAccount();
+
+        return this.#owner;
+    }
+
+    /** Read the live account that owns the space. */
+    async #readAccount(): Promise<Account["id"]> {
+        // locate the space's placement and require its account
+        const [placement] = await Placement.find(Snapshot.live(this.transaction), [this.spaceId]);
+        const selected =
+            placement === undefined
+                ? undefined
+                : await this.transaction
+                      .select({ accountId: account.table.id })
+                      .from(account.table)
+                      .innerJoin(Scope.table, eq(Scope.table.scope, account.table.id))
+                      .where(
+                          and(
+                              eq(
+                                  account.table.id,
+                                  schema.identifier("account").parse(placement.scope),
+                              ),
+                              isNull(Scope.table.suspendedAt),
+                              isNull(account.table.deletedAt),
+                          ),
+                      )
+                      .get();
+        if (selected === undefined) {
+            throw new CallError("FORBIDDEN", { message: "the space has no active account" });
+        }
+
+        return selected.accountId;
+    }
+}
+
+/** Describe a person acting through a delegate under their grant toward a universe package. */
+function describeDelegation(
+    caller: Caller & Required<Pick<Caller, "credential">>,
+    grant: Grant,
+    audience: PackageId,
+    now: number,
+): VerifiedCaller {
+    // lapse at the earliest of the credential, the token lifetime and the grant
+    const { credential } = caller;
+    const lapse = Math.min(
+        credential.expiresAt,
+        now + TOKEN_LIFETIME_MILLISECONDS,
+        grant.expiresAt ?? Number.POSITIVE_INFINITY,
+    );
+
+    // act as the grant's delegator through its delegate
+    const delegator = ObjectReference.at("delegator", grant);
+
+    return {
+        subject: delegator,
+        subjects: [delegator],
+        delegates: [ObjectReference.at("delegate", grant)],
+        grant: Grant.claim(grant),
+        credential: {
+            kind: credential.kind,
+            id: credential.id,
+            audience,
+            verifiedAt: now,
+            expiresAt: lapse,
+        },
+    };
+}
+
+/** Read the grant an exchange acts under: the caller's, or a person's to the caller. */
+async function readGrant(
+    transaction: DatabaseConnection,
+    caller: Caller & Required<Pick<Caller, "subject">>,
+    input: { readonly subject?: Subject; readonly grant?: Identifier<"grant"> },
+    isInstallation: boolean,
+    now: number,
+): Promise<Grant | undefined> {
+    // read a person's grant to the calling installation, the one named or its only live one
+    const snapshot = Snapshot.live(transaction);
+    if (isInstallation && input.subject !== undefined) {
+        const parties = { delegator: input.subject, delegate: caller.subject };
+        const grants = await snapshot.read(accessGrant).findMany({
+            where: {
+                scope: parties.delegator.id,
+                ...ObjectReference.columns("delegate", caller.subject),
+            },
+        });
+        const live = grants.filter((grant) => grant.expiresAt === null || grant.expiresAt > now);
+        const [only, ...others] = live;
+
+        // require the named grant
+        if (input.grant !== undefined) {
+            const named = grants.find((grant) => grant.id === input.grant);
+
+            return Grant.require(named, input.grant, parties, now);
+        }
+        // require the only live grant
+        else if (only !== undefined && others.length === 0) {
+            return Grant.require(only, only.id, parties, now);
+        }
+        // refuse none or several
+        else {
+            throw new CallError("FORBIDDEN", {
+                message:
+                    live.length === 0
+                        ? `${parties.delegator.id} has no grant to ${caller.subject.id}`
+                        : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
+            });
+        }
+    }
+    // read the caller's own grant to a delegate, as the caller acting as itself
+    else if (input.grant !== undefined) {
+        if (Caller.isDelegated(caller)) {
+            throw new CallError("FORBIDDEN", {
+                message: "a delegate acts under its own grant alone",
+            });
+        }
+        const grant = await Grant.read(snapshot, input.grant);
+
+        return Grant.require(
+            grant,
+            input.grant,
+            {
+                delegator: caller.subject,
+                delegate:
+                    grant === undefined ? caller.subject : ObjectReference.at("delegate", grant),
+            },
+            now,
+        );
+    }
+
+    return undefined;
+}
