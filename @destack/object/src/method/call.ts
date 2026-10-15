@@ -1272,10 +1272,12 @@ export type NextOf<Type extends MethodOwner, Name extends keyof Type["methods"]>
     call?: Call,
 ) => Promise<ResultOf<Type, Name>>;
 
-/** The call of one named object type method, as its handle phase sees it. */
-export type CallOf<Type extends MethodOwner, Name extends keyof Type["methods"]> = MethodCall<
-    TypesOf<Type["methods"][Name], Type["table"]>
->;
+/** The call of one named object type method, as its handle phase sees it by default. */
+export type CallOf<
+    Type extends MethodOwner,
+    Name extends keyof Type["methods"],
+    Prepared = PreparedOf<TypesOf<Type["methods"][Name], Type["table"]>>,
+> = MethodCall<TypesOf<Type["methods"][Name], Type["table"]>, Prepared>;
 
 /** A method's code: its handler, or its phases, with a prepare phase for prepared work. */
 export type Handler<Configuration extends MethodConfiguration = MethodConfiguration> = [
