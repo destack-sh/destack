@@ -10,7 +10,7 @@ export class SesTransport implements MailTransport {
     readonly client: SesClient;
     /** The sender's mailbox, such as `Destack <notices@destack.app>`. */
     readonly from: string;
-    /** The sender's address, which the envelope names. */
+    /** The sender's address in the envelope. */
     readonly #sender: string;
 
     /** Send through a client from a sender's mailbox, refusing a malformed one. */
@@ -38,7 +38,7 @@ export class SesTransport implements MailTransport {
 
             return { kind: "sent" };
         } catch (error) {
-            // fail an address the message cannot hold, and retry what SES may take later
+            // fail an address the message cannot contain, and retry what SES may take later
             if (error instanceof MimeError) {
                 return { kind: "failed", error: { code: error.code, message: error.message } };
             } else if (error instanceof SesError) {

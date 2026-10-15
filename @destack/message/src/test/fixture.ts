@@ -1,3 +1,4 @@
+import { principal } from "@destack/access";
 import type { Outcome } from "../provider/index.ts";
 import type { Mail, MailTransport } from "../email/index.ts";
 import type { ObjectStore } from "@destack/object/server";
@@ -16,10 +17,11 @@ export class MailFixture implements MailTransport {
     }
 }
 
-/** A server a provider reads no objects through, as a test sending without a space. */
-export const UNQUERIED: Pick<ObjectStore, "query" | "clock"> = {
+/** A server without object reads, for a provider in a test that sends without a space. */
+export const UNQUERIED: Pick<ObjectStore, "query" | "clock" | "principal"> = {
     query: async () => {
-        throw new TypeError("the test reads no objects");
+        throw new TypeError("the test cannot read objects");
     },
     clock: Clock.system,
+    principal: principal.space.reference("universe", "space-019f5530-8000-7000-8000-0000000000e9"),
 };

@@ -115,7 +115,7 @@ export class SmtpClient {
             throw new SmtpError("INVALID_ENVELOPE", "envelope has no recipients");
         }
 
-        // connect with the transport options alone
+        // connect with only the transport options
         const { host, port, security, timeout, deadline, certificateAuthorities } = this.#options;
         const connection = await SmtpConnection.open({
             host,

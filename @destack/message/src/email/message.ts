@@ -20,6 +20,6 @@ export const EmailContent = schema.object({
     subject: schema.string().min(1).max(SUBJECT_LENGTH),
     /** The plain text body. */
     text: schema.string().max(BODY_LENGTH),
-    /** The HTML body, absent for plain text alone. */
+    /** The HTML body, absent for plain text only. */
     html: schema.string().max(BODY_LENGTH).exactOptional(),
 });

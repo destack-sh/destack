@@ -12,7 +12,7 @@ export class SmtpTransport implements MailTransport {
     readonly client: SmtpClient;
     /** The sender's mailbox, such as `Destack <notices@destack.app>`. */
     readonly from: string;
-    /** The sender's address, which the envelope names. */
+    /** The sender's address in the envelope. */
     readonly #sender: string;
 
     /** Send through a client from a sender's mailbox, refusing a malformed one. */
@@ -39,7 +39,7 @@ export class SmtpTransport implements MailTransport {
 
             return readSubmission(await this.client.submit(envelope, message));
         } catch (error) {
-            // fail an address the message cannot hold, and read the session's failure
+            // fail an address the message cannot contain, and read the session's failure
             if (error instanceof MimeError) {
                 return { kind: "failed", error: { code: error.code, message: error.message } };
             } else if (error instanceof SmtpError) {

@@ -32,7 +32,7 @@ const VALIDITY_MILLISECONDS = 3_600_000;
 /** The longest DER contents a two-byte length encodes. */
 const MAX_DER_LENGTH = 0xffff;
 
-/** The years a UTCTime holds, as RFC 5280 section 4.1.2.5.1 maps its two digits. */
+/** The years a UTCTime can express, as RFC 5280 section 4.1.2.5.1 maps its two digits. */
 const UTC_TIME_YEARS = { first: 1950, last: 2049 } as const;
 
 /** A self-signed ECDSA P-256 certificate for 127.0.0.1, which test servers present. */

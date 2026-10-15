@@ -12,7 +12,7 @@ export const Mail = defineSchema(
         to: schema.email(),
         /** The key the provider deduplicates by, which the Message-ID digests. */
         key: schema.string().min(1).max(KEY_LENGTH),
-        /** The origination time the Date header carries, in milliseconds since the epoch. */
+        /** The origination time in the Date header, in milliseconds since the epoch. */
         date: schema.number().int(),
     }),
 );
@@ -22,5 +22,5 @@ export type Mail = schema.Infer<typeof Mail>;
 /** A way to send email, such as a mail service's HTTP API, SMTP or a printer. */
 export interface MailTransport {
     /** Send one email, reading what the provider made of it. */
-    send(mail: Mail): Promise<Outcome>;
+    readonly send: (mail: Mail) => Promise<Outcome>;
 }

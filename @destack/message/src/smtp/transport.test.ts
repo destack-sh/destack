@@ -45,7 +45,7 @@ test("submit the composed message from the sender to the address, its Message-ID
         text: MAIL.text,
     });
 
-    // send it with the envelope naming the sender's address and the recipient
+    // send it with the sender's address and the recipient in the envelope
     expect(await transport(server.port).send(MAIL)).toEqual({ kind: "sent" });
     expect([server.messages, server.transcripts[0]?.slice(7, 10)]).toEqual([
         [expected.content],

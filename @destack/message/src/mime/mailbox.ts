@@ -96,7 +96,7 @@ export class Mailbox {
 
     /** Write the mailbox as header tokens: the display name, then the address. */
     tokens(): string[] {
-        // write a bare address alone
+        // write only a bare address
         const name = this.name;
         if (name === undefined) {
             return [this.address];

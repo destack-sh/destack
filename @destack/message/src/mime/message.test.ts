@@ -344,7 +344,7 @@ function decodeSubject(content: string): string {
     const words = value.split(" ").map((word) => {
         const encoded = /^=\?UTF-8\?B\?(.*)\?=$/u.exec(word);
         if (encoded === null) {
-            throw new TypeError(`subject word ${word} is no encoded-word`);
+            throw new TypeError(`subject word ${word} is not an encoded-word`);
         }
 
         return aligned(encoded, 1);

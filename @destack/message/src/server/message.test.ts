@@ -1,22 +1,25 @@
 import { Policy, principal, Caller } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { call, JournalEntry, journal } from "@destack/object";
+import { call, JournalEntry, journal, type ObjectCall } from "@destack/object";
 import { testEvents } from "@destack/object/test";
-import { ObjectExtension } from "@destack/object/server";
+import { defineServer, ObjectStore } from "@destack/object/server";
 import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
 import type {} from "@destack/package/import-meta";
-import { type Duration, type Identifier, present, schema, Clock } from "@destack/schema";
+import { type Identifier, present, schema, Clock } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
-import { Scope } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { message, messageAttempt, messageConditions, MessageKey } from "../object/index.ts";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import { pushProvider, Vapid } from "../push/index.ts";
 import { messageTables } from "../stack/index.ts";
-import { implementMessages, type MessageOptions } from "./server.ts";
+import type { MessageOptions } from "./message.ts";
+import messagePackage from "../package.ts";
+import { implementEndpoint } from "./endpoint.ts";
+import { implementMessage } from "./message.ts";
 import { RequestId } from "@destack/runtime/request";
 
 /** The scope type the messages live in, as a space runs on a machine. */
@@ -41,6 +44,9 @@ const COMPACT_JWE = /eyJ[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+/u;
 /** The text of the requested email, which only its provider sees. */
 const TEXT = "title is too long";
 
+/** The desktop client showing a scheduled message. */
+const CLIENT = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c1");
+
 /** The machine serving the messages. */
 const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");
 
@@ -61,6 +67,11 @@ const messageDatabase = defineDatabase({
     tables: [...messageTables, journal, ...call.tables],
 });
 
+/** Create a new message's identifier. */
+function newId(): Identifier<"message"> {
+    return message.generateId();
+}
+
 /** Run some controllers over a database until the test ends, failing it on a reported failure. */
 function run(database: DatabaseConnection, controllers: readonly Controller[]): void {
     const stopping = new AbortController();
@@ -76,22 +87,23 @@ function run(database: DatabaseConnection, controllers: readonly Controller[]): 
     });
 }
 
-/** Serve a scope's messages through an email provider answering in turn, with a retention. */
-async function serveMessages(answers: readonly Outcome[], retention: Duration = { minutes: 1 }) {
+/** Serve a scope's messages through an email provider answering in turn. */
+async function startMessages(answers: readonly Outcome[]) {
     // keep the messages, sending each email through a provider answering in turn
     const { provider, sent, texts } = answerInTurn(answers);
-    const { messages, storage, scope } = await openMessages({ email: provider }, retention);
+    const { messages, storage, scope } = await openMessages({ email: provider });
     run(storage.database, messages.controllers());
 
     // request an email in the scope
-    const id = schema.identifier("message").parse(message.generateId());
+    const id = message.generateId();
     await messages.mutate(Caller.of(SPACE, Date.now()), {
         id: RequestId.create(Date.now()),
         calls: [
             message.call("create", {
                 ...message.target({ scope: scope.id, id }),
                 to: { channel: "email", address: "dana@example.com" },
-                source: scope,
+                ...ObjectReference.columns("source", scope),
+                dueAt: Date.now(),
                 status: "pending",
                 ciphertext: await (
                     await MessageKey.derive(ROOT)
@@ -120,38 +132,37 @@ async function serveMessages(answers: readonly Outcome[], retention: Duration = 
 }
 
 /** Keep a scope the space owns, and serve its messages through the given providers. */
-async function openMessages(providers: MessageOptions["providers"], retention: Duration) {
+async function openMessages(providers: MessageOptions["providers"]) {
     // serve the messages over a database of their own
     const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
-    const { store: messages } = ObjectExtension.compose(
-        [
-            implementMessages({
-                providers,
-                deriver: async () => ROOT,
-                retry: RETRY,
-                retention,
+    const messages = new ObjectStore({
+        servers: [
+            defineServer(messagePackage, {
+                objects: [
+                    implementMessage({ providers, keys: ROOT, retry: RETRY }),
+                    implementEndpoint(ROOT),
+                ],
             }),
         ],
-        {
-            clock: Clock.system,
-            principal: SPACE,
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            policies: [place],
-            origin: { package: message.package },
-            machine: MACHINE,
-        },
-    );
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: SPACE,
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        policies: [place],
+        origin: { package: message.package },
+        machine: MACHINE,
+    });
 
     // keep the scope, owned by the space
     const scope = {
         ...place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000e3"),
     };
     const fixture = new AccessFixture(storage.database);
-    await fixture.copyScope(scope);
-    await fixture.copyOwner(scope, SPACE);
+    await fixture.replicateScope(scope);
+    await fixture.bindOwner(scope, SPACE);
 
     return { messages, storage, scope };
 }
@@ -181,6 +192,7 @@ async function readSending(database: DatabaseConnection, id: Identifier<"message
     const [row] = await database
         .select({
             status: message.table.status,
+            reason: message.table.reason,
             ciphertext: message.table.ciphertext,
             conditions: message.table.conditions,
         })
@@ -198,6 +210,7 @@ async function readSending(database: DatabaseConnection, id: Identifier<"message
     return (
         row && {
             status: row.status,
+            reason: row.reason,
             isErased: row.ciphertext === null,
             attempts: attempts.map(({ outcome }) => outcome.kind),
             sent: sent && { status: sent.status, reason: sent.reason },
@@ -233,7 +246,7 @@ async function listLeaks(database: DatabaseConnection): Promise<string[]> {
 }
 
 test("send a requested message through its channel's provider, retrying a temporary refusal, as the space and its message controller", async () => {
-    const { read, until, sent, callers } = await serveMessages([
+    const { read, until, sent, callers } = await startMessages([
         { kind: "retry", error: { code: "Throttling", message: "slow down" } },
         { kind: "sent" },
     ]);
@@ -242,7 +255,8 @@ test("send a requested message through its channel's provider, retrying a tempor
     await until((sending) => sending.status !== "pending");
     expect(await read()).toEqual({
         status: "sent",
-        isErased: false,
+        reason: null,
+        isErased: true,
         attempts: ["retry", "sent"],
         sent: { status: "true", reason: "Sent" },
     });
@@ -262,13 +276,13 @@ test("send a requested message through its channel's provider, retrying a tempor
 });
 
 test("fail a message its provider refuses for good, or that the retries exhaust", async () => {
-    const refused = await serveMessages([
+    const refused = await startMessages([
         {
             kind: "failed",
             error: { code: "MessageRejected", message: "address is not verified" },
         },
     ]);
-    const exhausted = await serveMessages(
+    const exhausted = await startMessages(
         Array.from({ length: 3 }, () => ({
             kind: "retry" as const,
             error: { code: "500", message: "down" },
@@ -280,53 +294,57 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
     await exhausted.until((sending) => sending.status !== "pending");
     expect(await refused.read()).toEqual({
         status: "failed",
-        isErased: false,
+        reason: "MessageRejected",
+        isErased: true,
         attempts: ["failed"],
         sent: { status: "false", reason: "MessageRejected" },
     });
     expect(await exhausted.read()).toEqual({
         status: "failed",
-        isErased: false,
+        reason: "500",
+        isErased: true,
         attempts: ["retry", "retry", "retry"],
         sent: { status: "false", reason: "500" },
     });
 });
 
-test("keep a message's content sealed in its row alone, out of the journal and the change log, and open it only for its provider", async () => {
-    const { read, until, texts, leaks } = await serveMessages([{ kind: "sent" }]);
+test("open a message's content only for its provider, keeping it out of the journal and the change log, and drop it as the message settles", async () => {
+    const { read, until, texts, leaks } = await startMessages([{ kind: "sent" }]);
 
-    // send the plaintext while no stored row holds it
+    // send the plaintext while no stored row has it
     await until((sending) => sending.status !== "pending");
     expect(await read()).toEqual({
         status: "sent",
-        isErased: false,
+        reason: null,
+        isErased: true,
         attempts: ["sent"],
         sent: { status: "true", reason: "Sent" },
     });
     expect({ texts, leaking: await leaks() }).toEqual({
         texts: [TEXT],
-        leaking: [`${message.table[TABLE].name}: ciphertext`],
+        leaking: [],
     });
 });
 
-test("erase a settled message's sealed content once its retention passes, leaving no copy in any row or journal entry and keeping its attempts", async () => {
-    const sent = await serveMessages([{ kind: "sent" }], { milliseconds: 0 });
-    const failed = await serveMessages(
-        [{ kind: "failed", error: { code: "MessageRejected", message: "unverified" } }],
-        { milliseconds: 0 },
-    );
+test("drop a message's sealed content as it settles, leaving no copy in any row or journal entry and keeping its attempts", async () => {
+    const sent = await startMessages([{ kind: "sent" }]);
+    const failed = await startMessages([
+        { kind: "failed", error: { code: "MessageRejected", message: "unverified" } },
+    ]);
 
-    // erase the content of a sent and a failed message
+    // drop the content of a sent and a failed message
     await sent.until((sending) => sending.isErased);
     await failed.until((sending) => sending.isErased);
     expect(await sent.read()).toEqual({
         status: "sent",
+        reason: null,
         isErased: true,
         attempts: ["sent"],
         sent: { status: "true", reason: "Sent" },
     });
     expect(await failed.read()).toEqual({
         status: "failed",
+        reason: "MessageRejected",
         isErased: true,
         attempts: ["failed"],
         sent: { status: "false", reason: "MessageRejected" },
@@ -336,11 +354,126 @@ test("erase a settled message's sealed content once its retention passes, leavin
     expect([await sent.leaks(), await failed.leaks()]).toEqual([[], []]);
 });
 
+test("schedule messages, then send, defer or skip each while it waits, showing a desktop one at once until its client receives it", async () => {
+    const { messages, storage, scope } = await openMessages({});
+    const now = Date.now();
+    const mutate = (calls: readonly ObjectCall[]) =>
+        messages.mutate(Caller.of(SPACE, now), { id: RequestId.create(now), calls: [...calls] });
+    const sealed = await (
+        await MessageKey.derive(ROOT)
+    ).seal({ channel: "email", subject: "Mentioned", text: TEXT }, scope.id);
+
+    // schedule an email, a push, a second email and a desktop message
+    const email = { channel: "email" as const, address: "dana@example.com" };
+    const push = {
+        channel: "push" as const,
+        url: "https://push.example/endpoint",
+        keys: { p256dh: "key", auth: "secret" },
+    };
+    const desktop = { channel: "desktop" as const, client: CLIENT };
+    const [first, second, third, fourth] = [newId(), newId(), newId(), newId()];
+    const destinations = [
+        [first, email],
+        [second, push],
+        [third, email],
+        [fourth, desktop],
+    ] as const;
+    await mutate(
+        destinations.map(([id, to]) =>
+            message.call("create", {
+                ...message.target({ scope: scope.id, id }),
+                to,
+                ...ObjectReference.columns("source", scope),
+                dueAt: now,
+                status: "scheduled",
+            }),
+        ),
+    );
+
+    // send the first email, move the push into a summary, skip the second email and show the desktop one
+    await mutate([
+        message.call("send", { scope: scope.id, id: first, to: email, ciphertext: sealed }),
+        message.call("defer", {
+            scope: scope.id,
+            id: second,
+            dueAt: now + 60_000,
+            isSummarized: true,
+        }),
+        message.call("skip", { scope: scope.id, id: third, reason: "read" }),
+        message.call("send", { scope: scope.id, id: fourth, to: desktop }),
+    ]);
+
+    // mark the desktop one delivered once its client receives it, twice alike
+    await mutate([message.call("receive", { scope: scope.id, id: fourth })]);
+    await mutate([message.call("receive", { scope: scope.id, id: fourth })]);
+
+    // refuse what each state forbids: deciding again, a receipt off a desktop, a send without content
+    const refused = await Promise.all([
+        refusal(mutate([message.call("skip", { scope: scope.id, id: first, reason: "read" })])),
+        refusal(mutate([message.call("receive", { scope: scope.id, id: first })])),
+        refusal(mutate([message.call("send", { scope: scope.id, id: second, to: push })])),
+    ]);
+    expect(refused).toEqual([
+        ["CONFLICT", `message ${first} is pending and cannot skip`],
+        ["CONFLICT", `message ${first} is not a sent desktop message`],
+        ["BAD_REQUEST", `message ${second} on push has no content`],
+    ]);
+
+    // keep each message's state
+    const rows = await storage.database
+        .select({
+            id: message.table.id,
+            status: message.table.status,
+            reason: message.table.reason,
+            dueAt: message.table.dueAt,
+            isSummarized: message.table.isSummarized,
+            hasContent: message.table.ciphertext,
+        })
+        .from(message.table);
+    const states = new Map(
+        rows.map((row) => [row.id, { ...row, hasContent: row.hasContent !== null }]),
+    );
+    expect([first, second, third, fourth].map((id) => states.get(id))).toEqual([
+        {
+            id: first,
+            status: "pending",
+            reason: null,
+            dueAt: now,
+            isSummarized: false,
+            hasContent: true,
+        },
+        {
+            id: second,
+            status: "scheduled",
+            reason: null,
+            dueAt: now + 60_000,
+            isSummarized: true,
+            hasContent: false,
+        },
+        {
+            id: third,
+            status: "skipped",
+            reason: "read",
+            dueAt: now,
+            isSummarized: false,
+            hasContent: false,
+        },
+        {
+            id: fourth,
+            status: "delivered",
+            reason: null,
+            dueAt: now,
+            isSummarized: false,
+            hasContent: false,
+        },
+    ]);
+});
+
 test("read the key a scope's pushes are signed with, refusing it on a machine sending no pushes", async () => {
     // serve the scope's messages with a push provider, and again with none
     const vapid = await Vapid.derive(ROOT, "https://destack.app");
-    const pushing = await openMessages({ push: pushProvider(async () => vapid) }, { minutes: 1 });
-    const silent = await openMessages({}, { minutes: 1 });
+    const pushing = await openMessages({ push: pushProvider(async () => vapid) });
+    const silent = await openMessages({});
     const read = (opened: typeof pushing) =>
         opened.messages.query(
             Caller.of(SPACE, Date.now()),
@@ -350,6 +483,6 @@ test("read the key a scope's pushes are signed with, refusing it on a machine se
     // answer the provider's VAPID public key, and refuse where no provider sends pushes
     expect([await read(pushing), await refusal(read(silent))]).toEqual([
         { key: await vapid.publicKey() },
-        ["NOT_FOUND", "this machine sends no pushes"],
+        ["NOT_FOUND", "this machine does not send pushes"],
     ]);
 });

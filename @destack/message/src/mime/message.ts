@@ -33,7 +33,7 @@ export interface Draft {
     readonly from: string;
     /** The primary recipients' mailboxes. */
     readonly to: readonly string[];
-    /** The copied recipients' mailboxes. */
+    /** The carbon copy recipients' mailboxes. */
     readonly cc?: readonly string[];
     /** The mailbox replies go to. */
     readonly replyTo?: string;
@@ -108,7 +108,7 @@ export class MimeMessage {
             headers.push(Header.unstructured(name, value));
         }
 
-        // write a text body alone
+        // write only a text body
         const text = writePart("text/plain", draft.text);
         if (draft.html === undefined) {
             return new MimeMessage(messageId, `${writeHeaders(headers)}${text}`);

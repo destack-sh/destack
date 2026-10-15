@@ -256,7 +256,7 @@ test("leave the configuration set out when none is set, and ask the credentials 
     await client.send(ENVELOPE, MESSAGE, SENT_AT);
     await client.send(ENVELOPE, MESSAGE, SENT_AT);
 
-    // post the envelope and message alone, unsigned by any session token
+    // post only the envelope and message, unsigned by any session token
     const [request] = ses.received;
     const body = typeof request?.initialize.body === "string" ? request.initialize.body : "";
     expect([
@@ -282,7 +282,7 @@ test("refuse a malformed region", () => {
                 endpoint: SesClient.endpoint("eu central"),
                 credentials: async () => CREDENTIALS,
             }),
-    ).toThrow(new SesError("INVALID_OPTIONS", 'region "eu central" is no AWS region name'));
+    ).toThrow(new SesError("INVALID_OPTIONS", 'region "eu central" is not an AWS region name'));
 });
 
 test.each(REFUSALS)(

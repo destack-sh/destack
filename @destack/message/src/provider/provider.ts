@@ -1,9 +1,7 @@
 import { defineSchema, Duration, schema } from "@destack/schema";
-import { type Content, type Message, MessageError } from "../object/message.ts";
+import { type Content, GONE, type Message, MessageError } from "../object/message.ts";
 import type { ObjectStore } from "@destack/object/server";
-
-/** The code of a refusal for good from a recipient that forgot the endpoint (RFC 8030 7.3). */
-export const GONE = "gone";
+import type { ObjectReference } from "@destack/sync";
 
 /** The statuses of a recipient that forgot the endpoint, 404 and 410 (RFC 8030 7.3). */
 const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
@@ -57,13 +55,15 @@ export const Outcome = Object.assign(outcome, {
 /** A provider sending one channel's messages, such as a mail transport or Standard Webhooks. */
 export interface MessageProvider {
     /** Send one message with its opened content, keyed by its identifier to deliver it once. */
-    send(
+    readonly send: (
         message: Pick<Message, "id" | "scope" | "createdAt" | "to"> & {
+            /** The object it is sent for, a notification or an endpoint. */
+            readonly source: ObjectReference;
             /** What it says. */
             readonly content: Content;
         },
-        store: Pick<ObjectStore, "query" | "clock">,
-    ): Promise<Outcome>;
+        store: Pick<ObjectStore, "query" | "clock" | "principal">,
+    ) => Promise<Outcome>;
 }
 
 /** Read a Retry-After header as milliseconds from now, absent without one. */

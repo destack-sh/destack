@@ -1,15 +1,15 @@
+import { ObjectReference } from "@destack/sync";
 import { count, eq } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
-import type { ObjectExtension, ObjectStore } from "@destack/object/server";
-import { aligned, Duration, present } from "@destack/schema";
+import type { ObjectStore } from "@destack/object/server";
+import { aligned, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
+import { endpoint } from "../object/endpoint.ts";
 import { RetryPolicy } from "@destack/runtime/timer";
 import { type Message, message, messageAttempt, MessageKey } from "../object/index.ts";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import type { PushProvider } from "../push/index.ts";
-import messagePackage from "../package.ts";
-import { serveEndpoints } from "./endpoint.ts";
 
 /** How refused sends retry by default: 5 s doubling to 15 min, 8 attempts over about an hour. */
 const RETRY = RetryPolicy.of({
@@ -19,13 +19,10 @@ const RETRY = RetryPolicy.of({
     jitter: "full",
 });
 
-/** How long a settled message keeps its sealed content by default. */
-const SEALED_RETENTION: Duration = { days: 7 };
-
 /** The messages sent at once by default: 16 in flight at 50 to 500 ms send 30 to 320 a second. */
 const CONCURRENCY = 16;
 
-/** How a machine serves its spaces' messages: each channel's providers and the content deriver. */
+/** How an installation sends its messages: each channel's providers and its keys. */
 export interface MessageOptions {
     /** The provider of each channel, failing a message on a channel without one. */
     readonly providers: {
@@ -36,71 +33,86 @@ export interface MessageOptions {
         /** The provider of webhook messages. */
         readonly webhook?: MessageProvider;
     };
-    /** Read the deriver of a scope's identity, whose message key opens its messages' content. */
-    readonly deriver: (scope: string) => Promise<Pick<Deriver, "derivePrivateKey">>;
+    /** The installation's keys, whose content key opens its messages' content. */
+    readonly keys: Pick<Deriver, "derivePrivateKey">;
     /** How refused sends retry, about an hour of eight attempts by default. */
     readonly retry?: RetryPolicy;
-    /** How long a settled message keeps its sealed content, seven days by default. */
-    readonly retention?: Duration;
 }
 
-/** Implement the message package. */
-export function implementMessages(options: MessageOptions): ObjectExtension {
-    // seal each endpoint's messages to its scope's message key
-    const key = async (scope: string) =>
-        (await MessageKey.derive(await options.deriver(scope))).key;
+/** Implement messages: a controller sends each through its channel's provider. */
+export function implementMessage(options: MessageOptions) {
+    const sending = { ...options, retry: options.retry ?? RETRY };
 
-    return {
-        package: messagePackage,
-        objects: [...serveMessages(options), serveEndpoints(key)],
-    };
-}
+    return message.implement({
+        methods: {
+            create: async (call, next) => {
+                // let only an endpoint's managers post webhooks to it, with its secret
+                if (call.input.to.channel === "webhook") {
+                    const source = ObjectReference.at("source", call.input);
+                    await call.require(endpoint.permission("manage"), source);
+                }
 
-/** Serve messages: send each through its channel's provider under a controller. */
-export function serveMessages(
-    options: Pick<MessageOptions, "providers" | "deriver" | "retry" | "retention">,
-) {
-    const sending = {
-        providers: options.providers,
-        deriver: options.deriver,
-        retry: options.retry ?? RETRY,
-        retention: Duration.milliseconds(options.retention ?? SEALED_RETENTION),
-    };
-
-    return [
-        message.implement({
-            methods: {
-                serverKey: async (call) => {
-                    // refuse a machine sending no pushes
-                    const push = options.providers.push;
-                    if (push === undefined) {
-                        throw new CallError("NOT_FOUND", {
-                            message: "this machine sends no pushes",
-                        });
-                    }
-
-                    return { key: await push.applicationServerKey(call.scope) };
-                },
+                return next();
             },
-            controller: {
-                pending: { erasedAt: { isNull: true } },
-                concurrency: CONCURRENCY,
-                reconcile: (reconciliation) => send(reconciliation, sending),
+            serverKey: async () => {
+                // refuse pushes on a machine without a push provider
+                const push = options.providers.push;
+                if (push === undefined) {
+                    throw new CallError("NOT_FOUND", {
+                        message: "this machine does not send pushes",
+                    });
+                }
+
+                return { key: await push.applicationServerKey() };
             },
-        }),
-        messageAttempt,
-    ] as const;
+            contentKey: async () => ({ key: (await MessageKey.derive(options.keys)).key }),
+            send: async (call) => {
+                // show a desktop message at once, without content
+                const { to, ciphertext } = call.input;
+                requireScheduled(call.target, "send");
+                if (to.channel === "desktop") {
+                    return call.update({ to, status: "sent", settledAt: call.now });
+                }
+                // refuse a provider's message without its content
+                else if (ciphertext === undefined) {
+                    throw new CallError("BAD_REQUEST", {
+                        message: `message ${call.target.id} on ${to.channel} has no content`,
+                    });
+                }
+
+                return call.update({ to, status: "pending", ciphertext });
+            },
+            defer: async (call) => {
+                requireScheduled(call.target, "defer");
+
+                return call.update({
+                    dueAt: call.input.dueAt,
+                    isSummarized: call.input.isSummarized,
+                });
+            },
+            skip: async (call) => {
+                requireScheduled(call.target, "skip");
+
+                return call.update({
+                    status: "skipped",
+                    reason: call.input.reason,
+                    settledAt: call.now,
+                });
+            },
+        },
+        controller: {
+            // send pending messages
+            pending: { status: "pending" },
+            concurrency: CONCURRENCY,
+            reconcile: (reconciliation) => reconcile(reconciliation, sending),
+        },
+    });
 }
 
-/** Send each due message and record its outcome, or erase settled content after its retention. */
-async function send(
+/** Send a due message and record its outcome, dropping its sealed content once it settles. */
+async function reconcile(
     reconciliation: ObjectReconciliation<typeof message>,
-    options: {
-        readonly providers: MessageOptions["providers"];
-        readonly deriver: MessageOptions["deriver"];
-        readonly retry: RetryPolicy;
-        readonly retention: number;
-    },
+    options: Required<MessageOptions>,
 ): Promise<number | undefined> {
     // read the key's one message whole at its current revision
     const { now } = reconciliation;
@@ -113,17 +125,8 @@ async function send(
         0,
     );
 
-    // erase a settled message's content once its retention passes
-    if (whole.status !== "pending") {
-        const settledAt = present(whole.settledAt, "a settled message's time");
-        const erasedAt = settledAt + options.retention;
-        if (erasedAt > now) {
-            return erasedAt - now;
-        }
-        await reconciliation.mutate([message.call("erase", message.target(whole))]);
-    }
     // wait for a refused message's next attempt
-    else if (whole.retryAt !== null && whole.retryAt > now) {
+    if (whole.retryAt !== null && whole.retryAt > now) {
         return whole.retryAt - now;
     }
     // send it and settle it as sent, retried after the policy's interval, or failed once the policy gives up
@@ -154,31 +157,29 @@ async function observe(
 
 /** Open a message's content and send it through its channel's provider, if one exists here. */
 async function attempt(
-    options: {
-        readonly providers: MessageOptions["providers"];
-        readonly deriver: MessageOptions["deriver"];
-    },
+    options: Pick<MessageOptions, "providers" | "keys">,
     whole: Message,
     store: ObjectStore,
 ): Promise<Outcome> {
-    // fail a message no provider here sends
-    const provider = options.providers[whole.to.channel];
+    // fail a message no provider here sends, a desktop message among them
+    const { channel } = whole.to;
+    const provider = channel === "desktop" ? undefined : options.providers[channel];
     if (provider === undefined) {
         return {
             kind: "failed",
             error: {
                 code: "unprovided",
-                message: `no provider sends ${whole.to.channel} messages here`,
+                message: `no provider sends ${channel} messages here`,
             },
         };
     }
 
     // open the content right before the provider sends it
     const sealed = present(whole.ciphertext, "an unsettled message's ciphertext");
-    const key = await MessageKey.derive(await options.deriver(whole.scope));
+    const key = await MessageKey.derive(options.keys);
     const content = await key.open(sealed, whole.scope);
 
-    return provider.send({ ...whole, content }, store);
+    return provider.send({ ...whole, source: ObjectReference.at("source", whole), content }, store);
 }
 
 /** Record a try of a message, returning how many tries it has. */
@@ -210,7 +211,7 @@ function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: num
     // settle a sent message
     if (outcome.kind === "sent") {
         return {
-            fields: { status: "sent" as const, settledAt: now, retryAt: null },
+            fields: { status: "sent" as const, settledAt: now, retryAt: null, ciphertext: null },
             sent: { status: "true" as const, reason: "Sent", message: "" },
         };
     }
@@ -230,12 +231,27 @@ function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: num
     // fail a refusal for good or one the policy no longer retries
     else {
         return {
-            fields: { status: "failed" as const, settledAt: now, retryAt: null },
+            fields: {
+                status: "failed" as const,
+                reason: outcome.error.code,
+                settledAt: now,
+                retryAt: null,
+                ciphertext: null,
+            },
             sent: {
                 status: "false" as const,
                 reason: outcome.error.code,
                 message: outcome.error.message,
             },
         };
+    }
+}
+
+/** Require a scheduled message, the one state waiting for a decision. */
+function requireScheduled(target: { readonly id: string; readonly status: string }, verb: string) {
+    if (target.status !== "scheduled") {
+        throw new CallError("CONFLICT", {
+            message: `message ${target.id} is ${target.status} and cannot ${verb}`,
+        });
     }
 }

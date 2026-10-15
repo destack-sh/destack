@@ -1,3 +1,4 @@
+import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test, TestClock } from "@destack/test";
 import { MailFixture, UNQUERIED } from "../test/index.ts";
@@ -12,6 +13,14 @@ const NOW = Date.UTC(2026, 9, 5);
 /** The space every test sends from. */
 const SCOPE = schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000e2");
 
+/** The notification every test's message is about. */
+const SOURCE = {
+    packageId: PackageId.parse("package-019f5530-8000-7000-8000-0000000000e3"),
+    type: "notification",
+    scope: SCOPE,
+    id: "notification-019f5530-8000-7000-8000-0000000000e4",
+};
+
 test("send an email message through the transport, keyed by its identifier with its HTML body", async () => {
     const transport = new MailFixture();
     const provider = emailProvider(transport);
@@ -23,6 +32,7 @@ test("send an email message through the transport, keyed by its identifier with 
             scope: SCOPE,
             createdAt: 0,
             to: { channel: "email", address: "ada@example.com" },
+            source: SOURCE,
             content: {
                 channel: "email",
                 subject: "Mentioned",

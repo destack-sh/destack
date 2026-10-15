@@ -8,7 +8,7 @@ export function emailProvider(transport: MailTransport): MessageProvider {
             // require an email message
             const { to, content } = message;
             if (to.channel !== "email" || content.channel !== "email") {
-                throw new TypeError(`message ${message.id} is no email`);
+                throw new TypeError(`message ${message.id} is not an email`);
             }
 
             return transport.send({

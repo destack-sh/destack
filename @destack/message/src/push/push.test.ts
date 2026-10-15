@@ -1,3 +1,4 @@
+import { PackageId } from "@destack/package";
 import { aligned, present, schema } from "@destack/schema";
 import { expect, test, TestClock } from "@destack/test";
 import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
@@ -89,26 +90,20 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
 
     // refuse a contact push services cannot find
     expect(() => new Vapid(keys, "push@destack.app")).toThrow(
-        "a push sender's contact is a mailto: or https: URL",
+        "a push sender's contact must be a mailto: or https: URL",
     );
 });
 
 /** Push to a browser through a push service answering with the next response, signed per scope. */
 async function pushTo(responses: Response[]) {
-    // sign with one key pair, keeping the scopes it is derived for
+    // sign with one key pair
     const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",
     ]);
     const service = answerInTurn(responses);
-    const keyed: string[] = [];
     const vapid = new Vapid(keys, "https://destack.app");
-    const deriveVapid = async (scope: string) => {
-        keyed.push(scope);
-
-        return vapid;
-    };
-    const provider = pushProvider(deriveVapid, service.fetch);
+    const provider = pushProvider(async () => vapid, service.fetch);
 
     // address one browser
     const browser = await subscribeBrowser();
@@ -121,6 +116,12 @@ async function pushTo(responses: Response[]) {
             url: "https://updates.push.services.mozilla.com/wpush/v2/abc",
             keys: browser.keys,
         },
+        source: {
+            packageId: PackageId.parse("package-019f5530-8000-7000-8000-0000000000ac"),
+            type: "notification",
+            scope: "space-019f5530-8000-7000-8000-0000000000ab",
+            id: "notification-019f5530-8000-7000-8000-0000000000ad",
+        },
         content: {
             channel: "push" as const,
             data: { title: "Alice mentioned you" },
@@ -131,7 +132,7 @@ async function pushTo(responses: Response[]) {
     };
     const send = () => provider.send(message, { ...UNQUERIED, clock: new TestClock(NOW) });
 
-    return { provider, vapid, keyed, browser, message, service, send };
+    return { provider, vapid, browser, message, service, send };
 }
 
 test("read each status a push service answers as an outcome", async () => {
@@ -160,15 +161,14 @@ test("read each status a push service answers as an outcome", async () => {
     ]);
 });
 
-test("answer a scope's application server key, and post a push signed by it and encrypted with RFC 8030's headers", async () => {
-    const { provider, vapid, keyed, browser, message, service, send } = await pushTo([
+test("answer the application server key, and post a push signed by it and encrypted with RFC 8030's headers", async () => {
+    const { provider, vapid, browser, service, send } = await pushTo([
         new Response(null, { status: 201 }),
     ]);
     await send();
 
-    // sign with the scope's key, which its application server key is
-    expect(await provider.applicationServerKey(message.scope)).toBe(await vapid.publicKey());
-    expect(new Set(keyed)).toEqual(new Set([message.scope]));
+    // sign with the installation's key, its application server key
+    expect(await provider.applicationServerKey()).toBe(await vapid.publicKey());
 
     // check the coding, lifetime, topic and urgency of the post, signed by the sender and decrypted by the browser
     const first = aligned(service.posted, 0);
@@ -230,7 +230,7 @@ async function readVapid(authorization: string) {
     // split the token and the key, and the token into its header, claims and signature
     const match = /^vapid t=([^,]+), k=(.+)$/u.exec(authorization);
     if (match === null) {
-        throw new TypeError(`authorization ${authorization} is no vapid header`);
+        throw new TypeError(`authorization ${authorization} is not a vapid header`);
     }
     const key = aligned(match, 2);
     const segments = aligned(match, 1).split(".");

@@ -465,7 +465,7 @@ test("refuse plain text to a host beyond loopback", () => {
     );
 });
 
-test("refuse an EHLO host that is no hostname or address literal", () => {
+test("refuse an EHLO host that is not a hostname or address literal", () => {
     // accept hostnames and address literals, and refuse anything that could inject a command
     const helos = [
         "client.test",
@@ -568,7 +568,7 @@ test("fail on malformed, mismatched and overlong replies", async () => {
     expect(failures).toEqual([
         {
             code: "PROTOCOL",
-            message: 'server sent "hello", which is no reply line',
+            message: 'server sent "hello", which is not a reply line',
             reply: undefined,
         },
         {
@@ -699,7 +699,7 @@ async function listenRaw(
     // read the listening port
     const address = server.address();
     if (address === null || typeof address === "string") {
-        throw new TypeError("raw server listens on no port");
+        throw new TypeError("raw server has no port");
     }
 
     // close every socket, then the server

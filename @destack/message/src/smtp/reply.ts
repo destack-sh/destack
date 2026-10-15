@@ -60,7 +60,7 @@ export class Reply {
         if (parsed === null) {
             throw new SmtpError(
                 "PROTOCOL",
-                `server sent ${JSON.stringify(line)}, which is no reply line`,
+                `server sent ${JSON.stringify(line)}, which is not a reply line`,
             );
         }
 

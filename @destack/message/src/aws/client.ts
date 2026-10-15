@@ -21,7 +21,7 @@ const THROTTLING = new Set([
     "LimitExceededException",
 ]);
 
-/** The AWS error codes of expired credentials, which a later send asks fresh. */
+/** The AWS error codes of expired credentials, which a later send renews. */
 const EXPIRED = new Set(["ExpiredTokenException", "ExpiredToken", "RequestExpired"]);
 
 /** The AWS error codes of permanent refusals, by failure code. */
@@ -35,7 +35,7 @@ const PERMANENT: Readonly<Record<string, SesErrorCode>> = {
 /** SES's answer to a sent message. */
 const Sent = schema.looseObject({ MessageId: schema.string().min(1) });
 
-/** SES's error body, which carries the message and sometimes the code. */
+/** SES's error body, with the message and sometimes the code. */
 const Refusal = schema.looseObject({
     __type: schema.string().exactOptional(),
     code: schema.string().exactOptional(),
@@ -70,7 +70,7 @@ export class SesClient {
     /** The fetch function. */
     readonly #fetch: Fetch;
 
-    /** Name the origin of a region's SESv2 API. */
+    /** Build the origin of a region's SESv2 API. */
     static endpoint(region: string): string {
         return `https://email.${region}.amazonaws.com`;
     }
@@ -80,7 +80,7 @@ export class SesClient {
         if (!REGION.test(options.region)) {
             throw new SesError(
                 "INVALID_OPTIONS",
-                `region ${JSON.stringify(options.region)} is no AWS region name`,
+                `region ${JSON.stringify(options.region)} is not an AWS region name`,
             );
         }
         this.region = options.region;
@@ -110,7 +110,7 @@ export class SesClient {
 
     /** Send a message to the envelope's recipients from its sender and return SES's MessageId. */
     async send(envelope: Envelope, message: MimeMessage, now: Date): Promise<string> {
-        // carry the message's bytes as SES's raw content
+        // send the message's bytes as SES's raw content
         const configurationSet = this.#options.configurationSet;
         const body = JSON.stringify({
             FromEmailAddress: envelope.sender,

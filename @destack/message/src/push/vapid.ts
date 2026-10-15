@@ -8,7 +8,7 @@ const TOKEN_SECONDS = 12 * 60 * 60;
 /** The algorithm of VAPID keys: ECDSA over P-256 (RFC 8292 3.1). */
 const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
 
-/** The label of a scope's VAPID key, distinct from every other key its root secret derives. */
+/** The label of the installation's VAPID key, distinct from every other key its keys derive. */
 const LABEL = "@destack/message/vapid";
 
 /** A VAPID private key as a JWK, its public point loose beside the scalar (RFC 7518 6.2). */
@@ -33,7 +33,7 @@ export class Vapid {
     /** Keep the sender's keys and contact. */
     constructor(keys: CryptoKeyPair, subject: string) {
         if (!/^(?:mailto:|https:)/u.test(subject)) {
-            throw new TypeError("a push sender's contact is a mailto: or https: URL");
+            throw new TypeError("a push sender's contact must be a mailto: or https: URL");
         }
         this.keys = keys;
         this.subject = subject;
@@ -48,7 +48,7 @@ export class Vapid {
 
     /** Import the key pair of a private JWK, deriving the public key from its point. */
     static async importKeys(jwk: unknown): Promise<CryptoKeyPair> {
-        // sign with the private key, and verify with its public point alone
+        // sign with the private key, and verify with only its public point
         const key = PrivateKey.parse(jwk);
         const point = { kty: key.kty, crv: key.crv, x: key.x, y: key.y };
         const privateKey = await crypto.subtle.importKey("jwk", key, ALGORITHM, false, ["sign"]);

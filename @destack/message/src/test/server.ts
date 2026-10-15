@@ -73,7 +73,7 @@ export class SmtpTestServer implements AsyncDisposable {
     get port(): number {
         const address = this.#server.address();
         if (address === null || typeof address === "string") {
-            throw new TypeError("test server listens on no port");
+            throw new TypeError("test server has no port");
         }
 
         return address.port;
