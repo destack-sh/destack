@@ -2,7 +2,7 @@ import { Change } from "@destack/db";
 import type { Controller } from "@destack/runtime/control";
 import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
-import { Clock } from "@destack/schema";
+import { Clock, present } from "@destack/schema";
 
 /** How often a quiet scope's segments are compacted and checked for retention: daily. */
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -51,13 +51,11 @@ export class ArchiveController implements Controller {
     }
 
     /** Keep a scope's segments up, returning the wait until the next due work. */
-    async reconcile(key: string): Promise<number | undefined> {
+    async reconcile(key: string): Promise<number> {
         // find the kind and scope of the key
-        const [name = "", scope = ""] = key.split(" ");
-        const kind = this.#kinds.get(name);
-        if (kind === undefined) {
-            return undefined;
-        }
+        const separator = key.indexOf(" ");
+        const kind = present(this.#kinds.get(key.slice(0, separator)), `the event kind of ${key}`);
+        const scope = key.slice(separator + 1);
 
         // flush while the policy says so, then compact and expire
         const now = this.#clock.now();
