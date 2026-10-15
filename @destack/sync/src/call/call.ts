@@ -22,8 +22,11 @@ export const Call = Object.assign(
         },
     },
 );
-/** A method call: the type, the method, its input and the release it was made against. */
-export type Call = schema.Infer<typeof Call>;
+/** A method call: its type, method, input and release, typed by the result it answers. */
+export type Call<Result = unknown> = schema.Infer<typeof Call> & {
+    /** The result the call answers, as a type only. */
+    readonly result?: Result;
+};
 
 /** Calls a client makes atomically. */
 export const Mutation = defineSchema(
