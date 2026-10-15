@@ -101,7 +101,14 @@ export const apply: Method<{
     permission: "declare";
     mutates: true;
     internal: true;
-}> = defineMethod<{ kind: "apply"; permission: "declare"; mutates: true; internal: true }>({
+    target: "scope";
+}> = defineMethod<{
+    kind: "apply";
+    permission: "declare";
+    mutates: true;
+    internal: true;
+    target: "scope";
+}>({
     kind: "apply",
     permission: "declare",
     mutates: true,

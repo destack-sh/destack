@@ -50,7 +50,7 @@ import { CallError } from "@destack/runtime/error";
 import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
 import { type Delivery, EventKind, EventReader, EventTable } from "@destack/event";
-import { Field, type ObjectFields, type TextField } from "../field/field.ts";
+import { Field, type ObjectFields, type ReferenceOf, type TextField } from "../field/field.ts";
 import { Call, type Handler, type TypesOf, type ObjectCall } from "../method/call.ts";
 import { Method, type MethodKind, type Phase } from "../method/method.ts";
 import { MethodBuilder } from "../method/record.ts";
@@ -922,7 +922,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return Identifier.create(this.identity);
     }
 
-    /** Refuse generating an identifier for a type with a natural key. */
+    /** Refuse an identifier for a type with a natural key. */
     private requireGenerated(): void {
         if (this.keyed !== undefined) {
             throw new CallError("BAD_REQUEST", {
@@ -938,8 +938,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return Identifier.derive(this.identity, requestId, position);
     }
 
-    /** Read an identifier of the type's identity, refusing any other. */
+    /** Read an identifier of the type's identity, refusing a type with a natural key. */
     identifier(id: string): Identifier<Configuration["identity"]> {
+        this.requireGenerated();
+
         return schema.identifier(this.identity).parse(id);
     }
 
@@ -2008,16 +2010,21 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         });
     }
 
-    /** List the key columns of the subject field naming an event's person. */
+    /** List the key columns naming an event's person: a reference's columns, else a text field. */
     #subjectKeys(property: string): readonly string[] {
-        // require a subject field
-        if (this.fields[`${property}Id`]?.type !== "subject") {
-            throw new TypeError(`events object ${this.name} has no subject field ${property}`);
+        // take an object or principal reference's columns, an identifier reference's, or a text field
+        const field = this.fields[`${property}Id`] ?? this.fields[property];
+        if (field?.reference === "object") {
+            const { packageId, type, scope, id } = Field.columnsOf(property);
+
+            return [packageId, type, scope, id];
+        } else if (field?.reference === "identifier") {
+            return [`${property}Id`];
+        } else if (field?.type === "string") {
+            return [property];
         }
 
-        const { packageId, type, scope, id } = Field.columnsOf(property);
-
-        return [packageId, type, scope, id];
+        throw new TypeError(`events object ${this.name} has no person field ${property}`);
     }
 
     /** Refuse durable-only declarations, writes and work on ephemeral, external, local objects. */
@@ -2552,13 +2559,14 @@ export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
     readonly declared: StackDeclarationOf<DefinedTraits<Definition>>;
 }>;
 
-/** The traits as a derived table reads them, a nested parent by its identity. */
+/** The traits as a derived table reads them, a nested parent by its identity and its key. */
 export type TableTraitsOf<Traits> = {
     readonly [Key in keyof Traits]: Key extends "nested"
         ? Traits[Key] extends { readonly in: infer Parent }
-            ? Omit<Traits[Key], "in"> & {
-                  readonly in: Parent extends ObjectType ? IdentityOf<Parent> : Parent;
-              }
+            ? Omit<Traits[Key], "in"> &
+                  (Parent extends ObjectType
+                      ? { readonly in: IdentityOf<Parent>; readonly id: ReferenceOf<Parent> }
+                      : { readonly in: Parent })
             : Traits[Key]
         : Traits[Key];
 };

@@ -188,7 +188,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
         readonly to: string;
     };
     /** What the method acts on, its loaded target when absent. */
-    readonly target?: OptionOf<Configuration, "target", MethodTarget>;
+    readonly target?: OptionOf<Configuration, "target", "object">;
     /** What the method returns. */
     readonly result: "object" | "page" | "value";
     /** Whether clients predict the method. */

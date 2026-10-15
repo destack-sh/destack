@@ -20,7 +20,14 @@ export const bind: Method<{
     permission: "bind";
     mutates: true;
     internal: true;
-}> = defineMethod<{ kind: "bind"; permission: "bind"; mutates: true; internal: true }>({
+    target: "scope";
+}> = defineMethod<{
+    kind: "bind";
+    permission: "bind";
+    mutates: true;
+    internal: true;
+    target: "scope";
+}>({
     kind: "bind",
     permission: "bind",
     mutates: true,

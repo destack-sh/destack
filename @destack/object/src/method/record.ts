@@ -203,6 +203,7 @@ function bulkUpdate<
     match: Match;
     fields: Fields;
     items: Itemized;
+    target: "scope";
 }> {
     return {
         kind: "updateMany",
@@ -1430,6 +1431,7 @@ export class MethodBuilder<
             permission: Permission;
             mutates: false;
             table: Definition;
+            target: "scope";
         }>({
             kind: "list",
             source: { builder: "list", arguments: [permission] },
@@ -1474,6 +1476,7 @@ export class MethodBuilder<
             variants: NoInfer<Sum>;
             table: Definition;
             internal: NoInfer<Internal>;
+            target: "scope";
         }>({
             kind: "create",
             source: { builder: "create", arguments: [permission, options] },
@@ -1547,6 +1550,7 @@ export class MethodBuilder<
             fields: NoInfer<Fields>;
             table: Definition;
             internal: NoInfer<Internal>;
+            target: "scope";
         }>({
             kind: "createMany",
             source: { builder: "createMany", arguments: [permission, options] },
@@ -1649,6 +1653,7 @@ export class MethodBuilder<
             fields: NoInfer<Fields>;
             items: false;
             table: Definition;
+            target: "scope";
         }>(
             bulkUpdate(permission, options, options.match, false, {
                 builder: "updateMany",
@@ -1671,6 +1676,7 @@ export class MethodBuilder<
             items: true;
             fields: NoInfer<Fields>;
             table: Definition;
+            target: "scope";
         }>(
             bulkUpdate(permission, options, undefined, true, {
                 builder: "updateItems",
@@ -1736,6 +1742,7 @@ export class MethodBuilder<
             mutates: true;
             match: NoInfer<Match>;
             table: Definition;
+            target: "scope";
         }>({
             kind: "deleteMany",
             source: { builder: "deleteMany", arguments: [permission, options] },

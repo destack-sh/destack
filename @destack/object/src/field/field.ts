@@ -868,12 +868,11 @@ interface ReferenceOptions {
 export type IdentifierOf<Target extends ObjectType> = Identifier<IdentityOf<Target>>;
 
 /** The value identifying an object of a type: its natural key or generated identifier. */
-type ReferenceOf<Target extends ObjectType> =
-    Select<Target["table"]> extends { readonly id: infer Id extends string }
-        ? string extends Id
-            ? IdentifierOf<Target>
-            : Id
-        : IdentifierOf<Target>;
+export type ReferenceOf<Target extends ObjectType> = Table extends Target["table"]
+    ? IdentifierOf<Target>
+    : Select<Target["table"]> extends { readonly id: infer Id extends string }
+      ? Id
+      : IdentifierOf<Target>;
 
 /** The value a reference keeps: a principal's identifier, else an object's identifier or key. */
 type ReferenceValue<Target> = Target extends Policy

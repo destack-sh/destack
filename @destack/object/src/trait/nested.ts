@@ -54,7 +54,11 @@ export type ParentBuilderMap<Name extends string, Parent> = Parent extends {
         : {
               parentId: ColumnBuilder<
                   FieldColumn<
-                      Parent["in"] extends "self" ? Identifier<Name> : Identifier<Parent["in"]>,
+                      Parent["in"] extends "self"
+                          ? Identifier<Name>
+                          : Parent extends { readonly id: infer Id extends string }
+                            ? Id
+                            : Identifier<Parent["in"]>,
                       IsRequired<Parent>,
                       false
                   >
