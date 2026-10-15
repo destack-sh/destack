@@ -50,7 +50,7 @@ import { LocalBucketHost } from "@destack/bucket/bun";
 import { bucketProvider } from "@destack/bucket/provider";
 
 const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials });
-const provider = bucketProvider(buckets, serveBuckets(buckets));
+const provider = bucketProvider(buckets, implementBucket(buckets));
 ```
 
 ## S3
