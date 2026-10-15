@@ -12,9 +12,6 @@ import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
 
-/** Marks the permission references a policy produced. */
-const DECLARED: unique symbol = Symbol("declared");
-
 /** The policy of one type of object, with typed references to its permissions and relations. */
 export class Policy<Name extends string = string> {
     /** The declaring package, supplied by the module transform. */
@@ -94,12 +91,11 @@ export class Policy<Name extends string = string> {
             throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
         }
 
-        return {
+        return DeclaredPermission.parse({
             packageId: this.definition.packageId,
             type: this.definition.name,
             name,
-            [DECLARED]: true,
-        };
+        });
     }
 
     /** Determine whether a subject is one object of this type, not a set or another type's. */
@@ -310,8 +306,11 @@ export const PermissionReference = Object.assign(permissionReference, {
     },
 });
 
+/** A permission a policy declares, branded by `Policy.permission`'s parse. */
+const DeclaredPermission = permissionReference.brand<"permission">();
+
 /** A permission of a policy, produced by `Policy.permission`. */
-export type Permission = PermissionReference & { readonly [DECLARED]: true };
+export type Permission = schema.Infer<typeof DeclaredPermission>;
 
 /** A subject type accepted by a policy. */
 export type SubjectTypeInput = string | Policy | PolicySubject | SubjectType;
