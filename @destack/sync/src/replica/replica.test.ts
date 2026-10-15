@@ -21,7 +21,7 @@ import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { aligned, schema, Clock } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
-import { type Resumption, Uplink } from "./shape.ts";
+import { type Resumption, Uplink } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import {
     asset,
@@ -515,7 +515,7 @@ test.for(TEST_DIALECTS)(
         await following;
         const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
 
-        // keep a position per shape
+        // keep a position per publication
         expect([await projects.position(local), await work.position(local)]).toEqual([
             await source.log.position(),
             undefined,
@@ -1282,7 +1282,7 @@ function noteInsert(id: string) {
 
 /** Build the subscription a named replica of the inbox follows. */
 function inboxSubscription(name: string) {
-    return { name, shape: "notes", scope: "inbox", below: "reader", parameters: {} };
+    return { name, publication: "notes", scope: "inbox", below: "reader", parameters: {} };
 }
 
 /** Build a task of a project in a state. */
@@ -1311,7 +1311,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
         name: "notes",
-        shape: "queries",
+        publication: "queries",
         scope: "inbox",
         below: "inbox",
         parameters: { queries: { open: { object: "note" } } },
@@ -1323,13 +1323,13 @@ test("resume a subscription from the replica's position, reshape one of other pa
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     await Array.fromAsync(notes.apply(local, [snapshot], { clock: Clock.system, subscription }));
 
-    // resume it, reshape it under other parameters, and snapshot another shape or name, each with the replica's own log
+    // resume it, reshape it under other parameters, and snapshot another publication or name, each with the replica's own log
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
     const origin = await local.log.epoch();
     expect([
         await notes.resume(local, { ...subscription, after: { ...position, sequence: 1 } }),
         await notes.resume(local, reshaped),
-        await notes.resume(local, { ...subscription, shape: "chain" }),
+        await notes.resume(local, { ...subscription, publication: "chain" }),
         await notes.resume(local),
     ]).toEqual([
         { after: position, origin },
@@ -1344,7 +1344,7 @@ test("report a replica current for the request it completed a run of, and for a 
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
         name: "notes",
-        shape: "queries",
+        publication: "queries",
         scope: "inbox",
         below: "inbox",
         parameters: { queries: { open: { object: "note" } } },
@@ -1487,7 +1487,7 @@ test("stream through a client's replica procedures as the follower, and send a f
     // stream a replica, then send a change an installation signs
     const pages = await Array.fromAsync(
         uplink.stream(
-            { name: "notes", scope: "inbox", below: "inbox", shape: "notes", parameters: {} },
+            { name: "notes", scope: "inbox", below: "inbox", publication: "notes", parameters: {} },
             AbortSignal.timeout(1000),
         ),
     );

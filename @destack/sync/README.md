@@ -1,10 +1,10 @@
 # @destack/sync
 
-`@destack/sync` is ElectricSQL's shapes over the `@destack/db` log, with Zero's queries and incremental pipelines in `Query` and `Dataflow`, and Replicache's pending mutations, rebased over each server page, in `Prediction`.
+`@destack/sync` is PostgreSQL's publications and subscriptions over the `@destack/db` log, with Zero's queries and incremental pipelines in `Query` and `Dataflow`, and Replicache's pending mutations, rebased over each server page, in `Prediction`.
 
 ```ts
-// ElectricSQL's shape
-const board = defineShape({
+// PostgreSQL's CREATE PUBLICATION
+const board = definePublication({
     name: "board",
     parameters,
     audience: "reader",
@@ -18,19 +18,19 @@ const query: Query = {
     relations,
     with: { tasks: { limit: 5 } },
 };
-// ElectricSQL's shape log
+// PostgreSQL's logical replication stream
 for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page);
 await board.follow(local, follow, signal, { prediction }); // Replicache's pull into a local database
 await prediction.add(local, mutationId, origin, mutate); // Replicache's pending mutation
 await prediction.acknowledge(local, mutationId, position); // Replicache's lastMutationID
 ```
 
-## Shapes
+## Publications
 
-`defineShape` declares a shape that machines and clients subscribe to, and its `replica` replicates the shape's rows into a local database.
+`definePublication` declares a publication that machines and clients subscribe to, and its `replica` replicates the publication's rows into a local database.
 
 ```ts
-const board = defineShape({
+const board = definePublication({
     name: "board",
     parameters: schema.object({ board: schema.string() }),
     audience: "reader",

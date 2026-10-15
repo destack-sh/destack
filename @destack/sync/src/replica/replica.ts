@@ -41,7 +41,7 @@ import type { QuerySelection } from "../query/query.ts";
 import { SyncError } from "../error/error.ts";
 import { schema, canonicalize, Clock, found, zip } from "@destack/schema";
 import { Page, type ResultChange, type RowChange } from "../query/page.ts";
-import { ShapeAudience, Subscription, type Resumption } from "./shape.ts";
+import { PublicationAudience, Subscription, type Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import type { Query, Item } from "../query/query.ts";
 import type { AggregateRow } from "../query/aggregate.ts";
@@ -82,8 +82,8 @@ export const replica = defineTable(
         name: text("name").primaryKey(),
         /** The scope whose rows the replica keeps. */
         scope: text("scope").primaryKey(),
-        /** The shape of the last completed run's subscription, absent without a subscription. */
-        shape: text("shape"),
+        /** The publication of the last completed run's subscription, absent without one. */
+        publication: text("publication"),
         /** The scope the subscription's follower serves. */
         below: text("below"),
         /** The package of the principal the source decides the rows for. */
@@ -96,10 +96,10 @@ export const replica = defineTable(
         subjectId: text("subject_id"),
         /** The relation whose members the subject set is, absent for one principal. */
         subjectRelation: text("subject_relation"),
-        /** The subscription's parameters, which its shape parses. */
+        /** The subscription's parameters, which its publication parses. */
         parameters: json("parameters", schema.jsonObject()),
         /** Whose access its source decides the rows by, absent without a subscription. */
-        audience: text("audience").validate(ShapeAudience),
+        audience: text("audience").validate(PublicationAudience),
         /** The scopes the replica reads, nearest first, absent until its source sends them. */
         scopes: json("scopes", schema.array(schema.string())),
         /** The layout digest of the replicated tables' logged columns. */
@@ -646,14 +646,14 @@ export class Replica {
     /** Read the earliest confirmed complete replica's home position and confirmation, by scope. */
     static async origins(
         database: DatabaseConnection,
-        shape: string,
+        publication: string,
         scopes: readonly string[],
     ): Promise<Map<string, Origin>> {
-        // read the complete replicas of the shape keeping the scopes
+        // read the complete replicas of the publication keeping the scopes
         const origins = new Map<string, Origin>();
         for (const { scope, record } of await Replica.#keeping(database, scopes)) {
             const origin = Replica.#origin(record);
-            if (origin === undefined || record.shape !== shape) {
+            if (origin === undefined || record.publication !== publication) {
                 continue;
             }
 
@@ -1689,7 +1689,7 @@ export class Replica {
         const subject = subscription?.subject;
 
         return {
-            shape: subscription?.shape ?? null,
+            publication: subscription?.publication ?? null,
             below: subscription?.below ?? null,
             subjectPackageId: subject?.packageId ?? null,
             subjectType: subject?.type ?? null,
@@ -1702,9 +1702,9 @@ export class Replica {
 
     /** Read the subscription a replica's columns keep, absent without one. */
     static subscriptionOf(row: Select<typeof replica>): SubscriptionRecord | undefined {
-        // keep no subscription for a replica without a shape
-        const { shape, below, parameters } = row;
-        if (shape === null || below === null || parameters === null) {
+        // keep no subscription for a replica without a publication
+        const { publication, below, parameters } = row;
+        if (publication === null || below === null || parameters === null) {
             return undefined;
         }
 
@@ -1725,7 +1725,7 @@ export class Replica {
 
         return {
             name: row.name,
-            shape,
+            publication,
             scope: row.scope,
             below,
             ...(subject === undefined ? {} : { subject }),
@@ -2000,7 +2000,7 @@ export interface RegisterOptions {
     /** The subscription the replica follows, absent for a replica without a subscription. */
     readonly subscription?: Subscription;
     /** Whose access the source decides the rows by, absent without a subscription. */
-    readonly audience?: ShapeAudience;
+    readonly audience?: PublicationAudience;
     /** The clock the replica confirms its position at. */
     readonly clock: Clock;
 }

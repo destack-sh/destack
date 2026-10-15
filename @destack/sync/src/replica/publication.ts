@@ -5,23 +5,23 @@ import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
 
-/** A shape's parameters in JSON form. */
+/** A publication's parameters in JSON form. */
 const PARAMETERS = schema.jsonObject();
 
-/** A follower's subscription to a declared shape over a scope, from the position it reached. */
+/** A follower's subscription to a publication over a scope, from the position it reached. */
 export const Subscription = defineSchema(
     schema.object({
         /** The replica's name, shared with a relaying source's own replica. */
         name: schema.string().min(1),
-        /** The declared shape the replica follows. */
-        shape: schema.string().min(1),
+        /** The publication the replica follows. */
+        publication: schema.string().min(1),
         /** The replicated scope. */
         scope: schema.string().min(1),
         /** The scope the follower serves, whose principal the source decides for. */
         below: schema.string().min(1),
         /** The principal the source decides the rows for on the follower's behalf. */
         subject: Subject.exactOptional(),
-        /** The shape's parameters, which its declaration parses. */
+        /** The publication's parameters, which its declaration parses. */
         parameters: PARAMETERS,
         /** The log position the replica reached, absent before its first snapshot. */
         after: LogPosition.exactOptional(),
@@ -33,47 +33,47 @@ export const Subscription = defineSchema(
         origin: schema.string().min(1).exactOptional(),
     }),
 );
-/** A follower's subscription to a declared shape over one scope, from the position it reached. */
+/** A follower's subscription to a publication over one scope, from the position it reached. */
 export type Subscription = schema.Infer<typeof Subscription>;
 
 /** Where a replica resumes its subscription, and the origin it follows as. */
 export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
-/** Who a shape's replica is for, which admits its followers and decides its rows. */
-export const ShapeAudience = schema.enum(["contained", "reader", "caller"]);
-/** Who a shape's replica is for, which admits its followers and decides its rows. */
-export type ShapeAudience = schema.Infer<typeof ShapeAudience>;
+/** Who a publication's replica is for, which admits its followers and decides its rows. */
+export const PublicationAudience = schema.enum(["contained", "reader", "caller"]);
+/** Who a publication's replica is for, which admits its followers and decides its rows. */
+export type PublicationAudience = schema.Infer<typeof PublicationAudience>;
 
-/** A shape a server serves and follows: the replica its parameters build and its audience. */
-export interface Shape {
-    /** The shape's name, as requests give it. */
+/** A publication a server streams and follows: its audience and the replicas it builds. */
+export interface Publication {
+    /** The publication's name, as subscriptions give it. */
     readonly name: string;
     /** Whose access decides the rows. */
-    readonly audience: ShapeAudience;
+    readonly audience: PublicationAudience;
     /** Whether the replica must have a complete snapshot before its follower serves. */
     readonly isReadinessGate: boolean;
     /** Build the replica a subscription follows. */
     readonly replica: (subscription: Subscription) => Replica;
 }
 
-/** A declared shape, with the typed subscriptions of its parameters. */
-export interface ShapeOf<Parameters> extends Shape {
-    /** Build a subscription to the shape for typed parameters. */
+/** A declared publication, with the typed subscriptions of its parameters. */
+export interface PublicationOf<Parameters> extends Publication {
+    /** Build a subscription to the publication for typed parameters. */
     subscription(
-        subscription: Omit<Subscription, "shape" | "parameters"> & {
+        subscription: Omit<Subscription, "publication" | "parameters"> & {
             readonly parameters: Parameters;
         },
     ): Subscription;
 }
 
-/** Declare a shape: its name, parameter schema, audience and the replica they build. */
-export function defineShape<Parameters extends object>(definition: {
-    /** The shape's name. */
+/** Declare a publication: its name, parameter schema, audience and the replica they build. */
+export function definePublication<Parameters extends object>(definition: {
+    /** The publication's name. */
     readonly name: string;
     /** The schema of its parameters. */
     readonly parameters: schema.Schema<Parameters>;
     /** Whose access decides the rows. */
-    readonly audience: ShapeAudience;
+    readonly audience: PublicationAudience;
     /** Whether the replica must have a complete snapshot before its follower serves. */
     readonly isReadinessGate: boolean;
     /** Build the replica of a scope for parsed parameters. */
@@ -82,7 +82,7 @@ export function defineShape<Parameters extends object>(definition: {
         readonly scope: string;
         readonly parameters: Parameters;
     }) => Replica;
-}): ShapeOf<Parameters> {
+}): PublicationOf<Parameters> {
     return {
         name: definition.name,
         audience: definition.audience,
@@ -95,7 +95,7 @@ export function defineShape<Parameters extends object>(definition: {
             }),
         subscription: (subscription) => ({
             ...subscription,
-            shape: definition.name,
+            publication: definition.name,
             parameters: PARAMETERS.parse(definition.parameters.parse(subscription.parameters)),
         }),
     };

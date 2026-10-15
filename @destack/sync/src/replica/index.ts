@@ -1,2 +1,2 @@
 export * from "./replica.ts";
-export * from "./shape.ts";
+export * from "./publication.ts";
