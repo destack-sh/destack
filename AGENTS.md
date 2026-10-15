@@ -126,7 +126,7 @@ Expose granular, reusable parts:
 Put verbs on appropriate nouns:
 - **DM40** Associated functions SHOULD live on their noun when one presents itself, even when they use no state.
 - **DM41** Verbs SHOULD live on the noun that performs them, such as `authorization.grant` or `Scope.own`, instead of exported free functions; modules MAY keep their helpers unexported behind that noun.
-- **DM42** Functions that could be methods SHOULD be methods: `foo(definition: &Definition) -> bool` becomes `Definition.foo`.
+- **DM42** Functions that could be methods SHOULD be methods: `foo(dwhat efinition: &Definition) -> bool` becomes `Definition.foo`.
 - **DM43** Method matrices such as `x_for_y` SHOULD be replaced by realigned state and construction flows.
 - **DM44** Functions SHOULD operate on individual "units", with callers looping / mapping, instead of taking entire collections / arrays (wherever feasible).
 
@@ -134,7 +134,7 @@ Make mutation obvious:
 - **DM50** Mutating methods MUST make the mutation obvious in name and signature.
 - **DM51** Methods SHOULD return mutated state or take the mutator instead of mutating internally, where performance allows: `resolve_x` returns the resolved value instead of filling a cache and returning nothing.
 
-Seek symmetry at all scales:
+Seek symmetry across all scales:
 - **DM60** Designs SHOULD aim for symmetry at every scale (types, functions, files, modules, subsystems) and generalise it and enforce it, even if just informally when no language interface is needed.
 - **DM61** Sum type variants SHOULD be conceptually and lexically symmetric; asymmetric variants often signal a model problem.
 
@@ -160,7 +160,7 @@ Fail loudly and fix at the owner:
 
 Fail explicitly and loudly:
 - **DF01** Failures MUST be explicit, loud errors through conventional, idiomatic channels.
-- **DF02** Live code MUST NOT fail silently, and MUST NOT disguise failures as success through fallbacks, defaults, or null-ish or sentinel values. (`destack/no-silent-fallback`)
+- **DF02** Logic MUST NOT fail silently, and MUST NOT disguise failures as success through fallbacks, defaults, or null-ish or sentinel values.
 - **DF03** Errors outside tests MUST NOT be suppressed or replaced by default values such as `unwrap_or(0)`, `-1` or `MAX`.
 - **DF04** Error messages MUST start lowercase and omit the final period. (`destack/error-message-style`)
 - **DF05** Code MUST NOT panic, trap or mark code unreachable, except in well guarded tight internal data structures with clear, visible invariants.
@@ -216,7 +216,7 @@ Name the thing itself, plainly:
 - **WN01** Names MUST be obvious, clear and idiomatic to their language and topic.
 - **WN02** Names SHOULD use shorter, stronger nouns and verbs.
 - **WN03** Names SHOULD name the thing itself, not where it came from, what it is for or what stage it has reached (e.g., `Permission`, not `DeclaredPermission`; `Log`, not `ChangeLog`).
-- **WN04** Idiomatic, independent / namespaced nouns SHOULD be preferred over "verbed" nouns (e.g., `Outcome` over `SettledMutation`, `Submission` over `Pending`, `Advance` over `Applied`, `Call` over `Invocation`).
+- **WN04** Idiomatic, independent / namespaced nouns SHOULD be preferred over "verbed" nouns (e.g., `Outcome` over `SettledMutation`, `Submission` over `Pending`, `Advance` over `Applied`, `Call` over `Invocation`); participle nouns generally imply that the model is over-reified in the state dimension.
 - **WN05** Names MUST describe actual behavior or purpose, and where applicable shouuld immediately reveal their purpose and mechanism (e.g., a function that creates or updates is `upsert*`, one that allocates conditionally is `allocate*_maybe` or `allocate*_if*`).
 
 Use the idiomatic vocabulary with zero fluff:

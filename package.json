@@ -10,14 +10,14 @@
         "@template/*",
         "@destack/build/tests/fixture/*/source",
         "@destack/machine/tests/fixture/*",
-        "@destack/stack/tests/fixture/notebook",
         "@destack/view/tests/fixture/notebook"
     ],
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@types/bun": "1.4.2",
         "@types/node": "26.6.1",
-        "typescript": "7.0.2"
+        "typescript": "7.0.2",
+        "vitest": "5.0.1"
     },
     "packageManager": "bun@1.4.2",
     "trustedDependencies": [
