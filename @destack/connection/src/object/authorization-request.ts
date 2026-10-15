@@ -75,9 +75,7 @@ export const authorizationRequest = defineObject({
         },
     },
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
-    /** Record a started authorization of one kind, as its connection's service. */
+    /** Record a started authorization of one kind, as the connection package. */
     start: method.create("record", {
         isInternal: true,
         fields: ["userId", "session"],
@@ -89,7 +87,7 @@ export const authorizationRequest = defineObject({
             },
         },
     }),
-    /** Use the authorization once, as its connection's service. */
+    /** Use the authorization once, as the connection package. */
     delete: method.delete("record", { isInternal: true }),
 }));
 /** A pending authorization of a connection. */

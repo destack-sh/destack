@@ -1,5 +1,5 @@
 import { aligned, defineSchema, Duration, schema, Clock } from "@destack/schema";
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { AuthorizationEndpoints, ClientAuthentication } from "../object/integration.ts";
@@ -103,16 +103,16 @@ export interface AuthorizationClient {
     /** The endpoints. */
     readonly endpoints: AuthorizationEndpoints;
     /** Write the authorization page a person approves a code grant on. */
-    authorizationUrl(request: AuthorizationPage): URL;
+    readonly authorizationUrl: (request: AuthorizationPage) => URL;
     /** Request a token with a grant's parameters at the token endpoint. */
-    token(grant: Readonly<Record<string, string>>): Promise<Token>;
+    readonly token: (grant: Readonly<Record<string, string>>) => Promise<Token>;
     /** Start a device authorization. */
-    authorizeDevice(
+    readonly authorizeDevice: (
         scopes: readonly string[],
         resource: string | undefined,
-    ): Promise<DeviceAuthorization>;
+    ) => Promise<DeviceAuthorization>;
     /** Revoke a token at the revocation endpoint. */
-    revoke(token: string, hint: "refresh_token" | "access_token"): Promise<void>;
+    readonly revoke: (token: string, hint: "refresh_token" | "access_token") => Promise<void>;
 }
 
 /** The parameters of an authorization page (RFC 6749 4.1.1, RFC 7636 4.3, RFC 8707 2). */

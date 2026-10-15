@@ -1,4 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
+import type { ObjectReference } from "@destack/sync";
 
 /** A token an authorization server issued (RFC 6749 5.1), as a connection keeps it in its vault. */
 export const Token = defineSchema(
@@ -80,6 +82,15 @@ export const Credential = Object.assign(defineSchema(credential), {
     /** Write a credential as a secret's value. */
     write(value: Credential): string {
         return JSON.stringify(value);
+    },
+
+    /** Require a vault of the scope itself, which the scope keeps. */
+    requireVault(vault: ObjectReference, scope: string): void {
+        if (vault.scope !== scope) {
+            throw new CallError("BAD_REQUEST", {
+                message: `a credential of ${scope} lives in a vault of ${scope}, not of ${vault.scope}`,
+            });
+        }
     },
 });
 /** What a connection keeps in its vault secret. */

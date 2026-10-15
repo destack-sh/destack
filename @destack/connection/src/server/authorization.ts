@@ -1,16 +1,15 @@
-import { principal, Caller } from "@destack/access";
+import { principal } from "@destack/access";
 import {
     type CallOf,
     type ObjectReconciliation,
-    observeCondition,
-    type PreparedCallOf,
     type ResultOf,
+    StatusCondition,
 } from "@destack/object";
 import { Duration, present } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
-import { type Integration, integration } from "../object/integration.ts";
+import { type Integration, integration, IntegrationIssuer } from "../object/integration.ts";
 import {
     type AuthorizationRequest,
     authorizationRequest,
@@ -21,10 +20,9 @@ import {
     type Connection,
     connection,
 } from "../object/connection.ts";
-import { Pkce } from "@destack/service/authentication";
+import { Pkce } from "@destack/runtime/authentication";
 import { DEVICE_CODE } from "../oauth/server.ts";
-import { PERSON_KINDS, TokenSource } from "./token.ts";
-import { RequestId } from "@destack/service/request";
+import { PERSON_KINDS, Runner, TokenSource } from "./token.ts";
 
 /** The random bytes of a state, 256 bits. */
 const STATE_BYTES = 32;
@@ -32,16 +30,19 @@ const STATE_BYTES = 32;
 /** The milliseconds a device poll slows down by when asked to (RFC 8628 3.5). */
 const SLOW_DOWN_MILLISECONDS = 5000;
 
+/** The authorization of connections: browser pages, installations and device flows. */
+export const ConnectionAuthorization = { start, started, exchange, complete, poll };
+
 /** Start authorizing a connection, or start a device authorization. */
-export async function start(
-    call: CallOf<typeof connection, "authorize">,
+async function start(
+    call: CallOf<typeof connection, "authorize", unknown>,
     tokens: TokenSource,
 ): Promise<AuthorizationStart> {
     // refuse a kind no person authorizes
     const target = call.requireTarget();
     const kind = target.protocol.kind;
     if (!PERSON_KINDS.has(kind)) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: `a ${kind} connection needs no person to authorize it`,
         });
     }
@@ -52,41 +53,39 @@ export async function start(
 
 /** Send a person to an installation or authorization page in a browser. */
 async function startPage(
-    call: CallOf<typeof connection, "authorize">,
+    call: CallOf<typeof connection, "authorize", unknown>,
     target: Connection,
     tokens: TokenSource,
 ): Promise<AuthorizationStart> {
-    // require a redirect URI the client registered or register a client for it
+    // require a redirect URI
     const redirectUri = call.input.redirectUri;
     if (redirectUri === undefined) {
-        throw new ServiceError("BAD_REQUEST", {
+        throw new CallError("BAD_REQUEST", {
             message: "authorizing in a browser needs a redirect URI",
         });
     }
+
+    // send the person to an installation page with the state
+    const state = crypto.getRandomValues(new Uint8Array(STATE_BYTES)).toHex();
+    if (target.protocol.kind === "installation") {
+        const installed = await TokenSource.find(call, target.integration);
+        requireRedirect(installed, redirectUri);
+        const url = installationPage(installed, state).href;
+
+        return { kind: "installation", url, state, redirectUri };
+    }
+
+    // require a redirect URI the client registered, or register a client for it
     const registered =
         target.integration === null ? await register(call, target, redirectUri, tokens) : undefined;
     const client =
         registered === undefined
-            ? await tokens.integration(call.requireStore(), target.integration)
+            ? await tokens.integration(call, target.integration)
             : {
                   integration: registered,
-                  server: tokens.server(registered, undefined, call.requireStore().clock),
+                  server: tokens.server(registered, undefined, Runner.clock(call)),
               };
-    if (!client.integration.redirectUris.includes(redirectUri)) {
-        throw new ServiceError("BAD_REQUEST", {
-            message: `integration ${client.integration.clientId} registered no redirect URI ${redirectUri}`,
-        });
-    }
-
-    // send the person to the installation page with the state
-    const state = crypto.getRandomValues(new Uint8Array(STATE_BYTES)).toHex();
-    if (target.protocol.kind === "installation") {
-        const issuer = tokens.issuer(client.integration);
-
-        const url = issuer.installationUrl(client.integration, state).href;
-
-        return { kind: "installation", url, state, redirectUri };
-    }
+    requireRedirect(client.integration, redirectUri);
 
     // send the person to the authorization page with the state and the PKCE challenge
     const verifier = Pkce.verifier();
@@ -105,12 +104,12 @@ async function startPage(
 
 /** Start a device authorization of a connection (RFC 8628 3.1) through its integration's server. */
 async function startDevice(
-    call: CallOf<typeof connection, "authorize">,
+    call: CallOf<typeof connection, "authorize", unknown>,
     tokens: TokenSource,
 ): Promise<AuthorizationStart> {
     // ask the integration's server for a device code
     const target = call.requireTarget();
-    const client = await tokens.integration(call.requireStore(), target.integration);
+    const client = await tokens.integration(call, target.integration);
     const device = await client.server.authorizeDevice(target.scopes, target.resource ?? undefined);
 
     return { kind: "device", ...device };
@@ -118,7 +117,7 @@ async function startDevice(
 
 /** Register the client of a connection without an integration. */
 async function register(
-    call: CallOf<typeof connection, "authorize">,
+    call: CallOf<typeof connection, "authorize", unknown>,
     target: Connection,
     redirectUri: string,
     tokens: TokenSource,
@@ -130,18 +129,17 @@ async function register(
     );
 
     // register with the connection's vault where the scope keeps its integrations, else at their home in the enclosing scope
-    const placement =
-        tokens.options.home === undefined
-            ? { scope: call.scope, vault: target.vault }
-            : { scope: present(call.chain[1], `the scope enclosing ${call.scope}`), vault: null };
+    const placement = tokens.isHome(call.chain)
+        ? { scope: call.scope, vault: target.vault }
+        : { scope: present(call.chain[1], `the scope enclosing ${call.scope}`), vault: null };
     const request = { resource, redirectUri, vault: placement.vault };
 
-    return tokens.register(placement.scope, request, call.requireStore());
+    return tokens.register(placement.scope, request, call);
 }
 
 /** Record a started authorization bound to its person and session, and a registered client. */
-export async function started(
-    call: PreparedCallOf<typeof connection, "authorize">,
+async function started(
+    call: CallOf<typeof connection, "authorize">,
 ): Promise<ResultOf<typeof connection, "authorize">> {
     // reference the client its registration created
     const target = call.requireTarget();
@@ -178,8 +176,8 @@ export async function started(
 }
 
 /** Exchange an authorization's redirect for the credential, kept in the vault before commit. */
-export async function exchange(
-    call: CallOf<typeof connection, "complete">,
+async function exchange(
+    call: CallOf<typeof connection, "complete", unknown>,
     tokens: TokenSource,
 ): Promise<AuthorizationGrant> {
     // find the request by its state for the person and session that started it (RFC 9700 4.7)
@@ -194,25 +192,19 @@ export async function exchange(
         );
     }
 
-    // require the issuer the server returns to be the integration's (RFC 9207 2.4)
-    const client = await tokens.integration(call.requireStore(), target.integration);
-    requireIssuer(client.integration, parameters["iss"]);
-
-    // refuse a server's error redirect
-    if (parameters["error"] !== undefined) {
-        throw new ConnectionError(
-            "REFUSED",
-            parameters["error_description"] ?? parameters["error"],
-            { error: parameters["error"] },
-        );
-    }
-
-    // record the installation whose tokens its issuer issues when lent
+    // record the installation its issuer reads from the redirect, whose tokens it issues when lent
     if (target.protocol.kind === "installation") {
-        const subject = tokens.issuer(client.integration).installation(parameters);
+        refuseError(parameters);
+        const issued = await tokens.issuer(call, target.integration);
+        const subject = await issued.installation(parameters);
 
         return { request: request.id, subject, scopes: target.scopes };
     }
+
+    // require the issuer the server returns to be the integration's (RFC 9207 2.4), then no error
+    const client = await tokens.integration(call, target.integration);
+    requireIssuer(client.integration, parameters["iss"]);
+    refuseError(parameters);
 
     // exchange the code with the verifier and keep the token in the vault
     const token = await client.server.token({
@@ -222,8 +214,7 @@ export async function exchange(
         code_verifier: present(request.verifier, "the request's code verifier"),
         ...(target.resource === null ? {} : { resource: target.resource }),
     });
-    const system = call.requireStore();
-    await tokens.write(system, target, { ...(await tokens.read(system, target)), token });
+    await tokens.write(call, target, { token });
 
     return {
         request: request.id,
@@ -233,8 +224,8 @@ export async function exchange(
 }
 
 /** Mark a connection authorized by its completed authorization and use the request up. */
-export async function complete(
-    call: PreparedCallOf<typeof connection, "complete">,
+async function complete(
+    call: CallOf<typeof connection, "complete">,
 ): Promise<ResultOf<typeof connection, "complete">> {
     // use the request up
     const target = call.requireTarget();
@@ -243,12 +234,13 @@ export async function complete(
 
     // record the granted account, scopes and expiry with the Authorized condition
     return call.updateStatus({
-        ...(grant.subject === undefined ? {} : { subject: grant.subject }),
+        // keep the time of a token grant's credential, an installation's tokens coming from its issuer
+        ...(grant.subject === undefined ? { keptAt: call.now } : { subject: grant.subject }),
         scopes: grant.scopes,
         expiresAt: grant.expiresAt ?? null,
         conditions: {
             ...target.conditions,
-            Authorized: observeCondition(
+            Authorized: StatusCondition.observe(
                 target.conditions["Authorized"],
                 {
                     status: "true",
@@ -263,7 +255,7 @@ export async function complete(
 }
 
 /** Poll a device authorization once (RFC 8628 3.4), returning when to poll again if unsettled. */
-export async function poll(
+async function poll(
     reconciliation: ObjectReconciliation<typeof connection>,
     row: Connection,
     request: AuthorizationRequest,
@@ -275,7 +267,7 @@ export async function poll(
     });
 
     // ask for the token, waiting while the person has yet to approve
-    const client = await tokens.integration(reconciliation.store, row.integration);
+    const client = await tokens.integration(Runner.of(reconciliation.store), row.integration);
     let answer: Token | ConnectionError;
     try {
         answer = await client.server.token({
@@ -308,52 +300,91 @@ async function settle(
     tokens: TokenSource,
 ): Promise<void> {
     // use the request up
-    const { store, now } = reconciliation;
-    await store.mutate(Caller.of(store.principal, now), {
-        id: RequestId.create(now),
-        calls: [authorizationRequest.call("delete", authorizationRequest.target(request))],
-    });
+    const runner = Runner.of(reconciliation.store);
+    await runner.mutate(runner.self, [
+        authorizationRequest.call("delete", authorizationRequest.target(request)),
+    ]);
 
     // record a denied or expired authorization
     if (answer instanceof ConnectionError) {
         const denied = { status: "false" as const, reason: "Denied", message: answer.message };
-        await tokens.observe(store, row, denied, {}, now);
+        await tokens.observe(runner, row, denied, {});
     }
     // keep the token and mark the connection authorized
     else {
-        await tokens.write(store, row, { ...(await tokens.read(store, row)), token: answer });
+        await tokens.write(runner, row, { token: answer });
         await tokens.observe(
-            store,
+            runner,
             row,
             { status: "true", reason: "Authorized", message: "" },
-            { expiresAt: answer.expiresAt ?? null, scopes: answer.scopes ?? row.scopes },
-            now,
+            {
+                expiresAt: answer.expiresAt ?? null,
+                scopes: answer.scopes ?? row.scopes,
+                keptAt: runner.now,
+            },
         );
     }
 }
 
 /** Require an authorization response's issuer to be the integration's (RFC 9207 2.4). */
 function requireIssuer(named: Integration, issuer: string | undefined): void {
+    const url = IntegrationIssuer.url(named.issuer);
     if (
-        (issuer !== undefined && issuer !== named.issuer) ||
+        (issuer !== undefined && issuer !== url) ||
         (issuer === undefined && named.endpoints.isIssuerReturned)
     ) {
         throw new ConnectionError(
             "INVALID_AUTHORIZATION",
-            `the authorization response returns issuer ${issuer ?? "none"} instead of ${named.issuer}`,
+            `the authorization response returns issuer ${issuer ?? "none"} instead of ${url}`,
         );
     }
 }
 
+/** Refuse an authorization server's error redirect (RFC 6749 4.1.2.1). */
+function refuseError(parameters: Readonly<Record<string, string>>): void {
+    if (parameters["error"] !== undefined) {
+        throw new ConnectionError(
+            "REFUSED",
+            parameters["error_description"] ?? parameters["error"],
+            { error: parameters["error"] },
+        );
+    }
+}
+
+/** Require a redirect URI an integration registered. */
+function requireRedirect(registered: Integration, redirectUri: string): void {
+    if (!registered.redirectUris.includes(redirectUri)) {
+        throw new CallError("BAD_REQUEST", {
+            message: `integration ${registered.clientId} registered no redirect URI ${redirectUri}`,
+        });
+    }
+}
+
+/** Write an integration's installation page, returning to the redirect with the state. */
+function installationPage(installed: Integration, state: string): URL {
+    // require the installation page and return to it with the state
+    const page = installed.endpoints.installation;
+    if (page === undefined) {
+        throw new ConnectionError(
+            "INVALID_AUTHORIZATION",
+            `integration ${installed.clientId} has no installation page`,
+        );
+    }
+    const url = new URL(page);
+    url.searchParams.set("state", state);
+
+    return url;
+}
+
 /** Read the person and session calling, refusing any other caller. */
-function requirePerson(call: CallOf<typeof connection, "authorize" | "complete">): {
+function requirePerson(call: CallOf<typeof connection, "authorize" | "complete", unknown>): {
     readonly userId: string;
     readonly session: string;
 } {
     // require a person calling in a signed-in session
     const { subject, credential } = call.caller;
     if (subject === undefined || !principal.user.is(subject) || credential?.kind !== "session") {
-        throw new ServiceError("FORBIDDEN", {
+        throw new CallError("FORBIDDEN", {
             message: "a person authorizes a connection in a signed-in session",
         });
     }
@@ -363,7 +394,7 @@ function requirePerson(call: CallOf<typeof connection, "authorize" | "complete">
 
 /** Find a connection's pending browser authorization by its state. */
 async function findRequest(
-    call: CallOf<typeof connection, "complete">,
+    call: CallOf<typeof connection, "complete", unknown>,
     target: Connection,
     state: string | undefined,
 ): Promise<AuthorizationRequest> {
@@ -371,8 +402,8 @@ async function findRequest(
         state === undefined
             ? []
             : await call
-                  .requireTransaction()
-                  .rows(authorizationRequest.table, { parentId: target.id, state });
+                  .reveal(authorizationRequest)
+                  .findMany({ where: { parentId: target.id, state } });
     if (request === undefined) {
         throw new ConnectionError(
             "INVALID_AUTHORIZATION",

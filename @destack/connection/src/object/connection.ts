@@ -1,9 +1,10 @@
 import { type Select } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
-import { CONSUMER, defineObject, field } from "@destack/object";
+import { type CallOf, CONSUMER, defineObject, field } from "@destack/object";
+import { CallError } from "@destack/runtime/error";
 import { defineSchema, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { Material, Token } from "../credential/credential.ts";
+import { Credential, Material } from "../credential/credential.ts";
 
 /** The token type of an access token exchanged for another (RFC 8693 3). */
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
@@ -73,6 +74,18 @@ export const ConnectionProtocol = defineSchema(
 );
 /** How a connection authenticates at its external system. */
 export type ConnectionProtocol = schema.Infer<typeof ConnectionProtocol>;
+
+/** A connection lent to a bound installation: its protocol and current credential. */
+export const Loan = defineSchema(
+    schema.object({
+        /** How requests carry the credential. */
+        protocol: ConnectionProtocol,
+        /** The current credential. */
+        credential: Credential,
+    }),
+);
+/** A connection lent to a bound installation. */
+export type Loan = schema.Infer<typeof Loan>;
 
 /** A kind of connection. */
 export type ConnectionKind = ConnectionProtocol["kind"];
@@ -150,6 +163,8 @@ export const Withdrawal = defineSchema(
         subject: schema.string().min(1).nullable(),
         /** The vault keeping the credential. */
         vault: ObjectReference,
+        /** When the vault last took the credential, null while it keeps none. */
+        keptAt: schema.number().int().nullable(),
     }),
 );
 /** A revoked connection's credential. */
@@ -162,7 +177,7 @@ export const connection = defineObject({
     controlled: true,
     // relate the installations a person lends the connection to as its consumers
     bindable: { by: "manage" },
-    // copy the connections of accounts and organisations into their scopes
+    // replicate the connections of accounts and organisations into their scopes
     inherited: {},
     fields: {
         /** How the connection authenticates. */
@@ -181,6 +196,8 @@ export const connection = defineObject({
         subject: field.string(schema.string().min(1)).optional(),
         /** The current access token's expiry, absent for credentials that do not expire. */
         expiresAt: field.time().optional(),
+        /** When the vault last took the connection's credential, absent while it keeps none. */
+        keptAt: field.time().optional(),
     },
     // let its consumers and the servers of its scope read it, and its consumers borrow it
     permissions: {
@@ -190,8 +207,6 @@ export const connection = defineObject({
     },
     reserved: ["lend"],
 }).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
     /** Create a connection, keeping the material its kind sends in the vault. */
     create: method.create("manage", {
         fields: ["protocol", "integration", "resource", "scopes", "vault"],
@@ -201,6 +216,37 @@ export const connection = defineObject({
         }),
         prepared: schema.object({}),
         isPredicted: false,
+    }),
+    /** Lend the connection's protocol and current credential to an installation bound to it. */
+    lend: method.query({
+        permission: "lend",
+        output: schema.sensitive(Loan),
+        prepared: schema.sensitive(Loan),
+        isAudited: true,
+    }),
+    /** List the scope's authorized installations of the integrations with a client identifier. */
+    installations: method.query({
+        permission: "lend",
+        target: "scope",
+        input: schema.object({
+            /** The integrations' client identifier, such as a GitHub App's. */
+            clientId: schema.string().min(1),
+            /** The one connection to read, every one when absent. */
+            id: schema.identifier("connection").exactOptional(),
+            /** The issuer's installation to read, every one when absent. */
+            installation: schema.string().min(1).exactOptional(),
+        }),
+        output: schema.object({
+            /** The authorized installations. */
+            items: schema.array(
+                schema.object({
+                    /** The connection. */
+                    id: schema.identifier("connection"),
+                    /** The issuer's identifier of the installation. */
+                    installation: schema.string(),
+                }),
+            ),
+        }),
     }),
     /** Start authorizing the external account, answering the page a person approves it on. */
     authorize: method.mutation({
@@ -226,16 +272,30 @@ export const connection = defineObject({
         }),
         prepared: AuthorizationGrant,
     }),
-    /** Request the current access token for an installation bound to the connection. */
-    requestToken: method.query({
-        permission: "lend",
-        output: schema.sensitive(Token),
-        prepared: schema.sensitive(Token),
-        audited: true,
-    }),
     /** Revoke the credential at the authorization server and destroy it. */
     revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
     delete: method.delete("manage"),
 }));
 /** A persisted connection. */
 export type Connection = Select<typeof connection.table>;
+
+/** The checks a connection's creation runs. */
+export const Connection = {
+    /** Require a token exchange's source to be a same-scope connection the caller manages. */
+    async requireSource(call: CallOf<typeof connection, "create", unknown>): Promise<void> {
+        // check only a token exchange
+        const { protocol } = call.input;
+        if (protocol.kind !== "token-exchange") {
+            return;
+        }
+
+        // refuse a source outside the connection's scope, then one the caller does not manage
+        const { source } = protocol;
+        if (!connection.is(source) || source.scope !== call.scope) {
+            throw new CallError("FORBIDDEN", {
+                message: `a token exchange's source must be a connection of ${call.scope}`,
+            });
+        }
+        await call.require(connection.permission("manage"), source);
+    },
+};
