@@ -1,6 +1,6 @@
 import { and, eq } from "@destack/db";
 import {
-    type CallOf,
+    type MethodContextOf,
     type ObjectReconciliation,
     type ResultOf,
     StatusCondition,
@@ -29,20 +29,20 @@ export function implementConnection(tokens: TokenSource): typeof connection {
     return connection.implement({
         methods: {
             create: {
-                authorize: async (call) => {
+                authorize: async (context) => {
                     // require the home, client, vault and exchange source the connection's kind needs
-                    requireHome(call.input.protocol.kind, call.chain, tokens);
-                    requireClient(call.input);
-                    Credential.requireVault(call.input.vault, call.scope);
-                    await Connection.requireSource(call);
+                    requireHome(context.input.protocol.kind, context.chain, tokens);
+                    requireClient(context.input);
+                    Credential.requireVault(context.input.vault, context.scope);
+                    await Connection.requireSource(context);
                 },
-                prepare: (call) => keep(call, tokens),
-                handle: (call, next) =>
+                prepare: (context) => keep(context, tokens),
+                handle: (context, next) =>
                     next(
-                        call.with({
+                        context.with({
                             input: {
-                                ...call.input,
-                                keptAt: call.input.material === undefined ? null : call.now,
+                                ...context.input,
+                                keptAt: context.input.material === undefined ? null : context.now,
                             },
                         }),
                     ),
@@ -73,26 +73,26 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                 };
             },
             lend: {
-                prepare: (call) => lend(call.target, tokens, call),
-                handle: async (call) => call.prepared,
+                prepare: (context) => lend(context.target, tokens, context),
+                handle: async (context) => context.prepared,
             },
             authorize: {
-                authorize: async (call) => requireOpen(call.target),
-                prepare: (call) => ConnectionAuthorization.start(call, tokens),
-                handle: (call) => ConnectionAuthorization.started(call),
+                authorize: async (context) => requireOpen(context.target),
+                prepare: (context) => ConnectionAuthorization.start(context, tokens),
+                handle: (context) => ConnectionAuthorization.started(context),
             },
             complete: {
-                prepare: (call) => ConnectionAuthorization.exchange(call, tokens),
-                handle: (call) => ConnectionAuthorization.complete(call),
+                prepare: (context) => ConnectionAuthorization.exchange(context, tokens),
+                handle: (context) => ConnectionAuthorization.complete(context),
             },
             revoke: {
-                authorize: async (call) => requireOpen(call.target),
-                prepare: async (call) => withdrawal(call.target),
-                handle: (call) => revoke(call),
-                settle: async (call, settled) => {
+                authorize: async (context) => requireOpen(context.target),
+                prepare: async (context) => withdrawal(context.target),
+                handle: (context) => revoke(context),
+                settle: async (context, settled) => {
                     // withdraw the tokens once the revocation committed
                     if (settled.status === "committed") {
-                        await withdraw(call, settled.prepared, tokens);
+                        await withdraw(context, settled.prepared, tokens);
                     }
                 },
             },
@@ -105,9 +105,12 @@ export function implementConnection(tokens: TokenSource): typeof connection {
 }
 
 /** Keep the material a connection's kind sends in its vault before the connection is created. */
-async function keep(call: CallOf<typeof connection, "create", unknown>, tokens: TokenSource) {
+async function keep(
+    context: MethodContextOf<typeof connection, "create", unknown>,
+    tokens: TokenSource,
+) {
     // require material of the connection's kind for exactly the kinds that send it
-    const { protocol, vault, material } = call.input;
+    const { protocol, vault, material } = context.input;
     const isSupplied = SUPPLIED_KINDS.has(protocol.kind) || protocol.kind === "jwt";
     if (
         isSupplied !== (material !== undefined) ||
@@ -122,8 +125,8 @@ async function keep(call: CallOf<typeof connection, "create", unknown>, tokens: 
 
     // keep the material
     if (material !== undefined) {
-        const id = present(call.id, "a prepared creation's identifier");
-        await tokens.write(call, { id, vault }, { material });
+        const id = present(context.id, "a prepared creation's identifier");
+        await tokens.write(context, { id, vault }, { material });
     }
 
     return {};
@@ -154,11 +157,11 @@ function withdrawal(target: Connection): Withdrawal {
 
 /** Mark a connection revoked. */
 async function revoke(
-    call: CallOf<typeof connection, "revoke">,
+    context: MethodContextOf<typeof connection, "revoke">,
 ): Promise<ResultOf<typeof connection, "revoke">> {
-    const target = call.target;
+    const target = context.target;
 
-    return call.updateStatus({
+    return context.updateStatus({
         expiresAt: null,
         keptAt: null,
         conditions: {
@@ -171,7 +174,7 @@ async function revoke(
                     message: "revoked",
                     observedGeneration: target.generation,
                 },
-                call.now,
+                context.now,
             ),
         },
     });
@@ -359,7 +362,7 @@ function requireHome(kind: ConnectionKind, chain: readonly string[], tokens: Tok
 }
 
 /** Refuse a connection without the client its kind authorizes through. */
-function requireClient(input: CallOf<typeof connection, "create">["input"]): void {
+function requireClient(input: MethodContextOf<typeof connection, "create">["input"]): void {
     // read whether the kind authorizes through a client and whether the connection has one
     const { protocol, resource } = input;
     const hasClient =

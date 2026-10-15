@@ -1,10 +1,11 @@
+import type { Call } from "@destack/sync";
 import { type ClientOf, createClient } from "@destack/runtime/client";
 import { Egress, PackageMount } from "@destack/runtime";
 import type { ServerContext } from "@destack/runtime/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
-import type { Call, Condition, ObjectCall, ResultsOf } from "@destack/object";
+import type { MethodContext, Condition, ResultsOf } from "@destack/object";
 import { Clock, type Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { type ObjectReference, Replica, type Subject } from "@destack/sync";
@@ -65,15 +66,12 @@ export interface IntegrationClient {
 }
 
 /** What runs a token source's reads and vault calls: a call, a settlement, or the store. */
-export type Runner = Pick<Call, "now" | "self"> &
+export type Runner = Pick<MethodContext, "now" | "self"> &
     Pick<Snapshot, "read"> & {
         /** Read through a method as a caller. */
-        readonly query: <Result>(
-            caller: AccessContext,
-            call: ObjectCall<Result>,
-        ) => Promise<Result>;
+        readonly query: <Result>(caller: AccessContext, call: Call<Result>) => Promise<Result>;
         /** Run calls as a caller. */
-        readonly mutate: <const Calls extends readonly ObjectCall[]>(
+        readonly mutate: <const Calls extends readonly Call[]>(
             caller: AccessContext,
             calls: Calls,
         ) => Promise<ResultsOf<Calls>>;

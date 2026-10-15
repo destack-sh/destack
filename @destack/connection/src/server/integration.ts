@@ -1,5 +1,5 @@
 import { anyone } from "@destack/access";
-import type { CallOf, ResultOf } from "@destack/object";
+import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Credential } from "../credential/credential.ts";
@@ -16,60 +16,60 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
         methods: {
             create: {
                 // relate anyone to a public integration as it is created
-                creation: (call) =>
-                    call.input.isPublic === true
+                creation: (context) =>
+                    context.input.isPublic === true
                         ? {
                               relationships: [
                                   { relation: "public", subject: anyone.reference("*", "*") },
                               ],
                           }
                         : {},
-                authorize: async (call) => requireSecretVault(call),
-                prepare: (call) => keepSecret(call, tokens),
+                authorize: async (context) => requireSecretVault(context),
+                prepare: (context) => keepSecret(context, tokens),
                 handle: (_call, next) => next(),
             },
             register: {
-                authorize: async (call) => {
-                    if (call.input.vault !== null) {
-                        Credential.requireVault(call.input.vault, call.scope);
+                authorize: async (context) => {
+                    if (context.input.vault !== null) {
+                        Credential.requireVault(context.input.vault, context.scope);
                     }
                 },
-                prepare: (call) =>
+                prepare: (context) =>
                     register(
-                        call.scope,
-                        present(call.id, "a registered client's identifier"),
-                        call.input,
+                        context.scope,
+                        present(context.id, "a registered client's identifier"),
+                        context.input,
                         tokens,
-                        call,
+                        context,
                     ),
-                handle: (call, next) => {
-                    const { vault, ...registration } = call.prepared;
-                    const input = { ...call.input, ...registration, vault: vault ?? null };
+                handle: (context, next) => {
+                    const { vault, ...registration } = context.prepared;
+                    const input = { ...context.input, ...registration, vault: vault ?? null };
 
-                    return next(call.with({ input: { ...input, registration: "dynamic" } }));
+                    return next(context.with({ input: { ...input, registration: "dynamic" } }));
                 },
             },
             authorizeDevice: {
-                prepare: async (call) => {
-                    const { scopes, resource } = call.input.request;
+                prepare: async (context) => {
+                    const { scopes, resource } = context.input.request;
 
-                    return (await client(call, tokens)).authorizeDevice(scopes, resource);
+                    return (await client(context, tokens)).authorizeDevice(scopes, resource);
                 },
-                handle: async (call) => call.prepared,
+                handle: async (context) => context.prepared,
             },
             requestToken: {
-                prepare: async (call) =>
-                    (await client(call, tokens)).token(TokenGrant.form(call.input.grant)),
-                handle: async (call) => call.prepared,
+                prepare: async (context) =>
+                    (await client(context, tokens)).token(TokenGrant.form(context.input.grant)),
+                handle: async (context) => context.prepared,
             },
             revokeToken: {
-                prepare: async (call) => {
-                    const { token, hint } = call.input.revocation;
-                    await (await client(call, tokens)).revoke(token, hint);
+                prepare: async (context) => {
+                    const { token, hint } = context.input.revocation;
+                    await (await client(context, tokens)).revoke(token, hint);
 
                     return {};
                 },
-                handle: async (call) => call.prepared,
+                handle: async (context) => context.prepared,
             },
             delete: (call, next) => destroy(call, next, tokens),
         },
@@ -77,37 +77,37 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
 }
 
 /** Require a confidential client's vault in the integration's scope, and a secret with a vault. */
-function requireSecretVault(call: CallOf<typeof integration, "create", unknown>): void {
+function requireSecretVault(context: MethodContextOf<typeof integration, "create", unknown>): void {
     // refuse a secret of an installed app, whose issuer keeps its key
-    const vault = call.input.vault ?? undefined;
-    if (call.input.issuer.kind === "installation" && vault !== undefined) {
+    const vault = context.input.vault ?? undefined;
+    if (context.input.issuer.kind === "installation" && vault !== undefined) {
         throw new CallError("BAD_REQUEST", {
             message: "an installed app's issuer keeps its key, so its integration keeps no secret",
         });
     }
     // require a vault exactly with a secret
-    else if ((vault === undefined) !== (call.input.secret === undefined)) {
+    else if ((vault === undefined) !== (context.input.secret === undefined)) {
         throw new CallError("BAD_REQUEST", {
             message: "an integration keeps its secret in a vault, and a vault only with a secret",
         });
     }
     // require the vault in the integration's scope
     else if (vault !== undefined) {
-        Credential.requireVault(vault, call.scope);
+        Credential.requireVault(vault, context.scope);
     }
 }
 
 /** Keep a created integration's secret in its vault. */
 async function keepSecret(
-    call: CallOf<typeof integration, "create", unknown>,
+    context: MethodContextOf<typeof integration, "create", unknown>,
     tokens: TokenSource,
 ): Promise<{}> {
     // write the secret of a confidential client
-    const vault = call.input.vault ?? undefined;
-    const secret = call.input.secret;
+    const vault = context.input.vault ?? undefined;
+    const secret = context.input.secret;
     if (vault !== undefined && secret !== undefined) {
-        const id = present(call.id, "a prepared creation's identifier");
-        await tokens.put(call, vault, id, secret);
+        const id = present(context.id, "a prepared creation's identifier");
+        await tokens.put(context, vault, id, secret);
     }
 
     return {};
@@ -167,15 +167,15 @@ async function register(
 
 /** Delete an integration, destroying its secret with it. */
 async function destroy(
-    call: CallOf<typeof integration, "delete">,
+    context: MethodContextOf<typeof integration, "delete">,
     next: () => Promise<ResultOf<typeof integration, "delete">>,
     tokens: TokenSource,
 ): Promise<ResultOf<typeof integration, "delete">> {
     // delete the integration, then its secret
-    const target = call.target;
+    const target = context.target;
     const deleted = await next();
     if (target.vault !== null) {
-        await tokens.remove(call, target.vault, target.id);
+        await tokens.remove(context, target.vault, target.id);
     }
 
     return deleted;
@@ -183,10 +183,14 @@ async function destroy(
 
 /** Call the target integration's server as its client, with its home vault's secret. */
 async function client(
-    call: CallOf<typeof integration, "requestToken" | "revokeToken" | "authorizeDevice", unknown>,
+    context: MethodContextOf<
+        typeof integration,
+        "requestToken" | "revokeToken" | "authorizeDevice",
+        unknown
+    >,
     tokens: TokenSource,
 ): Promise<AuthorizationServer> {
-    const target = call.target;
+    const target = context.target;
 
-    return tokens.local(call, target);
+    return tokens.local(context, target);
 }

@@ -1,6 +1,6 @@
 import { type Select } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
-import { type CallOf, CONSUMER, defineObject, field } from "@destack/object";
+import { type MethodContextOf, CONSUMER, defineObject, field } from "@destack/object";
 import { CallError } from "@destack/runtime/error";
 import { defineSchema, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
@@ -282,20 +282,22 @@ export type Connection = Select<typeof connection.table>;
 /** The checks a connection's creation runs. */
 export const Connection = {
     /** Require a token exchange's source to be a same-scope connection the caller manages. */
-    async requireSource(call: CallOf<typeof connection, "create", unknown>): Promise<void> {
+    async requireSource(
+        context: MethodContextOf<typeof connection, "create", unknown>,
+    ): Promise<void> {
         // check only a token exchange
-        const { protocol } = call.input;
+        const { protocol } = context.input;
         if (protocol.kind !== "token-exchange") {
             return;
         }
 
         // refuse a source outside the connection's scope, then one the caller does not manage
         const { source } = protocol;
-        if (!connection.is(source) || source.scope !== call.scope) {
+        if (!connection.is(source) || source.scope !== context.scope) {
             throw new CallError("FORBIDDEN", {
-                message: `a token exchange's source must be a connection of ${call.scope}`,
+                message: `a token exchange's source must be a connection of ${context.scope}`,
             });
         }
-        await call.require(connection.permission("manage"), source);
+        await context.require(connection.permission("manage"), source);
     },
 };

@@ -1,4 +1,4 @@
-import type { ObjectCallInput } from "@destack/object";
+import type { CallInput } from "@destack/object";
 import { aligned, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -21,7 +21,7 @@ async function open(): Promise<ConnectionFixture> {
 /** Create a connection as the owner, answering its reference. */
 async function create(
     fixture: ConnectionFixture,
-    input: Omit<ObjectCallInput<typeof connection, "create">, "scope" | "vault">,
+    input: Omit<CallInput<typeof connection, "create">, "scope" | "vault">,
 ): Promise<ObjectReference> {
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
@@ -378,20 +378,20 @@ test("install an app through the installation issuing its tokens, lend an instal
         issuer: testIssuer.implement({
             methods: {
                 issue: {
-                    prepare: async (call) => {
-                        called("issue", call.input.installation, call.caller);
+                    prepare: async (context) => {
+                        called("issue", context.input.installation, context.caller);
 
                         return { accessToken: "ghs_installation", tokenType: "token" };
                     },
-                    handle: async (call) => call.prepared,
+                    handle: async (context) => context.prepared,
                 },
                 uninstall: {
-                    prepare: async (call) => {
-                        called("uninstall", call.input.installation, call.caller);
+                    prepare: async (context) => {
+                        called("uninstall", context.input.installation, context.caller);
 
                         return {};
                     },
-                    handle: async (call) => call.prepared,
+                    handle: async (context) => context.prepared,
                 },
                 installation: async (call) => ({
                     installation: present(
@@ -416,7 +416,7 @@ test("install an app through the installation issuing its tokens, lend an instal
         authentication: "none" as const,
         redirectUris: ["https://app.test/setup"],
     };
-    const register = (input: ObjectCallInput<typeof integration, "create">) =>
+    const register = (input: CallInput<typeof integration, "create">) =>
         fixture.objects
             .mutate(fixture.context().access(), {
                 id: RequestId.create(Date.now()),
