@@ -1,6 +1,6 @@
 import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { AuditCall, call, defineAuditAction } from "@destack/object";
+import { CallEvent, call, defineAuditAction } from "@destack/object";
 import { AuditRecorder, Journal } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { outbox } from "@destack/runtime/outbox";
@@ -156,7 +156,7 @@ function finished(
     recording: Journal,
     action: typeof documentRename | typeof documentDelete,
     outcome: "success" | "failure" = "success",
-): AuditCall {
+): CallEvent {
     const recorder = new AuditRecorder(
         { caller: { subject: USER }, package: import.meta.destack.package, scope: SCOPE.id },
         recording,
@@ -322,7 +322,7 @@ async function serveHistory(statuses: readonly number[]) {
     return {
         database: storage.database,
         recording,
-        record: (calls: readonly AuditCall[]) =>
+        record: (calls: readonly CallEvent[]) =>
             store.append(
                 call.eventKind(),
                 calls.map((ended) => Journal.event(ended)),
@@ -485,7 +485,7 @@ test("send a page of calls as one NDJSON batch carrying the secret in the endpoi
         calls: post?.body
             .trim()
             .split("\n")
-            .map((line) => AuditCall.parse(JSON.parse(line)).execution.id),
+            .map((line) => CallEvent.parse(JSON.parse(line)).execution.id),
         key: post?.headers.get("api-key"),
         signature: post?.headers.get("webhook-signature"),
         type: post?.headers.get("content-type"),

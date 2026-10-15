@@ -3,9 +3,9 @@ import { ObjectReference } from "@destack/sync";
 import { Caller } from "@destack/access";
 import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
 import {
-    AuditCall,
+    CallEvent,
     call,
-    type Call,
+    type MethodContext,
     type ObjectReconciliation,
     ObjectWatch,
 } from "@destack/object";
@@ -120,7 +120,7 @@ async function deliver(
         after,
         PAGE_CALLS,
     );
-    const items = page.events.map((event) => AuditCall.parse(event.data));
+    const items = page.events.map((event) => CallEvent.parse(event.data));
 
     // hand the subscribed calls to messages, each identified by its request, leaving those a repeated page already created
     const calls = items.filter((item) => isSubscribed(row, item));
@@ -184,12 +184,12 @@ async function mark(
 }
 
 /** Report whether an endpoint receives a call: one of its events, and no message delivery. */
-function isSubscribed(row: Endpoint, ended: AuditCall): boolean {
+function isSubscribed(row: Endpoint, ended: CallEvent): boolean {
     return !isDelivery(ended) && (row.events === "all" || row.events.includes(ended.method));
 }
 
 /** Report whether a call is one of this package's controllers delivering endpoint messages. */
-function isDelivery(ended: AuditCall): boolean {
+function isDelivery(ended: CallEvent): boolean {
     const { component, package: served } = ended.execution.context;
     const type = ended.method.slice(0, ended.method.lastIndexOf("."));
 
@@ -199,7 +199,7 @@ function isDelivery(ended: AuditCall): boolean {
 /** Describe the messages with a page's calls to an endpoint: an event per call, or one batch. */
 async function describeMessages(
     row: Endpoint,
-    calls: readonly AuditCall[],
+    calls: readonly CallEvent[],
     key: string,
     now: number,
 ): Promise<Awaited<ReturnType<typeof describeMessage>>[]> {
@@ -312,7 +312,7 @@ function deliveredCondition(last: Pick<Message, "status" | "conditions">) {
 }
 
 /** Bind the installation as a consumer of an endpoint's secret, as the caller. */
-async function consume(mutation: Call, reference: ObjectReference): Promise<void> {
+async function consume(mutation: MethodContext, reference: ObjectReference): Promise<void> {
     const consumer = Caller.principal(mutation.self);
     await mutation.mutate(mutation.caller, [
         secret.call("bindConsumer", { ...secretTarget(reference), consumer }),
@@ -320,7 +320,7 @@ async function consume(mutation: Call, reference: ObjectReference): Promise<void
 }
 
 /** Release the installation's use of a secret no endpoint of its scope names any longer. */
-async function releaseUnused(mutation: Call, reference: ObjectReference): Promise<void> {
+async function releaseUnused(mutation: MethodContext, reference: ObjectReference): Promise<void> {
     // keep a secret another endpoint still names
     const key = ObjectReference.key(reference);
     const others = await mutation.read(endpoint).findMany({ where: { scope: mutation.scope } });

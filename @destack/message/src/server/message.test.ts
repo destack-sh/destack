@@ -1,6 +1,7 @@
+import type { Call } from "@destack/sync";
 import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { call, JournalEntry, journal, type ObjectCall } from "@destack/object";
+import { call, JournalEntry, journal } from "@destack/object";
 import { testEvents } from "@destack/object/test";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db";
@@ -357,7 +358,7 @@ test("drop a message's sealed content as it settles, leaving no copy in any row 
 test("schedule messages, then send, defer or skip each while it waits, showing a desktop one at once until its client receives it", async () => {
     const { messages, storage, scope } = await openMessages({});
     const now = Date.now();
-    const mutate = (calls: readonly ObjectCall[]) =>
+    const mutate = (calls: readonly Call[]) =>
         messages.mutate(AccessContext.of(Caller.of(SPACE), Date.now()), {
             id: RequestId.create(now),
             calls: [...calls],
