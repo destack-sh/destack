@@ -1,0 +1,73 @@
+import { principal } from "@destack/access";
+import { defineAdapter, definePackage } from "@destack/runtime";
+import { module, symbol } from "./graph/object.ts";
+import {
+    binding,
+    bindingGrant,
+    branch,
+    branchCall,
+    branchChange,
+    build,
+    capture,
+    declaration,
+    deployment,
+    installation,
+    installationKey,
+    installationRevision,
+    instance,
+    invitation,
+    proof,
+    relationship,
+    restore,
+    role,
+    route,
+    run,
+    runOutcome,
+    snapshot,
+    socket,
+    transfer,
+    trigger,
+} from "./object/index.ts";
+
+/** The path of the space-move data plane below the stack package's mount. */
+export const HANDOFF_PATH = "/handoff";
+
+/** The path of installations' hook sessions below the stack package's mount. */
+export const HOOK_PATH = "/hooks";
+
+/** The handle spaces serve their stack through, and machines and people call it by. */
+export default definePackage({
+    objects: {
+        installation,
+        installationRevision,
+        installationKey,
+        proof,
+        declaration,
+        binding,
+        bindingGrant,
+        deployment,
+        capture,
+        instance,
+        transfer,
+        snapshot,
+        restore,
+        run,
+        runOutcome,
+        build,
+        trigger,
+        route,
+        socket,
+        branch,
+        branchCall,
+        branchChange,
+        role,
+        relationship,
+        invitation,
+        module,
+        symbol,
+    },
+    adapters: {
+        handoff: defineAdapter("handoff", { path: HANDOFF_PATH, callers: [principal.machine] }),
+        hook: defineAdapter("hook", { path: HOOK_PATH, callers: [principal.installation] }),
+    },
+});

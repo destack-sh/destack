@@ -1,0 +1,59 @@
+{
+    "name": "@destack/stack",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./object": "./src/object/index.ts",
+        "./package": "./src/package.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./error": "./src/error/index.ts",
+        "./test": "./src/test/index.ts",
+        "./build": "./src/build/index.ts",
+        "./bun": "./src/bun/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
+        "./runtime": "./src/runtime/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/fs": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/runtime": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "jose": "6.2.12",
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@template/stack": "workspace:*",
+        "@types/node": "26.6.1",
+        "miniflare": "4.20260730.0",
+        "uuid": "14.0.2"
+    }
+}
