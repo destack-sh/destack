@@ -31,6 +31,7 @@ export class TestClock implements Clock {
         // keep the wait until the clock reaches its deadline, or the signal aborts
         const deadline = this.now() + milliseconds;
         const { promise, resolve, reject } = Promise.withResolvers<void>();
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const sleep = {
             deadline,
             release: () => {
@@ -47,9 +48,18 @@ export class TestClock implements Clock {
         this.#sleeps.push(sleep);
         signal?.addEventListener("abort", abort, { once: true });
 
-        // release it as the system's time passes while the clock follows it
-        const timer =
-            this.#time === undefined ? setTimeout(() => this.#wake(), milliseconds) : undefined;
+        // release it as the system's time passes while the clock follows it, again after an early timer
+        const follow = (delay: number) => {
+            timer = setTimeout(() => {
+                this.#wake();
+                if (this.#sleeps.includes(sleep) && this.#time === undefined) {
+                    follow(sleep.deadline - this.now());
+                }
+            }, delay);
+        };
+        if (this.#time === undefined) {
+            follow(milliseconds);
+        }
 
         return promise;
     }
