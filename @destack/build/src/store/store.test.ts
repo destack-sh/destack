@@ -8,14 +8,10 @@ import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { CallError } from "@destack/runtime/error";
 import { found, present } from "@destack/schema";
-import {
-    type PackageAccess,
-    PackageClient,
-    PackageServer,
-    PackageStore,
-    Retention,
-} from "./index.ts";
+import { type PackageAccess, PackageClient, PackageStore, Retention } from "./index.ts";
 
+/** The mount the tests serve stores below. */
+const MOUNT = new URL("https://packages.test/packages/");
 /** The source files of the fixture build. */
 const SOURCES = {
     "src/answer.ts": "export const answer = 42;\n",
@@ -293,7 +289,6 @@ test("serve a stored build over HTTP after the host authorizes each read", async
 
     // grant bearers of the allowed token reads of the stored build, expiring when the host says so
     let isExpired = false;
-    const server = new PackageServer(new URL("https://packages.test/packages/"), store);
     const access = {
         async authorize(request: Request, selected: string) {
             if (request.headers.get("authorization") !== "Bearer allowed" || selected !== digest) {
@@ -308,7 +303,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
         const request = new Request(String(input), options);
         request.headers.set("authorization", "Bearer allowed");
 
-        return server.fetch(request, access);
+        return store.fetch(request, MOUNT, access);
     };
 
     // open the build as a remote package, refusing another manifest digest
@@ -323,8 +318,9 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     const full = await fetchPackage(path);
     const partial = await fetchPackage(path, { headers: { range: "bytes=7-11" } });
     const cached = await fetchPackage(path, { headers: { "if-none-match": `"${answer.digest}"` } });
-    const denied = await server.fetch(
+    const denied = await store.fetch(
         new Request(path, { headers: { "if-none-match": `"${answer.digest}"` } }),
+        MOUNT,
         access,
     );
     const head = await fetchPackage(path, { method: "HEAD" });
@@ -377,12 +373,11 @@ test("copy a served build into another store by its digest, fetching only the fi
     const target = new PackageStore(copied);
     const build = await written(SOURCES);
     const digest = await source.put(build);
-    const server = new PackageServer(new URL("https://packages.test/packages/"), source);
     const paths: string[] = [];
     const fetchPackage = async (input: URL, options: RequestInit) => {
         paths.push(input.pathname.slice(`/packages/${digest}/`.length));
 
-        return server.fetch(new Request(input, options), { authorize: async () => ({}) });
+        return source.fetch(new Request(input, options), MOUNT, { authorize: async () => ({}) });
     };
     const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
 
@@ -415,7 +410,7 @@ test("copy a served build into another store by its digest, fetching only the fi
     });
 });
 
-test("push a kept build to a package server by its digest, uploading only the files it lacks", async () => {
+test("push a kept build to a package target by its digest, uploading only the files it lacks", async () => {
     // keep a build, and serve another store that accepts uploads
     const directory = await temporary();
     await using kept = await LocalBucket.open(join(directory, "kept"), "space-test");
@@ -424,14 +419,13 @@ test("push a kept build to a package server by its digest, uploading only the fi
     const target = new PackageStore(received);
     const build = await written(SOURCES);
     const digest = await source.put(build);
-    const server = new PackageServer(new URL("https://packages.test/packages/"), target);
     const uploads: string[] = [];
     const accepting = async (request: Request) => {
         if (request.method === "PUT") {
             uploads.push(new URL(request.url).pathname);
         }
 
-        return server.fetch(request, UPLOADING);
+        return target.fetch(request, MOUNT, UPLOADING);
     };
 
     // push the build, then push it again, which uploads its manifest alone
@@ -461,10 +455,7 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
     await using empty = await LocalBucket.open(join(directory, "empty"), "space-test");
     const source = new PackageStore(kept);
     const digest = await source.put(await written(SOURCES));
-    const server = new PackageServer(
-        new URL("https://packages.test/packages/"),
-        new PackageStore(empty),
-    );
+    const receiving = new PackageStore(empty);
     const manifest = new Uint8Array(await (await source.manifest(digest)).arrayBuffer());
 
     // stream one byte past the limit in chunks of one MiB without declaring a length
@@ -481,11 +472,11 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
 
     // refuse each upload with its status and error
     expect([
-        await upload(server, `${digest}/manifest.json`, manifest, UPLOADING),
-        await upload(server, `files/${digest}`, new Uint8Array([1]), UPLOADING),
-        await upload(server, `files/${digest}`, oversized, UPLOADING),
-        await upload(server, `files/${digest}/extra`, new Uint8Array([1]), UPLOADING),
-        await upload(server, `${digest}/manifest.json`, manifest, READING),
+        await upload(receiving, `${digest}/manifest.json`, manifest, UPLOADING),
+        await upload(receiving, `files/${digest}`, new Uint8Array([1]), UPLOADING),
+        await upload(receiving, `files/${digest}`, oversized, UPLOADING),
+        await upload(receiving, `files/${digest}/extra`, new Uint8Array([1]), UPLOADING),
+        await upload(receiving, `${digest}/manifest.json`, manifest, READING),
     ]).toEqual([
         [
             409,
@@ -507,19 +498,20 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
     ]);
 });
 
-/** Upload a body to a server path as a host decides, returning the status and error. */
+/** Upload a body to a store path as a host decides, returning the status and error. */
 async function upload(
-    server: PackageServer,
+    store: PackageStore,
     path: string,
     body: BodyInit,
     access: PackageAccess,
 ): Promise<[number, unknown]> {
-    const response = await server.fetch(
+    const response = await store.fetch(
         new Request(`https://packages.test/packages/${path}`, {
             method: "PUT",
             body,
             headers: { "content-type": "application/octet-stream" },
         }),
+        MOUNT,
         access,
     );
     const text = await response.text();

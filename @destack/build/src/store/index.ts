@@ -1,3 +1,3 @@
 export * from "./store.ts";
-export * from "./server.ts";
+export { isUnchanged, type PackageAccess } from "./http.ts";
 export * from "./client.ts";

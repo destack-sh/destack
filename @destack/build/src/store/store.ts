@@ -14,6 +14,7 @@ import { CallError } from "@destack/runtime/error";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import { CacheEntry } from "../cache/entry.ts";
+import { type PackageAccess, serveStore } from "./http.ts";
 
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
@@ -51,6 +52,11 @@ export class PackageStore {
     /** Store builds in a bucket. */
     constructor(bucket: Bucket) {
         this.bucket = bucket;
+    }
+
+    /** Serve the store's manifests, files and archives below a mount, as a host allows each. */
+    fetch(request: Request, mount: URL, access: PackageAccess): Promise<Response> {
+        return serveStore(this, mount, request, access);
     }
 
     /** Name a build by the digest of its manifest, as a store keeps it. */

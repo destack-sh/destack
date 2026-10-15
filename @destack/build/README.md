@@ -60,14 +60,14 @@ await using warm = await compiler.build({ dependencies, outputs, store, timeout:
 
 ## Store
 
-`PackageStore` keeps builds in a bucket by content, and `PackageServer` serves their manifests, files and archives.
+`PackageStore` keeps builds in a bucket by content, and `fetch` serves their manifests, files and archives below a mount.
 
 ```ts
-import { PackageServer, PackageStore } from "@destack/build/store";
+import { PackageStore } from "@destack/build/store";
 
 const store = new PackageStore(bucket);
 const digest = await store.put(build.reader);
-const server = new PackageServer(new URL("https://packages.example.com/"), store);
+const response = await store.fetch(request, new URL("https://packages.example.com/"), access);
 await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000));
 ```
 
