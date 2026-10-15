@@ -50,7 +50,7 @@ const call = testKind({
     delivery: "exactly-once",
     policy: { flush: { maxAge: 60 * MINUTE, maxRows: 2 }, retention: 365 * DAY },
     isLocked: true,
-    subject: "actor",
+    subject: ["actor"],
 });
 
 /** Log lines of a space: kept at most once, their severity unknown for some. */
@@ -590,7 +590,7 @@ test.for(TEST_DIALECTS)(
         const before = await store.query(call, { scopes: ["space-1"] });
 
         // forget the person
-        await store.forget("ada");
+        await store.forget(["ada"]);
         const after = await store.query(call, { scopes: ["space-1"] });
         expect([
             rows.length,
@@ -736,8 +736,8 @@ test("refuse an event kind whose subject is not a text key or whose distribution
                 ...extra,
             });
 
-    expect(declare({ actor: schema.number() }, { subject: "actor" })).toThrow(
-        "event kind reading must have a text subject key",
+    expect(declare({ actor: schema.number() }, { subject: ["actor"] })).toThrow(
+        "event kind reading must have text subject keys",
     );
     expect(declare({}, { distribution: "histogram" })).toThrow(
         "event kind reading has no data entry histogram for its distribution",

@@ -150,8 +150,8 @@ export interface EventKindDescription<Shape extends EventKeyShape, Data extends 
     readonly policy: EventPolicy;
     /** Whether segments are locked and chained for the retention, as audit trails are. */
     readonly isLocked?: boolean;
-    /** The text key of the person whose key seals personal values, such as an actor. */
-    readonly subject?: string;
+    /** The text keys naming the person whose key seals personal values, such as an actor's. */
+    readonly subject?: readonly string[];
     /** The data entry recording a distribution of values, which quantile folds merge. */
     readonly distribution?: string;
 }
@@ -202,9 +202,25 @@ export class EventKind<
         return `${this.package.id}/${this.#definition.name}`;
     }
 
-    /** The key of the person whose key seals personal values, absent for a kind without one. */
-    get subject(): string | undefined {
+    /** The keys naming the person whose key seals personal values, absent without one. */
+    get subject(): readonly string[] | undefined {
         return this.#definition.subject;
+    }
+
+    /** Read the identity of the person an event's keys name, absent without one. */
+    subjectOf(keys: Readonly<Record<string, unknown>>): string | undefined {
+        // name a person only when every subject key has a value
+        const values = (this.#definition.subject ?? []).map((name) => keys[name]);
+        const named = values.filter((value) => typeof value === "string");
+
+        return values.length === 0 || named.length < values.length
+            ? undefined
+            : EventKind.person(named);
+    }
+
+    /** Key a person by their subject keys' values, as the personal keyring keeps them. */
+    static person(subject: readonly string[]): string {
+        return JSON.stringify(subject);
     }
 
     /** Replace each sensitive value by what `map` makes of it. */
@@ -314,14 +330,15 @@ export class EventKind<
             EventKind.#keyType(definition, name);
         }
 
-        // require the subject to be a text key
-        const { subject } = definition;
-        if (
-            subject !== undefined &&
-            (!Object.hasOwn(definition.keys.shape, subject) ||
-                EventKind.#keyType(definition, subject) !== "text")
-        ) {
-            throw new TypeError(`event kind ${definition.name} must have a text subject key`);
+        // require the subject to be text keys
+        const subject = definition.subject ?? [];
+        const isText = subject.every(
+            (name) =>
+                Object.hasOwn(definition.keys.shape, name) &&
+                EventKind.#keyType(definition, name) === "text",
+        );
+        if (definition.subject?.length === 0 || !isText) {
+            throw new TypeError(`event kind ${definition.name} must have text subject keys`);
         }
 
         // require the distribution to be an entry of the data

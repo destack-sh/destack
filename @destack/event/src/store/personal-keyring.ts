@@ -7,14 +7,14 @@ import type { EventKind } from "../kind/kind.ts";
 /** The keys sealing people's personal values, gone once a person is forgotten. */
 export interface PersonalKeyring {
     /** Read a person's current key, creating one when missing. */
-    currentKey(
+    readonly currentKey: (
         subject: string,
         transaction?: DatabaseConnection,
-    ): Promise<{ readonly id: string; readonly key: CryptoKey }>;
+    ) => Promise<{ readonly id: string; readonly key: CryptoKey }>;
     /** Read one of a person's keys, absent once the person is forgotten. */
-    key(subject: string, id: string): Promise<CryptoKey | undefined>;
+    readonly key: (subject: string, id: string) => Promise<CryptoKey | undefined>;
     /** Forget a person's keys, erasing their personal fields in every event sealed under them. */
-    forget(subject: string): Promise<void>;
+    readonly forget: (subject: string) => Promise<void>;
 }
 
 /** The keys of the people in a database's events, each encrypted under the host's keyring. */
@@ -103,10 +103,10 @@ export const PersonalSeal = {
         transaction?: DatabaseConnection,
     ): Promise<JsonValue> {
         // mark each personal value and drop each secret
-        const subject = kind.subject === undefined ? undefined : keys[kind.subject];
+        const subject = kind.subjectOf(keys);
         const held = new Map<object, JsonValue>();
         const marked = kind.mapSensitive(data, (value, sensitivity) => {
-            if (sensitivity === "secret" || typeof subject !== "string") {
+            if (sensitivity === "secret" || subject === undefined) {
                 return undefined;
             }
             const marker = {};
@@ -114,7 +114,7 @@ export const PersonalSeal = {
 
             return marker;
         });
-        if (held.size === 0 || typeof subject !== "string") {
+        if (held.size === 0 || subject === undefined) {
             return marked;
         }
 
@@ -143,7 +143,7 @@ export const PersonalSeal = {
         keyring: PersonalKeyring | undefined,
     ): Promise<JsonValue> {
         // mark each sealed personal value
-        const subject = kind.subject === undefined ? undefined : keys[kind.subject];
+        const subject = kind.subjectOf(keys);
         const held = new Map<object, Ciphertext>();
         const marked = kind.mapSensitive(data, (value, sensitivity) => {
             // keep a value that is not a sealed personal one as it is
@@ -160,7 +160,7 @@ export const PersonalSeal = {
 
             return marker;
         });
-        if (held.size === 0 || typeof subject !== "string") {
+        if (held.size === 0 || subject === undefined) {
             return marked;
         }
 
@@ -194,7 +194,7 @@ function replaced(value: JsonValue, values: ReadonlyMap<object, JsonValue | unde
         return value.map((entry) => replaced(entry, values));
     } else if (JsonValue.isObject(value)) {
         return Object.fromEntries(
-            Object.entries(value).flatMap(([name, entry]) =>
+            JsonValue.entries(value).flatMap(([name, entry]) =>
                 isGone(entry, values) ? [] : [[name, replaced(entry, values)]],
             ),
         );

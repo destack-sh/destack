@@ -54,7 +54,7 @@ export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
                       ? integer(column)
                       : type === "real"
                         ? real(column)
-                        : json(column, schema.record(schema.string(), schema.json()));
+                        : json(column, schema.jsonObject());
 
             return [key, built];
         }),

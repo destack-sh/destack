@@ -28,7 +28,7 @@ import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/runtime/control";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
-import type { Event, EventKeyShape, EventKind, EventPolicy } from "../kind/kind.ts";
+import { type Event, type EventKeyShape, EventKind, type EventPolicy } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
@@ -289,12 +289,12 @@ export class EventStore {
         return { events, sequence: page.sequence };
     }
 
-    /** Forget a person, erasing their personal values in every event sealed under their keys. */
-    async forget(subject: string): Promise<void> {
+    /** Forget a person by their subject keys' values, erasing their sealed personal values. */
+    async forget(subject: readonly string[]): Promise<void> {
         if (this.#personal === undefined) {
             throw new TypeError("a store without a personal keyring cannot seal personal values");
         }
-        await this.#personal.forget(subject);
+        await this.#personal.forget(EventKind.person(subject));
     }
 
     /** Check events against their kind, seal their personal values and drop their secrets. */
