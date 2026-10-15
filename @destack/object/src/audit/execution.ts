@@ -59,7 +59,7 @@ export const JournalEntry = defineSchema(
         /** The audit action, such as page.create, of the package the context keeps. */
         method: schema.string().min(1),
         /** The method's input, with its scope and target. */
-        input: schema.record(schema.string(), schema.json()),
+        input: schema.jsonObject(),
         /** The release of the method's package the call was made against. */
         release: Version,
         /** Who ran the call where, what it affected, and how it ended once it ends. */

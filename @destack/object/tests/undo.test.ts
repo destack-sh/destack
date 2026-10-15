@@ -8,8 +8,8 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
-import { ObjectExtension } from "../src/server/index.ts";
-import { found, Clock } from "@destack/schema";
+import { ObjectExtension, defineServer } from "../src/server/index.ts";
+import { found, Clock, aligned } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -253,7 +253,7 @@ test.each(TEST_DIALECTS)(
                 .select({
                     title: note.table.title,
                     text: note.table.text,
-                    deletionRequestedAt: note.table.deletionRequestedAt,
+                    deletedAt: note.table.deletedAt,
                 })
                 .from(note.table)
                 .where(eq(note.table.id, id));
@@ -273,7 +273,7 @@ test.each(TEST_DIALECTS)(
         expect(await read(device.client)).toEqual({
             title: "Draft",
             text: "second",
-            deletionRequestedAt: null,
+            deletedAt: null,
         });
 
         // undo the creation into the trash and redo it
@@ -282,7 +282,7 @@ test.each(TEST_DIALECTS)(
         await device.client.undo().confirmed;
         expect([await read(device.client), await trashed()]).toEqual([undefined, [id]]);
         await device.client.redo().confirmed;
-        await expect.poll(() => read(device.client)).toMatchObject({ deletionRequestedAt: null });
+        await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
         expect(await trashed()).toEqual([]);
 
         // keep the party's stack across a restart, and redo the update from it
@@ -304,7 +304,7 @@ test.each(TEST_DIALECTS)(
         expect(await read(restarted)).toEqual({
             title: "Plan",
             text: "second",
-            deletionRequestedAt: null,
+            deletedAt: null,
         });
 
         // leave nothing to redo, and undo both done entries by two quick undos, one entry each
@@ -331,14 +331,18 @@ test("undo an update of an exact integer, restoring its value on the device and 
     await openSpace(storage.database, spaceId);
     const tallies = definePackage({ objects: { tally } });
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(tallies, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(tallies) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            database: storage.database,
-        }).packages[0],
+        aligned(
+            ObjectExtension.compose([defineServer(tallies, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(tallies) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+            }).packages,
+            0,
+        ),
         spaceId,
     );
 
@@ -356,7 +360,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         endpoint: served.endpoint("alice"),
         reconnect: unmoved,
     });
-    client.queryOf(tally).findMany().subscribe();
+    client.queryType(tally).findMany().subscribe();
     const stopping = new AbortController();
     const errors: unknown[] = [];
     const loops = [
@@ -398,14 +402,18 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     await openSpace(storage.database, spaceId);
     const stamps = definePackage({ objects: { stamp } });
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(stamps, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(stamps) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            database: storage.database,
-        }).packages[0],
+        aligned(
+            ObjectExtension.compose([defineServer(stamps, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(stamps) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+            }).packages,
+            0,
+        ),
         spaceId,
     );
 
@@ -423,7 +431,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         endpoint: served.endpoint("alice"),
         reconnect: unmoved,
     });
-    client.queryOf(stamp).findMany().subscribe();
+    client.queryType(stamp).findMany().subscribe();
     const stopping = new AbortController();
     const errors: unknown[] = [];
     const loops = [

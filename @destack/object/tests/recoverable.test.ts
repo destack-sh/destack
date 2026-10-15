@@ -1,8 +1,8 @@
 import { type Change, eq, defineDatabase } from "@destack/db";
-import { Subject } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, refusal, onTestFinished, test, TestClock } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -10,12 +10,10 @@ import { schema, present } from "@destack/schema";
 
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { ObjectStore, RecoverableController } from "../src/server/index.ts";
-import { recoverable } from "../src/trait/recoverable.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
-import { any } from "./fixture/match.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the credentials. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -47,7 +45,7 @@ const credentialDatabase = defineDatabase({
 });
 
 test.each(TEST_DIALECTS)(
-    "purge a kept record through its handler under its own permission or as the system, and restore within the host's window on %s",
+    "purge a kept record through its handler under its own permission or as the system, and restore it within its window on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, credentialDatabase, {
             isMigrated: true,
@@ -56,23 +54,21 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
 
-        // serve credentials restorable for a week with a purge handler that destroys the value
-        const handled = recoverable.within(
-            credential.implement({
-                methods: {
-                    purge: async (call, next) => {
-                        await call.update({ value: null });
+        // serve credentials with a purge handler that destroys the value
+        const handled = credential.implement({
+            methods: {
+                purge: async (call, next) => {
+                    await call.update({ value: null });
 
-                        return next();
-                    },
+                    return next();
                 },
-            }),
-            { days: 7 },
-        );
+            },
+        });
         const clock = new TestClock(Date.now());
         const events = await testEvents(database);
         const serve = (object: ObjectType) =>
             new ObjectStore({
+                chain: async () => undefined,
                 principal: spacePrincipal(spaceId),
                 objects: [object],
                 database,
@@ -87,31 +83,35 @@ test.each(TEST_DIALECTS)(
         const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
-            input: Record<string, unknown>,
-        ) => request(serve(object), object, name, { spaceId, ...input }, context);
-        // restore within the host's window what the declared window no longer restores
+            input: NoInfer<RequestInput<Object, Name>>,
+        ) => request(serve(object), object, name, spaceId, input, context);
+        // restore within the declared window
         const created = await execute(handled, "create", {
             custodianId: "user-2",
             value: "hunter2",
         });
         await execute(handled, "delete", { id: created.id, revision: created.revision });
+        const restored = await execute(handled, "restore", { id: created.id });
+        expect(restored.deletedAt).toBeNull();
+
+        // refuse restoring past the declared window
+        const lapsed = await execute(handled, "create", { custodianId: "user-2", value: "old" });
+        await execute(handled, "delete", { id: lapsed.id, revision: lapsed.revision });
         await database
             .update(credential.table)
-            .set({ deletionRequestedAt: Date.now() - 120_000 })
-            .where(eq(credential.table.id, created.id));
-        await expect(execute(credential, "restore", { id: created.id })).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "credential is past its recovery window",
-        });
-        const restored = await execute(handled, "restore", { id: created.id });
-        expect(restored.deletionRequestedAt).toBeNull();
+            .set({ deletedAt: Date.now() - 120_000 })
+            .where(eq(credential.table.id, lapsed.id));
+        expect(await refusal(execute(handled, "restore", { id: lapsed.id }))).toEqual([
+            "CONFLICT",
+            "credential is past its recovery window",
+        ]);
 
         // reserve purging to the custodian, even for the owner deleting and restoring
         await execute(handled, "delete", { id: created.id, revision: restored.revision });
-        await expect(execute(handled, "purge", { id: created.id })).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "permission denied: purge",
-        });
+        expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
+            "FORBIDDEN",
+            "permission denied: purge",
+        ]);
 
         // refuse a record-keeping purge without a handler destroying the content
         context = userContext("user-2", spaceId);
@@ -132,32 +132,27 @@ test.each(TEST_DIALECTS)(
             ...created,
             value: null,
             revision: 5,
-            updatedAt: any(Number),
-            updatedBy: Subject.key(principal.user.reference("universe", "user-2")),
-            deletionRequestedAt: any(Number),
-            deletedBy: Subject.key(principal.user.reference("universe", "user-1")),
-            purgedAt: any(Number),
+            updatedAt: clock.now(),
+            ...ObjectReference.columns("updatedBy", principal.user.reference("universe", "user-2")),
+            deletedAt: clock.now(),
+            ...ObjectReference.columns("deletedBy", principal.user.reference("universe", "user-1")),
+            purgedAt: clock.now(),
         });
 
         // refuse purging and restoring a purged record
-        await expect(execute(handled, "purge", { id: created.id })).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "credential is purged",
-        });
+        expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
+            "CONFLICT",
+            "credential is purged",
+        ]);
         context = userContext("user-1", spaceId);
-        await expect(execute(handled, "restore", { id: created.id })).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "credential is purged",
-        });
+        expect(await refusal(execute(handled, "restore", { id: created.id }))).toEqual([
+            "CONFLICT",
+            "credential is purged",
+        ]);
 
-        // purge a record past the host's window as the system, through its handler, once
-        const expired = await execute(handled, "create", {
-            custodianId: "user-2",
-            value: "swordfish",
-        });
-        await execute(handled, "delete", { id: expired.id, revision: expired.revision });
+        // purge the lapsed record as the system, through its handler, once
         const store = serve(handled);
-        const later = Date.now() + 8 * 24 * 60 * 60 * 1000;
+        const later = Date.now() + 120_000;
         clock.set(later);
         expect([
             await RecoverableController.purge(store, later),
@@ -167,7 +162,7 @@ test.each(TEST_DIALECTS)(
         const [kept] = await database
             .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
             .from(credential.table)
-            .where(eq(credential.table.id, expired.id));
+            .where(eq(credential.table.id, lapsed.id));
         expect(kept).toEqual({ value: null, purgedAt: later });
         clock.set(Date.now());
 
@@ -175,7 +170,7 @@ test.each(TEST_DIALECTS)(
         const controller = new RecoverableController(store);
         const pending = await execute(handled, "create", { custodianId: "user-2", value: "later" });
         await execute(handled, "delete", { id: pending.id, revision: pending.revision });
-        const week = 7 * 24 * 60 * 60 * 1000;
+        const window = 60_000;
         const delay = present(
             await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
             "the wait until the next window ends",
@@ -199,19 +194,16 @@ test.each(TEST_DIALECTS)(
         }
         expect([
             controller.watches,
-            controller.keys(updated({ deletionRequestedAt: null }, { deletionRequestedAt: 1 })),
+            controller.keys(updated({ deletedAt: null }, { deletedAt: 1 })),
             controller.keys(
-                updated(
-                    { value: "old", deletionRequestedAt: null },
-                    { value: "new", deletionRequestedAt: null },
-                ),
+                updated({ value: "old", deletedAt: null }, { value: "new", deletedAt: null }),
             ),
             await controller.list(),
-            delay > week - 60_000 && delay <= week,
+            delay > 0 && delay <= window,
         ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
         await database
             .update(credential.table)
-            .set({ deletionRequestedAt: clock.now() - week - 1 })
+            .set({ deletedAt: clock.now() - window - 1 })
             .where(eq(credential.table.id, pending.id));
         expect(
             await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),

@@ -43,6 +43,7 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [note],
@@ -67,7 +68,7 @@ test.for(TEST_DIALECTS)(
             calls: [note.call("update", { spaceId, id: written[1].id, title: "Engine of Ada" })],
         });
 
-        // list by a search alone, beside a condition, and by a search matching nothing
+        // list only by a search, beside a condition, and by a search matching nothing
         const titles = async (where: object) =>
             (
                 await store.query(

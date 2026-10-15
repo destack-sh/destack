@@ -59,6 +59,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
     onTestFinished(() => telemetry.shutdown());
     const spaceId = `space-${v7()}`;
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [holder],
@@ -129,7 +130,7 @@ test("keep a sensitive input out of the rows, the journal, the audit events, the
         ]),
     };
 
-    // list the traces holding a key, and the token anywhere but its row
+    // list the traces with a key, and the token anywhere but its row
     const leaking = Object.entries(traces).flatMap(([name, text]) =>
         [valid, invalid, ...(name === "rows" ? [] : [token])]
             .filter((key) => text.includes(key))

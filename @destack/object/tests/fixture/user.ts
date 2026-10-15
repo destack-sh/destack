@@ -18,7 +18,7 @@ export function bearerUser(
     scope: string,
 ): (request: Request) => Promise<Caller | undefined> {
     return async (request) => {
-        // read the user the bearer token names
+        // read the user in the bearer token
         const bearer = request.headers.get("authorization");
         if (bearer === null) {
             return undefined;

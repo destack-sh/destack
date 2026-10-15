@@ -34,14 +34,14 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #byTable: ReadonlyMap<Table, ObjectType>;
     /** Report a failure to end an owner's rows. */
     readonly #report: (error: unknown) => void;
-    /** The pending ends of owners no instance tracks, by owner. */
-    readonly #leaving = new Map<string, ReturnType<typeof setTimeout>>();
+    /** Stops the pending ends of owners no instance tracks, by owner. */
+    readonly #leaving = new Map<string, AbortController>();
     /** Stop watching which owners any instance tracks. */
     readonly #unwatch: () => void;
     /** How long an untracked owner's rows stay, in milliseconds. */
     readonly #linger: number;
     /** The memory database this store opened and closes, absent if its caller keeps one. */
-    #owned: { close(): Promise<void> } | undefined;
+    #owned: { readonly close: () => Promise<void> } | undefined;
 
     /** Keep ephemeral object types in memory, replicated over a channel. */
     constructor(
@@ -60,7 +60,7 @@ export class EphemeralStorage implements AsyncDisposable {
                 const [foreign] = constraint.kind === "foreignKey" ? constraint.foreignColumns : [];
                 if (foreign !== undefined && !names.has(foreign.table)) {
                     throw new TypeError(
-                        `ephemeral object ${object.name} references ${foreign.table}, which lives in another database`,
+                        `ephemeral object ${object.name} references ${foreign.table} in another database`,
                     );
                 }
             }
@@ -88,7 +88,7 @@ export class EphemeralStorage implements AsyncDisposable {
         channel: Channel<unknown>,
         open: (
             tables: readonly Table[],
-        ) => Promise<DatabaseConnection & { close(): Promise<void> }>,
+        ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>,
         options: EphemeralStorageOptions,
     ): Promise<EphemeralStorage | undefined> {
         // keep nothing for objects without ephemeral types
@@ -116,7 +116,7 @@ export class EphemeralStorage implements AsyncDisposable {
 
     /** Build the owner of a writer's rows of one object type. */
     static owner(writer: string, object: ObjectType): string {
-        return `${typeKey(object)}/${writer}`;
+        return `${EphemeralStorage.#typeKey(object)}/${writer}`;
     }
 
     /** Write in a memory transaction as a writer and publish its rows. */
@@ -180,8 +180,8 @@ export class EphemeralStorage implements AsyncDisposable {
     close(): void {
         // stop watching and clear pending ends
         this.#unwatch();
-        for (const timer of this.#leaving.values()) {
-            clearTimeout(timer);
+        for (const leaving of this.#leaving.values()) {
+            leaving.abort();
         }
         this.#leaving.clear();
         this.tracker.close();
@@ -193,29 +193,33 @@ export class EphemeralStorage implements AsyncDisposable {
         await this.#owned?.close();
     }
 
-    /** End an untracked owner's rows after the linger. */
+    /** End an untracked owner's rows after the linger on the feed's clock. */
     #leave(owner: string): void {
-        // schedule the end
-        clearTimeout(this.#leaving.get(owner));
-        this.#leaving.set(
-            owner,
-            setTimeout(() => {
+        // replace a pending end
+        this.#leaving.get(owner)?.abort();
+        const leaving = new AbortController();
+        this.#leaving.set(owner, leaving);
+
+        // end the rows once the linger passes untracked
+        this.feed.clock.sleep(this.#linger, leaving.signal).then(
+            () => {
                 this.#leaving.delete(owner);
                 if (!this.tracker.isTracked(owner)) {
                     this.tracker.end(owner).catch(this.#report);
                 }
-            }, this.#linger),
+            },
+            () => {},
         );
     }
 
     /** Cancel the pending end of an owner some instance tracks again. */
     #stay(owner: string): void {
-        clearTimeout(this.#leaving.get(owner));
+        this.#leaving.get(owner)?.abort();
         this.#leaving.delete(owner);
     }
-}
 
-/** Build the key of an object type within its rows' owners. */
-function typeKey(object: ObjectType): string {
-    return `${object.policy.definition.packageId}/${object.name}`;
+    /** Build the key of an object type within its rows' owners. */
+    static #typeKey(object: ObjectType): string {
+        return `${object.policy.definition.packageId}/${object.name}`;
+    }
 }

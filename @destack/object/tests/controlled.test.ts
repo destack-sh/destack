@@ -4,7 +4,7 @@ import { none, principal, relation, Caller } from "@destack/access";
 
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { Clock, present, schema } from "@destack/schema";
 
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -52,6 +52,7 @@ test.each(TEST_DIALECTS)(
         await openSpace(storage.database, spaceId);
         const clock = new TestClock(0);
         const store = new ObjectStore({
+            chain: async () => undefined,
             principal: spacePrincipal(spaceId),
             objects: [machine],
             database: storage.database,
@@ -168,7 +169,7 @@ test.each(TEST_DIALECTS)(
                 observed.address,
                 observed.conditions,
             ],
-            [requested.generation, requested.revision, requested.deletionRequestedAt],
+            [requested.generation, requested.revision, requested.deletedAt],
             finalized,
         ]).toEqual([
             [MACHINE, 1, 0, 1],
@@ -199,6 +200,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
     await openSpace(storage.database, spaceId);
     const clock = new TestClock(0);
     const store = new ObjectStore({
+        chain: async () => undefined,
         principal: spacePrincipal(spaceId),
         objects: [machine],
         database: storage.database,
@@ -239,5 +241,61 @@ test("answer a repeated system request from the journal, provisioning once, and 
         machines: [first],
         repeated: first,
         other: ["CONFLICT", "request identifier has already been used"],
+    });
+});
+
+/** Installations a controller reconciles, each acting on its own row as the principal it is. */
+const agent = defineObject({
+    name: "installation",
+    plural: "installations",
+    scope: space,
+    represents: principal.installation,
+    controlled: true,
+    fields: { name: field.string() },
+    permissions: { read: none(), write: none() },
+}).methods((method) => ({ create: method.create("write") }));
+
+test("let an object representing a principal control its own row, and refuse it another's", async () => {
+    // keep two installations in the space
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...agent.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        principal: spacePrincipal(spaceId),
+        objects: [agent],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: agent.package },
+        clock: Clock.system,
+    });
+    const mutate = (caller: Caller, call: ReturnType<typeof agent.call>) =>
+        store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
+    const create = async (name: string) => {
+        const [created] = await mutate(
+            Caller.of(spacePrincipal(spaceId), Date.now()),
+            agent.call("create", { spaceId, name }),
+        );
+
+        return schema.looseObject({ id: schema.string() }).parse(created).id;
+    };
+    const [first, second] = [await create("first"), await create("second")];
+
+    // observe the first installation as itself, then as the second, which cannot see it
+    const observe = (actor: string) =>
+        mutate(
+            Caller.of(principal.installation.reference(spaceId, actor), Date.now()),
+            agent.call("observe", { spaceId, id: first, observedGeneration: 1, conditions: {} }),
+        );
+    await observe(first);
+    const refused = await refusal(observe(second));
+    const [observed] = await storage.database.select().from(agent.table);
+
+    expect({ observed: observed?.observedGeneration, refused }).toEqual({
+        observed: 1,
+        refused: ["NOT_FOUND", `no installation ${first}`],
     });
 });

@@ -24,7 +24,7 @@ const [created] = await store.mutate(caller, {
     id: requestId,
     calls: [page.call("create", { spaceId, title: "Ideas" })],
 });
-const listed = client.query.page.findMany().subscribe(); // a client's live local copy
+const listed = client.query.page.findMany().subscribe(); // a client's live local replica
 ```
 
 ## Objects
@@ -76,6 +76,25 @@ export const servedPage = page.implement({
 
 // a client predicts archive at once and confirms it once the server's changes arrive
 const { predicted, confirmed } = client.mutate(page).archive({ id });
+```
+
+## References
+
+`field.reference` keeps an object's identifier as `<name>Id`, while `field.object` and `field.subject` keep a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
+
+```ts
+fields: {
+    folder: field.reference(folder, { delete: "cascade" }), // a foreign key in the space's database
+    parent: field.reference((): ObjectOf<{ identity: "page" }> => page), // a type declared later
+    owner: field.reference(principal.user), // a global principal's identifier
+    origin: field.object(page), // originPackageId, originType, originScope, originId
+    author: field.subject(principal.user, principal.agent), // authorPackageId … authorId
+},
+```
+
+```ts
+await notes.create({ ...ObjectReference.columns("origin", page.reference(scope, id)), title });
+const origin = ObjectReference.at("origin", row);
 ```
 
 ## Traits
@@ -148,7 +167,7 @@ await store.mutate(Caller.of(space, Date.now()), { id: RequestId.create(), calls
 
 ## Events
 
-A type kept in the event log takes `storage: { kind: "events", … }`: an internal `create` or `createMany` appends its rows under the caller's `id` and `time`, the same `get` and `list` read them hot and flushed alike, and `series` folds them; a guarded field masks the personal values its schema marks.
+A type kept in the event log takes `storage: { kind: "events", … }`: `create` and `createMany` append its rows under the caller's `id` and `time`, internally or under a permission, the same `get` and `list` read them hot and flushed alike, also from a durable method's handler, and `series` folds them; a guarded field masks the personal values its schema marks.
 
 ```ts
 export const call = defineObject({
@@ -199,6 +218,22 @@ await store.query(
     caller,
     call.call("series", { scope, fold: "count", group: ["method"], from, before }),
 );
+```
+
+## Call log
+
+The journal appends each audited call to the `call` events type, which object's own server serves wherever a store composes it.
+
+```ts
+import objectPackage from "@destack/object/package";
+import objectServer, { ObjectExtension } from "@destack/object/server";
+
+const { store, packages } = ObjectExtension.compose(
+    [objectServer.extension(undefined), ...extensions],
+    options,
+);
+const calls = createClient(objectPackage, endpoint);
+await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "desc" } });
 ```
 
 ## Unique names

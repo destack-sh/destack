@@ -12,9 +12,13 @@ export interface BrowserHost {
     /** The channel every tab and the database worker share. */
     readonly channel: Channel<unknown>;
     /** Take a named lock while a callback runs. */
-    request(name: string, callback: () => Promise<void>, signal?: AbortSignal): Promise<void>;
+    readonly request: (
+        name: string,
+        callback: () => Promise<void>,
+        signal?: AbortSignal,
+    ) => Promise<void>;
     /** Start the worker with the database, returning how to stop it. */
-    start(): Promise<() => Promise<void>>;
+    readonly start: () => Promise<() => Promise<void>>;
 }
 
 /** One tab's objects over the database of the owning tab's worker. */
@@ -96,7 +100,7 @@ export class BrowserTab<
         readonly reconnect: (machine: string) => ClientOptions;
         /** Where and how to reach the home of an enclosing scope whose rows the tab changes. */
         readonly homes?: (scope: string) => ClientOptions;
-        /** The most object rows the shared copy keeps, absent for no limit. */
+        /** The most object rows the shared replica keeps, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log keeps changes, a minute by default. */
         readonly log?: { readonly keep: Duration };

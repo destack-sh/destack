@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { principal, relation } from "@destack/access";
+import { Caller, none, principal, relation } from "@destack/access";
 
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, schema } from "@destack/schema";
@@ -50,6 +50,7 @@ test.each(TEST_DIALECTS)(
         // serve the handles to the user each call refers to
         let level = 2;
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [handle],
@@ -116,10 +117,12 @@ test.each(TEST_DIALECTS)(
         });
         level = 2;
 
-        // find nothing inside a space the caller may not read, not even its own handle
-        await expect(
-            create("alice", { holderId: "alice", name: "notes" }, privateId),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no scope ${privateId}` });
+        // create a handle in a space the caller cannot read, as its permission admits
+        const admitted = await create("alice", { holderId: "alice", name: "notes" }, privateId);
+        expect({ holderId: admitted.holderId, name: admitted.name }).toEqual({
+            holderId: "alice",
+            name: "notes",
+        });
     },
 );
 
@@ -142,6 +145,7 @@ test("create an object the caller has the permission on only as the creator its 
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [team],
@@ -172,6 +176,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [team],
@@ -181,7 +186,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
         origin: { package: team.package },
     });
 
-    // create through a token granted the create method alone, then read
+    // create through a token granted only the create method, then read
     const grantId = Identifier.create("grant");
     const granted = userContext("alice", spaceId, {
         delegates: [principal.personalAccessToken.reference("alice", "token-alice")],
@@ -206,7 +211,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
 
     expect([created.name, read]).toEqual([
         "Core",
-        ["FORBIDDEN", `grant ${grantId} reaches no team.get in ${spaceId}`],
+        ["FORBIDDEN", `grant ${grantId} does not allow team.get in ${spaceId}`],
     ]);
 });
 
@@ -260,6 +265,7 @@ test("create each variant of a sum type from its own fields beside the shared on
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [contact],
@@ -276,7 +282,7 @@ test("create each variant of a sum type from its own fields beside the shared on
             })
             .then(([written]) => written);
 
-    // create an email and a phone contact, each with its variant's columns alone
+    // create an email and a phone contact, each with only its variant's columns
     const email = await create({ label: "Mail", kind: "email", address: "alice@example.com" });
     const phone = await create({
         label: "Desk",
@@ -285,7 +291,7 @@ test("create each variant of a sum type from its own fields beside the shared on
         region: "de",
     });
 
-    // refuse an email contact carrying a phone's number
+    // refuse an email contact with a phone's number
     const mixed = await refusal(
         store
             .mutate(userContext("alice", spaceId).caller(), {
@@ -323,6 +329,63 @@ test("create each variant of a sum type from its own fields beside the shared on
     ]);
 });
 
+/** Tickets filed in the queue their caller names, else in triage, as their creation fills it. */
+const ticket = defineObject({
+    name: "ticket",
+    plural: "tickets",
+    scope: space,
+    fields: { title: field.string(), queue: field.string() },
+    permissions: { read: none(), write: none() },
+}).methods((method) => ({ create: method.create("write", { filled: ["queue"] }) }));
+
+test("create an object without a field its creation fills, keeping the field the caller gives", async () => {
+    // serve tickets whose creation fills the queue a caller leaves out
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...ticket.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [
+            ticket.implement({
+                methods: {
+                    create: (call, next) =>
+                        next(
+                            call.with({
+                                input: { ...call.input, queue: call.input.queue ?? "triage" },
+                            }),
+                        ),
+                },
+            }),
+        ],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: ticket.package },
+    });
+    const create = (input: CallInput<typeof ticket, "create">) =>
+        store
+            .mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+                id: RequestId.create(Date.now()),
+                calls: [ticket.call("create", { spaceId, ...input })],
+            })
+            .then(([written]) => written);
+
+    // file one ticket without a queue and one in billing
+    const filed = [
+        await create({ title: "Login" }),
+        await create({ title: "Invoice", queue: "billing" }),
+    ];
+
+    expect(filed.map(({ title, queue }) => [title, queue])).toEqual([
+        ["Login", "triage"],
+        ["Invoice", "billing"],
+    ]);
+});
+
 /** Channels keyed by the slug their holder chooses. */
 const channel = defineObject({
     name: "channel",
@@ -340,6 +403,7 @@ test("create an object under a natural key the creator chooses, refusing a taken
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [channel],

@@ -43,6 +43,7 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [card],
@@ -94,7 +95,8 @@ test.for(TEST_DIALECTS)(
         });
         await expect(later).rejects.toMatchObject({
             code: "BAD_REQUEST",
-            message: "card.update was made against release 2026.10.0 of card, which is at 2026.9.0",
+            message:
+                "card.update was made against release 2026.10.0 of card, but card is at 2026.9.0",
         });
         const stored = await store.query(
             context.caller(),

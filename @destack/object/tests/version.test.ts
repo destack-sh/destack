@@ -11,7 +11,7 @@ import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -35,6 +35,7 @@ test.each(TEST_DIALECTS)(
 
         // create versions numbered from one, taking the number the runtime assigns
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [task, taskVersion],
@@ -48,13 +49,14 @@ test.each(TEST_DIALECTS)(
         const context = userContext("user-1", spaceId);
         const execute = <Name extends CallableName<typeof taskVersion>>(
             name: Name,
-            input: Record<string, unknown>,
+            input: NoInfer<RequestInput<typeof taskVersion, Name>>,
         ): Promise<CallOutput<typeof taskVersion, Name>> =>
             request(
                 store,
                 taskVersion,
                 name,
-                { spaceId, requestId: RequestId.create(Date.now()), ...input },
+                spaceId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
         const first = await execute("create", { parentId: taskId, title: "Plan" });

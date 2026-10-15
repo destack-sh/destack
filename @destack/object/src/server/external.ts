@@ -7,7 +7,7 @@ export interface ExternalStorage {
     /** The external object types kept. */
     readonly objects: readonly ObjectType[];
     /** Open the database with a scope's rows of the external types. */
-    open(scope: string): Promise<DatabaseConnection>;
+    readonly open: (scope: string) => Promise<DatabaseConnection>;
 }
 
 /** Find the files keeping external objects. */
@@ -25,7 +25,7 @@ export const ExternalStorage = {
         const [only, ...others] = found;
         if (only === undefined || others.length > 0) {
             throw new CallError("BAD_REQUEST", {
-                message: `no one store keeps the external objects ${names.join(", ")}`,
+                message: `no single store has the external objects ${names.join(", ")}`,
             });
         }
 

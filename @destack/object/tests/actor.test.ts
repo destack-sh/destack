@@ -3,7 +3,8 @@ import { RequestContext } from "@destack/runtime/server";
 import { ResourceContext } from "@destack/resource/context";
 import { CallError } from "@destack/runtime";
 import { Clock, Identifier, schema } from "@destack/schema";
-import { AuditActor, AuditCaller } from "../src/index.ts";
+import { AuditCaller } from "../src/index.ts";
+import { ObjectReference } from "@destack/sync";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
 import { anyone, type Caller, principal } from "@destack/access";
@@ -115,8 +116,10 @@ test("persist verified caller identities with their delegates and grant, record 
 
         // read the identities back through queries of the call events
         for (const event of calls) {
-            const key = AuditActor.key(AuditCaller.actor(event.execution.context.caller));
-            expect(await storage.calls("universe", { actor: key })).toEqual([event]);
+            const subject = AuditCaller.actor(event.execution.context.caller).subject;
+            expect(
+                await storage.calls("universe", ObjectReference.columns("actor", subject)),
+            ).toEqual([event]);
         }
     } finally {
         await storage.close();

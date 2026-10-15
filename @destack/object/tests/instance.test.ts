@@ -66,6 +66,7 @@ test.for(TEST_DIALECTS)(
 /** Serve the notes over one connection as alice. */
 async function serve(database: DatabaseConnection) {
     return new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [notebook, note],

@@ -2,14 +2,14 @@ import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, aligned } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { definePackage } from "@destack/runtime";
 import { serveObjects } from "./fixture/device.ts";
@@ -49,6 +49,7 @@ test("read external objects named by their key from the database their files ope
     onTestFinished(() => files.close());
     const opened: string[] = [];
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [notebook, entry],
@@ -92,25 +93,29 @@ test("read external objects named by their key from the database their files ope
         [spaceId, spaceId],
     ]);
 
-    // follow the entries in a client's live query, through the external copy
+    // follow the entries in a client's live query, through the external replica
     const notebooks = definePackage({ objects: { notebook, entry } });
     const served = serveObjects(
-        ObjectExtension.compose(
-            [
+        aligned(
+            ObjectExtension.compose(
+                [
+                    {
+                        ...defineServer(notebooks, {}).extension(undefined),
+                        external: { objects: [entry], open: async () => files.database },
+                    },
+                ],
                 {
-                    ...ObjectExtension.of(notebooks, []),
-                    external: { objects: [entry], open: async () => files.database },
+                    chain: async () => undefined,
+                    clock: Clock.system,
+                    origin: { package: Package.of(notebooks) },
+                    principal: spacePrincipal(spaceId),
+                    database: durable.database,
+                    callKey: testCallKey,
+                    events: await testEvents(durable.database),
                 },
-            ],
-            {
-                clock: Clock.system,
-                origin: { package: Package.of(notebooks) },
-                principal: spacePrincipal(spaceId),
-                database: durable.database,
-                callKey: testCallKey,
-                events: await testEvents(durable.database),
-            },
-        ).packages[0],
+            ).packages,
+            0,
+        ),
         spaceId,
     );
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, entry }));
@@ -153,7 +158,7 @@ function declareMark(isInternal: boolean) {
         fields: { term: field.string() },
         permissions: { receive: none() },
     }).methods((method) => ({
-        receive: method.mutation({ permission: "receive", target: "none", isInternal }),
+        receive: method.mutation({ permission: "receive", target: "scope", isInternal }),
     }));
 }
 

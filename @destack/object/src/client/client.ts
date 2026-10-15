@@ -1,6 +1,7 @@
 import { ObjectReference } from "@destack/sync";
 import type { Item, Subject } from "@destack/sync";
 import {
+    FindOptions,
     and,
     asc,
     count,
@@ -44,6 +45,7 @@ import {
     type Identifier,
     type JsonObject,
     type JsonValue,
+    mapValues,
     present,
     schema,
 } from "@destack/schema";
@@ -60,8 +62,8 @@ import * as sync from "@destack/sync";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
 import { Call, type ObjectCall } from "../method/call.ts";
-import type { Method } from "../method/method.ts";
-import { BatchItems } from "../method/record.ts";
+import { Method } from "../method/method.ts";
+import { BatchItem } from "../method/record.ts";
 
 import type { CallableName, CallInput, CallOutput, MutationName } from "../method/procedure.ts";
 import {
@@ -72,8 +74,6 @@ import {
     PUSH_MUTATIONS,
     QUERIES_SHAPE,
     replicaProcedures,
-    type OpenQueryOptions,
-    type RelationOptions,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 import { ObjectKey, ObjectType, type ObjectStorage, type PermissionOf } from "../object/object.ts";
@@ -81,7 +81,7 @@ import { ObjectAccess } from "../object/access.ts";
 
 import type { NestedItem } from "../query/item.ts";
 import { related } from "../query/query.ts";
-import { Chunk } from "../text/chunk.ts";
+import { TextPresenter } from "../text/chunk.ts";
 import {
     RelationalQuery,
     RelationalQueryBuilder,
@@ -106,7 +106,7 @@ const RETRY = RetryPolicy.of({ maximumInterval: 60_000 });
 /** The hexadecimal digest digits identifying a query: 64 bits, safe among a client's queries. */
 const QUERY_NAME_LENGTH = 16;
 
-/** The storages apart from the durable copy: ephemeral and external copies, and local objects. */
+/** The storages beside the durable replica: ephemeral and external replicas, and local objects. */
 const SEPARATE_STORAGES = ["ephemeral", "external", "local"] as const;
 
 /** The default local log window, in milliseconds: a minute, far above live queries' lag. */
@@ -115,11 +115,11 @@ const LOCAL_LOG_MILLISECONDS = 60_000;
 /** The row count change of each logged operation. */
 const ROW_DELTAS = { insert: 1, update: 0, delete: -1 } as const;
 
-/** The queries a copy last subscribed, by name. */
+/** The queries a replica last subscribed, by name. */
 const SUBSCRIBED_QUERIES = schema.record(schema.string(), ObjectQuery);
 
 /** A shape's parameters in JSON form. */
-const PARAMETERS = schema.record(schema.string(), schema.json());
+const PARAMETERS = schema.jsonObject();
 
 /** The results of a pushed mutation's calls, in call order. */
 const CALL_RESULTS = schema.array(schema.unknown());
@@ -132,28 +132,28 @@ export interface Submission<Value> {
     readonly confirmed: Promise<void>;
 }
 
-/** A live query a client reads from its copy, predictions included. */
+/** A live query a client reads from its replica, predictions included. */
 export interface LiveQuery<Value = readonly Item[]> {
-    /** Settles once the copy has the query, or once the query closes. */
+    /** Settles once the replica has the query, or once the query closes. */
     readonly ready: Promise<void>;
     /** Read the query's value: its items with their includes, or its groups when aggregating. */
-    read(): Promise<Value>;
+    readonly read: () => Promise<Value>;
     /** Read the query again after every local commit until the signal aborts. */
-    watch(signal: AbortSignal): AsyncGenerator<Value>;
+    readonly watch: (signal: AbortSignal) => AsyncGenerator<Value>;
     /** Stop following the query. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
 }
 
 /** The changes a branch makes over the main line, as a client follows them. */
 export interface BranchDiff {
-    /** Settles once the copy has the branch's rows. */
+    /** Settles once the replica has the branch's rows. */
     readonly ready: Promise<void>;
     /** Read the changes, one per object. */
-    read(): Promise<BranchChange[]>;
+    readonly read: () => Promise<BranchChange[]>;
     /** Read the changes again after every change of the branch's rows, until the signal aborts. */
-    watch(signal: AbortSignal): AsyncGenerator<BranchChange[]>;
+    readonly watch: (signal: AbortSignal) => AsyncGenerator<BranchChange[]>;
     /** Stop following the branch. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
 }
 
 /** The mutating methods of an object type, one pending mutation per call. */
@@ -180,22 +180,22 @@ export type Reader<Object extends ObjectType> = {
 /** Several calls a client makes as one atomic mutation. */
 export interface Mutation {
     /** Call an object type's mutating methods within the mutation. */
-    call<Object extends ObjectType>(object: Object): MutationCalls<Object>;
+    readonly call: <Object extends ObjectType>(object: Object) => MutationCalls<Object>;
 }
 
 /** A mutation that also calls methods by name, as recorded calls refer to them. */
 interface ReplayMutation extends Mutation {
     /** Call an object type's mutating method by name in the mutation, returning its prediction. */
-    invoke(object: ObjectType, name: string, input: JsonObject): Promise<unknown>;
+    readonly invoke: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>;
 }
 
 /** What a client keeps and follows. */
 export interface ClientInspection {
     /** The scope whose objects it keeps. */
     readonly scope: string;
-    /** The rows its copy keeps, by object type name. */
+    /** The rows its replica keeps, by object type name. */
     readonly rows: Readonly<Record<string, number>>;
-    /** The most object rows the copy keeps, absent for no limit. */
+    /** The most object rows the replica keeps, absent for no limit. */
     readonly storage?: { readonly rows: number };
     /** Every party's subscriptions, open and closed. */
     readonly subscriptions: readonly {
@@ -208,7 +208,7 @@ export interface ClientInspection {
         /** How long the closed query stays followed, in milliseconds, or always. */
         readonly keep?: number | "always";
     }[];
-    /** The copy of the scope. */
+    /** The replica of the scope. */
     readonly replica: sync.ReplicaInspection;
     /** The queued mutations by outcome. */
     readonly mutations: {
@@ -295,7 +295,7 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly origin?: string;
     /** How often merged changes arrive, such as for a background tab. */
     readonly refresh?: { readonly every: Duration };
-    /** The most object rows the local copy keeps, absent for no limit. */
+    /** The most object rows the local replica keeps, absent for no limit. */
     readonly storage?: { readonly rows: number };
     /** How long the local log keeps changes, a minute by default. */
     readonly log?: { readonly keep: Duration };
@@ -315,34 +315,36 @@ export class ObjectClient<
     readonly objects: readonly ObjectType[];
     /** The relational queries of the object types, by key. */
     readonly query: ObjectQueries<Objects>;
-    /** Keep queries live over the local copy, as the client's relational queries do. */
+    /** Keep queries live over the local replica, as the client's relational queries do. */
     readonly #subscriber: Subscriber = {
         rows: (object, query, options) => this.#live(object, query, options),
         results: (object, query, options) => this.#measured(object, query, options),
     };
+    /** The presentation of read rows' texts, each row and list presented once. */
+    readonly #presenter: TextPresenter;
     /** The scope whose objects the client keeps. */
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
     /** The principals whose partitions keep the client's local objects: caller and client. */
     readonly #owners: readonly Subject[];
-    /** The copy of the scope's durable objects. */
+    /** The replica of the scope's durable objects. */
     readonly replica: sync.Replica;
-    /** The copy of the scope's ephemeral objects, absent when the client keeps none. */
+    /** The replica of the scope's ephemeral objects, absent when the client keeps none. */
     readonly ephemeral: sync.Replica | undefined;
-    /** The copy of the scope's external objects, absent when the client keeps none. */
+    /** The replica of the scope's external objects, absent when the client keeps none. */
     readonly external: sync.Replica | undefined;
-    /** The copy of the access rows the caller's own checks read along the scope chain. */
+    /** The replica of the access rows the caller's own checks read along the scope chain. */
     readonly access: sync.Replica;
-    /** The authorizer deciding the caller's checks over the copies. */
+    /** The authorizer deciding the caller's checks over the replicas. */
     readonly #authorizer: Authorizer;
     /** The identifier of this client instance, the writer owning its ephemeral objects. */
     readonly writerId: string;
-    /** What the copy shows over the server's rows: queued mutations and the checked-out branch. */
+    /** What the replica shows over the server's rows: queued mutations and the branch. */
     readonly prediction: sync.Prediction;
     /** The scope's branch types, absent for a client without branches. */
     readonly branch: BranchType | undefined;
-    /** The checked-out branch and its rows, followed into the copy. */
+    /** The checked-out branch and its rows, followed into the replica. */
     #branchFollows: readonly LiveQuery[] = [];
     /** The party's undo and redo stacks. */
     readonly #undoStack: UndoStack;
@@ -364,7 +366,7 @@ export class ObjectClient<
     readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
     /** How often merged changes arrive, absent for one page per change. */
     readonly #refresh: { readonly every: Duration } | undefined;
-    /** The most object rows the local copy keeps, absent for no limit. */
+    /** The most object rows the local replica keeps, absent for no limit. */
     readonly #storage: { readonly rows: number } | undefined;
     /** How long the local log keeps changes, in milliseconds. */
     readonly #logMilliseconds: number;
@@ -374,10 +376,16 @@ export class ObjectClient<
     readonly clock: Clock;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
-    /** The object rows the copy kept at a log sequence, absent before the first count. */
+    /** The object rows the replica kept at a log sequence, absent before the first count. */
     #counted: { readonly sequence: number; readonly rows: number } | undefined;
     /** The open followed queries. */
     readonly #subscriptions = new Set<Subscription>();
+    /** Wake the local watches once a page reads other scopes. */
+    readonly #rescoping = new Set<() => void>();
+    /** The scopes the objects' replica last read, canonicalized. */
+    #scopes: string | undefined;
+    /** How often the objects' replica read other scopes, which watches compare across reads. */
+    #generation = 0;
     /** The queued evictions, run one at a time. */
     #evictions: Promise<void> = Promise.resolve();
     /** The mutations waiting for their outcome, by identifier. */
@@ -399,7 +407,8 @@ export class ObjectClient<
     private constructor(options: ObjectClientOptions<Objects> & { readonly origin: string }) {
         // keep the options, refusing a push larger than the server takes
         this.database = options.database;
-        this.#pushMutations = pushMutationsOf(options.push);
+        this.#presenter = new TextPresenter();
+        this.#pushMutations = ObjectClient.#pushMutationsOf(options.push);
         this.#refresh = options.refresh;
         this.#storage = options.storage;
         this.#logMilliseconds =
@@ -419,33 +428,41 @@ export class ObjectClient<
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.client === undefined ? [] : [options.client])];
 
-        // reach the package serving the copied objects
-        const copied = this.objects.filter((object) => object.storage !== "local");
-        const served = ObjectClient.#served(copied, options.package);
+        // reach the package serving the replicated objects
+        const replicated = this.objects.filter((object) => object.storage !== "local");
+        const served = ObjectClient.#served(replicated, options.package);
         this.#replica = ObjectClient.replica(served, options.endpoint);
         this.#reconnect = (machine) => ObjectClient.replica(served, options.reconnect(machine));
         this.#isReachingHomes = options.homes !== undefined;
         this.#home = ObjectClient.homes(served, this.scope, () => this.#replica, options.homes);
 
-        // copy durable objects with their predictions, and ephemeral and external objects apart
-        const tables = storedTables(this.objects, "durable");
+        // replicate durable objects with their predictions, and ephemeral and external objects apart
+        const tables = ObjectClient.#storedTables(this.objects, "durable");
         this.replica = new sync.Replica({ name: "objects", scope: options.scope, tables });
         this.branch = options.branch;
         this.prediction = this.#prediction(tables, options.branch);
-        this.ephemeral = separateReplica("ephemeral", options.scope, this.#stored("ephemeral"));
-        this.external = separateReplica("external", options.scope, this.#stored("external"));
+        this.ephemeral = ObjectClient.#separateReplica(
+            "ephemeral",
+            options.scope,
+            this.#stored("ephemeral"),
+        );
+        this.external = ObjectClient.#separateReplica(
+            "external",
+            options.scope,
+            this.#stored("external"),
+        );
 
-        // copy the caller's access rows, and decide its checks over the copies
+        // replicate the caller's access rows, and decide its checks over the replicas
         this.access = new sync.Replica({
             name: "access",
             scope: options.scope,
             tables: decisionTables,
         });
         this.#authorizer = ObjectAccess.authorizer(this.objects, [], (table) =>
-            options.database.copies(table),
+            options.database.replicates(table),
         );
 
-        // read every copy and the local objects through one local feed
+        // read every replica and the local objects through one local feed
         const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
         this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
             upstream: this.#upstream(this.objects),
@@ -455,7 +472,7 @@ export class ObjectClient<
 
     /** List the tables of the client's objects of one storage. */
     #stored(storage: ObjectStorage): Table[] {
-        return storedTables(this.objects, storage);
+        return ObjectClient.#storedTables(this.objects, storage);
     }
 
     /** Show the server's rows with the queued mutations and the checked-out branch over them. */
@@ -470,11 +487,11 @@ export class ObjectClient<
         });
     }
 
-    /** Measure each query through the copy with its root. */
+    /** Measure each query through the replica with its root. */
     #upstream(objects: readonly ObjectType[]): sync.Upstream {
-        // map tables to storages, and storages to their copies
+        // map tables to storages, and storages to their replicas
         const storages = new Map(objects.map((object) => [object.table, object.storage]));
-        const copies = new Map<ObjectStorage, sync.Upstream>([
+        const upstreams = new Map<ObjectStorage, sync.Upstream>([
             ["durable", this.replica.upstream(this.database, this.prediction)],
             ...(this.ephemeral === undefined
                 ? []
@@ -483,29 +500,29 @@ export class ObjectClient<
                 ? []
                 : [["external", this.external.upstream(this.database, undefined)] as const]),
         ]);
-        const sourceOf = (node: sync.Node) => {
-            // measure a root's query through its storage's copy, refusing a storage without one
-            const storage = storages.get(rootOf(node).table) ?? "durable";
-            const copy = copies.get(storage);
-            if (copy === undefined) {
+        const readSource = (node: sync.Node) => {
+            // measure a root's query through its storage's replica, refusing a storage without one
+            const storage = storages.get(ObjectClient.#rootOf(node).table) ?? "durable";
+            const upstream = upstreams.get(storage);
+            if (upstream === undefined) {
                 throw new TypeError(
-                    `no ${storage} copy measures table ${rootOf(node).table[TABLE].sqlName}`,
+                    `no ${storage} replica for table ${ObjectClient.#rootOf(node).table[TABLE].sqlName}`,
                 );
             }
 
-            return copy;
+            return upstream;
         };
 
         return {
-            watches: [...copies.values()].flatMap((copy) => copy.watches),
-            groups: (node) => sourceOf(node).groups(node),
-            groupOf: (change) =>
-                [...copies.values()]
-                    .map((copy) => copy.groupOf(change))
+            watches: [...upstreams.values()].flatMap((upstream) => upstream.watches),
+            groups: (node) => readSource(node).groups(node),
+            group: (change) =>
+                [...upstreams.values()]
+                    .map((upstream) => upstream.group(change))
                     .find((group) => group !== undefined),
             isMeasured: (node) => {
                 // measure here every node of local objects, and at the source only nodes within the root's storage
-                const storage = storages.get(rootOf(node).table);
+                const storage = storages.get(ObjectClient.#rootOf(node).table);
                 if (storage === "local") {
                     return false;
                 }
@@ -542,21 +559,10 @@ export class ObjectClient<
     static #queries<Objects extends Readonly<Record<string, ObjectType>>>(
         client: ObjectClient,
         objects: Objects,
-    ): ObjectQueries<Objects>;
-    /**
-     * Build the relational queries of object types, by key.
-     *
-     * @construct each key gets its object type's builder, which is how ObjectQueries maps them.
-     */
-    static #queries(
-        client: ObjectClient,
-        objects: Readonly<Record<string, ObjectType>>,
-    ): Readonly<Record<string, RelationalQueryBuilder<ObjectType, ObjectType>>> {
-        return Object.fromEntries(
-            Object.entries(objects).map(([key, object]) => [
-                key,
-                new RelationalQueryBuilder(client.#subscriber, object),
-            ]),
+    ): ObjectQueries<Objects> {
+        return mapValues<Objects, ObjectQueries<Objects>>(
+            objects,
+            (object) => new RelationalQueryBuilder(client.#subscriber, object),
         );
     }
 
@@ -564,18 +570,9 @@ export class ObjectClient<
     static #mutators<Objects extends Readonly<Record<string, ObjectType>>>(
         client: ObjectClient,
         objects: Objects,
-    ): ObjectMutators<Objects>;
-    /**
-     * Build the mutators of object types, by key.
-     *
-     * @construct each key gets its object type's mutator, which is how ObjectMutators maps them.
-     */
-    static #mutators(
-        client: ObjectClient,
-        objects: Readonly<Record<string, ObjectType>>,
-    ): Readonly<Record<string, Mutator<ObjectType>>> {
-        return Object.fromEntries(
-            Object.entries(objects).map(([key, object]) => [key, client.mutate(object)]),
+    ): ObjectMutators<Objects> {
+        return mapValues<Objects, ObjectMutators<Objects>>(objects, (object) =>
+            client.mutate(object),
         );
     }
 
@@ -587,25 +584,29 @@ export class ObjectClient<
         if (named !== undefined) {
             return named;
         } else if (only === undefined || others.length > 0) {
-            throw new TypeError("a client with objects of several packages names the serving one");
+            throw new TypeError(
+                "a client with objects of several packages needs the serving package",
+            );
         }
 
         return only;
     }
 
-    /** Write a branch's rows from the client's copy over its other rows. */
+    /** Write a branch's rows from the client's replica over its other rows. */
     static #branchSource(types: BranchType, objects: readonly ObjectType[]): sync.BranchSource {
         const branches = types.object.table;
 
         return {
             tables: [branches[TABLE].sqlName, types.change.table[TABLE].sqlName],
             isOpen: async (transaction, id) => {
-                const row = await Snapshot.live(transaction).row(branches, { id });
+                const row = await Snapshot.live(transaction)
+                    .read(branches)
+                    .findFirst({ where: { id } });
 
-                return row === null || BranchType.record(row).state === "open";
+                return row === undefined || BranchType.record(row).state === "open";
             },
             apply: (transaction, id) =>
-                new Branch(types, Snapshot.live(transaction), id).apply(objects),
+                new Branch(types, Snapshot.live(transaction), id).apply(transaction, objects),
         };
     }
 
@@ -624,7 +625,7 @@ export class ObjectClient<
                 return own();
             } else if (homes === undefined) {
                 throw new CallError("BAD_REQUEST", {
-                    message: `the client of ${scope} reaches no home of ${home}`,
+                    message: `the client of ${scope} cannot reach the home of ${home}`,
                 });
             }
 
@@ -663,8 +664,8 @@ export class ObjectClient<
         objects: Readonly<Record<string, ObjectType>>,
         own: readonly Table[] = [],
     ): Promise<void> {
-        const { copied, local } = ObjectClient.#divide(objects);
-        await database.migrate(copied, {
+        const { replicated, local } = ObjectClient.#divide(objects);
+        await database.migrate(replicated, {
             isReplica: true,
             states: [declareState([...local, ...own], database.dialect)],
         });
@@ -675,23 +676,26 @@ export class ObjectClient<
         database: DatabaseConnection,
         objects: Readonly<Record<string, ObjectType>>,
     ): Promise<string[]> {
-        const { copied, local } = ObjectClient.#divide(objects);
+        const { replicated, local } = ObjectClient.#divide(objects);
 
         return [
-            ...(await database.unapplied(copied, { isReplica: true })),
+            ...(await database.unapplied(replicated, { isReplica: true })),
             ...(await database.unapplied(local)),
         ];
     }
 
-    /** Split a client's tables into copied tables and local object tables. */
+    /** Split a client's tables into replicated tables and local object tables. */
     static #divide(objects: Readonly<Record<string, ObjectType>>): {
-        readonly copied: Table[];
+        readonly replicated: Table[];
         readonly local: Table[];
     } {
-        const local = storedTables(ObjectType.served(Object.values(objects)), "local");
+        const local = ObjectClient.#storedTables(
+            ObjectType.served(Object.values(objects)),
+            "local",
+        );
 
         return {
-            copied: ObjectClient.tables(objects).filter((table) => !local.includes(table)),
+            replicated: ObjectClient.tables(objects).filter((table) => !local.includes(table)),
             local,
         };
     }
@@ -715,7 +719,10 @@ export class ObjectClient<
 
     /** Call an object type's mutating methods, one mutation per call. */
     mutate<Object extends ObjectType>(object: Object): Mutator<Object> {
-        return this.#methods<Object>(object, true, (name, input) => this.call(object, name, input));
+        return mapValues<Readonly<Record<string, Method>>, Mutator<Object>>(
+            this.#routed(object, true),
+            (_method, name) => (input: JsonObject) => this.call(object, name, input),
+        );
     }
 
     /** Call an object type's mutating method by name as one mutation, as recorded calls do. */
@@ -726,12 +733,14 @@ export class ObjectClient<
             const done =
                 object.storage === "ephemeral" ? this.#send(call) : this.#write(object, name, call);
             const confirmed = done.then(() => {});
+
+            // mark the confirmation handled, and answer its failure in the returned submission
             confirmed.catch(() => {});
 
             return { predicted: done, confirmed };
         }
 
-        // predict the call alone, on the main line for a branch's own methods
+        // predict only the call, on the main line for a branch's own methods
         let result: unknown;
         const pending = this.#mutation(async (mutation) => {
             result = await mutation.invoke(object, name, input);
@@ -790,8 +799,9 @@ export class ObjectClient<
                 };
                 const result = await run({
                     call: (object) =>
-                        this.#methods<typeof object>(object, true, (name, input) =>
-                            invoke(object, name, input),
+                        mapValues<Readonly<Record<string, Method>>, MutationCalls<typeof object>>(
+                            this.#routed(object, true),
+                            (_method, name) => (input: JsonObject) => invoke(object, name, input),
                         ),
                     invoke,
                 });
@@ -806,6 +816,8 @@ export class ObjectClient<
 
         // confirm with the server's outcome
         const confirmed = predicted.then(() => this.outcome(id));
+
+        // mark the confirmation handled, and answer its failure in the returned submission
         confirmed.catch(() => {});
 
         return { predicted, confirmed };
@@ -827,20 +839,23 @@ export class ObjectClient<
             throw new TypeError(`local object ${object.name} is read through its queries`);
         }
 
-        return this.#methods<Object>(object, false, (name, input): Promise<unknown> => {
-            // read in the client's scope
-            const call = this.#recordCall(object, name, input);
+        return mapValues<Readonly<Record<string, Method>>, Reader<Object>>(
+            this.#routed(object, false),
+            (_method, name) => (input: JsonObject) => {
+                // read in the client's scope
+                const call = this.#recordCall(object, name, input);
 
-            return this.#call((replica) => replica.call({ scope: this.scope, call }));
-        });
+                return this.#call((replica) => replica.call({ scope: this.scope, call }));
+            },
+        );
     }
 
     /** Check out a branch by identifier, following its rows, or the main line if undefined. */
     async checkout(branch: string | undefined): Promise<void> {
-        // follow the branch's rows into the copy
+        // follow the branch's rows into the replica
         const types = this.branch;
         if (branch !== undefined && types === undefined) {
-            throw new TypeError("a client without branch types checks out no branch");
+            throw new TypeError("a client without branch types cannot check out a branch");
         }
         await Promise.all(this.#branchFollows.map((follow) => follow.close()));
         this.#branchFollows =
@@ -857,10 +872,10 @@ export class ObjectClient<
 
     /** Follow the changes a branch makes over the main line, one per object. */
     diff(branch: string): BranchDiff {
-        // follow the branch's rows into the copy
+        // follow the branch's rows into the replica
         const types = this.branch;
         if (types === undefined) {
-            throw new TypeError("a client without branch types follows no branch");
+            throw new TypeError("a client without branch types cannot follow a branch");
         }
         const rows = this.#live(types.change, { where: { parentId: branch } });
         const read = () =>
@@ -897,7 +912,7 @@ export class ObjectClient<
     #isBranchType(object: ObjectType): boolean {
         const types = this.branch;
 
-        return types !== undefined && types.keeps(object);
+        return types !== undefined && types.has(object);
     }
 
     /** Undo this party's latest mutation, predicting false when none is left. */
@@ -936,7 +951,7 @@ export class ObjectClient<
         // collect arriving events
         const topic = ObjectReference.key(object.reference(this.scope, id));
         const arrived: JsonValue[] = [];
-        let wake = idle;
+        let wake = () => ObjectClient.#idle();
         const listener = (event: JsonValue) => {
             arrived.push(event);
             wake();
@@ -1002,7 +1017,7 @@ export class ObjectClient<
 
                 // back off
                 failures += 1;
-                await RetryPolicy.pause(this.#retry, failures, signal);
+                await RetryPolicy.pause(this.#retry, failures, this.clock, signal);
             }
         }
     }
@@ -1010,11 +1025,11 @@ export class ObjectClient<
     /** Follow every party's queries and the caller's access rows until aborted. */
     async follow(signal: AbortSignal, report: (error: unknown) => void): Promise<void> {
         this.#report = report;
-        await Promise.all(this.#copies().map((copy) => this.#follow(copy, signal, report)));
+        await Promise.all(this.#follows().map((follow) => this.#follow(follow, signal, report)));
     }
 
-    /** List the client's followed copies. */
-    #copies(): ClientCopy[] {
+    /** List the client's followed replicas. */
+    #follows(): ClientFollow[] {
         return [
             {
                 replica: this.replica,
@@ -1049,15 +1064,15 @@ export class ObjectClient<
         ];
     }
 
-    /** Follow one copy's shape into its replica, subscribing again once its parameters change. */
+    /** Follow one replica's shape, subscribing again once its parameters change. */
     async #follow(
-        copy: ClientCopy,
+        follow: ClientFollow,
         signal: AbortSignal,
         report: (error: unknown) => void,
     ): Promise<void> {
-        // register the copy, and read its parameters as they are now
-        const parameters = async () => PARAMETERS.parse(await copy.parameters());
-        await copy.replica.register(this.database, { clock: this.clock });
+        // register the replica, and read its parameters as they are now
+        const parameters = async () => PARAMETERS.parse(await follow.parameters());
+        await follow.replica.register(this.database, { clock: this.clock });
         let failures = 0;
         const resetFailures = () => {
             failures = 0;
@@ -1076,8 +1091,8 @@ export class ObjectClient<
             const replica = this.#replica;
             let isFinal = false;
             try {
-                // follow the copy, resetting failures on each page
-                await this.#followPages(copy, subscribed, replica, stream, resetFailures);
+                // follow the replica, resetting failures on each page
+                await this.#followPages(follow, subscribed, replica, stream, resetFailures);
             } catch (error) {
                 // restart on change or move, report other failures
                 if (signal.aborted) {
@@ -1102,7 +1117,7 @@ export class ObjectClient<
 
             // back off
             failures += 1;
-            await RetryPolicy.pause(this.#retry, failures, signal);
+            await RetryPolicy.pause(this.#retry, failures, this.clock, signal);
         }
     }
 
@@ -1132,19 +1147,19 @@ export class ObjectClient<
         );
     }
 
-    /** Follow a copy's shape from where the copy is, applying each page it streams. */
+    /** Follow a replica's shape from where the replica is, applying each page it streams. */
     async #followPages(
-        copy: ClientCopy,
+        follow: ClientFollow,
         parameters: JsonObject,
         procedures: Client<ReplicaProcedures>,
         stream: AbortSignal,
         onPage: () => void,
     ): Promise<void> {
-        // stream the copy's shape from where the copy is
-        const { replica, prediction } = copy;
+        // stream the replica's shape from where the replica is
+        const { replica, prediction } = follow;
         const followed: sync.Subscription = {
             name: replica.name,
-            shape: copy.shape,
+            shape: follow.shape,
             scope: this.scope,
             below: this.scope,
             parameters,
@@ -1158,17 +1173,34 @@ export class ObjectClient<
             clock: this.clock,
             ...(prediction === undefined ? {} : { prediction }),
         })) {
-            // deliver broadcasts and compact the local log
+            // deliver the page's broadcasts and scopes
             onPage();
             this.#broadcast(page);
+            if (replica === this.replica) {
+                this.#rescope(page);
+            }
+
+            // compact the local log
             const now = this.clock.now();
             await this.database.log.compact(now - this.#logMilliseconds, now);
 
-            // evict once the predicted copy grew
+            // evict once the predicted replica grew
             isGrown ||= page.reset || page.changes.some((change) => change.operation === "insert");
             if (page.complete && prediction !== undefined && isGrown) {
                 isGrown = false;
                 await this.#queueEviction();
+            }
+        }
+    }
+
+    /** Wake the watches over the objects' replica once its page reads other scopes. */
+    #rescope(page: sync.Page): void {
+        const scopes = page.scopes === undefined ? undefined : canonicalize(page.scopes);
+        if (scopes !== undefined && scopes !== this.#scopes) {
+            this.#scopes = scopes;
+            this.#generation += 1;
+            for (const wake of this.#rescoping) {
+                wake();
             }
         }
     }
@@ -1182,7 +1214,7 @@ export class ObjectClient<
         }
     }
 
-    /** Check whether the caller has a permission on an object, over the client's copy. */
+    /** Check whether the caller has a permission on an object, over the client's replica. */
     async check<Object extends ObjectType>(
         object: Object,
         id: string,
@@ -1211,16 +1243,16 @@ export class ObjectClient<
     }
 
     /** Query one of the client's object types, as its keyed queries do. */
-    queryOf<Object extends ObjectType>(
+    queryType<Object extends ObjectType>(
         object: Object,
     ): RelationalQueryBuilder<Object, Objects[keyof Objects]> {
         return new RelationalQueryBuilder(this.#subscriber, object);
     }
 
-    /** Keep a query's items live over the local copy with predictions until closed. */
+    /** Keep a query's items live over the local replica with predictions until closed. */
     #live(
         object: ObjectType,
-        query: OpenQueryOptions = {},
+        query: Omit<ObjectQuery, "object"> = {},
         options: SubscribeOptions = {},
     ): LiveItems {
         const followed = this.#followed(object, query, options);
@@ -1230,19 +1262,23 @@ export class ObjectClient<
             query: compiled,
             ready: followed.ready,
             read: async () =>
-                Chunk.present(await this.#items(await named, compiled), compiled, this.objects),
+                this.#presenter.present(
+                    await this.#items(await named, compiled),
+                    compiled,
+                    this.objects,
+                ),
             watch: (signal) => this.#watch(named, compiled, signal),
             close: () => followed.close(),
         };
     }
 
-    /** Keep an aggregate query's groups live over the local copy with predictions until closed. */
+    /** Keep an aggregate query's groups live over the local replica until closed. */
     #measured(
         object: ObjectType,
-        query: OpenQueryOptions,
+        query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
     ): LiveQuery<readonly sync.AggregateRow[]> {
-        // follow the query, reading its groups here for local objects, else through the copy with its predictions
+        // read local groups here, and other groups through their replica
         const followed = this.#followed(object, query, options);
         const { compiled, named } = followed;
         const isDurable = object.storage === "durable";
@@ -1252,7 +1288,7 @@ export class ObjectClient<
             read: async () =>
                 object.storage === "local"
                     ? (await this.#dataflow(await named, compiled)).results(await named)
-                    : this.#replicaOf(object.storage).results(
+                    : this.#pickReplica(object.storage).results(
                           this.database,
                           await named,
                           compiled,
@@ -1263,8 +1299,12 @@ export class ObjectClient<
         };
     }
 
-    /** Follow a query in its open form over the local copy until closed. */
-    #followed(object: ObjectType, query: OpenQueryOptions, options: SubscribeOptions): Follow {
+    /** Follow a query in its open form over the local replica until closed. */
+    #followed(
+        object: ObjectType,
+        query: Omit<ObjectQuery, "object">,
+        options: SubscribeOptions,
+    ): Follow {
         // split the query by storage
         if (!this.objects.some((type) => type.same(object))) {
             throw new TypeError(`the client has no object ${object.name}`);
@@ -1281,6 +1321,8 @@ export class ObjectClient<
             AbortSignal.any([closed.signal, this.#closing.signal]),
         );
         this.#subscriptions.add(subscribed);
+
+        // mark readiness handled, and answer its failure in the returned query's ready
         subscribed.ready.catch(() => {});
 
         return {
@@ -1354,10 +1396,10 @@ export class ObjectClient<
     }
 
     /** Stop following a closed query, even one kept always. */
-    async release(object: ObjectType, query: OpenQueryOptions = {}): Promise<void> {
+    async release(object: ObjectType, query: Omit<ObjectQuery, "object"> = {}): Promise<void> {
         // find the query's closed subscriptions
         const split = this.#split(object, query);
-        const name = await queryName(split.query);
+        const name = await ObjectClient.#queryName(split.query);
         const closed = await this.database
             .select({ id: subscription.id })
             .from(subscription)
@@ -1376,7 +1418,7 @@ export class ObjectClient<
             .where(or(inArray(subscription.id, ids), inArray(subscription.root, ids)));
     }
 
-    /** Read the parties with subscriptions or mutations in the shared copy. */
+    /** Read the parties with subscriptions or mutations in the shared replica. */
     async origins(): Promise<Set<string>> {
         const rows = await this.database
             .selectDistinct({ origin: subscription.origin })
@@ -1398,14 +1440,14 @@ export class ObjectClient<
         readonly mutations: sync.Mutation[];
     } {
         // read each mutation's home from its first call
-        const homes = pushed.map((entry) => this.#homeOf(aligned(entry.calls, 0)));
+        const homes = pushed.map((entry) => this.#readHome(aligned(entry.calls, 0)));
         const home = aligned(homes, 0);
         const other = homes.findIndex((each) => each !== home);
 
         return { home, mutations: pushed.slice(0, other === -1 ? pushed.length : other) };
     }
 
-    /** Push mutations to their home, answering their outcomes and the copy's watermark. */
+    /** Push mutations to their home, answering their outcomes and the replica's watermark. */
     async #pushTo(
         home: string,
         mutations: readonly sync.Mutation[],
@@ -1424,7 +1466,7 @@ export class ObjectClient<
             { signal },
         );
 
-        // read the copy's watermark once it has the home's commit, at once for a home outside its chain
+        // read the replica's watermark, waiting for the home's commit when the chain has the home
         const chain = await this.replica.chain(this.database);
         const homes = chain.includes(home) ? [pushed.watermark] : [];
         const watermark = await this.#call((replica) =>
@@ -1441,7 +1483,7 @@ export class ObjectClient<
         if (entry.branch === undefined) {
             return { id: entry.id, calls: entry.calls };
         } else if (types === undefined) {
-            throw new TypeError("a client without branch types pushes no branch edit");
+            throw new TypeError("a client without branch types cannot push a branch edit");
         }
         const push = this.#recordCall(types.object, "push", {
             id: entry.branch,
@@ -1555,19 +1597,20 @@ export class ObjectClient<
                 throw overflow;
             }
         });
+
+        // keep evicting after a failed eviction, and answer its failure in the returned promise
         this.#evictions = eviction.catch(() => {});
 
         return eviction;
     }
 
-    /** Drop the oldest closed kept query while the copy exceeds its budget. */
+    /** Drop the oldest closed kept query while the replica exceeds its budget. */
     async #evict(): Promise<sync.SyncError | undefined> {
-        // evict only a budgeted copy subscribed to the current queries
-        const subscribed = queriesOf(await this.replica.subscribed(this.database));
+        // evict only a budgeted replica subscribed to the current queries
+        const subscribed = ObjectClient.#queriesOf(await this.replica.subscribed(this.database));
         if (
             this.#storage === undefined ||
-            subscribed === undefined ||
-            !isSame(subscribed, await this.#subscribed("durable"))
+            !ObjectClient.#isSame(subscribed, await this.#subscribed("durable"))
         ) {
             return undefined;
         }
@@ -1594,7 +1637,7 @@ export class ObjectClient<
         if (oldest === undefined) {
             return new sync.SyncError(
                 "OVER_CAPACITY",
-                `local copy has ${rows} rows, more than ${this.#storage.rows}, for open and always kept queries`,
+                `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and always kept queries`,
             );
         }
         await this.database
@@ -1604,11 +1647,11 @@ export class ObjectClient<
         return undefined;
     }
 
-    /** Count the copy's object rows. */
+    /** Count the replica's object rows. */
     async #count(): Promise<number> {
         // count on from the last count through the log, leaving out local objects
-        const copied = this.objects.filter((object) => object.storage !== "local");
-        const tables = copied.map((object) => object.table);
+        const replicated = this.objects.filter((object) => object.storage !== "local");
+        const tables = replicated.map((object) => object.table);
         if (this.#counted !== undefined) {
             try {
                 let { sequence, rows } = this.#counted;
@@ -1638,7 +1681,9 @@ export class ObjectClient<
             async (transaction) => {
                 // read sequence and counts together
                 const sequence = (await transaction.log.position()).sequence;
-                const counts = copied.map((object) => sql`(SELECT count(*) FROM ${object.table})`);
+                const counts = replicated.map(
+                    (object) => sql`(SELECT count(*) FROM ${object.table})`,
+                );
                 const [total] = await transaction.execute(
                     sql`SELECT ${sql.join(counts, sql` + `)} AS rows`,
                     schema.object({
@@ -1690,27 +1735,18 @@ export class ObjectClient<
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
-    ): LiveQuery<readonly UnionEntry<Members>[]>;
-    /**
-     * Keep a live union of several queries, each entry pairing its member's name with a row.
-     *
-     * @construct each entry pairs a member with a row its query selects, as UnionEntry maps it.
-     */
-    union(
-        members: Readonly<Record<string, RelationalQuery<readonly object[]>>>,
-        options: Omit<UnionOptions, "orderBy"> & { readonly orderBy: unknown },
-    ): LiveQuery<readonly { readonly name: string; readonly row: NestedItem }[]> {
+    ): LiveQuery<readonly UnionEntry<Members>[]> {
         // refuse members ordering or limiting themselves, and follow each in the union's order and limit
         for (const [name, member] of Object.entries(members)) {
             if (member.options.orderBy !== undefined || member.options.limit !== undefined) {
-                throw new TypeError(`union member ${name} orders or limits itself`);
+                throw new TypeError(`union member ${name} cannot order or limit itself`);
             }
         }
         const orderBy = OrderBy.schema.parse(options.orderBy);
         const followed = Object.entries(members).map(([name, member]) => ({
             name,
             table: member.object.table,
-            select: RelationalQuery.selecting(member.options),
+            select: RelationalQuery.selecting(member.options, (item) => item),
             live: this.#live(
                 member.object,
                 { ...member.options, orderBy, limit: options.limit },
@@ -1734,7 +1770,10 @@ export class ObjectClient<
             return merged.map(({ name, row }) => {
                 const { select, live } = found(byName, name);
 
-                return { name, row: select(found(items, row), live.query) };
+                return mapValues<
+                    { readonly name: string; readonly row: NestedItem },
+                    UnionEntry<Members>
+                >({ name, row: select(found(items, row), live.query) }, (value) => value);
             });
         };
 
@@ -1758,33 +1797,69 @@ export class ObjectClient<
         query: sync.Query,
         signal: AbortSignal,
     ): AsyncGenerator<readonly Item[]> {
-        const name = await named;
-        for await (const items of this.#local.watch(name, await this.#read(query), signal)) {
-            yield Chunk.present(items, query, this.objects);
+        const watched = this.#rescoped(named, query, signal, (name, read, stop) =>
+            this.#local.watch(name, read, stop),
+        );
+        for await (const items of watched) {
+            yield this.#presenter.present(items, query, this.objects);
         }
     }
 
     /** Watch an aggregate query's groups through the local feed until aborted. */
-    async *#watchResults(
+    #watchResults(
         named: Promise<string>,
         query: sync.Query,
         signal: AbortSignal,
     ): AsyncGenerator<readonly sync.AggregateRow[]> {
-        const name = await named;
-        yield* this.#local.watchResults(name, await this.#read(query), signal);
+        return this.#rescoped(named, query, signal, (name, read, stop) =>
+            this.#local.watchResults(name, read, stop),
+        );
     }
 
-    /** Widen a query of inherited objects to the scope chain the copy last read. */
+    /** Watch a query over the scopes the replica reads, again each time its pages change them. */
+    async *#rescoped<Result>(
+        named: Promise<string>,
+        query: sync.Query,
+        signal: AbortSignal,
+        watch: (name: string, query: sync.Query, signal: AbortSignal) => AsyncGenerator<Result>,
+    ): AsyncGenerator<Result> {
+        const name = await named;
+        while (!signal.aborted) {
+            // read the scopes, again when a page changed them meanwhile
+            const generation = this.#generation;
+            const read = await this.#read(query);
+            if (generation !== this.#generation) {
+                continue;
+            }
+
+            // watch over them until a page brings others
+            const rescoping = new AbortController();
+            const wake = () => rescoping.abort();
+            this.#rescoping.add(wake);
+            try {
+                yield* watch(name, read, AbortSignal.any([signal, rescoping.signal]));
+            } finally {
+                this.#rescoping.delete(wake);
+            }
+        }
+    }
+
+    /** Widen a durable query to every scope of its type the replica last read. */
     async #read(query: sync.Query): Promise<sync.Query> {
+        // keep a query of no durable type, whose replica reads no chain
         const object = this.objects.find((type) => type.table === query.table);
-        if (object?.inherited === undefined) {
+        if (object?.storage !== "durable") {
             return query;
         }
 
-        return { ...query, scopes: object.scopesOf(await this.replica.chain(this.database)) };
+        // read the scopes holding the type's rows, which the source chose to send
+        const held = object.table[TABLE].column("scope").definition.schema;
+        const read = await this.replica.chain(this.database);
+
+        return { ...query, scopes: read.filter((scope) => held.safeParse(scope).success) };
     }
 
-    /** Read a query's items from the local copy. */
+    /** Read a query's items from the local replica. */
     async #items(name: string, query: sync.Query): Promise<readonly Item[]> {
         return (await this.#dataflow(name, query)).read(name);
     }
@@ -1799,7 +1874,7 @@ export class ObjectClient<
                 audience: sync.EVERYONE,
                 database: this.database,
                 upstream,
-                changesThrough: sync.changesThroughLog(this.database),
+                changesThrough: sync.Dataflow.changesThrough(this.database),
                 isMaterialized: true,
             },
         );
@@ -1809,7 +1884,7 @@ export class ObjectClient<
     }
 
     /** Split a query by storage: its own storage's query, and key lookups of the other's rows. */
-    #split(object: ObjectType, options: OpenQueryOptions): StorageQuery {
+    #split(object: ObjectType, options: Omit<ObjectQuery, "object">): StorageQuery {
         // require conditions relating one storage
         const { with: included, extras, columns: _columns, ...own } = options;
         this.#requireOneStorage(object, own.where ?? {}, extras ?? {});
@@ -1835,9 +1910,8 @@ export class ObjectClient<
         }
 
         // keep same-storage relations, and look up other-storage ones by key
-        const nested: Record<string, RelationOptions> = {};
-        for (const [name, entry] of Object.entries(included ?? {})) {
-            const relation = entry === true ? {} : entry;
+        const nested: Record<string, FindOptions> = {};
+        for (const [name, relation] of FindOptions.includes({ with: included ?? {} })) {
             const joined = related(object, name, this.objects);
             if (joined.object.storage === object.storage) {
                 const child = this.#split(joined.object, relation);
@@ -1847,7 +1921,8 @@ export class ObjectClient<
                     ...child.lookups.map((lookup) => ({ ...lookup, path: [name, ...lookup.path] })),
                 );
             } else {
-                const { orderBy: _orderBy, limit: _limit, ...rows } = relation;
+                const read: FindOptions = relation;
+                const { orderBy: _orderBy, limit: _limit, ...rows } = read;
                 lookups.push(this.#lookup(object, name, rows));
             }
         }
@@ -1865,7 +1940,7 @@ export class ObjectClient<
     }
 
     /** Look up the rows of another storage a relation joins by key. */
-    #lookup(object: ObjectType, relation: string, options: RelationOptions): Lookup {
+    #lookup(object: ObjectType, relation: string, options: FindOptions): Lookup {
         const { object: target, relation: joined } = related(object, relation, this.objects);
         if (joined.on.kind !== "key") {
             throw new CallError("BAD_REQUEST", {
@@ -1890,7 +1965,7 @@ export class ObjectClient<
         for (const { via } of relations) {
             if (related(object, via, this.objects).object.storage !== object.storage) {
                 throw new CallError("BAD_REQUEST", {
-                    message: `object ${object.name} relates no ${via} of another storage`,
+                    message: `object ${object.name} cannot relate ${via}: it has another storage`,
                 });
             }
         }
@@ -1898,19 +1973,21 @@ export class ObjectClient<
 
     /** Follow a storage query and the lookups its rows key. */
     #subscribe(split: StorageQuery, root: string | undefined, signal: AbortSignal): Subscription {
-        // key a local query, or subscribe a copied one
+        // key a local query, or subscribe a replicated one
         const id = RequestId.create(this.clock.now());
         const isLocal = split.object.storage === "local";
-        const named = isLocal ? queryName(split.query) : this.#insertSubscription(split, id, root);
+        const named = isLocal
+            ? ObjectClient.#queryName(split.query)
+            : this.#insertSubscription(split, id, root);
 
-        // read a local query at once, or wait until the copy subscribes to it
-        const copied = named.then(async (name) => {
+        // read a local query at once, or wait until the replica subscribes to it
+        const replicated = named.then(async (name) => {
             if (!isLocal) {
-                const replica = this.#replicaOf(split.object.storage);
+                const replica = this.#pickReplica(split.object.storage);
                 await this.database.log.until(
                     async () =>
                         Object.hasOwn(
-                            queriesOf(await replica.subscribed(this.database)) ?? {},
+                            ObjectClient.#queriesOf(await replica.subscribed(this.database)),
                             name,
                         ),
                     signal,
@@ -1920,14 +1997,14 @@ export class ObjectClient<
         const lookups = new Map<Lookup, LookupSubscription>();
         const ids = () => [id, ...[...lookups.values()].flatMap((entry) => entry.subscribed.ids())];
         if (split.lookups.length === 0) {
-            return { named, ready: copied, done: named.then(() => {}), ids };
+            return { named, ready: replicated, done: named.then(() => {}), ids };
         }
 
-        // key lookups from the query's rows, ready once the copy and the first lookups are
+        // key lookups from the query's rows, ready once the replica and the first lookups are
         const compiled = this.#compile(split.query);
         const { promise: ready, resolve: isReady } = Promise.withResolvers<void>();
         const signalReady = async () => {
-            await copied;
+            await replicated;
             await Promise.all([...lookups.values()].map((entry) => entry.subscribed.ready));
             isReady();
         };
@@ -1945,7 +2022,7 @@ export class ObjectClient<
             this.#report?.(error);
         });
 
-        return { named, ready: Promise.race([ready, done.then(() => copied)]), done, ids };
+        return { named, ready: Promise.race([ready, done.then(() => replicated)]), done, ids };
     }
 
     /** Record a storage query as subscribed under its name, returning the name. */
@@ -1954,7 +2031,7 @@ export class ObjectClient<
         id: string,
         root: string | undefined,
     ): Promise<string> {
-        const name = await queryName(split.query);
+        const name = await ObjectClient.#queryName(split.query);
         await this.database.insert(subscription).values({
             id,
             origin: this.origin,
@@ -1983,7 +2060,13 @@ export class ObjectClient<
             for await (const rows of this.#local.watch(name, await this.#read(compiled), signal)) {
                 // replace each lookup whose keys changed
                 for (const lookup of split.lookups) {
-                    await this.#replaceLookup(lookup, keysOf(rows, lookup), owner, lookups, signal);
+                    await this.#replaceLookup(
+                        lookup,
+                        ObjectClient.#keysOf(rows, lookup),
+                        owner,
+                        lookups,
+                        signal,
+                    );
                 }
 
                 // signal ready after the first lookups
@@ -2032,7 +2115,7 @@ export class ObjectClient<
         if (keys.length > 0) {
             const stop = new AbortController();
             const subscribed = this.#subscribe(
-                keyedTarget(lookup, keys),
+                ObjectClient.#keyedTarget(lookup, keys),
                 owner,
                 AbortSignal.any([signal, stop.signal]),
             );
@@ -2046,14 +2129,7 @@ export class ObjectClient<
             await transaction.transaction(async (savepoint) => {
                 for (const entry of pending.calls) {
                     const { object, name } = this.method(entry);
-                    await this.#predict(
-                        savepoint,
-                        object,
-                        name,
-                        schema
-                            .record(schema.string(), schema.json())
-                            .parse(Call.upgrade(object, name, entry)),
-                    );
+                    await this.#predict(savepoint, object, name, Call.upgrade(object, name, entry));
                 }
             });
         } catch (error) {
@@ -2076,7 +2152,7 @@ export class ObjectClient<
         const id = typeof input["id"] === "string" ? input["id"] : undefined;
         const before = id === undefined ? undefined : await this.row(database, object, id);
         const method = object.method(name);
-        const hasTarget = !method.target || before !== undefined;
+        const hasTarget = !Method.loads(method) || before !== undefined;
         const result =
             isInverse && !hasTarget
                 ? undefined
@@ -2130,14 +2206,14 @@ export class ObjectClient<
             return undefined;
         }
 
-        // split off routing fields, acting in the scope the call names, else the type's scope here
+        // split off routing fields, acting in the call's scope, else the type's scope here
         const { id, revision, ...rest } = input;
         const field = object.route.field;
-        const fields = field === undefined ? rest : omitField(rest, field);
+        const fields = field === undefined ? rest : ObjectClient.#omitField(rest, field);
         const targetId = id === undefined ? undefined : schema.string().parse(id);
         const named = field === undefined ? undefined : rest[field];
-        const scope = typeof named === "string" ? named : this.#scopeOf(object);
-        const call = new Call({
+        const scope = typeof named === "string" ? named : this.#readScope(object);
+        const call: Call = new Call({
             object,
             name,
             method,
@@ -2145,6 +2221,8 @@ export class ObjectClient<
             chain: object.storage === "local" ? [scope] : await this.replica.chain(database),
             input: fields,
             ...(targetId === undefined ? {} : { id: targetId }),
+            target: undefined,
+            prepared: undefined,
             caller:
                 this.caller === undefined
                     ? { subjects: [] }
@@ -2162,20 +2240,23 @@ export class ObjectClient<
         // load the target at the given revision
         const table = object.table;
         const [target] =
-            method.target && targetId !== undefined
+            Method.loads(method) && targetId !== undefined
                 ? await database
                       .select()
                       .from(table)
                       .where(eq(table[TABLE].column("id"), targetId))
                 : [];
-        if (method.target && target === undefined) {
+        if (Method.loads(method) && target === undefined) {
             throw new CallError("NOT_FOUND", { message: `no ${object.name} ${targetId}` });
         }
         if (revision !== undefined && target?.["revision"] !== revision) {
             throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
         }
 
-        return method.execute(target === undefined ? call : call.with({ target: target }));
+        return method.execute(target === undefined ? call : call.with({ target: target }), {
+            kind: "client",
+            database,
+        });
     }
 
     /** Call the replica procedures, forwarding once to the machine now serving a moved scope. */
@@ -2215,7 +2296,7 @@ export class ObjectClient<
 
     /** Send one ephemeral call as this client. */
     async #send(call: sync.Call): Promise<unknown> {
-        // push the call alone
+        // push only the call
         const { outcomes } = await this.#call((replica) =>
             replica.push({
                 scope: this.scope,
@@ -2242,8 +2323,8 @@ export class ObjectClient<
     }
 
     /** Read an object type's scope here: the client's scope, or a local type's partition. */
-    #scopeOf(object: ObjectType): string {
-        // keep copied objects in the client's scope
+    #readScope(object: ObjectType): string {
+        // keep replicated objects in the client's scope
         if (object.storage !== "local") {
             return this.scope;
         }
@@ -2252,9 +2333,7 @@ export class ObjectClient<
         const type = present(object.scopes[0], `the scope type of local object ${object.name}`);
         const owner = this.#owners.find((subject) => type.policy.is(subject));
         if (owner === undefined) {
-            throw new TypeError(
-                `the client has no ${type.name} keeping local object ${object.name}`,
-            );
+            throw new TypeError(`the client has no ${type.name} for local object ${object.name}`);
         }
 
         return owner.id;
@@ -2265,7 +2344,7 @@ export class ObjectClient<
         object: ObjectType,
         name: string,
         input: JsonObject,
-        scope = this.#scopeOf(object),
+        scope = this.#readScope(object),
     ): sync.Call {
         // generate the identifiers of a creation and of each item of a bulk creation
         const { kind } = object.method(name);
@@ -2274,10 +2353,12 @@ export class ObjectClient<
                 ? { id: object.generateId() }
                 : kind === "createMany"
                   ? {
-                        items: BatchItems.parse(input["items"]).map((item) => ({
-                            id: object.generateId(),
-                            ...item,
-                        })),
+                        items: BatchItem.array()
+                            .parse(input["items"])
+                            .map((item) => ({
+                                id: object.generateId(),
+                                ...item,
+                            })),
                     }
                   : {};
 
@@ -2288,24 +2369,24 @@ export class ObjectClient<
         return Call.record(object, name, { ...input, ...generated, ...scoped });
     }
 
-    /** Read the scope a call acts in: the one it names, its target's, else the client's. */
+    /** Read the scope a call acts in: its own, its target's, else the client's. */
     async #actingScope(
         database: DatabaseConnection,
         object: ObjectType,
         name: string,
         input: JsonObject,
     ): Promise<string> {
-        // take the scope the call names
+        // take the call's own scope
         const field = object.route.field;
         const named = field === undefined ? undefined : input[field];
         if (typeof named === "string") {
             return named;
         }
 
-        // take the scope of the target the copy keeps, such as an enclosing scope's inherited row
+        // take the scope of the target the replica keeps, such as an enclosing scope's inherited row
         const id = input["id"];
         const row =
-            object.method(name).target && typeof id === "string"
+            Method.loads(object.method(name)) && typeof id === "string"
                 ? await this.row(database, object, id)
                 : undefined;
 
@@ -2315,9 +2396,9 @@ export class ObjectClient<
     /** Refuse a call whose home is not the home of the mutation's calls before it. */
     #requireOneHome(calls: readonly sync.Call[], call: sync.Call): void {
         // require one home for every call
-        const home = this.#homeOf(call);
+        const home = this.#readHome(call);
         const [first] = calls;
-        const before = first === undefined ? home : this.#homeOf(first);
+        const before = first === undefined ? home : this.#readHome(first);
         if (home !== before) {
             throw new CallError("BAD_REQUEST", {
                 message: `a mutation changes rows of one home, and its calls change rows of ${before} and ${home}`,
@@ -2327,16 +2408,16 @@ export class ObjectClient<
         // require a home the client reaches
         if (home !== this.scope && !this.#isReachingHomes) {
             throw new CallError("BAD_REQUEST", {
-                message: `the client of ${this.scope} reaches no home of ${home}`,
+                message: `the client of ${this.scope} cannot reach the home of ${home}`,
             });
         }
     }
 
     /** Read the scope whose home runs a recorded call. */
-    #homeOf(call: sync.Call): string {
+    #readHome(call: sync.Call): string {
         const { object, name } = this.method(call);
 
-        return object.homeOf(name, call.input);
+        return object.readScope(name, call.input);
     }
 
     /** List the tables a call's prediction may read, by SQL name. */
@@ -2358,7 +2439,7 @@ export class ObjectClient<
         readonly name: string;
         readonly method: Method;
     } {
-        const object = Call.typeOf(this.objects, call);
+        const object = Call.findType(this.objects, call);
         if (!object) {
             throw new TypeError(`the client has no object ${call.type.type}`);
         }
@@ -2366,9 +2447,9 @@ export class ObjectClient<
         return { object, name: call.method, method: object.method(call.method) };
     }
 
-    /** Pick a storage's copy, events beside durable rows, refusing a storage the client lacks. */
-    #replicaOf(storage: ObjectStorage): sync.Replica {
-        // pick the storage's copy
+    /** Pick a storage's replica, events beside durable rows, refusing one the client lacks. */
+    #pickReplica(storage: ObjectStorage): sync.Replica {
+        // pick the storage's replica
         const replicas = {
             durable: this.replica,
             events: this.replica,
@@ -2378,7 +2459,7 @@ export class ObjectClient<
         };
         const replica = replicas[storage];
         if (replica === undefined) {
-            throw new TypeError(`the client keeps no copy of ${storage} objects`);
+            throw new TypeError(`the client has no replica of ${storage} objects`);
         }
 
         return replica;
@@ -2388,50 +2469,132 @@ export class ObjectClient<
     #compile(query: ObjectQuery): sync.Query {
         // compile in the scope of the query's object type
         const object = this.objects.find((type) => type.name === query.object);
-        const chain = [this.#scopeOf(present(object, `the client's object ${query.object}`))];
+        const chain = [this.#readScope(present(object, `the client's object ${query.object}`))];
         const [compiled] = Object.values(ObjectType.queries(this.objects, { query }, chain));
 
         return present(compiled, `the compiled query of ${query.object}`);
     }
 
-    /** Expose an object type's mutating methods, each submitting one mutation. */
-    #methods<Object extends ObjectType>(
-        object: Object,
-        mutates: true,
-        call: (name: string, input: JsonObject) => Submission<unknown>,
-    ): Mutator<Object>;
-    /** Expose an object type's mutating methods in a mutation, each returning its prediction. */
-    #methods<Object extends ObjectType>(
-        object: Object,
-        mutates: true,
-        call: (name: string, input: JsonObject) => Promise<unknown>,
-    ): MutationCalls<Object>;
-    /** Expose an object type's reading methods, each read from the server. */
-    #methods<Object extends ObjectType>(
-        object: Object,
-        mutates: false,
-        call: (name: string, input: JsonObject) => Promise<unknown>,
-    ): Reader<Object>;
-    /**
-     * Expose an object type's mutating or reading methods through one call function.
-     *
-     * @construct each key is a routed method of the chosen mutability, calling the function.
-     */
-    #methods(
-        object: ObjectType,
-        mutates: boolean,
-        call: (name: string, input: JsonObject) => unknown,
-    ): object {
+    /** List an object type's routed methods of one mutability, refusing a type the client lacks. */
+    #routed(object: ObjectType, mutates: boolean): Readonly<Record<string, Method>> {
         // require a known object type
         if (!this.objects.some((type) => type.same(object))) {
             throw new TypeError(`the client has no object ${object.name}`);
         }
 
         return Object.fromEntries(
-            Object.entries(object.methods)
-                .filter(([, method]) => method.mutates === mutates && method.isInternal !== true)
-                .map(([name]) => [name, (input: JsonObject) => call(name, input)]),
+            Object.entries(object.methods).filter(
+                ([, method]) => method.mutates === mutates && method.isInternal !== true,
+            ),
         );
+    }
+
+    /** Read the most mutations one push sends, refusing a push larger than the server takes. */
+    static #pushMutationsOf(push: { readonly mutations: number } | undefined): number {
+        const mutations = push?.mutations ?? PUSH_MUTATIONS;
+        if (!Number.isInteger(mutations) || mutations < 1 || mutations > PUSH_MUTATIONS) {
+            throw new TypeError(`a push needs 1 to ${PUSH_MUTATIONS} mutations`);
+        }
+
+        return mutations;
+    }
+
+    /** List the tables of the object types kept in one storage. */
+    static #storedTables(objects: readonly ObjectType[], storage: ObjectStorage): Table[] {
+        return objects.filter((object) => object.storage === storage).map((object) => object.table);
+    }
+
+    /** Replicate some tables in a separate replica, absent for no tables. */
+    static #separateReplica(
+        name: string,
+        scope: string,
+        tables: readonly Table[],
+    ): sync.Replica | undefined {
+        return tables.length === 0 ? undefined : new sync.Replica({ name, scope, tables });
+    }
+
+    /** Read the distinct keys of a lookup's parent rows, in their JSON form, sorted. */
+    static #keysOf(rows: readonly Item[], lookup: Lookup): Exclude<Scalar, null>[] {
+        // follow the include path
+        let reached: readonly Item[] = rows;
+        for (const name of lookup.path) {
+            reached = reached.flatMap((item) => present(item.with[name], `the ${name} include`));
+        }
+
+        // collect the distinct keys of the parent rows, in their JSON form
+        const column = lookup.target.object.table[TABLE].column(lookup.column).definition;
+        const keys = new Set<Exclude<Scalar, null>>();
+        for (const item of reached) {
+            const value = item.row[lookup.parent];
+            if (value === null || value === undefined) {
+                continue;
+            } else if (typeof value === "bigint") {
+                keys.add(ObjectClient.#scalarOf(column.toJson(value)));
+            } else {
+                keys.add(ObjectClient.#scalarOf(column.toJson(ObjectClient.#scalarOf(value))));
+            }
+        }
+
+        return [...keys].toSorted((left, right) => String(left).localeCompare(String(right)));
+    }
+
+    /** Follow a query node up to its root. */
+    static #rootOf(node: sync.Node): sync.Node {
+        return node.parent === undefined ? node : ObjectClient.#rootOf(node.parent);
+    }
+
+    /** Wait for nothing, until a reader waiting for events replaces it. */
+    static #idle(): void {}
+
+    /** Require a lookup key value to be a scalar, as key columns keep them. */
+    static #scalarOf(value: unknown): Exclude<Scalar, null> {
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+            return value;
+        }
+
+        throw new TypeError(`a lookup key is ${typeof value}, not a scalar`);
+    }
+
+    /** Narrow a lookup's target query to the given keys. */
+    static #keyedTarget(lookup: Lookup, keys: readonly Exclude<Scalar, null>[]): StorageQuery {
+        const { where } = lookup.target.query;
+        const conditions = [
+            ...(where === undefined ? [] : [where]),
+            { [lookup.column]: { in: keys } },
+            ...(lookup.where === undefined ? [] : [lookup.where]),
+        ];
+
+        return {
+            ...lookup.target,
+            query: { ...lookup.target.query, where: { AND: conditions } },
+        };
+    }
+
+    /** Read the queries a replica completed a run of, none before its first run. */
+    static #queriesOf(
+        subscribed: sync.SubscriptionRecord | undefined,
+    ): Readonly<Record<string, ObjectQuery>> {
+        // read no queries before the first run
+        const queries = subscribed?.parameters["queries"];
+
+        return queries === undefined ? {} : SUBSCRIBED_QUERIES.parse(queries);
+    }
+
+    /** Name a storage query by a prefix of its content's digest. */
+    static async #queryName(query: ObjectQuery): Promise<string> {
+        return (await Digest.json(query)).slice(0, QUERY_NAME_LENGTH);
+    }
+
+    /** Decide whether stored queries are the queries given. */
+    static #isSame(stored: unknown, queries: Readonly<Record<string, ObjectQuery>>): boolean {
+        return canonicalize(stored) === canonicalize(queries);
+    }
+
+    /** Leave out one field of an input. */
+    static #omitField(input: JsonObject, field: string): JsonObject {
+        const { [field]: _omitted, ...rest } = input;
+
+        return rest;
     }
 }
 
@@ -2466,18 +2629,18 @@ const subscription = defineTable("subscription", {
     keep: integer("keep"),
 });
 
-/** A copy the client follows: replica, shape and parameters, and the prediction it rebases. */
-interface ClientCopy {
-    /** The local copy. */
+/** A replica the client follows: replica, shape and parameters, and the prediction it rebases. */
+interface ClientFollow {
+    /** The local replica. */
     readonly replica: sync.Replica;
     /** The followed shape. */
     readonly shape: string;
     /** Read the current subscription parameters: followed queries and the ephemeral writer. */
-    parameters(): Promise<{
+    readonly parameters: () => Promise<{
         readonly queries?: Readonly<Record<string, ObjectQuery>>;
         readonly writerId?: string;
     }>;
-    /** The prediction rebased onto the copy, absent for copies nothing predicts. */
+    /** The prediction rebased onto the replica, absent for replicas nothing predicts. */
     readonly prediction?: sync.Prediction;
 }
 
@@ -2497,7 +2660,7 @@ interface Lookup {
     readonly path: readonly string[];
     /** The looked-up objects' column with a key. */
     readonly column: string;
-    /** The parent rows' column holding the key. */
+    /** The parent rows' column with the key. */
     readonly parent: string;
     /** The condition the join adds, such as an attachment's host type. */
     readonly where?: Condition;
@@ -2505,28 +2668,28 @@ interface Lookup {
     readonly target: StorageQuery;
 }
 
-/** A query in its open form followed over the local copy until closed. */
+/** A query in its open form followed over the local replica until closed. */
 interface Follow {
     /** The compiled query. */
     readonly compiled: sync.Query;
     /** The name of the query its storage follows, once subscribed. */
     readonly named: Promise<string>;
-    /** Settles once the copy has the query. */
+    /** Settles once the replica has the query. */
     readonly ready: Promise<void>;
     /** Stop following the query. */
-    close(): Promise<void>;
+    readonly close: () => Promise<void>;
 }
 
 /** A storage query followed until closed, with the lookups its rows keyed so far. */
 interface Subscription {
     /** The name of the storage query, once subscribed. */
     readonly named: Promise<string>;
-    /** Settles once the storage's copy has it and its first lookups are ready. */
+    /** Settles once the storage's replica has it and its first lookups are ready. */
     readonly ready: Promise<void>;
     /** Settles once the query stops, rejecting with a failed lookup. */
     readonly done: Promise<void>;
     /** List the subscriptions the query and its current lookups have. */
-    ids(): string[];
+    readonly ids: () => string[];
 }
 
 /** A lookup's subscription to the keys its rows held last. */
@@ -2537,115 +2700,4 @@ interface LookupSubscription {
     readonly subscribed: Subscription;
     /** Stops the subscription. */
     readonly stop: AbortController;
-}
-
-/** Read the most mutations one push sends, refusing a push larger than the server takes. */
-function pushMutationsOf(push: { readonly mutations: number } | undefined): number {
-    const mutations = push?.mutations ?? PUSH_MUTATIONS;
-    if (!Number.isInteger(mutations) || mutations < 1 || mutations > PUSH_MUTATIONS) {
-        throw new TypeError(`a push carries 1 to ${PUSH_MUTATIONS} mutations`);
-    }
-
-    return mutations;
-}
-
-/** List the tables of the object types kept in one storage. */
-function storedTables(objects: readonly ObjectType[], storage: ObjectStorage): Table[] {
-    return objects.filter((object) => object.storage === storage).map((object) => object.table);
-}
-
-/** Copy some tables in a separate replica, absent for no tables. */
-function separateReplica(
-    name: string,
-    scope: string,
-    tables: readonly Table[],
-): sync.Replica | undefined {
-    return tables.length === 0 ? undefined : new sync.Replica({ name, scope, tables });
-}
-
-/** Read the distinct keys a lookup's parent rows hold, in their JSON form, sorted. */
-function keysOf(rows: readonly Item[], lookup: Lookup): Exclude<Scalar, null>[] {
-    // follow the include path
-    let reached: readonly Item[] = rows;
-    for (const name of lookup.path) {
-        reached = reached.flatMap((item) => item.with[name] ?? []);
-    }
-
-    // collect the distinct keys the parent rows hold, in their JSON form
-    const column = lookup.target.object.table[TABLE].column(lookup.column).definition;
-    const keys = new Set<Exclude<Scalar, null>>();
-    for (const item of reached) {
-        const value = item.row[lookup.parent];
-        if (value === null || value === undefined) {
-            continue;
-        } else if (typeof value === "bigint") {
-            keys.add(scalarOf(column.toJson(value)));
-        } else {
-            keys.add(scalarOf(column.toJson(scalarOf(value))));
-        }
-    }
-
-    return [...keys].toSorted((left, right) => String(left).localeCompare(String(right)));
-}
-
-/** Follow a query node up to its root. */
-function rootOf(node: sync.Node): sync.Node {
-    return node.parent === undefined ? node : rootOf(node.parent);
-}
-
-/** Wait for nothing, until a reader waiting for events replaces it. */
-function idle(): void {}
-
-/** Require a lookup key value to be a scalar, as key columns keep them. */
-function scalarOf(value: unknown): Exclude<Scalar, null> {
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        return value;
-    }
-
-    throw new TypeError(`a lookup key is ${typeof value}, no scalar`);
-}
-
-/** Narrow a lookup's target query to the given keys. */
-function keyedTarget(lookup: Lookup, keys: readonly Exclude<Scalar, null>[]): StorageQuery {
-    const { where } = lookup.target.query;
-    const conditions = [
-        ...(where === undefined ? [] : [where]),
-        { [lookup.column]: { in: keys } },
-        ...(lookup.where === undefined ? [] : [lookup.where]),
-    ];
-
-    return {
-        ...lookup.target,
-        query: { ...lookup.target.query, where: { AND: conditions } },
-    };
-}
-
-/** Read the queries a copy completed a run of, absent before its first run. */
-function queriesOf(
-    subscribed: sync.SubscriptionRecord | undefined,
-): Readonly<Record<string, ObjectQuery>> | undefined {
-    // read nothing before the first run
-    if (subscribed === undefined) {
-        return undefined;
-    }
-    const queries = subscribed.parameters["queries"];
-
-    return queries === undefined ? {} : SUBSCRIBED_QUERIES.parse(queries);
-}
-
-/** Name a storage query by a prefix of its content's digest. */
-async function queryName(query: ObjectQuery): Promise<string> {
-    return (await Digest.json(query)).slice(0, QUERY_NAME_LENGTH);
-}
-
-/** Decide whether stored queries are the queries given. */
-function isSame(stored: unknown, queries: Readonly<Record<string, ObjectQuery>>): boolean {
-    return canonicalize(stored) === canonicalize(queries);
-}
-
-/** Leave out one field of an input. */
-function omitField(input: JsonObject, field: string): JsonObject {
-    const { [field]: _omitted, ...rest } = input;
-
-    return rest;
 }

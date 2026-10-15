@@ -1,5 +1,5 @@
 import { testCallKey } from "@destack/runtime/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import {
     accessRelationship,
     accessRole,
@@ -71,33 +71,35 @@ test("decide again after changes of the caller's own access, and leave other ide
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).copyScope(space.reference(Scope.universe.id, spaceId), "own");
+    await new AccessFixture(database).replicateScope(
+        space.reference(Scope.universe.id, spaceId),
+        "own",
+    );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
-    const [first, second] = [idOf("notebook"), idOf("notebook")];
+    const [first, second] = [newId("notebook"), newId("notebook")];
     await database.insert(notebook.table).values([
         { ...at, id: first, name: "First" },
         { ...at, id: second, name: "Second" },
     ]);
-    const [firstNote, secondNote] = [idOf("note"), idOf("note")];
+    const [firstNote, secondNote] = [newId("note"), newId("note")];
     await database.insert(note.table).values([
         { ...at, id: firstNote, parentId: first, title: "First" },
         { ...at, id: secondNote, parentId: second, title: "Second" },
     ]);
-    const [readerRole, otherRole] = [idOf("role"), idOf("role")];
+    const [readerRole, otherRole] = [newId("role"), newId("role")];
     await database.insert(accessRole).values(
         [readerRole, otherRole].map((id) => ({
             ...at,
             id,
             name: id,
             description: "Reads notebooks",
-            isUniversal: false,
         })),
     );
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
-                id: idOf("relationship"),
+                id: newId("relationship"),
                 object: notebook.reference(spaceId, first),
                 role: readerRole,
                 subject: ada,
@@ -110,6 +112,7 @@ test("decide again after changes of the caller's own access, and leave other ide
 
     // follow the space as ada
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         objects: [space, notebook, note],
@@ -131,7 +134,7 @@ test("decide again after changes of the caller's own access, and leave other ide
     const granted = await decided(
         () =>
             database.insert(accessRolePermission).values({
-                id: idOf("role-permission"),
+                id: newId("role-permission"),
                 roleId: readerRole,
                 scope: spaceId,
                 packageId: notebook.policy.definition.packageId,
@@ -147,7 +150,7 @@ test("decide again after changes of the caller's own access, and leave other ide
         () =>
             database
                 .update(accessRole)
-                .set({ isUniversal: true })
+                .set({ description: "Reads every notebook" })
                 .where(eq(accessRole.id, otherRole)),
         [accessRole],
     );
@@ -173,7 +176,7 @@ test("decide again after changes of the caller's own access, and leave other ide
             database.insert(accessRelationship).values(
                 Relationship.encode(
                     {
-                        id: idOf("relationship"),
+                        id: newId("relationship"),
                         object: team,
                         relation: "member",
                         subject: ada,
@@ -189,18 +192,18 @@ test("decide again after changes of the caller's own access, and leave other ide
 
     // decide again once the space is suspended
     const suspended = await decided(
-        () => new AccessFixture(database).suspendCopy(spaceId, 2),
+        () => new AccessFixture(database).suspendReplica(spaceId, 2),
         [Scope.table],
     );
     expect(suspended).toEqual([true]);
 });
 
 /** Build a fresh identifier of a type. */
-function idOf<Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
+function newId<Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
     return schema.identifier(prefix).parse(`${prefix}-${v7()}`);
 }
 
-test("drop a notebook from a live copy once the relationship sharing it expires, deciding alike with an identical audience", async () => {
+test("drop a notebook from a live replica once the relationship sharing it expires, deciding alike with an identical audience", async () => {
     // keep a notebook shared with ada for a moment
     const storage = await TestDatabase.create(
         "sqlite",
@@ -209,16 +212,20 @@ test("drop a notebook from a live copy once the relationship sharing it expires,
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).copyScope(space.reference(Scope.universe.id, spaceId), "own");
+    await new AccessFixture(database).replicateScope(
+        space.reference(Scope.universe.id, spaceId),
+        "own",
+    );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
-    const shared = idOf("notebook");
+    const shared = newId("notebook");
     await database.insert(notebook.table).values({ ...at, id: shared, name: "Shared" });
-    const expiresAt = Date.now() + SHARED_MILLISECONDS;
+    const clock = new TestClock(Date.now());
+    const expiresAt = clock.now() + SHARED_MILLISECONDS;
     await database.insert(accessRelationship).values(
         Relationship.encode(
             {
-                id: idOf("relationship"),
+                id: newId("relationship"),
                 object: notebook.reference(spaceId, shared),
                 relation: "viewer",
                 subject: ada,
@@ -229,9 +236,10 @@ test("drop a notebook from a live copy once the relationship sharing it expires,
         ),
     );
 
-    // follow the notebooks as ada, with a second identical audience deciding alike
+    // follow the notebooks as ada on the test's clock, with a second identical audience deciding alike
     const store = new ObjectStore({
-        clock: Clock.system,
+        chain: async () => undefined,
+        clock,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         objects: [space, notebook, note],
         database,
@@ -240,27 +248,33 @@ test("drop a notebook from a live copy once the relationship sharing it expires,
         origin: { package: notebook.package },
     });
     const [following, identical] = await Promise.all([
-        ObjectAudience.of(store, spaceId, Caller.of(ada, Date.now())),
-        ObjectAudience.of(store, spaceId, Caller.of(ada, Date.now())),
+        ObjectAudience.of(store, spaceId, Caller.of(ada, clock.now())),
+        ObjectAudience.of(store, spaceId, Caller.of(ada, clock.now())),
     ]);
+    const subscription = new AbortController();
+    onTestFinished(() => subscription.abort());
     const pages = store.feed.subscribe(
         { notebooks: { table: notebook.table, scopes: [spaceId] } },
         undefined,
-        AbortSignal.timeout(5000),
+        subscription.signal,
         { audience: following },
     );
     const isShared = following.key === identical.key;
 
-    // send the notebook, then delete it at the expiry
-    const sent = await take(pages, (page) =>
+    // send the notebook, then delete it once the clock reaches the expiry
+    const inserted = await take(pages, (page) =>
+        page.changes.some((change) => change.operation === "insert"),
+    );
+    clock.advance(SHARED_MILLISECONDS);
+    const deleted = await take(pages, (page) =>
         page.changes.some((change) => change.operation === "delete"),
     );
     expect({
         isShared,
-        changes: sent.flatMap((page) =>
+        changes: [...inserted, ...deleted].flatMap((page) =>
             page.changes.map((change) => [change.operation, change.row["id"]]),
         ),
-        isExpired: Date.now() >= expiresAt,
+        isExpired: clock.now() >= expiresAt,
     }).toEqual({
         isShared: true,
         changes: [
@@ -271,12 +285,13 @@ test("drop a notebook from a live copy once the relationship sharing it expires,
     });
 });
 
-/** Take pages until one satisfies a condition. */
+/** Take pages until one satisfies a condition, keeping the stream open. */
 async function take(pages: AsyncGenerator<Page>, isLast: (page: Page) => boolean): Promise<Page[]> {
+    // read the pages one by one, leaving the stream open for a later take
     const taken: Page[] = [];
-    for await (const page of pages) {
-        taken.push(page);
-        if (isLast(page)) {
+    for (let next = await pages.next(); next.done !== true; next = await pages.next()) {
+        taken.push(next.value);
+        if (isLast(next.value)) {
             break;
         }
     }

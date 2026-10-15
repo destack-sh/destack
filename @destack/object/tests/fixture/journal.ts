@@ -1,3 +1,4 @@
+import { TestTelemetry } from "@destack/telemetry/test";
 import { defineTable, text } from "@destack/db";
 import { Clock, type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
@@ -62,13 +63,15 @@ export class AuditStorage {
     /** The test database. */
     readonly test: TestDatabase;
     /** The current connection. */
-    database: DatabaseConnection & { close(): Promise<void> };
+    database: DatabaseConnection & { readonly close: () => Promise<void> };
     /** The event log keeping the call events over the current connection. */
     readonly events: EventStore;
     /** The journal recording calls, each audited one as a call event. */
     journal: Journal;
     /** The recorder writing into the journal. */
     recorder: AuditRecorder;
+    /** The telemetry keeping the exceptions the storage captures, refused at close unless taken. */
+    readonly telemetry: TestTelemetry;
     /** The bucket and keyring every connection's event log shares. */
     readonly #files: CallFiles;
 
@@ -77,10 +80,12 @@ export class AuditStorage {
         test: TestDatabase,
         database: AuditStorage["database"],
         files: CallFiles,
+        telemetry: TestTelemetry,
         lifetime?: Duration,
     ) {
         // keep the connection's event log and its journal
         this.test = test;
+        this.telemetry = telemetry;
         this.database = database;
         this.#files = files;
         this.events = AuditStorage.#events(database, files);
@@ -113,7 +118,7 @@ export class AuditStorage {
             keyring: await LocalKeyring.read(LocalKeyring.generate()),
         };
 
-        return new AuditStorage(test, test.database, files, lifetime);
+        return new AuditStorage(test, test.database, files, TestTelemetry.register(), lifetime);
     }
 
     /** Open the call events over a connection. */
@@ -126,10 +131,6 @@ export class AuditStorage {
             files: () => files.bucket,
             personal: new DatabasePersonalKeyring(database, files.keyring),
             clock: Clock.system,
-            // fail the test on a dropped event
-            report: (error) => {
-                throw error;
-            },
         });
     }
 
@@ -137,7 +138,9 @@ export class AuditStorage {
     async reopen(): Promise<AuditStorage> {
         await this.database.close();
 
-        return new AuditStorage(this.test, await this.test.connect(TABLES), this.#files);
+        const database = await this.test.connect(TABLES);
+
+        return new AuditStorage(this.test, database, this.#files, this.telemetry);
     }
 
     /** Open another connection. */
@@ -156,10 +159,11 @@ export class AuditStorage {
         return page.events.map((event) => AuditCall.parse(event.data));
     }
 
-    /** Release the connection and remove the databases. */
+    /** Release the connection and remove the databases, refusing exceptions no test took. */
     async close(): Promise<void> {
         await this.database.close();
         await this.test.close();
+        this.telemetry[Symbol.dispose]();
     }
 }
 

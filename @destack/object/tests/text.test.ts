@@ -1,7 +1,7 @@
 import { bearerUser } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import { type DatabaseConnection, type Dialect, defineDatabase, Transaction } from "@destack/db";
+import { type DatabaseConnection, type Dialect, defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -12,9 +12,10 @@ import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectExtension } from "../src/server/index.ts";
+import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { aligned, Clock } from "@destack/schema";
@@ -63,14 +64,18 @@ async function serveDocuments(dialect: Dialect) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
-        ...ObjectExtension.compose([ObjectExtension.of(documentsPackage, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(documentsPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(database),
-            database,
-        }).packages[0],
+        ...aligned(
+            ObjectExtension.compose([defineServer(documentsPackage, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(documentsPackage) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(database),
+                database,
+            }).packages,
+            0,
+        ),
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("documents"),
@@ -238,41 +243,44 @@ test.for(TEST_DIALECTS)(
         };
         const plain = await refusal(alice.document.update(replaced));
         expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
-        await expect(
-            alice.document.edit({
-                spaceId,
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                field: "body",
-                edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
-            }),
-        ).rejects.toMatchObject({
-            code: "BAD_REQUEST",
-            message: "no chunk holds element nobody.1:0",
-        });
+        expect(
+            await refusal(
+                alice.document.edit({
+                    spaceId,
+                    id: created.id,
+                    requestId: RequestId.create(Date.now()),
+                    field: "body",
+                    edits: [
+                        { insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } },
+                    ],
+                }),
+            ),
+        ).toEqual(["BAD_REQUEST", "no chunk has element nobody.1:0"]);
 
         // refuse a run the text already contains anywhere
-        await expect(
-            alice.document.edit({
-                spaceId,
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                field: "body",
-                edits: [{ insert: "x", run: "alice.1" }],
-            }),
-        ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "body already holds run alice.1" });
+        expect(
+            await refusal(
+                alice.document.edit({
+                    spaceId,
+                    id: created.id,
+                    requestId: RequestId.create(Date.now()),
+                    field: "body",
+                    edits: [{ insert: "x", run: "alice.1" }],
+                }),
+            ),
+        ).toEqual(["BAD_REQUEST", "body already has run alice.1"]);
 
         // report which elements the text contains, deleted ones included
         const owner = document.reference(spaceId, created.id);
         const contained = [
-            await Chunk.contains(Transaction.reading(database), owner, "body", [
+            await Chunk.contains(Snapshot.live(database), owner, "body", [
                 { run: "alice.1", offset: 2999 },
             ]),
-            await Chunk.contains(Transaction.reading(database), owner, "body", [
+            await Chunk.contains(Snapshot.live(database), owner, "body", [
                 { run: "alice.2", offset: 0 },
                 { run: "alice.2", offset: 4999 },
             ]),
-            await Chunk.contains(Transaction.reading(database), owner, "body", [
+            await Chunk.contains(Snapshot.live(database), owner, "body", [
                 { run: "alice.1", offset: 3000 },
             ]),
         ];
@@ -315,9 +323,9 @@ test.for(TEST_DIALECTS)(
         await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
         // predict one edit on each client at once and see each locally first
-        const copy = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
-        const shout = copy.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
-        const exclaim = copy.change({ from: 11, to: 11, insert: "!" }, "bob.1");
+        const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
+        const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
+        const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
         const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
         const exclaimed = bob.client.mutate(document).edit({ id, field: "body", edits: exclaim });
         await Promise.all([shouted.predicted, exclaimed.predicted]);
@@ -326,7 +334,7 @@ test.for(TEST_DIALECTS)(
             ["hello world!"],
         ]);
 
-        // converge both copies once both edits reach the server
+        // converge both replicas once both edits reach the server
         await Promise.all([shouted.confirmed, exclaimed.confirmed]);
         await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
         await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
@@ -369,7 +377,7 @@ test.for(TEST_DIALECTS)(
         const edits = await Promise.all([typed, extended]);
         const local = (await text.read()).text();
 
-        // converge bob's copy once both edits reach the server
+        // converge bob's replica once both edits reach the server
         await Promise.all(edits.map((edit) => edit.confirmed));
         await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
         await text.close();
@@ -381,3 +389,56 @@ test.for(TEST_DIALECTS)(
 async function body(live: Awaited<ReturnType<typeof openClient>>["live"]): Promise<string[]> {
     return (await live.read()).map((row) => row["body"]);
 }
+
+test("tell whether a document's body has the elements a reader asks about", async () => {
+    // write a body of five characters in one run
+    const storage = await TestDatabase.create("sqlite", documentsDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [document],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: document.package },
+    });
+    const caller = userContext("user-1", spaceId).caller();
+    const [created] = await store.mutate(caller, {
+        id: RequestId.create(Date.now()),
+        calls: [document.call("create", { spaceId })],
+    });
+    await store.mutate(caller, {
+        id: RequestId.create(Date.now()),
+        calls: [
+            document.call("edit", {
+                spaceId,
+                id: created.id,
+                field: "body",
+                edits: new Sequence().change({ from: 0, to: 0, insert: "hello" }, "user.1"),
+            }),
+        ],
+    });
+    const contains = async (run: string, offset: number) =>
+        (
+            await store.query(
+                caller,
+                document.call("contains", {
+                    spaceId,
+                    id: created.id,
+                    field: "body",
+                    elements: [{ run, offset }],
+                }),
+            )
+        ).isContained;
+
+    // find the run's first and last elements, and neither one past its end nor another run's
+    expect({
+        first: await contains("user.1", 0),
+        last: await contains("user.1", 4),
+        past: await contains("user.1", 5),
+        other: await contains("user.2", 0),
+    }).toEqual({ first: true, last: true, past: false, other: false });
+});

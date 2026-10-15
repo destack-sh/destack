@@ -32,6 +32,7 @@ const card = defineObject({
 /** Serve the declared objects over a database, applying their records. */
 async function serve(database: DatabaseConnection): Promise<ObjectStore> {
     return new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [label, note, task],
@@ -83,7 +84,7 @@ test.each(TEST_DIALECTS)(
             document: { notes: { one: { title: "first" } } },
             store: await serve(database),
             release: async (step) => {
-                await step.rows(note.table, {});
+                await step.read(note.table).findMany();
                 throw new TypeError("no release in this test");
             },
         });
@@ -163,7 +164,7 @@ test.each(TEST_DIALECTS)(
         // reject collections no object reads and references to undeclared objects
         await expect(apply({ tags: {} })).rejects.toMatchObject({
             code: "UNSUPPORTED_DECLARATION",
-            message: "this server applies no tags",
+            message: "this server cannot apply tags",
         });
         await expect(
             apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } }),
@@ -229,7 +230,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
     expect(() => book(union(relation("owner")))).toThrow(
         new TypeError(
-            "aggregate bookCount of book measures rows that readers of shelf may not list: list them through parent read",
+            "aggregate bookCount of book counts rows that readers of shelf may not list: list them through parent read",
         ),
     );
 });
@@ -239,7 +240,7 @@ test("refuse a containment grant on a type living in the universe alone, and kee
     expect(ledger(true).name).toBe("ledger");
     expect(() => ledger(false)).toThrow(
         new TypeError(
-            "object ledger lives in the universe, which contains no principal, so contained() in its read permission admits no one",
+            "object ledger lives in the universe without principals: contained() in its read permission admits no one",
         ),
     );
 });
@@ -282,6 +283,7 @@ test.each(TEST_DIALECTS)(
         const { database } = storage;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [card],
@@ -306,8 +308,8 @@ test.each(TEST_DIALECTS)(
                 store,
                 card,
                 name,
+                spaceId,
                 {
-                    spaceId,
                     id,
                     requestId: RequestId.create(Date.now()),
                     ...(name === "adopt" ? { manager: declaration } : {}),
@@ -393,3 +395,21 @@ function ledger(isScope: boolean) {
         relations: { owner: { subjects: [principal.user] } },
     }).methods();
 }
+
+test("refuse two methods answering one route, which a router would send to one of them", () => {
+    // declare a second update beside the first, both at the object's path
+    const doubled = defineObject({
+        name: "memo",
+        plural: "memos",
+        scope: space,
+        fields: { title: field.string() },
+        permissions: ["read", "write"],
+    });
+
+    expect(() =>
+        doubled.methods((method) => ({
+            update: method.update("write", { fields: ["title"] }),
+            retitle: method.update("write", { fields: ["title"] }),
+        })),
+    ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
+});

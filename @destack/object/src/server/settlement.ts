@@ -47,7 +47,7 @@ export const Settlement = {
             .where(and(eq(settlement.id, id), isNull(settlement.claimedAt)))
             .returning({ id: settlement.id });
         if (recorded.length === 0) {
-            refuseOutlasted(call);
+            Settlement.refuseOutlasted(call);
         }
     },
 
@@ -70,7 +70,7 @@ export const Settlement = {
             )
             .returning({ id: settlement.id });
         if (committed.length === 0) {
-            refuseOutlasted(call);
+            Settlement.refuseOutlasted(call);
         }
     },
 
@@ -105,13 +105,13 @@ export const Settlement = {
         // find the method
         const object = store.objects.find((served) => served.name === row.object);
         if (object === undefined) {
-            throw new TypeError(`settlement ${row.id} names unserved object ${row.object}`);
+            throw new TypeError(`settlement ${row.id} has unserved object ${row.object}`);
         }
         const method = object.method(row.method);
         const declared = method.prepared;
         if (declared === undefined || !Method.settles(method)) {
             throw new TypeError(
-                `settlement ${row.id} names ${row.object}.${row.method}, which settles no prepared work`,
+                `settlement ${row.id} has ${row.object}.${row.method}, which settles no prepared work`,
             );
         }
 
@@ -179,11 +179,11 @@ export const Settlement = {
             },
         };
     },
-};
 
-/** Refuse a call whose settlement a settler claimed after its grace passed. */
-function refuseOutlasted(call: Call): never {
-    throw new CallError("SERVICE_UNAVAILABLE", {
-        message: `${call.object.name}.${call.name} outlasted its settlement grace`,
-    });
-}
+    /** Refuse a call whose settlement a settler claimed after its grace passed. */
+    refuseOutlasted(call: Call): never {
+        throw new CallError("SERVICE_UNAVAILABLE", {
+            message: `${call.object.name}.${call.name} exceeded its settlement grace period`,
+        });
+    },
+};

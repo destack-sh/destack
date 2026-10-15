@@ -5,7 +5,8 @@ import { callTables, testEvents } from "../src/test/index.ts";
 import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { PackageId } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
+import { definePackage } from "@destack/runtime";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { canonicalize, Clock, Digest, present, schema } from "@destack/schema";
@@ -18,7 +19,7 @@ import {
     desiredState,
     type ProvisionedRecord,
 } from "../src/index.ts";
-import { DRAINING, ObjectStore } from "../src/server/index.ts";
+import { DRAINING, ObjectExtension, ObjectStore } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
@@ -178,6 +179,7 @@ async function serve(boxes: Boxes) {
         typeof link
     >;
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [box, link],
@@ -331,7 +333,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         kept: [{ state: { size: 1 } }],
         unknown: [
             "BAD_REQUEST",
-            `${spaceId} keeps no desired states ${await Digest.json({ size: 4 })}`,
+            `${spaceId} has no desired states ${await Digest.json({ size: 4 })}`,
         ],
     });
 });
@@ -401,17 +403,14 @@ test("retain a deleted box for its window, keep it while an installation consume
     await reconcile("box", ids.first);
 
     // keep the box and its content within its day
-    await database
-        .update(box.table)
-        .set({ deletionRequestedAt: now })
-        .where(eq(box.table.id, ids.first));
+    await database.update(box.table).set({ deletedAt: now }).where(eq(box.table.id, ids.first));
     const wait = present(await reconcile("box", ids.first), "the wait until the window ends");
     const retained = present(await read(ids.first), "the retained box").conditions["ready"];
 
     // keep it past its day while an installation consumes it
     await database
         .update(box.table)
-        .set({ deletionRequestedAt: now - 2 * 86_400_000 })
+        .set({ deletedAt: now - 2 * 86_400_000 })
         .where(eq(box.table.id, ids.first));
     const consumer = Relationship.encode(
         {
@@ -514,10 +513,7 @@ test("refuse provisioning through a provider that provisions nothing, and finish
     const refused = present(await readLink(), "the link").conditions["ready"];
 
     // finish its deletion without destroying anything
-    await database
-        .update(link.table)
-        .set({ deletionRequestedAt: now })
-        .where(eq(link.table.id, ids.link));
+    await database.update(link.table).set({ deletedAt: now }).where(eq(link.table.id, ids.link));
     await reconcile("link", ids.link);
     expect([refused?.reason, refused?.message, await readLink()]).toEqual([
         "NoProvisioning",
@@ -550,3 +546,32 @@ test("name a resource after another kind's resource in its space, refusing a sec
 function conditions(row: { readonly conditions: ProvisionedRecord["conditions"] }) {
     return [row.conditions["ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }
+
+test("route another package's provisioned type to the extension whose provider provisions it, refusing one without", () => {
+    // host the boxes in an extension of another package, with and without their provider
+    const host = definePackage(
+        {},
+        {
+            package: Package.parse({
+                id: "package-01996ab0-0000-7000-8000-000000000057",
+                name: "@example/host",
+                version: "2026.9.0",
+            }),
+        },
+    );
+    const provider = new Boxes().provider();
+    const routed = ObjectExtension.routes(
+        [{ package: host, objects: [box], providers: [provider] }],
+        () => false,
+    );
+
+    // implement the boxes in the providing extension alone
+    expect(
+        [...routed.values()].map((route) => [route.type.name, route.extension.package.id]),
+    ).toEqual([["box", host.id]]);
+    expect(() => ObjectExtension.routes([{ package: host, objects: [box] }], () => false)).toThrow(
+        new TypeError(
+            `package @example/host routes box objects of ${box.package.id}, but nothing here implements or replicates them`,
+        ),
+    );
+});

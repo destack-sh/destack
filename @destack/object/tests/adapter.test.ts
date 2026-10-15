@@ -2,14 +2,14 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, schema } from "@destack/schema";
+import { Clock, schema, aligned } from "@destack/schema";
 import { defineAdapter, definePackage } from "@destack/runtime";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import { v7 } from "uuid";
-import { type AdapterFetch, ObjectExtension } from "../src/server/index.ts";
+import { type AdapterFetch, ObjectExtension, defineServer } from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { bearerUser } from "./fixture/user.ts";
@@ -38,14 +38,18 @@ async function compose(serve: NonNullable<ObjectExtension["serve"]>) {
     const events = await testEvents(storage.database);
 
     return () =>
-        ObjectExtension.compose([{ ...ObjectExtension.of(pages, []), serve }], {
-            clock: Clock.system,
-            origin: { package: Package.of(pages) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events,
-            database: storage.database,
-        });
+        ObjectExtension.compose(
+            [{ ...defineServer(pages, { adapters: { feed } }).extension(undefined), serve }],
+            {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(pages) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events,
+                database: storage.database,
+            },
+        );
 }
 
 test("answer each request at or below an adapter's path by its fetch, below the adapter's path", async () => {
@@ -53,7 +57,7 @@ test("answer each request at or below an adapter's path by its fetch, below the 
     const composed = await compose(() => ({ adapters: { feed } }));
     const server = Server.start({
         clock: Clock.system,
-        ...composed().packages[0],
+        ...aligned(composed().packages, 0),
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("pages"),
@@ -84,6 +88,6 @@ test("refuse a package's unanswered adapter and an answer of no declared adapter
     const unanswered = await compose(() => ({}));
     const stray = await compose(() => ({ adapters: { feed, atom: feed } }));
 
-    expect(unanswered).toThrow(new TypeError(`package ${pages.name} answers no adapter feed`));
-    expect(stray).toThrow(new TypeError(`package ${pages.name} declares no adapter atom`));
+    expect(unanswered).toThrow(new TypeError(`package ${pages.name} does not answer adapter feed`));
+    expect(stray).toThrow(new TypeError(`package ${pages.name} does not declare adapter atom`));
 });

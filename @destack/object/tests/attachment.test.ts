@@ -19,7 +19,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -39,7 +39,7 @@ const remark = defineObject({
     /** Count the remarks on a parent, checked as on a new remark there. */
     count: method.query({
         permission: "read",
-        target: "none",
+        target: "scope",
         input: schema.object({ parent: ParentReference }),
         output: schema.object({ count: schema.int() }),
     }),
@@ -124,6 +124,36 @@ const board = defineObject({
     attachments: [favourite.attach({ by: "read" })],
 }).methods((method) => ({ create: method.create("manage"), delete: method.delete("manage") }));
 
+test("map the types attached to served objects, which the database keeps beside them", async () => {
+    // serve photos alone over a database keeping their remarks and pins
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "main",
+            tables: [...callTables, ...photo.tables, ...remark.tables, ...pin.tables],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [photo],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: photo.package },
+    });
+
+    // map the remarks and pins whose permissions read through their photo
+    expect(
+        [remark, pin].map(
+            (type) => store.authorizer.mapping(type.typeReference)?.table === type.table,
+        ),
+    ).toEqual([true, true]);
+});
+
 test.for(TEST_DIALECTS)(
     "attach remarks to articles and photos, counting them and deleting them with their host, on %s",
     async (dialect) => {
@@ -150,16 +180,16 @@ test.for(TEST_DIALECTS)(
 
         // refuse invalid, missing and unreadable hosts
         const missing = `article-${v7()}`;
-        await expect(
-            call(remark, "create", { ...host(task, task1.id), text: "Nope" }),
-        ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "task takes no remarks" });
-        await expect(
-            call(remark, "create", { ...host(article, missing), text: "Nope" }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no article ${missing}` });
+        expect(
+            await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
+        ).toEqual(["BAD_REQUEST", "task cannot have remarks"]);
+        expect(
+            await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
+        ).toEqual(["NOT_FOUND", `no article ${missing}`]);
         as("bob");
-        await expect(
-            call(remark, "create", { ...host(article, draft.id), text: "Nope" }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no article ${draft.id}` });
+        expect(
+            await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
+        ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
         as("alice");
 
         // include each article's remarks, and only its own, sharing identifiers with no photo
@@ -193,10 +223,10 @@ test.for(TEST_DIALECTS)(
         // delete the article's remarks with it, and keep the pinned photo with its remark
         const pinned = await call(pin, "create", host(photo, snapshot.id));
         await call(article, "delete", { id: draft.id });
-        await expect(call(photo, "delete", { id: snapshot.id })).rejects.toMatchObject({
-            code: "BROKEN_REFERENCE",
-            message: "the change would leave a reference to a missing record",
-        });
+        expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
+            "BROKEN_REFERENCE",
+            "the change would leave a reference to a missing record",
+        ]);
         const remaining = await storage.database
             .select({ id: remark.table.id })
             .from(remark.table)
@@ -243,10 +273,10 @@ test.for(TEST_DIALECTS)(
         as("alice");
         expect(await listed()).toEqual([mine.id]);
         as("carol");
-        await expect(call(favourite, "create", host(board, plans.id))).rejects.toMatchObject({
-            code: "NOT_FOUND",
-            message: `no board ${plans.id}`,
-        });
+        expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
+            "NOT_FOUND",
+            `no board ${plans.id}`,
+        ]);
 
         // hide a mark from a reader who lost the board, and delete the marks with the board
         as("alice");
@@ -265,8 +295,11 @@ test.for(TEST_DIALECTS)(
         const counted = remark.implement({
             methods: {
                 count: async (call) => ({
-                    count: (await call.read(remark).rows({ parentId: call.input.parent.id }))
-                        .length,
+                    count: (
+                        await call
+                            .read(remark)
+                            .findMany({ where: { parentId: call.input.parent.id } })
+                    ).length,
                 }),
             },
         });
@@ -298,6 +331,7 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
 
     // decide every call as the current user
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: Object.values(objects),
@@ -321,13 +355,14 @@ async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, O
         call: <Object extends ObjectType, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
-            input: object,
+            input: NoInfer<RequestInput<Object, Name>>,
         ) =>
             request(
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(Date.now()), ...input },
+                spaceId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 context,
             ),
         host: (object: ObjectType, id: string) => ({

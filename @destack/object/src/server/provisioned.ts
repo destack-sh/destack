@@ -1,5 +1,5 @@
 import { accessRelationship } from "@destack/access";
-import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { and, type DatabaseConnection, eq, Snapshot, Table } from "@destack/db";
 import {
     Address,
     type KindState,
@@ -32,7 +32,7 @@ const DESIRED_STATES_KEPT = 16;
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
 export interface ProvisionedOptions {
-    /** The providers the process holds, in preference order within each kind. */
+    /** The providers the process has, in preference order within each kind. */
     readonly providers: readonly Pick<
         Provider<ResourceKind, ObjectType>,
         "kind" | "code" | "object" | "provision" | "reconcile" | "fence" | "snapshot"
@@ -69,7 +69,9 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
     constructor(object: ProvisionedObject<"space">, options: ProvisionedOptions) {
         // refuse resources another controller reconciles
         if (object.controller !== undefined) {
-            throw new TypeError(`resources ${object.name} take their controller from their kind`);
+            throw new TypeError(
+                `resources ${object.name} cannot have a controller: their kind provides it`,
+            );
         }
 
         // keep the providers of the object's kind
@@ -81,11 +83,13 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         this.#kind = present(object.provisioned, `the kind of ${object.name}`).kind;
         this.#options = { ...options, providers };
 
-        // wake a resource once its consumers change, and the resources of a scope this database starts or stops holding
+        // wake a resource once its consumers change, and a scope's resources once the scope comes or goes
         const { packageId } = object.policy.definition;
         this.watches = [
             ObjectWatch.of(accessRelationship, (row) =>
-                row.packageId === packageId && row.type === object.name && row.relation === CONSUMER
+                row.objectPackageId === packageId &&
+                row.objectType === object.name &&
+                row.relation === CONSUMER
                     ? [{ id: row.objectId }]
                     : [],
             ),
@@ -106,10 +110,15 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
 
     /** Reconcile one resource, returning when to look again. */
     reconcile(reconciliation: ObjectReconciliation<ProvisionedObject<"space">>) {
-        return reconcile(this.#object, aligned(reconciliation.rows, 0), reconciliation, {
-            ...this.#options,
-            states: (row, digests) => this.#read(reconciliation.database, row, digests),
-        });
+        return ProvisionedController.#reconcile(
+            this.#object,
+            aligned(reconciliation.rows, 0),
+            reconciliation,
+            {
+                ...this.#options,
+                states: (row, digests) => this.#read(reconciliation.database, row, digests),
+            },
+        );
     }
 
     /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
@@ -117,17 +126,7 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
         database: DatabaseConnection,
         row: ProvisionedRecord,
         digests: readonly Digest[],
-    ): Promise<KindState<ResourceKind>[]>;
-    /**
-     * Read the states, parsing each missing one by the kind's state schema.
-     *
-     * @construct every kept state is the output of the kind's state schema.
-     */
-    async #read(
-        database: DatabaseConnection,
-        row: ProvisionedRecord,
-        digests: readonly Digest[],
-    ): Promise<unknown[]> {
+    ): Promise<KindState<ResourceKind>[]> {
         // read and parse the states not kept
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
@@ -163,427 +162,497 @@ export class ProvisionedController implements ObjectController<ProvisionedObject
             ? providers[0]
             : providers.find((provider) => provider.code === requested);
     }
-}
 
-/** Reconcile one resource: provision, retire, apply desired states, return when to look again. */
-async function reconcile(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ReconcileOptions,
-): Promise<number | undefined> {
-    // act only on a resource whose scope this database holds and whose owner set its approval threshold
-    const { approval } = row;
-    if (approval === null || !(await isHeld(reconciliation.database, row.scope))) {
-        return undefined;
-    }
-
-    // retire a resource whose deletion was requested
-    if (row.deletionRequestedAt !== null) {
-        return retire(object, row, row.deletionRequestedAt, reconciliation, options);
-    }
-    // observe a resource lent from a connection ready at its own identifier below the machine's egress
-    else if (row.origin === "connection") {
-        await observe(
-            object,
-            row,
-            reconciliation,
-            { reference: row.id },
-            {
-                ready: {
-                    status: "true",
-                    reason: "Lent",
-                    message:
-                        row.connection === null
-                            ? "lent from the connections each call names"
-                            : `lent from connection ${row.connection}`,
-                },
-            },
-        );
-    }
-    // observe a resource whose stack declares its reference ready as declared
-    else if (row.origin === "declared") {
-        await observe(
-            object,
-            row,
-            reconciliation,
-            {},
-            {
-                ready: {
-                    status: "true",
-                    reason: "Declared",
-                    message: `declared at ${row.reference}`,
-                },
-            },
-        );
-    }
-    // provision a resource whose specification changed and apply its desired states
-    else if (row.generation > row.observedGeneration || row.reference === null) {
-        const provisioned = await provision(object, row, reconciliation, options);
-        if (provisioned) {
-            await apply(object, provisioned, approval, reconciliation, options);
+    /** Reconcile one resource: provision, retire or apply, returning when to look again. */
+    static async #reconcile(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ReconcileOptions,
+    ): Promise<number | undefined> {
+        // act only on a resource with a local scope and an approval threshold set by its owner
+        const { approval } = row;
+        if (
+            approval === null ||
+            !(await ProvisionedController.#isHeld(reconciliation.database, row.scope))
+        ) {
+            return undefined;
         }
-    }
-    // apply the desired states of a provisioned resource
-    else {
-        await apply(object, row, approval, reconciliation, options);
-    }
 
-    return undefined;
-}
-
-/** Decide whether a database holds a scope that no transfer fences or copies here. */
-async function isHeld(database: DatabaseConnection, scope: string): Promise<boolean> {
-    const [link] = await Scope.chain(Snapshot.live(database), scope);
-
-    return (
-        link !== undefined &&
-        link.movedTo === undefined &&
-        !(await Replica.isCopied(Snapshot.live(database), scope))
-    );
-}
-
-/** Provision a resource through its provider, recording the outcome and returning the row. */
-async function provision(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ProvisionedOptions,
-): Promise<ProvisionedRecord | undefined> {
-    // select the requested provider or the first one providing the kind
-    const provider = ProvisionedController.select(options.providers, row);
-    if (provider === undefined) {
-        const message = `no provider for ${object.name} ${row.name}`;
-        await observe(object, row, reconciliation, {}, { ready: unready("NoProvider", message) });
-
-        return undefined;
-    }
-    // refuse a provider provisioning nothing
-    else if (provider.provision === undefined) {
-        const message = `provider ${provider.code} of ${object.name} provisions nothing`;
-        await observe(
-            object,
-            row,
-            reconciliation,
-            {},
-            {
-                ready: unready("NoProvisioning", message),
-            },
-        );
-
-        return undefined;
-    }
-
-    // record the provider reference for this generation or the failure before retrying it
-    try {
-        const provisioned = await provider.provision.provision(provider.kind.record(row));
-        const fields = {
-            provider: provider.code,
-            reference: provisioned.reference,
-            location: provisioned.location ?? null,
-            machineId: options.machine,
-        };
-
-        return await observe(object, row, reconciliation, fields, {
-            ready: unready("Provisioned", provisioned.reference),
-        });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await observe(
-            object,
-            row,
-            reconciliation,
-            {},
-            {
-                ready: unready("ProvisioningFailed", message),
-            },
-        );
-        throw error;
-    }
-}
-
-/** Plan a resource toward its desired states, applying what its approvals allow. */
-async function apply(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    approval: Risk,
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ReconcileOptions,
-): Promise<void> {
-    // require the resource's provider
-    const provider = ProvisionedController.select(options.providers, row);
-    if (provider === undefined) {
-        const message = `no provider for ${object.name} ${row.name}`;
-        await observe(object, row, reconciliation, {}, { ready: unready("NoProvider", message) });
-
-        return;
-    }
-
-    // skip resources whose desired states applied already
-    const desired = [...row.states, ...row.drainingStates];
-    const stateDigest = await Digest.json(desired);
-    if (row.appliedState === stateDigest && row.conditions["ready"]?.reason === "Applied") {
-        return;
-    }
-
-    // plan the desired states or a recreation stopping the draining consumers first
-    const planned = await planRecreation(object, row, provider, reconciliation, options);
-    if (planned === undefined) {
-        return;
-    }
-    const { plan, isDraining } = planned;
-    const planDigest = await Plan.digest(plan);
-    const waiting = { steps: plan.steps.map(planStep) };
-
-    // wait for an approval of this exact plan when its risk reaches the approval threshold
-    if (Plan.isAtLeast(plan, approval) && row.approvedPlan !== planDigest) {
-        const message = `approve plan ${planDigest} with ${plan.steps.length} steps`;
-        await observe(
-            object,
-            row,
-            reconciliation,
-            { plan: waiting },
-            {
-                ready: unready("AwaitingApproval", message),
-            },
-        );
-    }
-    // report draining for the consumers' owner to stop them
-    else if (isDraining) {
-        const message = "stopping the draining consumers before applying the plan";
-        await observe(
-            object,
-            row,
-            reconciliation,
-            { plan: waiting, approvedPlan: null },
-            {
-                ready: unready("Recreating", message),
-                [DRAINING]: { status: "true", reason: "Recreating", message },
-            },
-        );
-    }
-    // apply the plan and record the desired states it applied
-    else {
-        const digests = { plan: planDigest, state: stateDigest };
-        await applyPlan(object, row, provider, plan, digests, reconciliation, options);
-    }
-}
-
-/** Plan a resource's desired states, or a recreation without draining-only states, if possible. */
-async function planRecreation(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    provider: ProvisionedOptions["providers"][number],
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ReconcileOptions,
-): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
-    // plan the desired states
-    const planOf = async (digests: readonly Digest[]) =>
-        provider.reconcile !== undefined
-            ? provider.reconcile.plan(provider.kind.record(row), await options.states(row, digests))
-            : { steps: [] };
-    try {
-        return { plan: await planOf([...row.states, ...row.drainingStates]), isDraining: false };
-    } catch (error) {
-        // plan without the states only draining consumers need
-        const recreated =
-            error instanceof PlanError && row.drainingStates.length > 0
-                ? await planOf(row.states).catch((failure: unknown) => {
-                      // block when the active consumers alone conflict too
-                      if (failure instanceof PlanError) {
-                          return undefined;
-                      }
-                      throw failure;
-                  })
-                : undefined;
-
-        // block on what the declarations must fix and retry another failure
-        if (recreated === undefined) {
-            const isBlocked = error instanceof PlanError;
-            const message = error instanceof Error ? error.message : String(error);
-            const reason = isBlocked ? "Blocked" : "PlanFailed";
-            await observe(object, row, reconciliation, {}, { ready: unready(reason, message) });
-            if (!isBlocked) {
-                throw error;
+        // retire a deleted resource
+        if (row.deletedAt !== null) {
+            return ProvisionedController.#retire(
+                object,
+                row,
+                row.deletedAt,
+                reconciliation,
+                options,
+            );
+        }
+        // observe a lent resource at its identifier below the machine's egress
+        else if (row.origin === "connection") {
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                { reference: row.id },
+                {
+                    ready: {
+                        status: "true",
+                        reason: "Lent",
+                        message:
+                            row.connection === null
+                                ? "lent from the connections each call names"
+                                : `lent from connection ${row.connection}`,
+                    },
+                },
+            );
+        }
+        // observe a resource whose stack declares its reference ready as declared
+        else if (row.origin === "declared") {
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                {},
+                {
+                    ready: {
+                        status: "true",
+                        reason: "Declared",
+                        message: `declared at ${row.reference}`,
+                    },
+                },
+            );
+        }
+        // provision a resource whose specification changed and apply its desired states
+        else if (row.generation > row.observedGeneration || row.reference === null) {
+            const provisioned = await ProvisionedController.#provision(
+                object,
+                row,
+                reconciliation,
+                options,
+            );
+            if (provisioned) {
+                await ProvisionedController.#apply(
+                    object,
+                    provisioned,
+                    approval,
+                    reconciliation,
+                    options,
+                );
             }
+        }
+        // apply the desired states of a provisioned resource
+        else {
+            await ProvisionedController.#apply(object, row, approval, reconciliation, options);
+        }
+
+        return undefined;
+    }
+
+    /** Decide whether a database has a scope that no transfer fences or replicates here. */
+    static async #isHeld(database: DatabaseConnection, scope: string): Promise<boolean> {
+        const [link] = await Scope.chain(Snapshot.live(database), scope);
+
+        return (
+            link !== undefined &&
+            link.movedTo === undefined &&
+            !(await Replica.isReplicated(Snapshot.live(database), scope))
+        );
+    }
+
+    /** Provision a resource through its provider, recording the outcome and returning the row. */
+    static async #provision(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ProvisionedOptions,
+    ): Promise<ProvisionedRecord | undefined> {
+        // select the requested provider or the first one providing the kind
+        const provider = ProvisionedController.select(options.providers, row);
+        if (provider === undefined) {
+            const message = `no provider for ${object.name} ${row.name}`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                {},
+                { ready: ProvisionedController.#unready("NoProvider", message) },
+            );
+
+            return undefined;
+        }
+        // refuse a provider provisioning nothing
+        else if (provider.provision === undefined) {
+            const message = `provider ${provider.code} of ${object.name} provisions nothing`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                {},
+                {
+                    ready: ProvisionedController.#unready("NoProvisioning", message),
+                },
+            );
 
             return undefined;
         }
 
-        // stop the draining consumers before the recreation
-        const stop: Step = {
-            action: "delete",
-            target: Address.join("consumer", DRAINING),
-            risk: "backward-incompatible",
-            detail: `stop the consumers needing ${row.drainingStates.length} draining states`,
-        };
-
-        return { plan: { steps: [stop, ...recreated.steps] }, isDraining: true };
-    }
-}
-
-/** Apply a plan through the resource's provider and record the desired states it applied. */
-async function applyPlan(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    provider: ProvisionedOptions["providers"][number],
-    plan: Plan,
-    digests: { readonly plan: string; readonly state: string },
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ReconcileOptions,
-): Promise<void> {
-    try {
-        // apply the plan
-        if (provider.reconcile !== undefined) {
-            await provider.reconcile.apply(
-                provider.kind.record(row),
-                await options.states(row, [...row.states, ...row.drainingStates]),
-                digests.plan,
-            );
-        }
-
-        // record the desired states it applied and the end of a drain
-        const message = `${plan.steps.length} steps applied`;
-        await observe(
-            object,
-            row,
-            reconciliation,
-            { appliedState: digests.state, plan: null, approvedPlan: null },
-            {
-                ready: { status: "true", reason: "Applied", message },
-                ...(row.conditions[DRAINING] === undefined
-                    ? {}
-                    : { [DRAINING]: { status: "false", reason: "Applied", message } }),
-            },
-        );
-    } catch (error) {
-        // record the failure and keep the plan
-        const message = error instanceof Error ? error.message : String(error);
-        const waiting = { steps: plan.steps.map(planStep) };
-        await observe(
-            object,
-            row,
-            reconciliation,
-            { plan: waiting },
-            {
-                ready: unready("ApplyFailed", message),
-            },
-        );
-        throw error;
-    }
-}
-
-/** Remove an unused resource, destroying its content and returning when its retention ends. */
-async function retire(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    requestedAt: number,
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    options: ProvisionedOptions,
-): Promise<number | undefined> {
-    // keep the record and content of retained resources until owned again or their window ends
-    const retention = row.retention;
-    const ends =
-        typeof retention === "object"
-            ? requestedAt + Duration.milliseconds(retention.within)
-            : undefined;
-    if (retention === "forever" || (ends !== undefined && ends > reconciliation.now)) {
-        if (row.conditions["ready"]?.reason !== "Retained") {
-            const message = "content retained after removal";
-            await observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                {
-                    ready: unready("Retained", message),
-                },
-            );
-        }
-
-        return ends === undefined ? undefined : ends - reconciliation.now;
-    }
-
-    // wait until no consumer uses the resource
-    const consumer = await consumerOf(object, row, reconciliation.database);
-    if (consumer !== undefined) {
-        const message = `consumed by ${consumer}`;
-        await observe(object, row, reconciliation, {}, { ready: unready("InUse", message) });
-
-        return undefined;
-    }
-
-    // destroy provisioned content and record a failure before retrying it
-    const provider = ProvisionedController.select(options.providers, row);
-    if (row.reference !== null && provider?.provision !== undefined) {
+        // record the provider reference for this generation or the failure before retrying it
         try {
-            await provider.provision.destroy(provider.kind.record(row));
+            const provisioned = await provider.provision.provision(provider.kind.record(row));
+            const fields = {
+                provider: provider.code,
+                reference: provisioned.reference,
+                location: provisioned.location ?? null,
+                machineId: options.machine,
+            };
+
+            return await ProvisionedController.#observe(object, row, reconciliation, fields, {
+                ready: ProvisionedController.#unready("Provisioned", provisioned.reference),
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            await observe(
+            await ProvisionedController.#observe(
                 object,
                 row,
                 reconciliation,
                 {},
                 {
-                    ready: unready("DestroyFailed", message),
+                    ready: ProvisionedController.#unready("ProvisioningFailed", message),
                 },
             );
             throw error;
         }
     }
 
-    // finish the record's deletion
-    await reconciliation.mutate([Call.record(object, "finalize", object.target(row))]);
+    /** Plan a resource toward its desired states, applying what its approvals allow. */
+    static async #apply(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        approval: Risk,
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ReconcileOptions,
+    ): Promise<void> {
+        // require the resource's provider
+        const provider = ProvisionedController.select(options.providers, row);
+        if (provider === undefined) {
+            const message = `no provider for ${object.name} ${row.name}`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                {},
+                { ready: ProvisionedController.#unready("NoProvider", message) },
+            );
 
-    return undefined;
-}
+            return;
+        }
 
-/** Read one consumer of a resource from its consumer relationships, if any. */
-async function consumerOf(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    database: DatabaseConnection,
-): Promise<string | undefined> {
-    const [related] = await database
-        .select({ subjectId: accessRelationship.subjectId })
-        .from(accessRelationship)
-        .where(
-            and(
-                eq(accessRelationship.packageId, object.policy.definition.packageId),
-                eq(accessRelationship.type, object.name),
-                eq(accessRelationship.objectId, row.id),
-                eq(accessRelationship.relation, CONSUMER),
-            ),
-        )
-        .orderBy(accessRelationship.subjectId)
-        .limit(1);
+        // skip resources whose desired states applied already
+        const desired = [...row.states, ...row.drainingStates];
+        const stateDigest = await Digest.json(desired);
+        if (row.appliedState === stateDigest && row.conditions["ready"]?.reason === "Applied") {
+            return;
+        }
 
-    return related?.subjectId;
-}
+        // plan the desired states or a recreation stopping the draining consumers first
+        const planned = await ProvisionedController.#planRecreation(
+            object,
+            row,
+            provider,
+            reconciliation,
+            options,
+        );
+        if (planned === undefined) {
+            return;
+        }
+        const { plan, isDraining } = planned;
+        const planDigest = await Plan.digest(plan);
+        const waiting = { steps: plan.steps.map((step) => ProvisionedController.#planStep(step)) };
 
-/** Observe provider fields and conditions for the current generation, returning the row. */
-async function observe(
-    object: ProvisionedObject<"space">,
-    row: ProvisionedRecord,
-    reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
-    fields: NonNullable<ObservationReport["fields"]>,
-    conditions: Readonly<Record<string, Condition>>,
-): Promise<ProvisionedRecord> {
-    // observe the generation, the conditions and the fields once
-    const observed = await reconciliation.observe(object, row, { conditions, fields });
+        // wait for an approval of this exact plan when its risk reaches the approval threshold
+        if (Plan.isAtLeast(plan, approval) && row.approvedPlan !== planDigest) {
+            const message = `approve plan ${planDigest} with ${plan.steps.length} steps`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                { plan: waiting },
+                {
+                    ready: ProvisionedController.#unready("AwaitingApproval", message),
+                },
+            );
+        }
+        // report draining for the consumers' owner to stop them
+        else if (isDraining) {
+            const message = "stopping the draining consumers before applying the plan";
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                { plan: waiting, approvedPlan: null },
+                {
+                    ready: ProvisionedController.#unready("Recreating", message),
+                    [DRAINING]: { status: "true", reason: "Recreating", message },
+                },
+            );
+        }
+        // apply the plan and record the desired states it applied
+        else {
+            const digests = { plan: planDigest, state: stateDigest };
+            await ProvisionedController.#applyPlan(
+                object,
+                row,
+                provider,
+                plan,
+                digests,
+                reconciliation,
+                options,
+            );
+        }
+    }
 
-    return object.rowSchema().parse(observed);
-}
+    /** Plan a resource's desired states, or a recreation without draining-only states. */
+    static async #planRecreation(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        provider: ProvisionedOptions["providers"][number],
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ReconcileOptions,
+    ): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
+        // plan the desired states
+        const planDigests = async (digests: readonly Digest[]) =>
+            provider.reconcile !== undefined
+                ? provider.reconcile.plan(
+                      provider.kind.record(row),
+                      await options.states(row, digests),
+                  )
+                : { steps: [] };
+        try {
+            return {
+                plan: await planDigests([...row.states, ...row.drainingStates]),
+                isDraining: false,
+            };
+        } catch (error) {
+            // plan without the states only draining consumers need
+            const recreated =
+                error instanceof PlanError && row.drainingStates.length > 0
+                    ? await planDigests(row.states).catch((failure: unknown) => {
+                          // block when the active consumers conflict on their own too
+                          if (failure instanceof PlanError) {
+                              return undefined;
+                          }
+                          throw failure;
+                      })
+                    : undefined;
 
-/** Describe a condition that does not hold. */
-function unready(reason: string, message: string): Condition {
-    return { status: "false", reason, message };
-}
+            // block on what the declarations must fix and retry another failure
+            if (recreated === undefined) {
+                const isBlocked = error instanceof PlanError;
+                const message = error instanceof Error ? error.message : String(error);
+                const reason = isBlocked ? "Blocked" : "PlanFailed";
+                await ProvisionedController.#observe(
+                    object,
+                    row,
+                    reconciliation,
+                    {},
+                    { ready: ProvisionedController.#unready(reason, message) },
+                );
+                if (!isBlocked) {
+                    throw error;
+                }
 
-/** Keep the reviewed fields of a plan step. */
-function planStep(step: Step): Step {
-    const { action, target, risk, detail, fields } = step;
+                return undefined;
+            }
 
-    return { action, target, risk, detail, ...(fields === undefined ? {} : { fields }) };
+            // stop the draining consumers before the recreation
+            const stop: Step = {
+                action: "delete",
+                target: Address.join("consumer", DRAINING),
+                risk: "backward-incompatible",
+                detail: `stop the consumers needing ${row.drainingStates.length} draining states`,
+            };
+
+            return { plan: { steps: [stop, ...recreated.steps] }, isDraining: true };
+        }
+    }
+
+    /** Apply a plan through the resource's provider and record the desired states it applied. */
+    static async #applyPlan(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        provider: ProvisionedOptions["providers"][number],
+        plan: Plan,
+        digests: { readonly plan: string; readonly state: string },
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ReconcileOptions,
+    ): Promise<void> {
+        try {
+            // apply the plan
+            if (provider.reconcile !== undefined) {
+                await provider.reconcile.apply(
+                    provider.kind.record(row),
+                    await options.states(row, [...row.states, ...row.drainingStates]),
+                    digests.plan,
+                );
+            }
+
+            // record the desired states it applied and the end of a drain
+            const message = `${plan.steps.length} steps applied`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                { appliedState: digests.state, plan: null, approvedPlan: null },
+                {
+                    ready: { status: "true", reason: "Applied", message },
+                    ...(row.conditions[DRAINING] === undefined
+                        ? {}
+                        : { [DRAINING]: { status: "false", reason: "Applied", message } }),
+                },
+            );
+        } catch (error) {
+            // record the failure and keep the plan
+            const message = error instanceof Error ? error.message : String(error);
+            const waiting = {
+                steps: plan.steps.map((step) => ProvisionedController.#planStep(step)),
+            };
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                { plan: waiting },
+                {
+                    ready: ProvisionedController.#unready("ApplyFailed", message),
+                },
+            );
+            throw error;
+        }
+    }
+
+    /** Remove an unused resource, destroying its content and returning when its retention ends. */
+    static async #retire(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        requestedAt: number,
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        options: ProvisionedOptions,
+    ): Promise<number | undefined> {
+        // keep the record and content of retained resources until owned again or their window ends
+        const retention = row.retention;
+        const ends =
+            typeof retention === "object"
+                ? requestedAt + Duration.milliseconds(retention.within)
+                : undefined;
+        if (retention === "forever" || (ends !== undefined && ends > reconciliation.now)) {
+            if (row.conditions["ready"]?.reason !== "Retained") {
+                const message = "content retained after removal";
+                await ProvisionedController.#observe(
+                    object,
+                    row,
+                    reconciliation,
+                    {},
+                    {
+                        ready: ProvisionedController.#unready("Retained", message),
+                    },
+                );
+            }
+
+            return ends === undefined ? undefined : ends - reconciliation.now;
+        }
+
+        // wait until no consumer uses the resource
+        const consumer = await ProvisionedController.#consumerOf(
+            object,
+            row,
+            reconciliation.database,
+        );
+        if (consumer !== undefined) {
+            const message = `consumed by ${consumer}`;
+            await ProvisionedController.#observe(
+                object,
+                row,
+                reconciliation,
+                {},
+                { ready: ProvisionedController.#unready("InUse", message) },
+            );
+
+            return undefined;
+        }
+
+        // destroy provisioned content and record a failure before retrying it
+        const provider = ProvisionedController.select(options.providers, row);
+        if (row.reference !== null && provider?.provision !== undefined) {
+            try {
+                await provider.provision.destroy(provider.kind.record(row));
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                await ProvisionedController.#observe(
+                    object,
+                    row,
+                    reconciliation,
+                    {},
+                    {
+                        ready: ProvisionedController.#unready("DestroyFailed", message),
+                    },
+                );
+                throw error;
+            }
+        }
+
+        // finish the record's deletion
+        await reconciliation.mutate([Call.record(object, "finalize", object.target(row))]);
+
+        return undefined;
+    }
+
+    /** Read one consumer of a resource from its consumer relationships, if any. */
+    static async #consumerOf(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        database: DatabaseConnection,
+    ): Promise<string | undefined> {
+        const [related] = await database
+            .select({ subjectId: accessRelationship.subjectId })
+            .from(accessRelationship)
+            .where(
+                and(
+                    eq(accessRelationship.objectPackageId, object.policy.definition.packageId),
+                    eq(accessRelationship.objectType, object.name),
+                    eq(accessRelationship.objectId, row.id),
+                    eq(accessRelationship.relation, CONSUMER),
+                ),
+            )
+            .orderBy(accessRelationship.subjectId)
+            .limit(1);
+
+        return related?.subjectId;
+    }
+
+    /** Observe provider fields and conditions for the current generation, returning the row. */
+    static async #observe(
+        object: ProvisionedObject<"space">,
+        row: ProvisionedRecord,
+        reconciliation: ObjectReconciliation<ProvisionedObject<"space">>,
+        fields: NonNullable<ObservationReport["fields"]>,
+        conditions: Readonly<Record<string, Condition>>,
+    ): Promise<ProvisionedRecord> {
+        // observe the generation, the conditions and the fields once
+        const observed = await reconciliation.observe(object, row, { conditions, fields });
+
+        return Table.selectSchema(object.table).parse(observed);
+    }
+
+    /** Describe an unmet condition. */
+    static #unready(reason: string, message: string): Condition {
+        return { status: "false", reason, message };
+    }
+
+    /** Keep the reviewed fields of a plan step. */
+    static #planStep(step: Step): Step {
+        const { action, target, risk, detail, fields } = step;
+
+        return { action, target, risk, detail, ...(fields === undefined ? {} : { fields }) };
+    }
 }

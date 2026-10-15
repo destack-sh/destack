@@ -1,8 +1,8 @@
 import type { CallableName } from "../src/index.ts";
-import { Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, TestClock } from "@destack/test";
 import { CallError } from "@destack/runtime/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -15,12 +15,19 @@ import { ObjectStore, RecoverableController, Settlement } from "../src/server/in
 import { Call, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
-import { none, principal, Caller, type GrantPermission } from "@destack/access";
+import {
+    accessInvitation,
+    INVITATION_LIFETIME_MILLISECONDS,
+    none,
+    principal,
+    Caller,
+    type GrantPermission,
+    Invitation,
+} from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext } from "./fixture/user.ts";
-import { any } from "./fixture/match.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -77,10 +84,10 @@ test("derive routes and describe each method with its permission, input and audi
             package: {
                 id: task.policy.definition.packageId,
                 name: "@destack/object",
-                version: any(String),
+                version: task.package.version,
             },
             target: toJsonSchema(AuditTarget),
-            details: any(Object),
+            details: toJsonSchema(task.audit("archive").details),
         },
         false,
     ]);
@@ -140,11 +147,7 @@ test.each(TEST_DIALECTS)(
         // create once per request identifier, replaying the original result
         const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
         const created = await execute("create", creation);
-        expect(observed().watermarks.at(-1)).toEqual({
-            scope: spaceId,
-            epoch: await database.log.epoch(),
-            sequence: any(Number),
-        });
+        expect(observed().watermarks.at(-1)).toEqual(await store.watermark(spaceId));
         expect(await execute("create", creation)).toEqual(created);
 
         // take a chosen identifier and refuse a taken one
@@ -243,7 +246,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "share an object, challenge for stronger authentication, accept invitations and narrow agents to their grants on %s",
     async (dialect) => {
-        const { execute, events, act, step, delegate } = await serveTasks(dialect);
+        const { clock, execute, events, act, step, delegate } = await serveTasks(dialect);
         const created = await execute("create", {
             requestId: RequestId.create(Date.now()),
             title: "Ship the plan",
@@ -269,7 +272,7 @@ test.each(TEST_DIALECTS)(
                     },
                     relation: "viewer",
                     subject: viewer,
-                    createdAt: any(Number),
+                    createdAt: clock.now(),
                     expiresAt: null,
                 },
             ],
@@ -309,7 +312,7 @@ test.each(TEST_DIALECTS)(
         act("user-3");
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_AUTHENTICATION",
-            message: "authenticate again at the required assurance",
+            message: "authentication assurance is too low: authenticate again",
             stepUp: { assurance: 2 },
         });
         step(2);
@@ -354,8 +357,8 @@ test.each(TEST_DIALECTS)(
                     inviter: { ...viewer, id: "user-4" },
                     purpose: "follow the plan",
                     status: "pending",
-                    createdAt: any(Number),
-                    expiresAt: any(Number),
+                    createdAt: clock.now(),
+                    expiresAt: clock.now() + INVITATION_LIFETIME_MILLISECONDS,
                 },
             ],
             cursor: null,
@@ -374,7 +377,7 @@ test.each(TEST_DIALECTS)(
         delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: `grant ${grantId} gives no read on task ${created.id}`,
+            message: `grant ${grantId} does not give read on task ${created.id}`,
             data: { grant: grantId, object: task.reference(spaceId, created.id) },
         });
         delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
@@ -388,7 +391,7 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
-            message: `grant ${grantId} gives no write on task ${created.id}`,
+            message: `grant ${grantId} does not give write on task ${created.id}`,
         });
         delegate(undefined, []);
 
@@ -571,7 +574,7 @@ test.each(TEST_DIALECTS)(
         const trashed = Array.from({ length: 100 }, () => ({
             ...stale,
             id: schema.identifier("task").parse(`task-${v7()}`),
-            deletionRequestedAt: Date.now(),
+            deletedAt: Date.now(),
         }));
         await database.insert(task.table).values(trashed);
         expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(100);
@@ -591,6 +594,67 @@ test.each(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("page an object's invitations a full hundred at a time", async () => {
+    // keep 101 pending invitations to view a task, in creation order
+    const { database, execute } = await serveTasks("sqlite");
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Ship the plan",
+    });
+    const object = task.reference(spaceId, created.id);
+    const invited = Array.from({ length: 101 }, (_, index) => `user-${100 + index}`);
+    await database.insert(accessInvitation).values(
+        invited.map((id, index) =>
+            Invitation.encode(
+                {
+                    id: `invitation-${v7({ msecs: 1 + index })}`,
+                    relationship: {
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", id),
+                        expiresAt: null,
+                    },
+                    inviter: principal.user.reference("universe", "user-1"),
+                    status: "pending",
+                    createdAt: 1,
+                    expiresAt: Date.now() + 60_000,
+                },
+                spaceId,
+            ),
+        ),
+    );
+
+    // read a page of 100 with a cursor, then the last one
+    const Listed = schema.object({
+        items: schema.array(
+            schema.looseObject({
+                relationship: schema.looseObject({
+                    subject: schema.looseObject({ id: schema.string() }),
+                }),
+            }),
+        ),
+        cursor: schema.string().nullable(),
+    });
+    const first = Listed.parse(await execute("invitations", { id: created.id, limit: 100 }));
+    const last = Listed.parse(
+        await execute("invitations", {
+            id: created.id,
+            limit: 100,
+            cursor: present(first.cursor, "the next page's cursor"),
+        }),
+    );
+
+    expect({
+        first: first.items.map((item) => item.relationship.subject.id),
+        last: last.items.map((item) => item.relationship.subject.id),
+        cursor: last.cursor,
+    }).toEqual({
+        first: invited.slice(0, 100),
+        last: invited.slice(100),
+        cursor: null,
+    });
+});
 
 test("prepare external work after the access check, settle it after commit, compensate on failure and skip it on replay", async () => {
     const storage = await TestDatabase.create(
@@ -637,8 +701,10 @@ test("prepare external work after the access check, settle it after commit, comp
             },
         },
     });
+    const clock = new TestClock(Date.now());
     const store = new ObjectStore({
-        clock: Clock.system,
+        chain: async () => undefined,
+        clock,
         principal: spacePrincipal(spaceId),
         objects: [handled, comment, taskVersion, folder],
         database: storage.database,
@@ -651,8 +717,8 @@ test("prepare external work after the access check, settle it after commit, comp
     let context = userContext("user-1", spaceId);
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
-        input: Record<string, unknown>,
-    ) => request(store, handled, name, { spaceId, ...input }, context);
+        input: NoInfer<RequestInput<typeof handled, Name>>,
+    ) => request(store, handled, name, spaceId, input, context);
     const created = await execute("create", {
         requestId: RequestId.create(Date.now()),
         title: "Plan",
@@ -679,18 +745,18 @@ test("prepare external work after the access check, settle it after commit, comp
     external.length = 0;
     const exported = { requestId: RequestId.create(Date.now()), id: created.id };
     const archived = await execute("export", exported);
-    const author = Subject.key(principal.user.reference("universe", "user-1"));
+    const author = principal.user.reference("universe", "user-1");
     expect(archived).toEqual({
         id: created.id,
-        createdAt: any(Number),
-        createdBy: author,
-        updatedAt: any(Number),
-        updatedBy: author,
-        deletedBy: null,
+        createdAt: clock.now(),
+        ...ObjectReference.columns("createdBy", author),
+        updatedAt: clock.now(),
+        ...ObjectReference.columns("updatedBy", author),
+        ...ObjectReference.columns("deletedBy", undefined),
         revision: 2,
         tags: {},
         scope: spaceId,
-        deletionRequestedAt: null,
+        deletedAt: null,
         managerInstallationId: null,
         managerPackageId: null,
         managerName: null,
@@ -699,7 +765,7 @@ test("prepare external work after the access check, settle it after commit, comp
         title: `Plan (${reservation})`,
         archived: true,
         estimate: null,
-        origin: null,
+        ...ObjectReference.columns("origin", undefined),
         currentId: null,
         status: "open",
     });
@@ -744,9 +810,73 @@ test("prepare external work after the access check, settle it after commit, comp
         }),
     ).rejects.toMatchObject({
         code: "BAD_REQUEST",
-        message: "a mutation's calls act in one scope",
+        message: "a mutation's calls must act in one scope",
     });
     expect(external).toEqual([]);
+});
+
+test("run a prepare and a settle phase's calls as the store in requests of their own, committed apart from the mutation", async () => {
+    const storage = await TestDatabase.create("sqlite", objectDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+
+    // rename a log task as the store while preparing and settling an export, then fail the export
+    const log: { id?: string } = {};
+    const seen: string[] = [];
+    const rename = (title: string) =>
+        task.call("update", { spaceId, id: present(log.id, "the log task"), title });
+    const handled = task.implement({
+        methods: {
+            export: {
+                prepare: async (call) => {
+                    await call.mutate(call.self, [rename("prepared")]);
+
+                    return "reserved";
+                },
+                handle: async (call) => {
+                    const id = task.identifier(present(log.id, "the log task"));
+                    const read = await call.read(task).findFirst({ where: { id } });
+                    seen.push(present(read, "the log task").title);
+                    throw new Error("export failed");
+                },
+                settle: async (call) => {
+                    await call.mutate(call.self, [rename("settled")]);
+                },
+            },
+        },
+    });
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [handled, comment, taskVersion, folder],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: task.package },
+    });
+    const context = userContext("user-1", spaceId);
+    const execute = <Name extends CallableName<typeof handled>>(
+        name: Name,
+        input: NoInfer<RequestInput<typeof handled, Name>>,
+    ) => request(store, handled, name, spaceId, input, context);
+    const plan = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Plan",
+    });
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Log",
+    });
+    log.id = created.id;
+
+    // see the prepared rename inside the failing mutation, and the settled one after it
+    await expect(
+        execute("export", { requestId: RequestId.create(Date.now()), id: plan.id }),
+    ).rejects.toThrow("export failed");
+    const after = await execute("get", { id: created.id });
+
+    expect({ seen, title: after.title }).toEqual({ seen: ["prepared"], title: "settled" });
 });
 
 test("authorize a creation before its external work, and settle committed work through the settlement controller once settling fails", async () => {
@@ -788,6 +918,7 @@ test("authorize a creation before its external work, and settle committed work t
     });
     const reported: unknown[] = [];
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, comment, taskVersion, copies, folder],
@@ -870,6 +1001,7 @@ test("name a system creation's prepared work by the fresh identifier it creates 
         },
     });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, comment, taskVersion, copies, folder],
@@ -934,6 +1066,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         },
     });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, comment, taskVersion, copies, folder],
@@ -975,7 +1108,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             .then(([written]) => written),
     ).rejects.toMatchObject({
         code: "SERVICE_UNAVAILABLE",
-        message: "task-copy.create outlasted its settlement grace",
+        message: "task-copy.create exceeded its settlement grace period",
     });
 
     // cancel it once by key
@@ -1131,9 +1264,11 @@ async function serveTasks(dialect: Dialect) {
         });
     let context = sign();
 
-    // serve the objects, recording each audited change in the outbox
+    // serve the objects at a fixed time, recording each audited change in the outbox
+    const clock = new TestClock(Date.now());
     const store = new ObjectStore({
-        clock: Clock.system,
+        chain: async () => undefined,
+        clock,
         principal: spacePrincipal(spaceId),
         objects: [handled, comment, taskVersion, handleDraw()],
         database,
@@ -1147,6 +1282,7 @@ async function serveTasks(dialect: Dialect) {
     return {
         store,
         database,
+        clock,
         /** Read the callers' audited actions. */
         events: () => auditedActions(database, "caller"),
         /** Read the system's audited actions. */
@@ -1156,8 +1292,8 @@ async function serveTasks(dialect: Dialect) {
         /** Execute a task method as the current caller. */
         execute: <Name extends CallableName<typeof handled>>(
             name: Name,
-            input: Record<string, unknown>,
-        ) => request(store, handled, name, { spaceId, ...input }, context),
+            input: NoInfer<RequestInput<typeof handled, Name>>,
+        ) => request(store, handled, name, spaceId, input, context),
         /** Act as a user. */
         act: (user: string) => {
             current = user;
@@ -1209,6 +1345,7 @@ test("carry a key of the call's place in its request, the same for every retry o
         },
     });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, comment, taskVersion, copies, folder],
@@ -1277,6 +1414,7 @@ test("settle each call's prepared work once under its own key in its request", a
         },
     });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, comment, taskVersion, copies, folder],
@@ -1326,7 +1464,7 @@ function handleDraw() {
     return folder.implement({
         methods: {
             draw: async (call) => ({
-                id: call.generateId(task),
+                id: await call.generateId(task),
                 draws: [await call.random(), await call.random()],
             }),
         },
@@ -1341,7 +1479,7 @@ function handleArchive() {
             archiveAll: async (call) => {
                 // archive every open task of the scope in the call's transaction
                 const scope = schema.identifier("space").parse(call.scope);
-                const open = await call.read(task).rows({ scope, archived: false });
+                const open = await call.read(task).findMany({ where: { scope, archived: false } });
                 await call.mutate(
                     call.caller,
                     open.map((row) => task.call("archive", task.target(row))),

@@ -12,7 +12,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the chores. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -48,6 +48,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [chore],
@@ -61,13 +62,14 @@ test.each(TEST_DIALECTS)(
         let context = userContext("user-1", spaceId);
         const call = <Name extends CallableName<typeof chore>>(
             name: Name,
-            input: Record<string, unknown>,
+            input: NoInfer<RequestInput<typeof chore, Name>>,
         ) =>
             request(
                 store,
                 chore,
                 name,
-                { spaceId, requestId: RequestId.create(Date.now()), ...input },
+                spaceId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
 
@@ -130,6 +132,8 @@ test("refuse many updates at once of guarded fields", () => {
             finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
         })),
     ).toThrow(
-        new TypeError("object secret-chore guards field done, which many updates at once skip"),
+        new TypeError(
+            "object secret-chore guards field done, so it cannot apply many updates at once",
+        ),
     );
 });

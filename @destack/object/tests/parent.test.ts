@@ -1,3 +1,4 @@
+import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, principal } from "@destack/access";
 import { eq } from "@destack/db";
@@ -32,10 +33,7 @@ test.each(TEST_DIALECTS)(
                 (object) => ({
                     ...record,
                     id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    objectScope: object.scope,
-                    packageId: object.packageId,
-                    type: object.type,
-                    objectId: object.id,
+                    ...ObjectReference.columns("object", object),
                     relation: "viewer",
                     subjectPackageId: principal.user.definition.packageId,
                     subjectType: principal.user.name,

@@ -1,20 +1,24 @@
 import { bearerUser } from "./fixture/user.ts";
-import { ObjectExtension } from "../src/server/index.ts";
+import { ObjectExtension, defineServer } from "../src/server/index.ts";
 import { outbox } from "@destack/runtime/outbox";
 import { Scope } from "@destack/sync";
-import { Change, type DatabaseConnection, Snapshot, type Dialect, type Row } from "@destack/db";
+import {
+    Change,
+    type DatabaseConnection,
+    Snapshot,
+    type Dialect,
+    type Row,
+    type RelationalQueryBuilder,
+} from "@destack/db";
 import { ClaimController, type ClaimHome } from "../src/server/index.ts";
 import {
-    Call,
     Claim,
     type ClaimLookup,
-    type ClaimReader,
     ClaimRefusal,
     Claimant,
     claimTable,
     defineObject,
     field,
-    ObjectReader,
     RESERVATION_MILLISECONDS,
 } from "../src/index.ts";
 import { expect, onTestFinished, test, TestClock } from "@destack/test";
@@ -94,7 +98,7 @@ test.each(TEST_DIALECTS)(
 
         // keep no reservation once every owner let go: the failed claim left none behind
         const index = Claim.index(profile, "handle");
-        expect(await Claim.expired(claimsOf(storage.database), [index], Date.now())).toEqual({
+        expect(await Claim.expired(readClaims(storage.database), [index], Date.now())).toEqual({
             claims: [],
         });
     },
@@ -112,12 +116,12 @@ test.each(TEST_DIALECTS)(
         const claims: ClaimHome = {
             object: served.object,
             home: {
-                mutate: async (mutation, claimer) => {
+                mutate: async (mutation) => {
                     const database = present(spaceDatabase, "the space's database");
                     const rows = await database.select().from(profile.table);
                     seen.push(...mutation.calls.map((call) => [call.method, rows.length] as const));
 
-                    return home.mutate(mutation, claimer);
+                    return home.mutate(mutation);
                 },
                 query: (call) => home.query(call),
             },
@@ -171,13 +175,10 @@ test.each(TEST_DIALECTS)(
             const image = Change.image(change);
             const object = { objectId: schema.string().parse(change.key.id), owner: east.spaceId };
             const owned = await Claimant.of(profile, object, image, Snapshot.live(east.database));
-            const [replaced] = await present(claims.home, "the universe's claims").mutate(
-                {
-                    id: RequestId.create(now),
-                    calls: [Call.wire(claim.call("replace", owned))],
-                },
-                { kind: "store" },
-            );
+            const [replaced] = await present(claims.home, "the universe's claims").mutate({
+                id: RequestId.create(now),
+                calls: [claim.call("replace", owned)],
+            });
 
             return ClaimRefusal.parse(replaced).refused;
         };
@@ -216,10 +217,7 @@ test.each(TEST_DIALECTS)(
         clock.set(now);
 
         // finish the expired reservations through the controller, looking again at the later one
-        const controller = new ClaimController(claims, east.database, [profile], {
-            clock,
-            claimer: () => ({ kind: "store" }),
-        });
+        const controller = new ClaimController(claims, east.database, [profile], clock);
         expect([await controller.reconcile(), await handle("kept"), await handle("lost")]).toEqual([
             1000,
             kept,
@@ -258,18 +256,18 @@ test.each(TEST_DIALECTS)(
             await Claim.reserve(database, owned("notes", "active"), "request-1", now),
             await Claim.reserve(database, owned("notes", "active", second), "request-2", now),
         ]).toEqual([[], [entry("notes", second)]]);
-        const reserved = await Claim.owner(claimsOf(database), { index, key: "notes" });
+        const reserved = await Claim.owner(readClaims(database), { index, key: "notes" });
         await Claim.confirm(database, owned("notes", "active"), "request-1");
-        const active = await Claim.owner(claimsOf(database), { index, key: "notes" });
+        const active = await Claim.owner(readClaims(database), { index, key: "notes" });
 
         // keep the name while its object sits in the trash, still refusing it to another object
         await Claim.replace(database, owned("notes", "trashed"));
-        const trashed = await Claim.owner(claimsOf(database), { index, key: "notes" });
+        const trashed = await Claim.owner(readClaims(database), { index, key: "notes" });
         const taken = await Claim.replace(database, owned("notes", "active", second));
 
         // restore and rename the object
         await Claim.replace(database, owned("notes", "active"));
-        const restored = await Claim.owner(claimsOf(database), { index, key: "notes" });
+        const restored = await Claim.owner(readClaims(database), { index, key: "notes" });
         await Claim.replace(database, owned("archive", "active"));
         expect([
             reserved,
@@ -277,8 +275,8 @@ test.each(TEST_DIALECTS)(
             trashed,
             taken,
             restored,
-            await Claim.owner(claimsOf(database), { index, key: "notes" }),
-            await Claim.owner(claimsOf(database), { index, key: "archive" }),
+            await Claim.owner(readClaims(database), { index, key: "notes" }),
+            await Claim.owner(readClaims(database), { index, key: "archive" }),
         ]).toEqual([
             undefined,
             { objectId: first, owner },
@@ -302,15 +300,19 @@ async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
-        ...ObjectExtension.compose([ObjectExtension.of(profilesPackage, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(profilesPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            database: storage.database,
-            claims,
-        }).packages[0],
+        ...aligned(
+            ObjectExtension.compose([defineServer(profilesPackage, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(profilesPackage) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+                claims,
+            }).packages,
+            0,
+        ),
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("profiles"),
@@ -370,11 +372,11 @@ test.each(TEST_DIALECTS)(
         ];
         for (const [accountId, folderId] of folders) {
             if (folderId !== "folder-2") {
-                await new AccessFixture(storage.database).copyScope(
+                await new AccessFixture(storage.database).replicateScope(
                     account.reference(Scope.universe.id, accountId),
                 );
             }
-            await new AccessFixture(storage.database).copyScope(
+            await new AccessFixture(storage.database).replicateScope(
                 folder.reference(accountId, folderId),
             );
         }
@@ -440,8 +442,8 @@ test("keep a trashed object's names, activate them on restore, and release them 
 
     // write the tag's row as it stands, sits in the trash, is restored and is purged
     const [first, second] = [Identifier.create("tag"), Identifier.create("tag")];
-    const standing = { id: first, scope: "space-1", name: "urgent", deletionRequestedAt: null };
-    const trashed = { ...standing, deletionRequestedAt: 1, purgedAt: null };
+    const standing = { id: first, scope: "space-1", name: "urgent", deletedAt: null };
+    const trashed = { ...standing, deletedAt: 1, purgedAt: null };
     const purged = { ...trashed, purgedAt: 2 };
     const other = { ...standing, id: second };
     const write = async (row: Row & { readonly id: string }) => {
@@ -478,10 +480,10 @@ async function universeStorage(dialect: Dialect) {
 
 /** Find the objects active names resolve to in the universe's database. */
 function names(database: DatabaseConnection): ClaimLookup {
-    return { owner: (index, key) => Claim.owner(claimsOf(database), { index, key }) };
+    return { owner: (index, key) => Claim.owner(readClaims(database), { index, key }) };
 }
 
 /** Read the claims a database keeps, as store code reads them. */
-function claimsOf(database: DatabaseConnection): ClaimReader {
-    return new ObjectReader(claimTable, Snapshot.live(database));
+function readClaims(database: DatabaseConnection): RelationalQueryBuilder<typeof claimTable> {
+    return Snapshot.live(database).read(claimTable);
 }

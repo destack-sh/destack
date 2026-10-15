@@ -8,7 +8,7 @@ import type { Package } from "@destack/package";
 import { definePackage, PACKAGE_DECLARATION, type PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
 import { RequestId } from "@destack/runtime/request";
-import { testCallKey, testInstallation } from "@destack/runtime/test";
+import { testCallKey, testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import {
     defineObject,
@@ -20,10 +20,10 @@ import {
     CallCode,
     type ObjectCall,
     ObjectType,
-    SandboxHooks,
+    HookSandbox,
     SessionRequest,
 } from "../src/index.ts";
-import { ObjectExtension, type ObjectStore } from "../src/server/index.ts";
+import { ObjectExtension, type ObjectStore, defineServer } from "../src/server/index.ts";
 import type { InstalledDeclaration } from "../src/inspect/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
@@ -82,7 +82,7 @@ const OTHER_PACKAGE = schema
 /** One message of a sandbox's exchange with its store, its session told apart by its order. */
 type Message = readonly JsonValue[];
 
-/** Send a value through JSON, as a request between processes carries it. */
+/** Send a value through JSON, as a request between processes sends it. */
 function travel(value: unknown): unknown {
     return JSON.parse(JSON.stringify(value));
 }
@@ -116,11 +116,11 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     };
 
     // run the hooks in a sandbox reached through the store's sandbox hooks
-    const installation = await testInstallation(owner, spaceId);
-    const hooks: { sandbox?: SandboxHooks } = {};
+    const context = await testServerContext(owner, spaceId);
+    const hooks: { sandbox?: HookSandbox } = {};
     const server = new HookServer({
         packages: [cards],
-        installation,
+        server: context,
         session: async (request) => {
             const { mutation, request: asked } = SessionRequest.parse(travel(request));
             exchange.push([session(mutation), asked.kind, schema.json().parse(asked)]);
@@ -133,8 +133,8 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
             return answer;
         },
     });
-    const sandbox = new SandboxHooks({
-        installation,
+    const sandbox = new HookSandbox({
+        server: context,
         declarations: declared(cards),
         send: async (request) => {
             const sent = HandlerRequest.parse(travel(request));
@@ -154,6 +154,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
 
     // serve the cards as the build describes them, their routed hooks run in the sandbox
     const { store } = ObjectExtension.compose([], {
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         database: storage.database,
@@ -250,7 +251,9 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
                             ),
                         remark: async (call) => {
                             // read the card and rename it with the remark as the caller
-                            const read = await call.read(card).row({ id: call.target.id });
+                            const read = await call
+                                .read(card)
+                                .findFirst({ where: { id: call.target.id } });
                             await call.mutate(call.caller, [
                                 card.call("update", {
                                     spaceId,
@@ -298,8 +301,13 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
             ],
             [
                 "session 2",
-                "row",
-                { kind: "row", table: card.table[TABLE].sqlName, key: { id: created.id } },
+                "findFirst",
+                {
+                    kind: "findFirst",
+                    table: card.table[TABLE].sqlName,
+                    where: { id: created.id },
+                    columns: "logged",
+                },
             ],
             ["session 2", "answer", { name: "PLAN" }],
             [
@@ -334,7 +342,9 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
                     methods: {
                         remark: async (call) => {
                             // read the card, renaming it concurrently on the first attempt
-                            const read = await call.read(card).row({ id: call.target.id });
+                            const read = await call
+                                .read(card)
+                                .findFirst({ where: { id: call.target.id } });
                             attempts.push(present(read, "the card").name);
                             if (attempts.length === 1) {
                                 await run(
@@ -383,8 +393,8 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
     });
 });
 
-test("hide the cards a hook's caller may not read from the hook's reads", async () => {
-    // remark by naming the card after the cards the hook lists and the other card it reads
+test("read every card of the package in a hook, and read as the caller through a query", async () => {
+    // name a remark after the cards the hook lists and reads, and the caller's query
     const other: { id?: string } = {};
     const { store } = await serveCards(
         definePackage({
@@ -392,11 +402,29 @@ test("hide the cards a hook's caller may not read from the hook's reads", async 
                 card: card.implement({
                     methods: {
                         remark: async (call) => {
-                            const listed = await call.read(card).rows();
-                            const read = await call
-                                .read(card)
-                                .row({ id: card.identifier(present(other.id, "bob's card")) });
-                            const seen = { listed: listed.map((row) => row.name), read };
+                            const listed = await call.read(card).findMany();
+                            const read = await call.read(card).findFirst({
+                                where: { id: card.identifier(present(other.id, "bob's card")) },
+                            });
+                            const asCaller = await call
+                                .query(
+                                    call.caller,
+                                    card.call("get", {
+                                        spaceId,
+                                        id: present(other.id, "bob's card"),
+                                    }),
+                                )
+                                .then(
+                                    () => "found",
+                                    (error: unknown) =>
+                                        schema.looseObject({ code: schema.string() }).parse(error)
+                                            .code,
+                                );
+                            const seen = {
+                                listed: listed.map((row) => row.name).toSorted(),
+                                read: read?.name ?? null,
+                                asCaller,
+                            };
                             await call.mutate(call.caller, [
                                 card.call("update", {
                                     spaceId,
@@ -423,8 +451,12 @@ test("hide the cards a hook's caller may not read from the hook's reads", async 
         card.call("get", { spaceId, id: created.id }),
     );
 
-    // list alice's card alone, and read no card of bob's
-    expect(JSON.parse(stored.name)).toEqual({ listed: ["Plan"], read: null });
+    // list and read bob's card as the package, and find it hidden from alice's query
+    expect(JSON.parse(stored.name)).toEqual({
+        listed: ["Plan", "Secret"],
+        read: "Secret",
+        asCaller: "NOT_FOUND",
+    });
 });
 
 /** Cards whose remark stamps the card through its internal method. */
@@ -463,6 +495,63 @@ test("call an internal method of the hook's own package in its session", async (
     });
 });
 
+test("decide permissions, take positions, read the start position and act as the installation through a hook's session", async () => {
+    // remark by deciding the caller's permissions and drawing from the mutation as the sandbox sees it
+    const seen: JsonValue[] = [];
+    const { store, exchange } = await serveCards(
+        definePackage({
+            objects: {
+                card: card.implement({
+                    methods: {
+                        remark: async (call) => {
+                            const reference = card.reference(call.scope, call.target.id);
+                            const decision = await call.check(card.permission("write"), reference);
+                            await call.require(card.permission("write"), reference);
+                            const id = await call.generateId(note);
+                            seen.push({
+                                isAllowed: decision.isAllowed,
+                                isNote: note.idSchema.safeParse(id).success,
+                                hasBase: typeof call.base === "object",
+                                self: schema.json().parse(call.self.subject ?? null),
+                            });
+
+                            return call.target;
+                        },
+                    },
+                }),
+            },
+        }),
+    );
+    const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
+    await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
+    const context = await testServerContext(card.package, spaceId);
+
+    // answer the check, the requirement and the position in the hook's session
+    const reference = { packageId: card.package.id, type: "card", scope: spaceId, id: created.id };
+    const write = { packageId: card.package.id, type: "card", name: "write" };
+    expect({ seen, exchange: exchange.filter(([, kind]) => kind !== "handle") }).toEqual({
+        seen: [
+            {
+                isAllowed: true,
+                isNote: true,
+                hasBase: true,
+                self: schema
+                    .json()
+                    .parse(principal.installation.reference(spaceId, context.installation)),
+            },
+        ],
+        exchange: [
+            ["session 1", "check", { kind: "check", permission: write, object: reference }],
+            ["session 1", "answer", { isAllowed: true }],
+            ["session 1", "require", { kind: "require", permission: write, object: reference }],
+            ["session 1", "answer", null],
+            ["session 1", "position", { kind: "position" }],
+            ["session 1", "answer", 0],
+            ["session 1", "answer", { name: "Plan" }],
+        ],
+    });
+});
+
 test("reach internal methods from the store's own code and its package's sandboxes alone", () => {
     // ask each code for the internal stamp and the public get
     const codes: readonly CallCode[] = [
@@ -491,7 +580,7 @@ test("read the rows of a type the installation serves without hooks", async () =
                 card: card.implement({
                     methods: {
                         remark: async (call) => {
-                            const notes = await call.read(note).rows();
+                            const notes = await call.read(note).findMany();
                             await call.mutate(call.caller, [
                                 card.call("update", {
                                     spaceId,
@@ -534,10 +623,10 @@ test("refuse serving the cards of two installations of one package from one stor
     );
     onTestFinished(() => storage.close());
     const cards = definePackage({ objects: { card } });
-    const installed = await testInstallation(card.package, spaceId);
+    const installed = await testServerContext(card.package, spaceId);
     const sandbox = (id: string) =>
-        new SandboxHooks({
-            installation: { ...installed, id },
+        new HookSandbox({
+            server: { ...installed, installation: id },
             declarations: declared(cards),
             send: () => Promise.reject(new TypeError("the cards have no hooks")),
         });
@@ -550,6 +639,7 @@ test("refuse serving the cards of two installations of one package from one stor
     const events = await testEvents(storage.database);
     const compose = () =>
         ObjectExtension.compose([], {
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             database: storage.database,
@@ -581,9 +671,9 @@ test("route the platform's cards from an installed package to their one implemen
     const cards = definePackage({ objects: { card } });
     const board = { ...card.package, id: OTHER_PACKAGE, name: "@app/board" };
     const boards = definePackage({ objects: { card } }, { package: board });
-    const installation = await testInstallation(board, spaceId);
-    const sandbox = new SandboxHooks({
-        installation,
+    const context = await testServerContext(board, spaceId);
+    const sandbox = new HookSandbox({
+        server: context,
         declarations: [
             {
                 kind: PACKAGE_DECLARATION,
@@ -596,6 +686,7 @@ test("route the platform's cards from an installed package to their one implemen
     const events = await testEvents(storage.database);
     const compose = (extensions: readonly ObjectExtension[]) =>
         ObjectExtension.compose(extensions, {
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             database: storage.database,
@@ -607,10 +698,10 @@ test("route the platform's cards from an installed package to their one implemen
         });
 
     // serve the cards once, as the platform's, under both packages
-    const { store, packages } = compose([ObjectExtension.of(cards, [])]);
+    const { store, packages } = compose([defineServer(cards, {}).extension(undefined)]);
     expect({
         routed: store.routed.map((type) => type.typeReference),
-        installed: store.installationOf(card)?.id,
+        installed: store.readServer(card)?.installation,
         routes: packages.map((served) => Object.keys(served.router)),
     }).toEqual({
         routed: [{ packageId: card.package.id, type: "card" }],
@@ -624,7 +715,7 @@ test("route the platform's cards from an installed package to their one implemen
     // refuse the board's route of cards without the platform's implementation
     expect(() => compose([])).toThrow(
         new TypeError(
-            `installation ${installation.id} routes card objects of ${card.package.id}, which nothing here implements or copies`,
+            `installation ${context.installation} routes card objects of ${card.package.id}, but nothing here implements or replicates them`,
         ),
     );
 });
@@ -642,23 +733,27 @@ test("serve the cards of the platform and of an installed package from one store
     onTestFinished(() => storage.close());
     const cards = definePackage({ objects: { card } });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
-    const sandbox = new SandboxHooks({
-        installation: await testInstallation(installed, spaceId),
+    const sandbox = new HookSandbox({
+        server: await testServerContext(installed, spaceId),
         declarations: declared(cards).map((entry) => moved(entry, installed.id)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
 
     // compose a store serving the platform's cards and the installation's
-    const { store, packages } = ObjectExtension.compose([ObjectExtension.of(cards, [])], {
-        clock: Clock.system,
-        principal: spacePrincipal(spaceId),
-        database: storage.database,
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        origin: { package: card.package },
-        policies: [space],
-        sandboxes: [sandbox],
-    });
+    const { store, packages } = ObjectExtension.compose(
+        [defineServer(cards, {}).extension(undefined)],
+        {
+            chain: async () => undefined,
+            clock: Clock.system,
+            principal: spacePrincipal(spaceId),
+            database: storage.database,
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            origin: { package: card.package },
+            policies: [space],
+            sandboxes: [sandbox],
+        },
+    );
 
     // serve both types, each package routing its own under the card route
     expect(store.routed.map((type) => type.typeReference)).toEqual([
@@ -685,12 +780,13 @@ test("describe the platform's and an installed package's types from one store, d
     const photos = definePackage({ objects: { photo } });
     const cards = definePackage({ objects: { card } });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
-    const sandbox = new SandboxHooks({
-        installation: await testInstallation(installed, spaceId),
+    const sandbox = new HookSandbox({
+        server: await testServerContext(installed, spaceId),
         declarations: declared(cards).map((entry) => moved(entry, installed.id)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
-    const { store } = ObjectExtension.compose([ObjectExtension.of(photos, [])], {
+    const { store } = ObjectExtension.compose([defineServer(photos, {}).extension(undefined)], {
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         database: storage.database,
@@ -734,9 +830,50 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
     }));
     const implemented = machine.implement({ methods: { observe: { authorize: async () => {} } } });
 
-    // list the package's own phases alone
+    // list only the package's own phases
     expect({ declared: machine.hooks, implemented: implemented.hooks }).toEqual({
         declared: { create: ["handle"] },
         implemented: { create: ["handle"], observe: ["authorize"] },
+    });
+});
+
+test("throw a hook's failure across its boundary as the call error it was, caused at the stack it was thrown at", async () => {
+    // fail a hook, and read its answer as JSON on the other side
+    const thrown = new TypeError("the card has no title");
+    const answer = HandlerAnswer.parse(
+        JSON.parse(
+            JSON.stringify(
+                await HandlerAnswer.of(() => {
+                    throw thrown;
+                }),
+            ),
+        ),
+    );
+
+    // throw its code, status and message, caused by an error at the thrown stack
+    const failed = (() => {
+        try {
+            return HandlerAnswer.result(answer);
+        } catch (error) {
+            return error;
+        }
+    })();
+    const error = schema
+        .object({
+            code: schema.string(),
+            status: schema.number(),
+            message: schema.string(),
+            defined: schema.boolean(),
+            data: schema.unknown(),
+            cause: schema.object({ message: schema.string(), stack: schema.string() }),
+        })
+        .parse(failed);
+    expect(error).toEqual({
+        code: "TypeError",
+        status: 500,
+        message: "the card has no title",
+        defined: false,
+        data: undefined,
+        cause: { message: "the card has no title", stack: thrown.stack },
     });
 });

@@ -1,5 +1,5 @@
 import { callTables } from "../src/test/index.ts";
-import { defineObject, field, type ObjectType } from "../src/index.ts";
+import { type ObjectOf, defineObject, field } from "../src/index.ts";
 
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
@@ -59,9 +59,11 @@ export const task = defineObject({
         archived: field.boolean().default(false),
         token: field.string().sensitive().optional(),
         estimate: field.integer().optional().guard({ read: "plan", write: "plan" }),
-        origin: field.reference("self", { qualified: true }).optional(),
+        origin: field.object().optional(),
         current: field
-            .reference("task-version", (): ObjectType => taskVersion, { delete: "null" })
+            .reference((): ObjectOf<{ identity: "task-version" }> => taskVersion, {
+                delete: "null",
+            })
             .optional(),
         status: field.state({
             initial: "open",
@@ -90,7 +92,7 @@ export const task = defineObject({
     export: method.mutation({ permission: "write", prepared: schema.string() }),
     archiveAll: method.mutation({
         permission: "tidy",
-        target: "none",
+        target: "scope",
         output: schema.object({
             /** The tasks archived. */
             archived: schema.number().int().nonnegative(),
@@ -144,7 +146,7 @@ export const folder = defineObject({
 }).methods((method) => ({
     draw: method.mutation({
         permission: "write",
-        target: "none",
+        target: "scope",
         output: schema.object({
             /** A task identifier the call generated. */
             id: schema.string(),

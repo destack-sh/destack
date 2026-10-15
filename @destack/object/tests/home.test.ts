@@ -1,7 +1,7 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessTables, none, principal } from "@destack/access";
+import { accessTables, Authorizer, none, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -12,18 +12,18 @@ import { RequestId } from "@destack/runtime/request";
 import { Feed, Replica, Scope } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { ObjectStore, Subscriber } from "../src/server/index.ts";
+import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 
-/** How long a commit may take to reach a copy: 5 s, far above the milliseconds it takes. */
-const COPY_MILLISECONDS = 5000;
+/** How long a commit may take to reach a replica: 5 s, far above the milliseconds it takes. */
+const REPLICA_MILLISECONDS = 5000;
 
 /** The person whose preferences live at their home. */
 const personId = schema.identifier("person").parse("person-01996ab0-0000-7000-8000-000000000031");
 
-/** The person's room, whose machine copies the person's preferences. */
+/** The person's room, whose machine replicates the person's preferences. */
 const roomId = schema.identifier("room").parse("room-01996ab0-0000-7000-8000-000000000032");
 
 /** People, the scopes their preferences live in. */
@@ -37,7 +37,7 @@ const person = defineObject({
     permissions: { read: none(), write: none() },
 }).methods();
 
-/** Rooms within a person, whose copies keep the person's preferences. */
+/** Rooms within a person, whose replicas keep the person's preferences. */
 const room = defineObject({
     name: "room",
     plural: "rooms",
@@ -64,9 +64,9 @@ const preference = defineObject({
 const preferences = definePackage({ objects: { preference } });
 
 /** Refuse a change sent over the uplink, as the client sends its changes home itself. */
-const refuseChanges = () => Promise.reject(new Error("the copy receives no changes"));
+const refuseChanges = () => Promise.reject(new Error("the replica receives no changes"));
 
-/** Serve alice's preferences at their home and a copy at her room's machine. */
+/** Serve alice's preferences at their home and a replica at her room's machine. */
 async function serveHomes() {
     // keep alice's person and room at home, owned by her
     const homeStorage = await TestDatabase.create(
@@ -77,23 +77,23 @@ async function serveHomes() {
         }),
         { isMigrated: true },
     );
-    const copyStorage = await TestDatabase.create(
+    const replicateStorage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
             name: "main",
             tables: [...callTables, ...accessTables],
-            copies: [person.table, room.table, preference.table],
+            replicated: [person.table, room.table, preference.table],
         }),
         { isMigrated: true },
     );
     onTestFinished(async () => {
-        await Promise.all([homeStorage.close(), copyStorage.close()]);
+        await Promise.all([homeStorage.close(), replicateStorage.close()]);
     });
     const alice = principal.user.reference(Scope.universe.id, "alice");
     const fixture = new AccessFixture(homeStorage.database);
-    await fixture.copyScope(person.reference(Scope.universe.id, personId), "own");
-    await fixture.copyScope(room.reference(personId, roomId));
-    await fixture.copyOwner(person.reference(Scope.universe.id, personId), alice);
+    await fixture.replicateScope(person.reference(Scope.universe.id, personId), "own");
+    await fixture.replicateScope(room.reference(personId, roomId));
+    await fixture.bindOwner(person.reference(Scope.universe.id, personId), alice);
     await homeStorage.database
         .insert(person.table)
         .values({ id: personId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
@@ -103,6 +103,7 @@ async function serveHomes() {
 
     // serve the preferences at home
     const home = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(personId),
         objects: [preference],
@@ -113,7 +114,7 @@ async function serveHomes() {
         origin: { package: preference.package },
     });
 
-    // copy the room's chain from home into the room's machine and serve the copy
+    // replicate the room's own chain from home into the room's machine and serve the replica
     const feed = new Feed(
         homeStorage.database,
         [...accessTables, person.table, room.table, preference.table],
@@ -121,33 +122,36 @@ async function serveHomes() {
             clock: Clock.system,
         },
     );
-    const copy: ObjectStore = new ObjectStore({
+    const replica: ObjectStore = new ObjectStore({
+        chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(roomId),
         objects: [preference],
         policies: [person, room],
-        database: copyStorage.database,
-        subscriber: Subscriber.of(
-            {
+        database: replicateStorage.database,
+        subscriber: {
+            uplink: {
                 receive: refuseChanges,
                 stream: (subscription, signal) =>
                     feed.subscribe(
-                        copy.source.replicaOf(subscription).queries,
+                        replica.source.buildReplica(subscription).queries,
                         subscription.after,
                         signal,
                     ),
             },
-            () => copy.authorizer.chain(copyStorage.database, roomId, { kind: "follower" }),
-        ),
+        },
         callKey: testCallKey,
-        events: await testEvents(copyStorage.database),
+        events: await testEvents(replicateStorage.database),
         origin: { package: preference.package },
     });
-    await followChain(copy, copyStorage.database, homeStorage.database);
+    await followChain(replica, replicateStorage.database, homeStorage.database);
 
     // reach each server as alice, recording the requests each receives
     const writes: string[] = [];
-    const recorded = (name: string, server: { fetch(request: Request): Promise<Response> }) =>
+    const recorded = (
+        name: string,
+        server: { readonly fetch: (request: Request) => Promise<Response> },
+    ) =>
         ({
             url: "https://objects.test",
             headers: { authorization: "Bearer alice" },
@@ -158,26 +162,26 @@ async function serveHomes() {
             },
         }) satisfies ClientOptions;
     const homeServer = serveObjects(home.implement(preferences, [preference], []), personId);
-    const copyServer = serveObjects(copy.implement(preferences, [preference], []), roomId);
+    const replicateServer = serveObjects(replica.implement(preferences, [preference], []), roomId);
 
     return {
         home,
         homeDatabase: homeStorage.database,
         writes,
         homeEndpoint: recorded("home", homeServer.server),
-        copyEndpoint: recorded("copy", copyServer.server),
+        replicateEndpoint: recorded("replica", replicateServer.server),
     };
 }
 
-/** Follow a copy's chain from the room up to the universe, waiting for each scope's copy. */
+/** Follow the replicas a room's store derives, the universe's rows and then its chain via them. */
 async function followChain(
-    copy: ObjectStore,
+    replica: ObjectStore,
     database: TestDatabase["database"],
     home: TestDatabase["database"],
 ): Promise<void> {
-    // reconcile each scope's copy, keeping it followed until the test ends
+    // reconcile each listed replica, keeping it followed until the test ends
     const follower = present(
-        copy.controllers().find((each) => each.name === "replica"),
+        replica.controllers().find((each) => each.name === "replica"),
         "the replica controller",
     );
     const controller = new AbortController();
@@ -186,14 +190,18 @@ async function followChain(
         controller.abort();
         await Promise.allSettled(following);
     });
+
+    // follow the universe's rows first, then the chain via the scopes they bring, each to the home's head
     const head = await home.log.position();
-    for (const scope of [roomId, personId, Scope.universe.id]) {
+    const followed = new Set<string>();
+    for (const name of [roomId, Authorizer.viaReplica(roomId)]) {
         const key = present(
-            (await follower.list()).find((entry) => entry.split(" ")[1] === scope),
-            `the replica key of ${scope}`,
+            (await follower.list()).find((entry) => entry === `${name} ${Scope.universe.id}`),
+            `the replica key of ${name}`,
         );
+        followed.add(key);
         following.push(follower.reconcile(key, reconciliation(controller.signal)));
-        await Replica.wait(database, scope, head, controller.signal);
+        await Replica.wait(database, Scope.universe.id, head, controller.signal);
     }
 }
 
@@ -208,7 +216,7 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
         objects: { preference },
         scope: roomId,
         caller: principal.user.reference(Scope.universe.id, "alice"),
-        endpoint: served.copyEndpoint,
+        endpoint: served.replicateEndpoint,
         reconnect: unmoved,
         homes: () => served.homeEndpoint,
         clock: Clock.system,
@@ -240,18 +248,18 @@ async function setTheme(home: ObjectStore, value: string): Promise<string> {
     return present(created, "the created theme").id;
 }
 
-/** Wait until a client's database meets a condition, failing after the copy's bound. */
+/** Wait until a client's database meets a condition, failing after the replica's bound. */
 async function waitFor(client: ObjectClient, condition: () => Promise<boolean>): Promise<void> {
     const isMet = await client.database.log.until(
         condition,
-        AbortSignal.timeout(COPY_MILLISECONDS),
+        AbortSignal.timeout(REPLICA_MILLISECONDS),
     );
     if (!isMet) {
-        throw new Error("the client's copy never met the condition");
+        throw new Error("the client's replica never met the condition");
     }
 }
 
-/** Wait until the client's copy keeps no queued mutation, its home's commits streamed back. */
+/** Wait until the client's replica has no queued mutation, its home's commits streamed back. */
 async function settled(client: ObjectClient): Promise<void> {
     await waitFor(client, async () => {
         const { pending, executed } = (await client.inspect()).mutations;
@@ -260,8 +268,8 @@ async function settled(client: ObjectClient): Promise<void> {
     });
 }
 
-/** Wait until the client's copy has a preference. */
-async function copiedTo(client: ObjectClient, id: string): Promise<void> {
+/** Wait until the client's replica has a preference. */
+async function replicatedTo(client: ObjectClient, id: string): Promise<void> {
     await waitFor(
         client,
         async () => (await client.row(client.database, preference, id)) !== undefined,
@@ -278,15 +286,15 @@ async function homeTheme(database: TestDatabase["database"], id: string): Promis
     return present(row, "the theme at home").value;
 }
 
-/** A preference's value as a client's copy keeps it. */
+/** A preference's value as a client's replica keeps it. */
 const Valued = schema.looseObject({ value: schema.string() });
 
-test("send a write of an enclosing scope's row to its home, predicted on the room's copy and rebased once the home's commit streams back through it", async () => {
-    // wait for alice's theme in her room's copy
+test("send a write of an enclosing scope's row to its home, predicted on the room's replica and rebased once the home's commit streams back through it", async () => {
+    // wait for alice's theme in her room's replica
     const served = await serveHomes();
     const id = await setTheme(served.home, "light");
     const { client, failures } = await openRoom(served);
-    await copiedTo(client, id);
+    await replicatedTo(client, id);
 
     // switch it to dark through the room's client
     const submitted = client.mutate(preference).update({ id, value: "dark" });
@@ -294,20 +302,20 @@ test("send a write of an enclosing scope's row to its home, predicted on the roo
     const predicted = Valued.parse(await client.row(client.database, preference, id)).value;
     await submitted.confirmed;
     await settled(client);
-    const copied = Valued.parse(await client.row(client.database, preference, id)).value;
+    const replicated = Valued.parse(await client.row(client.database, preference, id)).value;
 
-    // predict dark at once, push it to the person's home, and settle once the room's copy has it
+    // predict dark at once, push it to the person's home, and settle once the room's replica has it
     expect({
         predicted,
-        copied,
+        replicated,
         home: await homeTheme(served.homeDatabase, id),
         writes: served.writes.filter((write) => !write.endsWith("/replica/stream")),
         failures,
     }).toEqual({
         predicted: "dark",
-        copied: "dark",
+        replicated: "dark",
         home: "dark",
-        writes: ["home /replica/push", "copy /replica/watermark"],
+        writes: ["home /replica/push", "replica /replica/watermark"],
         failures: [],
     });
 });
@@ -317,7 +325,7 @@ test("refuse a mutation changing rows of two homes", async () => {
     const served = await serveHomes();
     const id = await setTheme(served.home, "light");
     const { client } = await openRoom(served);
-    await copiedTo(client, id);
+    await replicatedTo(client, id);
     const submitted = client.mutation(async (mutation) => {
         await mutation.call(preference).update({ id, value: "dark" });
         await mutation.call(preference).create({ name: "font", value: "serif" });
@@ -334,7 +342,7 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
     const served = await serveHomes();
     const id = await setTheme(served.home, "light");
     const { client, failures } = await openRoom(served);
-    await copiedTo(client, id);
+    await replicatedTo(client, id);
     await client.mutate(preference).update({ id, value: "dark" }).confirmed;
     await client.undo().confirmed;
     await settled(client);
@@ -342,17 +350,17 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
     // run the undo at the person's home as well
     expect({
         home: await homeTheme(served.homeDatabase, id),
-        copied: Valued.parse(await client.row(client.database, preference, id)).value,
+        replicated: Valued.parse(await client.row(client.database, preference, id)).value,
         writes: served.writes.filter((write) => !write.endsWith("/replica/stream")),
         failures,
     }).toEqual({
         home: "light",
-        copied: "light",
+        replicated: "light",
         writes: [
             "home /replica/push",
-            "copy /replica/watermark",
+            "replica /replica/watermark",
             "home /replica/push",
-            "copy /replica/watermark",
+            "replica /replica/watermark",
         ],
         failures: [],
     });

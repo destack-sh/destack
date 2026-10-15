@@ -1,6 +1,7 @@
 import type * as db from "@destack/db";
 import type { ColumnValue, Extras, Relation } from "@destack/db";
 import { included, type Item, type Query } from "@destack/sync";
+import type * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { ModelOf } from "./relation.ts";
 
@@ -19,7 +20,7 @@ export type FindOptions<
 export type AggregateOptions<
     Object extends ObjectType,
     Objects extends ObjectType,
-> = db.AggregateOptions<ModelOf<Object, Objects>>;
+> = sync.AggregateOptions<ModelOf<Object, Objects>>;
 
 /** The condition of an object type's rows, over logged fields, a read's extras and relations. */
 export type ConditionOf<
@@ -41,7 +42,7 @@ export type NestedItem = {
 };
 
 /** Nest an item's includes beside its row as its relations read, without aggregate includes. */
-export function nest(item: Item, query: Query): NestedItem {
+export function nestItem(item: Item, query: Query): NestedItem {
     return {
         ...item.row,
         ...Object.fromEntries(
@@ -50,9 +51,9 @@ export function nest(item: Item, query: Query): NestedItem {
 
                 return [
                     name,
-                    relate(
+                    relateItems(
                         include.relation,
-                        items.map((entry) => nest(entry, include.query)),
+                        items.map((entry) => nestItem(entry, include.query)),
                     ),
                 ];
             }),
@@ -61,7 +62,7 @@ export function nest(item: Item, query: Query): NestedItem {
 }
 
 /** Read a relation's items: a one relation's item or null, else every item. */
-export function relate<Value>(
+export function relateItems<Value>(
     relation: Relation,
     items: readonly Value[],
 ): Value | null | readonly Value[] {

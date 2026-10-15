@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "watch the rows a query selects through a copy of their table, after every change on %s",
+    "watch the rows a query selects through a replica of their table, after every change on %s",
     async (dialect) => {
         const { endpoint } = await serveNotes(dialect);
         const client = await reachNotes(endpoint("alice"));
@@ -80,7 +80,7 @@ test.for(TEST_DIALECTS)(
         const local = await TestDatabase.create("sqlite", []);
         onTestFinished(() => local.close());
 
-        // follow the pinned and unpinned notes by title, reading the first rows the copy has
+        // follow the pinned and unpinned notes by title, reading the first rows the replica has
         const controller = new AbortController();
         onTestFinished(() => controller.abort());
         const watched = client.watch(
@@ -102,7 +102,7 @@ test.for(TEST_DIALECTS)(
         await client.call("note", "create", { parentId: book.id, title: "Packing" });
         expect(await titles()).toEqual(["Maps", "Packing"]);
 
-        // stop on abort and drop the copy's rows
+        // stop on abort and drop the replica's rows
         controller.abort();
         expect(await watched.next()).toEqual({ done: true, value: undefined });
         expect(await local.database.select().from(client.object("note").table)).toEqual([]);

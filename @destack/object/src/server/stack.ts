@@ -12,7 +12,7 @@ import {
     type Select,
     type Snapshot,
     TABLE,
-    type Table,
+    Table,
 } from "@destack/db";
 import {
     canonicalize,
@@ -26,10 +26,10 @@ import {
 import { ObjectError } from "../error/error.ts";
 import { type ObjectOf, ObjectType } from "../object/object.ts";
 import type { ObjectDescription } from "../object/description.ts";
-import { isManaging, managedColumns } from "../trait/declarable.ts";
+import { declarable, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
-import { type Claimer, type ClaimHome, Reservation } from "../claim/reservation.ts";
+import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { Call, type ObjectCall, type ResultsOf } from "../method/call.ts";
@@ -58,7 +58,7 @@ const DESCRIBED = schema.looseObject({
     plural: schema.string(),
     /** How stacks declare the type, absent on a type stacks do not declare. */
     declarable: schema.unknown().exactOptional(),
-    /** The type its records nest in, whose declarations hold the type's own. */
+    /** The type its records nest in, whose declarations contain the type's own. */
     nested: schema.unknown().exactOptional(),
 });
 
@@ -79,11 +79,13 @@ export interface DeclarationHandler<
     /** The document keys read, the object's plural by default. */
     readonly keys?: readonly string[];
     /** Select the declarations from a document. */
-    collect?(
+    readonly collect?: (
         document: JsonObject,
-    ): Readonly<Record<string, Collected>> | Promise<Readonly<Record<string, Collected>>>;
+    ) => Readonly<Record<string, Collected>> | Promise<Readonly<Record<string, Collected>>>;
     /** Resolve references within a declaration, returning it unchanged by default. */
     resolve?(name: string, declared: Collected, stack: Stack): Promise<Resolved>;
+    /** The columns a declaration sets once, refusing another value later. */
+    readonly immutable?: readonly (keyof Insert<Object["table"]> & string)[];
     /** Map a resolved declaration to the columns it determines, itself by default. */
     values?(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
     /** Report changes kept outside the record's own columns. */
@@ -136,7 +138,7 @@ export interface ApplyOptions {
     /** The claim type keeping the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimHome;
     /** The object store running the declarations' calls, applying records where they live. */
-    readonly store?: Pick<ObjectStore, "mutate" | "admit" | "claimer" | "isCopy">;
+    readonly store: Pick<ObjectStore, "mutate" | "admit" | "isReplica">;
     /** Open a package release's build in the scope via a snapshot, the installation's if given. */
     readonly release?: (
         snapshot: Snapshot,
@@ -203,19 +205,45 @@ export class Stack {
         // write the steps into an open transaction
         const declared = await Stack.#declare(options);
         const transaction = await Transaction.open(options.database);
-        const stack = await Stack.#open(options, declared, transaction);
 
-        return new StackPlan(options, transaction, await stack.#apply());
+        return Stack.#plan(options, declared, transaction);
     }
 
     /** Plan and apply a stack in one transaction, again while it loses a race. */
     static async apply(options: ApplyOptions): Promise<Plan> {
-        return Transaction.retry(async () => {
-            const planned = await Stack.plan(options);
-            await planned.apply();
+        // plan and reserve in each attempt, releasing the names a lost attempt reserved
+        const declared = await Stack.#declare(options);
+        let reservation: Reservation | undefined;
+        try {
+            const plan = await Transaction.run(options.database, async (transaction) => {
+                // release a lost attempt's names, then plan and reserve this attempt's
+                await reservation?.release();
+                const planned = await Stack.#plan(options, declared, transaction);
+                reservation = await planned.reserve();
 
-            return planned.plan;
-        });
+                return planned.plan;
+            });
+
+            // confirm the reserved names once committed
+            await reservation?.confirm();
+
+            return plan;
+        } catch (error) {
+            // release the names of a failed application
+            await reservation?.release();
+            throw error;
+        }
+    }
+
+    /** Write a stack's declared steps into a transaction, planning the ones it waits on. */
+    static async #plan(
+        options: ApplyOptions,
+        declared: Declared,
+        transaction: Transaction,
+    ): Promise<StackPlan> {
+        const stack = await Stack.#open(options, declared, transaction);
+
+        return new StackPlan(options, transaction, await stack.#apply());
     }
 
     /** Order a stack's declarations, refusing uncollected and multiply collected entries. */
@@ -224,45 +252,44 @@ export class Stack {
         const declared = options.objects.map((object) => {
             // require a declaration on a declarable type
             const declaration = object.declaration;
-            const managed = managedType(object);
-            if (declaration === undefined || managed === undefined) {
+            if (declaration === undefined || !object.isManaged()) {
                 throw new TypeError(`object ${object.name} has no declaration`);
             }
 
             // require an active column on a type archiving undeclared records
-            if (declaration.retire === "archived" && !("active" in managed.table[TABLE].columns)) {
+            if (declaration.retire === "archived" && !("active" in object.table[TABLE].columns)) {
                 throw new TypeError(
                     `object ${object.name} archives records without an active column`,
                 );
             }
 
-            return { ...declaration, object: managed };
+            return { ...declaration, object };
         });
 
         // require claims for declared objects with indexes
         const indexed = declared.find((entry) => Object.keys(entry.object.indexes).length > 0);
         if (indexed !== undefined && options.claims === undefined) {
             throw new TypeError(
-                `object ${indexed.object.name} declares indexes but no claim type keeps their names`,
+                `object ${indexed.object.name} declares indexes but has no claim type for their names`,
             );
         }
 
         // keep collections no declaration collects for the types the stack installs, and reject entries that none or several collect
-        const ordered = order(declared);
+        const ordered = Stack.#order(declared);
         const installing: string[] = [];
         for (const [key, value] of Object.entries(options.document)) {
             const readers = ordered.filter((entry) =>
                 (entry.keys ?? [entry.object.plural]).includes(key),
             );
             if (readers.length === 0 && options.installing === undefined) {
-                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${key}`);
+                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
             } else if (readers.length === 0) {
                 installing.push(key);
                 continue;
             }
             const collected = await Promise.all(
                 readers.map(async (entry) =>
-                    Object.keys(await collect(entry, options.document, ordered)),
+                    Object.keys(await Stack.#collect(entry, options.document, ordered)),
                 ),
             );
             for (const name of Object.keys(DECLARED.parse(value))) {
@@ -270,7 +297,7 @@ export class Stack {
                 if (count === 0) {
                     throw new ObjectError(
                         "UNSUPPORTED_DECLARATION",
-                        `this server applies no ${key} ${name}`,
+                        `this server cannot apply ${key} ${name}`,
                     );
                 } else if (count > 1) {
                     throw new TypeError(`several object types collect ${key} ${name}`);
@@ -335,7 +362,7 @@ export class Stack {
         // refuse a name declared outside a parent
         const separator = name.lastIndexOf("/");
         if (separator < 0) {
-            throw new TypeError(`declaration ${name} is declared under no parent`);
+            throw new TypeError(`declaration ${name} has no parent`);
         }
 
         return name.slice(0, separator);
@@ -347,12 +374,12 @@ export class Stack {
     }
 
     /** Find the declared object type of an identifier, refusing unmatched identifiers. */
-    typeOf(id: string): ObjectType {
+    findType(id: string): ObjectType {
         const target = this.#ordered.find((entry) => entry.object.identifies(id));
         if (!target) {
             throw new ObjectError(
                 "UNSUPPORTED_DECLARATION",
-                `this server applies no type of ${id}`,
+                `this server cannot apply a type of ${id}`,
             );
         }
 
@@ -363,26 +390,31 @@ export class Stack {
     async find(object: ObjectType | string, name: string): Promise<string | undefined> {
         // match by manager and name
         const table = this.#select(object).object.table;
-        const [row] = await this.transaction.images(table, {
-            scope: this.scope,
-            managerInstallationId: this.manager.installationId,
-            managerPackageId: this.manager.packageId,
-            managerName: name,
-        });
+        const [row] = await this.transaction
+            .view()
+            .read(table)
+            .findMany({
+                where: {
+                    scope: this.scope,
+                    managerInstallationId: this.manager.installationId,
+                    managerPackageId: this.manager.packageId,
+                    managerName: name,
+                },
+            });
 
         return row?.id;
     }
 
     /** Find the identifier of the record declared under a name, or reject the declaration. */
     async require(object: ObjectType | string, name: string): Promise<string> {
-        // wait for a record kept where its rows live until its copy arrives, and refuse an unknown one
+        // wait for a record's replica to arrive, and refuse an unknown record
         const id = await this.find(object, name);
         const target = this.#select(object).object;
         if (
             id === undefined &&
-            (await this.#store().isCopy(target, this.transaction.view(), this.scope))
+            (await this.#options.store.isReplica(target, this.transaction.view(), this.scope))
         ) {
-            this.wait(`${target.name} ${name} waits for its copy`);
+            this.wait(`${target.name} ${name} waits for its replica`);
         } else if (id === undefined) {
             throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
         }
@@ -396,14 +428,8 @@ export class Stack {
     }
 
     /** Run calls as the stack's principal in its transaction, returning results in order. */
-    mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>>;
-    /**
-     * Run calls as the stack's principal in the stack's transaction.
-     *
-     * @construct each result is its method's answer, which ObjectCall keeps from type.call.
-     */
-    mutate(calls: readonly ObjectCall[]): Promise<unknown[]> {
-        return this.#store().mutate(
+    mutate<const Calls extends readonly ObjectCall[]>(calls: Calls): Promise<ResultsOf<Calls>> {
+        return this.#options.store.mutate(
             this.caller,
             { id: RequestId.create(this.now), calls },
             { transaction: this.transaction, scope: this.scope },
@@ -437,7 +463,7 @@ export class Stack {
             try {
                 const desired = new Map<string, unknown>();
                 for (const [name, declared] of Object.entries(
-                    await collect(declaration, this.document, this.#ordered),
+                    await Stack.#collect(declaration, this.document, this.#ordered),
                 )) {
                     desired.set(
                         name,
@@ -487,10 +513,10 @@ export class Stack {
         for (const key of this.#installing) {
             const type = types.find((each) => each.plural === key && each.nested === undefined);
             if (type === undefined) {
-                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${key}`);
+                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
             }
             for (const [name, value] of Object.entries(DECLARED.parse(this.document[key]))) {
-                steps.push(creation(type.name, name));
+                steps.push(Stack.#creation(type.name, name));
                 for (const [plural, children] of Object.entries(DECLARED.parse(value))) {
                     // plan the declarations of a type nested in it
                     const child = types.find(
@@ -499,7 +525,9 @@ export class Stack {
                     if (child !== undefined) {
                         const names = Object.keys(DECLARED.parse(children));
                         steps.push(
-                            ...names.map((each) => creation(child.name, Address.join(name, each))),
+                            ...names.map((each) =>
+                                Stack.#creation(child.name, Address.join(name, each)),
+                            ),
                         );
                     }
                 }
@@ -516,7 +544,7 @@ export class Stack {
         );
         if (!target) {
             const plural = typeof object === "string" ? object : object.plural;
-            throw new ObjectError("UNSUPPORTED_DECLARATION", `this server applies no ${plural}`);
+            throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${plural}`);
         }
 
         return target;
@@ -526,10 +554,12 @@ export class Stack {
     async #records(declaration: TypeDeclaration): Promise<Map<string, Select<ManagedTable>>> {
         // read the records the manager declared, leaving out purged ones
         const table = declaration.object.table;
-        const managed = await this.transaction.rows(table, {
-            scope: this.scope,
-            managerInstallationId: this.manager.installationId,
-            managerPackageId: this.manager.packageId,
+        const managed = await this.transaction.read(table).findMany({
+            where: {
+                scope: this.scope,
+                managerInstallationId: this.manager.installationId,
+                managerPackageId: this.manager.packageId,
+            },
         });
         const rows = managed.filter((row) => {
             const record: Row = row;
@@ -564,10 +594,10 @@ export class Stack {
             const row = existing.get(name);
             const values = {
                 ...(declaration.values?.(name, resolved, this) ??
-                    declaration.object.table[TABLE].decode(JsonValue.object(resolved))),
+                    Table.decode(declaration.object.table, JsonValue.object(resolved))),
                 ...(await this.#supplied(declaration.object, name)),
             };
-            requireColumns(declaration.object, values);
+            Stack.#requireColumns(declaration.object, values);
             if (row === undefined) {
                 steps.push(await this.#createDeclared(declaration, name, resolved, values));
             } else {
@@ -583,8 +613,8 @@ export class Stack {
     /** Read the columns the stack supplies a type declared from its create input. */
     async #supplied(object: ObjectType, name: string): Promise<DeclaredValues> {
         // supply nothing to a type declaring its own schema
-        const { declarable } = object.definition;
-        if (declarable === undefined || "schema" in declarable) {
+        const options = object.definition.declarable;
+        if (options === undefined || "schema" in options) {
             return {};
         }
 
@@ -611,7 +641,7 @@ export class Stack {
     ): Promise<Step> {
         // plan the creation
         const { transaction, manager } = this;
-        const step = creation(declaration.object.name, name);
+        const step = Stack.#creation(declaration.object.name, name);
 
         // keep the record through its table's owner, or apply it under a fresh identifier where its rows live
         const { object } = declaration;
@@ -622,8 +652,12 @@ export class Stack {
         }
         const id = object.generateId();
         await this.#applyRecord(object, name, values, id);
-        if (!(await this.#store().isCopy(object, transaction.view(), this.scope))) {
-            await declaration.written?.(this, await read(transaction, object.table, id), resolved);
+        if (!(await this.#options.store.isReplica(object, transaction.view(), this.scope))) {
+            await declaration.written?.(
+                this,
+                await Stack.#read(transaction, object.table, id),
+                resolved,
+            );
         }
 
         return step;
@@ -640,14 +674,14 @@ export class Stack {
         // skip a detached or unchanged record
         const { transaction } = this;
         const table = declaration.object.table;
-        const changed = difference(table, row, values);
-        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
+        const changed = Stack.#difference(table, row, values);
+        const isDeletable = "deletedAt" in table[TABLE].columns;
         const record: Row = row;
         const deletion = isDeletable
-            ? jsonOf(table, "deletionRequestedAt", record["deletionRequestedAt"])
+            ? Stack.#jsonOf(table, "deletedAt", record["deletedAt"])
             : null;
         if (
-            !isManaging(row) ||
+            !declarable.isManaging(row) ||
             (Object.keys(changed).length === 0 &&
                 deletion === null &&
                 (await declaration.changed?.(transaction, row, resolved)) !== true)
@@ -658,9 +692,7 @@ export class Stack {
         // plan the update of the changed fields
         const fields = {
             ...changed,
-            ...(deletion === null
-                ? {}
-                : { deletionRequestedAt: { before: deletion, after: null } }),
+            ...(deletion === null ? {} : { deletedAt: { before: deletion, after: null } }),
         };
         const step: Step = {
             action: "update",
@@ -676,8 +708,18 @@ export class Stack {
             return [step];
         }
         await this.#applyRecord(declaration.object, name, values);
-        if (!(await this.#store().isCopy(declaration.object, transaction.view(), this.scope))) {
-            await declaration.written?.(this, await read(transaction, table, row.id), resolved);
+        if (
+            !(await this.#options.store.isReplica(
+                declaration.object,
+                transaction.view(),
+                this.scope,
+            ))
+        ) {
+            await declaration.written?.(
+                this,
+                await Stack.#read(transaction, table, row.id),
+                resolved,
+            );
         }
 
         return [step];
@@ -692,7 +734,10 @@ export class Stack {
     ): Promise<void> {
         const table = object.table;
         const json = Object.fromEntries(
-            Object.entries(values).map(([column, value]) => [column, jsonOf(table, column, value)]),
+            Object.entries(values).map(([column, value]) => [
+                column,
+                Stack.#jsonOf(table, column, value),
+            ]),
         );
         await this.mutate([
             Call.record(object, "apply", {
@@ -705,17 +750,7 @@ export class Stack {
 
     /** Admit the stack's principal in its scope in the stack's transaction, for access writes. */
     authorization(): Promise<Authorization> {
-        return this.#store().admit(this.transaction, this.scope, this.caller);
-    }
-
-    /** Require the object store running the declarations' calls. */
-    #store(): Pick<ObjectStore, "mutate" | "admit" | "isCopy"> {
-        const { store } = this.#options;
-        if (store === undefined) {
-            throw new TypeError("the stack runs calls, but no object store runs them");
-        }
-
-        return store;
+        return this.#options.store.admit(this.transaction, this.scope, this.caller);
     }
 
     /** Retire attached records the manager no longer declares. */
@@ -733,15 +768,15 @@ export class Stack {
         // read existing records
         const { transaction } = this;
         const table = declaration.object.table;
-        const isDeletable = "deletionRequestedAt" in table[TABLE].columns;
+        const isDeletable = "deletedAt" in table[TABLE].columns;
         const steps: Step[] = [];
         for (const [name, row] of await this.#records(declaration)) {
             // skip declared, detached and already retiring records
             const record: Row = row;
             if (
                 desired.has(name) ||
-                !isManaging(row) ||
-                (isDeletable && record["deletionRequestedAt"] !== null) ||
+                !declarable.isManaging(row) ||
+                (isDeletable && record["deletedAt"] !== null) ||
                 (isArchived && record["active"] === false) ||
                 (typeof retire === "object" && (await retire.isRetiring(transaction, row)))
             ) {
@@ -776,6 +811,215 @@ export class Stack {
 
         return steps;
     }
+
+    /** Plan creating a declared record of a type under its declared name. */
+    static #creation(type: string, name: string): Step {
+        return {
+            action: "create",
+            target: Address.join(type, name),
+            risk: "safe",
+            detail: "declare",
+        };
+    }
+
+    /** Select an object type's declarations from a document, a nested type's under its parent's. */
+    static async #collect(
+        declaration: TypeDeclaration,
+        document: JsonObject,
+        declared: readonly TypeDeclaration[],
+    ): Promise<Readonly<Record<string, unknown>>> {
+        // read a collection the type selects itself
+        if (declaration.collect) {
+            return declaration.collect(document);
+        }
+
+        // read a type declared from its create input with a parent under the parent's declarations
+        const { object } = declaration;
+        const above = object.parent?.object;
+        const parent = above === "any" ? undefined : above;
+        const options = object.definition.declarable;
+        const isInline = parent !== undefined && options !== undefined && "from" in options;
+        if (isInline && !declared.some((entry) => entry.object.same(parent))) {
+            throw new TypeError(
+                `${object.plural} are declared under ${parent.plural}, but this stack applies no declarations of them`,
+            );
+        }
+        const entries = isInline
+            ? Stack.nested(object, parent, document)
+            : Object.entries(DECLARED.parse(document[object.plural] ?? {}));
+
+        // parse each with the type's declaration schema, leaving out its children's collections
+        const declarationSchema = object.lifecycle.declarationSchema;
+        const children = declared
+            .filter((entry) => {
+                const nesting = entry.object.parent?.object;
+
+                return nesting !== undefined && nesting !== "any" && nesting.same(object);
+            })
+            .map((entry) => entry.object.plural);
+
+        return Object.fromEntries(
+            entries.map(([name, value]) => [
+                name,
+                declarationSchema
+                    ? declarationSchema.parse(Stack.#without(value, children))
+                    : value,
+            ]),
+        );
+    }
+
+    /** Leave a declaration's children's collections out of it. */
+    static #without(value: unknown, children: readonly string[]): unknown {
+        const declared = DECLARED.parse(value);
+
+        return Object.fromEntries(
+            Object.entries(declared).filter(([key]) => !children.includes(key)),
+        );
+    }
+
+    /** Order declarations so each follows the object types it references. */
+    static #order(declarations: readonly TypeDeclaration[]): TypeDeclaration[] {
+        // read explicit dependencies
+        const explicit = Stack.#explicitDependencies(declarations);
+
+        // expand "every" to declarations independent of this one
+        const dependencies = new Map(
+            declarations.map((entry) => [
+                entry,
+                entry.after === "every"
+                    ? declarations.filter(
+                          (other) =>
+                              other !== entry &&
+                              other.after !== "every" &&
+                              !Stack.#dependsOn(explicit, other, entry, new Set()),
+                      )
+                    : found(explicit, entry),
+            ]),
+        );
+
+        // visit dependencies depth first, rejecting cycles
+        const ordered: TypeDeclaration[] = [];
+        const visiting = new Set<TypeDeclaration>();
+        for (const declaration of declarations) {
+            Stack.#visit(declaration, dependencies, ordered, visiting);
+        }
+
+        return ordered;
+    }
+
+    /** Read the declarations each declaration lists to run after. */
+    static #explicitDependencies(
+        declarations: readonly TypeDeclaration[],
+    ): Map<TypeDeclaration, readonly TypeDeclaration[]> {
+        return new Map(
+            declarations.map((entry) => {
+                const dependencies =
+                    entry.after === undefined || entry.after === "every" ? [] : entry.after;
+
+                return [
+                    entry,
+                    dependencies.flatMap((object) =>
+                        declarations.filter((other) => other.object.same(object)),
+                    ),
+                ] as const;
+            }),
+        );
+    }
+
+    /** Decide whether one declaration depends on another through explicit dependencies. */
+    static #dependsOn(
+        explicit: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
+        from: TypeDeclaration,
+        to: TypeDeclaration,
+        seen: Set<TypeDeclaration>,
+    ): boolean {
+        // stop at a declaration seen before
+        if (seen.has(from)) {
+            return false;
+        }
+        seen.add(from);
+
+        return found(explicit, from).some(
+            (dependency) => dependency === to || Stack.#dependsOn(explicit, dependency, to, seen),
+        );
+    }
+
+    /** Add a declaration after its dependencies, rejecting cycles. */
+    static #visit(
+        declaration: TypeDeclaration,
+        dependencies: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
+        ordered: TypeDeclaration[],
+        visiting: Set<TypeDeclaration>,
+    ): void {
+        // skip a declaration added before
+        if (ordered.includes(declaration)) {
+            return;
+        }
+
+        // refuse a declaration depending on itself
+        if (visiting.has(declaration)) {
+            throw new ObjectError(
+                "CYCLIC_DECLARATION",
+                `declarations of ${declaration.object.plural} depend on themselves`,
+            );
+        }
+
+        // add the dependencies first
+        visiting.add(declaration);
+        for (const dependency of found(dependencies, declaration)) {
+            Stack.#visit(dependency, dependencies, ordered, visiting);
+        }
+        visiting.delete(declaration);
+        ordered.push(declaration);
+    }
+
+    /** Read one record a declaration just wrote, by identifier. */
+    static async #read(
+        transaction: Transaction,
+        table: ManagedTable,
+        id: Identifier<string>,
+    ): Promise<Select<ManagedTable>> {
+        const row = await transaction.read(table).findFirst({ where: { id } });
+        if (row === undefined) {
+            throw new TypeError(`the written ${table[TABLE].name} ${id} is missing`);
+        }
+
+        return row;
+    }
+
+    /** Collect the declared values that differ from a row, in their JSON form. */
+    static #difference(
+        table: Table,
+        row: Row,
+        values: Partial<Insert<Table>>,
+    ): Record<string, { before: JsonValue; after: JsonValue }> {
+        const changes: Record<string, { before: JsonValue; after: JsonValue }> = {};
+        for (const [key, value] of Object.entries(values)) {
+            const before = Stack.#jsonOf(table, key, row[key]);
+            const after = Stack.#jsonOf(table, key, value);
+            if (canonicalize(before) !== canonicalize(after)) {
+                changes[key] = { before, after };
+            }
+        }
+
+        return changes;
+    }
+
+    /** Write a column value in its JSON form, null for a missing one. */
+    static #jsonOf(table: Table, column: string, value: ColumnValue | undefined): JsonValue {
+        return value === undefined || value === null
+            ? null
+            : table[TABLE].column(column).definition.toJson(value);
+    }
+
+    /** Refuse values for unknown columns. */
+    static #requireColumns(object: ObjectType, values: object): void {
+        const columns = object.table[TABLE].columns;
+        const unknown = Object.keys(values).find((key) => !Object.hasOwn(columns, key));
+        if (unknown !== undefined) {
+            throw new TypeError(`declarations of ${object.name} write unknown column ${unknown}`);
+        }
+    }
 }
 
 /** A stack's planned steps over the open transaction that applies them unchanged. */
@@ -794,23 +1038,28 @@ export class StackPlan {
         this.#transaction = transaction;
     }
 
-    /** Apply the planned steps unchanged, refusing a plan another commit made stale. */
-    async apply(): Promise<void> {
-        // reserve the names the written objects claim before the commit
-        const { claims, objects, now, store } = this.#options;
+    /** Reserve the names the written objects claim, kept by the commit, absent without claims. */
+    async reserve(): Promise<Reservation | undefined> {
+        // reserve before the commit, and write the reservation in it
+        const { claims, objects, now } = this.#options;
         const claimants = await Claimant.written(this.#transaction, objects);
-        const claimer: Claimer =
-            store === undefined ? { kind: "store" } : store.claimer(this.#transaction);
         const reservation =
             claims &&
             (await Reservation.reserve(claims, claimants, objects, {
                 id: crypto.randomUUID(),
                 now,
-                claimer,
             }));
         this.#transaction.record(async (committing) => {
             await reservation?.commit(committing);
         });
+
+        return reservation;
+    }
+
+    /** Apply the planned steps unchanged, refusing a plan another commit made stale. */
+    async apply(): Promise<void> {
+        // reserve the names the written objects claim before the commit
+        const reservation = await this.reserve();
 
         // commit, releasing the names once the commit fails
         try {
@@ -828,221 +1077,10 @@ export class StackPlan {
 /** Stop applying until a dependency is ready. */
 class DependencyWait extends Error {}
 
-/** Plan creating a declared record of a type under its declared name. */
-function creation(type: string, name: string): Step {
-    return { action: "create", target: Address.join(type, name), risk: "safe", detail: "declare" };
-}
-
 /** A stack's declarations in dependency order, and the keys left to the types it installs. */
 interface Declared {
     /** The declared object types in dependency order. */
     readonly ordered: readonly TypeDeclaration[];
     /** The document keys no served type collects. */
     readonly installing: readonly string[];
-}
-
-/** Select an object type's declarations from a document, a nested type's under its parent's. */
-async function collect(
-    declaration: TypeDeclaration,
-    document: JsonObject,
-    declared: readonly TypeDeclaration[],
-): Promise<Readonly<Record<string, unknown>>> {
-    // read a collection the type selects itself
-    if (declaration.collect) {
-        return declaration.collect(document);
-    }
-
-    // read a type declared from its create input with a parent under the parent's declarations
-    const { object } = declaration;
-    const above = object.parent?.object;
-    const parent = above === "any" ? undefined : above;
-    const { declarable } = object.definition;
-    const isInline = parent !== undefined && declarable !== undefined && "from" in declarable;
-    if (isInline && !declared.some((entry) => entry.object.same(parent))) {
-        throw new TypeError(
-            `${object.plural} are declared under ${parent.plural}, which this stack applies no declarations of`,
-        );
-    }
-    const entries = isInline
-        ? Stack.nested(object, parent, document)
-        : Object.entries(DECLARED.parse(document[object.plural] ?? {}));
-
-    // parse each with the type's declaration schema, leaving out its children's collections
-    const declarationSchema = object.lifecycle.declarationSchema;
-    const children = declared
-        .filter((entry) => {
-            const nesting = entry.object.parent?.object;
-
-            return nesting !== undefined && nesting !== "any" && nesting.same(object);
-        })
-        .map((entry) => entry.object.plural);
-
-    return Object.fromEntries(
-        entries.map(([name, value]) => [
-            name,
-            declarationSchema ? declarationSchema.parse(without(value, children)) : value,
-        ]),
-    );
-}
-
-/** Leave a declaration's children's collections out of it. */
-function without(value: unknown, children: readonly string[]): unknown {
-    const declared = DECLARED.parse(value);
-
-    return Object.fromEntries(Object.entries(declared).filter(([key]) => !children.includes(key)));
-}
-
-/** Order declarations so each follows the object types it references. */
-function order(declarations: readonly TypeDeclaration[]): TypeDeclaration[] {
-    // read explicit dependencies
-    const explicit = explicitDependencies(declarations);
-
-    // expand "every" to declarations not depending on this one
-    const dependencies = new Map(
-        declarations.map((entry) => [
-            entry,
-            entry.after === "every"
-                ? declarations.filter(
-                      (other) =>
-                          other !== entry &&
-                          other.after !== "every" &&
-                          !dependsOn(explicit, other, entry, new Set()),
-                  )
-                : found(explicit, entry),
-        ]),
-    );
-
-    // visit dependencies depth first, rejecting cycles
-    const ordered: TypeDeclaration[] = [];
-    const visiting = new Set<TypeDeclaration>();
-    for (const declaration of declarations) {
-        visit(declaration, dependencies, ordered, visiting);
-    }
-
-    return ordered;
-}
-
-/** Read the declarations each declaration lists to run after. */
-function explicitDependencies(
-    declarations: readonly TypeDeclaration[],
-): Map<TypeDeclaration, readonly TypeDeclaration[]> {
-    return new Map(
-        declarations.map((entry) => {
-            const dependencies =
-                entry.after === undefined || entry.after === "every" ? [] : entry.after;
-
-            return [
-                entry,
-                dependencies.flatMap((object) =>
-                    declarations.filter((other) => other.object.same(object)),
-                ),
-            ] as const;
-        }),
-    );
-}
-
-/** Decide whether one declaration depends on another through explicit dependencies. */
-function dependsOn(
-    explicit: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
-    from: TypeDeclaration,
-    to: TypeDeclaration,
-    seen: Set<TypeDeclaration>,
-): boolean {
-    // stop at a declaration seen before
-    if (seen.has(from)) {
-        return false;
-    }
-    seen.add(from);
-
-    return found(explicit, from).some(
-        (dependency) => dependency === to || dependsOn(explicit, dependency, to, seen),
-    );
-}
-
-/** Add a declaration after its dependencies, rejecting cycles. */
-function visit(
-    declaration: TypeDeclaration,
-    dependencies: ReadonlyMap<TypeDeclaration, readonly TypeDeclaration[]>,
-    ordered: TypeDeclaration[],
-    visiting: Set<TypeDeclaration>,
-): void {
-    // skip a declaration added before
-    if (ordered.includes(declaration)) {
-        return;
-    }
-
-    // refuse a declaration depending on itself
-    if (visiting.has(declaration)) {
-        throw new ObjectError(
-            "CYCLIC_DECLARATION",
-            `declarations of ${declaration.object.plural} depend on themselves`,
-        );
-    }
-
-    // add the dependencies first
-    visiting.add(declaration);
-    for (const dependency of found(dependencies, declaration)) {
-        visit(dependency, dependencies, ordered, visiting);
-    }
-    visiting.delete(declaration);
-    ordered.push(declaration);
-}
-
-/** Read one record a declaration just wrote, by identifier. */
-async function read(
-    transaction: Transaction,
-    table: ManagedTable,
-    id: Identifier<string>,
-): Promise<Select<ManagedTable>> {
-    const row = await transaction.row(table, { id });
-    if (row === null) {
-        throw new TypeError(`the written ${table[TABLE].name} ${id} is missing`);
-    }
-
-    return row;
-}
-
-/** Read an object type as its declarable table types it, absent for a type stacks never declare. */
-export function managedType(object: ObjectType): ObjectOf<{ table: ManagedTable }> | undefined;
-/**
- * Read an object type as its declarable table types it, by the trait's option.
- *
- * @construct defineObject derives manager columns for every `declarable` object, giving a schema.
- */
-export function managedType(object: ObjectType): ObjectType | undefined {
-    return object.lifecycle.declarationSchema === undefined ? undefined : object;
-}
-
-/** Collect the declared values that differ from a row, in their JSON form. */
-function difference(
-    table: Table,
-    row: Row,
-    values: Partial<Insert<Table>>,
-): Record<string, { before: JsonValue; after: JsonValue }> {
-    const changes: Record<string, { before: JsonValue; after: JsonValue }> = {};
-    for (const [key, value] of Object.entries(values)) {
-        const before = jsonOf(table, key, row[key]);
-        const after = jsonOf(table, key, value);
-        if (canonicalize(before) !== canonicalize(after)) {
-            changes[key] = { before, after };
-        }
-    }
-
-    return changes;
-}
-
-/** Write a column value in its JSON form, null for a missing one. */
-function jsonOf(table: Table, column: string, value: ColumnValue | undefined): JsonValue {
-    return value === undefined || value === null
-        ? null
-        : table[TABLE].column(column).definition.toJson(value);
-}
-
-/** Refuse values for unknown columns. */
-function requireColumns(object: ObjectType, values: object): void {
-    const columns = object.table[TABLE].columns;
-    const unknown = Object.keys(values).find((key) => !Object.hasOwn(columns, key));
-    if (unknown !== undefined) {
-        throw new TypeError(`declarations of ${object.name} write unknown column ${unknown}`);
-    }
 }

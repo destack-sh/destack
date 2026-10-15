@@ -93,6 +93,7 @@ test.each(TEST_DIALECTS)(
 
         // serve the documents to the user each call refers to, through the delegates it lists
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [document],
@@ -135,9 +136,18 @@ test.each(TEST_DIALECTS)(
         const read = await attempts();
         expect(read).toEqual([{ id: shared, title: "Plan" }, ["Plan"], "NOT_FOUND", "FORBIDDEN"]);
 
-        // find nothing at all for a stranger
+        // find nothing at all for a stranger: no document, and no scope to list or write in
         context = userContext("bob", spaceId);
         expect(await attempts()).toEqual(["NOT_FOUND", "NOT_FOUND", "NOT_FOUND", "NOT_FOUND"]);
+
+        // answer a stranger's listing of the space exactly as a listing of a space nobody created
+        const missing = `space-${v7()}`;
+        const list = (id: string) =>
+            refusal(store.query(context.caller(), document.call("list", { spaceId: id })));
+        expect([await list(spaceId), await list(missing)]).toEqual([
+            ["NOT_FOUND", `no scope ${spaceId}`],
+            ["NOT_FOUND", `no scope ${missing}`],
+        ]);
 
         // show a delegate granted no reading what alice sees, asking her for the grant it lacks
         context = userContext("alice", spaceId, {
@@ -166,7 +176,7 @@ test.each(TEST_DIALECTS)(
         // insert a room anyone reads
         const roomId = schema.identifier("room").parse(`room-${v7()}`);
         const object = room.reference(Scope.universe.id, roomId);
-        await new AccessFixture(database).copyScope(object);
+        await new AccessFixture(database).replicateScope(object);
         await database.insert(accessRelationship).values(
             Relationship.encode(
                 {
@@ -183,6 +193,7 @@ test.each(TEST_DIALECTS)(
 
         // serve documents and desks to alice, unpinned to any scope
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [document, desk],
@@ -197,9 +208,11 @@ test.each(TEST_DIALECTS)(
 
         // list the room's desks and find no documents there
         const desks = await store.query(context.caller(), desk.call("list", { roomId }));
-        await expect(
-            store.query(context.caller(), document.call("list", { spaceId: roomId })),
-        ).rejects.toMatchObject({ code: "NOT_FOUND" });
+        expect(
+            await refusal(
+                store.query(context.caller(), document.call("list", { spaceId: roomId })),
+            ),
+        ).toEqual(["NOT_FOUND", `no documents in scope ${roomId}`]);
         expect(desks.items).toEqual([]);
     },
 );

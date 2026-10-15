@@ -1,10 +1,26 @@
-import type { Row } from "@destack/db";
-import { EventCursor, type EventOrder } from "@destack/event";
+import type { DatabaseConnection, Row } from "@destack/db";
+import {
+    Event,
+    EventCursor,
+    type EventFilter,
+    type EventKeyShape,
+    type EventKind,
+    type EventOrder,
+    type EventPage,
+    EventStore,
+    type Series,
+    type SeriesRequest,
+} from "@destack/event";
+import { schema, type JsonValue } from "@destack/schema";
+import { Caller } from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import { Page } from "../method/page.ts";
 import { Replica } from "@destack/sync";
 import type { Call } from "../method/call.ts";
-import type { ListInput } from "../method/record.ts";
+import type { Session } from "../method/reader.ts";
+import { type EventRequest, SeriesRecord } from "../hook/record.ts";
+import type { ListInput } from "./listing.ts";
+import { Execution, type StoreExecution } from "../method/execution.ts";
 
 /** The list input fields only the SQL dataflow serves, which the event log refuses. */
 const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch"] as const;
@@ -12,17 +28,21 @@ const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch
 /** The event log behind an events type: `create` appends to it, `list` and `get` read it. */
 export const EventLog = {
     /** Append created rows as events of the scope. */
-    async append(call: Call, rows: readonly Row[]): Promise<void> {
+    async append(call: Call, execution: StoreExecution, rows: readonly Row[]): Promise<void> {
         // read each row as its event
         const kind = call.object.eventKind();
         const events = rows.map((row) => kind.event(row));
 
+        // keep the type's readers in step with the appended rows
+        const { transaction } = execution;
+        for (const row of rows) {
+            call.object.keepReaders(transaction, { before: null, after: row }, call.now);
+        }
+
         // append events kept exactly once as the call commits
-        const store = call.requireStore().requireEvents();
+        const store = execution.store.events;
         if (kind.delivery === "exactly-once") {
-            call.requireTransaction().record((committing) =>
-                store.append(kind, events, committing),
-            );
+            transaction.record((committing) => store.append(kind, events, committing));
         }
         // append events kept at most once alone, outliving a failed call
         else {
@@ -31,13 +51,17 @@ export const EventLog = {
     },
 
     /** Read a page of the scope's events the caller may read, in time order. */
-    async page(call: Call, input: ListInput): Promise<{ items: Row[]; cursor: string | null }> {
+    async page(
+        call: Call,
+        execution: StoreExecution,
+        input: ListInput,
+    ): Promise<{ items: Row[]; cursor: string | null }> {
         // refuse what only the SQL dataflow serves
         const kind = call.object.eventKind();
         const unserved = DATAFLOW_FIELDS.find((name) => input[name] !== undefined);
         if (unserved !== undefined) {
             throw new CallError("BAD_REQUEST", {
-                message: `${call.object.name} lists from the event log, which reads no ${unserved}`,
+                message: `${call.object.name} lists from the event log, which cannot read ${unserved}`,
             });
         }
 
@@ -51,60 +75,211 @@ export const EventLog = {
             [call.object.name, call.scope],
             EventCursor,
         );
-        const read = await call
-            .requireStore()
-            .requireEvents()
-            .query(
-                kind,
-                {
-                    scopes: await EventLog.scopes(call),
-                    ...(where === undefined ? {} : { where }),
-                },
-                {
-                    ...(listing.after === undefined ? {} : { after: listing.after }),
-                    limit: listing.limit + 1,
-                    order: orderOf(call, orderBy),
-                },
-            );
+        const read = await execution.store.events.query(
+            kind,
+            {
+                scopes: await EventLog.scopes(call, Execution.snapshot(execution).database),
+                ...(where === undefined ? {} : { where }),
+            },
+            {
+                ...(listing.after === undefined ? {} : { after: listing.after }),
+                limit: listing.limit + 1,
+                order: EventLog.readOrder(call, orderBy),
+            },
+        );
 
         // cut the page, then keep the rows the caller may read
         const page = listing.result(
             read.events.map((event) => kind.row(event)),
             (row) => EventCursor.parse(row),
         );
-        const items = await call.requireAuthorization().keep(page.items, call.permission());
+        const items = await execution.authorization.keep(page.items, call.permission());
 
         return { items, cursor: page.cursor };
     },
 
     /** Read one event of the scope by its identifier, hot or flushed, absent if none. */
-    async row(call: Call, id: string): Promise<Row | null> {
+    async row(
+        call: Call,
+        events: EventStore,
+        database: DatabaseConnection,
+        id: string,
+    ): Promise<Row | undefined> {
         const kind = call.object.eventKind();
-        const event = await call
-            .requireStore()
-            .requireEvents()
-            .get(kind, { scopes: await EventLog.scopes(call), id });
+        const event = await events.get(kind, { scopes: await EventLog.scopes(call, database), id });
 
-        return event === undefined ? null : kind.row(event);
+        return event === undefined ? undefined : kind.row(event);
     },
 
-    /** List the scopes a read of a scope's events covers: its own, and the copies kept for it. */
-    async scopes(call: Call): Promise<readonly [string, ...string[]]> {
-        const copied = await Replica.scopes(call.view().database, call.object.table, call.scope);
+    /** List the scopes a read of a scope's events covers: its own, and the caller's replicas. */
+    async scopes(
+        call: Call,
+        database: DatabaseConnection,
+    ): Promise<readonly [string, ...string[]]> {
+        const replicated = await Replica.scopes(
+            database,
+            call.object.table,
+            call.scope,
+            Caller.principal(call.caller),
+        );
 
-        return [call.scope, ...copied.filter((scope) => scope !== call.scope)];
+        return [call.scope, ...replicated.filter((scope) => scope !== call.scope)];
+    },
+
+    /** Read a list's order as the event log's: by time, newest first unless asked otherwise. */
+    readOrder(call: Call, orderBy: ListInput["orderBy"]): EventOrder {
+        // read the time's direction, refusing any other field
+        const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
+        if (field === undefined || field[0] !== "time" || others.length > 0) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${call.object.name} lists in time order only`,
+            });
+        }
+
+        return field[1] === "asc" ? "ascending" : "descending";
     },
 };
 
-/** Read a list's order as the event log's: by time alone, newest first unless asked otherwise. */
-function orderOf(call: Call, orderBy: ListInput["orderBy"]): EventOrder {
-    // read the time's direction, refusing any other field
-    const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
-    if (field === undefined || field[0] !== "time" || others.length > 0) {
-        throw new CallError("BAD_REQUEST", {
-            message: `${call.object.name} lists in time order alone`,
-        });
+/** A package's reads of its own event kind: pages in time order, single events and series. */
+export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
+    /** The event kind read. */
+    readonly kind: EventKind<Shape, Data>;
+    /** The store's event log, or a hook's session with its store. */
+    readonly #source: EventStore | Session;
+
+    /** Read a kind's events through the store's event log or a hook's session. */
+    constructor(kind: EventKind<Shape, Data>, source: EventStore | Session) {
+        this.kind = kind;
+        this.#source = source;
     }
 
-    return field[1] === "asc" ? "ascending" : "descending";
+    /** Read a page of some scopes' events in time order. */
+    async query(filter: EventFilter, page: EventPageRequest = {}): Promise<EventPage<Shape, Data>> {
+        // read through the event log, else through the session
+        const source = this.#source;
+        if (source instanceof EventStore) {
+            return source.query(this.kind, filter, page);
+        }
+        const answered = await source.events(this.kind.table, {
+            verb: "query",
+            filter: EventView.#filter(filter),
+            page: {
+                ...(page.after === undefined ? {} : { after: page.after }),
+                ...(page.limit === undefined ? {} : { limit: page.limit }),
+                ...(page.order === undefined ? {} : { order: page.order }),
+            },
+        });
+
+        // open the answered events with the kind's keys and data
+        const { events, cursor } = EVENT_PAGE.parse(answered);
+
+        return { events: events.map((event) => this.#open(event)), cursor };
+    }
+
+    /** Read one event of some scopes by its identity, absent if none. */
+    async get(
+        key: Pick<EventFilter, "scopes"> & { readonly id: string },
+    ): Promise<Event<Shape, Data> | undefined> {
+        // read through the event log, else through the session
+        const source = this.#source;
+        if (source instanceof EventStore) {
+            return source.get(this.kind, key);
+        }
+        const answered = await source.events(this.kind.table, {
+            verb: "get",
+            scopes: [...key.scopes],
+            id: key.id,
+        });
+
+        return answered === null ? undefined : this.#open(Event.parse(answered));
+    }
+
+    /** Read the events some scopes appended after a log sequence, and the sequence reached. */
+    async changes(
+        filter: EventFilter,
+        after: number,
+        limit?: number,
+    ): Promise<{ readonly events: readonly Event<Shape, Data>[]; readonly sequence: number }> {
+        // read through the event log, else through the session
+        const source = this.#source;
+        if (source instanceof EventStore) {
+            return source.changes(this.kind, filter, after, limit);
+        }
+        const answered = await source.events(this.kind.table, {
+            verb: "changes",
+            filter: EventView.#filter(filter),
+            after,
+            ...(limit === undefined ? {} : { limit }),
+        });
+
+        // open the answered events with the kind's keys and data
+        const { events, sequence } = EVENT_CHANGES.parse(answered);
+
+        return { events: events.map((event) => this.#open(event)), sequence };
+    }
+
+    /** Fold some scopes' events into a series per group of key values. */
+    async series(filter: EventFilter, request: SeriesRequest<Shape>): Promise<Series[]> {
+        // fold through the event log, else through the session
+        const source = this.#source;
+        if (source instanceof EventStore) {
+            return source.series(this.kind, filter, request);
+        }
+        const { measure, fold, group, step } = request;
+        const answered = await source.events(this.kind.table, {
+            verb: "series",
+            filter: EventView.#filter(filter),
+            series: {
+                fold,
+                ...(measure === undefined ? {} : { measure }),
+                ...(group === undefined ? {} : { group: [...group] }),
+                ...(step === undefined ? {} : { step }),
+            },
+        });
+
+        return schema.array(SeriesRecord).parse(answered);
+    }
+
+    /** Write a filter in a session request's form. */
+    static #filter(filter: EventFilter): Extract<EventRequest, { verb: "query" }>["filter"] {
+        return {
+            scopes: [...filter.scopes],
+            ...(filter.where === undefined ? {} : { where: filter.where }),
+        };
+    }
+
+    /** Open an answered event with the kind's keys and data. */
+    #open(event: Event): Event<Shape, Data> {
+        return {
+            ...event,
+            keys: this.kind.parseKeys(event.keys),
+            data: this.kind.parseData(event.data),
+        };
+    }
 }
+
+/** Where a page of events starts and ends, and its order in time. */
+export interface EventPageRequest {
+    /** The previous page's last event. */
+    readonly after?: EventCursor;
+    /** The most events read. */
+    readonly limit?: number;
+    /** The order in time. */
+    readonly order?: EventOrder;
+}
+
+/** The events appended after a sequence, as a session answers them. */
+const EVENT_CHANGES = schema.object({
+    /** The events in commit order. */
+    events: schema.array(Event),
+    /** The log sequence the read reached. */
+    sequence: schema.number().int().min(0),
+});
+
+/** A page of events as a session answers it. */
+const EVENT_PAGE = schema.object({
+    /** The events. */
+    events: schema.array(Event),
+    /** Where the next page starts, absent at the end. */
+    cursor: schema.object({ time: schema.number(), id: schema.string().min(1) }).exactOptional(),
+});

@@ -18,8 +18,8 @@ export const call = defineObject({
     fields: {
         /** The ended call, its personal values masked unless the reader may unmask them. */
         data: field.json(AuditCall).guard({ read: "unmask" }),
-        /** The actor's key. */
-        actor: field.string(),
+        /** The principal that acted, anyone for an unauthenticated caller. */
+        actor: field.subject(),
         /** The object type and method, such as page.create. */
         method: field.string(),
         /** The package serving the call. */

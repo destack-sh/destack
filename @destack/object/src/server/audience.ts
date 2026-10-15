@@ -29,7 +29,7 @@ import {
     Transaction,
 } from "@destack/db";
 import { canonicalize } from "@destack/schema";
-import type { ObjectStorage, ObjectType } from "../object/object.ts";
+import { type ObjectStorage, ObjectType } from "../object/object.ts";
 import { ObjectTypeIndex } from "../query/listing.ts";
 import type { Authorization } from "./authorization.ts";
 import type { ObjectStore } from "./store.ts";
@@ -49,13 +49,13 @@ export class ObjectAudience implements Audience {
     readonly #revealed = new Set<ObjectType>();
     /** Admit the subscriber again, as it resolves access once access changes. */
     readonly #admit: () => Promise<Authorization>;
-    /** The object types by table. */
+    /** The object types the store knows, by table. */
     readonly #objects: ObjectTypeIndex;
     /** The caller's access, resolved again once access changes. */
     #authorization: Authorization;
     /** The key of the caller's access inputs. */
     #key: string | undefined;
-    /** The earliest moment time alone changes the caller's access. */
+    /** The earliest time the caller's access changes on its own. */
     #until: number | undefined;
     /** Where the followed objects live. */
     readonly #storage: ObjectStorage;
@@ -65,7 +65,7 @@ export class ObjectAudience implements Audience {
     readonly #isContained: boolean;
     /** The scopes below the followed one whose access decided rows. */
     readonly #below = new Set<string>();
-    /** The scopes an outside follower copies via, with the rows deciding its replication. */
+    /** The scopes an outside follower replicates via, with the rows deciding its replication. */
     readonly #via: readonly Relay[];
     /** The deciding access rows of the chain and lower scopes, none for ephemeral or external. */
     watches: readonly Watch[];
@@ -87,7 +87,9 @@ export class ObjectAudience implements Audience {
         this.#scope = scope;
         this.#caller = caller;
         this.#admit = admit;
-        this.#objects = new ObjectTypeIndex(store.objects);
+        this.#objects = new ObjectTypeIndex(
+            store.known.filter((known) => known instanceof ObjectType),
+        );
         this.#authorization = authorization;
         this.#until = authorization.access.until;
         this.#storage = storage;
@@ -97,7 +99,7 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** Resolve a reader's access to a scope's objects: a remote caller or a copy's principal. */
+    /** Resolve a reader's access to a scope's objects: a remote caller or a replica's principal. */
     static async of(
         store: ObjectStore,
         scope: string,
@@ -114,7 +116,7 @@ export class ObjectAudience implements Audience {
         const isContained = options.isContained ?? false;
         const decided = storage === "durable" ? undefined : await store.database.log.position();
 
-        // read the scopes a follower copies chains via
+        // read the scopes a follower replicates chains via
         const via =
             options.via === undefined
                 ? []
@@ -130,7 +132,7 @@ export class ObjectAudience implements Audience {
                   ? store.authorize(Transaction.reading(store.database), scope, reader)
                   : store.admit(Transaction.reading(store.database), scope, reader));
 
-            // require the follower to replicate the scopes it copies chains via
+            // require the follower to replicate the scopes it replicates chains via
             await Promise.all(via.map((relay) => relay.require()));
 
             return authorization;
@@ -167,17 +169,11 @@ export class ObjectAudience implements Audience {
             }
 
             // watch the scope's own row where this database maps its type, and the access rows of its chain
-            const mapping = store.authorizer.mappingOf(scope);
+            const mapping = store.authorizer.mapping(scope);
             const own: Watch[] =
                 mapping === undefined
                     ? []
-                    : [
-                          {
-                              table: mapping.table,
-                              scopes: [scope.scope],
-                              where: { [mapping.id]: id },
-                          },
-                      ];
+                    : [Watch.of(mapping.table, [scope.scope], { [mapping.id]: id })];
             const chain = links.map((link) => link.object.id);
 
             return {
@@ -195,7 +191,7 @@ export class ObjectAudience implements Audience {
 
     /** Match the rows of a table the caller may list. */
     where(table: Table): SQL | "memory" {
-        // leave the journal and the copies' records to their queries
+        // leave the journal and the replicas' records to their queries
         const listed = this.#listed(table);
         if (listed === "query") {
             return sql`true`;
@@ -204,7 +200,7 @@ export class ObjectAudience implements Audience {
         else if (
             listed.object.storage === "durable" &&
             listed.object.inherited === undefined &&
-            !this.#store.database.copies(listed.object.table) &&
+            !this.#store.database.replicates(listed.object.table) &&
             !this.#authorization.isHomeOf(listed.object)
         ) {
             return "memory";
@@ -243,7 +239,7 @@ export class ObjectAudience implements Audience {
         }
         const { permission } = listed;
 
-        // check the listing permission, admitting inherited copies
+        // check the listing permission, admitting inherited replicas
         const admission = await this.#authorization.admitRows(
             listed.object,
             permission,
@@ -302,7 +298,7 @@ export class ObjectAudience implements Audience {
         return concealed.hidden;
     }
 
-    /** Read the earliest moment time alone changes the caller's access. */
+    /** Read the earliest time the caller's access changes on its own. */
     async until(): Promise<number | undefined> {
         return this.#until;
     }
@@ -314,7 +310,7 @@ export class ObjectAudience implements Audience {
 
     /** Report whether a change may decide the visibility of rows beyond its own. */
     async decides(change: Change): Promise<boolean> {
-        // require the follower to replicate the scopes it copies via again after a change only their decisions read
+        // require the follower to replicate its via scopes again after a change their decisions read
         const via = this.#via.filter((relay) => Watch.matches(relay.watches, change));
         if (via.length > 0 && !Watch.matches(this.#deciding(), change)) {
             await Promise.all(via.map((relay) => relay.require()));
@@ -388,7 +384,7 @@ export class ObjectAudience implements Audience {
         this.watches = this.#watched();
     }
 
-    /** List the rows whose changes decide again: listing access, and via copying access. */
+    /** List the rows whose changes decide again: listing access, and via replicating access. */
     #watched(): Watch[] {
         return [...this.#deciding(), ...this.#via.flatMap((relay) => relay.watches)];
     }
@@ -417,7 +413,7 @@ export class ObjectAudience implements Audience {
     #listed(
         table: Table,
     ): { readonly object: ObjectType; readonly permission: Permission } | "query" {
-        // leave the journal and the copies' records to their queries, and every row to a follower keeping it by containment
+        // leave the journal and replica records to their queries, and contained rows to their follower
         if (
             this.#isContained ||
             table === journal ||
@@ -437,12 +433,12 @@ export class ObjectAudience implements Audience {
     }
 }
 
-/** A scope an outside follower copies its chain via, replicated at every decision. */
+/** A scope an outside follower replicates its chain via, replicated at every decision. */
 interface Relay {
     /** The scope. */
     readonly scope: string;
     /** The scope's own row and the access rows of its chain, whose changes decide again. */
     readonly watches: readonly Watch[];
     /** Require the follower to replicate the scope. */
-    require(): Promise<void>;
+    readonly require: () => Promise<void>;
 }

@@ -40,9 +40,9 @@ test("check the caller's own access under its grant, and another subject's for g
     // keep a private space owned by alice and read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
     const fixture = new AccessFixture(storage.database);
-    await fixture.copyScope(object, "own");
-    await fixture.copyOwner(object, alice);
-    await fixture.copyRole(
+    await fixture.replicateScope(object, "own");
+    await fixture.bindOwner(object, alice);
+    await fixture.replicateRole(
         object,
         { name: "reader", description: "Reads the space", permissions: [space.permission("read")] },
         bob,
@@ -51,6 +51,7 @@ test("check the caller's own access under its grant, and another subject's for g
         .insert(space.table)
         .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
         objects: [relationship],

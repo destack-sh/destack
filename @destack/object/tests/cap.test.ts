@@ -1,3 +1,4 @@
+import { ResourceContext } from "@destack/resource/context";
 import { principal } from "@destack/access";
 import { ObjectTypeReference } from "@destack/sync";
 import { Clock } from "@destack/schema";
@@ -7,9 +8,9 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { createClient } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey, testKeys } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
-import type { InstallationContext } from "@destack/runtime/workload";
+import type { ServerContext } from "@destack/runtime/workload";
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
@@ -38,41 +39,39 @@ async function serveInstalledNotes() {
     await openSpace(database, spaceId);
 
     // serve them as the notes installation, which reaches nothing beyond its own database here
-    const installation: InstallationContext = {
-        id: "installation-01996ab0-0000-7000-8000-000000000003",
-        scope: spaceId,
+    const server: ServerContext = {
+        installation: "installation-01996ab0-0000-7000-8000-000000000003",
+        name: "notes",
+        space: spaceId,
         build: await MemoryBuild.write(new Map(), { package: note.package }),
+        resources: new ResourceContext(),
+        fetch: (sent) => Promise.reject(new Error(`the notes reach no ${sent.url}`)),
         publisher: {
             stream: () => {
-                throw new TypeError("the fixture streams no copies");
+                throw new TypeError("the fixture streams no replicas");
             },
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
         },
         settings: {},
+        keys: await testKeys(),
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
         },
         at: () => {
             throw new TypeError("the fixture fetches no address");
         },
-        directory: {
-            locale: () => Promise.reject(new TypeError("the fixture knows no person")),
-            messageKey: () => Promise.reject(new TypeError("the fixture seals no messages")),
-        },
     };
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
-        principal: principal.installation.reference(installation.scope, installation.id),
+        principal: principal.installation.reference(server.space, server.installation),
         objects: [notebook, note],
         database,
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: note.package },
         installed: new Map(
-            [notebook, note].map((type) => [
-                ObjectTypeReference.key(type.typeReference),
-                installation,
-            ]),
+            [notebook, note].map((type) => [ObjectTypeReference.key(type.typeReference), server]),
         ),
     });
     const served = serveObjects(
@@ -90,7 +89,7 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
     const packing = await alice.note.create({ ...request(), title: "Packing" });
     const tickets = await alice.note.create({ ...request(), title: "Tickets" });
 
-    // cap the space's storage, as the copy of its scope row arrives from its machine
+    // cap the space's storage, as the replica of its scope row arrives from its machine
     await Transaction.run(database, (transaction) => Scope.cap(transaction, spaceId, Date.now()));
     const created = await refusal(alice.note.create({ ...request(), title: "Hotels" }));
     const updated = await refusal(

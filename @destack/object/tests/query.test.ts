@@ -53,7 +53,7 @@ test.for(TEST_DIALECTS)(
             { group: { parentId: bookId }, values: { notes: 3 } },
         ]);
 
-        // keep the same once the server executed them and the copy has its rows
+        // keep the same once the server executed them and the replica has its rows
         device.online();
         await created.confirmed;
         await Promise.all([books.ready, counts.ready]);
@@ -159,7 +159,7 @@ test.for(TEST_DIALECTS)(
         expect([
             first.items.map((item) => item.name),
             includedTitles(first.included, "notes", home),
-            { notes: extrasOf(first.extras, home)["size"] },
+            { notes: readExtras(first.extras, home)["size"] },
             second.items.map((item) => item.name),
             includedTitles(second.included, "notes", travel),
             second.cursor,
@@ -242,7 +242,7 @@ test.for(TEST_DIALECTS)(
             null,
         ]);
 
-        // read the same query from a local copy, the computed values inline
+        // read the same query from a local replica, the computed values inline
         const device = await Device.open("alice", endpoint("alice"), []);
         device.online();
         const local = device.client.query.notebook
@@ -293,7 +293,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
         });
 
-        // list them on the server, and read them from a device's copy
+        // list them on the server, and read them from a device's replica
         const query = {
             where: { notes: { pinned: true } },
             orderBy: { name: "asc" } as const,
@@ -384,7 +384,7 @@ test.for(TEST_DIALECTS)(
         await book("Work", ["Plan"]);
         await book("Home", ["Garden", "Budget"]);
 
-        // sort by the notebook's name and the title, on the server and in a device's copy
+        // sort by the notebook's name and the title, on the server and in a device's replica
         const query = {
             extras: { notebook: Expression.lookup("parent", "name") },
             orderBy: { notebook: "asc", title: "asc" } as const,
@@ -395,7 +395,10 @@ test.for(TEST_DIALECTS)(
         const local = device.client.query.note.findMany(query).subscribe();
         await local.ready;
         expect([
-            listed.items.map((item) => [extrasOf(listed.extras, item.id)["notebook"], item.title]),
+            listed.items.map((item) => [
+                readExtras(listed.extras, item.id)["notebook"],
+                item.title,
+            ]),
             (await local.read()).map((row) => [row["notebook"], row["title"]]),
         ]).toEqual([
             [
@@ -447,7 +450,7 @@ test.for(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
         });
 
-        // order them by their pinned notes and by name, on the server and in a device's copy
+        // order them by their pinned notes and by name, on the server and in a device's replica
         const query = {
             extras: {
                 pinned: Expression.rollup("count", "notes", undefined, { pinned: true }),
@@ -460,7 +463,7 @@ test.for(TEST_DIALECTS)(
         const local = device.client.query.notebook.findMany(query).subscribe();
         await local.ready;
         expect([
-            listed.items.map((item) => [item.name, extrasOf(listed.extras, item.id)["pinned"]]),
+            listed.items.map((item) => [item.name, readExtras(listed.extras, item.id)["pinned"]]),
             (await local.read()).map((row) => [row["name"], row["pinned"]]),
         ]).toEqual([
             [
@@ -490,7 +493,7 @@ test.for(TEST_DIALECTS)(
         await kept.ready;
         await kept.close();
 
-        // receive a notebook the server creates after the close into the local copy
+        // receive a notebook the server creates after the close into the local replica
         await alice.notebook.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
@@ -547,7 +550,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "describe what a client's copy has, the queries it follows and what waits for the server on %s",
+    "describe what a client's replica has, the queries it follows and what waits for the server on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect("alice");
@@ -564,7 +567,7 @@ test.for(TEST_DIALECTS)(
         await notebooks.ready;
         await notebooks.close();
 
-        // describe the budgeted copy, the query kept always, and an empty outbox
+        // describe the budgeted replica, the query kept always, and an empty outbox
         const inspection = await device.client.inspect();
         expect([
             inspection.rows,
@@ -573,7 +576,8 @@ test.for(TEST_DIALECTS)(
             inspection.replica.isLaidOut,
             Object.keys(
                 QueriesParameters.parse(
-                    present(inspection.replica.subscription, "the copy's subscription").parameters,
+                    present(inspection.replica.subscription, "the replica's subscription")
+                        .parameters,
                 ).queries ?? {},
             ).length,
             inspection.mutations,
@@ -635,7 +639,7 @@ test("watch a query keeping each unchanged row as the same object after another 
 });
 
 /** Read what a listed row includes under an include's name. */
-function includedOf(
+function readIncluded(
     includes: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
     name: string,
     id: string,
@@ -649,11 +653,11 @@ function includedTitles(
     name: string,
     id: string,
 ): string[] {
-    return TITLED_ROWS.parse(includedOf(includes, name, id)).map((row) => row.title);
+    return TITLED_ROWS.parse(readIncluded(includes, name, id)).map((row) => row.title);
 }
 
 /** Read the extras a listed query computes for one row. */
-function extrasOf<Value>(
+function readExtras<Value>(
     extras: Readonly<Record<string, Readonly<Record<string, Value>>>> | undefined,
     id: string,
 ): Readonly<Record<string, Value>> {

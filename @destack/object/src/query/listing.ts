@@ -1,8 +1,22 @@
-import type { Permission } from "@destack/access";
-import { sql, TABLE, type Row, type SQL, type Table } from "@destack/db";
-import type { Audience, Watch } from "@destack/sync";
+import { Caller, type Permission } from "@destack/access";
+import { type Snapshot, sql, TABLE, Transaction, type Row, type SQL, Table } from "@destack/db";
+import { CallError } from "@destack/runtime/error";
+import { aligned, canonicalize, schema } from "@destack/schema";
+import { type Audience, Dataflow, Replica, View, type Watch } from "@destack/sync";
+import type * as sync from "@destack/sync";
+import { Page } from "../method/page.ts";
+import { PageShape } from "../method/procedure.ts";
+import { QueryShape, ViewShape } from "../replica/replica.ts";
+import { EventLog } from "./event.ts";
+import { nestItem } from "./item.ts";
 import type { Call } from "../method/call.ts";
 import type { ObjectType } from "../object/object.ts";
+import { Execution } from "../method/execution.ts";
+
+/** The query, page and view of a list's input, beside its scope fields. */
+const LIST_INPUT = schema.looseObject({ ...QueryShape, ...PageShape, ...ViewShape });
+/** The query, page and view of a list's input. */
+export type ListInput = schema.Infer<typeof LIST_INPUT>;
 
 /** The rows one call's caller may list, decided once. */
 export class Listing implements Audience {
@@ -12,34 +26,190 @@ export class Listing implements Audience {
     readonly key = "call";
     /** The call listing the objects. */
     readonly #call: Call;
+    /** Where the call executes. */
+    readonly #execution: Execution;
     /** The object types the call lists, by table. */
     readonly #objects: ObjectTypeIndex;
 
     /** List objects as a call's caller may list them. */
-    constructor(call: Call) {
+    constructor(call: Call, execution: Execution) {
         this.#call = call;
+        this.#execution = execution;
         this.#objects = new ObjectTypeIndex(call.objects);
+    }
+
+    /** Read a page of the call's query rows or its aggregate groups. */
+    async list() {
+        // read an events type's rows from the event log on a server, hot and flushed alike
+        const call = this.#call;
+        const input = LIST_INPUT.parse(call.input);
+        const execution = this.#execution;
+        if (call.object.storage === "events" && execution.kind === "store") {
+            return EventLog.page(call, execution, input);
+        }
+
+        // bind the cursor to the query
+        const { cursor, limit, at: _at, branch: _branch, ...options } = input;
+        const listing = new Page(
+            {
+                ...(cursor === undefined ? {} : { cursor }),
+                ...(limit === undefined ? {} : { limit }),
+            },
+            [call.object.name, call.scope, canonicalize(options)],
+            schema.jsonObject(),
+        );
+
+        // compile the query with one extra row over the scopes the caller sees
+        const replicated = await Replica.scopes(
+            Execution.snapshot(execution).database,
+            call.object.table,
+            call.scope,
+            Caller.principal(call.caller),
+        );
+        const compiled = {
+            ...call.object.compile(
+                options.aggregate === undefined
+                    ? { ...options, limit: listing.limit + 1 }
+                    : options,
+                call.objects,
+            ),
+            scopes: [...new Set([...call.object.readScopes(call.chain), ...replicated])],
+        };
+        const dataflow = this.#dataflow(compiled);
+        const node = aligned(dataflow.roots, 0);
+
+        // read groups at the latest position, or rows
+        const requested = this.#requested();
+        const position = requested?.position;
+        const after =
+            listing.after === undefined ? undefined : Table.decode(node.table, listing.after);
+        const view = Execution.snapshot(execution);
+        await dataflow.load(await View.of(view.database, requested), after);
+        if (node.aggregate !== undefined && position !== undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: "aggregates read only the latest position, where access decides them",
+            });
+        } else if (node.aggregate !== undefined) {
+            return { items: [], cursor: null, groups: await dataflow.results("list") };
+        }
+
+        // keep the items the caller could read and split includes and computed values
+        const kept = await this.#readable(await dataflow.read("list"));
+        const listed = listing.result(kept, (item) =>
+            node.table[TABLE].encode(node.position(item.row)),
+        );
+
+        return { ...listed, ...Listing.#split(listed.items, node, compiled) };
+    }
+
+    /** Build the dataflow listing a call's query, materialized for the call's audience. */
+    #dataflow(compiled: sync.Query): Dataflow {
+        const { database } = Execution.snapshot(this.#execution);
+
+        return new Dataflow(
+            { list: compiled },
+            {
+                audience: this,
+                database,
+                changesThrough: Dataflow.changesThrough(database),
+                isMaterialized: true,
+            },
+        );
+    }
+
+    /** Keep the items whose rows the caller could read at the snapshot position. */
+    async #readable(read: readonly sync.Item[]): Promise<readonly sync.Item[]> {
+        // keep every item at the latest position
+        const call = this.#call;
+        const execution = this.#execution;
+        const snapshot = this.#requested();
+        if (snapshot?.position === undefined || execution.kind !== "store") {
+            return read;
+        }
+
+        // keep the items whose rows access permits at the snapshot position
+        const permitted = new Set(
+            await execution.authorization.keepAt(
+                read.map((item) => item.row),
+                call.permission(),
+                snapshot,
+                call.scope,
+            ),
+        );
+
+        return read.filter((item) => permitted.has(item.row));
+    }
+
+    /** Read the snapshot a store's call asked to read at a position or over a branch. */
+    #requested(): Snapshot | undefined {
+        const execution = this.#execution;
+
+        return execution.kind === "store" && !(execution.view instanceof Transaction)
+            ? execution.view
+            : undefined;
+    }
+
+    /** Split listed items into their rows, their included rows and their computed values. */
+    static #split(listed: readonly sync.Item[], node: sync.Node, compiled: sync.Query) {
+        // list the included relations and the computed values
+        const names = node.children
+            .filter((child) => child.kind === "include")
+            .map((child) => child.name.slice(node.name.length + 1));
+        const extras = Object.keys(node.extras);
+        const values = Object.fromEntries(
+            listed.map(({ row }) => [
+                schema.string().parse(row["id"]),
+                Object.fromEntries(extras.map((name) => [name, node.scalar(name, row[name])])),
+            ]),
+        );
+
+        // index the included rows by relation and item
+        const nestedRows = listed.map((item) => nestItem(item, compiled));
+        const included = Object.fromEntries(
+            names.map((name) => [
+                name,
+                Object.fromEntries(
+                    nestedRows.map((row) => [
+                        schema.string().parse(row["id"]),
+                        schema.json().parse(row[name]),
+                    ]),
+                ),
+            ]),
+        );
+
+        // strip the computed values from the rows
+        const items = listed.map(({ row }) =>
+            Object.fromEntries(Object.entries(row).filter(([name]) => !extras.includes(name))),
+        );
+
+        return {
+            items,
+            ...(names.length === 0 ? {} : { included }),
+            ...(extras.length === 0 ? {} : { extras: values }),
+        };
     }
 
     /** Match the rows the caller may list. */
     where(table: Table): SQL | "memory" {
         // list every row of a prediction
         const { object, permission } = this.#objects.listed(table);
-        if (this.#call.isPredicted) {
+        const execution = this.#execution;
+        if (execution.kind === "client") {
             return sql`true`;
         }
 
-        return this.#call.requireAuthorization().listable(object, permission);
+        return execution.authorization.listable(object, permission);
     }
 
     /** Decide which rows of a table the caller may list, at once. */
     async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
         // admit every row of a prediction
         const { object, permission } = this.#objects.listed(table);
-        if (this.#call.isPredicted) {
+        const execution = this.#execution;
+        if (execution.kind === "client") {
             return new Set(rows.keys());
         }
-        const authorization = this.#call.requireAuthorization();
+        const { authorization } = execution;
         const admitted = await authorization.admitRows(object, permission, this.#call.scope, rows);
 
         return admitted.permitted;
@@ -54,10 +224,11 @@ export class Listing implements Audience {
     async conceals(table: Table, rows: readonly Row[]): Promise<readonly (readonly string[])[]> {
         // conceal nothing from a prediction
         const { object } = this.#objects.listed(table);
-        if (this.#call.isPredicted) {
+        const execution = this.#execution;
+        if (execution.kind === "client") {
             return rows.map(() => []);
         }
-        const concealed = await this.#call.requireAuthorization().concealed(object, rows);
+        const concealed = await execution.authorization.concealed(object, rows);
 
         return concealed.hidden;
     }

@@ -12,6 +12,7 @@ import {
     text,
     type DatabaseConnection,
     type Select,
+    textEnum,
 } from "@destack/db";
 
 import { schema, Version } from "@destack/schema";
@@ -34,7 +35,7 @@ export const undoEntry = defineTable("undo_entry", {
     /** The entry's place in its party's stack. */
     sequence: integer("sequence").notNull(),
     /** Whether the entry is on the undo or the redo stack. */
-    state: text("state", { enum: ["done", "undone"] }).notNull(),
+    state: textEnum("state", ["done", "undone"]).notNull(),
     /** The steps it last applied. */
     steps: json("steps", schema.json()).notNull(),
     /** The mutation that last applied them. */
@@ -55,10 +56,10 @@ const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
         object: ObjectTypeReference,
         release: Version,
         name: schema.string(),
-        input: schema.record(schema.string(), schema.json()),
+        input: schema.jsonObject(),
         result: schema.unknown().exactOptional(),
-        before: schema.record(schema.string(), schema.json()).exactOptional(),
-        after: schema.record(schema.string(), schema.json()).exactOptional(),
+        before: schema.jsonObject().exactOptional(),
+        after: schema.jsonObject().exactOptional(),
     }),
 );
 
@@ -138,12 +139,15 @@ export class UndoStack {
         // chain after the previous toggle
         const mutationId = RequestId.create(this.client.clock.now());
         const predicted = this.#toggling.then(() => this.#invert(from, to, mutationId));
+        // keep toggling after a failed one, and answer its failure in the returned prediction
         this.#toggling = predicted.catch(() => {});
         const confirmed = predicted.then(async (isApplied) => {
             if (isApplied) {
                 await this.client.outcome(mutationId);
             }
         });
+
+        // mark the confirmation handled, and answer its failure in the returned submission
         confirmed.catch(() => {});
 
         return { predicted, confirmed };

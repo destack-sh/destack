@@ -9,7 +9,13 @@ import * as sqlite from "@destack/db/bun";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { RequestId } from "@destack/runtime/request";
-import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
+import {
+    type ObjectOf,
+    defineObject,
+    field,
+    type CallableName,
+    type ObjectType,
+} from "../src/index.ts";
 import { EphemeralStorage, ObjectStore } from "../src/server/index.ts";
 import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/runtime/client";
@@ -17,7 +23,7 @@ import { definePackage } from "@destack/runtime/declare";
 import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space with the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
@@ -33,7 +39,7 @@ const presence = defineObject({
         member: field.reference(principal.user).caller(),
         activity: field.string(schema.string().min(1).max(64)),
         cursor: field.integer().optional(),
-        profile: field.reference("profile", (): ObjectType => profile).optional(),
+        profile: field.reference((): ObjectOf<{ identity: "profile" }> => profile).optional(),
     },
     permissions: {
         read: through("parent", "present"),
@@ -259,8 +265,8 @@ test.for(TEST_DIALECTS)(
         });
 
         // follow the owner's presence from the other instance
-        const alice = await clientOf(east, "alice");
-        const bob = await clientOf(west, "bob");
+        const alice = await openClient(east, "alice");
+        const bob = await openClient(west, "bob");
         await alice.client.query.presence.findMany().subscribe().ready;
         const seen = bob.client.query.presence.findMany().subscribe();
         await alice.client.mutate(presence).create({
@@ -296,14 +302,14 @@ test.for(TEST_DIALECTS)(
         });
 
         // listen for the board's events as bob before he may read it
-        const alice = await clientOf(east, "alice");
-        const bob = await clientOf(west, "bob");
+        const alice = await openClient(east, "alice");
+        const bob = await openClient(west, "bob");
         const boards = bob.client.query.board.findMany().subscribe();
         const listening = new AbortController();
         onTestFinished(() => listening.abort());
         const received = bob.client.broadcasts(board, plans.id, listening.signal).next();
 
-        // grant him the board and deliver her reaction once his copy has it
+        // grant him the board and deliver her reaction once his replica has it
         await east.call("alice", board, "grant", {
             requestId: RequestId.create(Date.now()),
             id: plans.id,
@@ -341,8 +347,8 @@ test.for(TEST_DIALECTS)(
         });
 
         // show the viewer each board with the presence on it and the profile each presence refers to
-        const alice = await clientOf(east, "alice");
-        const bob = await clientOf(west, "bob");
+        const alice = await openClient(east, "alice");
+        const bob = await openClient(west, "bob");
         await alice.client.query.presence.findMany().subscribe().ready;
         await alice.client.mutate(presence).create({
             parent: { packageId: board.policy.definition.packageId, type: "board", id: plans.id },
@@ -402,7 +408,7 @@ test.for(TEST_DIALECTS)(
         }
         expect(refused).toMatchObject({
             code: "BAD_REQUEST",
-            message: "object board relates no presences of another storage",
+            message: "object board cannot relate presences: it has another storage",
         });
     },
 );
@@ -442,6 +448,7 @@ async function serveBoards(dialect: Dialect) {
         );
         onTestFinished(() => ephemeral[Symbol.asyncDispose]());
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [presence, board, profile],
@@ -468,8 +475,8 @@ async function serveBoards(dialect: Dialect) {
                 as: string,
                 object: Object,
                 name: Name,
-                input: object,
-            ) => request(store, object, name, { spaceId, ...input }, context(as).context),
+                input: NoInfer<RequestInput<Object, Name>>,
+            ) => request(store, object, name, spaceId, input, context(as).context),
             /** Follow the space's presence as a user's client. */
             follow: (as: string, writerId: string) => {
                 // read the pages in the background into the rows received, waking whoever waits for the next
@@ -554,7 +561,10 @@ function context(as: string) {
 }
 
 /** Open a user's client of the boards over one instance. */
-async function clientOf(instance: { endpoint(user: string): ClientOptions }, as: string) {
+async function openClient(
+    instance: { readonly endpoint: (user: string) => ClientOptions },
+    as: string,
+) {
     // keep the boards and presence in a local database
     const storage = await TestDatabase.create(
         "sqlite",

@@ -1,10 +1,12 @@
-import type { Extras, Group } from "@destack/db";
-import type { Duration } from "@destack/schema";
+import * as db from "@destack/db";
+import type { Extras } from "@destack/db";
+import { type Duration, mapValues } from "@destack/schema";
 import * as sync from "@destack/sync";
+import type { AggregateRow } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
-import type { OpenQueryOptions, RelationOptions } from "../replica/replica.ts";
+import type { ObjectQuery } from "../replica/replica.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
-import { relate, type NestedItem } from "../query/item.ts";
+import { type NestedItem, relateItems } from "../query/item.ts";
 import type { LiveQuery } from "./client.ts";
 
 /** How long a closed live query stays followed: for a while, always, or not at all when absent. */
@@ -19,21 +21,25 @@ export interface LiveItems extends LiveQuery {
     readonly query: sync.Query;
 }
 
-/** Keep queries in their open form live over a client's copy. */
+/** Keep queries in their open form live over a client's replica. */
 export interface Subscriber {
     /** Keep a query's items live. */
-    rows(object: ObjectType, query: OpenQueryOptions, options: SubscribeOptions): LiveItems;
-    /** Keep an aggregate query's groups live. */
-    results(
+    readonly rows: (
         object: ObjectType,
-        query: OpenQueryOptions,
+        query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
-    ): LiveQuery<readonly sync.AggregateRow[]>;
+    ) => LiveItems;
+    /** Keep an aggregate query's groups live. */
+    readonly results: (
+        object: ObjectType,
+        query: Omit<ObjectQuery, "object">,
+        options: SubscribeOptions,
+    ) => LiveQuery<readonly sync.AggregateRow[]>;
 }
 
 /** The relational queries of one object type. */
 export class RelationalQueryBuilder<Object extends ObjectType, Objects extends ObjectType> {
-    /** Keep queries live over the client's copy. */
+    /** Keep queries live over the client's replica. */
     readonly #subscriber: Subscriber;
     /** The queried object type. */
     readonly #object: Object;
@@ -50,19 +56,19 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         const Options extends FindOptions<Object, Objects, "many", Computed> = {},
     >(
         options?: Options & { readonly extras?: Computed },
-    ): RelationalQuery<readonly FindResult<Object, Objects, Options>[]>;
-    /**
-     * Query the rows with their relations, typed by the signature above.
-     *
-     * @construct the rows come from the options' query over this object, as FindResult maps them.
-     */
-    findMany(options: OpenQueryOptions = {}): RelationalQuery<readonly NestedItem[]> {
-        const select = RelationalQuery.selecting(options);
+    ): RelationalQuery<readonly FindResult<Object, Objects, Options>[]> {
+        // keep each item selected and nested as the options ask
+        const opened: Omit<ObjectQuery, "object"> = options ?? {};
+        const select = RelationalQuery.selecting(opened, (item) =>
+            mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
+        );
 
-        return new RelationalQuery(this.#object, options, (keep) => {
-            const live = this.#subscriber.rows(this.#object, options, keep);
+        return new RelationalQuery(this.#object, opened, (keep) => {
+            const live = this.#subscriber.rows(this.#object, opened, keep);
 
-            return presented(live, (items) => items.map((item) => select(item, live.query)));
+            return RelationalQuery.presented(live, (items) =>
+                items.map((item) => select(item, live.query)),
+            );
         });
     }
 
@@ -72,20 +78,18 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         const Options extends Omit<FindOptions<Object, Objects, "many", Computed>, "limit"> = {},
     >(
         options?: Options & { readonly extras?: Computed },
-    ): RelationalQuery<FindResult<Object, Objects, Options> | undefined>;
-    /**
-     * Query the first row with its relations, typed by the signature above.
-     *
-     * @construct the first row comes from the options' query, as FindResult maps the options.
-     */
-    findFirst(options: OpenQueryOptions = {}): RelationalQuery<NestedItem | undefined> {
-        const select = RelationalQuery.selecting(options);
-        const first = { ...options, limit: 1 };
+    ): RelationalQuery<FindResult<Object, Objects, Options> | undefined> {
+        // keep the first item selected and nested as the options ask
+        const opened: Omit<ObjectQuery, "object"> = options ?? {};
+        const select = RelationalQuery.selecting(opened, (item) =>
+            mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
+        );
+        const first = { ...opened, limit: 1 };
 
         return new RelationalQuery(this.#object, first, (keep) => {
             const live = this.#subscriber.rows(this.#object, first, keep);
 
-            return presented(live, ([item]) =>
+            return RelationalQuery.presented(live, ([item]) =>
                 item === undefined ? undefined : select(item, live.query),
             );
         });
@@ -94,37 +98,35 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     /** Measure the rows per group. */
     aggregate<const Options extends AggregateOptions<Object, Objects>>(
         options: Options,
-    ): RelationalQuery<readonly Group<Options>[]>;
-    /**
-     * Measure the rows per group, typed by the signature above.
-     *
-     * @construct each group has the requested measures over this object, as Group maps them.
-     */
-    aggregate(
-        options: AggregateOptions<ObjectType, ObjectType>,
-    ): RelationalQuery<readonly sync.AggregateRow[]> {
-        const { where, ...aggregate } = options;
-        const query = { ...(where === undefined ? {} : { where }), aggregate };
+    ): RelationalQuery<readonly AggregateRow<Options>[]> {
+        // measure the groups the options ask for
+        const opened: AggregateOptions<ObjectType, ObjectType> = options;
+        const { where, ...aggregate } = opened;
+        const asked = { ...(where === undefined ? {} : { where }), aggregate };
 
-        return new RelationalQuery(this.#object, query, (keep) =>
-            this.#subscriber.results(this.#object, query, keep),
+        return new RelationalQuery(this.#object, asked, (keep) =>
+            RelationalQuery.presented(this.#subscriber.results(this.#object, asked, keep), (rows) =>
+                rows.map((row) =>
+                    mapValues<sync.AggregateRow, AggregateRow<Options>>(row, (value) => value),
+                ),
+            ),
         );
     }
 }
 
-/** A lazy query of a client's copy, read once when awaited and live when subscribed. */
+/** A lazy query of a client's replica, read once when awaited and live when subscribed. */
 export class RelationalQuery<Value> implements PromiseLike<Value> {
     /** The queried object type. */
     readonly object: ObjectType;
     /** The query in its open form. */
-    readonly options: OpenQueryOptions;
-    /** Keep the query live over the client's copy, its reads shaped into the query's value. */
+    readonly options: Omit<ObjectQuery, "object">;
+    /** Keep the query live over the client's replica, its reads shaped into the query's value. */
     readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
     /** Describe a query of one object type, followed live with its value shaped from its reads. */
     constructor(
         object: ObjectType,
-        options: OpenQueryOptions,
+        options: Omit<ObjectQuery, "object">,
         follow: (options: SubscribeOptions) => LiveQuery<Value>,
     ) {
         this.object = object;
@@ -133,8 +135,11 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     }
 
     /** Select a query's items, keeping each unchanged item's object across reads. */
-    static selecting(options: RelationOptions): (item: sync.Item, query: sync.Query) => NestedItem {
-        const selected = new WeakMap<sync.Item, NestedItem>();
+    static selecting<Result>(
+        options: db.FindOptions,
+        shape: (item: NestedItem) => Result,
+    ): (item: sync.Item, query: sync.Query) => Result {
+        const selected = new WeakMap<sync.Item, Result>();
 
         return (item, query) => {
             // reuse the selection of an unchanged item
@@ -143,8 +148,8 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
                 return known;
             }
 
-            // select a new item once
-            const created = RelationalQuery.select(item, options, query);
+            // select and shape a new item once
+            const created = shape(RelationalQuery.select(item, options, query));
             selected.set(item, created);
 
             return created;
@@ -152,7 +157,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     }
 
     /** Keep the selected fields and nest each relation's selected items, as the query relates. */
-    static select(item: sync.Item, options: RelationOptions, query: sync.Query): NestedItem {
+    static select(item: sync.Item, options: db.FindOptions, query: sync.Query): NestedItem {
         // keep the selected columns and every extra
         const columns = options.columns ?? {};
         const extras = options.extras ?? {};
@@ -164,26 +169,26 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         );
 
         // nest each relation's selected items, a one relation's item or null
-        const relations = Object.entries(options.with ?? {}).map(
+        const relations = db.FindOptions.includes(options).map(
             ([name, relation]): [string, NestedItem[string]] => {
                 const include = sync.included(query, name);
                 const selected = (item.with[name] ?? []).map((entry) =>
-                    RelationalQuery.select(entry, relation === true ? {} : relation, include.query),
+                    RelationalQuery.select(entry, relation, include.query),
                 );
 
-                return [name, relate(include.relation, selected)];
+                return [name, relateItems(include.relation, selected)];
             },
         );
 
         return Object.fromEntries([...fields, ...relations]);
     }
 
-    /** Keep the query live over the client's copy until closed. */
+    /** Keep the query live over the client's replica until closed. */
     subscribe(options: SubscribeOptions = {}): LiveQuery<Value> {
         return this.#follow(options);
     }
 
-    /** Read the query once, following it only until the copy has it. */
+    /** Read the query once, following it only until the replica has it. */
     then<Fulfilled = Value, Rejected = never>(
         fulfilled?: ((value: Value) => Fulfilled | PromiseLike<Fulfilled>) | null,
         rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
@@ -191,7 +196,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         return this.#read().then(fulfilled, rejected);
     }
 
-    /** Follow the query until the copy has it, read it, and close it. */
+    /** Follow the query until the replica has it, read it, and close it. */
     async #read(): Promise<Value> {
         const live = this.subscribe();
         try {
@@ -202,28 +207,28 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
             await live.close();
         }
     }
-}
 
-/** Shape each read of a live query into a value. */
-function presented<Read, Value>(
-    live: LiveQuery<Read>,
-    shape: (read: Read) => Value,
-): LiveQuery<Value> {
-    return {
-        ready: live.ready,
-        read: async () => shape(await live.read()),
-        watch: (signal) => watched(live, shape, signal),
-        close: () => live.close(),
-    };
-}
+    /** Shape each read of a live query into a value. */
+    static presented<Read, Value>(
+        live: LiveQuery<Read>,
+        shape: (read: Read) => Value,
+    ): LiveQuery<Value> {
+        return {
+            ready: live.ready,
+            read: async () => shape(await live.read()),
+            watch: (signal) => RelationalQuery.watched(live, shape, signal),
+            close: () => live.close(),
+        };
+    }
 
-/** Shape each watched read of a live query into a value. */
-async function* watched<Read, Value>(
-    live: LiveQuery<Read>,
-    shape: (read: Read) => Value,
-    signal: AbortSignal,
-): AsyncGenerator<Value> {
-    for await (const read of live.watch(signal)) {
-        yield shape(read);
+    /** Shape each watched read of a live query into a value. */
+    static async *watched<Read, Value>(
+        live: LiveQuery<Read>,
+        shape: (read: Read) => Value,
+        signal: AbortSignal,
+    ): AsyncGenerator<Value> {
+        for await (const read of live.watch(signal)) {
+            yield shape(read);
+        }
     }
 }

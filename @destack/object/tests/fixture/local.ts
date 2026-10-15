@@ -12,7 +12,7 @@ export const user = defineObject({
     permissions: [],
 }).methods();
 
-/** A draft one client keeps for its signed-in user alone. */
+/** A draft one client keeps only for its signed-in user. */
 export const draft = defineObject({
     name: "draft",
     plural: "drafts",

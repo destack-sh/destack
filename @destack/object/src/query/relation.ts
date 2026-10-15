@@ -58,7 +58,7 @@ type OneRelations<Object extends ObjectType, Configuration extends ObjectConfigu
     ]: One<TargetOf<Configuration["fields"][Key], Objects>>;
 } & ParentRelation<Object, Configuration["parent"], Objects>;
 
-/** The relation a served reference declares, never for other fields. */
+/** The relation a served reference declares, absent for other fields. */
 type ReferenceName<Declared, Objects> =
     Declared extends Field<infer Configuration>
         ? [Configuration["relation"]] extends [never]

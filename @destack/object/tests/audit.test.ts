@@ -56,6 +56,7 @@ test("name the version a read disclosed in its recorded call, apart from its val
         },
     });
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
         objects: [handled],

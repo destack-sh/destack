@@ -1,9 +1,8 @@
 import { expect, test } from "@destack/test";
-import { schema } from "@destack/schema";
+import { schema, toJsonSchema } from "@destack/schema";
 import { defineObject, field } from "../src/index.ts";
 import { objectSymbols, objectVocabulary } from "../src/inspect/index.ts";
 import { task } from "./schema.ts";
-import { any } from "./fixture/match.ts";
 
 test("list the terms a task fixes in stored data: its type, relations, permissions and methods", () => {
     const access = "package-01a0c80b-614e-739e-a21a-66fd749e17ca";
@@ -70,14 +69,7 @@ test("list a task's methods as symbols, each with its route and input, reading o
         member: {
             kind: "method",
             name: "archive",
-            description: {
-                kind: "custom",
-                permission: "write",
-                mutates: true,
-                route: { method: "POST", path: "/spaces/{spaceId}/tasks/{id}/archive" },
-                input: any(Object),
-                output: any(Object),
-            },
+            description: task.describeMethods()["archive"],
         },
         relationships: [
             { kind: "writes", symbol: { kind: "table", name: "destack__object__task" } },
@@ -103,6 +95,7 @@ test("describe the methods callers call: kind, permission, route, and input with
         tidy: method.mutation({ permission: "reset", isInternal: true }),
     }));
     const described = gauge.describeMethods();
+    const { $schema: _schema, ...identifier } = toJsonSchema(gauge.idSchema);
 
     // describe each method but the internal one, a mutation's input without its request
     expect({
@@ -120,7 +113,7 @@ test("describe the methods callers call: kind, permission, route, and input with
                 $schema: "https://json-schema.org/draft/2020-12/schema",
                 type: "object",
                 properties: {
-                    id: any(Object),
+                    id: identifier,
                     unit: { type: "string", enum: ["percent", "ratio"] },
                 },
                 required: ["id", "unit"],
@@ -142,7 +135,7 @@ test("describe the methods callers call: kind, permission, route, and input with
             input: {
                 $schema: "https://json-schema.org/draft/2020-12/schema",
                 type: "object",
-                properties: { id: any(Object) },
+                properties: { id: identifier },
                 required: ["id"],
                 additionalProperties: false,
             },

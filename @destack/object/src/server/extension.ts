@@ -1,21 +1,28 @@
-import { type Policy, principal, type TableMapping } from "@destack/access";
-import type { Table } from "@destack/db";
+import { principal, type SignedCaller } from "@destack/access";
+import { CallError } from "@destack/runtime/error";
 import type { Identifier } from "@destack/schema";
 import { Egress, PACKAGE_DECLARATION, PackageDescription, PackageHandle } from "@destack/runtime";
 import type { KnownDeclaration } from "../object/description.ts";
 import { declareInstalled } from "../inspect/object.ts";
 import type { RequestContext, PackageImplementation } from "@destack/runtime/server";
-import { ObjectTypeReference, type Shape, type Subject, type Uplink } from "@destack/sync";
-import type { InstallationContext } from "@destack/runtime/workload";
+import { ObjectTypeReference, type Publisher, type Subject, type Uplink } from "@destack/sync";
+import type { Follow } from "../replica/shape.ts";
+import type { ServerContext } from "@destack/runtime/workload";
 import { copyRequest } from "@destack/runtime/request";
+import type { Controller } from "@destack/runtime/control";
 import { ObjectType } from "../object/object.ts";
-import type { SandboxHooks } from "../hook/sandbox.ts";
+import type { HookSandbox } from "../hook/sandbox.ts";
 import type { ExternalStorage } from "./external.ts";
 import type { ProvisionedOptions } from "./provisioned.ts";
-import { ObjectStore, type ObjectStoreOptions, type SubscriberEntry } from "./store.ts";
+import { type CallLog, ObjectStore, type StoreOptions } from "./store.ts";
 
-/** Answer a request to an adapter, its path relative to the adapter's mount. */
-export type AdapterFetch = (request: Request, context: RequestContext) => Promise<Response>;
+/** Answer a request below an adapter's mount over the package's store, as the admitted caller. */
+export type AdapterFetch = (
+    request: Request,
+    caller: SignedCaller | undefined,
+    context: RequestContext,
+    store: ObjectStore,
+) => Promise<Response>;
 
 /** What an extension adds once the space's store exists. */
 export interface ObjectExtensionImplementation extends Pick<
@@ -32,47 +39,42 @@ export interface ObjectExtension {
     readonly package: PackageHandle;
     /** The handled types the extension serves. */
     readonly objects: readonly ObjectType[];
-    /** The policies of further types the objects authorize through, such as copied scopes. */
-    readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The providers reconciling the extension's provisioned resources. */
     readonly providers?: ProvisionedOptions["providers"];
-    /** The shapes the extension serves and follows beside its objects' shapes. */
-    readonly shapes?: readonly Shape[];
+    /** The shapes the extension's code reads replicated, with the keys it follows them at. */
+    readonly follows?: readonly Follow[];
     /** The files with the extension's external objects. */
     readonly external?: ExternalStorage;
-    /** The tables whose changes list the space's copies again. */
-    readonly watches?: readonly Table[];
-    /** The installation serving the objects inside a space's store, absent for the platform. */
-    readonly installation?: InstallationContext;
-    /** List the copies the extension keeps in the space's database, each with its publisher. */
-    subscriptions?(store: ObjectStore): Promise<readonly SubscriberEntry[]>;
+    /** The server context serving the objects inside a space's store, absent for the platform. */
+    readonly server?: ServerContext;
     /** Serve what needs the space's store: adapters, controllers, access and headers. */
-    serve?(store: ObjectStore): ObjectExtensionImplementation;
+    readonly serve?: (store: ObjectStore) => ObjectExtensionImplementation;
 }
 
 /** What a store of composed extensions runs with beside their objects. */
 export type CompositionOptions = Omit<
-    ObjectStoreOptions,
-    "objects" | "provisioned" | "subscriber" | "external" | "principal" | "installation"
-> & {
-    /** The followed installation's link for copied rows' changes, else the publisher. */
-    readonly uplink?: Uplink;
-    /** The machine keeping the extensions' provisioned resources, required by any provider. */
-    readonly machine?: Identifier<"machine">;
-    /** List the store's extra copies, such as its scope's chain, each with its publisher. */
-    readonly subscriptions?: (store: ObjectStore) => Promise<readonly SubscriberEntry[]>;
-    /** The sandboxes of the installations whose packages the store serves. */
-    readonly sandboxes?: readonly SandboxHooks[];
-} & (
+    StoreOptions,
+    "objects" | "provisioned" | "subscriber" | "external" | "principal" | "server"
+> &
+    CallLog & {
+        /** The followed installation's link for replicated rows' changes, else the publisher. */
+        readonly uplink?: Uplink;
+        /** The machine keeping the extensions' provisioned resources, which providers require. */
+        readonly machine?: Identifier<"machine">;
+        /** Open the publisher toward a followed scope's home, else the store's uplink. */
+        readonly publisher?: (scope: string) => Publisher;
+        /** The sandboxes of the installations whose packages the store serves. */
+        readonly sandboxes?: readonly HookSandbox[];
+    } & (
         | {
               /** The principal the store's own work runs as. */
               readonly principal: Subject;
-              /** No installation: the store runs as the given principal. */
-              readonly installation?: never;
+              /** No server context: the store runs as the given principal. */
+              readonly server?: never;
           }
         | {
-              /** The installation serving the objects, running the store's work and copies. */
-              readonly installation: InstallationContext;
+              /** The server context serving the objects, running the store's work and replicas. */
+              readonly server: ServerContext;
               /** No principal: the store runs as the installation. */
               readonly principal?: never;
           }
@@ -82,6 +84,8 @@ export type CompositionOptions = Omit<
 export const ObjectExtension = {
     /** Serve extensions over one store, each routing its package's objects. */
     compose,
+    /** Route requests below a package's mount to its adapters, admitting their declared callers. */
+    adapters: adapterFetch,
     /** Take a package as an extension with its objects' handled types, refusing missing ones. */
     of(
         served: PackageHandle & { readonly objects: Readonly<Record<string, ObjectType>> },
@@ -91,7 +95,7 @@ export const ObjectExtension = {
         const own = served.objects;
         const stray = handled.find((type) => !Object.values(own).some((each) => each.same(type)));
         if (stray !== undefined) {
-            throw new TypeError(`${served.name} serves no object ${stray.name}`);
+            throw new TypeError(`${served.name} does not serve object ${stray.name}`);
         }
         const objects = Object.values(own).map(
             (type) => handled.find((each) => each.same(type)) ?? type,
@@ -100,19 +104,44 @@ export const ObjectExtension = {
         return { package: served, objects };
     },
 
-    /** Route each extension's objects to their one implementation, else to the copy kept here. */
+    /** Serve a package's definition: its handled objects, adapters and controllers. */
+    served<const Handle extends ServedPackage>(
+        handle: Handle,
+        definition: ServerDefinition<Handle>,
+    ): ObjectExtension {
+        // implement the handle's objects, the handled ones over their declared defaults
+        const { objects = [], controllers = [], providers, follows } = definition;
+        const extension = ObjectExtension.of(handle, objects);
+        const adapters: Readonly<Record<string, AdapterFetch>> = definition.adapters ?? {};
+
+        return {
+            ...extension,
+            ...(providers === undefined ? {} : { providers }),
+            ...(follows === undefined ? {} : { follows }),
+            serve: (store) => ({
+                adapters,
+                controllers: controllers.map((controller) => controller(store)),
+            }),
+        };
+    },
+
+    /** Route each extension's objects to their implementation, else to the replica kept here. */
     routes(
         extensions: readonly ObjectExtension[],
-        isCopied: (type: ObjectType) => boolean,
+        isReplicated: (type: ObjectType) => boolean,
     ): ReadonlyMap<string, { readonly type: ObjectType; readonly extension: ObjectExtension }> {
-        // implement the types of each extension's package once
+        // implement the types of each extension's package and the types its providers provision, once
         const routes = new Map<
             string,
             { readonly type: ObjectType; readonly extension: ObjectExtension }
         >();
         for (const extension of extensions) {
             const owner = extension.package;
-            const own = extension.objects.filter((type) => type.package.id === owner.id);
+            const provisioned = (extension.providers ?? []).map((provider) => provider.object);
+            const own = extension.objects.filter(
+                (type) =>
+                    type.package.id === owner.id || provisioned.some((each) => each.same(type)),
+            );
             for (const type of own) {
                 const key = ObjectTypeReference.key(type.typeReference);
                 const earlier = routes.get(key);
@@ -125,20 +154,20 @@ export const ObjectExtension = {
             }
         }
 
-        // route another package's type to its copy here, refusing one nothing here implements or copies
+        // route another package's type to its replica here
         for (const extension of extensions) {
             for (const type of extension.objects) {
                 const key = ObjectTypeReference.key(type.typeReference);
                 const isRouted = routes.has(key);
 
-                // route a copied type to the extension
-                if (!isRouted && isCopied(type)) {
+                // route a replicated type to the extension
+                if (!isRouted && isReplicated(type)) {
                     routes.set(key, { type, extension });
                 }
-                // refuse a type nothing here implements or copies
+                // refuse a type nothing here implements or replicates
                 else if (!isRouted) {
                     throw new TypeError(
-                        `${ObjectExtension.servedBy(extension)} routes ${type.name} objects of ${type.package.id}, which nothing here implements or copies`,
+                        `${ObjectExtension.servedBy(extension)} routes ${type.name} objects of ${type.package.id}, but nothing here implements or replicates them`,
                     );
                 }
             }
@@ -149,15 +178,15 @@ export const ObjectExtension = {
 
     /** Describe who serves an extension's objects: its installation, else its package. */
     servedBy(extension: ObjectExtension): string {
-        return extension.installation === undefined
+        return extension.server === undefined
             ? `package ${extension.package.name}`
-            : `installation ${extension.installation.id}`;
+            : `installation ${extension.server.installation}`;
     },
 
     /** Serve an installation's package, running the code of its types in its sandbox. */
-    installed(sandbox: SandboxHooks, known: Iterable<KnownDeclaration>): ObjectExtension[] {
+    installed(sandbox: HookSandbox, known: Iterable<KnownDeclaration>): ObjectExtension[] {
         // declare the installation's types and index them beside the known ones by reference
-        const { declarations, installation } = sandbox;
+        const { declarations, server } = sandbox;
         const platform = [...known];
         const types = declareInstalled(declarations, platform);
         const byReference = new Map(
@@ -165,7 +194,7 @@ export const ObjectExtension = {
                 .filter((declared) => declared instanceof ObjectType)
                 .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
         );
-        const owner = installation.build.manifest.package;
+        const owner = server.build.manifest.package;
         const own = declarations.filter((entry) => entry.packageId === owner.id);
 
         // route each described type, implementing the package's types in the sandbox
@@ -176,7 +205,7 @@ export const ObjectExtension = {
                     const type = byReference.get(ObjectTypeReference.key(routed.type));
                     if (type === undefined) {
                         throw new TypeError(
-                            `installation ${installation.id} routes ${routed.type.type} objects of ${routed.type.packageId}, which nothing here implements or copies`,
+                            `installation ${server.installation} routes ${routed.type.type} objects of ${routed.type.packageId}, but nothing here implements or replicates them`,
                         );
                     }
 
@@ -185,7 +214,7 @@ export const ObjectExtension = {
                         return [name, sandbox.implement(type, routed.hooks)];
                     } else if (Object.keys(routed.hooks).length > 0) {
                         throw new TypeError(
-                            `installation ${installation.id} hooks ${type.name} of ${type.package.id}, which the type's package implements`,
+                            `installation ${server.installation} cannot hook ${type.name} of ${type.package.id}: the type's package implements it`,
                         );
                     }
 
@@ -202,7 +231,7 @@ export const ObjectExtension = {
                 const adapters = Object.keys(described.adapters);
                 if (adapters.length > 0) {
                     throw new TypeError(
-                        `installation ${installation.id} declares adapters ${adapters.join(", ")}, which a sandbox does not answer`,
+                        `installation ${server.installation} declares adapters ${adapters.join(", ")}, but a sandbox cannot answer them`,
                     );
                 } else if (Object.keys(described.objects).length === 0) {
                     return [];
@@ -216,7 +245,7 @@ export const ObjectExtension = {
                     {
                         package: PackageHandle.of(owner, { objects, ...since }),
                         objects: Object.values(objects),
-                        installation,
+                        server,
                     },
                 ];
             });
@@ -229,19 +258,20 @@ export const ObjectExtension = {
 function adapterFetch(
     handle: PackageHandle,
     answers: Readonly<Record<string, AdapterFetch>>,
+    store: ObjectStore,
 ): PackageImplementation["fetch"] {
     // pair each declared adapter with its answer, refusing an answer of none declared
     const adapters = Object.values(handle.adapters).map((adapter) => {
         const fetch = answers[adapter.name];
         if (fetch === undefined) {
-            throw new TypeError(`package ${handle.name} answers no adapter ${adapter.name}`);
+            throw new TypeError(`package ${handle.name} does not answer adapter ${adapter.name}`);
         }
 
-        return { path: adapter.path, fetch };
+        return { name: adapter.name, path: adapter.path, callers: adapter.callers, fetch };
     });
     const stray = Object.keys(answers).find((name) => handle.adapters[name] === undefined);
     if (stray !== undefined) {
-        throw new TypeError(`package ${handle.name} declares no adapter ${stray}`);
+        throw new TypeError(`package ${handle.name} does not declare adapter ${stray}`);
     } else if (adapters.length === 0) {
         return undefined;
     }
@@ -256,100 +286,105 @@ function adapterFetch(
             return undefined;
         }
 
+        // admit the signed callers of the types the adapter declares, and anyone where it declares none
+        const { callers } = adapter;
+        const caller = callers === undefined ? undefined : context.requireCaller();
+        if (
+            callers !== undefined &&
+            caller !== undefined &&
+            !callers.some(
+                (type) =>
+                    type.packageId === caller.subject.packageId &&
+                    type.type === caller.subject.type,
+            )
+        ) {
+            throw new CallError("FORBIDDEN", {
+                message: `adapter ${adapter.name} answers no ${caller.subject.type}`,
+            });
+        }
+
         // answer the request below the adapter's path
         url.pathname = url.pathname.slice(adapter.path.length) || "/";
 
-        return adapter.fetch(copyRequest(request, {}, url.href), context);
+        return adapter.fetch(copyRequest(request, {}, url.href), caller, context, store);
     };
 }
 
-/** Send an installation's copied row changes over its publisher, signed as the installation. */
-function publisherUplink(installation: InstallationContext): Uplink {
-    const { publisher } = installation;
+/** Reach a partition at its installation's root, and other scopes as given. */
+function partitionPublisher(
+    server: ServerContext,
+    store: () => ObjectStore,
+    publisher: ((scope: string) => Publisher) | undefined,
+): (scope: string) => Publisher {
+    // open the root's publisher once, every link of the partition's chain going through it
+    let root: Publisher | undefined;
 
-    return {
-        stream: (subscription, signal) => publisher.stream(subscription, signal),
-        receive: (mutation) => publisher.receive(mutation),
+    return (scope) => {
+        // reach other scopes as given
+        if (scope !== server.partition) {
+            return publisher?.(scope) ?? server.publisher;
+        }
+
+        // reach the partition through its installation's root
+        root ??= server.publisherAt(
+            Egress.address(server.name, server.space),
+            store().origin.package.id,
+        );
+
+        return root;
     };
-}
-
-/** List an installation's copies. */
-async function installationSubscriptions(
-    installation: InstallationContext,
-    store: ObjectStore,
-): Promise<readonly SubscriberEntry[]> {
-    const subscriptions = await store.source.subscriptions(installation.scope, {
-        kind: "follower",
-    });
-
-    return subscriptions.map((subscription) => ({
-        subscription,
-        publisher: installation.publisher,
-    }));
-}
-
-/** Follow a partition's chain below an installation's root through its package's object API. */
-async function partitionSubscriptions(
-    installation: InstallationContext,
-    partition: string,
-    store: ObjectStore,
-): Promise<readonly SubscriberEntry[]> {
-    const root = installation.publisherAt(
-        Egress.address(installation.id, installation.scope),
-        store.origin.package.id,
-    );
-
-    return (await store.source.subscriptions(partition, { kind: "follower" })).map(
-        (subscription) => ({
-            subscription,
-            publisher: root,
-        }),
-    );
 }
 
 /** Serve extensions over one store, each routing its package's objects. */
-function compose<const Extensions extends readonly ObjectExtension[]>(
-    extensions: Extensions,
-    options: CompositionOptions,
-): {
-    readonly store: ObjectStore;
-    readonly packages: { readonly [Key in keyof Extensions]: PackageImplementation };
-};
-/**
- * Serve extensions over one store, each routing its package's objects.
- *
- * @construct each extension gets its package's implementation, in order.
- */
 function compose(
     extensions: readonly ObjectExtension[],
     options: CompositionOptions,
 ): { readonly store: ObjectStore; readonly packages: readonly PackageImplementation[] } {
     // require the machine keeping any provisioned resources, and one uplink
-    const { uplink, machine, policies = [], shapes = [], subscriptions, branch, ...rest } = options;
-    const { sandboxes = [], installation, ...stored } = rest;
+    const { uplink, machine, policies = [], branch, publisher, ...rest } = options;
+    const { sandboxes = [], server, ...stored } = rest;
     const providers = extensions.flatMap((each) => each.providers ?? []);
     if (providers.length > 0 && machine === undefined) {
-        throw new TypeError("provisioned resources need the machine keeping them");
-    } else if (installation !== undefined && uplink !== undefined) {
-        throw new TypeError("an installation's copies leave through its publisher alone");
+        throw new TypeError("provisioned resources need their machine");
+    } else if (server !== undefined && uplink !== undefined) {
+        throw new TypeError("an installation's replicas must leave through its publisher");
     }
 
     // serve the sandboxed installations' types, declared against what the other extensions make known
-    const known = ObjectStore.known(
-        extensions.flatMap((each) => each.objects),
-        [...policies, ...extensions.flatMap((each) => each.policies ?? [])],
-    );
+    const served = extensions.flatMap((each) => each.objects);
+    const followed = extensions
+        .flatMap((each) => each.follows ?? [])
+        .flatMap((each) => each.shape.objects);
+    const known = ObjectStore.known(served, [
+        ...policies,
+        ...ObjectType.referenced(served),
+        ...followed,
+    ]);
     const composed = [
         ...extensions,
         ...sandboxes.flatMap((sandbox) => ObjectExtension.installed(sandbox, known)),
     ];
 
     // serve every extension's objects, refusing branches of an object none serves
-    const routes = ObjectExtension.routes(composed, (type) => options.database.copies(type.table));
+    const routes = ObjectExtension.routes(composed, (type) =>
+        options.database.replicates(type.table),
+    );
+
+    // answer queries of replicated types nothing here serves over their replicated rows
+    const replicas = known
+        .filter((type) => type instanceof ObjectType)
+        .filter(
+            (type) =>
+                !routes.has(ObjectTypeReference.key(type.typeReference)) &&
+                options.database.replicates(type.table),
+        );
     const objects = [...routes.values()].map((route) => route.type);
     if (branch !== undefined && !objects.some((object) => object.same(branch.object))) {
-        throw new TypeError(`no extension serves ${branch.object.name}, which branches name`);
+        throw new TypeError(
+            `no extension serves ${branch.object.name}, the object of the branches`,
+        );
     }
+    const follows = [...(options.follows ?? []), ...composed.flatMap((each) => each.follows ?? [])];
     const external = composed.flatMap((each) =>
         each.external === undefined ? [] : [each.external],
     );
@@ -357,52 +392,46 @@ function compose(
     // serve each type at its package's installation, else at the store's installation
     const installed = new Map(
         [...routes].flatMap(([key, { type, extension }]) => {
-            const serving = extension.installation ?? installation;
+            const serving = extension.server ?? server;
             const isOwned = type.package.id === extension.package.id;
 
             return serving === undefined || !isOwned ? [] : [[key, serving] as const];
         }),
     );
+
+    // reach a partition's chain at its installation's root
+    const isPartition = server?.partition !== undefined && server.partition !== server.space;
+    const reach =
+        server !== undefined && isPartition
+            ? partitionPublisher(server, () => store, publisher)
+            : publisher;
     const store: ObjectStore = new ObjectStore({
         ...stored,
         installed,
+        ...(replicas.length === 0 ? {} : { replicas }),
         principal:
-            options.installation === undefined
+            options.server === undefined
                 ? options.principal
                 : principal.installation.reference(
-                      options.installation.scope,
-                      options.installation.id,
+                      options.server.space,
+                      options.server.installation,
                   ),
-        ...(installation?.partition === undefined ? {} : { partition: installation.partition }),
+        ...(server?.partition === undefined ? {} : { partition: server.partition }),
         objects,
         ...(branch === undefined ? {} : { branch }),
-        policies: [...policies, ...composed.flatMap((each) => each.policies ?? [])],
-        shapes: [...shapes, ...composed.flatMap((each) => each.shapes ?? [])],
+        policies,
         ...(external.length === 0 ? {} : { external }),
+        ...(follows.length === 0 ? {} : { follows }),
+        ...(reach === undefined ? {} : { publisher: reach }),
         ...(providers.length === 0 || machine === undefined
             ? {}
             : { provisioned: { providers, machine } }),
-        subscriber: {
-            ...(installation === undefined
+        subscriber:
+            server === undefined
                 ? uplink === undefined
                     ? {}
                     : { uplink }
-                : { uplink: publisherUplink(installation) }),
-            watches: composed.flatMap((each) => each.watches ?? []),
-            subscriptions: async () =>
-                (
-                    await Promise.all([
-                        installation === undefined
-                            ? []
-                            : installation.partition === undefined ||
-                                installation.partition === installation.scope
-                              ? installationSubscriptions(installation, store)
-                              : partitionSubscriptions(installation, installation.partition, store),
-                        subscriptions?.(store) ?? [],
-                        ...composed.map(async (each) => (await each.subscriptions?.(store)) ?? []),
-                    ])
-                ).flat(),
-        },
+                : { uplink: server.publisher },
     });
 
     // implement each extension's package, giving the first the store's controllers
@@ -418,7 +447,7 @@ function compose(
         const implemented = store.implement(each.package, each.objects, [...own, ...controllers]);
 
         // answer the package's adapters below its mount
-        const fetch = adapterFetch(each.package, adapters);
+        const fetch = adapterFetch(each.package, adapters, store);
 
         return {
             ...implemented,
@@ -429,4 +458,57 @@ function compose(
     });
 
     return { store, packages };
+}
+
+/** The code behind what a package's handle declares, mirroring the handle key for key. */
+export type ServerDefinition<Handle extends ServedPackage> = {
+    /** The handle's object types with handlers; the others serve their declared defaults. */
+    readonly objects?: readonly ObjectType[];
+    /** The controllers beside the objects' own, each built over the package's store. */
+    readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
+    /** The providers reconciling the package's provisioned resources. */
+    readonly providers?: ProvisionedOptions["providers"];
+    /** The shapes the package's code reads replicated, with the keys it follows them at. */
+    readonly follows?: readonly Follow[];
+} & (Handle["adapters"] extends Readonly<Record<string, never>>
+    ? { readonly adapters?: never }
+    : {
+          /** The answer of each adapter the handle declares, by name. */
+          readonly adapters: { readonly [Name in keyof Handle["adapters"]]: AdapterFetch };
+      });
+
+/** A package handle with object types, as a server implements it. */
+export type ServedPackage = PackageHandle & {
+    /** The object types the package declares, by name. */
+    readonly objects: Readonly<Record<string, ObjectType>>;
+};
+
+/** A package's server: the package, and its extension of a store for an installation. */
+export interface PackageServer {
+    /** The package the server serves. */
+    readonly package: ServedPackage;
+    /** Extend a store with the package for an installation, the platform's without one. */
+    readonly extension: (context: ServerContext | undefined) => ObjectExtension;
+}
+
+/** Define a package's server from its definition, or per installation from its context. */
+export function defineServer<const Handle extends ServedPackage>(
+    handle: Handle,
+    definition: ServerDefinition<Handle> | ((context: ServerContext) => ServerDefinition<Handle>),
+): PackageServer {
+    return {
+        package: handle,
+        extension: (context) => {
+            // serve a static definition, else build the installation's from its context
+            if (typeof definition !== "function") {
+                const served = ObjectExtension.served(handle, definition);
+
+                return context === undefined ? served : { ...served, server: context };
+            } else if (context === undefined) {
+                throw new TypeError(`package ${handle.name} serves only an installation`);
+            }
+
+            return { ...ObjectExtension.served(handle, definition(context)), server: context };
+        },
+    };
 }

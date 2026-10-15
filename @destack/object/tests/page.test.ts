@@ -1,19 +1,19 @@
 import { bearerUser } from "./fixture/user.ts";
-import { ObjectExtension } from "../src/server/index.ts";
+import { ObjectExtension, defineServer } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema, Clock, aligned } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
 import { v7 } from "uuid";
-import { anyone, LinkSecret, principal } from "@destack/access";
-import { Subject } from "@destack/sync";
+import { anyone, LinkSecret, principal, Role } from "@destack/access";
+import { ObjectReference } from "@destack/sync";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
@@ -30,19 +30,23 @@ async function servePages(dialect: Dialect) {
     const storage = await TestDatabase.create(dialect, pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    const owner = await openSpace(database, spaceId);
+    await openSpace(database, spaceId);
 
     // serve the space's pages
     const server = Server.start({
         clock: Clock.system,
-        ...ObjectExtension.compose([ObjectExtension.of(pagesPackage, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(pagesPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(database),
-            database,
-        }).packages[0],
+        ...aligned(
+            ObjectExtension.compose([defineServer(pagesPackage, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(pagesPackage) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(database),
+                database,
+            }).packages,
+            0,
+        ),
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("pages"),
@@ -61,7 +65,7 @@ async function servePages(dialect: Dialect) {
     const connect = (headers: Record<string, string>) =>
         createClient(pagesPackage, endpoint(headers));
 
-    return { connect, endpoint, owner };
+    return { connect, endpoint };
 }
 
 /** Keep a user's pages on a device. */
@@ -99,7 +103,7 @@ async function openDevice(user: string, endpoint: ClientOptions) {
         const rows = await client.database
             .select({ title: page.table.title, parentId: page.table.parentId })
             .from(page.table)
-            .where(isNull(page.table.deletionRequestedAt));
+            .where(isNull(page.table.deletedAt));
 
         return rows
             .filter((row) => row.parentId === parentId)
@@ -113,7 +117,7 @@ async function openDevice(user: string, endpoint: ClientOptions) {
 test.each(TEST_DIALECTS)(
     "share page trees with members and links, and move pages within them on %s",
     async (dialect) => {
-        const { connect, owner } = await servePages(dialect);
+        const { connect } = await servePages(dialect);
         const alice = connect({ authorization: "Bearer alice" });
         const bob = connect({ authorization: "Bearer bob" });
         const carol = connect({ authorization: "Bearer carol" });
@@ -159,7 +163,9 @@ test.each(TEST_DIALECTS)(
             parentId: onboarding.id,
             title: "Tools",
         });
-        expect(Subject.read(tools.owner)).toEqual(principal.user.reference("universe", "bob"));
+        expect(ObjectReference.at("owner", tools)).toEqual(
+            principal.user.reference("universe", "bob"),
+        );
         await expect(
             bob.page.move({
                 spaceId,
@@ -237,13 +243,13 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([
             false,
             [
-                ["page edit / page edit-direct / field owner holding relation owner", "subject"],
+                ["page edit / page edit-direct / field ownerId holding relation owner", "subject"],
                 [
-                    `page edit / page edit-direct / role ${owner} bound on space ${spaceId}`,
+                    `page edit / page edit-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                     "subject",
                 ],
                 [
-                    `page edit / through parent to page ${handbook.id} / page edit-direct / field owner holding relation owner`,
+                    `page edit / through parent to page ${handbook.id} / page edit-direct / field ownerId holding relation owner`,
                     "subject",
                 ],
                 [
@@ -251,10 +257,10 @@ test.each(TEST_DIALECTS)(
                     "subject",
                 ],
                 [
-                    `page edit / through parent to page ${handbook.id} / page edit-direct / role ${owner} bound on space ${spaceId}`,
+                    `page edit / through parent to page ${handbook.id} / page edit-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                     "subject",
                 ],
-                [`page edit / role ${owner} bound on space ${spaceId}`, "subject"],
+                [`page edit / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
             ],
         ]);
 

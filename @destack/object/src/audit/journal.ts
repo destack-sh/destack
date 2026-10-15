@@ -8,9 +8,9 @@ import {
     type DatabaseConnection,
     type TransactionOptions,
 } from "@destack/db";
-import { type EventStore, EventTime } from "@destack/event";
+import { type EventKind, type EventStore, EventTime } from "@destack/event";
 import { canonicalize, Clock, Digest, Duration } from "@destack/schema";
-import { errorOf, CallError } from "@destack/runtime/error";
+import { errorOf, CallError, isCallError } from "@destack/runtime/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
     RequestId,
@@ -18,11 +18,10 @@ import {
     type RequestIdentity,
 } from "@destack/runtime/request";
 import type { Controller } from "@destack/runtime/control";
-import type { Outcome } from "@destack/sync";
+import { ObjectReference, type Outcome } from "@destack/sync";
 import { ObjectError } from "../error/index.ts";
 import { call } from "./call.ts";
-import type { EventKindOf } from "../object/object.ts";
-import { AuditActor, AuditCaller } from "./actor.ts";
+import { AuditCaller } from "./actor.ts";
 import { AuditCall, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.ts";
 import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
@@ -58,10 +57,10 @@ export class Journal {
     readonly table = journal;
     /** The database keeping the journal. */
     readonly database: DatabaseConnection;
-    /** Read the key sensitive inputs are fingerprinted under, only when a request carries them. */
+    /** Read the key sensitive inputs are fingerprinted under, only when a request has them. */
     readonly #key: CallKey;
     /** The event log keeping the audited calls. */
-    readonly #events: EventStore;
+    readonly events: EventStore;
     /** How long calls stay, in milliseconds. */
     readonly lifetime: number;
     /** The clock retry periods and lifetimes run on. */
@@ -72,7 +71,7 @@ export class Journal {
         // keep the database, the key, the event log and the lifetime
         this.database = database;
         this.#key = key;
-        this.#events = options.events;
+        this.events = options.events;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
         this.clock = options.clock;
     }
@@ -139,37 +138,53 @@ export class Journal {
             expiresAt: startedAt + this.lifetime,
         };
 
-        // insert the call, or replace a running one with its outcome
-        const written = await transaction
-            .insert(journal)
-            .values(row)
-            .onConflictDoUpdate({
-                target: journal.id,
-                set: { request, call: entry, finishedAt: execution.finishedAt ?? null },
-                setWhere: isNull(journal.finishedAt),
-            })
-            .returning({ id: journal.id });
+        // insert or finish the call, and append an ended audited call, in one round trip
+        const isAppended = options.isAudited && execution.outcome !== undefined;
+        const [written, appended] = await Promise.all([
+            transaction
+                .insert(journal)
+                .values(row)
+                .onConflictDoUpdate({
+                    target: journal.id,
+                    set: { request, call: entry, finishedAt: execution.finishedAt ?? null },
+                    setWhere: isNull(journal.finishedAt),
+                })
+                .returning({ id: journal.id }),
+            isAppended
+                ? this.events
+                      .append(
+                          Journal.kind,
+                          [Journal.event(AuditCall.parse(Journal.kept(entry)))],
+                          transaction,
+                      )
+                      .then(
+                          () => undefined,
+                          (error: unknown) => {
+                              // keep the event's refusal of other contents for the journal to name first
+                              if (isCallError(error)) {
+                                  return error;
+                              }
+                              throw error;
+                          },
+                      )
+                : undefined,
+        ]);
 
-        // accept a repeat of a finished call, refusing other contents
+        // accept a repeat of a finished call, refusing other contents, then the event's own refusal
         if (written.length === 0) {
             await Journal.#requireRepeat(transaction, entry);
         }
-        // append a newly ended audited call to the call events
-        else if (options.isAudited && execution.outcome !== undefined) {
-            await this.#events.append(
-                Journal.kind,
-                [Journal.event(AuditCall.parse(Journal.kept(entry)))],
-                transaction,
-            );
+        if (appended !== undefined) {
+            throw appended;
         }
     }
 
     /** The call events type's kind, which the journal appends to. */
-    static get kind(): EventKindOf<typeof call> {
+    static get kind(): EventKind {
         return call.eventKind();
     }
 
-    /** Copy a call without its input and a success's value, as its call event keeps it. */
+    /** Replicate a call without its input and a success's value, as its call event keeps it. */
     static kept<Entry extends JournalEntry>(entry: Entry): Entry {
         const outcome = entry.execution.outcome;
 
@@ -193,7 +208,10 @@ export class Journal {
             id: execution.id,
             time: EventTime.of(execution.startedAt),
             keys: {
-                actor: AuditActor.key(AuditCaller.actor(execution.context.caller)),
+                ...ObjectReference.columns(
+                    "actor",
+                    AuditCaller.actor(execution.context.caller).subject,
+                ),
                 method: ended.method,
                 packageId: execution.context.package.id,
                 category: execution.category,
@@ -237,15 +255,18 @@ export class Journal {
         }
     }
 
-    /** Execute a request once in one transaction, replaying the calls a previous copy recorded. */
+    /** Execute a request once in one transaction, replaying the calls a previous run recorded. */
     async execute<Authorized>(
         request: RequestIdentity,
         fingerprint: string,
         steps: {
             /** Authorize the request, returning what running it needs. */
-            authorize(transaction: DatabaseConnection): Promise<Authorized>;
+            readonly authorize: (transaction: DatabaseConnection) => Promise<Authorized>;
             /** Run the authorized request, recording its calls, and return their results. */
-            run(transaction: DatabaseConnection, authorized: Authorized): Promise<unknown[]>;
+            readonly run: (
+                transaction: DatabaseConnection,
+                authorized: Authorized,
+            ) => Promise<unknown[]>;
         },
         options: TransactionOptions = {},
     ): Promise<unknown[]> {
@@ -263,7 +284,7 @@ export class Journal {
                 );
             }, options);
         } catch (error) {
-            // answer the outcome a concurrent copy committed, which made this copy fail
+            // answer the outcome a concurrent replica committed, which made this replica fail
             const committed = await this.replay(request, fingerprint);
             if (committed !== undefined) {
                 return committed;
@@ -272,7 +293,7 @@ export class Journal {
         }
     }
 
-    /** Answer a request a previous copy recorded, with its results or its failure. */
+    /** Answer a request a previous replica recorded, with its results or its failure. */
     async replay(
         request: RequestIdentity,
         fingerprint: string,

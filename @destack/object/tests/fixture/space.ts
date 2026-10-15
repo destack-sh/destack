@@ -31,17 +31,17 @@ export function spacePrincipal(id: string): Subject {
     return principal.space.reference(Scope.universe.id, id);
 }
 
-/** Record a space owned by itself, public unless private, returning its owner role. */
+/** Record a space owned by itself, public unless private. */
 export async function openSpace(
     database: DatabaseConnection,
     id: string,
     visibility: "public" | "private" = "public",
-): Promise<string> {
+): Promise<void> {
     // record the space's scope, owned by the space as its creation binds it
     const object = space.reference(Scope.universe.id, id);
     const fixture = new AccessFixture(database);
-    await fixture.copyScope(object, "own");
-    const owner = await fixture.copyOwner(object, spacePrincipal(id), 0);
+    await fixture.replicateScope(object, "own");
+    await fixture.bindOwner(object, spacePrincipal(id), 0);
 
     // relate anyone to a public space as its reader
     if (visibility === "public") {
@@ -59,8 +59,6 @@ export async function openSpace(
             ),
         );
     }
-
-    return owner;
 }
 
 /** Refuse reconnecting a client with an unmoved scope. */

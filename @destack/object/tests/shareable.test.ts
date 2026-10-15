@@ -73,6 +73,6 @@ test("derive each role's permissions on an object, inherited from its parent or 
             read: union(...holders("owner", "editor", "commenter", "viewer"), relation("auditor")),
         },
         ["auditor", "commenter", "editor", "owner", "viewer"],
-        ["owner", "pinned"],
+        ["ownerPackageId", "ownerType", "ownerScope", "ownerId", "pinned"],
     ]);
 });

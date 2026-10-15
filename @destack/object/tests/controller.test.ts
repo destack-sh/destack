@@ -70,6 +70,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [reminder],
@@ -129,7 +130,7 @@ test.each(TEST_DIALECTS)(
         const wait = present(
             await controller.reconcile(
                 present(keys[0], "the tea key"),
-                reconciliation(AbortSignal.timeout(5000)),
+                reconciliation(new AbortController().signal),
             ),
             "the wait until the next reminder",
         );
@@ -156,6 +157,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
     const storage = await TestDatabase.create("sqlite", reminderDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [queued],
@@ -186,7 +188,7 @@ test("select a changed pending object's own key beside the keys a watch of its o
         sequence: 1,
     });
 
-    // key a pending reminder by itself and the watch, and a sent one by the watch alone
+    // key a pending reminder by itself and the watch, and a sent one only by the watch
     expect([
         await controller.keys?.(changed(null)),
         await controller.keys?.(changed(1)),
@@ -200,6 +202,7 @@ test("run a controller's calls as the space, audited as the space with the contr
     const database = storage.database;
     await openSpace(database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [reminder],
@@ -220,7 +223,7 @@ test("run a controller's calls as the space, audited as the space with the contr
             calls: [reminder.call("create", { spaceId, topic: "tea", dueAt: Date.now() - 1000 })],
         })
         .then(([written]) => written);
-    await controller.reconcile('{"topic":"tea"}', reconciliation(AbortSignal.timeout(5000)));
+    await controller.reconcile('{"topic":"tea"}', reconciliation(new AbortController().signal));
     const sends = (await auditedCalls(database)).filter((call) => call.method === "reminder.send");
 
     // refuse the send to its owner, who reads it, and conceal it from another user

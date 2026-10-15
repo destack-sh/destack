@@ -6,16 +6,15 @@ import { accessTables, principal, relation, Caller } from "@destack/access";
 import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Clock, Identifier, present, schema } from "@destack/schema";
-import { defineShape, type Mutation, Replica } from "@destack/sync";
+import type { Mutation } from "@destack/sync";
 
 import { outbox } from "@destack/runtime/outbox";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import type { RunDelivery, RunRequest } from "@destack/runtime/trigger";
-import { Call, defineObject, field } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { until } from "@destack/runtime/timer";
-import { any } from "./fixture/match.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { createRouterClient } from "@destack/runtime/server";
@@ -50,7 +49,7 @@ const member = defineObject({
         },
     });
 
-/** Notes their owners write and rename, which a follower copies and changes. */
+/** Notes their owners write and rename, which a follower replicates and changes. */
 const note = defineObject({
     name: "note",
     plural: "notes",
@@ -68,11 +67,11 @@ const noteDatabase = defineDatabase({
     tables: [...callTables, outbox, ...note.tables],
 });
 
-/** A follower's database copying the notes. */
+/** A follower's database replicating the notes. */
 const followerDatabase = defineDatabase({
     name: "main",
     tables: [outbox, ...accessTables],
-    copies: [note.table],
+    replicated: [note.table],
 });
 
 /** The database with the members, the journal and the outbox. */
@@ -91,6 +90,7 @@ test.each(TEST_DIALECTS)(
         const recorded: [RunRequest, RunDelivery | undefined][] = [];
         const reports: string[] = [];
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [member],
@@ -153,22 +153,23 @@ test.each(TEST_DIALECTS)(
                     "string",
                 ],
             ],
-            ["a sent call was refused for good"],
+            ["a sent call was refused permanently"],
         ]);
     },
 );
 
 test.each(TEST_DIALECTS)(
-    "send a follower's calls on copied rows over its uplink to the server keeping them, run there as the follower, and let go of one it may not make, on %s",
+    "send a follower's calls on replicated rows over its uplink to the server keeping them, run there as the follower, and let go of one it may not make, on %s",
     async (dialect) => {
         // keep the notes in their own database, with ada's note written there
         const storage = await TestDatabase.create(dialect, noteDatabase, { isMigrated: true });
-        const copies = await TestDatabase.create(dialect, followerDatabase, { isMigrated: true });
+        const replicas = await TestDatabase.create(dialect, followerDatabase, { isMigrated: true });
         onTestFinished(async () => {
-            await Promise.all([storage.close(), copies.close()]);
+            await Promise.all([storage.close(), replicas.close()]);
         });
         await openSpace(storage.database, spaceId);
         const home = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [note],
@@ -187,11 +188,12 @@ test.each(TEST_DIALECTS)(
         // follow them as bob, whose uplink runs his changes at home
         const reports: string[] = [];
         const follower = new ObjectStore({
+            chain: async () => ({ kind: "follower" }),
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [],
             policies: [note],
-            database: copies.database,
+            database: replicas.database,
             origin: { package: note.package },
             report: (error) => {
                 if (!(error instanceof Error)) {
@@ -205,20 +207,17 @@ test.each(TEST_DIALECTS)(
                         await until(signal);
                         yield* [];
                     },
-                    receive: (mutation) => home.receiveFrom(mutation, userContext("bob", spaceId)),
+                    receive: (mutation) =>
+                        home.receiveFrom(mutation, userContext("bob", spaceId).caller()),
                 },
-                subscriptions: async () => [],
             },
         });
 
         // send a note and a rename of ada's toward their home, delivering the sends twice to show one delivery
-        await Transaction.run(copies.database, async (transaction) => {
+        await Transaction.run(replicas.database, async (transaction) => {
+            await follower.send(note.call("create", { spaceId, title: "Bob's" }), transaction);
             await follower.send(
-                Call.wire(note.call("create", { spaceId, title: "Bob's" })),
-                transaction,
-            );
-            await follower.send(
-                Call.wire(note.call("rename", { spaceId, id: written.id, title: "Bob's now" })),
+                note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
                 transaction,
             );
         });
@@ -240,36 +239,37 @@ test.each(TEST_DIALECTS)(
                 { owner: "ada", title: "Ada's" },
                 { owner: "bob", title: "Bob's" },
             ],
-            reports: ["a sent call was refused for good"],
+            reports: ["a sent call was refused permanently"],
         });
     },
 );
 
-test("refuse a pushed mutation of copied rows, alone or beside kept rows, which only their home writes", async () => {
-    // keep the notes at home and copy them in a follower serving members
+test("refuse a pushed mutation of replicated rows, alone or beside kept rows, which only their home writes", async () => {
+    // keep the notes at home and replica them in a follower serving members
     const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
-    const copies = await TestDatabase.create(
+    const replicas = await TestDatabase.create(
         "sqlite",
         defineDatabase({
             name: "main",
             tables: [outbox, ...accessTables, ...callTables, ...member.tables],
-            copies: [note.table],
+            replicated: [note.table],
         }),
         { isMigrated: true },
     );
     onTestFinished(async () => {
-        await Promise.all([storage.close(), copies.close()]);
+        await Promise.all([storage.close(), replicas.close()]);
     });
     await openSpace(storage.database, spaceId);
-    await openSpace(copies.database, spaceId);
+    await openSpace(replicas.database, spaceId);
     const follower = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [member],
         policies: [note],
-        database: copies.database,
+        database: replicas.database,
         callKey: testCallKey,
-        events: await testEvents(copies.database),
+        events: await testEvents(replicas.database),
         origin: { package: note.package },
     });
 
@@ -300,15 +300,16 @@ test("refuse a pushed mutation of copied rows, alone or beside kept rows, which 
     });
 });
 
-test("send a change of copied rows to the publisher of the copy keeping them, not the subscriber's uplink", async () => {
-    // keep the notes at home, copied into a follower from a publisher receiving changes beside an uplink refusing them
+test("send a change of replicated rows to the publisher of the replica keeping them, not the subscriber's uplink", async () => {
+    // keep the notes at home, replicated into a follower whose uplink refuses changes
     const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
-    const copies = await TestDatabase.create("sqlite", followerDatabase, { isMigrated: true });
+    const replicas = await TestDatabase.create("sqlite", followerDatabase, { isMigrated: true });
     onTestFinished(async () => {
-        await Promise.all([storage.close(), copies.close()]);
+        await Promise.all([storage.close(), replicas.close()]);
     });
     await openSpace(storage.database, spaceId);
     const home = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [note],
@@ -320,19 +321,26 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     const noteShape = defineShape({
         name: "notes",
         parameters: schema.object({}),
-        audience: "reader",
-        isReadinessGate: true,
-        replica: ({ name, scope }) => new Replica({ name, scope, tables: [note.table] }),
+        objects: [note],
+        queries: () => [note.query()],
     });
     const refused: string[] = [];
     const follower = new ObjectStore({
+        chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [],
-        policies: [note],
-        database: copies.database,
+        database: replicas.database,
         origin: { package: note.package },
-        shapes: [noteShape],
+        follows: [Follow.of(noteShape, { keys: [{ key: { scope: spaceId } }] })],
+        publisher: () => ({
+            stream: async function* (_subscription, signal) {
+                await until(signal);
+                yield* [];
+            },
+            receive: (mutation: Mutation) =>
+                home.receiveFrom(mutation, userContext("bob", spaceId).caller()),
+        }),
         subscriber: {
             uplink: {
                 stream: async function* (_subscription, signal) {
@@ -343,24 +351,6 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
                     refused.push(mutation.id);
                 },
             },
-            subscriptions: async () => [
-                {
-                    subscription: noteShape.subscription({
-                        name: "notes",
-                        scope: spaceId,
-                        below: "follower",
-                        parameters: {},
-                    }),
-                    publisher: {
-                        stream: async function* (_subscription, signal) {
-                            await until(signal);
-                            yield* [];
-                        },
-                        receive: (mutation: Mutation) =>
-                            home.receiveFrom(mutation, userContext("bob", spaceId)),
-                    },
-                },
-            ],
         },
     });
 
@@ -380,25 +370,26 @@ test("send a change of copied rows to the publisher of the copy keeping them, no
     expect({ notes, refused }).toEqual({ notes: [{ owner: "bob", title: "Bob's" }], refused: [] });
 });
 
-test("refuse an in-process change of copied rows, and send it toward their home for the caller's subject under its grant", async () => {
-    // serve the notes over a follower's copies of them, whose uplink receives nothing
-    const copies = await TestDatabase.create(
+test("refuse an in-process change of replicated rows, and send it toward their home for the caller's subject under its grant", async () => {
+    // serve the notes over a follower's replicas of them, whose uplink receives nothing
+    const replicas = await TestDatabase.create(
         "sqlite",
         defineDatabase({
             name: "main",
             tables: [outbox, ...accessTables, ...callTables],
-            copies: [note.table],
+            replicated: [note.table],
         }),
         { isMigrated: true },
     );
-    onTestFinished(() => copies.close());
+    onTestFinished(() => replicas.close());
     const follower = new ObjectStore({
+        chain: async () => ({ kind: "follower" }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [note],
-        database: copies.database,
+        database: replicas.database,
         callKey: testCallKey,
-        events: await testEvents(copies.database),
+        events: await testEvents(replicas.database),
         origin: { package: note.package },
         subscriber: {
             uplink: {
@@ -408,11 +399,10 @@ test("refuse an in-process change of copied rows, and send it toward their home 
                 },
                 receive: async () => {},
             },
-            subscriptions: async () => [],
         },
     });
 
-    // refuse writing a note through the copy as an installation acting for a person under a grant
+    // refuse writing a note through the replica as an installation acting for a person under a grant
     const person = principal.user.reference("universe", "user-1");
     const grant = { id: Identifier.create("grant"), scope: person.id, permissions: [] };
     const caller: Caller = {
@@ -425,21 +415,24 @@ test("refuse an in-process change of copied rows, and send it toward their home 
         follower.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }),
     ).rejects.toThrow(
         new CallError("CONFLICT", {
-            message: `note rows of ${spaceId} are copies here, so send their changes to their home`,
+            message: `note rows of ${spaceId} are replicas here, so send their changes to their home`,
         }),
     );
 
     // send it instead, which the outbox keeps with the exchange for the person
-    await Transaction.run(copies.database, (transaction) =>
-        follower.send(Call.wire(call), transaction, {
+    await Transaction.run(replicas.database, (transaction) =>
+        follower.send(call, transaction, {
             exchange: { subject: person, grant: grant.id },
         }),
     );
-    const sent = await copies.database.select({ message: outbox.message }).from(outbox);
+    const sent = await replicas.database
+        .select({ id: outbox.id, message: outbox.message })
+        .from(outbox);
+    const [only] = sent;
     expect(sent.map((row) => schema.json().parse(JSON.parse(row.message)))).toEqual([
         {
-            requestId: any(String),
-            request: { call: Call.wire(call), exchange: { subject: person, grant: grant.id } },
+            requestId: present(only, "the sent call").id,
+            request: { call: call, exchange: { subject: person, grant: grant.id } },
         },
     ]);
 });

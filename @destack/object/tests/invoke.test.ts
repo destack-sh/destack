@@ -15,7 +15,7 @@ import { userContext } from "./fixture/user.ts";
 import { reportError } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 import { createRouterClient } from "@destack/runtime/server";
 
 /** The space containing the shelves. */
@@ -115,7 +115,7 @@ const shelf = defineObject({
 
                 return { slip: issued.id };
             },
-            // issue a slip as the caller, who holds no permission to
+            // issue a slip as the caller, who has no permission to
             forge: async (call) => {
                 await call.mutate(call.caller, [
                     slip.call("issue", {
@@ -157,6 +157,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [book, shelf, slip],
@@ -171,13 +172,14 @@ test.each(TEST_DIALECTS)(
         const call = <Object extends typeof book | typeof shelf, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
-            input: object,
+            input: NoInfer<RequestInput<Object, Name>>,
         ) =>
             request(
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(Date.now()), ...input },
+                spaceId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
 
@@ -219,6 +221,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [
@@ -247,13 +250,14 @@ test.each(TEST_DIALECTS)(
         const run = <Object extends typeof shelf | typeof slip, Name extends CallableName<Object>>(
             object: Object,
             name: Name,
-            input: object,
+            input: NoInfer<RequestInput<Object, Name>>,
         ) =>
             request(
                 store,
                 object,
                 name,
-                { spaceId, requestId: RequestId.create(Date.now()), ...input },
+                spaceId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 context,
             );
 
@@ -288,7 +292,7 @@ test.each(TEST_DIALECTS)(
                 },
             ],
         });
-        // hide the space's methods from the routes and from pushes, routing the slips' reads alone
+        // hide the space's methods from the routes and from pushes, routing only the slips' reads
         expect([rows, forged, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
             [{ id: lent.slip, borrower: "user-2", shelf: "home!", isReturned: true }],
             ["NOT_FOUND", "slip not found"],
@@ -316,6 +320,7 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [book, shelf, slip],

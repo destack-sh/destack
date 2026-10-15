@@ -1,12 +1,12 @@
 import { bearerUser } from "./user.ts";
-import { ObjectExtension } from "../../src/server/index.ts";
+import { ObjectExtension, defineServer } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, aligned } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
@@ -33,14 +33,18 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
 
     // serve the notes over HTTP to bearer-identified users
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(notesPackage, [])], {
-            origin: { package: Package.of(notesPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(database),
-            database,
-            clock,
-        }).packages[0],
+        aligned(
+            ObjectExtension.compose([defineServer(notesPackage, {}).extension(undefined)], {
+                chain: async () => undefined,
+                origin: { package: Package.of(notesPackage) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(database),
+                database,
+                clock,
+            }).packages,
+            0,
+        ),
         spaceId,
     );
 
@@ -118,7 +122,7 @@ export class Device {
             clock: options.clock ?? Clock.system,
         });
         for (const object of queried) {
-            client.queryOf(object).findMany().subscribe();
+            client.queryType(object).findMany().subscribe();
         }
         const device = new Device(storage, client);
         onTestFinished(() => device.close());
@@ -159,7 +163,7 @@ export class Device {
         const rows = await this.client.database
             .select({ title: note.table.title })
             .from(note.table)
-            .where(isNull(note.table.deletionRequestedAt));
+            .where(isNull(note.table.deletedAt));
 
         return rows.map((row) => row.title).toSorted();
     }

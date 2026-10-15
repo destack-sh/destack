@@ -6,14 +6,14 @@ import { Scope, type Subject } from "@destack/sync";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { Identifier, Clock } from "@destack/schema";
+import { Identifier, Clock, aligned } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { client, defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
@@ -75,7 +75,7 @@ test("keep a user's local objects from another user on the same client, and the 
     const objects = { notebook, note, draft, panel };
     const storage = await TestDatabase.create("sqlite", []);
     await ObjectClient.migrate(storage.database, objects);
-    const clientOf = (person: string, device: string) =>
+    const openClient = (person: string, device: string) =>
         ObjectClient.open({
             clock: Clock.system,
             database: storage.database,
@@ -87,9 +87,9 @@ test("keep a user's local objects from another user on the same client, and the 
             reconnect: unmoved,
             isMigrated: true,
         });
-    const aliceLaptop = await clientOf(alice, laptop);
-    const bobLaptop = await clientOf(bob, laptop);
-    const alicePhone = await clientOf(alice, phone);
+    const aliceLaptop = await openClient(alice, laptop);
+    const bobLaptop = await openClient(bob, laptop);
+    const alicePhone = await openClient(alice, phone);
 
     // write alice's draft and the laptop's panel width as alice on the laptop
     await aliceLaptop.mutate(draft).create({ text: "Alice's draft" }).confirmed;
@@ -117,11 +117,12 @@ test("refuse to serve local objects at another principal's store, and refuse loc
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
     expect([
-        failure(
-            () =>
+        failure(() =>
+            aligned(
                 ObjectExtension.compose(
-                    [ObjectExtension.of(definePackage({ objects: { draft } }), [])],
+                    [defineServer(definePackage({ objects: { draft } }), {}).extension(undefined)],
                     {
+                        chain: async () => undefined,
                         clock: Clock.system,
                         origin: { package: draft.package },
                         principal: spacePrincipal(spaceId),
@@ -129,7 +130,9 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                         events,
                         database,
                     },
-                ).packages[0],
+                ).packages,
+                0,
+            ),
         ),
         failure(() =>
             defineObject({
@@ -162,16 +165,16 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             })),
         ),
     ]).toEqual([
-        "local object draft lives in its scope's own store alone",
-        "local object shared lives in one scope type",
-        "local object spread lives in one scope type",
-        "local object kept takes no inherited",
+        "local object draft lives only in its scope's own store",
+        "local object shared must live in one scope type",
+        "local object spread must live in one scope type",
+        "local object kept cannot have inherited",
         "local object remote runs method create off the client",
     ]);
 });
 
 /** Call as a signed-in user who lives inside the given subjects. */
-function callerOf(id: string, inside: readonly Subject[]): Caller {
+function newCaller(id: string, inside: readonly Subject[]): Caller {
     const person = Caller.of(principal.user.reference(Scope.universe.id, id), Date.now());
 
     return { ...person, subjects: [...person.subjects, ...inside] };
@@ -189,10 +192,11 @@ test("serve a client's local objects at its own store to the people signed in on
         },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).copyScope(laptop);
+    await new AccessFixture(storage.database).replicateScope(laptop);
 
     // serve them at the laptop's own store
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: principal.client.reference(Scope.universe.id, laptop.id),
         objects: [sticky],
@@ -204,8 +208,8 @@ test("serve a client's local objects at its own store to the people signed in on
 
     // call as ada signed in on the laptop, who lives inside it, and as bob signed in elsewhere
     const callers = {
-        ada: callerOf(ada, [{ ...laptop, relation: CONTAINED }]),
-        bob: callerOf(bob, []),
+        ada: newCaller(ada, [{ ...laptop, relation: CONTAINED }]),
+        bob: newCaller(bob, []),
     };
     const write = (caller: Caller, text: string) =>
         refusal(
@@ -217,10 +221,10 @@ test("serve a client's local objects at its own store to the people signed in on
     const list = async (caller: Caller) => {
         const listed = store.query(caller, sticky.call("list", { clientId: laptop.id }));
 
-        return listed.then((page) => page.items.map((row) => row.text), refusalOf);
+        return listed.then((page) => page.items.map((row) => row.text), readRefusal);
     };
 
-    // write and list a sticky as each, bob seeing none of the laptop's
+    // write and list a sticky as each, bob seeing no laptop at all
     expect({
         adaWrites: await write(callers.ada, "Water the plants"),
         bobWrites: await write(callers.bob, "Call home"),
@@ -230,7 +234,7 @@ test("serve a client's local objects at its own store to the people signed in on
         adaWrites: "done",
         bobWrites: ["NOT_FOUND", "sticky not found"],
         adaLists: ["Water the plants"],
-        bobLists: [],
+        bobLists: ["NOT_FOUND", `no scope ${laptop.id}`],
     });
 });
 
@@ -250,7 +254,7 @@ async function readLocal(access: ObjectAccess<{ draft: typeof draft; panel: type
 }
 
 /** Read a call's refusal as its code and message. */
-function refusalOf(error: unknown): Promise<"done" | readonly [string, string]> {
+function readRefusal(error: unknown): Promise<"done" | readonly [string, string]> {
     return refusal(Promise.reject(error));
 }
 

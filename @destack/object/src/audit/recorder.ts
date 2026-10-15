@@ -11,7 +11,7 @@ import {
     schema,
 } from "@destack/schema";
 import { Failure, Outcome, Subject } from "@destack/sync";
-import { denialOf, CallError } from "@destack/runtime";
+import { findDenial, CallError } from "@destack/runtime";
 import type { Caller } from "@destack/access";
 import { type ProcedureAudit, type ProcedureCall } from "@destack/runtime/server";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
@@ -153,13 +153,13 @@ export class AuditRecorder {
         return async (event) => {
             // choose the category, skipping unaudited reads
             const { access } = event.call;
-            const category = categoryOf(event, options.isAccessAudited === true);
+            const category = AuditRecorder.#categoryOf(event, options.isAccessAudited === true);
             if (category === undefined) {
                 return;
             }
 
             // map how the procedure ended to an outcome, recording a concealed denial's own code
-            const outcome = outcomeOf(event);
+            const outcome = AuditRecorder.#outcomeOf(event);
 
             // record the call
             const writer = await recorder(event.call);
@@ -180,7 +180,7 @@ export class AuditRecorder {
     static outcome(error: unknown): Exclude<Outcome, { kind: "success" }> {
         // read the call error a failure is or has
         const known = CallError.of(error);
-        const denial = known === undefined ? undefined : denialOf(known);
+        const denial = known === undefined ? undefined : findDenial(known);
 
         // report rejected access as a denial
         if (denial !== undefined) {
@@ -259,7 +259,7 @@ export class AuditRecorder {
                 details:
                     details === undefined
                         ? execution.details
-                        : mergeDetails(execution.details, details),
+                        : AuditRecorder.#mergeDetails(execution.details, details),
                 outcome,
                 finishedAt: this.#journal.clock.now(),
             },
@@ -464,52 +464,52 @@ export class AuditRecorder {
             },
         };
     }
-}
 
-/** Choose the category a procedure call is recorded under, absent for a read nobody audits. */
-function categoryOf<State extends object>(
-    event: ProcedureAudit<State>,
-    isAccessAudited: boolean,
-): AuditExecution["category"] | undefined {
-    const { audit } = event.call.access;
-    // a refused call
-    if (event.outcome === "denied") {
-        return "denial";
+    /** Choose the category a procedure call is recorded under, absent for a read nobody audits. */
+    static #categoryOf<State extends object>(
+        event: ProcedureAudit<State>,
+        isAccessAudited: boolean,
+    ): AuditExecution["category"] | undefined {
+        const { audit } = event.call.access;
+        // a refused call
+        if (event.outcome === "denied") {
+            return "denial";
+        }
+        // a write, or a read when reads are audited
+        else if (audit === "activity" || (audit === "access" && isAccessAudited)) {
+            return audit;
+        }
+        // a read nobody audits
+        else {
+            return undefined;
+        }
     }
-    // a write, or a read when reads are audited
-    else if (audit === "activity" || (audit === "access" && isAccessAudited)) {
-        return audit;
-    }
-    // a read nobody audits
-    else {
-        return undefined;
-    }
-}
 
-/** Map how a procedure call ended to its outcome. */
-function outcomeOf<State extends object>(event: ProcedureAudit<State>): Outcome {
-    // a success
-    if (event.outcome === "success") {
-        return { kind: "success" };
+    /** Map how a procedure call ended to its outcome. */
+    static #outcomeOf<State extends object>(event: ProcedureAudit<State>): Outcome {
+        // a success
+        if (event.outcome === "success") {
+            return { kind: "success" };
+        }
+        // a cancellation
+        else if (event.outcome === "cancelled") {
+            return CANCELLED;
+        }
+        // a failure or a denial, with its own code
+        else {
+            return AuditRecorder.outcome(event.error);
+        }
     }
-    // a cancellation
-    else if (event.outcome === "cancelled") {
-        return CANCELLED;
-    }
-    // a failure or a denial, with its own code
-    else {
-        return AuditRecorder.outcome(event.error);
+
+    /** Merge result details into a call's recorded object details. */
+    static #mergeDetails(recorded: JsonValue, details: JsonObject): JsonObject {
+        if (!JsonValue.isObject(recorded)) {
+            throw new ObjectError("INVALID_CALL", "result details merge only into object details");
+        }
+
+        return { ...recorded, ...details };
     }
 }
 
 /** The recorder methods a procedure's audit uses. */
 type ProcedureRecorder = Pick<AuditRecorder, "record">;
-
-/** Merge result details into a call's recorded object details. */
-function mergeDetails(recorded: JsonValue, details: JsonObject): JsonObject {
-    if (!JsonValue.isObject(recorded)) {
-        throw new ObjectError("INVALID_CALL", "result details merge only into object details");
-    }
-
-    return { ...recorded, ...details };
-}

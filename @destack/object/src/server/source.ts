@@ -11,12 +11,20 @@ import {
     principal,
     Relationship,
     Caller,
-    type UniverseParameters,
+    UNIVERSE_SHAPE,
+    UniverseParameters,
+    type Policy,
 } from "@destack/access";
-import { Scope, ObjectReference, Subject } from "@destack/sync";
+import { Scope, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
 import {
+    and,
+    inArray,
+    isNotNull,
+    type Condition,
     type DatabaseConnection,
+    eq,
+    Key,
     LogPosition,
     Snapshot,
     TABLE,
@@ -24,9 +32,9 @@ import {
     Transaction,
 } from "@destack/db";
 
-import { Digest, Duration, found, schema } from "@destack/schema";
+import { canonicalize, Digest, Duration, found, present, schema } from "@destack/schema";
 
-import { CallError } from "@destack/runtime/error";
+import { CallError, refuseInput } from "@destack/runtime/error";
 
 import { type RequestContext } from "@destack/runtime/server";
 import { withEventMeta } from "@destack/runtime";
@@ -40,7 +48,7 @@ import {
     QUERIES_SHAPE,
     QueriesParameters,
 } from "../replica/replica.ts";
-import { ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
+import { FOLLOW, ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
 import { ExternalStorage } from "./external.ts";
 
 import { Authorization } from "./authorization.ts";
@@ -60,29 +68,29 @@ const BROADCAST_BYTES = 16 * 1024;
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 
-/** The copies a store streams: client feeds of scope queries, and replicas for databases below. */
+/** The replicas a store streams: client feeds of scope queries, and databases below. */
 export class ObjectSource {
-    /** The store whose objects the copies keep. */
+    /** The store whose objects the replicas keep. */
     readonly store: ObjectStore;
-    /** The copies streaming now, by the scope or principal below they are for. */
+    /** The replicas streaming now, by the scope or principal below they are for. */
     readonly #streaming = new Map<string, number>();
 
-    /** Stream the copies of a store's objects. */
+    /** Stream the replicas of a store's objects. */
     constructor(store: ObjectStore) {
         this.store = store;
     }
 
-    /** Report whether a copy streams now for a scope or principal below, like an installation. */
+    /** Report whether a replica streams now for a scope or principal below. */
     follows(below: string): boolean {
         return this.#streaming.has(below);
     }
 
-    /** Stream a shape's copy to the caller its audience admits. */
+    /** Stream a shape's replica to the caller its audience admits. */
     async *relayed(
         subscription: sync.Subscription,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
-        // admit the caller by the shape's audience, counting its copy while it streams
+        // admit the caller by the shape's audience, counting its replica while it streams
         const shape = this.#shape(subscription);
         const follower = await this.#admit(shape, subscription, context);
         const below = subscription.below;
@@ -99,7 +107,7 @@ export class ObjectSource {
         }
     }
 
-    /** Stream an admitted follower's copy by its shape. */
+    /** Stream an admitted follower's replica by its shape. */
     async *#relay(
         shape: sync.Shape,
         subscription: sync.Subscription,
@@ -108,38 +116,45 @@ export class ObjectSource {
     ): AsyncGenerator<sync.Page> {
         // follow a scope's durable objects
         if (shape === this.queriesShape) {
-            yield* this.#durable(subscription, context);
+            yield* this.#durable(subscription, follower, context);
         }
         // follow a scope's ephemeral objects
         else if (shape === this.ephemeralShape) {
-            yield* this.#ephemeral(subscription, context);
+            yield* this.#ephemeral(subscription, follower, context);
         }
         // follow a scope's external objects
         else if (shape === this.externalShape) {
-            yield* this.#external(subscription, context);
+            yield* this.#external(subscription, follower, context);
         }
         // follow the access rows of a scope's chain
         else if (shape === this.accessShape) {
-            yield* this.#access(subscription, context);
+            yield* this.#access(subscription, follower, context);
         }
-        // relay any other copy to the follower it is for
+        // relay any other replica to the follower it is for
         else {
             const { after, ...request } = subscription;
             yield* this.replicate(request, after, follower, context.request.signal, context.signal);
         }
     }
 
-    /** Admit a caller to a shape's copy for the scope below, returning who the copy is for. */
+    /** Admit a caller to a shape's replica for the scope below, returning who it is for. */
     async #admit(
         shape: sync.Shape,
         subscription: sync.Subscription,
         context: RequestContext,
     ): Promise<ReplicaFollower> {
         switch (shape.audience) {
-            case "caller":
+            case "caller": {
+                // decide for the caller, or for the principal it may follow on behalf of
                 await this.store.enter(context, subscription.scope);
+                if (subscription.subject === undefined) {
+                    return { context };
+                }
+                const subject = subscription.subject;
+                await this.#requireFollow(subject, context);
 
-                return { context };
+                return { subject };
+            }
             case "contained":
             case "reader": {
                 const { after: _after, ...request } = subscription;
@@ -149,7 +164,17 @@ export class ObjectSource {
         }
     }
 
-    /** Decide who a relayed copy is for: a served object's principal, or the caller. */
+    /** Read a follower's chain parameters, refusing malformed ones as a bad request. */
+    static #chainParameters(request: Pick<sync.Subscription, "parameters">): ChainParameters {
+        const parsed = ChainParameters.safeParse(request.parameters);
+        if (!parsed.success) {
+            throw refuseInput(request.parameters, parsed.error.issues);
+        }
+
+        return parsed.data;
+    }
+
+    /** Decide who a relayed replica is for: a served object's principal, or the caller. */
     async #follower(
         request: Omit<sync.Subscription, "after">,
         context: RequestContext,
@@ -157,13 +182,17 @@ export class ObjectSource {
         // find the served object standing for the scope
         const standing = await this.#standing(request.below);
 
+        // decide for the subject a follower follows on behalf of, as its token states it may
+        if (request.subject !== undefined) {
+            const subject = request.subject;
+            await this.#requireFollow(subject, context);
+
+            return { subject };
+        }
+
         // decide for the principal a served object stands for when it follows itself
-        const caller = Caller.principal(context.requireCaller());
-        if (
-            standing !== undefined &&
-            caller !== undefined &&
-            Subject.same(caller, standing.subject)
-        ) {
+        const caller = ObjectSource.#principal(context);
+        if (standing !== undefined && Subject.same(caller, standing.subject)) {
             const { subject, parent } = standing;
 
             return { subject, ...(parent === undefined ? {} : { parent }) };
@@ -176,15 +205,12 @@ export class ObjectSource {
         );
         if (kept.length === 0) {
             throw new CallError("FORBIDDEN", {
-                message: `only ${request.below} and what lives in it follow the copies kept for it`,
+                message: `only ${request.below} and its contents can follow the replicas kept for it`,
             });
         }
-        // decide a single copy here, on the scope below for a follower living in it, and a copy via scopes on each of them
-        const via =
-            request.shape === CHAIN_SHAPE
-                ? ChainParameters.parse(request.parameters).via
-                : undefined;
-        if (this.#shape(request).audience === "contained" && via === undefined) {
+        // decide a replica on its scope, and a via replica on each of its scopes
+        const via = request.shape === CHAIN_SHAPE ? ObjectSource.#chainParameters(request).via : [];
+        if (this.#shape(request).audience === "contained" && via.length === 0) {
             const isResident = kept.some((subject) => subject.scope === request.below);
             const decided = standing === undefined || isResident ? request.below : request.scope;
             await this.#requireReplicate(decided, kept, context);
@@ -193,27 +219,66 @@ export class ObjectSource {
         return { context };
     }
 
+    /** Read the principal following, refusing an anonymous follower as unauthenticated. */
+    static #principal(context: RequestContext): Subject {
+        const acting = Caller.principal(context.caller());
+        if (acting === undefined) {
+            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+        }
+
+        return acting;
+    }
+
+    /** Require the caller to be a principal, or to have `follow` on the principal's object. */
+    async #requireFollow(subject: Subject, context: RequestContext): Promise<void> {
+        // admit the principal itself
+        const acting = ObjectSource.#principal(context);
+        if (Subject.same(acting, subject)) {
+            return;
+        }
+
+        // require a principal type its followers declare
+        const policy = this.store.authorizer.policy(subject);
+        if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {
+            throw new CallError("FORBIDDEN", {
+                message: `a ${subject.type} has no followers`,
+            });
+        }
+
+        // decide `follow` on the principal from the caller's identity and stated sets
+        const { database } = this.store;
+        const caller = context.caller();
+        const { scope: _bound, ...credential } = Caller.requireCredential(caller);
+        const authorization = await this.store.authorize(
+            Transaction.reading(database),
+            subject.scope,
+            { ...caller, credential },
+        );
+        await authorization.require(policy.permission(FOLLOW), subject);
+    }
+
     /** Require `replicate` on a caller's own object, or else on a scope. */
     async #requireReplicate(
         below: string,
         kept: readonly Subject[],
         context: RequestContext,
     ): Promise<void> {
-        // list the permissions on the caller's own objects
+        // list the permissions on the caller's own objects, at the rows standing for them here
         const authorization = await this.store.authorize(
             Transaction.reading(this.store.database),
             below,
             context.caller(below),
         );
-        const personal = kept.flatMap((subject) =>
-            this.store.durable
-                .filter(
-                    (object) => object.policy.is(subject) && object.permissions.includes(REPLICATE),
-                )
-                .map((object) => ({
-                    permission: object.permission(REPLICATE),
-                    target: object.reference(subject.scope, subject.id),
-                })),
+        const standings = await Promise.all(kept.map((subject) => this.#standing(subject.id)));
+        const personal = standings.flatMap((standing) =>
+            standing === undefined || !standing.object.permissions.includes(REPLICATE)
+                ? []
+                : [
+                      {
+                          permission: standing.object.permission(REPLICATE),
+                          target: standing.reference,
+                      },
+                  ],
         );
 
         // add the scope's permission, and require the first one
@@ -226,7 +291,7 @@ export class ObjectSource {
         const [first] = granting;
         if (first === undefined) {
             throw new CallError("FORBIDDEN", {
-                message: `no ${scope.type} keeps copies of its chain`,
+                message: `a ${scope.type} has no replicas of its chain`,
             });
         }
         await authorization.require(first.permission, first.target);
@@ -255,7 +320,7 @@ export class ObjectSource {
         }));
     }
 
-    /** Find a scope's principal object among served or decided types, with its containing scope. */
+    /** Find a principal's row in the decided type representing its kind, with its scope. */
     async #standing(
         below: string,
         database: DatabaseConnection = this.store.database,
@@ -268,38 +333,42 @@ export class ObjectSource {
           }
         | undefined
     > {
-        // look among the types the store serves or decides, a copy standing as its home does
-        for (const object of this.store.decided) {
-            // skip other identifiers
-            const table = object.table;
-            const identifier = table[TABLE].column("id").definition.schema;
-            if (!identifier.safeParse(below).success) {
-                continue;
-            }
-
-            // read the object, skipping a type without the identity relation
-            const [row] = await Snapshot.live(database).select(table, ["id"], [[below]]);
-            const identity = Object.entries(object.mapping.relations).find(
-                ([, field]) => field.column === object.mapping.id,
+        // find the one decided type representing the principal kind of the identifier
+        const representing = this.store.decided.filter(
+            (type) =>
+                type.represents !== undefined &&
+                type.table[TABLE].column("id").definition.schema.safeParse(below).success,
+        );
+        if (representing.length > 1) {
+            throw new TypeError(
+                `types ${representing.map((type) => type.name).join(", ")} all represent ${below}`,
             );
-            if (row === undefined || identity === undefined) {
-                continue;
-            }
-
-            // stand for the principal the object's identifier is, as a user's `self` is, inside the scope keeping it
-            const subject = this.store.authorizer.related(object.mapping, identity[0], row);
-            const scope = schema.string().parse(row["scope"]);
-            if (subject !== undefined) {
-                return {
-                    object,
-                    reference: object.reference(scope, below),
-                    subject,
-                    parent: scope === Scope.universe.id ? undefined : scope,
-                };
-            }
+        }
+        const [object] = representing;
+        const kind = object?.represents;
+        if (object === undefined || kind === undefined) {
+            return undefined;
         }
 
-        return undefined;
+        // read the principal's row, and stand for the principal inside the scope keeping it
+        const [row] = await Snapshot.live(database).select(object.table, ["id"], [[below]]);
+        if (row === undefined) {
+            return undefined;
+        }
+        const scope = schema.string().parse(row["scope"]);
+        const subject = {
+            packageId: kind.definition.packageId,
+            type: kind.name,
+            scope: kind.definition.isGlobal === true ? Scope.universe.id : scope,
+            id: below,
+        };
+
+        return {
+            object,
+            reference: object.reference(scope, below),
+            subject,
+            parent: scope === Scope.universe.id ? undefined : scope,
+        };
     }
 
     /** The shape of a scope's durable objects: named queries, or every listed type of its level. */
@@ -308,12 +377,47 @@ export class ObjectSource {
         parameters: QueriesParameters,
         audience: "caller",
         isReadinessGate: true,
-        replica: ({ name, scope }) =>
-            new sync.Replica({
+        replica: ({ name, scope, parameters }) => {
+            // keep every durable table for a follower naming no queries
+            const named = parameters.queries;
+            if (named === undefined) {
+                return new sync.Replica({
+                    name,
+                    scope,
+                    tables: this.store.durable.map((object) => object.table),
+                });
+            }
+
+            // compile the queries against the followed shapes' types first
+            const types = [...this.store.followed, ...this.store.decided];
+            const compiled = Object.values(ObjectType.queries(types, named, [scope]));
+
+            // keep each queried table's rows under its queries' conditions
+            const tables = [...new Set(compiled.map((query) => query.table))];
+            const where = new Map<Table, Condition>();
+            for (const table of tables) {
+                const conditions = compiled
+                    .filter((query) => query.table === table)
+                    .map((query) => query.where);
+                if (conditions.every((condition) => condition !== undefined)) {
+                    where.set(
+                        table,
+                        conditions.length === 1
+                            ? present(conditions[0], "a condition")
+                            : { OR: conditions },
+                    );
+                }
+            }
+            const everywhere = compiled.filter((query) => query.scopes === "every");
+
+            return new sync.Replica({
                 name,
                 scope,
-                tables: this.store.durable.map((object) => object.table),
-            }),
+                tables,
+                where,
+                everywhere: new Set(everywhere.map((query) => query.table)),
+            });
+        },
     });
 
     /** The shape of a scope's ephemeral objects a client follows, writing its own rows. */
@@ -346,6 +450,24 @@ export class ObjectSource {
             }),
     });
 
+    /** The shape of a scope's chain replica: access rows, inherited rows and own object. */
+    readonly chainShape = sync.defineShape({
+        name: CHAIN_SHAPE,
+        parameters: ChainParameters,
+        audience: "contained",
+        isReadinessGate: true,
+        replica: (request) => this.store.authorizer.replicateChain(request),
+    });
+
+    /** The shape of the universe's rows a scope reads, decided for their reader. */
+    readonly universeShape = sync.defineShape({
+        name: UNIVERSE_SHAPE,
+        parameters: UniverseParameters,
+        audience: "reader",
+        isReadinessGate: true,
+        replica: (request) => this.store.authorizer.replicateUniverse(request),
+    });
+
     /** The shape of the access rows of the caller's own checks in a scope's chain. */
     readonly accessShape = sync.defineShape({
         name: ACCESS_SHAPE,
@@ -355,31 +477,46 @@ export class ObjectSource {
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
 
-    /** Follow a scope's durable objects for the caller. */
+    /** Follow a scope's durable objects for a follower. */
     async *#durable(
         subscription: sync.Subscription,
+        follower: ReplicaFollower,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // open the audience
         const { scope, after, previous, refresh, origin } = subscription;
         const { queries } = QueriesParameters.parse(subscription.parameters);
-        const audience = await ObjectAudience.of(this.store, scope, context.caller(scope));
+        const reader = this.#reader(follower, scope);
+        const audience = await ObjectAudience.of(this.store, scope, reader);
 
-        // follow the queries from the queries the copy reflects
+        // follow the replica's queries, with the replicas the reader sees below the scope
         const { chain } = audience;
-        const compiled = ObjectType.queries(this.store.durable, queries, chain);
+        const caller = Caller.principal(reader);
+        const compile = (named: QueriesParameters["queries"]) =>
+            ObjectType.queries(this.store.durable, named, chain);
         const earlier =
             previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
-        const options = followOptions(audience, context, {
-            previous: earlier && ObjectType.queries(this.store.durable, earlier, chain),
+        const options = ObjectSource.#followOptions(audience, context, {
+            previous: earlier && compile(earlier),
             refresh,
             origin,
         });
         const follow = (feed: sync.Feed) =>
-            marking(feed.subscribe(compiled, after, context.request.signal, options), chain);
+            this.#replicating(
+                feed,
+                scope,
+                caller,
+                chain,
+                compile(queries),
+                after,
+                options,
+                context.request.signal,
+            );
 
         // audit watching each audited object type
-        const tables = new Set(Object.values(compiled).flatMap(tablesOf));
+        const tables = new Set(
+            Object.values(compile(queries)).flatMap((query) => ObjectSource.#tablesOf(query)),
+        );
         const audited = this.store.objects.filter(
             (object) =>
                 (object.isReadAudited || this.store.isAccessAudited) && tables.has(object.table),
@@ -397,9 +534,64 @@ export class ObjectSource {
         yield* pages();
     }
 
+    /** Follow queries over their scopes and the replicas a caller sees below them. */
+    async *#replicating(
+        feed: sync.Feed,
+        scope: string,
+        caller: Subject | undefined,
+        chain: readonly string[],
+        queries: Record<string, sync.Query>,
+        after: LogPosition | undefined,
+        options: sync.FeedOptions,
+        signal: AbortSignal,
+    ): AsyncGenerator<sync.Page> {
+        // read the replicas kept now
+        const { database } = this.store;
+        let kept = await sync.Replica.kept(database, scope, caller);
+        let reflected = options.previous && ObjectSource.#withReplicas(options.previous, kept);
+        let position = after;
+        while (!signal.aborted) {
+            // watch the replicas until they change, its failure surfacing once the follow ends
+            const current = canonicalize(kept);
+            const compiled = ObjectSource.#withReplicas(queries, kept);
+            const rekept = new AbortController();
+            const following = AbortSignal.any([signal, rekept.signal]);
+            const name = sync.replica[TABLE].sqlName;
+            const changed = database.log.until(
+                async (tables) =>
+                    tables.has(name) &&
+                    canonicalize(await sync.Replica.kept(database, scope, caller)) !== current,
+                following,
+            );
+            changed.then(
+                (isChanged) => isChanged && rekept.abort(),
+                () => rekept.abort(),
+            );
+
+            // follow the queries from the last complete position
+            const read = [...new Set([...chain, ...kept.map((replica) => replica.scope)])];
+            const { previous: _previous, ...rest } = options;
+            const subscribed = feed.subscribe(compiled, position, following, {
+                ...rest,
+                ...(reflected === undefined ? {} : { previous: reflected }),
+            });
+            for await (const page of ObjectSource.#marking(subscribed, read)) {
+                yield page;
+                position = page.complete ? page.position : position;
+            }
+            rekept.abort();
+            await changed;
+
+            // follow again over the replicas kept now
+            reflected = compiled;
+            kept = await sync.Replica.kept(database, scope, caller);
+        }
+    }
+
     /** Follow a scope's ephemeral objects for a writer. */
     async *#ephemeral(
         subscription: sync.Subscription,
+        follower: ReplicaFollower,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // track the writer's rows
@@ -413,21 +605,27 @@ export class ObjectSource {
         const reflected = earlier && ObjectType.queries(store.objects, earlier, [scope]);
         try {
             // follow until access changes, or to a completed page once the caller lapses
-            yield* this.#decided(scope, context, "ephemeral", (audience, signal, isFirst) => {
-                const options = followOptions(audience, context, {
-                    previous: isFirst ? reflected : undefined,
-                    refresh,
-                    origin,
-                });
-                const pages = store.feed.subscribe(
-                    compiled,
-                    isFirst ? after : undefined,
-                    signal,
-                    options,
-                );
+            yield* this.#decided(
+                scope,
+                follower,
+                context,
+                "ephemeral",
+                (audience, signal, isFirst) => {
+                    const options = ObjectSource.#followOptions(audience, context, {
+                        previous: isFirst ? reflected : undefined,
+                        refresh,
+                        origin,
+                    });
+                    const pages = store.feed.subscribe(
+                        compiled,
+                        isFirst ? after : undefined,
+                        signal,
+                        options,
+                    );
 
-                return this.#interleave(pages, scope, audience.authorization, signal);
-            });
+                    return this.#interleave(pages, scope, audience.authorization, signal);
+                },
+            );
         } finally {
             release();
         }
@@ -436,6 +634,7 @@ export class ObjectSource {
     /** Follow a scope's external objects for the caller, decided in memory until access changes. */
     async *#external(
         subscription: sync.Subscription,
+        follower: ReplicaFollower,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // open the scope's files
@@ -456,8 +655,8 @@ export class ObjectSource {
         const reflected = earlier && ObjectType.queries(external.objects, earlier, [scope]);
 
         // follow until access changes, or to a completed page once the caller lapses
-        yield* this.#decided(scope, context, "external", (audience, signal, isFirst) => {
-            const options = followOptions(audience, context, {
+        yield* this.#decided(scope, follower, context, "external", (audience, signal, isFirst) => {
+            const options = ObjectSource.#followOptions(audience, context, {
                 previous: isFirst ? reflected : undefined,
                 refresh,
                 origin,
@@ -470,12 +669,13 @@ export class ObjectSource {
     /** Follow the access rows the caller's own checks read in a scope's chain. */
     async *#access(
         subscription: sync.Subscription,
+        follower: ReplicaFollower,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
         // follow until access changes
         const { scope, after, refresh, origin } = subscription;
-        yield* this.#decided(scope, context, "durable", (audience, signal, isFirst) => {
-            // copy the chain's scopes and roles, and the relationships the caller's subjects hold
+        yield* this.#decided(scope, follower, context, "durable", (audience, signal, isFirst) => {
+            // replicate the chain's scopes and roles, and the caller's subjects' relationships
             const { chain } = audience;
             const subjects = audience.authorization.access.authority.subjects;
             const queries: Record<string, sync.Query> = {
@@ -488,7 +688,7 @@ export class ObjectSource {
                     where: Relationship.heldBy(subjects),
                 },
             };
-            const options = followOptions(sync.EVERYONE, context, {
+            const options = ObjectSource.#followOptions(sync.EVERYONE, context, {
                 previous: undefined,
                 refresh,
                 origin,
@@ -500,13 +700,14 @@ export class ObjectSource {
                 options,
             );
 
-            return marking(pages, chain);
+            return ObjectSource.#marking(pages, chain);
         });
     }
 
-    /** Follow pages decided for the caller, restarting from a snapshot on chain access changes. */
+    /** Follow pages decided for a follower, restarting from a snapshot on chain access changes. */
     async *#decided(
         scope: string,
+        follower: ReplicaFollower,
         context: RequestContext,
         storage: ObjectStorage,
         follow: (
@@ -521,9 +722,14 @@ export class ObjectSource {
             const revised = new AbortController();
             const signal = AbortSignal.any([context.request.signal, revised.signal]);
             const since = (await this.store.database.log.position()).sequence;
-            const audience = await ObjectAudience.of(this.store, scope, context.caller(scope), {
-                storage,
-            });
+            const audience = await ObjectAudience.of(
+                this.store,
+                scope,
+                this.#reader(follower, scope),
+                {
+                    storage,
+                },
+            );
             const watching = this.#watchAccess(audience.chain, since, revised, signal);
 
             // follow until access changes, and from a snapshot after
@@ -532,6 +738,13 @@ export class ObjectSource {
             await watching;
             isFirst = false;
         }
+    }
+
+    /** Read the caller deciding a follower's rows in a scope: its principal, or the caller. */
+    #reader(follower: ReplicaFollower, scope: string): Caller {
+        return "subject" in follower
+            ? Caller.of(follower.subject, this.store.clock.now())
+            : follower.context.caller(scope);
     }
 
     /** Revise a decided stream once the access rows of its chain change, failing with the log. */
@@ -595,7 +808,8 @@ export class ObjectSource {
     get shapes(): ReadonlyMap<string, sync.Shape> {
         return new Map(
             [
-                ...this.store.authorizer.shapes,
+                this.chainShape,
+                this.universeShape,
                 this.queriesShape,
                 this.ephemeralShape,
                 this.externalShape,
@@ -605,12 +819,12 @@ export class ObjectSource {
         );
     }
 
-    /** Build the copy a request of a served shape asks for. */
-    replicaOf(request: sync.Subscription): sync.Replica {
+    /** Build the replica a request of a served shape asks for. */
+    buildReplica(request: sync.Subscription): sync.Replica {
         return this.#shape(request).replica(request);
     }
 
-    /** Report whether a request's copy gates this store's readiness, as its shape says. */
+    /** Report whether a request's replica gates this store's readiness, as its shape says. */
     isReadinessGate(request: Pick<sync.Subscription, "shape">): boolean {
         return this.#shape(request).isReadinessGate;
     }
@@ -625,37 +839,37 @@ export class ObjectSource {
         return shape;
     }
 
-    /** Build a subscription's copy key from its name and scope, shared per copy. */
-    static #copy(subscription: Pick<sync.Subscription, "name" | "scope">): string {
+    /** Build a subscription's replica key from its name and scope, shared per replica. */
+    static #key(subscription: Pick<sync.Subscription, "name" | "scope">): string {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the controller following requested copies and dropping unrequested kept copies. */
+    /** Build the controller following requested replicas and dropping unrequested kept replicas. */
     controller(subscriber: Subscriber): Controller {
-        // list the requested copies and revise the listed ones
-        const listed = new Map<string, CopyEntry>();
+        // list the requested replicas and revise the listed ones
+        const listed = new Map<string, ReplicaEntry>();
         const list = async (): Promise<readonly string[]> => {
-            const copies = await this.#copies(subscriber);
-            revise(listed, copies);
+            const replicas = await this.#replicas(subscriber);
+            ObjectSource.#revise(listed, replicas);
 
-            return [...copies.keys()];
+            return [...replicas.keys()];
         };
 
-        // reconcile each copy under its own key and lease, so no page lands after its drop
+        // reconcile each replica under its own key and lease, so no page lands after its drop
         return {
             name: "replica",
             mode: "follow",
-            watches: this.#copyWatches(subscriber),
+            watches: this.#replicaWatches(subscriber),
             concurrency: Infinity,
             list,
-            reconcile: (key, { signal }) => this.#reconcileCopy(key, listed, list, signal),
+            reconcile: (key, { signal }) => this.#reconcileReplica(key, listed, list, signal),
         };
     }
 
-    /** List the tables whose changes list the copies again. */
-    #copyWatches(subscriber: Subscriber): Table[] {
-        // watch the copied scope types and the rows each copy includes
-        const scopes = this.store.copied
+    /** List the tables whose changes list the replicas again. */
+    #replicaWatches(subscriber: Subscriber): Table[] {
+        // watch the replicated scope types and the rows each replica includes
+        const scopes = this.store.replicated
             .filter((object) => object.policy.definition.scope === true)
             .map((object) => object.table);
 
@@ -664,16 +878,18 @@ export class ObjectSource {
         ];
     }
 
-    /** Follow requested copies from publishers, dropping unrequested kept copies, by copy key. */
-    async #copies(subscriber: Subscriber): Promise<Map<string, CopyIntent & { digest: string }>> {
-        // drop the kept copies no request asks for and follow the requested ones
+    /** Follow requested replicas from publishers and drop unrequested ones, by replica key. */
+    async #replicas(
+        subscriber: Subscriber,
+    ): Promise<Map<string, ReplicaIntent & { digest: string }>> {
+        // drop the kept replicas no request asks for and follow the requested ones
         const entries = await subscriber.subscriptions();
-        const named = new Set(entries.map((entry) => ObjectSource.#copy(entry.subscription)));
+        const named = new Set(entries.map((entry) => ObjectSource.#key(entry.subscription)));
         const kept = await sync.Replica.subscriptions(this.store.database);
-        const actions: CopyIntent[] = [
+        const actions: ReplicaIntent[] = [
             ...kept
-                .filter((copy) => !named.has(ObjectSource.#copy(copy)))
-                .map((copy) => ({ action: "drop" as const, subscription: copy })),
+                .filter((replica) => !named.has(ObjectSource.#key(replica)))
+                .map((replica) => ({ action: "drop" as const, subscription: replica })),
             ...entries.map(({ subscription, publisher }) => ({
                 action: "follow" as const,
                 subscription,
@@ -684,44 +900,46 @@ export class ObjectSource {
         // digest each action with its subscription
         return new Map(
             await Promise.all(
-                actions.map(async (entry): Promise<[string, CopyIntent & { digest: string }]> => [
-                    ObjectSource.#copy(entry.subscription),
-                    {
-                        ...entry,
-                        digest: await Digest.json({
-                            action: entry.action,
-                            subscription: entry.subscription,
-                        }),
-                    },
-                ]),
+                actions.map(
+                    async (entry): Promise<[string, ReplicaIntent & { digest: string }]> => [
+                        ObjectSource.#key(entry.subscription),
+                        {
+                            ...entry,
+                            digest: await Digest.json({
+                                action: entry.action,
+                                subscription: entry.subscription,
+                            }),
+                        },
+                    ],
+                ),
             ),
         );
     }
 
-    /** Follow or drop one listed copy until the controller stops it. */
-    async #reconcileCopy(
+    /** Follow or drop one listed replica until the controller stops it. */
+    async #reconcileReplica(
         key: string,
-        listed: ReadonlyMap<string, CopyEntry>,
+        listed: ReadonlyMap<string, ReplicaEntry>,
         list: () => Promise<readonly string[]>,
         signal: AbortSignal,
     ): Promise<undefined> {
         while (!signal.aborted) {
-            // wait for the loop to stop a copy no longer listed
-            const copy = listed.get(key);
-            if (copy === undefined) {
+            // wait for the loop to stop a replica no longer listed
+            const replica = listed.get(key);
+            if (replica === undefined) {
                 await until(signal);
 
                 return undefined;
             }
 
-            // follow a requested copy from the position it reached until its request changes
-            const revised = AbortSignal.any([signal, copy.revised.signal]);
-            if (copy.action === "follow") {
-                await this.#followCopy(key, copy, listed, list, revised);
+            // follow a requested replica from the position it reached until its request changes
+            const revised = AbortSignal.any([signal, replica.revised.signal]);
+            if (replica.action === "follow") {
+                await this.#followReplica(key, replica, listed, list, revised);
             }
-            // drop a kept copy no request asks for and wait for a request asking for it again
+            // drop a kept replica no request asks for and wait for a request asking for it again
             else {
-                await this.replicaOf(copy.subscription).drop(this.store.database);
+                await this.buildReplica(replica.subscription).drop(this.store.database);
                 await until(revised);
             }
         }
@@ -729,113 +947,248 @@ export class ObjectSource {
         return undefined;
     }
 
-    /** Follow a requested copy, failing on its source's refusal unless the request changed. */
-    async #followCopy(
+    /** Follow a requested replica, failing on its source's refusal unless the request changed. */
+    async #followReplica(
         key: string,
-        copy: CopyEntry & { readonly action: "follow" },
-        listed: ReadonlyMap<string, CopyEntry>,
+        replica: ReplicaEntry & { readonly action: "follow" },
+        listed: ReadonlyMap<string, ReplicaEntry>,
         list: () => Promise<readonly string[]>,
         revised: AbortSignal,
     ): Promise<void> {
         try {
-            const { subscription, publisher } = copy;
-            await this.replicaOf(subscription).follow(
+            const { subscription, publisher } = replica;
+            const { audience } = this.#shape(subscription);
+            await this.buildReplica(subscription).follow(
                 this.store.database,
                 (from, stream) => publisher.stream({ ...subscription, ...from }, stream),
                 revised,
-                { subscription, clock: this.store.clock },
+                { subscription, audience, clock: this.store.clock },
             );
         } catch (error) {
             // list again once a source refuses a follow, failing it unless its request changed
             await list();
-            if (listed.get(key) === copy) {
+            if (listed.get(key) === replica) {
                 throw error;
             }
         }
     }
 
-    /** List the subscriptions of a database's served scopes, kept below its space. */
-    async servedSubscriptions(
-        below: string,
-        elsewhere: readonly ObjectType[] = [],
-    ): Promise<sync.Subscription[]> {
-        // read the copied scopes the served objects live in or relate to
+    /** List the replicas a store's decisions read, each with the scope whose home publishes it. */
+    async chains(below: string): Promise<
+        {
+            readonly subscription: sync.Subscription;
+            readonly home: string;
+            readonly brought?: readonly string[];
+        }[]
+    > {
+        // follow nothing at the universe, nor for a scope without a chain
+        const kind = below === Scope.universe.id ? undefined : await this.#chainKind();
+        if (kind === undefined) {
+            return [];
+        }
+
+        // replicate the scope's own chain and the universe rows it reads
         const served = this.store.objects.filter((object) => object.storage === "durable");
-        const living = this.store.copied.filter((scope) =>
+        const known = [...this.store.objects, ...this.store.replicated];
+        const isLiving = served.some((object) =>
+            object.scopes.some((scope) => !known.some((type) => type.same(scope))),
+        );
+        const universe = this.universeSubscription(below);
+        const isOwn = isLiving || kind.kind === "home";
+        const own = isOwn
+            ? await this.subscriptions(below, kind)
+            : universe === undefined
+              ? []
+              : [universe];
+
+        // leave the own chain's scopes to it, else let the via replica cover the store's own scope
+        const chained = new Set(
+            isOwn ? [below, ...own.map((subscription) => subscription.scope)] : [],
+        );
+
+        // read the replicated scopes outside the chain that served objects live in or relate to
+        const living = this.store.replicated.filter((scope) =>
             served.some((object) =>
                 [...object.scopes, ...object.related].some((type) => type.same(scope)),
             ),
         );
-        const scopes = await Promise.all(
+        const outside = await Promise.all(
             living.map(async (scope) => {
+                // read the scope rows the database keeps
                 const table = scope.table[TABLE];
                 const rows = await this.store.database
                     .select({ id: table.column("id"), scope: table.column("scope") })
-                    .from(scope.table)
-                    .where(sync.Replica.includes(below, scope.table));
+                    .from(scope.table);
 
-                return rows.map((row): ObjectReference => ({
-                    ...scope.typeReference,
-                    scope: schema.string().parse(row.scope),
-                    id: schema.string().parse(row.id),
+                // read who brought each row here, in one read per table
+                const kept = rows
+                    .map((row) => ({
+                        id: schema.string().parse(row.id),
+                        scope: schema.string().parse(row.scope),
+                    }))
+                    .filter((row) => !chained.has(row.id));
+                const bringers = await this.#bringers(scope.table, kept);
+
+                return kept.map((row) => ({
+                    row,
+                    ...bringers.get(Key.name(scope.table, row)),
                 }));
             }),
         );
 
-        // add the database's own space where served objects live in a scope type it neither serves nor copies
-        const known = [...this.store.objects, ...this.store.copied];
-        const isKept = served.some((object) =>
-            object.scopes.some((scope) => !known.some((type) => type.same(scope))),
+        // replicate the outside scopes' chains from the universe, once per store and per following subject
+        const bySubject = Map.groupBy(outside.flat(), (entry) =>
+            entry.subject === undefined ? undefined : Subject.key(entry.subject),
         );
-
-        // leave its enclosing scope to its scope row, which the chain copy brings
-        const own = isKept ? [{ id: below, scope: null }] : [];
-
-        // copy the scopes' chains in one copy, after the rows of the universe
-        const universe = this.universeSubscription(below);
-        const chains = await this.store.authorizer.chainVia(
+        const storeVia = await this.store.authorizer.chainVia(
             this.store.database,
-            { name: Authorizer.chainCopy(below), below },
-            [...scopes.flat(), ...own],
-            this.store.authorizer.scoped,
-            elsewhere.map((type) => type.typeReference),
+            { name: Authorizer.viaReplica(below), below },
+            (bySubject.get(undefined) ?? []).map((entry) => entry.row),
+            isOwn ? [] : this.reached(),
         );
+        const onBehalf = await Promise.all(
+            [...bySubject].flatMap(([key, entries]) => {
+                const subject = entries[0]?.subject;
+
+                return key === undefined || subject === undefined
+                    ? []
+                    : [
+                          this.store.authorizer
+                              .chainVia(
+                                  this.store.database,
+                                  { name: `${Authorizer.viaReplica(below)}:${key}`, below },
+                                  entries.map((entry) => entry.row),
+                                  [],
+                              )
+                              .then((via) =>
+                                  via === undefined
+                                      ? undefined
+                                      : {
+                                            subscription: { ...via, subject },
+                                            brought: [
+                                                ...new Set(
+                                                    entries.flatMap((entry) => entry.name ?? []),
+                                                ),
+                                            ],
+                                        },
+                              ),
+                      ];
+            }),
+        );
+        const vias = [
+            ...(storeVia === undefined ? [] : [{ subscription: storeVia }]),
+            ...onBehalf.filter((via) => via !== undefined),
+        ];
 
         return [
-            ...(universe === undefined ? [] : [universe]),
-            ...(chains === undefined ? [] : [chains]),
+            ...own.map((subscription) => ({ subscription, home: below })),
+            ...vias.map((via) => ({ ...via, home: Scope.universe.id })),
         ];
     }
 
-    /** List a database's copy subscriptions for a scope: its chain and its universe rows. */
+    /** Read the subject and replica of the follow that brought each of some scope rows here. */
+    async #bringers(
+        table: Table,
+        rows: readonly { readonly id: string; readonly scope: string }[],
+    ): Promise<Map<string, { readonly subject: Subject; readonly name: string }>> {
+        // read the replicas keeping the rows that follow on a subject's behalf
+        const bringers = new Map<string, { readonly subject: Subject; readonly name: string }>();
+        if (rows.length === 0) {
+            return bringers;
+        }
+        const brought = await this.store.database
+            .select({ key: sync.replicaRow.key, replica: sync.replica })
+            .from(sync.replica)
+            .innerJoin(
+                sync.replicaRow,
+                and(
+                    eq(sync.replicaRow.name, sync.replica.name),
+                    eq(sync.replicaRow.scope, sync.replica.scope),
+                ),
+            )
+            .where(
+                and(
+                    eq(sync.replicaRow.table, table[TABLE].sqlName),
+                    inArray(
+                        sync.replicaRow.key,
+                        rows.map((row) => Key.name(table, row)),
+                    ),
+                    isNotNull(sync.replica.subjectId),
+                ),
+            );
+
+        // take the first such replica of each row
+        for (const { key, replica } of brought) {
+            const subscription = sync.Replica.subscriptionOf(replica);
+            if (!bringers.has(key) && subscription?.subject !== undefined) {
+                bringers.set(key, { subject: subscription.subject, name: subscription.name });
+            }
+        }
+
+        return bringers;
+    }
+
+    /** List the object types whose universe relationships the decided types reach. */
+    reached(): ObjectTypeReference[] {
+        // walk the policies the decided types' relations reference, at any depth
+        const reached = new Map<string, Policy>();
+        const pending = this.store.decided.map((type) => type.policy);
+        for (let policy = pending.pop(); policy !== undefined; policy = pending.pop()) {
+            const key = ObjectTypeReference.key(policy.typeReference);
+            if (!reached.has(key)) {
+                reached.set(key, policy);
+                pending.push(...policy.references);
+            }
+        }
+
+        // read the universe's own relationships beside them
+        const universe = { packageId: Scope.universe.packageId, type: Scope.universe.type };
+
+        return [universe, ...[...reached.values()].map((policy) => policy.typeReference)].toSorted(
+            (left, right) =>
+                ObjectTypeReference.key(left).localeCompare(ObjectTypeReference.key(right)),
+        );
+    }
+
+    /** Read how the store keeps its scope's chain, as its host says. */
+    #chainKind(): Promise<ChainOptions | undefined> {
+        return this.store.chain(Snapshot.live(this.store.database));
+    }
+
+    /** List a database's replica subscriptions for a scope: its chain and its universe rows. */
     async subscriptions(
         below: string,
         options: ChainOptions,
         elsewhere: readonly ObjectType[] = [],
     ): Promise<sync.Subscription[]> {
-        // copy the chain and the rows of the universe the scope reads, but those another copy keeps
-        const chain = await this.store.authorizer.chain(this.store.database, below, options);
+        // replicate the chain and the universe rows the scope reads, except another replica's
+        const chain = await this.store.authorizer.chain(
+            this.store.database,
+            below,
+            options,
+            this.reached(),
+        );
         const universe = this.universeSubscription(below, elsewhere);
 
         return universe === undefined ? chain : [...chain, universe];
     }
 
-    /** Request the universe rows a scope or machine may read, but those another copy keeps. */
+    /** Request the universe rows a scope or machine may read, but those another replica keeps. */
     universeSubscription(
         below: string,
         elsewhere: readonly ObjectType[] = [],
     ): sync.Subscription | undefined {
-        // leave inherited rows to the chains and rows another copy keeps to it
-        const copied = this.store.copied.filter(
-            (object) =>
-                object.inherited === undefined && !elsewhere.some((type) => type.same(object)),
+        // leave inherited rows to the chains, and rows another replica or a follow keeps to it
+        const kept = [...elsewhere, ...this.store.followed];
+        const replicated = this.store.replicated.filter(
+            (object) => object.inherited === undefined && !kept.some((type) => type.same(object)),
         );
         const isUnscoped = (object: ObjectType) =>
             object.scopes.length === 0 ||
-            object.scopes.some((scope) => !copied.some((type) => type.same(scope)));
+            object.scopes.some((scope) => !replicated.some((type) => type.same(scope)));
 
-        // copy a type living in any scope type the copy holds no rows of from every scope its rows live in
-        const listed = copied.filter(isUnscoped);
+        // replicate a type that lives in scope types outside the replica from every scope of its rows
+        const listed = replicated.filter(isUnscoped);
         const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
             object.scope === Scope.universe.id
                 ? { type: object.typeReference, where: {} }
@@ -845,7 +1198,7 @@ export class ObjectSource {
         // add the types living in the scopes of listed types, at any depth
         for (let isGrowing = true; isGrowing;) {
             isGrowing = false;
-            for (const object of copied.filter((candidate) => !listed.includes(candidate))) {
+            for (const object of replicated.filter((candidate) => !listed.includes(candidate))) {
                 const scopes = listed.filter((scope) =>
                     object.scopes.some((type) => type.same(scope)),
                 );
@@ -861,13 +1214,13 @@ export class ObjectSource {
             }
         }
 
-        // request nothing where no universe object type is copied
+        // request nothing where no universe object type is replicated
         if (rows.length === 0) {
             return undefined;
         }
 
-        // copy the universe's rows the scope or machine may read, under its own name
-        return this.store.authorizer.universeShape.subscription({
+        // replicate the universe's rows the scope or machine may read, under its own name
+        return Authorizer.universeSubscription({
             name: below,
             scope: Scope.universe.id,
             below,
@@ -875,28 +1228,28 @@ export class ObjectSource {
         });
     }
 
-    /** Stream a copy's pages to a database in this process, never back to their source. */
+    /** Stream a replica's pages to a database in this process, never back to their source. */
     async *publish(
         subscription: sync.Subscription,
         signal: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // refuse a subscriber whose rows the copy would send back
-        const copy = this.replicaOf(subscription);
+        // refuse a subscriber whose rows the replica would send back
+        const replica = this.buildReplica(subscription);
         const { after, origin } = subscription;
         if (origin !== undefined) {
-            await copy.requireAcyclic(this.store.database, origin);
+            await replica.requireAcyclic(this.store.database, origin);
         }
 
-        // stream the copy, sending no bare positions of the subscriber's own writes
+        // stream the replica, sending no bare positions of the subscriber's own writes
         yield* this.store.feed.subscribe(
-            copy.queries,
+            replica.queries,
             after,
             signal,
             origin === undefined ? {} : { origin },
         );
     }
 
-    /** Stream a copy's pages to a database below. */
+    /** Stream a replica's pages to a database below. */
     async *replicate(
         request: sync.Subscription,
         after: LogPosition | undefined,
@@ -904,7 +1257,7 @@ export class ObjectSource {
         signal: AbortSignal,
         drain?: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // require the copied scope to contain the follower's for a chain
+        // require the replicated scope to contain the follower's for a chain
         const shape = this.#shape(request);
         if (shape.audience === "contained") {
             await this.#requireContaining(request, follower);
@@ -913,20 +1266,20 @@ export class ObjectSource {
         // admit the follower to a chain by containment and to the universe's rows as their reader
         const audience = await this.#replicaAudience(shape, request, follower);
 
-        // relay a copied scope only once its copy has a position, and never back to its source
-        const copy = shape.replica(request);
+        // relay a replicated scope once its replica has a position, to followers other than its source
+        const replica = shape.replica(request);
         const { previous, origin } = request;
         await sync.Replica.requireRelayable(this.store.database, request.name, request.scope);
         if (origin !== undefined) {
-            await copy.requireAcyclic(this.store.database, origin);
+            await replica.requireAcyclic(this.store.database, origin);
         }
 
-        // stream the copy from the parameters it reflects, ending at a completed page once drained
+        // stream the replica from the parameters it reflects, ending at a completed page once drained
         const reflected =
             previous === undefined
                 ? undefined
                 : shape.replica({ ...request, parameters: previous }).queries;
-        yield* this.store.feed.subscribe(copy.queries, after, signal, {
+        yield* this.store.feed.subscribe(replica.queries, after, signal, {
             audience,
             ...(reflected === undefined ? {} : { previous: reflected }),
             ...(drain === undefined ? {} : { drain }),
@@ -934,12 +1287,12 @@ export class ObjectSource {
         });
     }
 
-    /** Require a chain copy's scope to contain the follower's, via its parent if kept elsewhere. */
+    /** Require a chain replica's scope to contain the follower's, via its parent if elsewhere. */
     async #requireContaining(request: sync.Subscription, follower: ReplicaFollower): Promise<void> {
-        // require a follower outside the chains, such as a platform installation, to copy them via scopes inside them
-        const { via, between } = ChainParameters.parse(request.parameters);
-        if (via !== undefined) {
-            await this.#requireVia(request.scope, via, between ?? []);
+        // require a follower outside the chains to replicate them via scopes inside them
+        const { via, between } = ObjectSource.#chainParameters(request);
+        if (via.length > 0) {
+            await this.#requireVia(request.scope, via, between);
 
             return;
         }
@@ -961,13 +1314,13 @@ export class ObjectSource {
         }
     }
 
-    /** Require the via scopes' chains to have the copied scope and those between, read at once. */
+    /** Require the via scopes' chains to have the replicated scope and those between. */
     async #requireVia(
         scope: string,
         via: readonly string[],
         between: readonly string[],
     ): Promise<void> {
-        // require each replicated scope's chain to hold the copied scope
+        // require each replicated scope's chain to contain the replicated scope
         const chains = await Scope.chains(Snapshot.live(this.store.database), via);
         const scopes = new Set<string>();
         for (const [relay, links] of chains) {
@@ -991,15 +1344,15 @@ export class ObjectSource {
         }
     }
 
-    /** Require a reader to have `replicate` on the scope it copies a chain via. */
+    /** Require a reader to have `replicate` on the scope it replicates a chain via. */
     async requireReplicateVia(via: string, reader: Caller): Promise<void> {
-        // require a scope type keeping copies of its chain
+        // require a scope type keeping replicas of its chain
         const { database } = this.store;
         const scope = await Scope.object(Snapshot.live(database), via);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             throw new CallError("FORBIDDEN", {
-                message: `no ${scope.type} keeps copies of its chain`,
+                message: `a ${scope.type} has no replicas of its chain`,
             });
         }
 
@@ -1010,16 +1363,16 @@ export class ObjectSource {
         await authorization.require(policy.permission(REPLICATE), scope);
     }
 
-    /** Open the audience a relayed copy is decided for. */
+    /** Open the audience a relayed replica is decided for. */
     async #replicaAudience(
         shape: sync.Shape,
         request: sync.Subscription,
         follower: ReplicaFollower,
     ): Promise<sync.Audience> {
-        // read the scopes a follower outside the chains copies them via
+        // read the scopes a follower outside the chains replicas them via
         const isContained = shape.audience === "contained";
-        const { via } = isContained ? ChainParameters.parse(request.parameters) : {};
-        const copying = via === undefined ? {} : { via };
+        const via = isContained ? ObjectSource.#chainParameters(request).via : [];
+        const replicating = via.length === 0 ? {} : { via };
 
         // decide a principal's chain by containment in the universe as a principal inside its parent's chain
         if ("subject" in follower && isContained) {
@@ -1030,11 +1383,11 @@ export class ObjectSource {
                 {
                     isContained,
                     within: await this.#within(follower.parent ?? request.below),
-                    ...copying,
+                    ...replicating,
                 },
             );
         }
-        // decide a principal's other rows in the copied scope, as a principal inside its parent's chain
+        // decide a principal's other rows in the replicated scope
         else if ("subject" in follower) {
             const { parent } = follower;
             const within = parent === undefined ? [] : await this.#within(parent);
@@ -1054,20 +1407,20 @@ export class ObjectSource {
                 follower.context.caller(request.below),
                 {
                     isContained,
-                    ...copying,
+                    ...replicating,
                 },
             );
         }
-        // decide a caller in the scope a relayed copy is kept for when this database copies the shape's tables, or in the copied scope at its home
+        // decide a caller in a relayed replica's scope here, else in the replicated scope at its home
         else {
             const { database } = this.store;
             const { tables } = shape.replica(request);
-            const copied = await Promise.all(
+            const replicated = await Promise.all(
                 tables.map((table) =>
-                    sync.Replica.isCopied(Snapshot.live(database), request.scope, table),
+                    sync.Replica.isReplicated(Snapshot.live(database), request.scope, table),
                 ),
             );
-            const scope = copied.every(Boolean) ? request.below : request.scope;
+            const scope = replicated.every(Boolean) ? request.below : request.scope;
 
             return ObjectAudience.of(this.store, scope, follower.context.caller(scope));
         }
@@ -1186,103 +1539,127 @@ export class ObjectSource {
 
         return broadcasts;
     }
+
+    /** Revise each listed replica whose action changed or left, and list the new ones. */
+    static #revise(
+        listed: Map<string, ReplicaEntry>,
+        replicas: ReadonlyMap<string, ReplicaIntent & { digest: string }>,
+    ): void {
+        // abort and forget each listed replica whose digest changed or left
+        for (const [key, replica] of listed) {
+            if (replicas.get(key)?.digest !== replica.digest) {
+                replica.revised.abort();
+                listed.delete(key);
+            }
+        }
+
+        // list the new replicas
+        for (const [key, replica] of replicas) {
+            if (!listed.has(key)) {
+                listed.set(key, { ...replica, revised: new AbortController() });
+            }
+        }
+    }
+
+    /** Build a caller's replica feed options, ending at a completed page once it lapses. */
+    static #followOptions(
+        audience: sync.Audience,
+        context: RequestContext,
+        options: {
+            readonly previous: Readonly<Record<string, sync.Query>> | undefined;
+            readonly refresh: sync.Subscription["refresh"];
+            readonly origin: sync.Subscription["origin"];
+        },
+    ): sync.FeedOptions {
+        const { previous, refresh, origin } = options;
+
+        return {
+            audience,
+            drain: context.signal,
+            ...(previous === undefined ? {} : { previous }),
+            ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
+            ...(origin === undefined ? {} : { origin }),
+        };
+    }
+
+    /** List the tables a query reads: its rows', its includes' and its followed relations'. */
+    static #tablesOf(query: sync.Query): Table[] {
+        return new sync.Node("", query, query.scopes).nodes().map((node) => node.table);
+    }
+
+    /** Mark each page with the scopes it reads, and each completed one with its event. */
+    static async *#marking(
+        pages: AsyncIterable<sync.Page>,
+        chain: readonly string[],
+    ): AsyncGenerator<sync.Page> {
+        for await (const page of pages) {
+            yield ObjectSource.#marked({ ...page, scopes: [...chain] });
+        }
+    }
+
+    /** Mark a completed page with its position as event identifier, for resumed streams. */
+    static #marked(page: sync.Page): sync.Page {
+        return page.complete
+            ? withEventMeta(page, { id: `${page.position.epoch}/${page.position.sequence}` })
+            : page;
+    }
+
+    /** Widen each query to the scopes a replica keeps rows of its table for. */
+    static #withReplicas(
+        queries: Record<string, sync.Query>,
+        kept: Awaited<ReturnType<typeof sync.Replica.kept>>,
+    ): Record<string, sync.Query> {
+        return Object.fromEntries(
+            Object.entries(queries).map(([name, query]) => {
+                // keep a query of every scope
+                if (query.scopes === "every") {
+                    return [name, query];
+                }
+
+                // add each replicated scope keeping the query's table
+                const table = query.table[TABLE].sqlName;
+                const replicated = kept.filter((replica) => replica.tables.includes(table));
+                const scopes = [
+                    ...new Set([...query.scopes, ...replicated.map((replica) => replica.scope)]),
+                ];
+
+                return [name, { ...query, scopes }];
+            }),
+        );
+    }
 }
 
-/** What the replica controller does with a copy: follow it from its publisher, or drop it. */
-type CopyIntent =
+/** What the replica controller does with a replica: follow it from its publisher, or drop it. */
+type ReplicaIntent =
     | {
-          /** A request follows the copy. */
+          /** A request follows the replica. */
           readonly action: "follow";
-          /** The request following the copy. */
+          /** The request following the replica. */
           readonly subscription: sync.Subscription;
-          /** The publisher streaming the copy's pages. */
+          /** The publisher streaming the replica's pages. */
           readonly publisher: sync.Publisher;
       }
     | {
-          /** The kept copy drops for want of a request. */
+          /** The kept replica drops for want of a request. */
           readonly action: "drop";
-          /** The subscription the kept copy recorded. */
+          /** The subscription the kept replica recorded. */
           readonly subscription: sync.Subscription;
       };
 
-/** A copy the replica controller lists, with the digest each listing compares. */
-type CopyEntry = CopyIntent & {
+/** A replica the replica controller lists, with the digest each listing compares. */
+type ReplicaEntry = ReplicaIntent & {
     /** The digest of the action and subscription. */
     readonly digest: string;
     /** Aborts once a listing changes the action or the subscription. */
     readonly revised: AbortController;
 };
 
-/** Who a relayed copy is decided for: a principal where its rows live, or the calling principal. */
+/** Who a relayed replica is decided for: a principal where its rows live, or the caller. */
 export type ReplicaFollower =
     | {
-          /** The principal the copy is decided for. */
+          /** The principal the replica is decided for. */
           readonly subject: Subject;
-          /** The scope containing the follower's scope, when this database keeps no copy of it. */
+          /** The scope containing the follower's scope, when this database has no replica of it. */
           readonly parent?: string;
       }
     | { readonly context: RequestContext };
-
-/** Revise each listed copy whose action changed or left, and list the new ones. */
-function revise(
-    listed: Map<string, CopyEntry>,
-    copies: ReadonlyMap<string, CopyIntent & { digest: string }>,
-): void {
-    // abort and forget each listed copy whose digest changed or left
-    for (const [key, copy] of listed) {
-        if (copies.get(key)?.digest !== copy.digest) {
-            copy.revised.abort();
-            listed.delete(key);
-        }
-    }
-
-    // list the new copies
-    for (const [key, copy] of copies) {
-        if (!listed.has(key)) {
-            listed.set(key, { ...copy, revised: new AbortController() });
-        }
-    }
-}
-
-/** Build a caller's copy feed options, ending at a completed page once it lapses. */
-function followOptions(
-    audience: sync.Audience,
-    context: RequestContext,
-    options: {
-        readonly previous: Readonly<Record<string, sync.Query>> | undefined;
-        readonly refresh: sync.Subscription["refresh"];
-        readonly origin: sync.Subscription["origin"];
-    },
-): sync.FeedOptions {
-    const { previous, refresh, origin } = options;
-
-    return {
-        audience,
-        drain: context.signal,
-        ...(previous === undefined ? {} : { previous }),
-        ...(refresh === undefined ? {} : { every: Duration.milliseconds(refresh.every) }),
-        ...(origin === undefined ? {} : { origin }),
-    };
-}
-
-/** List the tables a query reads: its rows', its includes' and its followed relations'. */
-function tablesOf(query: sync.Query): Table[] {
-    return new sync.Node("", query, query.scopes).nodes().map((node) => node.table);
-}
-
-/** Mark each page with the scopes it reads and each completed page with its event identifier. */
-async function* marking(
-    pages: AsyncIterable<sync.Page>,
-    chain: readonly string[],
-): AsyncGenerator<sync.Page> {
-    for await (const page of pages) {
-        yield marked({ ...page, scopes: [...chain] });
-    }
-}
-
-/** Mark a completed page with its position as event identifier, for resumed streams. */
-function marked(page: sync.Page): sync.Page {
-    return page.complete
-        ? withEventMeta(page, { id: `${page.position.epoch}/${page.position.sequence}` })
-        : page;
-}

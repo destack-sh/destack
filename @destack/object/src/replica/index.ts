@@ -4,10 +4,10 @@ export {
     EphemeralParameters,
     QUERIES_SHAPE,
     QueriesParameters,
-    type OpenQueryOptions,
-    type RelationOptions,
     ObjectQuery,
     replicaProcedures,
     PushResult,
     type ReplicaProcedures,
 } from "./replica.ts";
+
+export * from "./shape.ts";

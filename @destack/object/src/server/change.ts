@@ -69,7 +69,7 @@ export class ChangeController implements Controller {
         for (const trigger of triggers) {
             const key = ChangeController.#key(trigger);
             if (!(trigger.on.change.object instanceof ObjectType)) {
-                throw new TypeError(`trigger ${trigger.name} follows no object type`);
+                throw new TypeError(`trigger ${trigger.name} has no object type`);
             } else if (followed.has(key)) {
                 throw new TypeError(
                     `${trigger.package.name} declares two triggers named ${trigger.name}`,
@@ -215,7 +215,7 @@ export class ChangeController implements Controller {
             } catch (error) {
                 this.#report(
                     new Error(
-                        `trigger ${trigger.name} builds no call of change ${change.position.sequence}`,
+                        `trigger ${trigger.name} cannot build the call of change ${change.position.sequence}`,
                         { cause: error },
                     ),
                 );
@@ -252,7 +252,7 @@ export class ChangeController implements Controller {
         // refuse a trigger following another kind of declaration
         const object = trigger.on.change.object;
         if (!ObjectType.is(object)) {
-            throw new TypeError(`trigger ${trigger.name} follows no object type`);
+            throw new TypeError(`trigger ${trigger.name} has no object type`);
         }
 
         return object.table;

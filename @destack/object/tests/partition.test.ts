@@ -6,12 +6,13 @@ import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { present, schema, Clock } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
-import { testInstallation } from "@destack/runtime/test";
+import { testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import type { Uplink } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import { ShareableMethod } from "../src/method/shareable.ts";
+import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
 import { userContext } from "./fixture/user.ts";
@@ -52,7 +53,7 @@ const roomsDatabase = defineDatabase({ name: "main", tables: [...room.tables, ..
 function idle(name: string): Uplink {
     return {
         stream: () => {
-            throw new TypeError(`${name} streams no copies`);
+            throw new TypeError(`${name} streams no replicas`);
         },
         receive: () => Promise.reject(new TypeError(`${name} receives no changes`)),
     };
@@ -71,6 +72,7 @@ test.each(TEST_DIALECTS)(
         const events = await testEvents(storage.database);
         const serve = (partition?: string) =>
             new ObjectStore({
+                chain: async () => undefined,
                 clock: Clock.system,
                 principal: spacePrincipal(spaceId),
                 objects: [card],
@@ -81,7 +83,7 @@ test.each(TEST_DIALECTS)(
                 ...(partition === undefined ? {} : { partition }),
             });
         const create = (store: ObjectStore) =>
-            request(store, card, "create", { spaceId }, userContext("user-1", spaceId));
+            request(store, card, "create", spaceId, {}, userContext("user-1", spaceId));
 
         // serve the space's partition, any partition, and refuse another partition's store
         const own = await create(serve(spaceId));
@@ -99,40 +101,45 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "follow an installation's root chain from its machine, and a partition's chain below the root from the installation's root through its own package, one copy per link, on %s",
+    "follow an installation's root chain from its machine, and a partition's chain below the root from the installation's root through its own package, one replica per link, on %s",
     async (dialect) => {
         // keep a room partitioning inside the space
         const storage = await TestDatabase.create(dialect, roomsDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        await new AccessFixture(storage.database).copyScope(room.reference(spaceId, ROOM), "own");
+        await new AccessFixture(storage.database).replicateScope(
+            room.reference(spaceId, ROOM),
+            "own",
+        );
 
         // serve the installation at its root and in the room, recording the publishers it reaches
         const reached: string[] = [];
         const machine = idle("machine");
         const root = idle("root");
         const subscriptions = async (partition: string) => {
-            const { store } = ObjectExtension.compose([ObjectExtension.of(roomsPackage, [])], {
-                clock: Clock.system,
-                origin: { package: Package.of(roomsPackage) },
-                callKey: testCallKey,
-                events: await testEvents(storage.database),
-                database: storage.database,
-                installation: {
-                    ...(await testInstallation(Package.of(roomsPackage), spaceId)),
-                    partition,
-                    publisher: machine,
-                    publisherAt: (address, packageId) => {
-                        reached.push(`${address} ${packageId}`);
+            const { store } = ObjectExtension.compose(
+                [defineServer(roomsPackage, {}).extension(undefined)],
+                {
+                    chain: async () => ({ kind: "follower" }),
+                    clock: Clock.system,
+                    origin: { package: Package.of(roomsPackage) },
+                    callKey: testCallKey,
+                    events: await testEvents(storage.database),
+                    database: storage.database,
+                    server: {
+                        ...(await testServerContext(Package.of(roomsPackage), spaceId)),
+                        partition,
+                        publisher: machine,
+                        publisherAt: (address, packageId) => {
+                            reached.push(`${address} ${packageId}`);
 
-                        return root;
+                            return root;
+                        },
                     },
                 },
-            });
-            const entries = await present(
-                store.subscriber,
-                "the store's subscriber",
-            ).subscriptions();
+            );
+            const listed = present(store.subscriber?.subscriptions, "the store's subscriptions");
+            const entries = await listed();
 
             return entries.map((entry) => [
                 entry.subscription.name,
@@ -155,7 +162,47 @@ test.each(TEST_DIALECTS)(
                 [`chain:${ROOM}`, spaceId, "root"],
                 [`chain:${ROOM}`, "universe", "root"],
             ],
-            [`installation-019f5530-8000-7000-8000-00000000f001--${spaceId} ${roomsPackage.id}`],
+            [`fixture--${spaceId} ${roomsPackage.id}`],
         ]);
     },
 );
+
+test("derive the roles of a shared partition without sharing methods on its row, and refuse one declaring them", () => {
+    // share a room through the roles, whose access lives in the room itself
+    const shared = defineObject({
+        name: "room",
+        plural: "rooms",
+        scope: space,
+        isScope: true,
+        partition: true,
+        fields: {},
+        permissions: { read: none() },
+        shareable: { isPublic: true },
+    }).methods();
+
+    // derive the roles' relations, and no sharing methods
+    expect({
+        relations: Object.keys(shared.policy.definition.relations).toSorted(),
+        sharing: Object.keys(shared.methods).filter((name) =>
+            ["relationships", "grant", "revoke", "invite", "accept", "withdraw"].includes(name),
+        ),
+    }).toEqual({
+        relations: ["commenter", "editor", "owner", "public", "viewer"],
+        sharing: [],
+    });
+
+    // refuse a room declaring a sharing method on its row
+    expect(() =>
+        defineObject({
+            name: "room",
+            plural: "rooms",
+            scope: space,
+            isScope: true,
+            partition: true,
+            fields: {},
+            permissions: { read: none(), manage: none() },
+        }).methods(() => ({
+            explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
+        })),
+    ).toThrow(new TypeError("object room: share a partitioned scope through its relationships"));
+});

@@ -3,7 +3,7 @@ import { anyone } from "@destack/access";
 import { Subject } from "@destack/sync";
 
 /** The principal that performed a call. */
-const auditActor = defineSchema(
+export const AuditActor = defineSchema(
     schema.object({
         /** The principal that acted, anyone for an unauthenticated caller. */
         subject: Subject,
@@ -11,15 +11,8 @@ const auditActor = defineSchema(
         name: schema.string().exactOptional(),
     }),
 );
-/** The principal that performed a call, and the key filters name it by. */
-export const AuditActor = Object.assign(auditActor, {
-    /** Encode an actor as the actor key a call's event is filtered by. */
-    key(actor: AuditActor): string {
-        return Subject.key(actor.subject);
-    },
-});
 /** The principal that performed a call. */
-export type AuditActor = schema.Infer<typeof auditActor>;
+export type AuditActor = schema.Infer<typeof AuditActor>;
 
 /** The schema of a recorded caller. */
 const auditCaller = defineSchema(

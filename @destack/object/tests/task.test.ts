@@ -1,10 +1,11 @@
+import { ObjectReference } from "@destack/sync";
 import { bearerUser } from "./fixture/user.ts";
-import { ObjectExtension } from "../src/server/index.ts";
+import { ObjectExtension, defineServer } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, aligned } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -32,14 +33,18 @@ test.each(TEST_DIALECTS)(
         // serve the space's tasks to users identified by their bearer credential
         const server = Server.start({
             clock: Clock.system,
-            ...ObjectExtension.compose([ObjectExtension.of(tasksPackage, [])], {
-                clock: Clock.system,
-                origin: { package: Package.of(tasksPackage) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(database),
-                database,
-            }).packages[0],
+            ...aligned(
+                ObjectExtension.compose([defineServer(tasksPackage, {}).extension(undefined)], {
+                    chain: async () => undefined,
+                    clock: Clock.system,
+                    origin: { package: Package.of(tasksPackage) },
+                    principal: spacePrincipal(spaceId),
+                    callKey: testCallKey,
+                    events: await testEvents(database),
+                    database,
+                }).packages,
+                0,
+            ),
             scope: spaceId,
             resources: new ResourceContext(),
             health: new Health("tasks"),
@@ -161,19 +166,21 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
         });
 
-        // follow up a task of another space by its qualified reference
-        const origin = {
+        // follow up a task of another space by its address
+        const origin = ObjectReference.parse({
+            packageId: task.package.id,
+            type: "task",
             scope: schema.identifier("space").parse(`space-${v7()}`),
             id: schema.identifier("task").parse(`task-${v7()}`),
-        };
+        });
         const followUp = await alice.task.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
             parentId: launch.id,
             title: "Reuse last year's checklist",
-            origin,
+            ...ObjectReference.columns("origin", origin),
         });
-        expect(followUp.origin).toEqual(origin);
+        expect(ObjectReference.at("origin", followUp)).toEqual(origin);
 
         // refuse requests for another space than the caller authenticated for
         const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
@@ -206,14 +213,21 @@ test("serve a handled type in place of the package's own", async () => {
             },
         },
     });
-    const served = ObjectExtension.compose([ObjectExtension.of(tasksPackage, [frozen])], {
-        clock: Clock.system,
-        origin: { package: Package.of(tasksPackage) },
-        principal: spacePrincipal(spaceId),
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        database: storage.database,
-    }).packages[0];
+    const served = aligned(
+        ObjectExtension.compose(
+            [defineServer(tasksPackage, { objects: [frozen] }).extension(undefined)],
+            {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(tasksPackage) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+            },
+        ).packages,
+        0,
+    );
     const server = Server.start({
         clock: Clock.system,
         ...served,

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Authorization, principal } from "@destack/access";
+import { accessGrant, Authorization, Policy, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, Clock } from "@destack/schema";
@@ -8,8 +8,9 @@ import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectStore } from "../src/server/index.ts";
-import { defineObject, Intrinsic } from "../src/index.ts";
+import { defineObject, field, Intrinsic } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
+import { ObjectReference, type Subject } from "@destack/sync";
 
 /** The space whose roles and members the test follows. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -39,6 +40,7 @@ test.for(TEST_DIALECTS)(
 
         // serve the space's roles and relationships to the owner
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(SPACE_ID),
             objects: [role, relationship],
@@ -99,10 +101,7 @@ test.for(TEST_DIALECTS)(
                 change.row["name"] ?? change.row["subjectId"],
             ]);
         };
-        expect(await next()).toEqual([
-            ["destack__access__role", "insert", "owner"],
-            ["destack__access__relationship", "insert", "owner"],
-        ]);
+        expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
 
         // keep a new role at once and its binding to a member
         const reviewer = await store
@@ -139,7 +138,7 @@ test("refuse traits on an object type over a foreign table", () => {
     });
 
     expect(() => recoverable.methods(Intrinsic.role.methods)).toThrow(
-        new TypeError("object role over a foreign table takes no recoverable"),
+        new TypeError("object role over a foreign table cannot have recoverable"),
     );
 });
 
@@ -152,6 +151,7 @@ test("authorize an object type that the objects and the policies list several ti
     );
     onTestFinished(() => storage.close());
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
         objects: [role, relationship],
@@ -164,5 +164,113 @@ test("authorize an object type that the objects and the policies list several ti
 
     // map the role's table once
     const { packageId, name } = role.policy.definition;
-    expect(store.authorizer.mapping({ packageId, type: name }).table).toBe(role.table);
+    expect(store.authorizer.requireMapping({ packageId, type: name }).table).toBe(role.table);
+});
+
+/** A space's tokens, each a personal access token principal. */
+const token = defineObject({
+    name: "personal-access-token",
+    identity: "token",
+    plural: "tokens",
+    scope: space,
+    represents: principal.personalAccessToken,
+    fields: { name: field.string() },
+    permissions: ["read", "write"],
+}).methods((method) => ({
+    create: method.create("write"),
+    delete: method.delete("write"),
+}));
+
+test("delete the grants of a token as the token is deleted", async () => {
+    // serve a space's tokens to its owner
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "main",
+            tables: [...token.tables, ...role.tables, space.table, ...callTables],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(SPACE_ID),
+        objects: [token],
+        policies: [space],
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: token.package },
+    });
+    await database
+        .insert(space.table)
+        .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
+    const owner = principal.user.reference("universe", "owner");
+    const creating = await Transaction.open(database);
+    await new Authorization(store.authorizer, creating, () => ({
+        subjects: [owner],
+        now: Date.now(),
+        attributes: {},
+    })).create(space.reference("universe", SPACE_ID), { owner });
+    await creating.commit();
+
+    // create a token, and a grant of the owner to it beside another delegate's
+    const caller = subjectContext(owner, SPACE_ID).caller();
+    const [created] = await store.mutate(caller, {
+        id: RequestId.create(Date.now()),
+        calls: [token.call("create", { spaceId: SPACE_ID, name: "deploy" })],
+    });
+    const delegate = token.reference(
+        SPACE_ID,
+        schema.looseObject({ id: schema.string() }).parse(created).id,
+    );
+    const other = principal.user.reference("universe", "other");
+    const grant = (id: string, to: Subject) => ({
+        id: schema.identifier("grant").parse(id),
+        scope: "universe",
+        ...ObjectReference.columns("delegator", owner),
+        ...ObjectReference.columns("delegate", to),
+        permissions: [],
+        expiresAt: Date.now() + 60_000,
+        createdAt: 1,
+    });
+    await database
+        .insert(accessGrant)
+        .values([
+            grant("grant-01996ab0-0000-7000-8000-000000000001", delegate),
+            grant("grant-01996ab0-0000-7000-8000-000000000002", other),
+        ]);
+
+    // delete the token
+    await store.mutate(caller, {
+        id: RequestId.create(Date.now()),
+        calls: [token.call("delete", { spaceId: SPACE_ID, id: delegate.id })],
+    });
+
+    // keep only the other delegate's grant
+    const kept = await database.select().from(accessGrant);
+    expect(kept.map((row) => ObjectReference.at("delegate", row))).toEqual([other]);
+});
+
+test("keep a represented policy's relations whole, a concealed one concealed", () => {
+    // represent a policy whose holders stay concealed
+    const badge = new Policy(space.package, {
+        name: "badge",
+        relations: { holder: { subjects: [principal.user], concealed: true, onDelete: "cascade" } },
+        permissions: {},
+    });
+    const represented = defineObject({
+        name: "badge",
+        plural: "badges",
+        scope: space,
+        represents: badge,
+        fields: {},
+        permissions: [],
+    }).methods();
+
+    expect(represented.policy.definition.relations["holder"]).toEqual(
+        badge.definition.relations["holder"],
+    );
 });

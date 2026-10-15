@@ -59,6 +59,7 @@ async function serve(dialect: (typeof TEST_DIALECTS)[number]) {
     await openSpace(storage.database, spaceId);
 
     return new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [item, card],

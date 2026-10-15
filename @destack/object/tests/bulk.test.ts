@@ -6,18 +6,18 @@ import { principal, relation } from "@destack/access";
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/runtime";
-import { schema, Clock } from "@destack/schema";
+import { schema, Clock, aligned } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { Subject } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { Call, defineObject, field } from "../src/index.ts";
-import { ObjectExtension, ObjectStore } from "../src/server/index.ts";
+import { defineObject, field } from "../src/index.ts";
+import { ObjectExtension, ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space containing the labels. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
@@ -39,18 +39,20 @@ const label = defineObject({
     create: method.create("write", { fields: ["name", "color"] }),
     createMany: method.createMany("write", { fields: ["name", "color"] }),
     deleteMany: method.deleteMany("write", { match: ["color"] }),
+    recolor: method.updateItems("write", { fields: ["color"] }),
 }));
 
 /** The database with the labels, their access and the journal. */
 const labelDatabase = defineDatabase({ name: "main", tables: [...callTables, ...label.tables] });
 
-/** Serve the labels of the space to the user each call names. */
+/** Serve the labels of the space to the user of each call. */
 async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
     // open the space and its store
     const storage = await TestDatabase.create(dialect, labelDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [label],
@@ -64,19 +66,20 @@ async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
     const call = <Name extends CallableName<typeof label>>(
         user: string,
         name: Name,
-        input: Record<string, unknown>,
+        input: NoInfer<RequestInput<typeof label, Name>>,
     ) =>
         request(
             store,
             label,
             name,
-            { spaceId, requestId: RequestId.create(Date.now()), ...input },
+            spaceId,
+            { requestId: RequestId.create(Date.now()), ...input },
             userContext(user, spaceId),
         );
     const read = async () =>
         (await rows(storage.database)).map(
             (row) =>
-                `${row.ownerId} ${row.name} ${row.color} ${row.deletionRequestedAt === null ? "kept" : "trashed"}`,
+                `${row.ownerId} ${row.name} ${row.color} ${row.deletedAt === null ? "kept" : "trashed"}`,
         );
 
     return { storage, store, call, read };
@@ -109,10 +112,11 @@ test.each(TEST_DIALECTS)(
             row.color,
             row.ownerId,
             row.revision,
-            row.createdBy,
+            ObjectReference.at("createdBy", row),
         ]);
-        const [urgent, , done] = created.ids;
-        const author = Subject.key(principal.user.reference("universe", "user-1"));
+        const urgent = aligned(created.ids, 0);
+        const done = aligned(created.ids, 2);
+        const author = principal.user.reference("universe", "user-1");
         expect(created.ids[1]).toBe(chosen);
         expect(written).toEqual([
             [done, "done", "green", "user-1", 1, author],
@@ -209,14 +213,18 @@ test("undo a bulk creation by deleting each created object on the device and the
     const { storage } = await serveLabels("sqlite");
     const labels = definePackage({ objects: { label } });
     const served = serveObjects(
-        ObjectExtension.compose([ObjectExtension.of(labels, [])], {
-            clock: Clock.system,
-            origin: { package: Package.of(labels) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            database: storage.database,
-        }).packages[0],
+        aligned(
+            ObjectExtension.compose([defineServer(labels, {}).extension(undefined)], {
+                chain: async () => undefined,
+                clock: Clock.system,
+                origin: { package: Package.of(labels) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+            }).packages,
+            0,
+        ),
         spaceId,
     );
 
@@ -234,7 +242,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         endpoint: served.endpoint("alice"),
         reconnect: unmoved,
     });
-    client.queryOf(label).findMany().subscribe();
+    client.queryType(label).findMany().subscribe();
     const stopping = new AbortController();
     const errors: unknown[] = [];
     const loops = [
@@ -252,7 +260,7 @@ test("undo a bulk creation by deleting each created object on the device and the
     const { ids } = await created.predicted;
     await created.confirmed;
     const kept = async (database: DatabaseConnection) =>
-        (await rows(database)).map((row) => [row.id, row.deletionRequestedAt === null]);
+        (await rows(database)).map((row) => [row.id, row.deletedAt === null]);
     const before = [await kept(client.database), await kept(storage.database)];
 
     // undo the creation into the trash on the device and through the server
@@ -288,15 +296,13 @@ test.each(TEST_DIALECTS)(
         const sent = {
             id: RequestId.create(Date.now()),
             calls: [
-                Call.wire(
-                    label.call("createMany", {
-                        spaceId,
-                        items: [
-                            { name: "red", color: "red" },
-                            { name: "blue", color: "blue" },
-                        ],
-                    }),
-                ),
+                label.call("createMany", {
+                    spaceId,
+                    items: [
+                        { name: "red", color: "red" },
+                        { name: "blue", color: "blue" },
+                    ],
+                }),
             ],
         };
         const user = principal.user.reference("universe", "user-1");
@@ -338,12 +344,76 @@ test.each(TEST_DIALECTS)(
             ),
         };
 
-        // spend a few statements per batch of rows, never one per object
+        // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
         const extra = dialect === "postgresql" ? 1 : 0;
         expect(statements).toEqual({
-            createOne: 21 + extra,
-            createThousand: 21 + extra,
-            trashThousand: 23 + extra,
+            createOne: 16 + extra,
+            createThousand: 16 + extra,
+            trashThousand: 18 + extra,
+        });
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "update listed objects at their revisions in one call, and refuse the whole batch for one stale revision or one the caller may not change, on %s",
+    async (dialect) => {
+        const { storage, call, read } = await serveLabels(dialect);
+        const { ids } = await call("user-1", "createMany", {
+            items: [
+                { name: "urgent", color: "red" },
+                { name: "later", color: "blue" },
+            ],
+        });
+        const urgent = aligned(ids, 0);
+        const later = aligned(ids, 1);
+        const { ids: alarms } = await call("user-2", "createMany", {
+            items: [{ name: "alarm", color: "red" }],
+        });
+
+        // recolor both labels at their first revision, then refuse one stale revision and another's label
+        const updated = await call("user-1", "recolor", {
+            items: [
+                { id: urgent, revision: 1, color: "green" },
+                { id: later, revision: 1, color: "green" },
+            ],
+        });
+        const refusals = [
+            await refusal(
+                call("user-1", "recolor", {
+                    items: [
+                        { id: urgent, revision: 2, color: "white" },
+                        { id: later, revision: 1, color: "white" },
+                    ],
+                }),
+            ),
+            await refusal(
+                call("user-1", "recolor", {
+                    items: [
+                        { id: urgent, revision: 2, color: "white" },
+                        { id: aligned(alarms, 0), revision: 1, color: "white" },
+                    ],
+                }),
+            ),
+        ];
+
+        // keep the first update alone, each label at its next revision
+        const revisions = (await rows(storage.database)).map((row) => [row.name, row.revision]);
+        expect({ updated, refusals, labels: await read(), revisions }).toEqual({
+            updated: { count: 2 },
+            refusals: [
+                ["CONFLICT", "label revision has changed"],
+                ["NOT_FOUND", "label not found"],
+            ],
+            labels: [
+                "user-2 alarm red kept",
+                "user-1 later green kept",
+                "user-1 urgent green kept",
+            ],
+            revisions: [
+                ["alarm", 1],
+                ["later", 2],
+                ["urgent", 2],
+            ],
         });
     },
 );

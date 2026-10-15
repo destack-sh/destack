@@ -1,13 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import {
-    Aggregate,
-    Expression,
-    LogPosition,
-    Condition,
-    OrderBy,
-    Scalar,
-    type Extras,
-} from "@destack/db";
+import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "@destack/runtime";
 import { Watermark } from "@destack/runtime/bookmark";
 import { defineProcedure } from "@destack/runtime/procedure";
@@ -19,30 +11,8 @@ import {
     ObjectTypeReference,
     Page,
     Subscription,
+    Aggregate,
 } from "@destack/sync";
-
-/** A relational query of a runtime type's rows, the open form of `QueryOptions` callers send. */
-export type OpenQueryOptions = {
-    /** The fields each result keeps: only those set true, or all but those set false. */
-    readonly columns?: Readonly<Record<string, boolean>>;
-    /** Values computed from each row's fields and relations, read like fields. */
-    readonly extras?: Extras;
-    /** The condition the rows meet, over their logged fields. */
-    readonly where?: Condition;
-    /** How the rows sort, completed by their identifier. */
-    readonly orderBy?: OrderBy;
-    /** The most rows selected, per selected row for an include. */
-    readonly limit?: number;
-    /** The related rows each row includes, by relation: all of them, or those a query selects. */
-    readonly with?: Readonly<Record<string, true | RelationOptions>>;
-    /** Aggregates of the rows, kept instead of the rows, for a query's own rows only. */
-    readonly aggregate?: Aggregate;
-    /** Which trashed rows of a recoverable type to select, none by default. */
-    readonly deleted?: "exclude" | "include" | "only";
-};
-
-/** The open query of a relation's rows, which keeps rows and no aggregates. */
-export type RelationOptions = Omit<OpenQueryOptions, "aggregate">;
 
 /** The view a read sees: a log position, a branch over the main line, or both. */
 export const ViewShape = {
@@ -68,18 +38,16 @@ const RelationShape = {
             schema.record(schema.string(), schema.union([schema.literal(true), RelationQuery])),
         )
         .exactOptional(),
-    /** Which trashed rows of a recoverable type to select, none by default. */
-    deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
 };
 
 /** The query of a relation's rows. */
-const RelationQuery: schema.Schema<RelationOptions> = schema.lazy(() =>
-    schema.object(RelationShape),
-);
+const RelationQuery: schema.Schema<FindOptions> = schema.lazy(() => schema.object(RelationShape));
 
-/** The fields of a query of one object type's rows, which may aggregate them. */
+/** The fields of a query of one object type's rows: its trashed rows, or aggregates of them. */
 export const QueryShape = {
     ...RelationShape,
+    /** Which trashed rows of a recoverable type to select, none by default. */
+    deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
     /** Aggregates of the rows, kept instead of the rows. */
     aggregate: Aggregate.exactOptional(),
 };
@@ -97,9 +65,7 @@ export const ListShape = {
     /** Each row's extras, by row identifier. */
     extras: schema.record(schema.string(), schema.record(schema.string(), Scalar)).exactOptional(),
     /** What each row includes, in its JSON form, by include name and row identifier. */
-    included: schema
-        .record(schema.string(), schema.record(schema.string(), schema.json()))
-        .exactOptional(),
+    included: schema.record(schema.string(), schema.jsonObject()).exactOptional(),
     /** The groups of an aggregate query. */
     groups: schema.array(GroupSchema).exactOptional(),
 };
@@ -107,21 +73,28 @@ export const ListShape = {
 /** The most mutations one push sends: at 1 to 5 ms each, about half a second. */
 export const PUSH_MUTATIONS = 100;
 
-/** The most object types one description request names: every type of a large platform. */
+/** The most object types one description request lists: every type of a large platform. */
 export const DESCRIBED_TYPES = 1000;
 
 /** The identifier an object client generates for itself as the writer of its ephemeral objects. */
 export const WriterId = schema.string().min(1).max(64);
 
-/** A query of one object type's rows in the scope a replica follows. */
-export type ObjectQuery = OpenQueryOptions & {
+/** A query of one object type's rows in the scope a replica follows, or in every scope. */
+export interface ObjectQuery extends FindOptions {
     /** The object type, by name. */
     readonly object: string;
-};
+    /** Every scope the follower may read, instead of the followed scope's chain. */
+    readonly scopes?: "every";
+    /** Which trashed rows of a recoverable type to select, none by default. */
+    readonly deleted?: "exclude" | "include" | "only";
+    /** Aggregates of the rows, kept instead of the rows. */
+    readonly aggregate?: Aggregate;
+}
 
-/** A query of one object type's rows in the scope a replica follows. */
+/** A query of one object type's rows in the scope a replica follows, or in every scope. */
 export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     object: schema.string().min(1),
+    scopes: schema.literal("every").exactOptional(),
     ...QueryShape,
 });
 
@@ -178,7 +151,7 @@ export const PushResult = schema.object({
 /** The outcomes of a push and the watermark with their changes. */
 export type PushResult = schema.Infer<typeof PushResult>;
 
-/** The procedures a client replica or a database copying the served one uses. */
+/** The procedures a client replica or a database replicating the served one uses. */
 export const replicaProcedures = {
     push: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
         .route({ method: "POST", path: "/replica/push" })
@@ -199,7 +172,7 @@ export const replicaProcedures = {
             schema.object({
                 /** The scope whose watermark to read. */
                 scope: schema.string().min(1),
-                /** The watermarks of enclosing scopes' homes the copy waits for. */
+                /** The watermarks of enclosing scopes' homes the replica waits for. */
                 homes: schema.array(Watermark),
             }),
         )
@@ -219,7 +192,7 @@ export const replicaProcedures = {
         .route({ method: "POST", path: "/replica/receive" })
         .input(
             schema.object({
-                /** The mutation of copied rows a follower sends toward their home. */
+                /** The mutation of replicated rows a follower sends toward their home. */
                 mutation: Mutation,
             }),
         )
@@ -252,10 +225,10 @@ export const replicaProcedures = {
         .output(
             schema.object({
                 /** The descriptions, each type once, as `ObjectDescription` reads them. */
-                objects: schema.array(schema.record(schema.string(), schema.json())),
+                objects: schema.array(schema.jsonObject()),
             }),
         ),
 };
 
-/** The procedures a client replica or a database copying the served one uses. */
+/** The procedures a client replica or a database replicating the served one uses. */
 export type ReplicaProcedures = typeof replicaProcedures;

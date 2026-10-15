@@ -54,6 +54,7 @@ test.each(TEST_DIALECTS)(
         const database = storage.database;
         await openSpace(database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [alert],
@@ -94,7 +95,7 @@ test.each(TEST_DIALECTS)(
         expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get", "list"]);
         const delay = await controller.reconcile(
             "expiry",
-            reconciliation(AbortSignal.timeout(5000)),
+            reconciliation(new AbortController().signal),
         );
         const left = await database.select({ id: alert.table.id }).from(alert.table);
         expect([
@@ -105,18 +106,19 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("leave the expired rows a database copies to the deletes their home sends", async () => {
-    // keep the alerts as copies, one long expired
-    const copied = defineDatabase({
+test("leave the expired rows a database replicates to the deletes their home sends", async () => {
+    // keep the alerts as replicas, one long expired
+    const replicated = defineDatabase({
         name: "main",
         tables: [...callTables, ...alert.tables.filter((table) => table !== alert.table)],
-        copies: [alert.table],
+        replicated: [alert.table],
     });
-    const storage = await TestDatabase.create("sqlite", copied, { isMigrated: true });
+    const storage = await TestDatabase.create("sqlite", replicated, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [alert],
@@ -130,7 +132,7 @@ test("leave the expired rows a database copies to the deletes their home sends",
         id: alert.identifier(`alert-${v7()}`),
         scope: spaceId,
         ownerId: "user-1",
-        title: "Copied",
+        title: "Replicated",
         createdAt: now - 400 * DAY,
         updatedAt: now - 400 * DAY,
         readAt: null,
@@ -138,7 +140,10 @@ test("leave the expired rows a database copies to the deletes their home sends",
 
     // expire nothing and schedule nothing
     const controller = new ExpiringController(store);
-    const delay = await controller.reconcile("expiry", reconciliation(AbortSignal.timeout(5000)));
+    const delay = await controller.reconcile(
+        "expiry",
+        reconciliation(new AbortController().signal),
+    );
     const left = await database.select({ title: alert.table.title }).from(alert.table);
-    expect([left, delay, controller.watches]).toEqual([[{ title: "Copied" }], undefined, []]);
+    expect([left, delay, controller.watches]).toEqual([[{ title: "Replicated" }], undefined, []]);
 });

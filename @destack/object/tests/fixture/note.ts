@@ -39,7 +39,7 @@ export const note = defineObject({
         pinned: field.boolean().default(false),
     },
     recoverable: { within: { days: 30 }, by: "manage" },
-    aggregates: { noteCount: { function: "count", where: { deletionRequestedAt: null } } },
+    aggregates: { noteCount: { function: "count", where: { deletedAt: null } } },
     shareable: {},
 }).methods((method) => ({
     create: method.create("edit"),

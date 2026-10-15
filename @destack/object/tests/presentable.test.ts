@@ -53,6 +53,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [board],
@@ -122,8 +123,8 @@ test("refuse a presentation without a title field, a field the presentation adds
             fields: { title: field.string(), color: field.string() },
             presentable: true,
         }),
-    ).toThrow("object card declares field color, which its presentation adds");
+    ).toThrow("object card cannot declare field color: its presentation adds it");
     expect(declare({ search: { sortable: ["body"] } })).toThrow(
-        "object card declares body sortable, which is no sortable field",
+        "object card declares body sortable, which is not a sortable field",
     );
 });

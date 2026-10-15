@@ -49,7 +49,7 @@ export const task = defineObject({
         due: field.time().optional(),
         priority: field.enum(["low", "normal", "high", "urgent"]).default("normal"),
         budget: field.number().optional().guard({ read: "manage", write: "manage" }),
-        origin: field.reference("self", { qualified: true }).optional(),
+        origin: field.object().optional(),
         status: field.state({
             initial: "open",
             transitions: {

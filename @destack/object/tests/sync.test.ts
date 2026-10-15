@@ -14,7 +14,7 @@ import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
 import { userContext } from "./fixture/user.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** How long a short grant lasts, in milliseconds. */
 const GRANT_MILLISECONDS = 300;
@@ -49,6 +49,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
 
     // serve methods as each user and follow the tasks the second user sees
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         objects: [task, team, comment, taskVersion, folder],
@@ -69,9 +70,9 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         caller: string,
         object: Object,
         name: Name,
-        input: Record<string, unknown>,
+        input: NoInfer<RequestInput<Object, Name>>,
     ): Promise<CallOutput<Object, Name>> => {
-        return request(store, object, name, { spaceId, ...input }, userContext(caller, spaceId));
+        return request(store, object, name, spaceId, input, userContext(caller, spaceId));
     };
     const pages = store.source.relayed(
         store.source.queriesShape.subscription({
@@ -180,7 +181,7 @@ test.each(TEST_DIALECTS)(
             subject: { ...team.reference(spaceId, teamId), relation: "member" },
         });
 
-        // select the task once the caller joins the team, a relationship on the team alone
+        // select the task once the caller joins the team, only a relationship on the team
         await execute("user-1", team, "grant", {
             id: teamId,
             requestId: RequestId.create(Date.now()),

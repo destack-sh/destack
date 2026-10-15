@@ -10,11 +10,10 @@ import { schema, present, Clock } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
-import { Subject } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
-import { any } from "./fixture/match.ts";
 
 test.each(TEST_DIALECTS)(
     "keep notes private until shared, move them between notebooks and sync them on %s",
@@ -140,7 +139,7 @@ test.each(TEST_DIALECTS)(
         const questions = device.client
             .mutate(note)
             .create({ parentId: research.id, title: "Questions" });
-        expect(Subject.read((await questions.predicted).owner)).toEqual(
+        expect(ObjectReference.at("owner", await questions.predicted)).toEqual(
             principal.user.reference("universe", "bob"),
         );
         expect(await device.titles()).toEqual(["Ideas", "Questions", "Sources"]);
@@ -162,15 +161,16 @@ test.each(TEST_DIALECTS)(
         const device = await Device.open("alice", endpoint("alice"));
         const travel = device.client.mutation(async (mutation) => {
             const book = await mutation.call(notebook).create({ name: "Travel" });
-            await mutation.call(note).create({ parentId: book.id, title: "Packing" });
+            const first = await mutation.call(note).create({ parentId: book.id, title: "Packing" });
 
-            return book;
+            return { book, first };
         });
-        const book = await travel.predicted;
+        const { book, first } = await travel.predicted;
         expect(await device.titles()).toEqual(["Packing"]);
         expect((await alice.notebook.list({ spaceId })).items).toEqual([]);
 
         // keep the queue and the prediction when the device restarts
+        const queued = await device.client.prediction.pending(device.client.database);
         await device.offline();
         const reconnected = await device.storage.connect(ObjectClient.tables({ notebook, note }));
         const restarted = await ObjectClient.open({
@@ -182,29 +182,27 @@ test.each(TEST_DIALECTS)(
             endpoint: endpoint("alice"),
             reconnect: unmoved,
         });
-        expect(await restarted.prediction.pending(restarted.database)).toEqual([
-            {
-                id: any(String),
-                calls: [
-                    {
-                        type: notebook.typeReference,
-                        method: "create",
-                        release: notebook.package.version,
-                        input: { name: "Travel", id: book.id, spaceId },
+        expect(await restarted.prediction.pending(restarted.database)).toEqual(queued);
+        expect(queued.map((mutation) => mutation.calls)).toEqual([
+            [
+                {
+                    type: notebook.typeReference,
+                    method: "create",
+                    release: notebook.package.version,
+                    input: { name: "Travel", id: book.id, spaceId },
+                },
+                {
+                    type: note.typeReference,
+                    method: "create",
+                    release: note.package.version,
+                    input: {
+                        parentId: book.id,
+                        title: "Packing",
+                        id: first.id,
+                        spaceId,
                     },
-                    {
-                        type: note.typeReference,
-                        method: "create",
-                        release: note.package.version,
-                        input: {
-                            parentId: book.id,
-                            title: "Packing",
-                            id: any(String),
-                            spaceId,
-                        },
-                    },
-                ],
-            },
+                },
+            ],
         ]);
         await reconnected.close();
 
@@ -514,7 +512,7 @@ test("share one browser database between tabs, handing it over when the owning t
     await second.close();
 });
 
-test("decide checks on a device from its copy of the caller's access rows, and follow a grant and its revocation into them", async () => {
+test("decide checks on a device from its replica of the caller's access rows, and follow a grant and its revocation into them", async () => {
     const { connect, endpoint } = await serveNotes("sqlite");
     const alice = connect("alice");
 

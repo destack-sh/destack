@@ -48,6 +48,7 @@ test.for(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [document],
@@ -89,7 +90,7 @@ test.for(TEST_DIALECTS)(
             ],
         });
 
-        // search titles, bodies across chunks, both together, and words no document holds
+        // search titles, bodies across chunks, both together, and words no document has
         const chunks = await storage.database.select().from(chunk);
         const titles = async (search: string) =>
             (

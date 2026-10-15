@@ -26,7 +26,7 @@ test("read through methods that change nothing on the server, and refuse mutatio
     });
     await expect(refused).rejects.toMatchObject({
         code: "BAD_REQUEST",
-        message: "notebook.create changes objects, so a client pushes it",
+        message: "notebook.create changes objects: push it from a client",
     });
     expect([read.name, device.errors]).toEqual(["Travel", []]);
 });

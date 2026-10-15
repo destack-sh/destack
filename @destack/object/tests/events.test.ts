@@ -1,4 +1,4 @@
-import { Caller, none, principal, relation } from "@destack/access";
+import { Caller, none, principal, relation, through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
@@ -7,7 +7,7 @@ import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, EventView, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
@@ -42,7 +42,7 @@ const visit = defineObject({
         /** The page the visitor came from, absent for a direct visit. */
         data: field.json(schema.object({ referrer: schema.string().nullable() })),
     },
-    permissions: { read: relation("visitor"), record: none() },
+    permissions: { read: relation("visitor"), record: none(), visit: relation("visitor") },
 }).methods((method) => ({
     list: method.list("read"),
     get: method.get("read"),
@@ -50,7 +50,38 @@ const visit = defineObject({
         isInternal: true,
         fields: ["visitorId", "page", "duration", "data"],
     }),
+    visit: method.create("visit", { fields: ["visitorId", "page", "duration", "data"] }),
 }));
+
+/** Pages of a space, each counting the visits its reader made to it. */
+const page = defineObject({
+    name: "page",
+    plural: "pages",
+    scope: space,
+    fields: { title: field.string() },
+    permissions: { read: through("scope", "read") },
+})
+    .methods((method) => ({
+        visits: method.query({
+            permission: "read",
+            target: "scope",
+            input: schema.object({ title: schema.string() }),
+            output: schema.object({ count: schema.number().int() }),
+        }),
+    }))
+    .implement({
+        methods: {
+            visits: async (call) => {
+                // read the caller's visits of the page through the visits' own listing
+                const listed = await call.query(
+                    call.caller,
+                    visit.call("list", { spaceId: call.scope, where: { page: call.input.title } }),
+                );
+
+                return { count: listed.items.length };
+            },
+        },
+    });
 
 test.for(TEST_DIALECTS)(
     "list, get and fold the %s events a visitor may read, refusing a fold without a visitor filter",
@@ -67,6 +98,7 @@ test.for(TEST_DIALECTS)(
         await openSpace(storage.database, spaceId);
         const events = await testEvents(storage.database, [visit.eventKind()]);
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
             objects: [visit],
@@ -77,11 +109,11 @@ test.for(TEST_DIALECTS)(
         });
 
         // record two visits of alice a minute apart and one of bob, as the space itself
-        const visited = (id: string, visitor: string, page: string, minute: number) => ({
+        const visited = (id: string, visitor: string, title: string, minute: number) => ({
             id,
             time: START + minute * MINUTE,
             visitorId: visitor,
-            page,
+            page: title,
             duration: 1000 * (minute + 1),
             data: { referrer: null },
         });
@@ -149,3 +181,113 @@ test.for(TEST_DIALECTS)(
         });
     },
 );
+
+test("append a visitor's own visit publicly, refusing another's, and read visits from a durable method", async () => {
+    // keep the visits beside the space's pages
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "visits",
+            tables: [...space.tables, ...visit.tables, ...page.tables, ...callTables],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [visit, page],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, [visit.eventKind()]),
+        origin: { package: visit.package },
+    });
+
+    // append alice's visit as alice, and refuse bob appending one in her name
+    const alice = userContext("alice", spaceId).caller();
+    const bob = userContext("bob", spaceId).caller();
+    const visited = (visitor: string, id: string) =>
+        visit.call("visit", {
+            spaceId,
+            id,
+            time: START,
+            visitorId: visitor,
+            page: "home",
+            duration: 1000,
+            data: { referrer: null },
+        });
+    await store.mutate(alice, {
+        id: RequestId.create(Date.now()),
+        calls: [visited("alice", "visit-1")],
+    });
+    const refused = await refusal(
+        store.mutate(bob, {
+            id: RequestId.create(Date.now()),
+            calls: [visited("alice", "visit-2")],
+        }),
+    );
+
+    // count alice's visits of the page from a durable method reading them as her
+    const counted = await store.query(alice, page.call("visits", { spaceId, title: "home" }));
+
+    expect({ refused, counted }).toEqual({
+        refused: ["NOT_FOUND", "visit not found"],
+        counted: { count: 1 },
+    });
+});
+
+test("read the events a space appended after a log sequence, in commit order", async () => {
+    // record a visit, then two more after the log's position
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "visits",
+            tables: [...space.tables, ...visit.tables, ...callTables],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const events = await testEvents(storage.database, [visit.eventKind()]);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        objects: [visit],
+        database: storage.database,
+        callKey: testCallKey,
+        events,
+        origin: { package: visit.package },
+    });
+    const record = (ids: readonly string[]) =>
+        store.mutate(Caller.of(spacePrincipal(spaceId), Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                visit.call("record", {
+                    spaceId,
+                    items: ids.map((id, minute) => ({
+                        id,
+                        time: START + minute * MINUTE,
+                        visitorId: "alice",
+                        page: "home",
+                        duration: 1000,
+                        data: { referrer: null },
+                    })),
+                }),
+            ],
+        });
+    await record(["visit-1"]);
+    const { sequence: before } = await storage.database.log.position();
+    await record(["visit-2", "visit-3"]);
+
+    // read only the later visits, and nothing past the sequence the read reached
+    const view = new EventView(visit.eventKind(), events);
+    const later = await view.changes({ scopes: [spaceId] }, before);
+    const drained = await view.changes({ scopes: [spaceId] }, later.sequence);
+    expect({
+        later: later.events.map((event) => event.id),
+        drained: drained.events.length,
+    }).toEqual({ later: ["visit-2", "visit-3"], drained: 0 });
+});

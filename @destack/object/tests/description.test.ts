@@ -57,9 +57,9 @@ const sample = defineObject({
         total: field.count(),
         largest: field.max(),
         note: field.reference(note, { delete: "cascade" }).relate("note"),
-        later: field.reference("note", () => note).relate("later"),
-        link: field.reference("self", { qualified: true }),
-        elsewhere: field.reference(note, { qualified: true }),
+        later: field.reference(() => note).relate("later"),
+        link: field.object(),
+        elsewhere: field.object(note),
     },
     permissions: ["read", "write", "edit", "audit", "tidy"],
     constraints: {
@@ -97,7 +97,7 @@ const sample = defineObject({
         audit: { details: schema.object({ reason: schema.string() }) },
         inverse: "restore",
     }),
-    tidy: method.mutation({ permission: "tidy", target: "none", isInternal: true }),
+    tidy: method.mutation({ permission: "tidy", target: "scope", isInternal: true }),
 }));
 
 /** The test types, in declaration order. */
@@ -124,11 +124,11 @@ test("describe every field and method as its builder calls, and declare the same
 
     // keep the routes, schemas and tables a manifest and a migration read
     expect([
-        proceduresOf(declared),
+        readProcedures(declared),
         declareState(declared.tables, "sqlite"),
         declareState(declared.tables, "postgresql"),
     ]).toEqual([
-        proceduresOf(sample),
+        readProcedures(sample),
         declareState(sample.tables, "sqlite"),
         declareState(sample.tables, "postgresql"),
     ]);
@@ -137,8 +137,8 @@ test("describe every field and method as its builder calls, and declare the same
 test("describe fields and methods as the calls written, types by reference, kinds and buckets as data and schemas as JSON Schema", () => {
     // read the calls of a few fields and methods
     const { definition } = sample.describe();
-    const fields = schema.record(schema.string(), schema.json()).parse(definition["fields"]);
-    const methods = schema.record(schema.string(), schema.json()).parse(definition["methods"]);
+    const fields = schema.jsonObject().parse(definition["fields"]);
+    const methods = schema.jsonObject().parse(definition["methods"]);
     expect([
         fields["title"],
         fields["rank"],
@@ -191,7 +191,7 @@ test("describe fields and methods as the calls written, types by reference, kind
             $field: [
                 {
                     builder: "reference",
-                    arguments: ["note", { $lazy: { $object: note.typeReference } }],
+                    arguments: [{ $lazy: { $object: note.typeReference } }],
                 },
                 { builder: "relate", arguments: ["later"] },
             ],
@@ -217,13 +217,18 @@ test("describe fields and methods as the calls written, types by reference, kind
             $method: [
                 {
                     builder: "mutation",
-                    arguments: [{ permission: "tidy", target: "none", isInternal: true }],
+                    arguments: [{ permission: "tidy", target: "scope", isInternal: true }],
                 },
             ],
         },
         {
             kind: {
-                $kind: { package: box.package, name: "box", spec: toJsonSchema(BoxKind.spec) },
+                $kind: {
+                    package: box.package,
+                    name: "box",
+                    spec: toJsonSchema(BoxKind.spec),
+                    state: toJsonSchema(BoxKind.state),
+                },
             },
         },
     ]);
@@ -244,14 +249,14 @@ test("keep a message field's package, identifier and source text, and refuse pla
 });
 
 test("describe every test type as data, and declare the same types, routes and tables from it", () => {
-    // describe each type, declare them all again from the descriptions alone, and describe them
+    // describe each type, declare them all again only from the descriptions, and describe them
     const described = TYPES.map((type) => type.describe());
     const declared = ObjectType.ofAll(described, []);
     expect(declared.map((type) => type.describe())).toEqual(described);
 
     // keep the routes, schemas and tables a manifest and a migration read
     expect([
-        declared.map((type) => proceduresOf(type)),
+        declared.map((type) => readProcedures(type)),
         declareState(
             declared.flatMap((type) => type.tables),
             "sqlite",
@@ -261,7 +266,7 @@ test("describe every test type as data, and declare the same types, routes and t
             "postgresql",
         ),
     ]).toEqual([
-        TYPES.map((type) => proceduresOf(type)),
+        TYPES.map((type) => readProcedures(type)),
         declareState(
             TYPES.flatMap((type) => type.tables),
             "sqlite",
@@ -286,23 +291,23 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
     }));
     expect(() => coded.describe()).toThrow(
         new TypeError(
-            "coded.methods.rename.mutation[0].inverse is code, which a description cannot keep",
+            "coded.methods.rename.mutation[0].inverse is code: a description cannot store it",
         ),
     );
     expect(() => ObjectType.of(sample.describe(), [space])).toThrow(
         new TypeError(
-            `a description refers to object type ${JSON.stringify([note.package.id, "note"])}, which is not known`,
+            `a description refers to unknown object type ${JSON.stringify([note.package.id, "note"])}`,
         ),
     );
 
-    // refuse the chunk type, whose table text keeps
+    // refuse the chunk type, with a table of the text module
     expect(() => Chunk.object([sample]).describe()).toThrow(
-        new TypeError("object type chunk maps a table another package keeps"),
+        new TypeError("object type chunk maps a table of another package"),
     );
 });
 
 /** List a type's procedures as clients read them: each route, and its input as JSON Schema. */
-function proceduresOf(type: ObjectType) {
+function readProcedures(type: ObjectType) {
     return Object.entries(type.procedures).map(([name, procedure]) => {
         const { route, inputSchema } = procedure["~orpc"];
 

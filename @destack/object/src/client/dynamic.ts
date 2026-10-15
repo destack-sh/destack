@@ -14,7 +14,6 @@ import {
     EXTERNAL_SHAPE,
     ObjectQuery,
     QUERIES_SHAPE,
-    type OpenQueryOptions,
     type ReplicaProcedures,
 } from "../replica/replica.ts";
 
@@ -24,12 +23,12 @@ const QUERY_NAME_LENGTH = 16;
 /** The local log window of a watch, in milliseconds: a minute, far above a watch's lag. */
 const LOCAL_LOG_MILLISECONDS = 60_000;
 
-/** The input field holding the request a pushed call replays under. */
+/** The input field with the request a pushed call replays under. */
 const REQUEST_FIELD = "requestId";
 
 /** The rows a list method answers. */
 const Listed = schema.looseObject({
-    items: schema.array(schema.record(schema.string(), schema.json())),
+    items: schema.array(schema.jsonObject()),
 });
 
 /** The results of a pushed mutation's calls, in call order. */
@@ -41,7 +40,7 @@ export interface DynamicObjectClientOptions {
     readonly package: Package;
     /** The object types the installation serves, as its manifest describes them. */
     readonly objects: readonly ObjectType[];
-    /** The scope the calls and watches carry, such as a space. */
+    /** The scope of the calls and watches, such as a space. */
     readonly scope: string;
     /** Where and how to reach the package serving the objects. */
     readonly endpoint: ClientOptions;
@@ -114,7 +113,7 @@ export class DynamicObjectClient {
         if (!validated.success) {
             throw refuseInput(scoped, validated.error.issues);
         }
-        const called = schema.record(schema.string(), schema.json()).parse(validated.data);
+        const called = schema.jsonObject().parse(validated.data);
         const { scope } = this.options;
 
         // read through the replica procedures
@@ -127,7 +126,7 @@ export class DynamicObjectClient {
 
         // push a change as a mutation of one call under its request, at the home of the scope it acts in
         const { [REQUEST_FIELD]: request, ...rest } = called;
-        const home = object.homeOf(method, rest);
+        const home = object.readScope(method, rest);
         const { outcomes } = await this.#home(home).push({
             scope: home,
             mutations: [
@@ -140,7 +139,7 @@ export class DynamicObjectClient {
         const [pushed] = outcomes;
         if (pushed === undefined) {
             throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `the push of ${type}.${method} answered no outcome`,
+                message: `the push of ${type}.${method} returned no outcome`,
             });
         } else if (!("value" in pushed.outcome)) {
             throw errorOf(pushed.outcome.error);
@@ -168,7 +167,7 @@ export class DynamicObjectClient {
     /** List a type's rows through its list method, as JSON. */
     async list(
         type: string,
-        query: Pick<OpenQueryOptions, "where" | "orderBy" | "limit"> = {},
+        query: Pick<ObjectQuery, "where" | "orderBy" | "limit"> = {},
     ): Promise<readonly JsonObject[]> {
         // find the type's list method
         const method = Object.entries(this.object(type).methods).find(
@@ -179,7 +178,7 @@ export class DynamicObjectClient {
         }
 
         // call it with the query
-        const input = schema.record(schema.string(), schema.json()).parse(query);
+        const input = schema.jsonObject().parse(query);
         const listed = await this.call(type, method, input);
 
         return Listed.parse(listed).items;
@@ -188,11 +187,11 @@ export class DynamicObjectClient {
     /** Follow a query's rows into a local database, yielding JSON after each change. */
     async *watch(
         type: string,
-        query: Pick<OpenQueryOptions, "where" | "orderBy" | "limit">,
+        query: Pick<ObjectQuery, "where" | "orderBy" | "limit">,
         database: DatabaseConnection,
         signal: AbortSignal,
     ): AsyncGenerator<readonly JsonObject[]> {
-        // key the query and copy its rows apart from other watches
+        // key the query and replica its rows apart from other watches
         const object = this.object(type);
         const { table } = object;
         const { scope } = this.options;
@@ -208,7 +207,7 @@ export class DynamicObjectClient {
             parameters: { queries: { [name]: schema.json().parse(followed) } },
         };
 
-        // follow the copy, stopping the watch at its first failure
+        // follow the replica, stopping the watch at its first failure
         const stopping = new AbortController();
         const stopped = AbortSignal.any([signal, stopping.signal]);
         const following = this.#follow(database, replica, subscription, stopped).catch(
@@ -222,24 +221,24 @@ export class DynamicObjectClient {
             clock: this.options.clock,
         });
         try {
-            // read the rows once the copy has them, and again after every change
-            await Promise.race([this.#copied(database, replica, name, stopped), following]);
+            // read the rows once the replica has them, and again after every change
+            await Promise.race([this.#replicated(database, replica, name, stopped), following]);
             const compiled: sync.Query = { table, scopes: [scope], ...query };
             for await (const items of feed.watch(name, compiled, stopped)) {
                 yield items.map((item) => table[TABLE].encode(item.row));
             }
             await following;
         } finally {
-            // stop the follow, which this abort rejects, and drop the copy
+            // stop the follow and drop the replica
             stopping.abort();
             await following.catch(() => {});
             await replica.drop(database);
         }
     }
 
-    /** Create the local tables of the installation's objects and their copies once per database. */
+    /** Create the local tables of the installation's objects and replicas once per database. */
     #migrate(database: DatabaseConnection): Promise<unknown> {
-        // migrate a database the first time a watch copies into it
+        // migrate a database the first time a watch replicas into it
         let migrated = this.#migrated.get(database);
         if (migrated === undefined) {
             const tables = this.options.objects.map((object) => object.table);
@@ -260,7 +259,7 @@ export class DynamicObjectClient {
         await replica.register(database, { clock: this.options.clock });
         try {
             while (!signal.aborted) {
-                // stream from where the copy is, and compact the log after each completed run
+                // stream from where the replica is, and compact the log after each completed run
                 const from = await replica.resume(database, subscription);
                 const pages = await this.#replica.stream({ ...subscription, ...from }, { signal });
                 for await (const page of replica.apply(database, pages, {
@@ -281,8 +280,8 @@ export class DynamicObjectClient {
         }
     }
 
-    /** Wait until the copy completed a run of the given query. */
-    async #copied(
+    /** Wait until the replica completed a run of the given query. */
+    async #replicated(
         database: DatabaseConnection,
         replica: sync.Replica,
         name: string,

@@ -13,12 +13,12 @@ import { ObjectStore } from "../src/server/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { outbox } from "@destack/runtime/outbox";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { request } from "./fixture/request.ts";
+import { request, type RequestInput } from "./fixture/request.ts";
 
 /** The space keeping the assets. */
 const homeId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
 
-/** The space owning the assets, whose own principal holds its owner role. */
+/** The space owning the assets, whose own principal has its owner role. */
 const holderId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000022");
 
 /** A space owning nothing kept in the home. */
@@ -40,10 +40,10 @@ const declared = defineObject({
     permissions: { read: through("holder", "read"), manage: none() },
 }).methods((method) => ({
     create: method.create("manage"),
-    /** Count the owner's assets, checked as on a new asset of the owner the input names. */
+    /** Count the owner's assets, checked as on a new asset of the owner in the input. */
     count: method.mutation({
         permission: "manage",
-        target: "none",
+        target: "scope",
         input: schema.object({ holderId: schema.identifier("space") }),
         output: schema.object({ count: schema.int() }),
     }),
@@ -53,12 +53,14 @@ const declared = defineObject({
 const asset = declared.implement({
     methods: {
         count: async (call) => ({
-            count: (await call.read(declared).rows({ holderId: call.input.holderId })).length,
+            count: (
+                await call.read(declared).findMany({ where: { holderId: call.input.holderId } })
+            ).length,
         }),
     },
 });
 
-/** The database with the assets, their access, the copied spaces and the journal. */
+/** The database with the assets, their access, the replicated spaces and the journal. */
 const assetDatabase = defineDatabase({
     name: "main",
     tables: [...callTables, outbox, claimTable, space.table, ...asset.tables],
@@ -135,13 +137,13 @@ test("refuse an owner that no reference relates", () => {
             owner: "holder",
             fields: { name: field.string() },
         }).methods(),
-    ).toThrow("object orphan is owned through holder, which no reference relates");
+    ).toThrow("object orphan is owned through holder, but no reference relates it");
 });
 
 test.each(TEST_DIALECTS)(
     "let the roles of an owner create owned objects and run scoped methods for that owner alone, on %s",
     async (dialect) => {
-        // keep assets in a public home, owned by a private holder, beside a rival space, with each space's copied row
+        // keep assets in a public home owned by a private holder, beside a rival space
         const storage = await TestDatabase.create(dialect, assetDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         for (const id of [homeId, holderId, rivalId]) {
@@ -151,6 +153,7 @@ test.each(TEST_DIALECTS)(
                 .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
         }
         const store = new ObjectStore({
+            chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(homeId),
             objects: [asset],
@@ -160,13 +163,18 @@ test.each(TEST_DIALECTS)(
             origin: { package: asset.package },
             claims: { object: claim },
         });
-        const call = (by: string, name: CallableName<typeof asset>, input: object) =>
+        const call = <Name extends CallableName<typeof asset>>(
+            by: string,
+            name: Name,
+            input: NoInfer<RequestInput<typeof asset, Name>>,
+        ) =>
             refusal(
                 request(
                     store,
                     asset,
                     name,
-                    { spaceId: homeId, requestId: RequestId.create(Date.now()), ...input },
+                    homeId,
+                    { requestId: RequestId.create(Date.now()), ...input },
                     subjectContext(spacePrincipal(by), homeId),
                 ),
             );
@@ -186,7 +194,7 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-/** Stickers kept in a space and owned by none, decided by the space's roles alone. */
+/** Stickers kept in a space and owned by none, decided only by the space's roles. */
 const sticker = defineObject({
     name: "sticker",
     plural: "stickers",
@@ -215,6 +223,7 @@ test("admit an owner to its owned objects in a private home it cannot see, and r
             .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
     }
     const store = new ObjectStore({
+        chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(homeId),
         objects: [asset, sticker],
@@ -224,21 +233,27 @@ test("admit an owner to its owned objects in a private home it cannot see, and r
         origin: { package: asset.package },
         claims: { object: claim },
     });
-    const create = (by: string, type: typeof asset | typeof sticker, input: object) =>
+    const create = <Type extends typeof asset | typeof sticker, Name extends CallableName<Type>>(
+        by: string,
+        type: Type,
+        name: Name,
+        input: NoInfer<RequestInput<Type, Name>>,
+    ) =>
         refusal(
             request(
                 store,
                 type,
-                "create",
-                { spaceId: homeId, requestId: RequestId.create(Date.now()), ...input },
+                name,
+                homeId,
+                { requestId: RequestId.create(Date.now()), ...input },
                 subjectContext(spacePrincipal(by), homeId),
             ),
         );
 
-    // create the home's first asset as its holder, hide it from the rival, and hide the home from the rival's sticker
+    // create the home's first asset as its holder, and hide the home from the rival's asset and sticker
     expect([
-        await create(holderId, asset, { holderId, name: "lamp" }),
-        await create(rivalId, asset, { holderId, name: "desk" }),
-        await create(rivalId, sticker, { name: "star" }),
-    ]).toEqual(["done", ["NOT_FOUND", "asset not found"], ["NOT_FOUND", `no scope ${homeId}`]]);
+        await create(holderId, asset, "create", { holderId, name: "lamp" }),
+        await create(rivalId, asset, "create", { holderId, name: "desk" }),
+        await create(rivalId, sticker, "create", { name: "star" }),
+    ]).toEqual(["done", ["NOT_FOUND", `no scope ${homeId}`], ["NOT_FOUND", `no scope ${homeId}`]]);
 });

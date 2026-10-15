@@ -31,7 +31,7 @@ const titled = changeTrigger(
 );
 
 /** Read the key a change controller follows a trigger under. */
-function keyOf(trigger: {
+function readKey(trigger: {
     readonly package: { readonly id: string };
     readonly name: string;
 }): string {
@@ -44,7 +44,7 @@ function changeTrigger(trigger: Trigger): ChangeTrigger {
 }
 
 /** Read the message of a reported error, refusing a report of anything else. */
-function messageOf(error: unknown): string {
+function readMessage(error: unknown): string {
     if (!(error instanceof Error)) {
         throw new TypeError("a trigger reported something other than an error");
     }
@@ -100,7 +100,13 @@ test.each(TEST_DIALECTS)(
         const recorded: Fired[] = [];
         let isFailing = true;
         const runs = {
-            send: async (request: Fired) => {
+            send: async (request: RunRequest) => {
+                // refuse a run no trigger fired, which a change controller never sends
+                if (!("triggerName" in request)) {
+                    throw new TypeError("a change controller sends only fired runs");
+                }
+
+                // fail the first send of the snapshot's change, then keep each run
                 const change = "change" in request.event ? request.event.change : undefined;
                 if (isFailing && change?.key === undefined) {
                     isFailing = false;
@@ -112,7 +118,7 @@ test.each(TEST_DIALECTS)(
         const reports: unknown[] = [];
         const report = (error: unknown) => reports.push(error);
         const controller = new ChangeController(database, [titled], runs, report);
-        await controller.reconcile(keyOf(titled));
+        await controller.reconcile(readKey(titled));
 
         // record a change entering the titled notes, retrying after a failed send
         const second = await alice.note.create({
@@ -120,13 +126,13 @@ test.each(TEST_DIALECTS)(
             title: "Tickets",
             requestId: RequestId.create(Date.now()),
         });
-        await expect(controller.reconcile(keyOf(titled))).rejects.toThrow(
+        await expect(controller.reconcile(readKey(titled))).rejects.toThrow(
             "the machine is unreachable",
         );
-        await controller.reconcile(keyOf(titled));
+        await controller.reconcile(readKey(titled));
 
         // continue after the slot in a new controller, recording nothing twice
-        await new ChangeController(database, [titled], runs, report).reconcile(keyOf(titled));
+        await new ChangeController(database, [titled], runs, report).reconcile(readKey(titled));
 
         const changes = recorded.map((request) =>
             "change" in request.event ? request.event.change : undefined,
@@ -188,7 +194,7 @@ test.each(TEST_DIALECTS)(
                 throw error;
             },
         );
-        await controller.reconcile(keyOf(trigger));
+        await controller.reconcile(readKey(trigger));
 
         // title a note, retitle it, clear its title, and write an untitled note
         const { id, revision } = await alice.note.create({
@@ -207,7 +213,7 @@ test.each(TEST_DIALECTS)(
         await update("Tickets", revision);
         await update("", revision + 1);
         await alice.note.create({ spaceId, title: "", requestId: RequestId.create(Date.now()) });
-        await controller.reconcile(keyOf(trigger));
+        await controller.reconcile(readKey(trigger));
 
         expect(seen).toEqual([
             ["create", null, "Packing"],
@@ -249,7 +255,7 @@ test.each(TEST_DIALECTS)(
                     recorded.push(schema.string().parse(request.call.input["id"]));
                 },
             },
-            (error) => reports.push(messageOf(error)),
+            (error) => reports.push(readMessage(error)),
             clock,
         );
         const create = async (title: string) =>
@@ -257,27 +263,27 @@ test.each(TEST_DIALECTS)(
                 .id;
 
         // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
-        const delay = await controller.reconcile(keyOf(lagging));
+        const delay = await controller.reconcile(readKey(lagging));
         clock.advance(50_000);
-        await controller.reconcile(keyOf(lagging));
+        await controller.reconcile(readKey(lagging));
         const kept = await create("Kept");
         await database.log.compact(Date.now() + 1, clock.now() + 20_000);
-        await controller.reconcile(keyOf(lagging));
+        await controller.reconcile(readKey(lagging));
 
         // pass over a change the trigger builds no call of, reporting it
         const untitled = await create("");
-        await controller.reconcile(keyOf(lagging));
+        await controller.reconcile(readKey(lagging));
 
         // continue at the head once a lapsed slot let compaction take changes, reporting the loss
         const lost = await create("Lost");
         await database.log.compact(Date.now() + 1, clock.now() + 10 * 60_000);
-        await controller.reconcile(keyOf(lagging));
+        await controller.reconcile(readKey(lagging));
         const next = await create("Next");
-        await controller.reconcile(keyOf(lagging));
+        await controller.reconcile(readKey(lagging));
 
         expect([delay, recorded]).toEqual([20_000, [kept, next]]);
         expect(reports.map((message) => message.replace(/\d+/gu, "N"))).toEqual([
-            "trigger lagging builds no call of change N",
+            "trigger lagging cannot build the call of change N",
             "trigger lagging lost the changes after N to compaction",
         ]);
         expect([untitled, lost].some((id) => recorded.includes(id))).toBe(false);

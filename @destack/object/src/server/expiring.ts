@@ -42,10 +42,10 @@ export class ExpiringController implements Controller {
     /** Watch the expiring objects a store serves. */
     constructor(store: ObjectStore) {
         this.#store = store;
-        // leave the copied rows to the deletes their home sends
+        // leave the replicated rows to the deletes their home sends
         this.#types = store.objects.filter(
             (object) =>
-                object.lifecycle.expiring !== undefined && !store.database.copies(object.table),
+                object.lifecycle.expiring !== undefined && !store.database.replicates(object.table),
         );
         this.watches = this.#types.map((object) => object.table);
     }
@@ -79,7 +79,7 @@ export class ExpiringController implements Controller {
         const passes = await Promise.all(
             this.#types.flatMap((object) =>
                 (object.lifecycle.expiring ?? []).map((rule) =>
-                    passing(this.#store.database, object, rule),
+                    ExpiringController.#passing(this.#store.database, object, rule),
                 ),
             ),
         );
@@ -92,10 +92,17 @@ export class ExpiringController implements Controller {
     static async expire(store: ObjectStore, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
-        for (const object of store.objects.filter((each) => !store.database.copies(each.table))) {
+        for (const object of store.objects.filter(
+            (each) => !store.database.replicates(each.table),
+        )) {
             for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
-                    const rows = await expired(store.database, object, rule, now);
+                    const rows = await ExpiringController.#expired(
+                        store.database,
+                        object,
+                        rule,
+                        now,
+                    );
                     await store.mutate(
                         Caller.of(store.principal, now),
                         {
@@ -114,62 +121,67 @@ export class ExpiringController implements Controller {
 
         return removed;
     }
-}
 
-/** Read a batch of a type's rows a rule's window released. */
-async function expired(
-    database: DatabaseConnection,
-    object: ObjectType,
-    rule: ExpiryRule,
-    now: number,
-): Promise<Select<Table>[]> {
-    // leave the rows of scopes the database copies to the deletes their home sends
-    const table = object.table;
-    const copied = await Replica.scopes(database, table);
-    const kept = copied.length === 0 ? undefined : notInArray(table[TABLE].column("scope"), copied);
+    /** Read a batch of a type's rows a rule's window released. */
+    static async #expired(
+        database: DatabaseConnection,
+        object: ObjectType,
+        rule: ExpiryRule,
+        now: number,
+    ): Promise<Select<Table>[]> {
+        // leave the rows of scopes the database replicates to the deletes their home sends
+        const table = object.table;
+        const replicated = await Replica.scopes(database, table);
+        const kept =
+            replicated.length === 0
+                ? undefined
+                : notInArray(table[TABLE].column("scope"), replicated);
 
-    return database
-        .select()
-        .from(table)
-        .where(
-            and(
-                lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
-                matching(table, rule),
-                kept,
-            ),
-        )
-        .limit(EXPIRE_ROWS);
-}
-
-/** Read when a rule's window next passes for a type. */
-async function passing(
-    database: DatabaseConnection,
-    object: ObjectType,
-    rule: ExpiryRule,
-): Promise<number | undefined> {
-    // read the earliest time
-    const table = object.table;
-    const column = table[TABLE].column(rule.from);
-    const [row] = await database
-        .select({ from: min(column) })
-        .from(table)
-        .where(and(isNotNull(column), matching(table, rule)));
-    if (row === undefined) {
-        throw new TypeError(`the earliest ${rule.from} of ${object.name} read no row`);
+        return database
+            .select()
+            .from(table)
+            .where(
+                and(
+                    lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
+                    ExpiringController.#matching(table, rule),
+                    kept,
+                ),
+            )
+            .limit(EXPIRE_ROWS);
     }
 
-    // require a time in UTC epoch milliseconds
-    const from = row.from;
-    if (from === null) {
-        return undefined;
-    } else if (typeof from !== "number") {
-        throw new TypeError(`${object.name}.${rule.from} is no time`);
+    /** Read when a rule's window next passes for a type. */
+    static async #passing(
+        database: DatabaseConnection,
+        object: ObjectType,
+        rule: ExpiryRule,
+    ): Promise<number | undefined> {
+        // read the earliest time
+        const table = object.table;
+        const column = table[TABLE].column(rule.from);
+        const [row] = await database
+            .select({ from: min(column) })
+            .from(table)
+            .where(and(isNotNull(column), ExpiringController.#matching(table, rule)));
+        if (row === undefined) {
+            throw new TypeError(
+                `reading the earliest ${rule.from} of ${object.name} returned no row`,
+            );
+        }
+
+        // require a time in UTC epoch milliseconds
+        const from = row.from;
+        if (from === null) {
+            return undefined;
+        } else if (typeof from !== "number") {
+            throw new TypeError(`${object.name}.${rule.from} is not a time`);
+        }
+
+        return from + Duration.milliseconds(rule.after);
     }
 
-    return from + Duration.milliseconds(rule.after);
-}
-
-/** Render a rule's condition on its table. */
-function matching(table: Table, rule: ExpiryRule) {
-    return rule.where === undefined ? undefined : Condition.render(rule.where, table);
+    /** Render a rule's condition on its table. */
+    static #matching(table: Table, rule: ExpiryRule) {
+        return rule.where === undefined ? undefined : Condition.render(rule.where, table);
+    }
 }

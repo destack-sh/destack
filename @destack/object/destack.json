@@ -42,5 +42,24 @@
         "defineAuditAction": {
             "module": 1
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/object/object.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "defineObject states the type its definition computes, as zod's z.object and Drizzle's pgTable, and implement states its handler map, as oRPC's router implementation (rulings 2026-10-16)"
+            },
+            {
+                "files": ["src/object/description.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "readDefinition reads a decoded description as the definition defineObject states, the definition boundary in reverse (ruling 2026-10-16)"
+            },
+            {
+                "files": ["src/method/call.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "Call.results states call results after parsing each by its method's output schema, as an oRPC client reads its contract's output (ruling 2026-10-16)"
+            }
+        ]
     }
 }
