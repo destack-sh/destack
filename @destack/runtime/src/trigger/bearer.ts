@@ -1,3 +1,4 @@
+import type { ServerContext } from "../workload/workload.ts";
 import { schema, type JsonValue } from "@destack/schema";
 import {
     createRemoteJWKSet,
@@ -16,7 +17,6 @@ import type { HttpsBinding, HttpsClient } from "../declare/https.ts";
 import { CallError } from "../error/index.ts";
 import {
     WebhookDelivery,
-    type WebhookContext,
     type WebhookMessage,
     type WebhookParameters,
     WebhookSignature,
@@ -91,7 +91,7 @@ export class BearerSignature implements WebhookSignature {
         _secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
-        context: WebhookContext,
+        context: Pick<ServerContext, "resources" | "keys">,
     ): Promise<WebhookDelivery> {
         // require a bearer token
         const token = Bearer.token(request.headers.get("authorization"));
@@ -127,7 +127,7 @@ export class BearerSignature implements WebhookSignature {
     }
 
     /** Read the sender's key set through the installation's https resource. */
-    #keySet(context: WebhookContext): JWTVerifyGetKey {
+    #keySet(context: Pick<ServerContext, "resources" | "keys">): JWTVerifyGetKey {
         // keep one remote set per client, fetched below its bound address
         const https = this.options.keys.resource.get(context.resources);
         const kept = this.#keys.get(https);

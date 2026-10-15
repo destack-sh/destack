@@ -26,13 +26,7 @@ import {
     type SocketHost,
 } from "./socket.ts";
 import type { PackageId } from "@destack/package";
-import {
-    RunEvent,
-    WebhookOn,
-    Trigger,
-    type RunClient,
-    type WebhookContext,
-} from "../trigger/index.ts";
+import { RunEvent, WebhookOn, Trigger, type RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
@@ -80,7 +74,7 @@ export class WorkloadRunner implements AsyncDisposable {
     /** The running package, whose triggers the webhooks target. */
     readonly #packageId: PackageId;
     /** The installation's resources and derived secrets, the source of webhook secrets. */
-    readonly #webhooks: WebhookContext;
+    readonly #webhooks: Pick<ServerContext, "resources" | "keys">;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
     /** The machine recording the installation's runs. */
@@ -98,7 +92,7 @@ export class WorkloadRunner implements AsyncDisposable {
         packages: ReadonlyMap<string, PackageHandle>,
         running: Pick<Telemetry, "shutdown">,
         packageId: PackageId,
-        webhooks: WebhookContext,
+        webhooks: Pick<ServerContext, "resources" | "keys">,
         connections: AsyncDisposableStack,
         runs: RunClient,
         hibernation: Hibernation,

@@ -1,3 +1,4 @@
+import type { ServerContext } from "../workload/workload.ts";
 import { defineSchema, Instant, schema } from "@destack/schema";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
@@ -9,12 +10,7 @@ import {
     MAX_LAG_MILLISECONDS,
     type ObjectChange,
 } from "./change.ts";
-import type {
-    WebhookContext,
-    WebhookDelivery,
-    WebhookParameters,
-    WebhookSignature,
-} from "./webhook.ts";
+import type { WebhookDelivery, WebhookParameters, WebhookSignature } from "./webhook.ts";
 import { WebhookOn } from "./webhook.ts";
 import { ScheduleOn } from "./schedule.ts";
 import { RequestId } from "../request/request.ts";
@@ -104,7 +100,7 @@ export interface WebhookTrigger extends Declaration {
             /** Read the signing secret of a delivery's route parameters. */
             readonly secret?: (
                 parameters: WebhookParameters,
-                context: WebhookContext,
+                context: Pick<ServerContext, "resources" | "keys">,
             ) => Promise<string>;
         };
     };

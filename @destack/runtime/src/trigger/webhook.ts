@@ -1,5 +1,4 @@
-import type { Deriver } from "@destack/identity";
-import type { ResourceContext } from "@destack/resource/context";
+import type { ServerContext } from "../workload/workload.ts";
 import { aligned, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
 import { CallError } from "../error/index.ts";
 import { RequestBody } from "../request/body.ts";
@@ -41,14 +40,6 @@ export const WebhookDelivery = defineSchema(
 /** One verified webhook delivery. */
 export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 
-/** What a webhook trigger reads its secrets from. */
-export interface WebhookContext {
-    /** The installation's resources, such as a bound vault secret. */
-    readonly resources: ResourceContext;
-    /** Derive the installation's own secrets from its root. */
-    readonly keys: Deriver;
-}
-
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
 const shape = defineSchema(
     schema.object({
@@ -79,13 +70,13 @@ export const WebhookOn = Object.assign(shape, {
             readonly signature: WebhookSignature;
             readonly secret?: (
                 parameters: WebhookParameters,
-                context: WebhookContext,
+                context: Pick<ServerContext, "resources" | "keys">,
             ) => Promise<string>;
         },
         request: Request,
         pathname: string,
         now: number,
-        context: WebhookContext,
+        context: Pick<ServerContext, "resources" | "keys">,
     ): Promise<WebhookDelivery> {
         const parameters = match(on.path, pathname);
         const secret = on.secret === undefined ? undefined : await on.secret(parameters, context);
@@ -166,7 +157,7 @@ export interface WebhookSignature {
         secret: string | undefined,
         parameters: WebhookParameters,
         now: number,
-        context: WebhookContext,
+        context: Pick<ServerContext, "resources" | "keys">,
     ) => Promise<WebhookDelivery>;
 }
 
