@@ -3,7 +3,14 @@ import { Scope, type Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { ACCESS_TOKEN_TYPE, INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
-import { principal, GrantPermission, Caller, universe } from "@destack/access";
+import {
+    type Authentication,
+    Caller,
+    Credential,
+    GrantPermission,
+    principal,
+    universe,
+} from "@destack/access";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
@@ -28,7 +35,8 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         caller: {
             credential: { kind: "session", id: "session-example" },
             subject,
-            subjects: [subject],
+            groups: [],
+            contacts: [],
         },
     };
     const verifier = new TokenVerifier({
@@ -43,9 +51,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const request = new Request("https://notes.example", {
         headers: { authorization: `Bearer ${signed}` },
     });
-    const caller = await verifier.authenticate(request, issuedAt * 1000, spaceId);
-    expect(current(caller, audience, issuedAt * 1000, spaceId).subject).toEqual(subject);
-    expect(() => current(caller, audience, issuedAt * 1000, "another-space")).toThrow(
+    const authentication = await verifier.authenticate(request, issuedAt * 1000, spaceId);
+    expect(current(authentication, audience, issuedAt * 1000, spaceId).subject).toEqual(subject);
+    expect(() => current(authentication, audience, issuedAt * 1000, "another-space")).toThrow(
         "caller authentication has a different audience or scope",
     );
 
@@ -73,7 +81,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
         spaceId,
     );
-    expect([impersonated.subject, impersonated.delegates]).toEqual([subject, [administrator]]);
+    expect([impersonated.subject, impersonated.actors]).toEqual([subject, [administrator]]);
     for (const impersonator of [
         subject,
         principal.installation.reference("universe", "installation-example"),
@@ -195,13 +203,18 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         scope: subject.id,
         permissions: [selection],
     };
-    const delegated: Caller = {
-        ...caller,
-        deployments: [{ subject: actor, id: deploymentId }],
-        delegates: [actor],
-        grant,
-        assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
-        contacts: [{ medium: "email", address: "alice@example.com" }],
+    const delegated = {
+        caller: {
+            ...authentication.caller,
+            actors: [actor],
+            grant,
+            contacts: [{ medium: "email" as const, address: "alice@example.com" }],
+        },
+        credential: {
+            ...authentication.credential,
+            deployments: [{ subject: actor, id: deploymentId }],
+            assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
+        },
     };
     const signing = {
         authority: { kind: "universe" as const },
@@ -222,11 +235,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
     const access = current(represented, audience, issuedAt * 1000, spaceId);
     expect({
-        deployments: access.deployments,
-        delegates: access.delegates,
+        deployments: represented.credential.deployments,
+        actors: access.actors,
         grant: access.grant,
         principal: Caller.principal(access),
-        assurance: access.assurance,
+        assurance: represented.credential.assurance,
         contacts: Caller.contacts(access),
         write: GrantPermission.allows(
             { ...read, name: "write" },
@@ -235,7 +248,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ),
     }).toEqual({
         deployments: [{ subject: actor, id: deploymentId }],
-        delegates: [actor],
+        actors: [actor],
         grant,
         principal: actor,
         assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
@@ -248,13 +261,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const secondDeployment = schema
         .identifier("deployment")
         .parse("deployment-019f7480-0000-7000-8000-000000000005");
-    const chain: Caller = {
-        ...delegated,
-        deployments: [
-            { subject: actor, id: deploymentId },
-            { subject: secondActor, id: secondDeployment },
-        ],
-        delegates: [actor, secondActor],
+    const chain = {
+        caller: { ...delegated.caller, actors: [actor, secondActor] },
+        credential: {
+            ...delegated.credential,
+            deployments: [
+                { subject: actor, id: deploymentId },
+                { subject: secondActor, id: secondDeployment },
+            ],
+        },
     };
     const chained = await authority.issue(chain, issuedAt * 1000);
     const chainedCaller = await verifier.authenticate(
@@ -266,18 +281,21 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     );
     const chainedAccess = current(chainedCaller, audience, issuedAt * 1000, spaceId);
     expect([
-        chainedAccess.deployments,
-        chainedAccess.delegates,
+        chainedCaller.credential.deployments,
+        chainedAccess.actors,
         Caller.sender(chainedAccess),
-    ]).toEqual([chain.deployments, [actor, secondActor], secondActor]);
+    ]).toEqual([chain.credential.deployments, [actor, secondActor], secondActor]);
     await expect(
         authority.issue(
             {
                 ...chain,
-                deployments: [
-                    { subject: secondActor, id: secondDeployment },
-                    { subject: secondActor, id: deploymentId },
-                ],
+                credential: {
+                    ...chain.credential,
+                    deployments: [
+                        { subject: secondActor, id: secondDeployment },
+                        { subject: secondActor, id: deploymentId },
+                    ],
+                },
             },
             issuedAt * 1000,
         ),
@@ -296,7 +314,13 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                 ...claims,
                 exp: issuedAt + 30,
                 act,
-                caller: { ...claims.caller, deployments: [{ subject: actor, id: deploymentId }] },
+                caller: {
+                    ...claims.caller,
+                    credential: {
+                        ...claims.caller.credential,
+                        deployments: [{ subject: actor, id: deploymentId }],
+                    },
+                },
             },
             { typ: ACCESS_TOKEN_TYPE },
         );
@@ -327,16 +351,14 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
     // accept only the space's own deployed software
-    const workload: Caller = {
-        ...caller,
+    const workload = {
+        caller: Caller.of(actor),
         credential: {
-            ...Caller.requireCredential(caller),
+            ...authentication.credential,
             kind: "workload",
             id: "credential-example",
+            deployments: [{ subject: actor, id: deploymentId }],
         },
-        subject: actor,
-        subjects: [actor],
-        deployments: [{ subject: actor, id: deploymentId }],
     };
     const workloadToken = await local.issue(workload, issuedAt * 1000);
     const received = await localVerifier.authenticate(
@@ -346,18 +368,19 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
         spaceId,
     );
-    expect(received.subject).toEqual(actor);
-    expect(received.deployments).toEqual([{ subject: actor, id: deploymentId }]);
-    const { deployments: _deployments, ...withoutDeployments } = workload;
+    expect(received.caller.subject).toEqual(actor);
+    expect(received.credential.deployments).toEqual([{ subject: actor, id: deploymentId }]);
+    const { deployments: _deployments, ...undeployed } = workload.credential;
+    const withoutDeployments = { ...workload, credential: undeployed };
     await expect(local.issue(withoutDeployments, issuedAt * 1000)).rejects.toMatchObject({
         code: "UNAUTHORIZED",
     });
 
     // accept the installation its own key authenticated without a deployment
-    const keyed: Caller = {
+    const keyed = {
         ...withoutDeployments,
         credential: {
-            ...Caller.requireCredential(caller),
+            ...undeployed,
             kind: INSTALLATION_KEY,
             id: "installation-key-example",
         },
@@ -368,10 +391,19 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
         spaceId,
     );
-    expect([keyedCaller.subject, keyedCaller.deployments]).toEqual([actor, undefined]);
+    expect([keyedCaller.caller.subject, keyedCaller.credential.deployments]).toEqual([
+        actor,
+        undefined,
+    ]);
     await expect(
         local.issue(
-            { ...keyed, deployments: [{ subject: actor, id: deploymentId }] },
+            {
+                ...keyed,
+                credential: {
+                    ...keyed.credential,
+                    deployments: [{ subject: actor, id: deploymentId }],
+                },
+            },
             issuedAt * 1000,
         ),
     ).rejects.toMatchObject({
@@ -380,9 +412,9 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     });
 
     // accept the installation its space's key authenticated without a deployment, as its host forwards its writes
-    const spaceKeyed: Caller = {
+    const spaceKeyed = {
         ...withoutDeployments,
-        credential: { ...Caller.requireCredential(caller), kind: SPACE_KEY, id: spaceId },
+        credential: { ...undeployed, kind: SPACE_KEY, id: spaceId },
     };
     const spaceKeyedToken = await local.issue(spaceKeyed, issuedAt * 1000);
     const spaceKeyedCaller = await localVerifier.authenticate(
@@ -392,7 +424,10 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuedAt * 1000,
         spaceId,
     );
-    expect([spaceKeyedCaller.subject, spaceKeyedCaller.deployments]).toEqual([actor, undefined]);
+    expect([spaceKeyedCaller.caller.subject, spaceKeyedCaller.credential.deployments]).toEqual([
+        actor,
+        undefined,
+    ]);
 });
 
 test("issue the universe a token of its own key, verified without a separate client", async () => {
@@ -415,8 +450,7 @@ test("issue the universe a token of its own key, verified without a separate cli
     const subject: Subject = universe.reference(Scope.universe.id, Scope.universe.id);
     const issued = await authority.issue(
         {
-            subject,
-            subjects: [subject],
+            caller: Caller.of(subject),
             credential: {
                 kind: "universe-key",
                 id: Scope.universe.id,
@@ -435,13 +469,18 @@ test("issue the universe a token of its own key, verified without a separate cli
         audience,
         keys: { keys: [publicKey] },
     });
-    const caller = await verifier.verify(issued.accessToken, now);
-    expect([caller.subject, caller.credential.client]).toEqual([subject, undefined]);
+    const verified = await verifier.verify(issued.accessToken, now);
+    expect([verified.caller.subject, verified.credential.client]).toEqual([subject, undefined]);
 });
 
-/** Require a verified caller current for an audience at a time in a scope, and answer it. */
-function current(caller: Caller, audience: PackageId, now: number, scope: string): Caller {
-    Caller.requireCurrent(caller, audience, now, scope);
+/** Require an authentication current at a time in a scope, and answer its caller. */
+function current(
+    authentication: Authentication,
+    audience: PackageId,
+    now: number,
+    scope: string,
+): Caller {
+    Credential.requireCurrent(authentication.credential, audience, now, scope);
 
-    return caller;
+    return authentication.caller;
 }

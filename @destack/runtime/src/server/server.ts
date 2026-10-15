@@ -2,7 +2,7 @@ import type { Health } from "../health/health.ts";
 import { RequestHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMeta } from "../procedure/procedure.ts";
-import { Caller, LinkSecret } from "@destack/access";
+import { type Authentication, Caller, Credential, LinkSecret } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureRouter } from "../runtime/index.ts";
 import { CallError } from "../error/index.ts";
@@ -162,7 +162,7 @@ export class Server implements AsyncDisposable {
     }
 
     /** Serve a request, as a caller verified elsewhere in this process where one is given. */
-    async fetch(request: Request, caller?: Caller): Promise<Response> {
+    async fetch(request: Request, authentication?: Authentication): Promise<Response> {
         // answer probes
         const probe = this.health.probe(request);
         if (probe) {
@@ -197,7 +197,7 @@ export class Server implements AsyncDisposable {
             const context = await Server.#authenticate(
                 accepted,
                 this.#options,
-                caller,
+                authentication,
                 this.#draining.signal,
             );
             signal.throwIfAborted();
@@ -269,22 +269,24 @@ export class Server implements AsyncDisposable {
     static async #authenticate(
         request: Request,
         options: ServerOptions,
-        caller: Caller | undefined,
+        given: Authentication | undefined,
         draining: AbortSignal,
     ): Promise<RequestContext> {
         // take the given caller, else authenticate the request, and require it current here
-        let authenticated: Caller | undefined;
-        let presented: Caller | undefined;
+        let authenticated: Authentication | undefined;
         let authenticationError: Error | undefined;
         try {
             const verified =
-                caller ??
-                (await options.verify?.(request)) ??
-                (await options.authenticate(request));
-            presented = verified;
+                given ?? (await options.verify?.(request)) ?? (await options.authenticate(request));
             if (verified !== undefined) {
-                const scope = options.scope ?? verified.credential?.scope;
-                Caller.requireCurrent(verified, options.package.id, options.clock.now(), scope);
+                const { credential } = verified;
+                const scope = options.scope ?? credential.scope;
+                Credential.requireCurrent(
+                    credential,
+                    options.package.id,
+                    options.clock.now(),
+                    scope,
+                );
             }
             authenticated = verified;
         } catch (error) {
@@ -299,13 +301,12 @@ export class Server implements AsyncDisposable {
 
         // digest the link secrets and scope the call
         const linkSecrets = await Server.#linkSecrets(request);
-        const scope = options.scope ?? authenticated?.credential?.scope;
+        const scope = options.scope ?? authenticated?.credential.scope;
 
         return new RequestContext(request, {
             audience: options.package.id,
             ...(scope === undefined ? {} : { scope }),
-            ...(authenticated === undefined ? {} : { caller: authenticated }),
-            ...(presented === undefined ? {} : { presented }),
+            ...(authenticated === undefined ? {} : { authentication: authenticated }),
             resources: options.resources,
             ...(options.access === undefined ? {} : { access: options.access }),
             ...(authenticationError === undefined ? {} : { authenticationError }),
@@ -337,9 +338,9 @@ export class Server implements AsyncDisposable {
         call: ProcedureCall<RequestContext>,
         options: ServerOptions,
     ): Promise<void> {
-        // require identity on protected routes
-        if (call.access.authentication !== "public") {
-            call.context.requireCaller();
+        // require an identified caller on protected routes
+        if (call.access.authentication !== "public" && Caller.isAnonymous(call.context.caller())) {
+            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
         }
 
         // renew the call's access
@@ -352,7 +353,8 @@ export class Server implements AsyncDisposable {
         }
         // admit principals of the declared kinds calling as themselves
         else if ("principals" in permission) {
-            const sender = Caller.requireSender(call.context.requireCaller());
+            const caller = call.context.caller();
+            const sender = Caller.sender(caller);
             const isDeclared = permission.principals.some(
                 (kind) => kind.packageId === sender.packageId && kind.type === sender.type,
             );
@@ -361,7 +363,7 @@ export class Server implements AsyncDisposable {
                     message: `${sender.type} callers cannot call ${call.path.join(".")}`,
                 });
             }
-            Caller.requireChain(call.context.caller());
+            Caller.requireChain(caller);
         }
         // decide the permission on the call's target
         else {
@@ -515,7 +517,7 @@ export interface ServerOptions extends PackageImplementation {
     /** The installation's resource clients. */
     resources: ResourceContext;
     /** Verify credentials as the host after the package, undefined without a credential. */
-    readonly authenticate: (request: Request) => Promise<Caller | undefined>;
+    readonly authenticate: (request: Request) => Promise<Authentication | undefined>;
     /** Enforce installation and host-only requirements. */
     readonly authorizeMachine: (call: ProcedureCall<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
@@ -541,7 +543,7 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
     /** The package's controllers. */
     readonly controllers?: readonly Controller[];
     /** Verify a credential the package keeps the keys of before the host, undefined for another. */
-    readonly verify?: (request: Request) => Promise<Caller | undefined>;
+    readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
 }

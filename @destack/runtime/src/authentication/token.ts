@@ -11,10 +11,11 @@ import {
 import { type Identifier, schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import {
+    type Authentication,
     Caller,
-    CallerCredential,
-    CallerGrant,
     CLOCK_TOLERANCE_MILLISECONDS,
+    Credential,
+    GrantClaim,
     isPrincipal,
     principal,
 } from "@destack/access";
@@ -33,17 +34,50 @@ export const INSTALLATION_KEY = "installation-key";
 /** The credential kind of a token that a space's own key signs. */
 export const SPACE_KEY = "space-key";
 
-/** The verified identity an access token signs: subject, subject sets, and what it proved. */
-export const TokenIdentity = Caller.schema
-    .pick({ subjects: true, assurance: true, contacts: true, deployments: true, attributes: true })
-    .extend({
-        /** The represented subject. */
-        subject: Subject,
-        /** The credential the caller presented to the token's issuer. */
-        credential: CallerCredential.pick({ kind: true, id: true }),
-    });
+/** The schema of the verified identity an access token signs. */
+const tokenIdentity = Caller.schema.pick({ subject: true, groups: true, contacts: true }).extend({
+    /** The credential the caller presented to the token's issuer. */
+    credential: Credential.pick({
+        kind: true,
+        id: true,
+        assurance: true,
+        deployments: true,
+        attributes: true,
+    }),
+});
+
+/** The verified identity an access token signs: subject, its groups, and what it proved. */
+export const TokenIdentity = Object.assign(tokenIdentity, {
+    /** Write an authentication's Destack claims: identity, actors, grant and space. */
+    claims(authentication: Authentication) {
+        const { caller, credential } = authentication;
+        const identity = tokenIdentity.parse(
+            schema.defined({
+                subject: caller.subject,
+                groups: caller.groups,
+                contacts: caller.contacts,
+                credential: schema.defined({
+                    kind: credential.kind,
+                    id: credential.id,
+                    assurance: credential.assurance,
+                    deployments: credential.deployments,
+                    attributes: credential.attributes,
+                }),
+            }),
+        );
+
+        return {
+            caller: identity,
+            ...(caller.actors.length === 0 ? {} : { act: [...caller.actors] }),
+            ...(caller.grant === undefined ? {} : { grant: caller.grant }),
+            ...(credential.scope === undefined
+                ? {}
+                : { space: schema.identifier("space").parse(credential.scope) }),
+        };
+    },
+});
 /** The verified identity an access token signs. */
-export type TokenIdentity = schema.Infer<typeof TokenIdentity>;
+export type TokenIdentity = schema.Infer<typeof tokenIdentity>;
 
 /** The JWT type of an access token (RFC 9068 2.1). */
 export const ACCESS_TOKEN_TYPE = "at+jwt";
@@ -77,7 +111,7 @@ export const AccessToken = schema
         /** The principals acting for the subject in order, the last sending the call. */
         act: schema.array(Subject).min(1).exactOptional(),
         /** The grant limiting the call to what the subject gave. */
-        grant: CallerGrant.exactOptional(),
+        grant: GrantClaim.exactOptional(),
         /** The space the token is bound to, absent for a call to a universe package. */
         space: schema.identifier("space").exactOptional(),
         /** The verified identity. */
@@ -86,9 +120,6 @@ export const AccessToken = schema
     .loose();
 /** An access token as RFC 9068 shapes it. */
 export type AccessToken = schema.Infer<typeof AccessToken>;
-
-/** A caller a token verified: its subject and its credential, both present. */
-type VerifiedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
 
 /** Verify space-scoped access tokens. */
 export class TokenVerifier {
@@ -131,12 +162,12 @@ export class TokenVerifier {
     }
 
     /** Verify a request's bearer token at a time, optionally for one space. */
-    async authenticate(request: Request, now: number, spaceId?: string): Promise<VerifiedCaller> {
+    async authenticate(request: Request, now: number, spaceId?: string): Promise<Authentication> {
         return this.verify(Bearer.require(request.headers), now, spaceId);
     }
 
     /** Verify an access token at a time, optionally for one space. */
-    async verify(token: string, now: number, spaceId?: string): Promise<VerifiedCaller> {
+    async verify(token: string, now: number, spaceId?: string): Promise<Authentication> {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
 
@@ -155,7 +186,7 @@ export class TokenVerifier {
 
         // refuse a token outliving its audience's lifetime
         const claims = result.data;
-        const { credential, ...identity } = claims.caller;
+        const { credential: presented, ...identity } = claims.caller;
         const verifiedAt = claims.iat * 1000;
         const lifetime = this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS;
         if ((claims.exp - claims.iat) * 1000 > lifetime) {
@@ -163,26 +194,26 @@ export class TokenVerifier {
         }
 
         // verify it for this audience in the space it calls
-        const caller: VerifiedCaller = {
+        const caller: Caller = {
             ...identity,
-            ...(claims.act === undefined ? {} : { delegates: claims.act }),
+            actors: claims.act ?? [],
             ...(claims.grant === undefined ? {} : { grant: claims.grant }),
-            credential: {
-                ...credential,
-                ...client,
-                audience: this.options.audience,
-                ...(claims.space === undefined ? {} : { scope: claims.space }),
-                verifiedAt,
-                expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
-                token: claims.jti,
-            },
+        };
+        const credential: Credential = {
+            ...presented,
+            ...client,
+            audience: this.options.audience,
+            ...(claims.space === undefined ? {} : { scope: claims.space }),
+            verifiedAt,
+            expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
+            tokenId: claims.jti,
         };
 
         // require it current and within its issuer's authority
-        Caller.requireCurrent(caller, this.options.audience, now, claims.space);
-        TokenIssuerAuthority.require(this.options.authority, caller);
+        Credential.requireCurrent(credential, this.options.audience, now, claims.space);
+        TokenIssuerAuthority.require(this.options.authority, { caller, credential });
 
-        return caller;
+        return { caller, credential };
     }
 
     /** Verify a token's signature and registered claims, returning its payload. */
@@ -237,19 +268,17 @@ export type TokenIssuerAuthority =
 
 /** The identities an issuer's keys may assert, and the check of a caller against them. */
 export const TokenIssuerAuthority = {
-    /** Require a caller's claims within an issuer's authority. */
-    require(authority: TokenIssuerAuthority, caller: Caller): void {
+    /** Require an authentication's claims within an issuer's authority. */
+    require(authority: TokenIssuerAuthority, authentication: Authentication): void {
         // limit a space's key to the space and its installations
-        const subjects = [
-            ...(caller.subject === undefined ? [] : [caller.subject]),
-            ...caller.subjects,
-        ];
+        const { caller, credential } = authentication;
+        const subjects = [caller.subject, ...caller.groups];
         if (authority.kind === "space") {
             requireSpaceSubjects(authority.space, caller, subjects);
         }
 
         // bind each asserted installation to one deployment
-        requireDeployments(caller, subjects);
+        requireDeployments(caller, credential, subjects);
 
         // require an acyclic chain of single principals, a delegate without a grant impersonating
         requireDelegation(caller);
@@ -275,42 +304,40 @@ function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly 
     const isOwn = (subject: Subject) =>
         (principal.space.is(subject) && subject.id === space) ||
         (principal.installation.is(subject) && subject.scope === space);
-    if (
-        (caller.contacts ?? []).length > 0 ||
-        (caller.delegates ?? []).length > 0 ||
-        !subjects.every(isOwn)
-    ) {
+    if (caller.contacts.length > 0 || caller.actors.length > 0 || !subjects.every(isOwn)) {
         throw new CallError("UNAUTHORIZED", { message: "token exceeds issuer authority" });
     }
 }
 
-/** Require one deployment per asserted installation, at most one per delegate, and no other. */
-function requireDeployments(caller: Caller, subjects: readonly Subject[]): void {
-    // list the asserted installations a deployment binds, and the delegates one may bind
-    const kind = caller.credential?.kind;
+/** Require one deployment per asserted installation, at most one per actor, and no other. */
+function requireDeployments(
+    caller: Caller,
+    credential: Credential,
+    subjects: readonly Subject[],
+): void {
+    // list the asserted installations a deployment binds, and the actors one may bind
+    const { kind } = credential;
     const isKeyed = kind === INSTALLATION_KEY || kind === SPACE_KEY;
     const workloads = subjects.filter(
         (subject) =>
             principal.installation.is(subject) &&
-            !(isKeyed && caller.subject !== undefined && Subject.same(subject, caller.subject)),
+            !(isKeyed && Subject.same(subject, caller.subject)),
     );
-    const delegates = (caller.delegates ?? []).filter((subject) =>
-        principal.installation.is(subject),
-    );
+    const actors = caller.actors.filter((subject) => principal.installation.is(subject));
 
-    // bind each workload to one deployment, and each delegate to at most one
-    const deployments = caller.deployments ?? [];
+    // bind each workload to one deployment, and each actor to at most one
+    const deployments = credential.deployments ?? [];
     const matching = (subject: Subject) =>
         deployments.filter((deployment) => Subject.same(deployment.subject, subject)).length;
     if (
         workloads.some((subject) => matching(subject) !== 1) ||
-        delegates.some((subject) => matching(subject) > 1)
+        actors.some((subject) => matching(subject) > 1)
     ) {
         throw new CallError("UNAUTHORIZED", { message: "invalid workload token identity" });
     }
 
-    // reject deployments of no asserted workload or delegate
-    const bound = [...workloads, ...delegates];
+    // reject deployments of no asserted workload or actor
+    const bound = [...workloads, ...actors];
     if (
         deployments.some(
             (deployment) => !bound.some((subject) => Subject.same(subject, deployment.subject)),
@@ -320,19 +347,18 @@ function requireDeployments(caller: Caller, subjects: readonly Subject[]): void 
     }
 }
 
-/** Require an acyclic chain of principals, a delegate without a grant impersonating a person. */
+/** Require an acyclic chain of principals, an actor without a grant impersonating a person. */
 function requireDelegation(caller: Caller): void {
     // list the chain from the subject to the sender
-    const delegates = caller.delegates ?? [];
-    const chain = [...(caller.subject === undefined ? [] : [caller.subject]), ...delegates];
-    const isImpersonation = caller.grant === undefined && delegates.length > 0;
+    const { actors } = caller;
+    const chain = [caller.subject, ...actors];
+    const isImpersonation = caller.grant === undefined && actors.length > 0;
 
     // refuse other subjects than principals, a repeated one, and an impersonation by other than one person
     if (
-        delegates.some((delegate) => !isPrincipal(delegate)) ||
+        actors.some((actor) => !isPrincipal(actor)) ||
         (isImpersonation &&
-            (delegates.length > 1 ||
-                !delegates.every((delegate) => principal.user.is(delegate)))) ||
+            (actors.length > 1 || !actors.every((actor) => principal.user.is(actor)))) ||
         chain.some((entry, position) =>
             chain.slice(position + 1).some((other) => Subject.same(entry, other)),
         )

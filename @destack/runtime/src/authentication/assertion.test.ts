@@ -60,24 +60,23 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
     ];
 
     // verify the first once, then replay it and verify the others
-    const caller = await verifier.verify(signed, now);
+    const authentication = await verifier.verify(signed, now);
     const refusals = [];
     for (const [token, at] of refused) {
         refusals.push(await refusal(verifier.verify(token, at)));
     }
 
     // answer the machine as the caller, and refuse every other assertion
-    expect({ caller, refusals }).toEqual({
-        caller: {
-            subject: key.subject,
-            subjects: [key.subject],
-            assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
+    expect({ authentication, refusals }).toEqual({
+        authentication: {
+            caller: { subject: key.subject, actors: [], groups: [], contacts: [] },
             credential: {
                 kind: MACHINE_KEY,
                 id: key.id,
                 audience,
                 verifiedAt: now,
                 expiresAt: (Math.floor(now / 1000) + 60) * 1000,
+                assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
             },
         },
         refusals: [
@@ -106,17 +105,17 @@ test("authenticate an installation within its space", async () => {
         spend: spending(),
     });
     const now = Date.now();
-    const caller = await verifier.verify(
+    const installation = await verifier.verify(
         await Assertion.sign(pair.privateKey, key, endpoint, now),
         now,
     );
 
     // bind the installation's credential to its space
-    expect([caller.subject, caller.credential.kind, caller.credential.scope]).toEqual([
-        key.subject,
-        "installation-key",
-        "space-1",
-    ]);
+    expect([
+        installation.caller.subject,
+        installation.credential.kind,
+        installation.credential.scope,
+    ]).toEqual([key.subject, "installation-key", "space-1"]);
 });
 
 test("authenticate a space and its installation by the space's key, refusing a subject the key cannot assert", async () => {
@@ -139,14 +138,18 @@ test("authenticate a space and its installation by the space's key, refusing a s
     const now = Date.now();
     const installationId = Identifier.create("installation");
     const sign = (subject: string) => Assertion.sign(pair.privateKey, key, endpoint, now, subject);
-    const caller = await verifier.verify(await sign(installationId), now);
+    const installation = await verifier.verify(await sign(installationId), now);
     const itself = await verifier.verify(await sign(spaceId), now);
     const refused = await refusal(verifier.verify(await sign(Identifier.create("machine")), now));
 
     // bind the installation to the space and let the space act as itself, refusing what its key cannot assert
     expect({
-        installation: [caller.subject, caller.credential.kind, caller.credential.scope],
-        space: [itself.subject, itself.credential.kind, itself.credential.scope],
+        installation: [
+            installation.caller.subject,
+            installation.credential.kind,
+            installation.credential.scope,
+        ],
+        space: [itself.caller.subject, itself.credential.kind, itself.credential.scope],
         refused,
     }).toEqual({
         installation: [

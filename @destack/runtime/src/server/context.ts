@@ -1,12 +1,19 @@
-import type { ObjectReference, Subject } from "@destack/sync";
+import type { ObjectReference } from "@destack/sync";
 import type { PackageId } from "@destack/package";
-import { AccessContext, Authorization, type Authorizer, Caller } from "@destack/access";
+import {
+    AccessContext,
+    type Authentication,
+    Authorization,
+    type Authorizer,
+    Caller,
+    Credential,
+} from "@destack/access";
 import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
-import { CallError } from "../error/index.ts";
 import type { ProcedureCall } from "./procedure-call.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
 import { Clock } from "@destack/schema";
+import { CallError } from "../error/index.ts";
 
 /** The header with the link secrets a request presents. */
 export const LINK_SECRET_HEADER = "Destack-Link-Secret";
@@ -39,17 +46,17 @@ export class RequestContext {
     readonly authorization: Authorization | undefined;
     /** The object the call's permission is decided on. */
     target?: ObjectReference;
-    /** The verified caller the request or its host presented, for any package, absent for none. */
-    readonly presented: Caller | undefined;
+    /** The verified caller with its credential, absent for an anonymous request. */
+    readonly authentication: Authentication | undefined;
 
     /** Create the context of a request. */
     constructor(request: Request, options: RequestContextOptions) {
         // read the host state
-        const { audience, scope, caller, resources, access, authenticationError } = options;
+        const { audience, scope, authentication, resources, access, authenticationError } = options;
         const linkSecrets = options.linkSecrets ?? [];
 
         // require no caller after a failed authentication
-        if (caller !== undefined && authenticationError !== undefined) {
+        if (authentication !== undefined && authenticationError !== undefined) {
             throw new TypeError("a failed authentication has no caller");
         }
 
@@ -57,7 +64,7 @@ export class RequestContext {
         this.request = request;
         this.audience = audience;
         this.scope = scope;
-        this.presented = options.presented ?? caller;
+        this.authentication = authentication;
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.linkSecrets = linkSecrets;
@@ -68,19 +75,20 @@ export class RequestContext {
         this.authorization =
             access &&
             new Authorization(access.authorizer, Transaction.reading(access.database), () => {
-                const authorized = this.caller();
+                const authorized = this.access();
                 Caller.requireChain(authorized);
 
-                return AccessContext.of(authorized, this.clock.now());
+                return authorized;
             });
 
         // bind methods for cloned middleware contexts
-        this.requireCaller = this.requireCaller.bind(this);
         this.requireAuthorization = this.requireAuthorization.bind(this);
         this.caller = this.caller.bind(this);
+        this.credential = this.credential.bind(this);
+        this.access = this.access.bind(this);
 
         // end the signal as the request closes, the credential lapses or the server drains
-        const lapse = caller?.credential?.expiresAt;
+        const lapse = authentication?.credential.expiresAt;
         const lapsed = new AbortController();
         if (lapse !== undefined) {
             this.clock.sleep(lapse - this.clock.now(), this.request.signal).then(
@@ -95,30 +103,6 @@ export class RequestContext {
         ]);
     }
 
-    /** Require a verified principal calling, current as of its credential's lapse at latest. */
-    requireCaller(): Caller & { readonly subject: Subject } {
-        // report a credential failure
-        if (this.authenticationError !== undefined) {
-            throw this.authenticationError;
-        }
-
-        // require a current principal
-        const presented = this.presented;
-        const subject = presented?.subject;
-        if (presented === undefined || subject === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
-        }
-        const caller = { ...presented, subject };
-        Caller.requireCurrent(
-            caller,
-            this.audience,
-            Caller.clamp(caller, this.clock.now()),
-            this.scope,
-        );
-
-        return caller;
-    }
-
     /** Read the caller's authorization, present for every package declared with access. */
     requireAuthorization(): Authorization {
         if (this.authorization === undefined) {
@@ -128,20 +112,44 @@ export class RequestContext {
         return this.authorization;
     }
 
-    /** Read the request's verified caller in a scope, with the link secrets it presented. */
-    caller(scope: string | undefined = this.scope): Caller {
+    /** Read the request's caller, anonymous without one, and throw a credential failure. */
+    caller(): Caller {
         // report a credential failure
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }
 
-        // read the caller current in the scope with its link secrets
-        const caller = this.presented ?? { subjects: [] };
-        Caller.requireCurrent(caller, this.audience, Caller.clamp(caller, this.clock.now()), scope);
+        return this.authentication?.caller ?? Caller.anonymous();
+    }
 
-        return this.linkSecrets.length === 0
-            ? caller
-            : { ...caller, linkSecrets: this.linkSecrets };
+    /** Read the credential the request presented, and throw for an anonymous or failed one. */
+    credential(): Credential {
+        // report a credential failure, and refuse a request without a credential
+        const credential = this.authentication?.credential;
+        if (this.authenticationError !== undefined) {
+            throw this.authenticationError;
+        } else if (credential === undefined) {
+            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+        }
+
+        return credential;
+    }
+
+    /** Read the request's access context in a scope, its credential current there. */
+    access(scope: string | undefined = this.scope): AccessContext {
+        // decide an anonymous caller now
+        const caller = this.caller();
+        const credential = this.authentication?.credential;
+        const { linkSecrets } = this;
+        if (credential === undefined) {
+            return AccessContext.of(caller, this.clock.now(), { linkSecrets });
+        }
+
+        // decide a credential's caller before it lapses, the credential current in the scope
+        const now = Credential.clamp(credential, this.clock.now());
+        Credential.requireCurrent(credential, this.audience, now, scope);
+
+        return AccessContext.of(caller, now, { credential, linkSecrets });
     }
 }
 
@@ -151,10 +159,8 @@ export interface RequestContextOptions {
     readonly audience: PackageId;
     /** The call's scope. */
     readonly scope?: string;
-    /** The verified caller, absent for an anonymous request. */
-    readonly caller?: Caller;
-    /** The verified caller as presented, which a mount forwarding below the package hands on. */
-    readonly presented?: Caller;
+    /** The verified caller with its credential, absent for an anonymous request. */
+    readonly authentication?: Authentication;
     /** The resource clients bound by the host. */
     readonly resources: ResourceContext;
     /** The package's policies. */

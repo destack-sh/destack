@@ -3,7 +3,8 @@ import type { PackageId } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import {
-    type Caller,
+    type Authentication,
+    Caller,
     CLOCK_TOLERANCE_MILLISECONDS,
     KEY_ASSURANCE,
     principal,
@@ -31,9 +32,6 @@ export interface AssertionKey {
     /** The public key. */
     readonly publicKey: PublicKey;
 }
-
-/** A caller an assertion authenticated: its subject and credential, both present. */
-type AssertedCaller = Caller & Required<Pick<Caller, "subject" | "credential">>;
 
 /** Key-signed assertions principals exchange at a token endpoint (RFC 7523 jwt-bearer). */
 export const Assertion = {
@@ -79,7 +77,7 @@ export class AssertionVerifier {
     }
 
     /** Verify and spend an assertion at a time, answering its principal as the caller. */
-    async verify(assertion: string, now: number): Promise<AssertedCaller> {
+    async verify(assertion: string, now: number): Promise<Authentication> {
         // find the standing key of the claimed issuer the header refers to
         const { kid } = refused(() => decodeProtectedHeader(assertion));
         const { iss } = refused(() => decodeJwt(assertion));
@@ -151,16 +149,14 @@ function asserted(
     audience: PackageId,
     now: number,
     expiresAt: number,
-): AssertedCaller {
+): Authentication {
     // take the key's own machine, space or installation, or an installation its space signs for
     const subject = assertedSubject(key, sub);
     const isMachine = principal.machine.is(subject);
     const isSpace = principal.space.is(subject);
 
     return {
-        subject,
-        subjects: [subject],
-        assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
+        caller: Caller.of(subject),
         credential: {
             kind: isMachine ? MACHINE_KEY : isSpace ? SPACE_KEY : INSTALLATION_KEY,
             id: key.id,
@@ -169,6 +165,7 @@ function asserted(
             ...(isMachine || isSpace ? {} : { scope: subject.scope }),
             verifiedAt: now,
             expiresAt,
+            assurance: { level: KEY_ASSURANCE, authenticatedAt: now },
         },
     };
 }

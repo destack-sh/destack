@@ -14,7 +14,7 @@ test("ask the egress to act for a served person, or under the grant its delegate
     // read the contexts of a person's call, a delegated call, an installation's own call and none
     const contexts = {
         person: Exchange.of(called({ subject: person })),
-        delegated: Exchange.of(called({ subject: person, delegates: [installation], grant })),
+        delegated: Exchange.of(called({ subject: person, actors: [installation], grant })),
         installation: Exchange.of(called({ subject: installation })),
         outside: Exchange.of(undefined),
     };
@@ -37,9 +37,11 @@ test("ask the egress to act for a served person, or under the grant its delegate
     expect(malformed).toThrow(`invalid ${Exchange.header}`);
 });
 
-/** Build a served caller without subject sets. */
-function called(caller: Omit<Caller, "subjects">): Caller {
-    return { ...caller, subjects: [] };
+/** Build a served caller without groups or contacts. */
+function called(
+    caller: Pick<Caller, "subject"> & Partial<Pick<Caller, "actors" | "grant">>,
+): Caller {
+    return { actors: [], groups: [], contacts: [], ...caller };
 }
 
 /** Read an ask with a header that is not JSON. */

@@ -1,7 +1,7 @@
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema, Clock } from "@destack/schema";
-import { accessTables, Authorizer, Policy, principal, relation } from "@destack/access";
+import { accessTables, Authorizer, Policy, principal, relation, Caller } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Health } from "../health/index.ts";
@@ -84,8 +84,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
             const now = Date.now();
 
             return {
-                subject,
-                subjects: [subject],
+                caller: Caller.of(subject),
                 credential: {
                     kind: "session",
                     id: "alice",
@@ -93,8 +92,8 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
                     scope: hosting.scope,
                     verifiedAt: now,
                     expiresAt: now + 60_000,
+                    assurance: { level, authenticatedAt: now },
                 },
-                assurance: { level, authenticatedAt: now },
             };
         },
         router: implementation.router({

@@ -13,7 +13,7 @@ const implementation = implement(pages.router).$context<RequestContext>();
 throw new CallError("NOT_FOUND", { message: `no page ${id}` });
 await CallError.read(response, "MISDIRECTED_REQUEST");
 await outbox.append(inbox, deliveryId, delivery, transaction);
-await issuer.issue({ ...person, delegates: [installation], grant }, now);
+await issuer.issue({ ...person, actors: [installation], grant }, now);
 client.notes.list({}, { context: { exchange: Exchange.of(served) } });
 ```
 

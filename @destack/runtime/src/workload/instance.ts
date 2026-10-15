@@ -1,5 +1,5 @@
 import { type Clock, present } from "@destack/schema";
-import type { Caller } from "@destack/access";
+import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { DeclarationReference } from "@destack/package/declare";
 import { Server, type ServerOptions, type PackageImplementation } from "../server/index.ts";
@@ -137,8 +137,12 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 
     /** Dispatch a request to a package the current generation serves. */
-    fetch(handle: PackageHandle, request: Request, caller?: Caller): Promise<Response> {
-        return this.#current.fetch(handle, request, caller);
+    fetch(
+        handle: PackageHandle,
+        request: Request,
+        authentication?: Authentication,
+    ): Promise<Response> {
+        return this.#current.fetch(handle, request, authentication);
     }
 
     /** Close the workload. */
@@ -318,7 +322,11 @@ class Generation {
     }
 
     /** Dispatch a request to a served package. */
-    fetch(handle: PackageHandle, request: Request, caller?: Caller): Promise<Response> {
+    fetch(
+        handle: PackageHandle,
+        request: Request,
+        authentication?: Authentication,
+    ): Promise<Response> {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
@@ -327,7 +335,7 @@ class Generation {
             });
         }
 
-        return server.fetch(request, caller);
+        return server.fetch(request, authentication);
     }
 
     /** Drain the servers and release the resources once. */

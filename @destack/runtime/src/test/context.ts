@@ -1,5 +1,5 @@
 import { TOKEN_LIFETIME_MILLISECONDS } from "../authentication/index.ts";
-import type { Caller } from "@destack/access";
+import type { Caller, Credential } from "@destack/access";
 import { PackageId } from "@destack/package";
 import type { Subject } from "@destack/sync";
 import { ResourceContext } from "@destack/resource/context";
@@ -18,16 +18,14 @@ const TEST_KEY = crypto.subtle.generateKey({ name: "HMAC", hash: "SHA-256" }, fa
 export const testCallKey: CallKey = () => TEST_KEY;
 
 /** How a hand-built test caller signs in, and the signal and clock of its requests. */
-export interface SubjectContextOptions extends Pick<
-    Caller,
-    "delegates" | "grant" | "assurance" | "attributes"
-> {
+export interface SubjectContextOptions
+    extends
+        Partial<Pick<Caller, "actors" | "groups" | "contacts" | "grant">>,
+        Partial<Pick<Credential, "assurance" | "attributes">> {
     /** The signal ending the request. */
     readonly signal?: AbortSignal;
     /** The clock calls run at, the system clock by default. */
     readonly clock?: Clock;
-    /** The subject sets the subject's token states beside it, such as its containment. */
-    readonly sets?: readonly Subject[];
 }
 
 /** Build the request context of a subject calling in a scope or in none. */
@@ -36,27 +34,25 @@ export function subjectContext(
     scope: string | undefined,
     options: SubjectContextOptions = {},
 ): RequestContext {
-    // sign the subject in for a minute with its delegates, grant and assurance
-    const { signal, clock = Clock.system, sets = [], ...restrictions } = options;
+    // sign the subject in for a minute with its actors, groups, grant and assurance
+    const { signal, clock = Clock.system, assurance, attributes, ...restrictions } = options;
     const now = clock.now();
-    const caller: Caller = {
-        ...restrictions,
-        credential: {
-            kind: "session",
-            id: subject.id,
-            audience: AUDIENCE,
-            verifiedAt: now,
-            expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-        },
-        subject,
-        subjects: [subject, ...sets],
+    const caller: Caller = { actors: [], groups: [], contacts: [], ...restrictions, subject };
+    const credential: Credential = {
+        kind: "session",
+        id: subject.id,
+        audience: AUDIENCE,
+        verifiedAt: now,
+        expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
+        ...(assurance === undefined ? {} : { assurance }),
+        ...(attributes === undefined ? {} : { attributes }),
     };
     const request = new Request("https://test.local", signal === undefined ? {} : { signal });
 
     return new RequestContext(request, {
         audience: AUDIENCE,
         ...(scope === undefined ? {} : { scope }),
-        caller,
+        authentication: { caller, credential },
         resources: new ResourceContext(),
         clock,
     });

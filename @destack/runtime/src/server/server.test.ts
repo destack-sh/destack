@@ -1,4 +1,4 @@
-import { Caller, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { schema, Clock } from "@destack/schema";
@@ -7,7 +7,7 @@ import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../runtime/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { createCaller, fixturePackage, hosting } from "../test/fixture.ts";
+import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { CallError } from "../error/index.ts";
 import type { RequestContext } from "./context.ts";
@@ -55,7 +55,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         },
         router: implementation.router({
             watch: implementation.watch.handler(async function* ({ context }) {
-                expect(context.requireCaller().subject?.id).toBe("alice");
+                expect(context.caller().subject?.id).toBe("alice");
                 expect(context.caller().subject?.id).toBe("alice");
                 expect(context.application).toBe("snapshot");
                 yield requests;
@@ -122,14 +122,11 @@ test.for([
             health: new Health("lapse"),
             drainTimeout: 1000,
             authenticate: async () => {
-                const alice = createCaller("alice");
+                const alice = authenticateUser("alice");
 
                 return {
                     ...alice,
-                    credential: {
-                        ...Caller.requireCredential(alice),
-                        expiresAt: Date.now() + LAPSE_MILLISECONDS,
-                    },
+                    credential: { ...alice.credential, expiresAt: Date.now() + LAPSE_MILLISECONDS },
                 };
             },
             authorizeMachine: async () => {
@@ -717,7 +714,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
     };
     const implementation = implement(procedures);
     const audited: string[] = [];
-    const alice = createCaller("alice");
+    const alice = authenticateUser("alice");
     const server = Server.start({
         clock: Clock.system,
         ...hosting,
@@ -727,7 +724,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
         authenticate: async () => ({
             ...alice,
             credential: {
-                ...Caller.requireCredential(alice),
+                ...alice.credential,
                 audience: PackageId.parse("package-019f7480-0000-7000-8000-0000000000ff"),
             },
         }),

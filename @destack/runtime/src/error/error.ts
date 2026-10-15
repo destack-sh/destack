@@ -172,10 +172,7 @@ export function describeIssues(issues: readonly SchemaIssue[]): string {
 }
 
 /** Rebuild the call error a failure records, with its code, status, message, details and cause. */
-export function errorOf(
-    failure: Failure,
-    cause?: Error,
-): ORPCError<string, JsonValue | undefined> {
+export function errorOf(failure: Failure, cause?: Error): ORPCError<string, JsonValue | undefined> {
     return new ORPCError<string, JsonValue | undefined>(failure.code, {
         status: failure.status,
         message: failure.message,

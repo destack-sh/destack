@@ -11,7 +11,7 @@ import {
     resource,
     relation,
     union,
-    type AccessContext,
+    AccessContext,
     Authorization,
     Caller,
     principal,
@@ -27,7 +27,7 @@ import { createClient } from "../client/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import { RequestContext } from "./context.ts";
-import { createCaller, fixturePackage, hosting } from "../test/fixture.ts";
+import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
@@ -53,12 +53,9 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
             health: new Health("scope"),
             drainTimeout: 100,
             authenticate: async () => {
-                const alice = createCaller("alice");
+                const alice = authenticateUser("alice");
 
-                return {
-                    ...alice,
-                    credential: { ...Caller.requireCredential(alice), scope: credentialScope },
-                };
+                return { ...alice, credential: { ...alice.credential, scope: credentialScope } };
             },
             router: implementation.router({
                 read: implementation.read.handler(({ context }) => {
@@ -114,12 +111,10 @@ test("verify a credential the package keeps before the host, which answers every
                 throw new CallError("UNAUTHORIZED", { message: "the package key is revoked" });
             }
 
-            return key === null ? undefined : createCaller("bob");
+            return key === null ? undefined : authenticateUser("bob");
         },
         router: implementation.router({
-            me: implementation.me.handler(({ context }) =>
-                Caller.requireSender(context.requireCaller()).id,
-            ),
+            me: implementation.me.handler(({ context }) => Caller.sender(context.caller()).id),
         }),
     });
     const me = (headers: Record<string, string>) =>
@@ -158,13 +153,13 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     await fixture.replicateScope({ packageId, type: "folder", scope: spaceId, id: folderId });
 
     // call the space with a credential bound to it
-    const caller = createCaller("alice");
-    const credential = { ...Caller.requireCredential(caller), audience: packageId, scope: spaceId };
+    const alice = authenticateUser("alice");
+    const credential = { ...alice.credential, audience: packageId, scope: spaceId };
     const context = new RequestContext(new Request("https://fixture.test/"), {
         clock: Clock.system,
         audience: packageId,
         scope: spaceId,
-        caller: { ...caller, credential },
+        authentication: { caller: alice.caller, credential },
         resources: new ResourceContext(),
         access: { authorizer: new Authorizer([space, folder], []), database },
     });
@@ -250,8 +245,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         const now = Date.now();
         const token = await issuer.issue(
             {
-                subject,
-                subjects: [subject],
+                caller: Caller.of(subject),
                 credential: {
                     kind: "session",
                     id: subject.id,
@@ -304,7 +298,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         .values(
             ["one", "two"].map((id) => ({ id, scope: spaceId, owner: owner.id, public: false })),
         );
-    const asOwner: AccessContext = { subjects: [owner], now: Date.now(), attributes: {} };
+    const asOwner = AccessContext.of(Caller.of(owner), Date.now());
 
     // keep the host's installation state
     let isEnabled = true;
@@ -331,9 +325,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             }
         },
         router: implementation.router({
-            me: implementation.me.handler(
-                ({ context }) => Caller.requireSender(context.requireCaller()).id,
-            ),
+            me: implementation.me.handler(({ context }) => Caller.sender(context.caller()).id),
             read: implementation.read.handler(({ context }) => {
                 invocations++;
                 expect(context.resources).toBe(resources);
@@ -384,9 +376,15 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const now = Date.now();
     const restricted = await issuer.issue(
         {
-            subject: owner,
-            subjects: [owner],
-            delegates: [principal.personalAccessToken.reference(owner.id, "restricted-token")],
+            caller: {
+                ...Caller.of(owner),
+                actors: [principal.personalAccessToken.reference(owner.id, "restricted-token")],
+                grant: {
+                    id: Identifier.create("grant"),
+                    scope: owner.id,
+                    permissions: [{ ...note.permission("read"), scope: spaceId, objectId: "one" }],
+                },
+            },
             credential: {
                 kind: "personal",
                 id: "restricted-token",
@@ -395,11 +393,6 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 scope: spaceId,
                 verifiedAt: now,
                 expiresAt: now + 60000,
-            },
-            grant: {
-                id: Identifier.create("grant"),
-                scope: owner.id,
-                permissions: [{ ...note.permission("read"), scope: spaceId, objectId: "one" }],
             },
         },
         Date.now(),

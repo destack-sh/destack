@@ -1,4 +1,4 @@
-import { type Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import type { Subject } from "@destack/sync";
 import { SPACE_KEY, TOKEN_LIFETIME_MILLISECONDS } from "../authentication/index.ts";
@@ -19,12 +19,11 @@ export const TestBearer = {
     },
 
     /** Authenticate a subject for a minute. */
-    authenticate(subject: Subject, audience: PackageId, now: number): Caller {
+    authenticate(subject: Subject, audience: PackageId, now: number): Authentication {
         const kind = principal.space.is(subject) ? SPACE_KEY : subject.type;
 
         return {
-            subject,
-            subjects: [subject],
+            caller: Caller.of(subject),
             credential: {
                 kind,
                 id: subject.id,

@@ -216,8 +216,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
         const headers = new Headers({ authorization: "Bearer forwarding" });
         Caller.forward(
             {
-                subject: alice,
-                subjects: [alice],
+                caller: Caller.of(alice),
                 credential: {
                     kind: "session",
                     id: "session",

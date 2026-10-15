@@ -1,6 +1,5 @@
-import { schema } from "@destack/schema";
 import type { JWTPayload } from "jose";
-import { Caller } from "@destack/access";
+import { type Authentication, Caller, Credential } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { ACCESS_TOKEN_TYPE, AccessToken, TokenIdentity, TokenIssuerAuthority } from "./token.ts";
 import { CallError } from "../error/index.ts";
@@ -15,12 +14,12 @@ export class TokenIssuer {
         this.options = options;
     }
 
-    /** Sign an access token for a caller until its credential lapses. */
-    async issue(caller: Caller, now: number) {
-        // require a principal, keeping the original verification and lapse
-        const credential = Caller.requireCredential(caller);
-        Caller.requireCurrent(caller, credential.audience, now, credential.scope);
-        if (caller.subject === undefined) {
+    /** Sign an access token for a caller until the credential it presented lapses. */
+    async issue(authentication: Authentication, now: number) {
+        // require an identified caller, keeping the original verification and lapse
+        const { caller, credential } = authentication;
+        Credential.requireCurrent(credential, credential.audience, now, credential.scope);
+        if (Caller.isAnonymous(caller)) {
             throw new CallError("UNAUTHORIZED", {
                 message: "an anonymous caller cannot get a token",
             });
@@ -33,23 +32,11 @@ export class TokenIssuer {
             });
         }
 
-        // encode the verified identity and its delegation
-        TokenIssuerAuthority.require(this.options.authority, caller);
-        const identity = TokenIdentity.parse(
-            schema.defined({
-                subject: caller.subject,
-                subjects: caller.subjects,
-                assurance: caller.assurance,
-                contacts: caller.contacts,
-                deployments: caller.deployments,
-                attributes: caller.attributes,
-                credential: { kind: credential.kind, id: credential.id },
-            }),
-        );
-        const { delegates = [], grant } = caller;
+        // require the caller's claims within the issuer's authority
+        TokenIssuerAuthority.require(this.options.authority, authentication);
 
         // issue to the caller's client, else to the sending principal itself
-        const sender = delegates.at(-1) ?? caller.subject;
+        const sender = Caller.sender(caller);
         const client = AccessToken.shape.client_id.safeParse(credential.client ?? sender.id);
         if (!client.success) {
             throw new CallError("UNAUTHORIZED", { message: "a user's token needs a client" });
@@ -64,12 +51,7 @@ export class TokenIssuer {
             iat: issuedAt,
             exp: expiresAt,
             jti: crypto.randomUUID(),
-            ...(delegates.length === 0 ? {} : { act: [...delegates] }),
-            ...(grant === undefined ? {} : { grant }),
-            ...(credential.scope === undefined
-                ? {}
-                : { space: schema.identifier("space").parse(credential.scope) }),
-            caller: identity,
+            ...TokenIdentity.claims(authentication),
         } satisfies AccessToken;
         const accessToken = await this.options.sign(claims, { typ: ACCESS_TOKEN_TYPE });
 

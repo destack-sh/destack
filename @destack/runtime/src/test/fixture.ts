@@ -1,4 +1,4 @@
-import { type Caller, principal } from "@destack/access";
+import { type Authentication, Caller, principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -26,19 +26,18 @@ export const hosting = {
             throw new CallError("UNAUTHORIZED", { message: "invalid caller name" });
         }
 
-        return createCaller(name);
+        return authenticateUser(name);
     },
     authorizeMachine: async () => {},
 };
 
-/** Create a verified caller for a fixture user. */
-export function createCaller(name: string): Caller {
+/** Authenticate a fixture user with a session for a minute. */
+export function authenticateUser(name: string): Authentication {
     const subject: Subject = principal.user.reference("universe", name);
     const now = Date.now();
 
     return {
-        subject,
-        subjects: [subject],
+        caller: Caller.of(subject),
         credential: {
             kind: "session",
             id: name,
