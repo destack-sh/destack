@@ -1,4 +1,10 @@
-import { ObjectReference, type ObjectTypeReference, AccessName, Subject } from "@destack/sync";
+import {
+    ObjectReference,
+    type ObjectTypeReference,
+    AccessName,
+    type ReferenceColumns,
+    Subject,
+} from "@destack/sync";
 import {
     sql,
     type Comparable,
@@ -107,11 +113,57 @@ export const Relationship = {
             ...Relationship.viaColumns(relationship),
             ...Relationship.subjectColumns(relationship.subject),
             expiresAt: relationship.expiresAt,
-            requestId: relationship.conditions?.request ?? null,
-            credential: relationship.conditions?.credential ?? null,
-            linkSecret: relationship.conditions?.linkSecret ?? null,
-            assurance: relationship.conditions?.assurance ?? null,
-            maxAge: relationship.conditions?.maxAge ?? null,
+            ...Relationship.conditionColumns(relationship.conditions),
+        };
+    },
+
+    /** Write what a request must satisfy as a row's condition columns. */
+    conditionColumns(
+        conditions: RelationshipCondition | undefined,
+    ): Pick<
+        Select<typeof accessRelationship>,
+        "requestId" | "credential" | "linkSecret" | "assurance" | "maxAge"
+    > {
+        return {
+            requestId: conditions?.request ?? null,
+            credential: conditions?.credential ?? null,
+            linkSecret: conditions?.linkSecret ?? null,
+            assurance: conditions?.assurance ?? null,
+            maxAge: conditions?.maxAge ?? null,
+        };
+    },
+
+    /** Read what a request must satisfy from a row's condition columns, absent for nothing. */
+    conditionsOf(
+        row: Pick<
+            Select<typeof accessRelationship>,
+            "requestId" | "credential" | "linkSecret" | "assurance" | "maxAge"
+        >,
+    ): { readonly conditions?: RelationshipCondition } {
+        const conditions = {
+            ...(row.requestId === null ? {} : { request: row.requestId }),
+            ...(row.credential === null ? {} : { credential: row.credential }),
+            ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
+            ...(row.assurance === null ? {} : { assurance: row.assurance }),
+            ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
+        };
+
+        return Object.keys(conditions).length === 0 ? {} : { conditions };
+    },
+
+    /** Read a row's subject from its subject columns. */
+    subjectOf(
+        row: Pick<
+            Select<typeof accessRelationship>,
+            "subjectPackageId" | "subjectType" | "subjectScope" | "subjectId" | "subjectRelation"
+        >,
+    ): Subject {
+        return {
+            packageId: row.subjectPackageId,
+            type: row.subjectType,
+            scope: row.subjectScope,
+            id: row.subjectId,
+            ...(row.subjectRelation === null ? {} : { relation: row.subjectRelation }),
         };
     },
 
@@ -125,15 +177,8 @@ export const Relationship = {
     },
 
     /** Write a relationship's object as its columns, which also match the rows on the object. */
-    objectColumns(
-        object: ObjectReference,
-    ): Pick<Select<typeof accessRelationship>, "objectScope" | "packageId" | "type" | "objectId"> {
-        return {
-            objectScope: object.scope,
-            packageId: object.packageId,
-            type: object.type,
-            objectId: object.id,
-        };
+    objectColumns(object: ObjectReference): ReferenceColumns<"object"> {
+        return ObjectReference.columns("object", object);
     },
 
     /** Write a relationship's subject as its columns. */
@@ -154,33 +199,14 @@ export const Relationship = {
 
     /** Read a relationship from its row. */
     decode(row: Select<typeof accessRelationship>): Relationship {
-        const conditions = {
-            ...(row.requestId === null ? {} : { request: row.requestId }),
-            ...(row.credential === null ? {} : { credential: row.credential }),
-            ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
-            ...(row.assurance === null ? {} : { assurance: row.assurance }),
-            ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
-        };
-
         return {
             id: row.id,
-            object: {
-                packageId: row.packageId,
-                type: row.type,
-                scope: row.objectScope,
-                id: row.objectId,
-            },
+            object: ObjectReference.at("object", row),
             ...Relationship.viaRelation(row),
-            subject: {
-                packageId: row.subjectPackageId,
-                type: row.subjectType,
-                scope: row.subjectScope,
-                id: row.subjectId,
-                ...(row.subjectRelation === null ? {} : { relation: row.subjectRelation }),
-            },
+            subject: Relationship.subjectOf(row),
             createdAt: row.createdAt,
             expiresAt: row.expiresAt,
-            ...(Object.keys(conditions).length === 0 ? {} : { conditions }),
+            ...Relationship.conditionsOf(row),
         };
     },
 
@@ -191,8 +217,8 @@ export const Relationship = {
     ): Promise<RelationshipRow[]> {
         return snapshot.select(
             accessRelationship,
-            ["objectScope", "packageId", "type", "objectId"],
-            objects.map((object) => [object.scope, object.packageId, object.type, object.id]),
+            ["objectPackageId", "objectType", "objectScope", "objectId"],
+            objects.map((object) => [object.packageId, object.type, object.scope, object.id]),
         );
     },
 
@@ -276,6 +302,17 @@ export const Relationship = {
         );
     },
 
+    /** Match the rows of exactly one subject, as a row condition. */
+    subjectCondition(subject: Subject): OpenCondition {
+        return {
+            subjectPackageId: subject.packageId,
+            subjectType: subject.type,
+            subjectScope: subject.scope,
+            subjectId: subject.id,
+            subjectRelation: subject.relation ?? { isNull: true },
+        };
+    },
+
     /** Match some subjects' relationships, with plain subjects' wildcards, as a row condition. */
     heldBy(subjects: readonly Subject[]): OpenCondition {
         return {
@@ -296,9 +333,9 @@ export const Relationship = {
     /** Match the relationships on one object, in the relationship table or one of its aliases. */
     on(object: ObjectReference, relationship: RelationshipColumnMap = accessRelationship): SQL {
         return sql`(
-            ${relationship.objectScope} = ${object.scope}
-            AND ${relationship.packageId} = ${object.packageId}
-            AND ${relationship.type} = ${object.type}
+            ${relationship.objectPackageId} = ${object.packageId}
+            AND ${relationship.objectType} = ${object.type}
+            AND ${relationship.objectScope} = ${object.scope}
             AND ${relationship.objectId} = ${object.id}
         )`;
     },
@@ -306,12 +343,7 @@ export const Relationship = {
     /** Match the rows with an encoded relationship's tuple, as the unique tuple compares them. */
     equal(row: EncodedRelationship): Condition<RelationshipRow> {
         return {
-            ...Relationship.objectColumns({
-                scope: row.objectScope,
-                packageId: row.packageId,
-                type: row.type,
-                id: row.objectId,
-            }),
+            ...Relationship.objectColumns(ObjectReference.at("object", row)),
             relation: Relationship.nullable(row.relation),
             roleId: Relationship.nullable(row.roleId),
             subjectPackageId: row.subjectPackageId,
@@ -371,8 +403,8 @@ export const Relationship = {
 
         return {
             OR: selection.objects.map((object) => ({
-                packageId: object.packageId,
-                type: object.type,
+                objectPackageId: object.packageId,
+                objectType: object.type,
             })),
             relation: selection.relation,
             subjectPackageId: columns.subjectPackageId,
@@ -390,7 +422,9 @@ export const Relationship = {
 
     /** Read whether a relationship row uses a relation or role, refusing neither or both. */
     viaRelation(
-        row: Pick<Select<typeof accessRelationship>, "id" | "relation" | "roleId">,
+        row: Pick<Select<typeof accessRelationship>, "relation" | "roleId"> & {
+            readonly id: string;
+        },
     ): { readonly relation: string } | { readonly role: string } {
         if (row.relation !== null && row.roleId === null) {
             return { relation: row.relation };

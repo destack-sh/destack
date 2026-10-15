@@ -24,7 +24,7 @@ import {
     type Subscription,
     type ScopeLink,
     Watch,
-    type ObjectReference,
+    ObjectReference,
     ObjectTypeReference,
     Subject,
 } from "@destack/sync";
@@ -966,7 +966,7 @@ export class Authorizer {
 
     /** Write a request's parameters in JSON form. */
     static #json(parameters: ChainParameters | UniverseParameters): Subscription["parameters"] {
-        return schema.record(schema.string(), schema.json()).parse(parameters);
+        return schema.jsonObject().parse(parameters);
     }
 
     /** Build a chain replica: access rows, replicated types' inherited rows and scopes' rows. */
@@ -980,12 +980,12 @@ export class Authorizer {
             NOT: {
                 OR: [
                     ...parameters.local.map((type) => ({
-                        packageId: type.packageId,
-                        type: type.type,
+                        objectPackageId: type.packageId,
+                        objectType: type.type,
                     })),
                     ...this.global.map((type) => ({
-                        packageId: type.packageId,
-                        type: type.type,
+                        objectPackageId: type.packageId,
+                        objectType: type.type,
                         objectScope: Scope.universe.id,
                     })),
                 ],
@@ -1000,8 +1000,8 @@ export class Authorizer {
                         { scope: { ne: Scope.universe.id } },
                         ...parameters.types.map((type) => ({
                             scope: Scope.universe.id,
-                            packageId: type.packageId,
-                            type: type.type,
+                            objectPackageId: type.packageId,
+                            objectType: type.type,
                         })),
                     ],
                 },
@@ -1162,12 +1162,7 @@ export class Authorizer {
                 image: async (row) =>
                     (await this.checkRows(snapshot, read, access, [row])).permitted.has(0),
             },
-            where: {
-                objectScope: object.scope,
-                packageId: object.packageId,
-                type: object.type,
-                objectId: object.id,
-            },
+            where: ObjectReference.columns("object", object),
             orderBy: { id: "asc" },
             ...(page.after === undefined
                 ? {}
@@ -1263,8 +1258,8 @@ export class Authorizer {
         // delete the request's relationships on local types
         const types = this.local.map((type) =>
             and(
-                eq(accessRelationship.packageId, type.packageId),
-                eq(accessRelationship.type, type.type),
+                eq(accessRelationship.objectPackageId, type.packageId),
+                eq(accessRelationship.objectType, type.type),
             ),
         );
         if (types.length > 0) {
@@ -1539,8 +1534,8 @@ export class Authorizer {
             (row) =>
                 (row.objectScope === scope ||
                     (row.objectId === own.id &&
-                        row.packageId === own.packageId &&
-                        row.type === own.type)) &&
+                        row.objectPackageId === own.packageId &&
+                        row.objectType === own.type)) &&
                 access.authority.isMember(Relationship.decode(row).subject) &&
                 new TupleCondition(row).failure(access.context) === undefined,
         );
@@ -2418,14 +2413,22 @@ export class Authorizer {
                 .map(([name]) => ({ mapping, name, column: mapping.relations[name] })),
         );
 
-        // delete the rows naming the subject: by its whole key, else by its id within its type
+        // delete the rows naming the subject: by its typed columns, else by its id within its type
         for (const { mapping, name, column } of cascading) {
             if (column === undefined) {
                 throw new TypeError(`relation ${name} cascades only from a column`);
             }
+            const typed = column.subject;
             const rows = await transaction.read(mapping.table).findMany({
                 where: {
-                    [column.column]: column.isKey === true ? Subject.key(subject) : subject.id,
+                    [column.column]: subject.id,
+                    ...(typed === undefined
+                        ? {}
+                        : {
+                              [typed.packageId]: subject.packageId,
+                              [typed.type]: subject.type,
+                              [typed.scope]: subject.scope,
+                          }),
                 },
             });
             await transaction.write(

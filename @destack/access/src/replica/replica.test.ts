@@ -179,9 +179,9 @@ test("relay an account's access through the space's database into an app's, and 
     // keep the app's own relationships, about its notes, through a fresh snapshot of the space's replica
     await replicate(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
     const own = await app.database
-        .select({ type: accessRelationship.type, objectId: accessRelationship.objectId })
+        .select({ type: accessRelationship.objectType, objectId: accessRelationship.objectId })
         .from(accessRelationship)
-        .orderBy(asc(accessRelationship.type));
+        .orderBy(asc(accessRelationship.objectType));
     expect(own.filter((row) => row.type === node.name)).toEqual([{ type: "node", objectId: "b" }]);
 });
 

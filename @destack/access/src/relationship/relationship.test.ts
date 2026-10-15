@@ -139,8 +139,8 @@ test.for(TEST_DIALECTS)(
             );
             const rows = await fixture.database
                 .select({
-                    inviter: accessInvitation.inviterKey,
-                    addressee: accessInvitation.addressee,
+                    inviter: accessInvitation.inviterId,
+                    addressee: accessInvitation.subjectId,
                 })
                 .from(accessInvitation)
                 .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
@@ -150,9 +150,7 @@ test.for(TEST_DIALECTS)(
         };
 
         // show both to alice as grantor, and each other caller only its own
-        const [carol, dave, alice] = ["carol", "dave", "alice"].map((id) =>
-            Subject.key(principal.user.reference("universe", id)),
-        );
+        const [carol, dave, alice] = ["carol", "dave", "alice"];
         expect(await visible(fixture.alice)).toEqual([`${carol}>${carol}`, `${alice}>${dave}`]);
         expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
         expect(await visible(as("dave"))).toEqual([`${alice}>${dave}`]);

@@ -1,8 +1,6 @@
-import { check, defineTable, identifier, index, integer, json, text } from "@destack/db";
-import { AccessName, Subject } from "@destack/sync";
+import { check, defineTable, identifier, index, integer, text } from "@destack/db";
 import { accessRole } from "../role/table.ts";
 import { defineSchema, schema } from "@destack/schema";
-import { relationshipBase } from "../relationship/relationship.ts";
 
 /** Where an invitation stands: waiting until its expiry, taken, or withdrawn. */
 export const INVITATION_STATUSES = ["pending", "accepted", "revoked"] as const;
@@ -11,22 +9,6 @@ export const INVITATION_STATUSES = ["pending", "accepted", "revoked"] as const;
 export const InvitationStatus = defineSchema(schema.enum(INVITATION_STATUSES));
 /** Where an invitation stands. */
 export type InvitationStatus = schema.Infer<typeof InvitationStatus>;
-
-/** A relationship an invitation offers or asks for: by a declared relation, or a role binding. */
-export const InvitationRelationship = defineSchema(
-    schema.union([
-        relationshipBase.omit({ id: true, createdAt: true }).extend({
-            /** The declared relation. */
-            relation: AccessName,
-        }),
-        relationshipBase.omit({ id: true, createdAt: true }).extend({
-            /** The bound role. */
-            role: schema.string().min(1),
-        }),
-    ]),
-);
-/** A relationship an invitation offers or asks for. */
-export type InvitationRelationship = schema.Infer<typeof InvitationRelationship>;
 
 /** A pending grant, kept apart from relationships until its addressee or a grantor accepts. */
 export const accessInvitation = defineTable(
@@ -40,12 +22,12 @@ export const accessInvitation = defineTable(
         updatedAt: integer("updated_at").notNull(),
         /** The scope the invitation lives in and routes changes to. */
         scope: text("scope").notNull(),
+        /** The package declaring the object's type. */
+        objectPackageId: identifier("object_package_id", "package").notNull(),
+        /** The object's type. */
+        objectType: text("object_type").notNull(),
         /** The scope containing the object. */
         objectScope: text("object_scope").notNull(),
-        /** The package declaring the object's type. */
-        packageId: identifier("package_id", "package").notNull(),
-        /** The object's type. */
-        type: text("type").notNull(),
         /** The object's identifier. */
         objectId: text("object_id").notNull(),
         /** The offered relation, absent for an offered role binding. */
@@ -54,14 +36,36 @@ export const accessInvitation = defineTable(
         roleId: identifier("role_id", "role").references(() => accessRole.id, {
             onDelete: "cascade",
         }),
-        /** The relationship accepting the invitation creates. */
-        relationship: json("relationship", InvitationRelationship).notNull(),
-        /** The principal who invited, absent for the system's own invitations. */
-        inviter: json("inviter", Subject),
-        /** The inviting principal's key, listing what a principal offered or asked for. */
-        inviterKey: text("inviter_key"),
-        /** The invited principal or contact's key, listing invitations to a principal. */
-        addressee: text("addressee").notNull(),
+        /** The package of the principal who invited, absent for the system's own invitations. */
+        inviterPackageId: identifier("inviter_package_id", "package"),
+        /** The type of the principal who invited. */
+        inviterType: text("inviter_type"),
+        /** The scope of the principal who invited. */
+        inviterScope: text("inviter_scope"),
+        /** The identifier of the principal who invited. */
+        inviterId: text("inviter_id"),
+        /** The package of the invited principal, contact or subject set's type. */
+        subjectPackageId: identifier("subject_package_id", "package").notNull(),
+        /** The type of the invited subject. */
+        subjectType: text("subject_type").notNull(),
+        /** The scope of the invited subject. */
+        subjectScope: text("subject_scope").notNull(),
+        /** The identifier of the invited subject. */
+        subjectId: text("subject_id").notNull(),
+        /** The relation whose members the invited subject set is, absent for one subject. */
+        subjectRelation: text("subject_relation"),
+        /** The exclusive time the accepted relationship expires, in Unix milliseconds. */
+        relationshipExpiresAt: integer("relationship_expires_at"),
+        /** The only request the accepted relationship applies to. */
+        requestId: text("request_id"),
+        /** The credential a call presents for the accepted relationship to apply. */
+        credential: text("credential"),
+        /** The digest of the link secret a request must present. */
+        linkSecret: text("link_secret"),
+        /** The minimum authentication assurance level. */
+        assurance: integer("assurance"),
+        /** The longest time since authentication, in milliseconds. */
+        maxAge: integer("max_age"),
         /** Why the inviting principal offers or asks for the relationship. */
         purpose: text("purpose"),
         /** The exclusive time the invitation lapses, in Unix milliseconds. */
@@ -73,13 +77,23 @@ export const accessInvitation = defineTable(
         log: { retention: "history" },
         constraints: (invitation) => [
             index("invitation_object").on(
+                invitation.objectPackageId,
+                invitation.objectType,
                 invitation.objectScope,
-                invitation.packageId,
-                invitation.type,
                 invitation.objectId,
             ),
-            index("invitation_addressee").on(invitation.addressee),
-            index("invitation_inviter").on(invitation.inviterKey),
+            index("invitation_subject").on(
+                invitation.subjectPackageId,
+                invitation.subjectType,
+                invitation.subjectScope,
+                invitation.subjectId,
+            ),
+            index("invitation_inviter").on(
+                invitation.inviterPackageId,
+                invitation.inviterType,
+                invitation.inviterScope,
+                invitation.inviterId,
+            ),
             check("invitation_label", {
                 OR: [
                     { relation: { isNull: true }, roleId: { isNotNull: true } },
@@ -88,10 +102,24 @@ export const accessInvitation = defineTable(
             }),
             check("invitation_inviter", {
                 OR: [
-                    { inviter: { isNull: true }, inviterKey: { isNull: true } },
-                    { inviter: { isNotNull: true }, inviterKey: { isNotNull: true } },
+                    {
+                        inviterPackageId: { isNull: true },
+                        inviterType: { isNull: true },
+                        inviterScope: { isNull: true },
+                        inviterId: { isNull: true },
+                    },
+                    {
+                        inviterPackageId: { isNotNull: true },
+                        inviterType: { isNotNull: true },
+                        inviterScope: { isNotNull: true },
+                        inviterId: { isNotNull: true },
+                    },
                 ],
             }),
+            check("invitation_assurance", {
+                assurance: { OR: [{ isNull: true }, { gte: 1, lte: 3 }] },
+            }),
+            check("invitation_max_age", { maxAge: { OR: [{ isNull: true }, { gt: 0 }] } }),
             check("invitation_status", { status: { in: [...INVITATION_STATUSES] } }),
             check("invitation_expiry", { expiresAt: { gt: { field: "createdAt" } } }),
         ],

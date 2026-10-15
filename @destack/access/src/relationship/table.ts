@@ -34,12 +34,12 @@ export const accessRelationship = defineTable(
         detachedAt: integer("detached_at"),
         /** The scope the relationship lives in and routes changes to. */
         scope: text("scope").notNull(),
+        /** The package declaring the object's type. */
+        objectPackageId: identifier("object_package_id", "package").notNull(),
+        /** The object's type. */
+        objectType: text("object_type").notNull(),
         /** The scope containing the object. */
         objectScope: text("object_scope").notNull(),
-        /** The package declaring the object's type. */
-        packageId: identifier("package_id", "package").notNull(),
-        /** The object's type. */
-        type: text("type").notNull(),
         /** The object's identifier. */
         objectId: text("object_id").notNull(),
         /** The declared relation, absent for a role binding. */
@@ -84,9 +84,9 @@ export const accessRelationship = defineTable(
             ...managerChecks("relationship", relationship),
             uniqueIndex("relationship_tuple")
                 .on(
+                    relationship.objectPackageId,
+                    relationship.objectType,
                     relationship.objectScope,
-                    relationship.packageId,
-                    relationship.type,
                     relationship.objectId,
                     relationship.relation,
                     relationship.roleId,
@@ -132,8 +132,8 @@ export const accessRelationship = defineTable(
             check("relationship_expiry", {
                 expiresAt: { OR: [{ isNull: true }, { gt: { field: "createdAt" } }] },
             }),
-            ...["type", "relation", "subjectType", "subjectRelation"].map((property, position) =>
-                nameCheck(`relationship_name_${position}`, property),
+            ...["objectType", "relation", "subjectType", "subjectRelation"].map(
+                (property, position) => nameCheck(`relationship_name_${position}`, property),
             ),
         ],
     },
@@ -149,9 +149,9 @@ export type RoleBinding = RelationshipRow & { readonly roleId: string };
 export type RelationshipColumnMap = Readonly<
     Record<
         | "scope"
+        | "objectPackageId"
+        | "objectType"
         | "objectScope"
-        | "packageId"
-        | "type"
         | "objectId"
         | "relation"
         | "roleId"

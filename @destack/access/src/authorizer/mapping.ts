@@ -52,8 +52,6 @@ export interface TableMapping {
                 readonly subject?: Omit<ReferenceColumns, "id"> & {
                     readonly relation?: string;
                 };
-                /** Whether the column has whole subject keys, as `Subject.key` writes them. */
-                readonly isKey?: true;
             }
         >
     >;
@@ -172,7 +170,6 @@ export const TableMapping = {
             const relation = authorizer.relation(mapping.policy, name);
             if (
                 (field.subject === undefined &&
-                    field.isKey === undefined &&
                     (relation.subjects.length !== 1 || relation.open)) ||
                 relation.subjects.some((subject) => subject.wildcard) ||
                 TableMapping.column(mapping.table, field.column).definition.kind !== "text" ||

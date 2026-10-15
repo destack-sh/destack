@@ -556,7 +556,7 @@ export class TupleReader {
         ];
     }
 
-    /** Read a field's subject: a subject key, an identifier of the one type, or typed columns. */
+    /** Read a field's subject: an identifier of the one type, or typed columns. */
     #fieldSubject(
         name: string,
         mapping: TableMapping,
@@ -565,12 +565,8 @@ export class TupleReader {
     ): Subject {
         const columns = field.subject;
 
-        // read a subject key
-        if (field.isKey === true) {
-            return Subject.read(TableMapping.text(row, field.column));
-        }
         // type the identifier by the one type the relation accepts
-        else if (columns === undefined) {
+        if (columns === undefined) {
             const type = this.#authorizer.onlySubject(mapping.policy, name);
 
             return {
@@ -810,7 +806,10 @@ export class TupleReader {
             condition: new TupleCondition(entry),
             role: { id: entry.roleId, binding: entry.id, permission },
             object: TupleReader.#relatedObject(entry),
-            path: [...trail.path, `role ${entry.roleId} bound on ${entry.type} ${entry.objectId}`],
+            path: [
+                ...trail.path,
+                `role ${entry.roleId} bound on ${entry.objectType} ${entry.objectId}`,
+            ],
             arrows: trail.arrows,
         }));
     }
@@ -1035,12 +1034,7 @@ export class TupleReader {
 
     /** Reference the object a relationship relates. */
     static #relatedObject(entry: RelationshipRow): ObjectReference {
-        return {
-            packageId: entry.packageId,
-            type: entry.type,
-            scope: entry.objectScope,
-            id: entry.objectId,
-        };
+        return ObjectReference.at("object", entry);
     }
 
     /** Read a relationship's subject. */

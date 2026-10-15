@@ -1,5 +1,5 @@
 import type { DatabaseConnection, Row, Select, Snapshot } from "@destack/db";
-import { Replica, type ScopeLink, Scope, type ObjectReference, Subject } from "@destack/sync";
+import { Replica, type ScopeLink, Scope, ObjectReference, Subject } from "@destack/sync";
 import { found } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
@@ -174,23 +174,20 @@ export class Access {
             Grant.require(kept, grant.id, { delegator: subject, delegate: sender }, context.now);
         }
 
-        // read the subject sets of the caller with their containing scopes
-        const [, represented] = await Promise.all([
+        // read the subject sets of the caller with their containing scopes, beside the chain's roles
+        const [, represented, chained] = await Promise.all([
             snapshot.position === undefined
                 ? Access.#requireConfirmed(snapshot.database, chain, authorizer.lag, context.now)
                 : undefined,
-            Access.expand(
-                snapshot,
-                await Access.#represented(snapshot, context, scopes, authorizer),
-                context,
-                authorizer,
-                scopes,
+            Access.#represented(snapshot, context, scopes, authorizer).then((sets) =>
+                Access.expand(snapshot, sets, context, authorizer, scopes),
             ),
+            Access.#readRoleRows(snapshot, [...new Set([...chain, Scope.universe.id])], "scope"),
         ]);
 
-        // read the chain's roles and the roles bound to the caller
+        // add the roles bound to the caller outside the chain
         const bindings = represented.bindings;
-        const roles = await Access.#readRoles(snapshot, chain, bindings, context);
+        const roles = await Access.#readRoles(snapshot, chained, bindings, context);
 
         // take the earliest time a subject set, inclusion or elevation of the caller changes
         const until = earliest([
@@ -347,7 +344,11 @@ export class Access {
         const roles = isDefining
             ? await Access.#readRoles(
                   snapshot,
-                  chain.map((link) => link.object.id),
+                  await Access.#readRoleRows(
+                      snapshot,
+                      [...new Set([...chain.map((link) => link.object.id), Scope.universe.id])],
+                      "scope",
+                  ),
                   bindings,
                   this.context,
               )
@@ -415,14 +416,10 @@ export class Access {
                         throw new TypeError(`membership ${row.id} has no relation`);
                     }
 
-                    return [row.relation, ...authorizer.implied(row, row.relation)].map(
-                        (relation) => ({
-                            packageId: row.packageId,
-                            type: row.type,
-                            scope: row.objectScope,
-                            id: row.objectId,
-                            relation,
-                        }),
+                    const type = { packageId: row.objectPackageId, type: row.objectType };
+
+                    return [row.relation, ...authorizer.implied(type, row.relation)].map(
+                        (relation) => ({ ...ObjectReference.at("object", row), relation }),
                     );
                 }),
                 ...fielded.flat(),
@@ -662,10 +659,43 @@ export class Access {
         }
     }
 
-    /** Read a scope chain's roles and the caller's bound roles, closed over their inclusions. */
+    /** Read roles by scope or identifier, with their permissions and relationships. */
+    static async #readRoleRows(
+        snapshot: Snapshot,
+        keys: readonly string[],
+        column: "scope" | "id",
+    ): Promise<RoleRows> {
+        // read the roles, then their permissions and the relationships on them together
+        const rows =
+            keys.length === 0
+                ? []
+                : await snapshot.select(
+                      accessRole,
+                      [column],
+                      keys.map((key) => [key]),
+                  );
+        if (rows.length === 0) {
+            return { rows, permissions: [], relationships: [] };
+        }
+        const [permissions, relationships] = await Promise.all([
+            snapshot.select(
+                accessRolePermission,
+                ["roleId"],
+                rows.map((row) => [row.id]),
+            ),
+            Relationship.readByObject(
+                snapshot,
+                rows.map((row) => principal.role.reference(row.scope, row.id)),
+            ),
+        ]);
+
+        return { rows, permissions, relationships };
+    }
+
+    /** Add the caller's bound roles outside the chain, closed over their inclusions. */
     static async #readRoles(
         snapshot: Snapshot,
-        chain: readonly string[],
+        chained: RoleRows,
         bindings: readonly RoleBinding[],
         context: ConditionContext,
     ): Promise<{
@@ -673,26 +703,23 @@ export class Access {
         readonly confined: ReadonlyMap<string, ReadonlySet<string>>;
         readonly until: number | undefined;
     }> {
-        // read the roles of the chain and the universe enclosing it, the caller's bound roles, and the chains of those bindings' scopes
-        const enclosing = [...new Set([...chain, Scope.universe.id])];
-        const [chained, held, bound] = await Promise.all([
-            snapshot.select(
-                accessRole,
-                ["scope"],
-                enclosing.map((id) => [id]),
-            ),
-            snapshot.select(
-                accessRole,
-                ["id"],
-                [...new Set(bindings.map((binding) => binding.roleId))].map((id) => [id]),
-            ),
-            Scope.chains(snapshot, [...new Set(bindings.map((binding) => binding.objectScope))]),
+        // read the bound roles outside the chain, and the chains of those bindings' scopes
+        const chainedIds = new Set(chained.rows.map((row) => row.id));
+        const outside = [...new Set(bindings.map((binding) => binding.roleId))].filter(
+            (id) => !chainedIds.has(id),
+        );
+        const [held, bound] = await Promise.all([
+            Access.#readRoleRows(snapshot, outside, "id"),
+            outside.length === 0
+                ? new Map<string, ScopeLink[]>()
+                : Scope.chains(snapshot, [
+                      ...new Set(bindings.map((binding) => binding.objectScope)),
+                  ]),
         ]);
 
         // confine a bound role outside the chain to bindings at or below its scope
-        const chainedIds = new Set(chained.map((row) => row.id));
         const confined = new Map<string, ReadonlySet<string>>();
-        for (const role of held.filter((each) => !chainedIds.has(each.id))) {
+        for (const role of held.rows) {
             const admitted = bindings.filter(
                 (binding) =>
                     binding.roleId === role.id &&
@@ -706,15 +733,14 @@ export class Access {
                 confined.set(role.id, new Set(admitted.map((binding) => binding.id)));
             }
         }
-        const rows = [...chained, ...held.filter((role) => confined.has(role.id))];
 
-        // read their permissions, and the relationships on them
-        const ids = rows.map((row) => [row.id]);
-        const objects = rows.map((row) => principal.role.reference(row.scope, row.id));
-        const [permissions, relationships] = await Promise.all([
-            snapshot.select(accessRolePermission, ["roleId"], ids),
-            Relationship.readByObject(snapshot, objects),
-        ]);
+        // keep the chain's roles and the confined bound roles, with their permissions and relationships
+        const rows = [...chained.rows, ...held.rows.filter((role) => confined.has(role.id))];
+        const kept = new Set<string>(rows.map((row) => row.id));
+        const permissions = [...chained.permissions, ...held.permissions].filter((row) =>
+            kept.has(row.roleId),
+        );
+        const relationships = [...chained.relationships, ...held.relationships];
 
         // keep the current inclusions among those roles
         const byRole = Map.groupBy(permissions, (row) => row.roleId);
@@ -724,6 +750,7 @@ export class Access {
                 row.subjectPackageId === ACCESS_PACKAGE_ID &&
                 row.subjectType === principal.role.name &&
                 row.subjectRelation === null &&
+                kept.has(row.objectId) &&
                 new TupleCondition(row).failure(context) === undefined,
         );
 
@@ -757,8 +784,8 @@ export class Access {
             (sets === undefined ||
                 sets.some(
                     (set) =>
-                        set.packageId === row.packageId &&
-                        set.type === row.type &&
+                        set.packageId === row.objectPackageId &&
+                        set.type === row.objectType &&
                         set.relation === row.relation,
                 ))
         );
@@ -825,3 +852,13 @@ export function earliest(moments: readonly (number | undefined)[]): number | und
 
     return present.length === 0 ? undefined : Math.min(...present);
 }
+
+/** Some roles' rows with their permissions and the relationships on them. */
+type RoleRows = {
+    /** The roles. */
+    readonly rows: readonly Select<typeof accessRole>[];
+    /** The permissions the roles grant. */
+    readonly permissions: readonly Select<typeof accessRolePermission>[];
+    /** The relationships on the roles, such as their inclusions. */
+    readonly relationships: readonly RelationshipRow[];
+};

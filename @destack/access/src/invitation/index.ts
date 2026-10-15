@@ -1,4 +1,5 @@
 export {
+    INVITATION_LIFETIME_MILLISECONDS,
     INVITATION_PAGE,
     Invitation,
     type InvitationRequest,

@@ -1,4 +1,4 @@
-import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
+import { ObjectReference, type ObjectTypeReference, Scope } from "@destack/sync";
 import {
     alias,
     type CommonTable,
@@ -22,7 +22,7 @@ import {
     type AccessExpression,
     type ConditionExpression,
 } from "../declare/expression.ts";
-import { accepts, type RelationDescription, type SubjectType } from "../declare/subject.ts";
+import { type RelationDescription, type SubjectType } from "../declare/subject.ts";
 import { AccessContext } from "../context/context.ts";
 import { GrantPermission } from "../grant/permission.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -306,8 +306,8 @@ export class Compiler {
         const definition = mapping.policy.definition;
         const typed = sql`
             ${binding.objectScope} = ${scope}
-            AND ${binding.packageId} = ${definition.packageId}
-            AND ${binding.type} = ${definition.name}
+            AND ${binding.objectPackageId} = ${definition.packageId}
+            AND ${binding.objectType} = ${definition.name}
         `;
         const covering = [
             sql`(${typed} AND ${binding.objectId} = ${id})`,
@@ -669,7 +669,7 @@ export class Compiler {
 
         // match the subject in a field
         if (field) {
-            return this.#field(name, field, relation, mapping, source, compilation.authority);
+            return this.#field(name, field, mapping, source, compilation.authority);
         }
 
         // match current relationships of subject types the relation accepts
@@ -699,35 +699,24 @@ export class Compiler {
         return sql`(EXISTS (
             SELECT 1 FROM ${Compiler.#current(compilation)} AS ${relationship}
             WHERE ${relationship.objectScope} = ${TableMapping.scopeColumn(source, mapping)}
-                AND ${relationship.packageId} = ${definition.packageId}
-                AND ${relationship.type} = ${definition.name}
+                AND ${relationship.objectPackageId} = ${definition.packageId}
+                AND ${relationship.objectType} = ${definition.name}
                 AND ${relationship.objectId} = ${TableMapping.column(source, mapping.id)}
                 AND ${relationship.relation} = ${name}
                 AND ${Compiler.#accepted(relationship, relation)}
         ) OR ${isMember})`;
     }
 
-    /** Match a field's subject: a subject key, typed columns, or an identifier of the one type. */
+    /** Match a field's subject: typed columns, or an identifier of the one type. */
     #field(
         name: string,
         field: Field,
-        relation: RelationDescription,
         mapping: TableMapping,
         source: Table,
         authority: Authority,
     ): SQL {
-        // match a subject key in the column against the authority's subjects the relation accepts
-        if (field.isKey) {
-            const keys = authority.subjects
-                .filter((subject) => accepts(relation, subject))
-                .map((subject) => Subject.key(subject));
-
-            return keys.length === 0
-                ? sql`false`
-                : sql`coalesce(${listed(TableMapping.column(source, field.column), sql`${JSON.stringify(keys)}`)}, false)`;
-        }
         // match a subject by the type, scope and relation in the row's columns
-        else if (field.subject !== undefined) {
+        if (field.subject !== undefined) {
             return Compiler.#matchTypedField(field, field.subject, source, authority);
         }
 
@@ -869,8 +858,8 @@ export class Compiler {
         return sql`EXISTS (
             SELECT 1 FROM ${from(relationship)}
             WHERE ${relationship.objectScope} = ${scope}
-                AND ${relationship.packageId} = ${definition.packageId}
-                AND ${relationship.type} = ${definition.name}
+                AND ${relationship.objectPackageId} = ${definition.packageId}
+                AND ${relationship.objectType} = ${definition.name}
                 AND ${relationship.objectId} = ${TableMapping.column(source, mapping.id)}
                 AND ${relationship.relation} = ${expression.relation}
                 AND ${relationship.subjectScope} = ${scope}

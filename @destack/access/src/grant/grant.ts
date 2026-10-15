@@ -1,6 +1,6 @@
 import type { Select, Snapshot } from "@destack/db";
 import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
-import { Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { CallerGrant } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
@@ -51,8 +51,8 @@ export const Grant = {
 
         // refuse a grant of another delegator or to another delegate
         if (
-            !Subject.same(grant.delegator, parties.delegator) ||
-            !Subject.same(grant.delegate, parties.delegate)
+            !Subject.same(ObjectReference.at("delegator", grant), parties.delegator) ||
+            !Subject.same(ObjectReference.at("delegate", grant), parties.delegate)
         ) {
             throw new AccessError("UNAUTHORIZED", `grant ${id} belongs to another delegate`);
         }

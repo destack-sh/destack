@@ -1,4 +1,4 @@
-import { type ObjectReference, Subject } from "@destack/sync";
+import { AccessName, ObjectReference, Subject } from "@destack/sync";
 import {
     and,
     Condition,
@@ -11,8 +11,28 @@ import {
 import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, type AccessContext, Caller } from "../context/context.ts";
-import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
-import { accessInvitation, InvitationRelationship, InvitationStatus } from "./table.ts";
+import {
+    Relationship,
+    relationshipBase,
+    type RelationshipCondition,
+} from "../relationship/relationship.ts";
+import { accessInvitation, InvitationStatus } from "./table.ts";
+
+/** A relationship an invitation offers or asks for: by a declared relation, or a role binding. */
+export const InvitationRelationship = defineSchema(
+    schema.union([
+        relationshipBase.omit({ id: true, createdAt: true }).extend({
+            /** The declared relation. */
+            relation: AccessName,
+        }),
+        relationshipBase.omit({ id: true, createdAt: true }).extend({
+            /** The bound role. */
+            role: schema.string().min(1),
+        }),
+    ]),
+);
+/** A relationship an invitation offers or asks for. */
+export type InvitationRelationship = schema.Infer<typeof InvitationRelationship>;
 
 /** How long an invitation stays acceptable without its own expiry: seven days, in milliseconds. */
 export const INVITATION_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
@@ -96,8 +116,8 @@ export const Invitation = {
     on(object: ObjectReference): SQL | undefined {
         return and(
             eq(accessInvitation.objectScope, object.scope),
-            eq(accessInvitation.packageId, object.packageId),
-            eq(accessInvitation.type, object.type),
+            eq(accessInvitation.objectPackageId, object.packageId),
+            eq(accessInvitation.objectType, object.type),
             eq(accessInvitation.objectId, object.id),
         );
     },
@@ -137,7 +157,7 @@ export const Invitation = {
         const rows = await snapshot.read(accessInvitation).findMany({
             where: {
                 ...Relationship.objectColumns(object),
-                addressee: Subject.key(addressee),
+                ...Relationship.subjectCondition(addressee),
             },
         });
 
@@ -155,7 +175,9 @@ export const Invitation = {
         const rows = await reader.read(accessInvitation).findMany({
             where: {
                 AND: [
-                    { addressee: { in: addressees.map((addressee) => Subject.key(addressee)) } },
+                    {
+                        OR: addressees.map((addressee) => Relationship.subjectCondition(addressee)),
+                    },
                     Invitation.pending(page, now),
                 ],
             },
@@ -193,10 +215,10 @@ export const Invitation = {
             scope,
             ...Relationship.objectColumns(invited.object),
             ...Relationship.viaColumns(invited),
-            relationship: invited,
-            inviter: invitation.inviter,
-            inviterKey: invitation.inviter === null ? null : Subject.key(invitation.inviter),
-            addressee: Subject.key(invited.subject),
+            ...Relationship.subjectColumns(invited.subject),
+            relationshipExpiresAt: invited.expiresAt,
+            ...Relationship.conditionColumns(invited.conditions),
+            ...ObjectReference.columns("inviter", invitation.inviter ?? undefined),
             purpose: invitation.purpose ?? null,
             expiresAt: invitation.expiresAt,
             status: invitation.status,
@@ -207,8 +229,14 @@ export const Invitation = {
     decode(row: Select<typeof accessInvitation>): Invitation {
         return {
             id: row.id,
-            relationship: row.relationship,
-            inviter: row.inviter,
+            relationship: {
+                object: ObjectReference.at("object", row),
+                ...Relationship.viaRelation(row),
+                subject: Relationship.subjectOf(row),
+                expiresAt: row.relationshipExpiresAt,
+                ...Relationship.conditionsOf(row),
+            },
+            inviter: row.inviterId === null ? null : ObjectReference.at("inviter", row),
             ...(row.purpose === null ? {} : { purpose: row.purpose }),
             status: InvitationStatus.parse(row.status),
             createdAt: row.createdAt,

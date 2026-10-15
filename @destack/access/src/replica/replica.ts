@@ -47,7 +47,12 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
             },
         },
         references: {
-            object: { packageId: "packageId", type: "type", scope: "objectScope", id: "objectId" },
+            object: {
+                packageId: "objectPackageId",
+                type: "objectType",
+                scope: "objectScope",
+                id: "objectId",
+            },
         },
     },
     {
@@ -57,11 +62,31 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: {
-            inviter: { column: "inviterKey", isKey: true },
-            addressee: { column: "addressee", isKey: true },
+            inviter: {
+                column: "inviterId",
+                subject: {
+                    packageId: "inviterPackageId",
+                    type: "inviterType",
+                    scope: "inviterScope",
+                },
+            },
+            addressee: {
+                column: "subjectId",
+                subject: {
+                    packageId: "subjectPackageId",
+                    type: "subjectType",
+                    scope: "subjectScope",
+                    relation: "subjectRelation",
+                },
+            },
         },
         references: {
-            object: { packageId: "packageId", type: "type", scope: "objectScope", id: "objectId" },
+            object: {
+                packageId: "objectPackageId",
+                type: "objectType",
+                scope: "objectScope",
+                id: "objectId",
+            },
         },
     },
     {
@@ -71,8 +96,22 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
         scope: "scope",
         attributes: {},
         relations: {
-            delegator: { column: "delegatorKey", isKey: true },
-            delegate: { column: "delegateKey", isKey: true },
+            delegator: {
+                column: "delegatorId",
+                subject: {
+                    packageId: "delegatorPackageId",
+                    type: "delegatorType",
+                    scope: "delegatorScope",
+                },
+            },
+            delegate: {
+                column: "delegateId",
+                subject: {
+                    packageId: "delegatePackageId",
+                    type: "delegateType",
+                    scope: "delegateScope",
+                },
+            },
             space: { column: "delegateScope", scope: Scope.universe.id },
         },
     },

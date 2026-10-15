@@ -748,11 +748,8 @@ export class Authorization {
             id: schema.identifier("grant").parse(`grant-${v7()}`),
             createdAt: context.now,
             scope: scope.id,
-            delegator,
-            delegatorKey: Subject.key(delegator),
-            delegate,
-            delegateKey: Subject.key(delegate),
-            delegateScope: delegate.scope,
+            ...ObjectReference.columns("delegator", delegator),
+            ...ObjectReference.columns("delegate", delegate),
             permissions: [...request.permissions],
             expiresAt: request.expiresAt ?? null,
         });
@@ -775,7 +772,7 @@ export class Authorization {
         } else if (
             delegator === undefined ||
             Caller.isDelegated(context) ||
-            !Subject.same(delegator, grant.delegator)
+            !Subject.same(delegator, ObjectReference.at("delegator", grant))
         ) {
             throw new AccessError("FORBIDDEN", "only the delegator can revoke a grant");
         }
@@ -1159,9 +1156,9 @@ export class Authorization {
         // read the object's bindings of the owner role
         const owners = await transaction.read(accessRelationship).findMany({
             where: {
+                objectPackageId: row.objectPackageId,
+                objectType: row.objectType,
                 objectScope: row.objectScope,
-                packageId: row.packageId,
-                type: row.type,
                 objectId: row.objectId,
                 roleId: Role.OWNER,
             },

@@ -147,12 +147,12 @@ test("replicate a space's chain up to the universe from a relay, with the polici
                 NOT: {
                     OR: [
                         ...app.authorizer.local.map((type) => ({
-                            packageId: type.packageId,
-                            type: type.type,
+                            objectPackageId: type.packageId,
+                            objectType: type.type,
                         })),
                         ...authorizer.global.map((type) => ({
-                            packageId: type.packageId,
-                            type: type.type,
+                            objectPackageId: type.packageId,
+                            objectType: type.type,
                             objectScope: "universe",
                         })),
                     ],
@@ -161,7 +161,11 @@ test("replicate a space's chain up to the universe from a relay, with the polici
             {
                 OR: [
                     { scope: { ne: "universe" } },
-                    ...TYPES.map((type) => ({ scope: "universe", ...type })),
+                    ...TYPES.map((type) => ({
+                        scope: "universe",
+                        objectPackageId: type.packageId,
+                        objectType: type.type,
+                    })),
                 ],
             },
         ],
@@ -359,7 +363,7 @@ async function replicated(database: DatabaseConnection) {
             .select()
             .from(accessRolePermission)
             .orderBy(asc(accessRolePermission.id)),
-        relationships: relationships.filter((row) => row.type !== node.name),
+        relationships: relationships.filter((row) => row.objectType !== node.name),
     };
 }
 
