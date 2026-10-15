@@ -1,6 +1,6 @@
 import { PackageId, type Package } from "@destack/package";
 import { aligned, defineSchema, schema, Version, canonicalize } from "@destack/schema";
-import type { JsonValue } from "@destack/schema";
+import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
@@ -100,7 +100,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Read the setting's value among an installation's resolved settings. */
-    read(settings: Readonly<Record<string, JsonValue>>): schema.Infer<Value> {
+    read(settings: JsonObject): schema.Infer<Value> {
         // require the value its machine resolved
         const key = SettingReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
@@ -131,25 +131,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         };
     }
 
-    /** Resolve the effective value for a selection. */
-    resolve(
-        selection: SettingSelection,
-        values: readonly SettingValue[],
-        chain: readonly string[],
-        client?: readonly ClientSettingValue[],
-    ): SettingResolution<schema.Infer<Value>>;
-    /**
-     * Resolve the winning candidate's value.
-     *
-     * @construct every value that wins has parsed by this setting's schema.
-     * Invalid stored values are skipped as invalid sources.
-     */
+    /** Resolve the effective value for a selection, skipping invalid stored values as sources. */
     resolve(
         selection: SettingSelection,
         values: readonly SettingValue[],
         chain: readonly string[],
         client: readonly ClientSettingValue[] = [],
-    ): SettingResolution<unknown> {
+    ): SettingResolution<schema.Infer<Value>> {
         // rank the default and each applicable placed and client value of a selection of the setting's scope
         this.#requireSelectable(selection);
         const { ordinary, required, invalid } = this.#candidates(values, selection, chain, client);
@@ -232,7 +220,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         ordinary: readonly Candidate[],
         required: readonly Candidate[],
         invalid: readonly SettingSource[],
-    ): SettingResolution<unknown> {
+    ): SettingResolution<schema.Infer<Value>> {
         // reject equally ranked candidates other than agreeing recommendations
         for (let index = 1; index < ordinary.length; index++) {
             const previous = aligned(ordinary, index - 1);
@@ -272,7 +260,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return {
             setting: this.reference,
             selection,
-            value: winner.value,
+            value: this.definition.schema.parse(winner.value),
             sources: [...winners.map((candidate) => candidate.source), ...invalid],
             overridden: overridden.map((candidate) => candidate.source),
             enforcement: required.length > 0 ? "required" : "ordinary",
@@ -285,7 +273,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         ordinary: readonly Candidate[],
         required: readonly Candidate[],
         invalid: readonly SettingSource[],
-    ): SettingResolution<unknown> {
+    ): SettingResolution<schema.Infer<Value>> {
         // decide each key from the candidates setting it
         const value: Record<string, JsonValue> = {};
         const keys: NonNullable<SettingResolution["keys"]> = {};
@@ -304,7 +292,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return {
             setting: this.reference,
             selection,
-            value,
+            value: this.definition.schema.parse(value),
             sources: [
                 ...candidates.filter(isSource).map((candidate) => candidate.source),
                 ...invalid,
@@ -650,6 +638,6 @@ function equalValue(left: unknown, right: unknown): boolean {
 }
 
 /** Read a merged setting's value as its record of keys. */
-function recordOf(value: unknown): Readonly<Record<string, JsonValue>> {
-    return schema.record(schema.string(), schema.json()).parse(value);
+function recordOf(value: unknown): JsonObject {
+    return schema.jsonObject().parse(value);
 }

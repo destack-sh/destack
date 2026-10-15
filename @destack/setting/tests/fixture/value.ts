@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import type { ClientSettingValue, SettingValue } from "../../src/object/index.ts";
-import { Scope } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
 import { SettingPlacement, SettingSelection } from "../../src/setting/placement.ts";
 import type { SettingSource } from "../../src/setting/resolution.ts";
 import type { Setting } from "../../src/setting/setting.ts";
@@ -34,9 +34,9 @@ export const selection = SettingSelection.parse({
 export const personal: SettingValue = {
     id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000006"),
     createdAt: 1000,
-    createdBy: null,
+    ...ObjectReference.columns("createdBy", undefined),
     updatedAt: 1000,
-    updatedBy: null,
+    ...ObjectReference.columns("updatedBy", undefined),
     revision: 1,
     tags: {},
     scope: alice,
@@ -59,9 +59,9 @@ export const laptop: ClientSettingValue = {
         .identifier("client-setting")
         .parse("client-setting-019f5530-8000-7000-8000-000000000007"),
     createdAt: 1000,
-    createdBy: null,
+    ...ObjectReference.columns("createdBy", undefined),
     updatedAt: 1000,
-    updatedBy: null,
+    ...ObjectReference.columns("updatedBy", undefined),
     revision: 1,
     tags: {},
     scope: schema.identifier("client").parse("client-019f5530-8000-7000-8000-000000000009"),

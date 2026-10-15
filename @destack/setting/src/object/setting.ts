@@ -84,8 +84,10 @@ export const SettingValue = {
         // read the values the scope and the scopes above it set
         const snapshot = Snapshot.live(database);
         const chain = (await Scope.chain(snapshot, selection.scope)).map((link) => link.object.id);
-        const values = await snapshot.rows(setting.table, {
-            AND: [declared.condition(selection), { scope: { in: chain } }],
+        const values = await snapshot.read(setting.table).findMany({
+            where: {
+                AND: [declared.condition(selection), { scope: { in: chain } }],
+            },
         });
 
         return declared.resolve(selection, values, chain).value;
@@ -103,16 +105,18 @@ export const SettingValue = {
         const values =
             settings.length === 0
                 ? []
-                : await snapshot.rows(setting.table, {
-                      AND: [
-                          { scope: { in: chain } },
-                          {
-                              OR: settings.map((reference) => ({
-                                  packageId: reference.packageId,
-                                  name: reference.name,
-                              })),
-                          },
-                      ],
+                : await snapshot.read(setting.table).findMany({
+                      where: {
+                          AND: [
+                              { scope: { in: chain } },
+                              {
+                                  OR: settings.map((reference) => ({
+                                      packageId: reference.packageId,
+                                      name: reference.name,
+                                  })),
+                              },
+                          ],
+                      },
                   });
 
         return { chain, values };

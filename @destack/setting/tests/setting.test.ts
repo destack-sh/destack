@@ -37,9 +37,7 @@ const PACKAGE = {
 
 /** A release's manifest entry of a declaration, its description read back from JSON. */
 const entry = (description: unknown, version: string) => ({
-    description: schema
-        .record(schema.string(), schema.json())
-        .parse(JSON.parse(JSON.stringify(description))),
+    description: schema.jsonObject().parse(JSON.parse(JSON.stringify(description))),
     symbol: {
         package: { ...PACKAGE, version },
         symbol: { module: "src/index.ts", name: "declared" },

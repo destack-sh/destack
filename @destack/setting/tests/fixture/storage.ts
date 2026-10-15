@@ -6,7 +6,7 @@ import { Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
 import { accessTables, principal, universe } from "@destack/access";
-import { account, machine, organisation, user, space } from "@destack/account/object";
+import { space } from "./space.ts";
 
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
@@ -61,7 +61,7 @@ export class Storage {
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             objects: [implementSetting({ declared: this.catalog, after: [] })],
             // decide access in the scopes the values live in
-            policies: [user, space, account, organisation, machine].map((type) => type.policy),
+            policies: [principal.user, space.policy],
             database: test.database,
             callKey: testCallKey,
             events,
@@ -73,7 +73,7 @@ export class Storage {
     async own(scope: ObjectReference): Promise<void> {
         const access = new AccessFixture(this.database);
         await access.replicateScope(scope);
-        await access.replicateOwner(scope, this.subject);
+        await access.bindOwner(scope, this.subject);
     }
 
     /** Send a call as Alice in a scope, its input unchecked until the store parses it. */

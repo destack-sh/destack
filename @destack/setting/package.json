@@ -14,8 +14,7 @@
         "./server": "./src/server/index.ts",
         "./object": "./src/object/index.ts",
         "./package": "./src/package.ts",
-        "./error": "./src/error/index.ts",
-        "./native": "./src/native/index.ts"
+        "./error": "./src/error/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -33,8 +32,6 @@
     },
     "devDependencies": {
         "@destack/resource": "workspace:*",
-        "@destack/test": "workspace:*",
-        "@destack/account": "workspace:*",
-        "@destack/stack": "workspace:*"
+        "@destack/test": "workspace:*"
     }
 }

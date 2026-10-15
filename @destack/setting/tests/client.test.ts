@@ -1,4 +1,4 @@
-import { space } from "@destack/account/object";
+import { space } from "./fixture/space.ts";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";

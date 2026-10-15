@@ -1,6 +1,6 @@
-import { space } from "@destack/account/object";
+import { space } from "./fixture/space.ts";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { Scope } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
@@ -63,8 +63,8 @@ test.each(TEST_DIALECTS)(
             .from(setting.table)
             .orderBy(asc(setting.table.name));
         const written = {
-            createdBy: null,
-            updatedBy: null,
+            ...ObjectReference.columns("createdBy", undefined),
+            ...ObjectReference.columns("updatedBy", undefined),
             scope: spaceId,
             revision: 1,
             tags: {},

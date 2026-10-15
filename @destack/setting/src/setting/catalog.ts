@@ -1,4 +1,11 @@
-import { defineSchema, fromJsonSchema, schema, toJsonSchema, Version } from "@destack/schema";
+import {
+    defineSchema,
+    fromJsonSchema,
+    JsonValue,
+    schema,
+    toJsonSchema,
+    Version,
+} from "@destack/schema";
 import { Expression } from "@destack/db";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
@@ -13,7 +20,7 @@ const description = SettingMetadata.extend({
     /** The declaring package. */
     package: Package,
     /** The value's JSON Schema. */
-    schema: schema.record(schema.string(), schema.json()),
+    schema: schema.jsonObject(),
     /** The default value. */
     default: schema.json(),
     /** The conversions of earlier values, by the release introducing each. */
@@ -39,7 +46,7 @@ export function describeSetting(setting: Setting): SettingDescription {
         ...definition,
         package: setting.package,
         default: schema.json().parse(definition.default),
-        schema: toJsonSchema(valueSchema),
+        schema: JsonValue.object(toJsonSchema(valueSchema)),
     };
 }
 

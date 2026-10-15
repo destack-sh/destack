@@ -1,7 +1,7 @@
 import { asc } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import { principal } from "@destack/access";
-import { Subject, Scope } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting, SettingValue } from "../src/object/index.ts";
@@ -47,10 +47,10 @@ test.each(TEST_DIALECTS)(
             .select()
             .from(setting.table)
             .orderBy(asc(setting.table.revision), asc(setting.table.installation));
-        const author = Subject.key(principal.user.reference(Scope.universe.id, alice));
+        const author = principal.user.reference(Scope.universe.id, alice);
         const stored = {
-            createdBy: author,
-            updatedBy: author,
+            ...ObjectReference.columns("createdBy", author),
+            ...ObjectReference.columns("updatedBy", author),
             scope: alice,
             ...named(editor),
             package: null,
