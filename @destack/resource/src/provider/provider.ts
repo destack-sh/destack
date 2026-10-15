@@ -98,11 +98,11 @@ export type Provider<
     readonly snapshot?: Snapshotter<Kind>;
     /** The controllers the host runs beside the provider, such as a sweep of resource content. */
     readonly controllers?: readonly Controller[];
-} & (Kind["state"] extends schema.Schema
-    ? { readonly reconcile: Reconciler<Kind> }
-    : Kind["state"] extends undefined
+} & (unknown extends KindState<Kind>
+    ? unknown
+    : KindState<Kind> extends { readonly [Key in string]: never }
       ? { readonly reconcile?: never }
-      : unknown);
+      : { readonly reconcile: Reconciler<Kind> });
 
 /** Take a resource to the desired states its kind declares. */
 export interface Reconciler<Kind extends ResourceKind = ResourceKind> {
@@ -133,13 +133,16 @@ export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unkno
 /** A content-addressed store of blobs, such as snapshots' pages. */
 export interface ContentStore {
     /** Read a blob's bytes. */
-    read(digest: Digest): AsyncIterable<Uint8Array>;
+    readonly read: (digest: Digest) => AsyncIterable<Uint8Array>;
     /** Keep bytes under their digest and return it. */
-    write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest>;
+    readonly write: (body: AsyncIterable<Uint8Array>, expected?: Digest) => Promise<Digest>;
     /** Keep the blobs the store lacks among some digests, read from another store. */
-    fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void>;
+    readonly fetch: (
+        digests: readonly Digest[],
+        source: Pick<ContentStore, "read">,
+    ) => Promise<void>;
     /** Delete the blobs outside a retained set last used before a moment. */
-    sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void>;
+    readonly sweep: (retained: ReadonlySet<Digest>, before: Date) => Promise<void>;
 }
 
 /** Copy a resource's content at a point in time into a content-addressed store. */

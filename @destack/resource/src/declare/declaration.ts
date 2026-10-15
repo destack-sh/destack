@@ -20,7 +20,7 @@ export const ResourceDescription = defineSchema(
         /** The resource kind defined by its domain library. */
         kind: DeclarationName,
         /** The specification validated by the domain library. */
-        spec: schema.record(schema.string(), schema.json()),
+        spec: schema.jsonObject(),
     }),
 );
 /** A named infrastructure dependency declared by a package. */

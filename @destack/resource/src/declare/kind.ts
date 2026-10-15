@@ -4,16 +4,17 @@ import type { ResourceState } from "@destack/package/declare";
 import type { ResourceRecord } from "../provider/provider.ts";
 import { ResourceDescription } from "./declaration.ts";
 
-/** The desired state a kind's providers reconcile resources toward, none for kinds without one. */
-export type KindState<Kind extends ResourceKind> = Kind["state"] extends schema.Schema
-    ? schema.Infer<Kind["state"]>
-    : never;
+/** The state of a kind without a desired state: the empty object every declaration reports. */
+const NO_STATE = schema.object({});
+
+/** The desired state a kind's providers reconcile resources toward, empty for kinds without one. */
+export type KindState<Kind extends ResourceKind> = schema.Output<Kind["state"]>;
 
 /** A kind of resource: its specification, and the desired state its providers reconcile, if any. */
 export class ResourceKind<
     Name extends string = string,
     Spec extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
-    State extends schema.Schema | undefined = schema.Schema | undefined,
+    State extends schema.Schema = schema.Schema,
 > {
     /** The declaring package. */
     readonly package: Package;
@@ -21,7 +22,7 @@ export class ResourceKind<
     readonly name: Name;
     /** The schema of a declaration's specification. */
     readonly spec: Spec;
-    /** The schema of the desired state its providers reconcile resources toward. */
+    /** The schema of the desired state its providers reconcile toward, empty without one. */
     readonly state: State;
     /** The schema of a declaration of this kind. */
     readonly description;
@@ -54,59 +55,22 @@ export class ResourceKind<
     }
 
     /** Read stored desired states of this kind, refusing invalid ones. */
-    states(stored: readonly ResourceState[]): KindState<this>[];
-    /**
-     * Parse each stored state by the kind's state schema.
-     *
-     * @construct every state parses by this kind's state schema.
-     * Its output is the kind's state type.
-     */
-    states(stored: readonly ResourceState[]): unknown[] {
-        // read none for a kind without a state, whose bindings require nothing
-        const state = this.state;
-        if (state === undefined) {
-            if (stored.some((entry) => Object.keys(entry).length > 0)) {
-                throw new TypeError(`resources of kind ${this.name} hold no desired state`);
-            }
-
-            return [];
-        }
-
-        return stored.map((entry) => state.parse(entry));
+    states(stored: readonly ResourceState[]): schema.Output<State>[] {
+        return stored.map((entry) => this.state.parse(entry));
     }
 }
 
-/** Define a resource kind without a desired state. */
+/** Define a resource kind, with the desired state its providers reconcile or without one. */
 export function defineResourceKind<
     const Name extends string,
     Spec extends schema.Schema<JsonValue>,
+    State extends schema.Schema = typeof NO_STATE,
 >(
     name: Name,
-    options: { readonly spec: Spec },
+    options: { readonly spec: Spec; readonly state?: State },
     module?: ModuleMetadata,
-): ResourceKind<Name, Spec, undefined>;
-/** Define a resource kind with the desired state its providers reconcile. */
-export function defineResourceKind<
-    const Name extends string,
-    Spec extends schema.Schema<JsonValue>,
-    State extends schema.Schema,
->(
-    name: Name,
-    options: { readonly spec: Spec; readonly state: State },
-    module?: ModuleMetadata,
-): ResourceKind<Name, Spec, State>;
-/**
- * Define a resource kind, with the desired state its providers reconcile or without one.
- *
- * @construct the kind keeps the spec and state schemas it is given.
- * It keeps no state schema when given none.
- */
-export function defineResourceKind(
-    name: string,
-    options: { readonly spec: schema.Schema<JsonValue>; readonly state?: schema.Schema },
-    module?: ModuleMetadata,
-): ResourceKind {
+): ResourceKind<Name, Spec, State | typeof NO_STATE> {
     const owner = ModuleMetadata.require(module, "defineResourceKind").package;
 
-    return new ResourceKind(owner, name, options.spec, options.state);
+    return new ResourceKind(owner, name, options.spec, options.state ?? NO_STATE);
 }

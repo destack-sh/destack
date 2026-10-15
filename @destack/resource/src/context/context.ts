@@ -22,10 +22,9 @@ export class ResourceContext {
     /** Return the client selected for this declaration. */
     get<Value>(resource: ResourceHandle<Value>): Value;
     /**
-     * Return the client bound to the declaration.
+     * Return the client bound to the declaration, which bind keeps under its own declaration.
      *
-     * @construct bind keeps each client under its own declaration.
-     * The client is typed by that declaration's value.
+     * NOTE #Architecture: the one stated type of resource clients, as React's typed context.
      */
     get(resource: ResourceHandle<unknown>): unknown {
         // require a bound client
