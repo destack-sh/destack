@@ -57,7 +57,7 @@ const ColorValue = schema.object({
 });
 
 /** A group of the token tree before its members are read. */
-const Group = schema.record(schema.string(), schema.json());
+const Group = schema.jsonObject();
 
 /** A reference to another token by its path, such as `{font.text}`. */
 const Alias = schema.string().regex(/^\{[A-Za-z0-9.]+\}$/u);
