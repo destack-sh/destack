@@ -236,6 +236,7 @@ tester.run("deterministic-handler", rules["deterministic-handler"], {
         "task.implement({ methods: { export: { prepare: async () => fetch(url), handle: (call) => call.prepared } } });",
         "const startedAt = Date.now();",
         "task.implement({ methods: { archive: (call) => call.update({ at: new Date(call.now) }) } });",
+        'digest.implement(async (step) => step.run("roll", schema.number(), async () => Math.random()));',
     ],
     invalid: [
         {
@@ -265,6 +266,23 @@ tester.run("deterministic-handler", rules["deterministic-handler"], {
                     data: { name: "crypto.randomUUID()", replacement: "call.generateId(type)" },
                 },
                 { messageId: "call", data: { name: "new Date()", replacement: "call.now" } },
+            ],
+        },
+        {
+            code: "digest.implement(async (step) => { const at = Date.now(); await fetch(url); return new Date(); });",
+            errors: [
+                {
+                    messageId: "step",
+                    data: { name: "Date.now()", replacement: "step.run(name, schema, work)" },
+                },
+                {
+                    messageId: "step",
+                    data: { name: "fetch()", replacement: "step.run(name, schema, work)" },
+                },
+                {
+                    messageId: "step",
+                    data: { name: "new Date()", replacement: "step.run(name, schema, work)" },
+                },
             ],
         },
     ],

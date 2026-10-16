@@ -20,14 +20,21 @@ interface Node {
     readonly parent?: Node | null;
 }
 
-/** Reject reading the clock, drawing at random and using the network in method handlers. */
+/** The code that runs again on every attempt: a method's handler, or a workflow's function. */
+type Handler = "method" | "workflow";
+
+/** What a workflow's function records a nondeterministic value or effect with. */
+const STEP_REPLACEMENT = "step.run(name, schema, work)";
+
+/** Reject reading the clock, drawing at random and using the network in handlers and workflows. */
 export const deterministicHandler: Rule = {
     meta: {
         type: "problem",
         schema: [],
-        docs: { description: "keep method handlers deterministic" },
+        docs: { description: "keep method handlers and workflow functions deterministic" },
         messages: {
             call: "a handler runs again on every attempt: use {{replacement}} in place of {{name}}",
+            step: "a workflow runs again on every advance: use {{replacement}} in place of {{name}}",
         },
     },
     create(context) {
@@ -44,31 +51,40 @@ export const deterministicHandler: Rule = {
                           ? { object: callee.object.name, member: callee.property.name }
                           : undefined;
 
-                // report a nondeterministic call inside a handler
+                // report a nondeterministic call inside a handler or a workflow
                 const isNondeterministic =
                     name !== undefined &&
                     (NONDETERMINISTIC[name.object]?.includes(name.member) ?? false);
-                if (name !== undefined && isNondeterministic && isInHandler(node)) {
+                const handler = handlerOf(node);
+                if (name !== undefined && isNondeterministic && handler !== undefined) {
                     const called =
                         name.object === "" ? name.member : `${name.object}.${name.member}`;
                     context.report({
                         node,
-                        messageId: "call",
-                        data: { name: `${called}()`, replacement: replacementOf(called) },
+                        messageId: handler === "method" ? "call" : "step",
+                        data: {
+                            name: `${called}()`,
+                            replacement:
+                                handler === "method" ? replacementOf(called) : STEP_REPLACEMENT,
+                        },
                     });
                 }
             },
             NewExpression(node) {
-                // report reading the clock through a date of no arguments inside a handler
+                // report reading the clock through a date of no arguments inside a handler or a workflow
                 const isClock =
                     node.callee.type === "Identifier" &&
                     node.callee.name === "Date" &&
                     node.arguments.length === 0;
-                if (isClock && isInHandler(node)) {
+                const handler = handlerOf(node);
+                if (isClock && handler !== undefined) {
                     context.report({
                         node,
-                        messageId: "call",
-                        data: { name: "new Date()", replacement: "call.now" },
+                        messageId: handler === "method" ? "call" : "step",
+                        data: {
+                            name: "new Date()",
+                            replacement: handler === "method" ? "call.now" : STEP_REPLACEMENT,
+                        },
                     });
                 }
             },
@@ -89,22 +105,57 @@ function replacementOf(called: string): string {
     }
 }
 
-/** Decide whether a node sits in a method's handling or authorization. */
-function isInHandler(node: Node): boolean {
+/** Read whether a node sits in a method's handler or a workflow's function. */
+function handlerOf(node: Node): Handler | undefined {
     for (let current = node.parent; current !== undefined && current !== null;) {
         const parent = current.parent;
-        if (
+        // leave the work a workflow's step records, which runs once
+        if (isFunction(current) && isCallOf(parent, "run", current)) {
+            return undefined;
+        }
+        // take a method's handling or authorization
+        else if (
             isFunction(current) &&
             parent !== undefined &&
             parent !== null &&
             isHandler(current, parent)
         ) {
-            return true;
+            return "method";
+        }
+        // take a workflow's function, the first argument of its implementation
+        else if (isFunction(current) && isCallOf(parent, "implement", current, 0)) {
+            return "workflow";
         }
         current = parent;
     }
 
-    return false;
+    return undefined;
+}
+
+/** Decide whether a node calls a member with an argument, anywhere or at a place. */
+function isCallOf(
+    node: Node | null | undefined,
+    member: string,
+    argument: Node,
+    at?: number,
+): boolean {
+    // read the call's callee and arguments
+    if (
+        node === undefined ||
+        node === null ||
+        node.type !== "CallExpression" ||
+        !("callee" in node) ||
+        !("arguments" in node) ||
+        !Array.isArray(node.arguments)
+    ) {
+        return false;
+    }
+    const called: readonly unknown[] = node.arguments;
+
+    return (
+        isMember(node.callee, member) &&
+        (at === undefined ? called.includes(argument) : called[at] === argument)
+    );
 }
 
 /** Decide whether a function handles or authorizes a method in `.implement({ methods })`. */
