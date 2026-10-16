@@ -375,7 +375,7 @@ test.for(TEST_DIALECTS)(
             ).isAllowed;
         };
 
-        // admit the home itself, and refuse another home
+        // allow the home itself, and refuse another home
         expect([await decide("own"), await decide("other")]).toEqual([true, false]);
     },
 );

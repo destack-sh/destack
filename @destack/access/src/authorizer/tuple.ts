@@ -17,7 +17,7 @@ import { TableMapping } from "./mapping.ts";
 /** The most identifiers per bulk read: well within the parameter budget, and a page of rows. */
 const PREFETCH_CHUNK = 500;
 
-/** A relation tuple of a row: the subject it admits, its conditions, and the relation or role. */
+/** A relation tuple of a row: the subject it allows, its conditions, and the relation or role. */
 export interface Tuple {
     /** The subject: a principal, a wildcard of a type, or a subject set by its relation. */
     readonly subject: Subject;
@@ -40,33 +40,33 @@ export interface Tuple {
 /** The tuples of an expression on a row, combined like the expression's branches. */
 export type TupleTree =
     | {
-          /** Admit a caller any of the tuples admits: a relation, a field or a role binding. */
+          /** Allow a caller any of the tuples allows: a relation, a field or a role binding. */
           readonly kind: "any";
           /** The tuples. */
           readonly tuples: readonly Tuple[];
       }
     | {
-          /** Admit a caller some branch admits: a union, or the objects a relation leads to. */
+          /** Allow a caller some branch allows: a union, or the objects a relation leads to. */
           readonly kind: "some";
           /** The branches. */
           readonly trees: readonly TupleTree[];
       }
     | {
-          /** Admit a caller every branch admits: an intersection. */
+          /** Allow a caller every branch allows: an intersection. */
           readonly kind: "all";
           /** The branches. */
           readonly trees: readonly TupleTree[];
       }
     | {
-          /** Admit a caller one branch admits and the other does not: an exclusion. */
+          /** Allow a caller one branch allows and the other does not: an exclusion. */
           readonly kind: "except";
-          /** The admitting branch. */
+          /** The allowing branch. */
           readonly include: TupleTree;
           /** The refusing branch. */
           readonly exclude: TupleTree;
       }
     | {
-          /** Admit every caller whose request meets a condition over the row's attributes. */
+          /** Allow every caller whose request meets a condition over the row's attributes. */
           readonly kind: "resource";
           /** The condition over the row's columns. */
           readonly match: Match;
@@ -74,7 +74,7 @@ export type TupleTree =
           readonly row: Row;
       }
     | {
-          /** Admit every caller whose request attributes meet a condition. */
+          /** Allow every caller whose request attributes meet a condition. */
           readonly kind: "context";
           /** The condition over the request's attributes. */
           readonly match: Match;
@@ -747,12 +747,12 @@ export class TupleReader {
         // find the objects of the chain deciding the enclosing scope's permission
         const steps = this.#authorizer.chainSteps(mapping.policy, expression, this.#chain(scope));
 
-        // grant to the containment sets of the chain scopes admitting their principals
-        const contained = steps.flatMap(({ object, contained: admitted }) =>
-            admitted === undefined
+        // grant to the containment sets of the chain scopes allowing their principals
+        const contained = steps.flatMap(({ object, contained: allowed }) =>
+            allowed === undefined
                 ? []
                 : [
-                      TupleReader.#containment(object, admitted.principals, {
+                      TupleReader.#containment(object, allowed.principals, {
                           ...trail,
                           path: [
                               ...trail.path,
@@ -1082,7 +1082,7 @@ export const TupleTree = {
         }
     },
 
-    /** Decide whether a tree admits a caller's authority, as the compiled SQL predicate does. */
+    /** Decide whether a tree allows a caller's authority, as the compiled SQL predicate does. */
     permits(tree: TupleTree, access: Access): boolean {
         switch (tree.kind) {
             case "any":
@@ -1126,12 +1126,12 @@ export const TupleTree = {
         }
     },
 
-    /** Combine trees into one that admits when any of them admits. */
+    /** Combine trees into one that allows when any of them allows. */
     some(trees: readonly TupleTree[]): TupleTree {
         return { kind: "some", trees };
     },
 
-    /** Admit through any of some tuples. */
+    /** Allow through any of some tuples. */
     any(tuples: readonly Tuple[]): TupleTree {
         return { kind: "any", tuples };
     },

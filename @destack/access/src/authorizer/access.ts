@@ -378,11 +378,11 @@ export class Access {
         readonly bindings: RoleBinding[];
         readonly until: number | undefined;
     }> {
-        // admit the identities and verified subject sets, and their sets on the chain
+        // allow the identities and verified subject sets, and their sets on the chain
         const expanded = new Map<string, Subject>();
         const bindings = new Map<string, RoleBinding>();
         const moments: (number | undefined)[] = [];
-        let frontier = Access.#admit(subjects, expanded, authorizer, chain);
+        let frontier = Access.#expand(subjects, expanded, authorizer, chain);
         while (frontier.length > 0) {
             // read the relationships and field sets of the frontier subjects together
             const level = frontier;
@@ -391,7 +391,7 @@ export class Access {
                 ...authorizer.fields.map((entry) => Access.#fieldSets(snapshot, entry, level)),
             ]);
 
-            // split the relationships the request's conditions admit into memberships and bindings
+            // split the relationships the request's conditions allow into memberships and bindings
             const current = held.filter(
                 (row) => new TupleCondition(row).failure(context) === undefined,
             );
@@ -424,7 +424,7 @@ export class Access {
                 }),
                 ...fielded.flat(),
             ];
-            frontier = Access.#admit(reached, expanded, authorizer, chain);
+            frontier = Access.#expand(reached, expanded, authorizer, chain);
         }
 
         return {
@@ -478,7 +478,7 @@ export class Access {
     }
 
     /** Add unseen subjects to an expansion with their sets on enclosed scopes, returning them. */
-    static #admit(
+    static #expand(
         reached: readonly Subject[],
         expanded: Map<string, Subject>,
         authorizer: Pick<Authorizer, "enclosed">,
@@ -549,13 +549,13 @@ export class Access {
 
     /** Read the gate a request fails on a row before grants: credential, elevation, suspension. */
     gate(permission: PermissionReference, mapping: TableMapping, row: Row): Gate | undefined {
-        return this.admits(permission, TableMapping.text(row, mapping.id), { mapping, row })
+        return this.allows(permission, TableMapping.text(row, mapping.id), { mapping, row })
             ? this.blocked(permission)
             : "grant";
     }
 
     /** Decide whether the credential allows a permission on an object, directly or by source. */
-    admits(
+    allows(
         permission: PermissionReference,
         id: string,
         stored?: {
@@ -579,7 +579,7 @@ export class Access {
         if (source === undefined) {
             return false;
         } else if (source.relation === undefined) {
-            return this.admits({ ...permission, name: source.permission }, id, stored);
+            return this.allows({ ...permission, name: source.permission }, id, stored);
         } else if (stored === undefined) {
             return false;
         }
@@ -588,7 +588,7 @@ export class Access {
         return (
             related !== undefined &&
             related.scope === this.scope &&
-            this.admits(
+            this.allows(
                 { packageId: related.packageId, type: related.type, name: source.permission },
                 related.id,
             )
@@ -617,7 +617,7 @@ export class Access {
 
         return (
             elevation === undefined ||
-            Elevation.admits(elevation, AccessContext.assurance(this.context), this.context.now)
+            Elevation.meets(elevation, AccessContext.assurance(this.context), this.context.now)
         );
     }
 
@@ -723,7 +723,7 @@ export class Access {
         // confine a bound role outside the chain to bindings at or below its scope
         const confined = new Map<string, ReadonlySet<string>>();
         for (const role of held.rows) {
-            const admitted = bindings.filter(
+            const allowed = bindings.filter(
                 (binding) =>
                     binding.roleId === role.id &&
                     (role.scope === binding.objectId ||
@@ -732,8 +732,8 @@ export class Access {
                             (link) => link.object.id === role.scope,
                         )),
             );
-            if (admitted.length > 0) {
-                confined.set(role.id, new Set(admitted.map((binding) => binding.id)));
+            if (allowed.length > 0) {
+                confined.set(role.id, new Set(allowed.map((binding) => binding.id)));
             }
         }
 

@@ -95,7 +95,7 @@ const mappings: TableMapping[] = [
 ];
 
 test.for(TEST_DIALECTS)(
-    "admit a remark exactly when the caller may read its parent, of whichever type it is, on %s",
+    "allow a remark exactly when the caller may read its parent, of whichever type it is, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(
             dialect,
@@ -182,7 +182,7 @@ test.for(TEST_DIALECTS)(
             )
             .orderBy(asc(remarks.id));
 
-        // admit the remarks on her own article and photo, never bob's article or a photo that does not exist
+        // allow the remarks on her own article and photo, never bob's article or a photo that does not exist
         expect(decided).toEqual([
             ["r1", true],
             ["r2", true],

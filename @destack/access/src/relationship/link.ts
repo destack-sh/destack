@@ -12,7 +12,7 @@ export interface Link {
     readonly secret: string;
 }
 
-/** An unguessable secret that admits its holder through a relationship, stored as a digest. */
+/** An unguessable secret that allows its holder through a relationship, stored as a digest. */
 export class LinkSecret {
     /** The secret a request presents. */
     readonly secret: string;

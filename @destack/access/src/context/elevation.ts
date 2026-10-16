@@ -42,7 +42,7 @@ export const Elevation = {
     schema: elevationSchema,
 
     /** Report whether an authentication at a time meets the elevation's level within its age. */
-    admits(
+    meets(
         elevation: Elevation,
         assurance: AuthenticationAssurance | undefined,
         now: number,
@@ -54,13 +54,13 @@ export const Elevation = {
         );
     },
 
-    /** Read the moment an admitted authentication grows too old for the elevation. */
+    /** Read the moment an accepted authentication grows too old for the elevation. */
     until(
         elevation: Elevation,
         assurance: AuthenticationAssurance | undefined,
         now: number,
     ): number | undefined {
-        return assurance !== undefined && Elevation.admits(elevation, assurance, now)
+        return assurance !== undefined && Elevation.meets(elevation, assurance, now)
             ? assurance.authenticatedAt + elevation.maxAge
             : undefined;
     },

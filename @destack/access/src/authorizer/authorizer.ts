@@ -101,7 +101,7 @@ export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
 type ChainTable = [Table, Condition | undefined, readonly string[]];
 
 /** A caller's permitted rows of a set by position, and the next time they change. */
-export interface Admission {
+export interface PermittedRows {
     /** The positions of the rows the caller has the permission on. */
     readonly permitted: ReadonlySet<number>;
     /** The next time the permitted rows may change. */
@@ -114,7 +114,7 @@ export interface ChainStep {
     readonly type: Pick<PermissionReference, "packageId" | "type">;
     /** The relations whose relationships on its object grant the permission. */
     readonly relations: readonly string[];
-    /** The containment set the permission admits, limited to some principal types when given. */
+    /** The containment set the permission allows, limited to some principal types when given. */
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
@@ -1156,12 +1156,12 @@ export class Authorizer {
         access: Access,
         page: { readonly after?: string; readonly limit: number },
     ): Promise<Relationship[]> {
-        // admit the relationships the caller may read, as relationship reads decide them
+        // allow the relationships the caller may read, as relationship reads decide them
         const read = this.policy({ packageId: ACCESS_PACKAGE_ID, type: "relationship" }).permission(
             "read",
         );
         const rows = await snapshot.ordered(accessRelationship, {
-            admits: {
+            visible: {
                 current: this.where(read, access, accessRelationship),
                 image: async (row) =>
                     (await this.checkRows(snapshot, read, access, [row])).permitted.has(0),
@@ -1338,7 +1338,7 @@ export class Authorizer {
             Authorizer.#grantsUntil(TupleTree.flatten(tree), access),
         ]);
 
-        // admit the caller when it passes the gate and its authority has the permission
+        // allow the caller when it passes the gate and its authority has the permission
         const isAllowed =
             this.#gate(permission, mapping, row, access, "object") === undefined &&
             TupleTree.permits(tree, access);
@@ -1391,12 +1391,12 @@ export class Authorizer {
         }
     }
 
-    /** Find the lowest fresh assurance level admitting a refused caller, with elevation age. */
+    /** Find the lowest fresh assurance level allowing a refused caller, with elevation age. */
     async challenge(
         snapshot: Snapshot,
         permission: PermissionReference,
         access: Access,
-        admits: (stepped: Access) => Promise<boolean>,
+        allows: (stepped: Access) => Promise<boolean>,
     ): Promise<StepUp | undefined> {
         // start from the caller's own level and the elevation's, whichever is higher
         const context = access.context;
@@ -1415,7 +1415,7 @@ export class Authorizer {
                     ? {}
                     : { credential: { ...context.credential, assurance } }),
             });
-            if (await admits(stepped)) {
+            if (await allows(stepped)) {
                 return {
                     assurance: level,
                     ...(elevation === undefined ? {} : { maxAge: elevation.maxAge }),
@@ -1566,7 +1566,7 @@ export class Authorizer {
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
         lookup: Lookup = "listing",
-    ): Promise<Admission> {
+    ): Promise<PermittedRows> {
         // decide each row by the caller's access in the row's scope
         const mapping = this.requireMapping(permission);
         const accesses = rows.map((row) => below.get(TableMapping.scope(mapping, row)) ?? access);
@@ -1586,7 +1586,7 @@ export class Authorizer {
             ),
         ]);
 
-        // admit the rows with a tree that admits the caller
+        // allow the rows with a tree that allows the caller
         const permitted = decided.flatMap(([[row, evaluated], tree], position) =>
             this.#gate(permission, mapping, row, evaluated, lookup) === undefined &&
             TupleTree.permits(tree, evaluated)
@@ -1653,7 +1653,7 @@ export class Authorizer {
         };
     }
 
-    /** Refuse a caller a permission on one object, with a step-up challenge when one admits it. */
+    /** Refuse a caller a permission on one object, with a step-up challenge when one allows it. */
     async #refuse(
         snapshot: Snapshot,
         permission: PermissionReference,
@@ -2027,13 +2027,13 @@ export class Authorizer {
         }
     }
 
-    /** Require a type admitting itself to be a principal type. */
+    /** Require a type allowing itself to be a principal type. */
     static #validateSelf(type: Policy): void {
         const { packageId, name } = type.definition;
         if (!TableMapping.isPrincipalType({ packageId, type: name })) {
             throw new AccessError(
                 "INVALID_DECLARATION",
-                `${name} represents no principal, so self admits no one`,
+                `${name} represents no principal, so self allows no one`,
             );
         }
     }

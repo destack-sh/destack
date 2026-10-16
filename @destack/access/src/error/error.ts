@@ -20,10 +20,10 @@ export type AccessErrorCode = keyof typeof CALL_CODES;
 export class AccessError extends Error implements DomainError {
     /** The stable failure classification. */
     readonly code: AccessErrorCode;
-    /** The authentication that would admit the caller, for insufficient authentication. */
+    /** The authentication that would allow the caller, for insufficient authentication. */
     readonly stepUp?: StepUp;
 
-    /** Retain the classification, cause, and the authentication that would admit the caller. */
+    /** Retain the classification, cause, and the authentication that would allow the caller. */
     constructor(
         code: AccessErrorCode,
         message: string,

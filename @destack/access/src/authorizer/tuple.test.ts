@@ -235,8 +235,8 @@ test.for(TEST_DIALECTS)(
             entity.permission("edit"),
         ];
 
-        // compare each random model's grants with the permission queries, counting the admissions
-        let admissions = 0;
+        // compare each random model's grants with the permission queries, counting the allowed rows
+        let allowedRows = 0;
         let shared = 0;
         for (let model = 0; model < MODELS; model++) {
             const draw = random(model + 1);
@@ -273,7 +273,7 @@ test.for(TEST_DIALECTS)(
             });
             await database.insert(accessRelationship).values(related).onConflictDoNothing();
 
-            // admit through grants what the queries admit, for each caller at once, permission and authorizer
+            // allow through grants what the queries allow, for each caller at once, permission and authorizer
             for (const authorizer of authorizers) {
                 const counts = await Promise.all(
                     contexts.map(async (context) => {
@@ -300,19 +300,19 @@ test.for(TEST_DIALECTS)(
                                 rows,
                                 reader,
                             );
-                            const admitted = rows
+                            const allowed = rows
                                 .filter((_row, position) => permitted.has(position))
                                 .map((row) => row.id);
 
-                            count += admitted.length;
-                            expect({ model, context, permission, admitted }).toEqual({
+                            count += allowed.length;
+                            expect({ model, context, permission, allowed }).toEqual({
                                 model,
                                 context,
                                 permission,
-                                admitted: queried,
+                                allowed: queried,
                             });
 
-                            // decide each object by key in memory as the listing query admits it, one node permission per model
+                            // decide each object by key in memory as the listing query allows it, one node permission per model
                             if (dialect === "sqlite" && permission === permissions[model % 4]) {
                                 const decided = [];
                                 for (const row of rows) {
@@ -434,13 +434,13 @@ test.for(TEST_DIALECTS)(
                         return { count, shared: readable.permitted.size };
                     }),
                 );
-                admissions += counts.reduce((total, counted) => total + counted.count, 0);
+                allowedRows += counts.reduce((total, counted) => total + counted.count, 0);
                 shared += counts.reduce((total, counted) => total + counted.shared, 0);
             }
         }
 
-        // admit enough rows that the models exercise the grants
-        expect([admissions > 100, shared > 0]).toEqual([true, true]);
+        // allow enough rows that the models exercise the grants
+        expect([allowedRows > 100, shared > 0]).toEqual([true, true]);
     },
 );
 
@@ -462,7 +462,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     ]);
 });
 
-test("explain which grants admit a caller and why the others fail", async () => {
+test("explain which grants allow a caller and why the others fail", async () => {
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
     const { database, authorizer } = fixture;

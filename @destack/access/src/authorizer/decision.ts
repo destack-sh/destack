@@ -19,7 +19,7 @@ export const Gate = defineSchema(schema.enum(["grant", "elevation", "suspended",
 /** Why a caller's request cannot have a permission on a row at all, before any tuple. */
 export type Gate = schema.Infer<typeof Gate>;
 
-/** Why one tuple fails to admit the caller. */
+/** Why one tuple fails to allow the caller. */
 export const TupleFailure = defineSchema(
     schema.enum([
         "subject",
@@ -34,7 +34,7 @@ export const TupleFailure = defineSchema(
         "arrow",
     ]),
 );
-/** Why one tuple fails to admit the caller. */
+/** Why one tuple fails to allow the caller. */
 export type TupleFailure = schema.Infer<typeof TupleFailure>;
 
 /** Whether and why a caller has a permission on one object. */
@@ -55,11 +55,11 @@ export const Explanation = defineSchema(
                 path: schema.array(schema.string()),
                 /** The object the relationship, field or role binding sits on. */
                 object: ObjectReference,
-                /** The subject the tuple admits. */
+                /** The subject the tuple allows. */
                 subject: Subject,
                 /** The bound role, for role bindings. */
                 role: schema.string().exactOptional(),
-                /** Why the tuple fails to admit the caller, absent when it admits it. */
+                /** Why the tuple fails to allow the caller, absent when it allows it. */
                 failure: TupleFailure.exactOptional(),
             }),
         ),

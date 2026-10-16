@@ -22,7 +22,7 @@ import { Role } from "../role/role.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 
 import type { Access } from "./access.ts";
-import type { Admission, Authorizer } from "./authorizer.ts";
+import type { PermittedRows, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
 import type { TupleReader, Lookup } from "./tuple.ts";
 
@@ -165,7 +165,7 @@ export class Authorization {
         reader?: TupleReader,
         below?: ReadonlyMap<string, Access>,
         lookup?: Lookup,
-    ): Promise<Admission> {
+    ): Promise<PermittedRows> {
         const access = await this.in(scope);
 
         return this.authorizer.checkRows(

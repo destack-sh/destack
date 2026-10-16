@@ -133,7 +133,7 @@ test.for(TEST_DIALECTS)(
             };
         };
 
-        // admit the profile's viewer through both fields, and refuse a stranger
+        // allow the profile's viewer through both fields, and refuse a stranger
         expect({ carol: await decide("carol"), dave: await decide("dave") }).toEqual({
             carol: { read: true, view: true, readable: ["c1"], viewable: ["c1"] },
             dave: { read: false, view: false, readable: [], viewable: [] },

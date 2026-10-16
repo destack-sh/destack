@@ -23,7 +23,7 @@ await Relationship.grant({ object: page, relation: "editor", subject }, authoriz
 
 ## Policies
 
-A `Policy` declares an object type's relations and permissions, `self()` admits the principal an object represents, `onDelete: "cascade"` removes rows with their subject, and `elevated` asks for a recent stronger sign-in.
+A `Policy` declares an object type's relations and permissions, `self()` allows the principal an object represents, `onDelete: "cascade"` removes rows with their subject, and `elevated` asks for a recent stronger sign-in.
 
 ```ts
 export const note = new Policy(import.meta.destack.package, {

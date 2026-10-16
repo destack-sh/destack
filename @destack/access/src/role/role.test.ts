@@ -178,7 +178,7 @@ test("decide a permission of another type on a node from a role bound on or abov
         subject: carolMembership,
     });
 
-    // admit the cells' read on "a" and below it while bound, never on "d" or after the expiry
+    // allow the cells' read on "a" and below it while bound, never on "d" or after the expiry
     expect({
         bound: [await decide("a"), await decide("b"), await decide("c")],
         elsewhere: await decide("d"),

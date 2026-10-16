@@ -33,7 +33,7 @@ const publicSpace = new Policy(module4.package, {
 });
 
 test.for(TEST_DIALECTS)(
-    "admit any signed-in user's read of a public space whose home stores its own row, on %s",
+    "allow any signed-in user's read of a public space whose home stores its own row, on %s",
     async (dialect) => {
         // store an account and its public space, its own row and its scope row, in the space's home
         const fixture = await openFixture(dialect);

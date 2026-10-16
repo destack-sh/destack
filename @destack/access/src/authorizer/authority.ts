@@ -122,7 +122,7 @@ export class Authority {
         )`;
     }
 
-    /** Read why one tuple fails to admit the authority, absent when it admits it. */
+    /** Read why one tuple fails to allow the authority, absent when it allows it. */
     failure(tuple: Tuple, access: Access): TupleFailure | undefined {
         // require each followed arrow to pass
         const context = access.context;

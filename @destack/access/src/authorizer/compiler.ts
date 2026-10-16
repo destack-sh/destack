@@ -122,7 +122,7 @@ export class Compiler {
             permission.packageId === target.packageId && permission.type === target.type;
         if (
             access.blocked(permission) !== undefined ||
-            (!isSameType && !access.admits(permission, target.id))
+            (!isSameType && !access.allows(permission, target.id))
         ) {
             return sql`false`;
         }
@@ -468,7 +468,7 @@ export class Compiler {
     }
 
     /** Decide whether an authority may have a containment grant, of the named types when given. */
-    static #admits(
+    static #allows(
         authority: Compilation["authority"],
         principals: readonly ObjectTypeReference[] | undefined,
     ): boolean {
@@ -486,9 +486,9 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        // admit only the named principal types when given
+        // allow only the named principal types when given
         const { authority, access } = compilation;
-        if (!Compiler.#admits(authority, expression.principals)) {
+        if (!Compiler.#allows(authority, expression.principals)) {
             return sql`false`;
         }
 
@@ -533,13 +533,13 @@ export class Compiler {
             compilation.access.scopes,
         );
 
-        // match a chain scope with the authority in its containment set, for admitted types
+        // match a chain scope with the authority in its containment set, for allowed types
         const { authority } = compilation;
         const isContained = steps.some(
             ({ object, contained }) =>
                 contained !== undefined &&
                 authority.isMember({ ...object, relation: CONTAINED }) &&
-                Compiler.#admits(authority, contained.principals),
+                Compiler.#allows(authority, contained.principals),
         );
         if (isContained) {
             return sql`true`;

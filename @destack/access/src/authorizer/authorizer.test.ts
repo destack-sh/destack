@@ -160,7 +160,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             ),
     ).toEqual([]);
 
-    // challenge the stale caller for the elevation's authentication, and refuse one no authentication admits
+    // challenge the stale caller for the elevation's authentication, and refuse one no authentication allows
     const snapshot = Snapshot.live(database);
     const refusals = [];
     for (const context of [stale, { ...stale, attributes: { team: 1, phase: "view" } }]) {
