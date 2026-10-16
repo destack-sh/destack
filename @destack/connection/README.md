@@ -26,7 +26,7 @@ await client.connection.create({
 });
 // Nango's auth flow
 const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
-const lent = await ConnectionRequest.borrow(home, reference, request, Date.now()); // Nango's proxy
+const leased = await ConnectionRequest.lease(home, reference, request, Date.now()); // Nango's proxy
 await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
 ```
 
@@ -70,12 +70,17 @@ import server from "@destack/connection/server";
 const extension = server(context); // tokens through the host's network, the home through its egress
 ```
 
-## Borrowing
+## Leasing
 
-`ConnectionRequest.borrow` lends a connection to a bound installation's outbound request, applying its current credential.
+`ConnectionRequest.lease` applies a connection's current credential, leased at its home, to a bound installation's outbound request.
 
 ```ts
-const { request, certificate } = await ConnectionRequest.borrow(home, reference, outbound, Date.now());
+const { request, certificate } = await ConnectionRequest.lease(
+    home,
+    reference,
+    outbound,
+    Date.now(),
+);
 ```
 
 ## Installations
