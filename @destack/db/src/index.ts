@@ -6,7 +6,7 @@ export * from "./table/index.ts";
 export * from "./database/index.ts";
 export * from "./dialect/dialect.ts";
 export * from "./log/index.ts";
-export * from "./admission/index.ts";
+export * from "./limit/index.ts";
 export * from "./tree/index.ts";
 export * from "./search/index.ts";
 export * from "./error/index.ts";

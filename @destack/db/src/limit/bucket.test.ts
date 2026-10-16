@@ -56,7 +56,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse more tokens at once than the burst admits", async () => {
+test("refuse more tokens at once than the burst allows", async () => {
     const database = await open("sqlite");
 
     // ask for four tokens of a burst of three

@@ -46,7 +46,7 @@ export type BucketOutcome =
 export const Bucket = {
     /** Take tokens of a key when its rate and burst allow. */
     async take(database: DatabaseConnection, request: BucketRequest): Promise<BucketOutcome> {
-        // refuse more tokens at once than the burst admits ever
+        // refuse more tokens at once than the burst ever allows
         const { name, key, rate, burst, tokens = 1, now } = request;
         if (tokens > burst) {
             throw new RangeError(`${tokens} tokens exceed the burst of ${burst} of limit ${name}`);

@@ -67,7 +67,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "admit as many holders as a key has slots, a released slot to the next holder, on %s",
+    "lease a key to as many holders as it has slots, a released slot to the next holder, on %s",
     async (dialect) => {
         const database = await open(dialect);
         const acquire = (holder: string) =>
@@ -80,11 +80,11 @@ test.for(TEST_DIALECTS)(
                 slots: 2,
             });
 
-        // fill both slots, refuse a third holder, then admit it once the first releases
+        // fill both slots, refuse a third holder, then lease it the slot the first releases
         const filled = [await acquire("a"), await acquire("b"), await acquire("c")];
         await Lease.release(database, { holder: "a", name: "review", key: "space-1" });
-        const admitted = await acquire("c");
-        expect([...filled, admitted]).toEqual([
+        const reacquired = await acquire("c");
+        expect([...filled, reacquired]).toEqual([
             { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 100 },
             { kind: "acquired", slot: 1, epoch: 1, expiresAt: START + 100 },
             { kind: "busy", lapsesAt: START + 100 },

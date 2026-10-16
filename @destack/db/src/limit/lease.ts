@@ -34,7 +34,7 @@ export interface LeaseRequest {
     readonly duration: number;
     /** The current time, in UTC epoch milliseconds. */
     readonly now: number;
-    /** How many holders the key admits at once, one by default. */
+    /** How many holders lease the key at once, one by default. */
     readonly slots?: number;
 }
 
