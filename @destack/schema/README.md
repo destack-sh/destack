@@ -50,11 +50,12 @@ Version.next("2026.10.0"); // "2026.10.1"
 
 ## Checked reads
 
-`present`, `found`, `aligned` and `zip` throw on a missing value instead of returning `undefined`.
+`present`, `found`, `nth` and `zip` throw on a missing value instead of returning `undefined`.
 
 ```ts
 present(user.email, "email"); // the email, or TypeError "email is missing"
 found(notes, id); // the map's value, or RangeError
+nth(changes, -1); // the last change, as Array.prototype.at, or RangeError for an empty list
 zip(ids, rows); // [[id, row], ...], or RangeError for lists of different lengths
 ```
 

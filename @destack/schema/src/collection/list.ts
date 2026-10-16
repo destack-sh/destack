@@ -19,11 +19,11 @@ export function zip<Left, Right>(left: readonly Left[], right: readonly Right[])
     return pairs;
 }
 
-/** Read an item of a list aligned with another, refusing a missing one. */
-export function aligned<Item>(list: readonly Item[], index: number): Item {
-    const item = list[index];
+/** Read the item at an index, from the end for a negative one, refusing a missing one. */
+export function nth<Item>(list: readonly Item[], index: number): Item {
+    const item = list.at(index);
     if (item === undefined) {
-        throw new RangeError(`an aligned list of ${list.length} items lacks item ${index}`);
+        throw new RangeError(`a list of ${list.length} items has no item ${index}`);
     }
 
     return item;
