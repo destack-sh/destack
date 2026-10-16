@@ -1,8 +1,8 @@
 import { defineTable, index, integer, text } from "@destack/db";
 
-/** The keys a store follows a shape at on demand, each until its lease lapses. */
-export const replicaLease = defineTable(
-    "replica_lease",
+/** The keys a store follows a shape at on demand, each until it lapses. */
+export const followKey = defineTable(
+    "follow_key",
     {
         /** The followed shape's name. */
         shape: text("shape").primaryKey(),
@@ -15,5 +15,5 @@ export const replicaLease = defineTable(
         /** The lapse time, in UTC epoch milliseconds. */
         expiresAt: integer("expires_at").notNull(),
     },
-    { constraints: (lease) => [index("replica_lease_expiry").on(lease.expiresAt)] },
+    { constraints: (key) => [index("follow_key_expiry").on(key.expiresAt)] },
 );

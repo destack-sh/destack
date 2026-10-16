@@ -30,7 +30,7 @@ import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_LIST, SCOPE_READ, type ObjectType } from "../object/object.ts";
 
 /** How a decision treats replicas of other scopes: passed as included, or checked like own rows. */
-type ReplicaAdmission = "included" | "checked";
+type ReplicaDecision = "included" | "checked";
 
 /** The kinds of method a scope with capped storage still runs, since they free storage. */
 const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "deleteMany", "purge"]);
@@ -95,7 +95,7 @@ export class Authorization extends access.Authorization {
     }
 
     /** Match the rows the caller holds a permission on in SQL, or "memory" for `#filter`. */
-    #where(object: ObjectType, permission: Permission, replicas: ReplicaAdmission): SQL | "memory" {
+    #where(object: ObjectType, permission: Permission, replicas: ReplicaDecision): SQL | "memory" {
         // decide ephemeral and external rows in memory, and checked replicas at their own scopes
         if (object.storage !== "durable" || replicas === "checked") {
             return "memory";
@@ -127,7 +127,7 @@ export class Authorization extends access.Authorization {
         permission: Permission,
         rows: readonly Filtered[],
         options: { readonly scope?: string; readonly reader?: TupleReader },
-        replicas: ReplicaAdmission,
+        replicas: ReplicaDecision,
     ): Promise<{
         readonly rows: Filtered[];
         readonly until?: number;
@@ -185,7 +185,7 @@ export class Authorization extends access.Authorization {
             (entry) =>
                 !passed.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
         );
-        const admission = await this.checkRows(
+        const checked = await this.checkRows(
             permission,
             scope,
             own.map((entry) => entry.row),
@@ -203,16 +203,13 @@ export class Authorization extends access.Authorization {
                 return { entry, decision };
             }),
         );
-        const until = earliest([
-            admission.until,
-            ...decisions.map(({ decision }) => decision.until),
-        ]);
+        const until = earliest([checked.until, ...decisions.map(({ decision }) => decision.until)]);
 
         // permit the passed replicas, the permitted own rows and the allowed checked replicas
         const permitted = new Set([
             ...passed,
             ...own
-                .filter((_entry, index) => admission.permitted.has(index))
+                .filter((_entry, index) => checked.permitted.has(index))
                 .map((entry) => entry.position),
             ...decisions
                 .filter(({ decision }) => decision.isAllowed)
@@ -238,7 +235,7 @@ export class Authorization extends access.Authorization {
         snapshot: Snapshot,
         permission: Permission = context.permission(),
     ): Promise<Row> {
-        // read the row the view shows, admitted with the caller's grants now
+        // read the row the view shows, allowed with the caller's grants now
         const { object, scope } = context;
         const row = await snapshot.read(object.table).findFirst({ where: { id } });
         const isAdmitted =
@@ -368,7 +365,7 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Decide whether the caller sees the admitted scope, as the universe everyone sees. */
+    /** Decide whether the caller sees the authorized scope, as the universe everyone sees. */
     async sees(objects: readonly ObjectType[]): Promise<boolean> {
         // see the universe
         const scope = this.access.scope;
@@ -413,7 +410,7 @@ export class Authorization extends access.Authorization {
         return this.authorizer.isRelatedIn(this.snapshot, own.id, await resolve(own.id));
     }
 
-    /** Decide whether an object type's rows live in scopes of the admitted scope's type. */
+    /** Decide whether an object type's rows live in scopes of the authorized scope's type. */
     isScopeOf(object: ObjectType): boolean {
         const own = this.access.scopes[0];
 
@@ -422,14 +419,14 @@ export class Authorization extends access.Authorization {
             : own?.id === this.access.scope && object.livesIn(own);
     }
 
-    /** Decide whether the admitted scope has every row of a type its replicas read. */
+    /** Decide whether the authorized scope has every row of a type its replicas read. */
     isHomeOf(object: ObjectType): boolean {
         return this.access.scope === Scope.universe.id
             ? object.scope === Scope.universe.id
             : this.isScopeOf(object);
     }
 
-    /** Refuse a type routed outside the admitted scope. */
+    /** Refuse a type routed outside the authorized scope. */
     requireScopeOf(object: ObjectType): void {
         if (!this.isScopeOf(object)) {
             throw new CallError("NOT_FOUND", {
@@ -438,8 +435,18 @@ export class Authorization extends access.Authorization {
         }
     }
 
+    /** Refuse work this store no longer or never serves: a moved scope, or another partition. */
+    requireHere(
+        permissions: readonly access.PermissionReference[],
+        served: string | undefined,
+        own: string | undefined,
+    ): void {
+        this.#requireUnmoved(permissions);
+        this.#requirePartition(served, own);
+    }
+
     /** Refuse a moved scope with its new holder, unless every permission is a moving one. */
-    requireUnmoved(permissions: readonly access.PermissionReference[]): void {
+    #requireUnmoved(permissions: readonly access.PermissionReference[]): void {
         const moved = this.access.moved;
         const isMoving =
             permissions.length > 0 &&
@@ -454,10 +461,15 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Refuse a call in another partition than the store's, unless it serves every partition. */
-    requirePartition(served: string | undefined): void {
-        const { scope, partition } = this.access;
-        if (served !== undefined && partition !== undefined && partition !== served) {
+    /** Refuse a call in another partition than the store's, or in one inside the store's scope. */
+    #requirePartition(served: string | undefined, own: string | undefined): void {
+        // refuse another partition than the one served, or a partition nearer than the store's own scope
+        const { scope, partition, scopes } = this.access;
+        const isOther = served !== undefined && partition !== served;
+        const nearest = scopes.findIndex((link) => link.id === partition);
+        const ownAt = own === undefined ? -1 : scopes.findIndex((link) => link.id === own);
+        const isInside = served === undefined && nearest !== -1 && ownAt !== -1 && nearest < ownAt;
+        if (partition !== undefined && (isOther || isInside)) {
             throw new CallError("MISDIRECTED_REQUEST", {
                 message: `${scope} is served by partition ${partition}`,
                 data: { scope, partition },
@@ -469,7 +481,7 @@ export class Authorization extends access.Authorization {
     requireUncapped(
         calls: readonly { readonly object: ObjectType; readonly name: string }[],
     ): void {
-        // admit any call in a scope within its storage
+        // allow any call in a scope within its storage
         if (!this.access.isCapped) {
             return;
         }

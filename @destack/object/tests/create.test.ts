@@ -1,6 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
+import { Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
@@ -43,7 +44,7 @@ const handle = defineObject(
 );
 
 test.each(TEST_DIALECTS)(
-    "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
+    "report a create's conflicts only to callers the create permission allows, inside spaces they read, on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, [...handle.tables, ...callTables], {
             isMigrated: true,
@@ -126,13 +127,13 @@ test.each(TEST_DIALECTS)(
         });
         level = 2;
 
-        // create a handle in a space the caller cannot read, as its permission admits
-        const admitted = await create(
+        // create a handle in a space the caller cannot read, as its permission allows
+        const allowed = await create(
             users.alice,
             { holderId: users.alice, name: "notes" },
             privateId,
         );
-        expect({ holderId: admitted.holderId, name: admitted.name }).toEqual({
+        expect({ holderId: allowed.holderId, name: allowed.name }).toEqual({
             holderId: users.alice,
             name: "notes",
         });
@@ -454,6 +455,72 @@ test("create an object under a natural key the creator chooses, refusing a taken
         ["CONFLICT", "channel identifier is taken"],
     ]);
 });
+
+/** Topics of a space, which a holder creates. */
+const topic = defineObject(
+    {
+        name: "topic",
+        plural: "topics",
+        scope: space,
+        fields: { holder: field.reference(principal.user), name: field.string() },
+        permissions: { read: relation("holder"), create: relation("holder") },
+    },
+    (method) => ({ create: method.create("create") }),
+);
+
+test.each(TEST_DIALECTS)(
+    "create an object once for a request two transactions run, the one reading before the other committed running again, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, [...callTables, ...topic.tables], {
+            isMigrated: true,
+        });
+        onTestFinished(() => storage.close());
+        await openSpace(storage.database, spaceId);
+        const store = new ObjectStore({
+            chain: async () => undefined,
+            clock: Clock.system,
+            principal: spacePrincipal(spaceId),
+            servers: serversOf([topic]),
+            database: storage.database,
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            origin: { package: topic.package },
+        });
+
+        // create the topic unless the transaction reads it, both transactions under one request
+        const caller = userContext(users.alice, spaceId).access();
+        const id = RequestId.create(Date.now());
+        const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
+        const step = (attempted: () => Promise<void>) =>
+            Transaction.run(storage.database, async (transaction) => {
+                const [found] = await transaction
+                    .view()
+                    .read(topic.table)
+                    .findMany({ where: { name: "ideas" } });
+                await attempted();
+                if (found === undefined) {
+                    await store.mutate(caller, { id, calls: [create] }, { transaction });
+                }
+            });
+
+        // read in the later transaction, commit the first, then create in the later one
+        const committed = Promise.withResolvers<void>();
+        let attempts = 0;
+        const later = step(async () => {
+            attempts += 1;
+            if (attempts === 1) {
+                await committed.promise;
+            }
+        });
+        await step(async () => {});
+        committed.resolve();
+        await later;
+
+        // expect the one topic, the later transaction running again as it lost the race
+        const rows = await storage.database.select({ name: topic.table.name }).from(topic.table);
+        expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
+    },
+);
 
 /** Watches of a space's objects, by their watcher, which code adds for others too. */
 const watch = defineObject(

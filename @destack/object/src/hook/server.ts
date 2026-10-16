@@ -193,7 +193,7 @@ export class HookServer implements HookHandler {
         );
     }
 
-    /** Reach the store in a mutation's session: its reads, decisions, sends and positions. */
+    /** Reach the store in a mutation's session: its reads, decisions and positions. */
     #open(mutation: string): Session {
         return {
             read: (table) =>
@@ -225,13 +225,6 @@ export class HookServer implements HookHandler {
                 schema
                     .array(Subject)
                     .parse(await this.#request(mutation, { kind: "lookup", lookup })),
-            send: async (request) => {
-                await this.#request(mutation, {
-                    kind: "send",
-                    call: request.call,
-                    ...(request.at === undefined ? {} : { at: request.at }),
-                });
-            },
             takePosition: async () =>
                 schema
                     .number()

@@ -33,7 +33,7 @@ const entry = defineObject({
     permissions: { read: through("parent", "read") },
 });
 
-test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database", async () => {
+test("read external objects named by their key from the database their files open per scope, allowing callers by the durable database", async () => {
     // store a public space's notebook in the durable database
     const durable = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
     onTestFinished(() => durable.close());

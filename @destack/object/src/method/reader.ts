@@ -38,8 +38,6 @@ export interface Session {
         over: readonly BranchWrite[],
         calls: readonly BranchEntry[],
     ) => Promise<readonly BranchWrite[]>;
-    /** Send a call to run for the hook's caller once the mutation commits. */
-    readonly send: (request: { readonly call: sync.Call; readonly at?: number }) => Promise<void>;
     /** Take the position of the mutation's next derived identifier. */
     readonly takePosition: () => Promise<number>;
 }

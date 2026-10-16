@@ -138,7 +138,7 @@ export interface ApplyOptions {
     /** The claim type recording the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimHome;
     /** The object store running the declarations' calls, applying records where they live. */
-    readonly store: Pick<ObjectStore, "mutate" | "admit" | "isReplica">;
+    readonly store: Pick<ObjectStore, "mutate" | "authorizeHere" | "isReplica">;
     /** Open a package release's build in the scope via a snapshot, the installation's if given. */
     readonly release?: (
         snapshot: Snapshot,
@@ -748,9 +748,9 @@ export class Stack {
         ]);
     }
 
-    /** Admit the stack's principal in its scope in the stack's transaction, for access writes. */
+    /** Allow the stack's principal in its scope in the stack's transaction, for access writes. */
     authorization(): Promise<Authorization> {
-        return this.#options.store.admit(this.transaction, this.scope, this.caller);
+        return this.#options.store.authorizeHere(this.transaction, this.scope, this.caller);
     }
 
     /** Retire attached records the manager no longer declares. */

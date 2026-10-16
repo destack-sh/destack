@@ -16,7 +16,6 @@ export {
     type NextOf,
     type HandleFunction,
     type PhasedHandler,
-    type OutboxMessage,
     type ResultOf,
     type ResultsOf,
 } from "./context.ts";
@@ -35,3 +34,4 @@ export { CallSite } from "./site.ts";
 export { Step } from "./step.ts";
 export { settlement, SettlementContext, type Settled } from "./settlement.ts";
 export * from "./reader.ts";
+export { type LimitKey, Limits, type LimitSubject, type MethodLimits } from "./limits.ts";

@@ -1138,7 +1138,7 @@ export const RecordMethod = {
                 return { id, created, row: await insert(created) };
             });
         } catch (error) {
-            // report conflicts only to admitted callers
+            // report conflicts only to authorized callers
             const isConflict =
                 (isCallError(error) && error.code === "CONFLICT") ||
                 (error instanceof DatabaseError &&
@@ -1221,17 +1221,17 @@ export const RecordMethod = {
         const { authorization } = execution;
         const { authorizer, snapshot } = authorization;
         const permission = context.permission();
-        const admits = async (access: Access) =>
+        const allows = async (access: Access) =>
             (await authorizer.checkRows(snapshot, permission, access, [row], grants)).permitted.has(
                 0,
             );
         const access = await authorization.in(context.scope);
-        if (await admits(access)) {
+        if (await allows(access)) {
             return;
         }
 
         // challenge for step-up authentication
-        const stepUp = await authorizer.challenge(snapshot, permission, access, admits);
+        const stepUp = await authorizer.challenge(snapshot, permission, access, allows);
         if (stepUp !== undefined) {
             throw new AccessError(
                 "INSUFFICIENT_AUTHENTICATION",
@@ -1305,8 +1305,10 @@ export const RecordMethod = {
             });
         const isTaken = rows.length > 0 || relationships.length > 0;
 
-        // refuse a taken identifier
+        // refuse a taken identifier, as a lost race when a later commit took it
         if (isTaken) {
+            await execution.transaction.requireCurrent();
+            await execution.authorization.transaction.requireCurrent();
             throw new CallError("CONFLICT", { message: `${object.name} identifier is taken` });
         }
 

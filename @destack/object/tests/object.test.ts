@@ -244,7 +244,7 @@ test("refuse a containment grant on a type living in the universe alone, and all
     expect(ledger(true).name).toBe("ledger");
     expect(() => ledger(false)).toThrow(
         new TypeError(
-            "object ledger lives in the universe without principals: contained() in its read permission admits no one",
+            "object ledger lives in the universe without principals: contained() in its read permission allows no one",
         ),
     );
 });

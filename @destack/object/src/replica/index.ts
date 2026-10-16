@@ -11,4 +11,4 @@ export {
 } from "./replica.ts";
 
 export * from "./shape.ts";
-export * from "./lease.ts";
+export * from "./key.ts";

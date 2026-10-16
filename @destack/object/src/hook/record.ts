@@ -359,14 +359,6 @@ export const SessionRequest = defineSchema(
                 lookup: LookupRequest,
             }),
             schema.object({
-                /** Send a call to run for the hook's caller once the mutation commits. */
-                kind: schema.literal("send"),
-                /** The call. */
-                call: sync.Call,
-                /** When it runs in UTC epoch milliseconds, at once if absent. */
-                at: schema.number().exactOptional(),
-            }),
-            schema.object({
                 /** Take the position of the mutation's next derived identifier. */
                 kind: schema.literal("position"),
             }),

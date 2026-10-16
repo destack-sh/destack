@@ -373,8 +373,8 @@ test("pass the keys an account hands down to its space for listing, and only tho
     );
     const rows = await database.select().from(key.table).orderBy(key.table.name);
     const position = await database.log.position();
-    const names = (admitted: ReadonlySet<number>) =>
-        rows.filter((_row, index) => admitted.has(index)).map((row) => row.name);
+    const names = (allowed: ReadonlySet<number>) =>
+        rows.filter((_row, index) => allowed.has(index)).map((row) => row.name);
     const selected = async (permission?: string) => {
         const where = audience.where(key.table, permission);
 
@@ -385,8 +385,8 @@ test("pass the keys an account hands down to its space for listing, and only tho
 
     // pass both keys for listing in SQL and in memory, and only ada's under her use, decided in memory
     expect({
-        listed: names(await audience.admits(key.table, rows, position)),
-        used: names(await audience.admits(key.table, rows, position, "use")),
+        listed: names(await audience.visible(key.table, rows, position)),
+        used: names(await audience.visible(key.table, rows, position, "use")),
         selected: await selected(),
         selectedUsed: await selected("use"),
     }).toEqual({

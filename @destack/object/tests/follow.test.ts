@@ -1,6 +1,6 @@
 import { reconciliation, subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { ControlLoop, controllerLease } from "@destack/runtime/control";
+import { ControlLoop } from "@destack/runtime/control";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     accessTables,
@@ -15,7 +15,7 @@ import {
 } from "@destack/access";
 
 import { AccessFixture } from "@destack/access/test";
-import { type DatabaseConnection, defineDatabase, eq, Key, TABLE } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, eq, Key, lease, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 
@@ -268,7 +268,7 @@ test.each(TEST_DIALECTS)(
             document.call("list", { spaceId }),
         );
 
-        // admit the owner through a credential for the empty space and hide the space from the rest
+        // allow the owner through a credential for the empty space and hide the space from the rest
         const hidden = ["NOT_FOUND", `no scope ${spaceId}`];
         expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
         expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
@@ -282,7 +282,7 @@ test("drop a replica once its source refuses its follow and no follow names it a
     });
     const machine = await TestDatabase.create(
         "sqlite",
-        [...document.tables, ...callTables, controllerLease],
+        [...document.tables, ...callTables, lease],
         { isMigrated: true },
     );
     onTestFinished(async () => {
@@ -743,7 +743,7 @@ test("replicate a scoped table an installation's database declares beside its fo
     );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...comment.tables, ...callTables, controllerLease],
+        tables: [...comment.tables, ...callTables, lease],
         replicated: [space.table, document.table],
     });
     const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });

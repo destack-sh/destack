@@ -96,6 +96,7 @@ import {
     type RecoverableDefinition,
     type RecoverableMethodMap,
 } from "../trait/recoverable.ts";
+import type { MethodLimits } from "../method/limits.ts";
 import { expiring, type ExpiryRule } from "../trait/expiring.ts";
 import { versioned, type VersionsDefinition } from "../trait/versioned.ts";
 import {
@@ -409,6 +410,8 @@ export interface ObjectDefinition<
     readonly partition?: true;
     /** The operations callers may execute, keyed by method name. */
     readonly methods?: Methods;
+    /** How often each method runs per key, by method name. */
+    readonly limits?: Readonly<Record<string, MethodLimits>>;
     /** The fields each object has, for objects declared by fields. */
     readonly fields?: Readonly<Record<string, Field>>;
     /** The aggregates of these objects their holder maintains, by field name. */
@@ -795,6 +798,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The attachments the objects take. */
     get attachments(): readonly Attachment[] {
         return this.definition.attachments;
+    }
+
+    /** How often each method runs per key, by method name. */
+    get limits(): Readonly<Record<string, MethodLimits>> {
+        return this.definition.limits ?? {};
     }
 
     /** The unique indexes the key index holds across databases, by name. */
@@ -1983,8 +1991,16 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             );
         }
 
+        // require a method for each limit
+        const methods = ObjectType.#methodsOf(this);
+        for (const limited of Object.keys(this.limits)) {
+            if (!Object.hasOwn(methods, limited)) {
+                throw new TypeError(`object ${this.name} limits a method ${limited} it has not`);
+            }
+        }
+
         // require declared permissions and valid methods
-        for (const declared of Object.values(ObjectType.#methodsOf(this))) {
+        for (const declared of Object.values(methods)) {
             if (!this.permissions.includes(declared.permission)) {
                 throw new TypeError(`object ${this.name} has no permission ${declared.permission}`);
             }
@@ -2046,7 +2062,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (isUniversal && contained !== undefined) {
             throw new TypeError(
-                `object ${this.name} lives in the universe without principals: contained() in its ${contained[0]} permission admits no one`,
+                `object ${this.name} lives in the universe without principals: contained() in its ${contained[0]} permission allows no one`,
             );
         }
 
@@ -2354,7 +2370,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** Decide whether a permission admits the holders of a related object's permission. */
+    /** Decide whether a permission allows the holders of a related object's permission. */
     static #covers(
         permissions: Readonly<Record<string, AccessExpression>>,
         name: string,
@@ -2373,12 +2389,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         return (
             expression !== undefined &&
-            ObjectType.#admits(permissions, expression, relation, permission, seen)
+            ObjectType.#includes(permissions, expression, relation, permission, seen)
         );
     }
 
-    /** Decide whether an expression admits a related permission's holders, via unions and names. */
-    static #admits(
+    /** Decide whether an expression allows a related permission's holders, via unions and names. */
+    static #includes(
         permissions: Readonly<Record<string, AccessExpression>>,
         expression: AccessExpression,
         relation: string,
@@ -2388,7 +2404,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // search each branch of a union
         if (expression.kind === "union") {
             return expression.expressions.some((branch) =>
-                ObjectType.#admits(permissions, branch, relation, permission, seen),
+                ObjectType.#includes(permissions, branch, relation, permission, seen),
             );
         }
         // follow a named permission

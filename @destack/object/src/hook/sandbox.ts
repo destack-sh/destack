@@ -170,15 +170,6 @@ export class HookSandbox {
 
             return null;
         }
-        // send a call once the mutation commits
-        else if (asked.kind === "send") {
-            await context.send({
-                call: asked.call,
-                ...(asked.at === undefined ? {} : { at: asked.at }),
-            });
-
-            return null;
-        }
         // take the transaction's next position
         else if (asked.kind === "position") {
             return context.takePosition();

@@ -47,8 +47,8 @@ export class ObjectAudience implements Audience {
     readonly #caller: AccessContext;
     /** The types whose personal values the stream showed, journaled once each. */
     readonly #revealed = new Set<ObjectType>();
-    /** Admit the subscriber again, as it resolves access once access changes. */
-    readonly #admit: () => Promise<Authorization>;
+    /** Authorize the subscriber again, as it resolves access once access changes. */
+    readonly #reauthorize: () => Promise<Authorization>;
     /** The object types the store knows, by table. */
     readonly #objects: ObjectTypeIndex;
     /** The caller's access, resolved again once access changes. */
@@ -75,18 +75,18 @@ export class ObjectAudience implements Audience {
         store: ObjectStore,
         scope: string,
         caller: AccessContext,
-        admit: () => Promise<Authorization>,
+        reauthorize: () => Promise<Authorization>,
         authorization: Authorization,
         storage: ObjectStorage,
         decided: LogPosition | undefined,
         isContained: boolean,
         via: readonly Relay[],
     ) {
-        // hold the inputs and watch access
+        // set the inputs and watch access
         this.#store = store;
         this.#scope = scope;
         this.#caller = caller;
-        this.#admit = admit;
+        this.#reauthorize = reauthorize;
         this.#objects = new ObjectTypeIndex(
             store.known.filter((known) => known instanceof ObjectType),
         );
@@ -122,15 +122,15 @@ export class ObjectAudience implements Audience {
                 ? []
                 : await ObjectAudience.#relays(store, options.via, reader);
 
-        // authorize the reader as a principal, a contained caller or an admitted caller
-        const admit = async () => {
+        // authorize the reader as a principal, a contained caller or a remote caller this store serves
+        const reauthorize = async () => {
             const authorization = await (!AccessContext.isRemote(reader)
                 ? store.authorize(Transaction.reading(store.database), scope, reader, {
                       within: options.within ?? [],
                   })
                 : isContained
                   ? store.authorize(Transaction.reading(store.database), scope, reader)
-                  : store.admit(Transaction.reading(store.database), scope, reader));
+                  : store.authorizeHere(Transaction.reading(store.database), scope, reader));
 
             // require the follower to replicate the scopes it replicates chains via
             await Promise.all(via.map((relay) => relay.require()));
@@ -142,8 +142,8 @@ export class ObjectAudience implements Audience {
             store,
             scope,
             reader,
-            admit,
-            await admit(),
+            reauthorize,
+            await reauthorize(),
             storage,
             decided,
             isContained,
@@ -228,13 +228,13 @@ export class ObjectAudience implements Audience {
     }
 
     /** Decide which rows the caller may list, under a query's own permission too. */
-    async admits(
+    async visible(
         table: Table,
         rows: readonly Row[],
         position: LogPosition,
         permission?: string,
     ): Promise<ReadonlySet<number>> {
-        // admit every row left to its query
+        // show every row left to its query
         const listed = this.#listed(table, permission);
         if (listed === "query") {
             return new Set(rows.keys());
@@ -256,10 +256,10 @@ export class ObjectAudience implements Audience {
             this.watches = this.#watched();
         }
 
-        // admit the positions of the rows left
-        const admitted = new Set<Row>(filtered.rows);
+        // answer the positions of the rows left
+        const shown = new Set<Row>(filtered.rows);
 
-        return new Set(rows.flatMap((row, index) => (admitted.has(row) ? [index] : [])));
+        return new Set(rows.flatMap((row, index) => (shown.has(row) ? [index] : [])));
     }
 
     /** List an object type's guarded fields. */
@@ -375,8 +375,8 @@ export class ObjectAudience implements Audience {
 
     /** Resolve the caller's access again and reset derived state. */
     async #authorize(): Promise<void> {
-        // admit again and reset
-        this.#authorization = await this.#admit();
+        // authorize again and reset
+        this.#authorization = await this.#reauthorize();
         this.#key = undefined;
         this.#until = this.#authorization.access.until;
         if (this.#storage !== "durable") {

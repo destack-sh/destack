@@ -54,6 +54,8 @@ export interface ObjectSchema {
     ) => InputObject["shape"];
     /** Read the columns a write must set to non-null, as one sum type variant writes them. */
     readonly required: (names: readonly string[]) => InputObject["shape"];
+    /** Read the columns a transition records, an optional one cleared by null. */
+    readonly recorded: (names: readonly string[]) => InputObject["shape"];
 }
 
 /** An HTTP method and a path below an object's collection. */
@@ -184,6 +186,18 @@ export function objectSchema(object: ObjectType): ObjectSchema {
         required: (names) =>
             Object.fromEntries(
                 names.map((name) => [name, object.table[TABLE].column(name).definition.json]),
+            ),
+        recorded: (names) =>
+            Object.fromEntries(
+                names.map((name) => {
+                    // take an optional field's null, which clears it
+                    const { definition } = object.table[TABLE].column(name);
+                    const value = definition.nullable
+                        ? schema.nullable(definition.json)
+                        : definition.json;
+
+                    return [name, value];
+                }),
             ),
         callers: written(callers, false),
         scope: selection,

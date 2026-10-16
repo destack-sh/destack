@@ -11,7 +11,6 @@ import { type CallableName, Claim, claimTable, defineObject, field } from "../sr
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { claim } from "./fixture/claim.ts";
-import { outbox } from "@destack/runtime/outbox";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
@@ -67,7 +66,7 @@ const asset = declared.implement({
 /** The database with the assets, their access, the replicated spaces and the journal. */
 const assetDatabase = defineDatabase({
     name: "main",
-    tables: [...callTables, outbox, claimTable, space.table, ...asset.tables],
+    tables: [...callTables, claimTable, space.table, ...asset.tables],
 });
 
 test("map an owned object's relation in the universe and record its names under its owner", async () => {
@@ -216,10 +215,10 @@ const sticker = defineObject(
 /** The database with the assets beside the stickers. */
 const stickerDatabase = defineDatabase({
     name: "main",
-    tables: [...callTables, outbox, claimTable, space.table, ...asset.tables, ...sticker.tables],
+    tables: [...callTables, claimTable, space.table, ...asset.tables, ...sticker.tables],
 });
 
-test("admit an owner to its owned objects in a private home it cannot see, and refuse the home's other objects", async () => {
+test("allow an owner to its owned objects in a private home it cannot see, and refuse the home's other objects", async () => {
     // store assets and stickers in a private home, owned by the holder, beside a rival space
     const storage = await TestDatabase.create("sqlite", stickerDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());

@@ -81,11 +81,12 @@ import {
 } from "@destack/runtime";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, Shape } from "../replica/shape.ts";
-import { replicaLease } from "../replica/lease.ts";
+import { followKey } from "../replica/key.ts";
 import { QueriesParameters } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
-import { MethodContext, OutboxMessage, type ResultsOf, type Run } from "../method/context.ts";
+import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
+import { Limits } from "../method/limits.ts";
 import { Method, type MethodKind } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
 import { InputSchema } from "../method/input.ts";
@@ -106,8 +107,6 @@ import {
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
-import { ChangeController } from "./change.ts";
-import { Outbox } from "@destack/runtime/outbox";
 import { ClaimController } from "../claim/controller.ts";
 import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
@@ -120,7 +119,6 @@ import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
 import type { Controller } from "@destack/runtime/control";
-import { Trigger, type ChangeTrigger, type RunClient } from "@destack/runtime/trigger";
 
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
@@ -128,7 +126,6 @@ import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
 import { declareInstalled } from "../inspect/object.ts";
-import type { RunRequest } from "@destack/runtime/trigger";
 import type { AdapterFetch, PackageServer, ServedPackage, ServerDefinition } from "./server.ts";
 import { Clock } from "@destack/environment";
 
@@ -239,9 +236,9 @@ export interface AuthorizeOptions {
     readonly now?: number;
 }
 
-/** How a store admits a caller beyond its authorization. */
-export interface AdmitOptions extends Omit<AuthorizeOptions, "within"> {
-    /** The admitted calls by type and method, whose owned types need no visible scope. */
+/** How a store authorizes a caller for work it serves, beyond its authorization. */
+export interface AuthorizeHereOptions extends Omit<AuthorizeOptions, "within"> {
+    /** The authorized calls by type and method, whose owned types need no visible scope. */
     readonly calls?: readonly { readonly object: ObjectType; readonly name: string }[];
 }
 
@@ -368,7 +365,7 @@ interface StoreParts {
     readonly database: DatabaseConnection;
     /** The principal of the store's own work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
-    /** The one partition the store serves, every partition of its database when absent. */
+    /** The one partition the store serves, its own scope's when absent, never one inside it. */
     readonly partition?: string;
     /** The package recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
@@ -390,10 +387,6 @@ interface StoreParts {
     readonly publisher?: (scope: string) => sync.Publisher;
     /** The publications served and followed beside the objects' and policies' ones. */
     readonly publications?: readonly sync.Publication[];
-    /** The machine recording runs: the calls methods send and their change triggers' calls. */
-    readonly runs?: RunClient;
-    /** The served package's triggers, whose change triggers need a machine recording runs. */
-    readonly triggers?: readonly Trigger[];
     /** Report failed settlements, thrown when absent. */
     readonly report?: (error: unknown) => void;
     /** Whether reads of the objects record access events, as the space's audit setting asks. */
@@ -421,7 +414,7 @@ export class ObjectStore {
     readonly database: DatabaseConnection;
     /** The principal of the store's own work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
-    /** The one partition the store serves, every partition of its database when absent. */
+    /** The one partition the store serves, its own scope's when absent, never one inside it. */
     readonly #partition: string | undefined;
     /** The evaluator of the served objects' policies. */
     readonly authorizer: Authorizer;
@@ -451,14 +444,8 @@ export class ObjectStore {
     readonly #installed: ReadonlyMap<string, ServerContext>;
     /** The served or authorized durable types whose rows the database replicates from home. */
     readonly replicated: readonly ObjectType[];
-    /** The machine recording runs: the calls methods send and their change triggers' calls. */
-    readonly runs: RunClient | undefined;
     /** Stream served row replicas to an in-process follower, running its changes as principal. */
     readonly uplink: sync.Uplink;
-    /** The change triggers of the served objects, each change they admit recorded as a run. */
-    readonly triggers: readonly ChangeTrigger[];
-    /** The outbox of sent calls and replicated row changes, absent if nothing receives them. */
-    readonly #sends?: Outbox;
     /** Open an audit recorder for a scope and caller, with its calls' request and component. */
     readonly audit: (
         scope: string,
@@ -513,8 +500,6 @@ export class ObjectStore {
         this.publications = options.publications ?? [];
         this.#installed = options.installed ?? new Map();
         this.uplink = this.#uplink();
-        this.runs = options.runs;
-        this.triggers = ObjectStore.#changeTriggers(options);
         this.ephemeral = options.ephemeral;
         this.external = options.external ?? [];
 
@@ -546,15 +531,12 @@ export class ObjectStore {
         this.#provisioned = ObjectStore.#control(this.objects, options.provisioned);
         this.providers = options.provisioned?.providers ?? [];
 
-        // follow the durable tables in one feed, with an outbox for sent calls and replicated rows
+        // follow the durable tables in one feed
         const followed = ObjectStore.#follow(this.objects, options);
         this.decided = followed.decided;
         this.replicated = followed.replicated;
         this.feed = followed.feed;
         this.known = ObjectStore.known(options.objects, options.policies ?? []);
-        if (followed.sends !== undefined) {
-            this.#sends = followed.sends;
-        }
 
         // implement each served package, the first one running the store's own controllers
         this.packages = served.map((entry, index) => this.#implementPackage(entry, index === 0));
@@ -635,7 +617,7 @@ export class ObjectStore {
                     ...follows.flatMap((each) => each.shape.objects.map((type) => type.table)),
                     ...follows.flatMap((each) => ObjectStore.#followedTables(each, types)),
                     // relist when the store acquires or evicts an on-demand key
-                    ...(follows.some((each) => "onDemand" in each) ? [replicaLease] : []),
+                    ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
                 ],
                 subscriptions: async () => {
                     // follow the follows' keys, then the chains, gating like the follows that brought them
@@ -716,18 +698,17 @@ export class ObjectStore {
         return [...described.values()];
     }
 
-    /** Follow durable tables and decision tables in one feed, with an outbox for leaving calls. */
+    /** Follow durable tables and decision tables in one feed. */
     static #follow(
         objects: readonly ObjectType[],
         options: Pick<
             ComposedOptions,
-            "database" | "policies" | "runs" | "subscriber" | "clock" | "installed"
+            "database" | "policies" | "subscriber" | "clock" | "installed"
         >,
     ): {
         readonly decided: ObjectType[];
         readonly replicated: ObjectType[];
         readonly feed: sync.Feed;
-        readonly sends?: Outbox;
     } {
         // find the durable types, and the replicated ones no installation here serves
         const decided = ObjectStore.#durable(objects, options.policies ?? []);
@@ -746,13 +727,7 @@ export class ObjectStore {
             },
         );
 
-        // use an outbox for the machine recording runs and the replicas' home
-        const isUplinked = options.subscriber?.uplink !== undefined && replicated.length > 0;
-        const isSending = options.runs !== undefined || isUplinked;
-
-        return isSending
-            ? { decided, replicated, feed, sends: new Outbox(options.database) }
-            : { decided, replicated, feed };
+        return { decided, replicated, feed };
     }
 
     /** Stream served row replicas to in-process followers, and run the changes they send. */
@@ -798,18 +773,6 @@ export class ObjectStore {
                 object.storage === "durable" &&
                 durable.findIndex((each) => each.same(object)) === index,
         );
-    }
-
-    /** Take the served package's change triggers, which need a machine recording runs. */
-    static #changeTriggers(options: Pick<ComposedOptions, "runs" | "triggers">): ChangeTrigger[] {
-        const triggers = (options.triggers ?? []).flatMap(
-            (trigger) => Trigger.of(trigger, "change") ?? [],
-        );
-        if (triggers.length > 0 && options.runs === undefined) {
-            throw new TypeError("change triggers need a machine recording their runs");
-        }
-
-        return triggers;
     }
 
     /** Build the authorizer over the objects, their scope types and other policies. */
@@ -984,7 +947,7 @@ export class ObjectStore {
         };
     }
 
-    /** Follow a shape's key on demand until its lease lapses, waiting until the replica has it. */
+    /** Follow a shape's key on demand until it lapses, waiting until the replica has it. */
     async acquire<Parameters extends object>(
         follow: Extract<Follow<Parameters>, { readonly onDemand: unknown }>,
         at: FollowKey<Parameters>,
@@ -994,39 +957,39 @@ export class ObjectStore {
         const { shape, onDemand } = follow;
         const { scope, ...rest } = at.key;
         const parameters = shape.parameters.parse(rest);
-        const lease = {
+        const followed = {
             shape: shape.name,
             scope,
             parameters: canonicalize(parameters),
             subject: canonicalize(at.subject ?? this.principal),
         };
 
-        // renew a lease past half its time, evicting the lapsed ones as the store writes
+        // renew a key past half its time, evicting the lapsed ones as the store writes
         const now = this.clock.now();
         const ttl = Duration.milliseconds(onDemand.ttl);
-        const [held] = await this.database
-            .select({ expiresAt: replicaLease.expiresAt })
-            .from(replicaLease)
+        const [current] = await this.database
+            .select({ expiresAt: followKey.expiresAt })
+            .from(followKey)
             .where(
                 and(
-                    eq(replicaLease.shape, lease.shape),
-                    eq(replicaLease.scope, lease.scope),
-                    eq(replicaLease.parameters, lease.parameters),
-                    eq(replicaLease.subject, lease.subject),
+                    eq(followKey.shape, followed.shape),
+                    eq(followKey.scope, followed.scope),
+                    eq(followKey.parameters, followed.parameters),
+                    eq(followKey.subject, followed.subject),
                 ),
             );
-        if (held === undefined || held.expiresAt - now < ttl / 2) {
+        if (current === undefined || current.expiresAt - now < ttl / 2) {
             await this.database.transaction(async (transaction) => {
-                await transaction.delete(replicaLease).where(lte(replicaLease.expiresAt, now));
+                await transaction.delete(followKey).where(lte(followKey.expiresAt, now));
                 await transaction
-                    .insert(replicaLease)
-                    .values({ ...lease, expiresAt: now + ttl })
+                    .insert(followKey)
+                    .values({ ...followed, expiresAt: now + ttl })
                     .onConflictDoUpdate({
                         target: [
-                            replicaLease.shape,
-                            replicaLease.scope,
-                            replicaLease.parameters,
-                            replicaLease.subject,
+                            followKey.shape,
+                            followKey.scope,
+                            followKey.parameters,
+                            followKey.subject,
                         ],
                         set: { expiresAt: now + ttl },
                     });
@@ -1266,6 +1229,7 @@ export class ObjectStore {
         const method = object.method(name);
         const scope = object.readScope(name, input);
         ObjectStore.#requireReached(caller, object, scope, name);
+        await this.#limit([{ object, name, input }], scope, caller);
         const database = await this.#databaseOf(object, scope);
         const read = async () => {
             // prepare on the served type, then read, commit and settle
@@ -1285,11 +1249,11 @@ export class ObjectStore {
             }
         };
         const readIn = async (prepared: Prepared) => {
-            // read over a mutation that never commits, admitting the caller against the durable database
+            // read over a mutation that never commits, allowing the caller against the durable database
             const reading = Transaction.reading(database);
-            const admitting =
+            const authorizing =
                 object.storage === "durable" ? reading : Transaction.reading(this.database);
-            const authorization = await this.admit(admitting, scope, caller, {
+            const authorization = await this.authorizeHere(authorizing, scope, caller, {
                 calls: [{ object, name }],
             });
 
@@ -1373,6 +1337,7 @@ export class ObjectStore {
         for (const { object, name } of originals) {
             ObjectStore.#requireReached(caller, object, scope, name);
         }
+        await this.#limit(originals, scope, caller);
 
         // write ephemeral objects apart
         const ephemeral = originals.filter((call) => call.object.storage === "ephemeral").length;
@@ -1493,14 +1458,14 @@ export class ObjectStore {
             throw new TypeError(`${object.name} is stored outside the transaction`);
         }
 
-        // run it under the calling method's authorization, else admit the caller in its scope
+        // run it under the calling method's authorization, else allow the caller in its scope
         const scope = object.readScope(name, input);
         const authorization =
             parent !== undefined &&
             parent.context.caller === caller &&
             parent.context.scope === scope
                 ? parent.authorization
-                : await this.admit(
+                : await this.authorizeHere(
                       transaction,
                       scope,
                       caller,
@@ -1598,11 +1563,11 @@ export class ObjectStore {
         }
     }
 
-    /** Admit a mutation's caller in its chain, refusing installation writes to capped spaces. */
+    /** Allow a mutation's caller in its chain, refusing installation writes to capped spaces. */
     async #authorizeRun(transaction: Transaction, planned: MutationRun): Promise<Authorization> {
-        // admit the caller in the scope chain the mutation reads
+        // allow the caller in the scope chain the mutation reads
         const chain = await Scope.chain(transaction.view(), planned.scope);
-        const authorization = await this.admit(transaction, planned.scope, planned.caller, {
+        const authorization = await this.authorizeHere(transaction, planned.scope, planned.caller, {
             request: planned.id,
             links: chain,
             calls: planned.calls,
@@ -1753,7 +1718,7 @@ export class ObjectStore {
 
         // list each expanding call's calls before it, as the caller reads them now over a mutation that never commits
         const reading = Transaction.reading(this.database);
-        const authorization = await this.admit(reading, scope, caller, { calls });
+        const authorization = await this.authorizeHere(reading, scope, caller, { calls });
         const expanded: Expansion[] = [];
         for (const [call, method] of zip(calls, methods)) {
             // pass a call that expands into nothing
@@ -1864,25 +1829,6 @@ export class ObjectStore {
             ((snapshot.database.replicates(object.table) && !isInstalled) ||
                 (await sync.Replica.isReplicated(snapshot, scope, object.table)))
         );
-    }
-
-    /** Send a call once the transaction commits, once per request. */
-    async send(
-        request: Exclude<RunRequest, { readonly triggerName: string }>,
-        transaction: Transaction,
-    ): Promise<void> {
-        // require an outbox delivering the store's sends
-        if (this.#sends === undefined) {
-            const label = sync.Call.label(request.call);
-            throw new TypeError(`the store sends ${label}, but nothing receives its sends`);
-        }
-
-        // record the run once the mutation commits
-        const requestId = RequestId.create(this.clock.now());
-        const sends = this.#sends;
-        transaction.record(async (committing) => {
-            await sends.append(OutboxMessage, requestId, { requestId, request }, committing);
-        });
     }
 
     /** Run a mutation another in-process store sent once, as its principal. */
@@ -2007,25 +1953,6 @@ export class ObjectStore {
         return true;
     }
 
-    /** Deliver a sent call to the store with its rows, or to the machine recording runs. */
-    async #deliver(sent: OutboxMessage, signal: AbortSignal): Promise<void> {
-        // deliver a sent change of replicated rows toward their home
-        const { request } = sent;
-        if (await this.#forward({ id: sent.requestId, calls: [request.call] })) {
-            return;
-        }
-        // record any other sent call's run at the machine
-        else if (this.runs !== undefined) {
-            await this.runs.send(sent.request, { requestId: sent.requestId, signal });
-        }
-        // refuse a call nothing receives
-        else {
-            throw new CallError("BAD_REQUEST", {
-                message: `nothing receives the sent run of ${sync.Call.label(request.call)}`,
-            });
-        }
-    }
-
     /** List the controllers the served objects need. */
     controllers(): readonly Controller[] {
         // compact the log, and pick the controllers the objects need
@@ -2048,19 +1975,6 @@ export class ObjectStore {
             ...(isRecoverable ? [new RecoverableController(this)] : []),
             ...(isExpiring ? [new ExpiringController(this)] : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
-            ...(this.#sends === undefined
-                ? []
-                : [
-                      this.#sends.controller(
-                          OutboxMessage.destination(
-                              (sent, signal) => this.#deliver(sent, signal),
-                              this.#report,
-                          ),
-                      ),
-                  ]),
-            ...(this.runs === undefined || this.triggers.length === 0
-                ? []
-                : [new ChangeController(this.database, this.triggers, this.runs, this.#report)]),
             ...(this.subscriber === undefined ? [] : [this.source.controller(this.subscriber)]),
             ...[...this.objects, ...this.#provisioned].flatMap((object) =>
                 object.controller === undefined
@@ -2144,20 +2058,21 @@ export class ObjectStore {
         return new Authorization(this.authorizer, transaction, bind, access);
     }
 
-    /** Admit a caller in a scope, requiring an unmoved scope that a remote caller also sees. */
-    async admit(
+    /** Authorize a caller for work this store serves: an unmoved scope, in its partition. */
+    async authorizeHere(
         transaction: Transaction,
         scope: string,
         caller: AccessContext,
-        options: AdmitOptions = {},
+        options: AuthorizeHereOptions = {},
     ): Promise<Authorization> {
-        // resolve its access, then require an unmoved scope unless every call runs during a move
+        // resolve its access, then require a scope this store serves, moved only for moving calls
         const { calls = [], ...authorizing } = options;
         const authorization = await this.authorize(transaction, scope, caller, authorizing);
-        authorization.requireUnmoved(
+        authorization.requireHere(
             calls.map(({ object, name }) => object.permission(object.method(name).permission)),
+            this.#partition,
+            calls.length === 0 ? undefined : ObjectStore.#below(undefined, this.principal),
         );
-        authorization.requirePartition(this.#partition);
 
         return authorization;
     }
@@ -2295,8 +2210,12 @@ export class ObjectStore {
             });
         }
 
-        // admit the caller, then execute the calls in order over a transaction of the writer's rows, committed in its write
-        const authorization = await this.admit(Transaction.reading(this.database), scope, caller);
+        // allow the caller, then execute the calls in order over a transaction of the writer's rows, committed in its write
+        const authorization = await this.authorizeHere(
+            Transaction.reading(this.database),
+            scope,
+            caller,
+        );
 
         return this.requireEphemeral().write(
             EphemeralStorage.writerKey(caller, writerId),
@@ -2324,6 +2243,39 @@ export class ObjectStore {
                 return executed;
             },
         );
+    }
+
+    /** Refuse calls past their methods' rates before their work, saying when one is due. */
+    async #limit(
+        calls: readonly {
+            readonly object: ObjectType;
+            readonly name: string;
+            readonly input: unknown;
+        }[],
+        scope: string,
+        caller: AccessContext,
+    ): Promise<void> {
+        // take a token of each limited method's rate for the call's key
+        const now = this.clock.now();
+        for (const { object, name, input } of calls) {
+            const limits = object.limits[name];
+            const rate = limits?.rate;
+            if (rate !== undefined) {
+                const key = Limits.key(limits?.key, {
+                    scope,
+                    caller: caller.subject,
+                    input: schema.json().parse(input),
+                });
+                const label = `method:${object.package.name}/${object.name}.${name}`;
+                const retryAfter = await Limits.take(this.database, label, key, rate, now);
+                if (retryAfter !== undefined) {
+                    throw new CallError("TOO_MANY_REQUESTS", {
+                        message: `${object.name}.${name} is limited to ${rate.count} calls per ${Duration.milliseconds(rate.every)} ms`,
+                        data: { retryAfter },
+                    });
+                }
+            }
+        }
     }
 
     /** Resolve a recorded call against the served types. */
@@ -2542,11 +2494,11 @@ export class ObjectStore {
             .read(types.object.table)
             .findFirst({ where: { id } });
         const permission = types.object.permission("read");
-        const admitted =
+        const allowed =
             row === undefined
                 ? []
                 : (await authorization.filter(types.object, permission, [row], { scope })).rows;
-        if (admitted.length === 0) {
+        if (allowed.length === 0) {
             throw new CallError("NOT_FOUND", { message: `no branch ${id}` });
         }
 
@@ -2582,7 +2534,7 @@ export class ObjectStore {
 
         // build and authorize each preparing call as the caller over a mutation that never commits
         const reading = Transaction.reading(this.database);
-        const authorization = await this.admit(
+        const authorization = await this.authorizeHere(
             reading,
             scope,
             caller,
@@ -3487,24 +3439,26 @@ export class ObjectStore {
                 return undefined;
             }
 
-            // admit identified callers of the types the adapter declares, leaving an adapter declaring none its own protocol
+            // allow the installation itself or identified callers of the declared types, leaving an adapter declaring none its own protocol
             const { callers } = adapter;
             const caller =
                 callers === undefined
                     ? AccessContext.of(Caller.anonymous(), context.clock.now())
                     : context.access();
+            const isDeclared =
+                callers === undefined ||
+                (callers === "self"
+                    ? Subject.same(caller.subject, store.principal)
+                    : callers.some(
+                          (type) =>
+                              type.packageId === caller.subject.packageId &&
+                              type.type === caller.subject.type,
+                      ));
             if (callers !== undefined && Caller.isAnonymous(caller)) {
                 throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
-            } else if (
-                callers !== undefined &&
-                !callers.some(
-                    (type) =>
-                        type.packageId === caller.subject.packageId &&
-                        type.type === caller.subject.type,
-                )
-            ) {
+            } else if (!isDeclared) {
                 throw new CallError("FORBIDDEN", {
-                    message: `adapter ${adapter.name} answers no ${caller.subject.type}`,
+                    message: `adapter ${adapter.name} answers no ${caller.subject.type} ${caller.subject.id}`,
                 });
             }
 
@@ -3550,7 +3504,7 @@ export class ObjectStore {
         const demanded = await Promise.all(
             follows
                 .filter((follow) => "onDemand" in follow)
-                .map((follow) => ObjectStore.#leasedSubscriptions(store, follow, options)),
+                .map((follow) => ObjectStore.#demandedSubscriptions(store, follow, options)),
         );
 
         // read each other follow's keys, fixed or from the store's own rows
@@ -3596,34 +3550,34 @@ export class ObjectStore {
         ];
     }
 
-    /** List an on-demand follow's live leases as one subscription per scope and subject. */
-    static async #leasedSubscriptions(
+    /** List an on-demand follow's live keys as one subscription per scope and subject. */
+    static async #demandedSubscriptions(
         store: ObjectStore,
         follow: Extract<Follow, { readonly onDemand: unknown }>,
         options: { readonly below: string; readonly publisher: (scope: string) => sync.Publisher },
     ): Promise<SubscriberEntry[]> {
-        // read the leases that have not lapsed
-        const leases = await store.database
+        // read the keys that have not lapsed
+        const rows = await store.database
             .select()
-            .from(replicaLease)
+            .from(followKey)
             .where(
                 and(
-                    eq(replicaLease.shape, follow.shape.name),
-                    gt(replicaLease.expiresAt, store.clock.now()),
+                    eq(followKey.shape, follow.shape.name),
+                    gt(followKey.expiresAt, store.clock.now()),
                 ),
             );
 
         // group their parameters by scope and subject
         const groups = new Map<string, { scope: string; subject: string; keys: object[] }>();
-        for (const lease of leases) {
-            const group = `${lease.scope} ${lease.subject}`;
-            const held = groups.get(group) ?? {
-                scope: lease.scope,
-                subject: lease.subject,
+        for (const key of rows) {
+            const group = `${key.scope} ${key.subject}`;
+            const entry = groups.get(group) ?? {
+                scope: key.scope,
+                subject: key.subject,
                 keys: [],
             };
-            held.keys.push(follow.shape.parameters.parse(JSON.parse(lease.parameters)));
-            groups.set(group, held);
+            entry.keys.push(follow.shape.parameters.parse(JSON.parse(key.parameters)));
+            groups.set(group, entry);
         }
 
         // subscribe to each group toward its scope's home, never gating the store's readiness
@@ -3633,15 +3587,15 @@ export class ObjectStore {
                 scope,
                 keys,
                 options.below,
-                ObjectStore.#leasedSubject(store, subject),
+                ObjectStore.#demandedSubject(store, subject),
             ),
             publisher: options.publisher(scope),
             isReadinessGate: false,
         }));
     }
 
-    /** Read a lease's subject, none for the store's own principal. */
-    static #leasedSubject(store: ObjectStore, subject: string): Subject | undefined {
+    /** Read a followed key's subject, none for the store's own principal. */
+    static #demandedSubject(store: ObjectStore, subject: string): Subject | undefined {
         const parsed = Subject.parse(JSON.parse(subject));
 
         return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;

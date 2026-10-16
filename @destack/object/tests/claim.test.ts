@@ -1,5 +1,4 @@
 import { bearerUser, users } from "./fixture/user.ts";
-import { outbox } from "@destack/runtime/outbox";
 import { Scope } from "@destack/sync";
 import {
     Change,
@@ -480,7 +479,7 @@ test("hold a trashed object's names, activate them on restore, and release them 
 
 /** Open the universe's database with its claims and the journal of their calls. */
 async function universeStorage(dialect: Dialect) {
-    const tables = [...new Set([outbox, ...callTables, ...claim.tables])];
+    const tables = [...new Set([...callTables, ...claim.tables])];
     const storage = await TestDatabase.create(dialect, tables, { isMigrated: true });
     onTestFinished(() => storage.close());
 

@@ -1,14 +1,13 @@
 import { accessTables, none, through } from "@destack/access";
-import { asc, defineDatabase } from "@destack/db";
+import { asc, defineDatabase, lease } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { PackageHandle } from "@destack/runtime";
-import { ControlLoop, controllerLease } from "@destack/runtime/control";
-import { outbox } from "@destack/runtime/outbox";
+import { ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subscription } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineObject, defineShape, field, Follow, replicaLease } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow, followKey } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { callTables, serversOf, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -26,7 +25,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** The space of the store following the cards on demand. */
 const followerId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000032");
 
-/** Cards of a space, read by anyone the space admits. */
+/** Cards of a space, read by anyone the space allows. */
 const card = defineObject({
     name: "card",
     plural: "cards",
@@ -49,7 +48,7 @@ const byTitle = Follow.of(titleShape, { onDemand: { ttl: { minutes: TTL_MINUTES 
 /** The follower's database: its own tables and the replicated cards. */
 const followerDatabase = defineDatabase({
     name: "main",
-    tables: [outbox, controllerLease, replicaLease, ...accessTables],
+    tables: [lease, followKey, ...accessTables],
     replicated: [card.table],
 });
 
@@ -58,7 +57,7 @@ async function openStores(): Promise<{
     readonly follower: ObjectStore;
     readonly clock: VirtualClock;
     readonly titles: () => Promise<readonly string[]>;
-    readonly leases: () => Promise<readonly string[]>;
+    readonly keys: () => Promise<readonly string[]>;
 }> {
     // create three cards at home in a public space
     const homeDatabase = await TestDatabase.create("sqlite", [...callTables, ...card.tables], {
@@ -126,7 +125,7 @@ async function openStores(): Promise<{
         await running;
     });
 
-    // read the replicated titles and the leased keys
+    // read the replicated titles and the followed keys
     const titles = async () =>
         (
             await followerTest.database
@@ -134,19 +133,19 @@ async function openStores(): Promise<{
                 .from(card.table)
                 .orderBy(asc(card.table.title))
         ).map((row) => row.title);
-    const leases = async () =>
+    const keys = async () =>
         (
             await followerTest.database
-                .select({ parameters: replicaLease.parameters })
-                .from(replicaLease)
-                .orderBy(asc(replicaLease.parameters))
+                .select({ parameters: followKey.parameters })
+                .from(followKey)
+                .orderBy(asc(followKey.parameters))
         ).map((row) => row.parameters);
 
-    return { follower, clock, titles, leases };
+    return { follower, clock, titles, keys };
 }
 
-test("follow a shape's keys on demand: replicate only the acquired keys, renew a lease past half its time, and evict lapsed keys on the next acquisition", async () => {
-    const { follower, clock, titles, leases } = await openStores();
+test("follow a shape's keys on demand: replicate only the acquired keys, renew a key past half its time, and evict lapsed keys on the next acquisition", async () => {
+    const { follower, clock, titles, keys } = await openStores();
     const signal = AbortSignal.timeout(REPLICA_MILLISECONDS);
 
     // acquire one title, then a second, replicating only their cards
@@ -155,9 +154,9 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Bread" } }, signal);
     const both = await titles();
 
-    // leave a lease acquired again within half its time unchanged
+    // leave a key acquired again within half its time unchanged
     const expiry = async () =>
-        (await follower.database.select({ expiresAt: replicaLease.expiresAt }).from(replicaLease))
+        (await follower.database.select({ expiresAt: followKey.expiresAt }).from(followKey))
             .map((row) => row.expiresAt)
             .toSorted((left, right) => left - right);
     const before = await expiry();
@@ -165,7 +164,7 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal);
     const renewedEarly = await expiry();
 
-    // renew a lease acquired again past half its time
+    // renew a key acquired again past half its time
     clock.advance((TTL_MINUTES / 2) * 60_000);
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal);
     const renewed = (await expiry()).map((at) => at - clock.now());
@@ -175,20 +174,20 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Eggs" } }, signal);
     await follower.database.log.until(async () => (await titles()).length === 1, signal);
 
-    // the replica holds exactly the keys leased at each step
+    // expect the replica to have exactly the keys followed at each step
     expect({
         milk,
         both,
         isUnchanged: renewedEarly.join() === before.join(),
         renewed,
-        leases: await leases(),
+        keys: await keys(),
         titles: await titles(),
     }).toEqual({
         milk: ["Milk"],
         both: ["Bread", "Milk"],
         isUnchanged: true,
         renewed: [(TTL_MINUTES - 6) * 60_000, TTL_MINUTES * 60_000],
-        leases: ['{"title":"Eggs"}'],
+        keys: ['{"title":"Eggs"}'],
         titles: ["Eggs"],
     });
 });

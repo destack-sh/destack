@@ -41,6 +41,11 @@ type TransitionFields<Transition> = Transition extends {
     ? Field
     : never;
 
+/** Whether a transition stays off public routes. */
+type TransitionInternal<Transition> = Transition extends { readonly isInternal: true }
+    ? true
+    : false;
+
 /** The methods the transitions of an object's state fields derive. */
 export type TransitionMethodMap<Fields> = {
     readonly [Name in TransitionName<Fields>]: Method<{
@@ -48,6 +53,7 @@ export type TransitionMethodMap<Fields> = {
         permission: string;
         mutates: true;
         fields: TransitionFields<TransitionOf<Fields, Name>>;
+        internal: TransitionInternal<TransitionOf<Fields, Name>>;
     }>;
 };
 
@@ -92,6 +98,7 @@ export const transitions: Trait<StateFields> & {
             permission: transition.permission,
             mutates: true,
             ...(transition.fields === undefined ? {} : { fields: transition.fields }),
+            ...(transition.isInternal === true ? { isInternal: true } : {}),
             transition: { field, from: transition.from, to: transition.to },
             inverse: (step) => {
                 // find the transition leading back
@@ -113,7 +120,7 @@ export const transitions: Trait<StateFields> & {
                 route: { method: "POST", path: `/{id}/${Casing.kebab(method)}` },
                 input: shapes.target.extend({
                     ...shapes.replay,
-                    ...(transition.fields === undefined ? {} : shapes.required(transition.fields)),
+                    ...(transition.fields === undefined ? {} : shapes.recorded(transition.fields)),
                 }),
                 output: shapes.row,
             }),

@@ -307,7 +307,7 @@ test.each(TEST_DIALECTS)(
         });
         act(users.frank);
 
-        // challenge a viewer for step-up authentication and admit them after
+        // challenge a viewer for step-up authentication and allow them after
         await execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
@@ -378,7 +378,7 @@ test.each(TEST_DIALECTS)(
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         act(users.frank);
 
-        // challenge an agent whose grant gives too little, and admit what it gives
+        // challenge an agent whose grant gives too little, and allow what it gives
         const agent = principal.installation.reference(spaceId, "assistant");
         delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({

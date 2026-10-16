@@ -35,11 +35,7 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import type { PackageId } from "@destack/package";
-import { isCallError, CallError } from "@destack/runtime/error";
-import type { Address, Destination } from "@destack/runtime/outbox";
-import { RequestId } from "@destack/runtime/request";
-import { RunRequest } from "@destack/runtime/trigger";
-import { Exchange } from "@destack/runtime/authentication";
+import { CallError } from "@destack/runtime/error";
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
@@ -66,73 +62,6 @@ const RANDOM_RANGE = 2 ** 53;
 
 /** The bits a draw drops from a 64-bit word leaving 53. */
 const RANDOM_SHIFT = 11n;
-
-/** A call a method sent, as its outbox holds it until the machine records its run. */
-const SENT = schema.object({
-    /** The request recording the run once, however often the outbox delivers it. */
-    requestId: RequestId.schema,
-    /** The sent call. */
-    request: RunRequest,
-});
-
-/** The sent calls one delivery sends: 100 small calls at once. */
-const SEND_BATCH = 100;
-
-/** The calls methods send through the outbox. */
-export const OutboxMessage = {
-    name: "sends",
-    message: SENT,
-
-    /** Deliver the sent calls in batches, reporting and dropping one refused for good. */
-    destination(
-        deliver: (sent: OutboxMessage, signal: AbortSignal) => Promise<void>,
-        report: (error: unknown) => void,
-    ): Destination<OutboxMessage> {
-        return {
-            name: OutboxMessage.name,
-            message: SENT,
-            batch: SEND_BATCH,
-            accept: async (sent, { signal }) => {
-                // send the whole batch at once
-                const delivered = await Promise.allSettled(
-                    sent.map((entry) => deliver(entry, signal)),
-                );
-
-                // drop a call refused for good, and retry the batch after any other failure
-                const failures = delivered.flatMap((result): Error[] =>
-                    result.status === "rejected" ? [OutboxMessage.sendFailure(result.reason)] : [],
-                );
-                for (const refused of failures.filter((failure) =>
-                    OutboxMessage.isRefusal(failure),
-                )) {
-                    report(new Error("a sent call was refused permanently", { cause: refused }));
-                }
-                const failed = failures.find((failure) => !OutboxMessage.isRefusal(failure));
-                if (failed !== undefined) {
-                    throw failed;
-                }
-            },
-        };
-    },
-
-    /** Report whether a failure is the machine's final refusal: a client error but a timeout. */
-    isRefusal(error: Error): boolean {
-        return isCallError(error) && CallError.isRefusal(error.status);
-    },
-
-    /** Read a failed send's reason as an error. */
-    sendFailure(reason: unknown): Error {
-        return reason instanceof Error
-            ? reason
-            : new Error("a sent call failed", { cause: reason });
-    },
-} satisfies Address<schema.Infer<typeof SENT>> & {
-    readonly destination: object;
-    readonly isRefusal: object;
-    readonly sendFailure: object;
-};
-/** A call a method sent, as the outbox holds it. */
-export type OutboxMessage = schema.Infer<typeof SENT>;
 
 /** The identifier and revision of a row the record writes change at its revision. */
 export const RecordedRow = Object.assign(
@@ -650,29 +579,6 @@ export class MethodContext<
         return parent === undefined
             ? { parentPackageId: null, parentType: null, parentId: null }
             : { parentPackageId: parent.packageId, parentType: parent.type, parentId: parent.id };
-    }
-
-    /** Send a call to run at its rows' home for the caller's subject once this call commits. */
-    async send(request: { readonly call: sync.Call; readonly at?: number }): Promise<void> {
-        // send through the hook's session, and refuse a prediction
-        const location = this.#location;
-        if (location.kind === "sandbox") {
-            await location.session.send(request);
-            return;
-        } else if (location.kind === "client") {
-            throw new TypeError(`${this.object.name}.${this.name} sends calls from its store`);
-        }
-
-        // record the send once in the call's transaction, asking to run it for the caller's subject
-        const exchange = Exchange.of(location.authorization.context());
-        await location.store.send(
-            {
-                call: request.call,
-                ...(request.at === undefined ? {} : { at: request.at }),
-                ...(exchange === undefined ? {} : { exchange }),
-            },
-            location.transaction,
-        );
     }
 
     /** Follow a shape's key on demand in a prepare, unavailable until its rows are here. */

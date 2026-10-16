@@ -9,7 +9,7 @@ import type { ExternalStorage } from "./external.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
 import type { ObjectStore } from "./store.ts";
 
-/** Answer a request below an adapter's mount over the package's store, as the admitted caller. */
+/** Answer a request below an adapter's mount over the package's store, as the authorized caller. */
 export type AdapterFetch = (
     request: Request,
     caller: AccessContext,

@@ -86,14 +86,14 @@ export class ObjectSource {
         return this.#streaming.has(below);
     }
 
-    /** Stream a publication's replica to the caller its audience admits. */
+    /** Stream a publication's replica to the caller its audience allows. */
     async *relayed(
         subscription: sync.Subscription,
         context: RequestContext,
     ): AsyncGenerator<sync.Page> {
-        // admit the caller by the publication's audience, counting its replica while it streams
+        // allow the caller by the publication's audience, counting its replica while it streams
         const publication = this.#publication(subscription);
-        const follower = await this.#admit(publication, subscription, context);
+        const follower = await this.#authorizeFollower(publication, subscription, context);
         const below = subscription.below;
         this.#streaming.set(below, (this.#streaming.get(below) ?? 0) + 1);
         try {
@@ -108,7 +108,7 @@ export class ObjectSource {
         }
     }
 
-    /** Stream an admitted follower's replica by its publication. */
+    /** Stream an authorized follower's replica by its publication. */
     async *#relay(
         publication: sync.Publication,
         subscription: sync.Subscription,
@@ -138,8 +138,8 @@ export class ObjectSource {
         }
     }
 
-    /** Admit a caller to a publication's replica for the scope below, returning who it is for. */
-    async #admit(
+    /** Allow a caller to a publication's replica for the scope below, returning who it is for. */
+    async #authorizeFollower(
         publication: sync.Publication,
         subscription: sync.Subscription,
         context: RequestContext,
@@ -199,12 +199,17 @@ export class ObjectSource {
             return { subject, ...(parent === undefined ? {} : { parent }) };
         }
 
-        // decide for the scope's principal or a caller living in it, bound to the called space or the scope below
+        // decide for the scope's principal or a caller living in it, or the installation a partition below it runs
         const following = context.access(context.scope ?? request.below);
         const resident = [following.subject, ...following.groups].filter(
             (subject) => subject.id === request.below || subject.scope === request.below,
         );
-        if (resident.length === 0) {
+        if (
+            resident.length === 0 &&
+            (await this.#isPartitionOf(request.below, following.subject))
+        ) {
+            return { context };
+        } else if (resident.length === 0) {
             throw new CallError("FORBIDDEN", {
                 message: `only ${request.below} and its contents can follow the replicas held for it`,
             });
@@ -223,6 +228,19 @@ export class ObjectSource {
         return { context };
     }
 
+    /** Decide whether a scope is a partition inside the scope of the installation following it. */
+    async #isPartitionOf(below: string, follower: Subject): Promise<boolean> {
+        // allow an installation following a partition its scope encloses, as its partitions follow their chains
+        if (!principal.installation.is(follower)) {
+            return false;
+        }
+        const [row] = await Scope.read(Snapshot.live(this.store.database), [below]);
+
+        return (
+            row !== undefined && row.partition === below && row.ancestors.includes(follower.scope)
+        );
+    }
+
     /** Read the principal following, refusing an anonymous follower as unauthenticated. */
     static #principal(context: RequestContext): Subject {
         const caller = context.caller();
@@ -235,7 +253,7 @@ export class ObjectSource {
 
     /** Require the caller to be a principal, or to have `follow` on the principal's object. */
     async #requireFollow(subject: Subject, context: RequestContext): Promise<void> {
-        // admit the principal itself
+        // allow the principal itself
         const acting = ObjectSource.#principal(context);
         if (Subject.same(acting, subject)) {
             return;
@@ -798,7 +816,7 @@ export class ObjectSource {
         }
         await this.store.enter(context, scope);
         const reference = { ...target, scope };
-        const authorization = await this.store.admit(
+        const authorization = await this.store.authorizeHere(
             Transaction.reading(this.store.database),
             scope,
             context.access(scope),
@@ -1272,7 +1290,7 @@ export class ObjectSource {
             await this.#requireContaining(request, follower);
         }
 
-        // admit the follower to a chain by containment and to the universe's rows as their reader
+        // allow the follower to a chain by containment and to the universe's rows as their reader
         const audience = await this.#replicaAudience(publication, request, follower);
 
         // relay a replicated scope once its replica has a position, to followers other than its source

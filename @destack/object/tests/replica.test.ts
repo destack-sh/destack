@@ -256,7 +256,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     );
 });
 
-test("admit a home's follow on its person's behalf with a token bound to the followed space, and refuse a token without the person's home set", async () => {
+test("allow a home's follow on its person's behalf with a token bound to the followed space, and refuse a token without the person's home set", async () => {
     // store a mention of alice in a space, and her user row without any relationship
     const storage = await TestDatabase.create(
         "sqlite",
@@ -329,7 +329,7 @@ test("admit a home's follow on its person's behalf with a token bound to the fol
             : page.value.changes.map((change) => [change.operation, change.row["recipientId"]]);
     };
 
-    // admit the token stating her home set, and refuse one without it
+    // allow the token stating her home set, and refuse one without it
     expect([
         await first(bound([{ ...alice, relation: "home" }])),
         await refusal(first(bound([]))),
@@ -504,7 +504,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     });
 });
 
-test("replicate only the rows a query's own permission admits, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
+test("replicate only the rows a query's own permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
     // store two loans alice reads, the first one hers to use
     const loan = defineObject(
         {

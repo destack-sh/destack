@@ -210,7 +210,7 @@ await store.mutate(store.self, { id: RequestId.create(), calls: [create] });
 
 ## Replicas
 
-A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, where `acquire` follows a key until its lease lapses.
+A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, where `acquire` follows a key until it lapses.
 
 ```ts
 import { defineShape, Follow } from "@destack/object";

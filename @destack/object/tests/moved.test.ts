@@ -77,7 +77,7 @@ test("send a client's writes on to the machine serving a moved scope", async () 
     ]).toEqual([[moved], [], [], ["Ideas"]]);
 });
 
-test("admit the calls of moving permissions in a fenced scope and refuse every other call", async () => {
+test("allow the calls of moving permissions in a fenced scope and refuse every other call", async () => {
     // store a pin in a space, then fence the space toward another machine
     const storage = await TestDatabase.create("sqlite", [...pin.tables, ...callTables], {
         isMigrated: true,

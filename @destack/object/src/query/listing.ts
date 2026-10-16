@@ -212,24 +212,24 @@ export class Listing implements Audience {
     }
 
     /** Decide which rows of a table the caller may list, under a query's own permission too. */
-    async admits(
+    async visible(
         table: Table,
         rows: readonly Row[],
         _position: LogPosition,
         permission?: string,
     ): Promise<ReadonlySet<number>> {
-        // admit every row of a prediction
+        // show every row of a prediction
         const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
         if (execution.kind === "client") {
             return new Set(rows.keys());
         }
         const { authorization } = execution;
-        const { rows: admitted } = await authorization.filter(object, listing, rows, {
+        const { rows: allowed } = await authorization.filter(object, listing, rows, {
             scope: this.#context.scope,
             ...(permission === undefined ? {} : { required: object.permission(permission) }),
         });
-        const kept = new Set<Row>(admitted);
+        const kept = new Set<Row>(allowed);
 
         return new Set(rows.flatMap((row, position) => (kept.has(row) ? [position] : [])));
     }

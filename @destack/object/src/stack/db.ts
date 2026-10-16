@@ -1,11 +1,19 @@
 import { JournalEntry } from "../audit/execution.ts";
-import { defineTable, identifier, index, integer, json, text, uniqueIndex } from "@destack/db";
+import {
+    bucket,
+    defineTable,
+    identifier,
+    index,
+    integer,
+    json,
+    lease,
+    text,
+    uniqueIndex,
+} from "@destack/db";
 import type { Table } from "@destack/db";
 import { accessTables } from "@destack/access";
-import { controllerLease } from "@destack/runtime/control";
-import { outbox } from "@destack/runtime/outbox";
 import { settlement } from "../method/settlement.ts";
-import { replicaLease } from "../replica/lease.ts";
+import { followKey } from "../replica/key.ts";
 
 /** The calls a database executed recently, which retries of their requests replay. */
 export const journal = defineTable(
@@ -43,12 +51,12 @@ export const journal = defineTable(
     },
 );
 
-/** The tables of every durable type's database: access, journal, settlements, leases and outbox. */
+/** The tables every durable type's database has: access, journal, settlements, leases, buckets. */
 export const storeTables: readonly Table[] = [
     ...accessTables,
     journal,
     settlement,
-    controllerLease,
-    replicaLease,
-    outbox,
+    lease,
+    bucket,
+    followKey,
 ];

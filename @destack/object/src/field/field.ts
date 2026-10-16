@@ -103,6 +103,8 @@ export interface StateMachine {
                 readonly permission: string;
                 /** The fields the transition writes beside the state, from its call's input. */
                 readonly fields?: readonly string[];
+                /** Whether the transition stays off public routes, run only by the store's code. */
+                readonly isInternal?: boolean;
             }
         >
     >;
