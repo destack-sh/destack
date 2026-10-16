@@ -162,6 +162,23 @@ await database.log
     .findMany({ where: { scope: spaceId } });
 ```
 
+## Leases and rate limits
+
+`Lease` gives a key's slots to holders until they lapse, fencing a lapsed holder by epoch as Kubernetes leader election does, reading the slots and taking one in a second statement.
+`Bucket` takes rate tokens by the generic cell rate algorithm in one statement, reading the wait only when it refuses.
+
+```ts
+const taken = await Lease.acquire(database, { name: "controller:sync", key, holder, duration: 15_000, now });
+await Lease.release(database, { holder, name: "controller:sync" });
+const outcome = await Bucket.take(database, {
+    name: "method:notes/post.create",
+    key: spaceId,
+    rate: { count: 2, every: 60_000 },
+    burst: 2,
+    now,
+}); // { kind: "taken" } | { kind: "limited", retryAfter }
+```
+
 ## Derived columns
 
 `aggregates` keeps counts, sums, minimums and maximums of referencing rows, `dependents` cascades deletes, and `tree` keeps an ancestor index.

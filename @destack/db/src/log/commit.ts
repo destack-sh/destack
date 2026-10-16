@@ -545,6 +545,13 @@ export class Transaction {
         return this.#base;
     }
 
+    /** Refuse as a lost race once a commit after the transaction's start changed what it read. */
+    async requireCurrent(): Promise<void> {
+        if (this.#base !== null) {
+            await ChangeSet.requireCurrent(this.database, this.#base, this.reads);
+        }
+    }
+
     /** Show the database as the transaction sees it, its writes over live rows, recording reads. */
     view(): Snapshot {
         return Snapshot.live(this.database).recording(this.reads).layer(this.changes.overlay());
@@ -750,9 +757,7 @@ export class Transaction {
             const isShared = sharing.some((row) => row !== after);
             if (isShared) {
                 // refuse a key a later commit took as a lost race
-                if (this.#base !== null) {
-                    await ChangeSet.requireCurrent(this.database, this.#base, this.reads);
-                }
+                await this.requireCurrent();
                 throw new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
                     key: {
                         table: definition.sqlName,
