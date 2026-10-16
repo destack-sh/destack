@@ -13,7 +13,7 @@ const CI_MINUTES_PER_DEVELOPER = 1_540;
 /** The memory a CI run holds while it runs, in GB, well under the 7 GB runner GitHub reserves. */
 const CI_MEMORY = 2;
 
-/** GitHub Team's price for a seat a month, in US dollars. */
+/** GitHub Team's price for a seat a month in US dollars, as listed for its first 12 months. */
 const SEAT_GITHUB = 4;
 
 /** The Linux Actions minutes GitHub Team includes a month. */
@@ -34,11 +34,56 @@ const EVENTS_PER_USER = 50;
 /** The workflow actions each user starts a month: a few jobs of about five steps. */
 const ACTIONS_PER_USER = 20;
 
-/** The bytes each user is served a month: about forty page loads of half a megabyte. */
-const TRANSFER_PER_USER = 20 * MB;
-
 /** The requests each user makes a month: about forty page loads of seven requests. */
 const REQUESTS_PER_USER = 300;
+
+/** The requests a sign-in takes: about four sessions a month of three requests. */
+const SIGN_IN_REQUESTS = 12;
+
+/** The steps a workflow action takes. */
+const STEPS_PER_ACTION = 5;
+
+/** The workdays in a month. */
+const WORKDAYS = 22;
+
+/** The hours in a month, a year's 8,760 over twelve. */
+const HOURS_PER_MONTH = 730;
+
+/** The seconds in an hour. */
+const SECONDS_PER_HOUR = 3600;
+
+/** The units in a million, the quantity counted meters are priced per. */
+const MILLION = 1_000_000;
+
+/** The memory an instance holds in GB, the 128 MB that @platform/pricing's workloads hold. */
+const INSTANCE_MEMORY = 0.128;
+
+/** The seconds an instance stays awake after a request before it sleeps. */
+const AWAKE_SECONDS = 10;
+
+/** The people one instance serves at once, far fewer than the connections it can hold. */
+const PEOPLE_PER_INSTANCE = 25;
+
+/** The requests one instance serves a second at peak: a quarter of 200 at 5 CPU ms each. */
+const REQUESTS_PER_SECOND = 50;
+
+/** The busiest hour's load over the month's average. */
+const PEAK_FACTOR = 4;
+
+/** The CPU time a request takes in milliseconds, as @platform/pricing's typical app. */
+const CPU_PER_REQUEST = 5;
+
+/** The database rows a request reads, as @platform/pricing's typical app. */
+const ROWS_READ_PER_REQUEST = 33;
+
+/** The database rows a request writes, as @platform/pricing's typical app. */
+const ROWS_WRITTEN_PER_REQUEST = 1;
+
+/** The size of a file in bytes, as @platform/pricing's storage workload. */
+const FILE_SIZE = MB;
+
+/** The reads each file write brings, as @platform/pricing's storage workload. */
+const FILE_READS_PER_WRITE = 10;
 
 /** The size of a team and of its app's audience a bill is read for. */
 export type Scale = { people: number; users: number };
@@ -64,187 +109,314 @@ function metered(basis: string, monthlyAt: (scale: Scale) => number): Price {
     return { kind: "fee", monthlyAt, basis };
 }
 
-/** The monthly list prices of the tools the figures rent, by subscription. */
+/** The list prices of the tools the figures rent on 2026-10-16, billed annually where offered. */
 export const prices: Readonly<Record<string, Price>> = {
-    Notion: seat(12, "Plus"),
-    Linear: seat(12, "Basic"),
-    Slack: seat(8.75, "Pro"),
+    // per seat, billed annually
+    Notion: seat(10, "Plus, annual"),
+    Linear: seat(10, "Basic, annual"),
+    Slack: seat(7.25, "Pro, annual"),
+    Calendly: seat(10, "Standard, annual"),
+    Replit: seat(18, "Core, annual"),
+    "Google Workspace": seat(7, "Business Starter, annual"),
+    "Microsoft 365": seat(7, "Business Basic, annual"),
+    Superhuman: seat(25, "Mail Starter, annual"),
+    Obsidian: seat(4, "Sync, annual"),
+    ClickUp: seat(7, "Unlimited, annual"),
+    Excalidraw: seat(6, "Excalidraw+, annual"),
+    FigJam: seat(3, "Professional, annual"),
+    Mural: seat(9.99, "Team+, annual"),
+    Lucid: seat(7.95, "Lucidspark Individual, annual"),
+    "Cal.com": seat(12, "Teams, annual"),
+    "Proton Mail": seat(3.99, "Mail Plus, annual"),
+    Coda: seat(12, "Pro, annual"),
+    Trello: seat(5, "Standard, annual"),
+    Asana: seat(10.99, "Starter, annual"),
+    Airtable: seat(20, "Team, annual"),
+    Miro: seat(8, "Starter, annual"),
+    Claude: seat(17, "Pro, annual"),
+    Gemini: seat(16.67, "Google AI Pro, annual"),
+    Grok: seat(25, "SuperGrok, annual"),
+
+    // per seat, with one price however billed
+    Confluence: seat(5.78, "Standard"),
+    Jira: seat(8.48, "Standard"),
+    Doppler: seat(21, "Team"),
+    ChatGPT: seat(20, "Plus, monthly only"),
+
+    // flat, billed annually where offered
+    Framer: flat(10, "Basic site, annual"),
+    Make: flat(9, "Core, annual"),
+    Zapier: flat(19.99, "Professional, annual"),
+    n8n: flat(20, "Starter, annual, in euros"),
     Discord: flat(0, "Free"),
+    Thunderbird: flat(0, "Free"),
+    DeepSeek: flat(0, "Free"),
+    WhatsApp: flat(0, "Free"),
+
+    // metered, by each vendor's published meters
     GitHub: metered("Team + Actions", ({ people }) => {
         const minutes = ciMinutesAt(people);
 
         return SEAT_GITHUB * people + Math.max(0, minutes - ACTIONS_INCLUDED) * ACTIONS_RATE;
     }),
-    Framer: flat(15, "Basic site"),
-    Calendly: seat(12, "Standard"),
-    Replit: seat(20, "Core"),
-    "Google Workspace": seat(8.4, "Business Starter"),
-    "Microsoft 365": seat(8.4, "Business Basic"),
     WorkOS: metered("Free to 1M users", ({ users }) =>
         users <= 1_000_000 ? 0 : Math.ceil((users - 1_000_000) / 1_000_000) * 2_500,
     ),
-    Doppler: seat(21, "Team"),
     Supabase: metered("Pro + usage", ({ users }) => {
         const database = (users * workloadOf("Supabase").perUser.database) / GB;
 
         return 25 + Math.max(0, users - 100_000) * 0.003_25 + Math.max(0, database - 8) * 0.125;
     }),
     Resend: metered("Pro or Scale", ({ users }) => resendAt(users * EMAILS_PER_USER)),
-    Temporal: metered("Essentials + actions", ({ users }) => {
-        const actions = users * ACTIONS_PER_USER;
-
-        return 100 + Math.max(0, actions - 1_000_000) * 0.000_05;
-    }),
+    Temporal: metered("Actions", ({ users }) =>
+        temporalAt(users * ACTIONS_PER_USER * STEPS_PER_ACTION),
+    ),
     PostHog: metered("Free to 1M events", ({ users }) => postHogAt(users * EVENTS_PER_USER)),
-    Vercel: metered("Pro + transfer", ({ people, users }) => {
-        const transfer = (users * TRANSFER_PER_USER) / GB;
-        const requests = users * REQUESTS_PER_USER;
-
-        return (
-            20 * people +
-            Math.max(0, transfer - 1_000) * 0.15 +
-            Math.max(0, requests - 10_000_000) * 0.000_002
-        );
-    }),
-    Superhuman: seat(30, "Starter"),
-    Confluence: seat(5.16, "Standard"),
-    Obsidian: seat(5, "Sync"),
-    ClickUp: seat(10, "Unlimited"),
-    Excalidraw: seat(6, "Excalidraw+"),
-    FigJam: seat(5, "Professional"),
-    Mural: seat(12, "Team+"),
-    Lucid: seat(9, "Lucidspark Individual"),
-    Thunderbird: flat(0, "Free"),
-    DeepSeek: flat(0, "Free"),
-    Make: flat(10.59, "Core"),
-    "Cal.com": seat(15, "Teams"),
-    WhatsApp: flat(0, "Free"),
-    "Proton Mail": seat(4.99, "Mail Plus"),
-    Coda: seat(16, "Pro"),
-    Jira: seat(7.91, "Standard"),
-    Trello: seat(6, "Standard"),
-    Asana: seat(13.49, "Starter"),
-    Airtable: seat(24, "Team"),
-    Miro: seat(10, "Starter"),
-    Zapier: flat(29.99, "Professional"),
-    n8n: flat(24, "Starter"),
-    ChatGPT: seat(20, "Plus"),
-    Claude: seat(20, "Pro"),
-    Gemini: seat(19.99, "Google AI Pro"),
-    Grok: seat(30, "SuperGrok"),
+    Vercel: metered(
+        "Pro + CDN",
+        ({ people, users }) => 20 * people + cdnAt(users * REQUESTS_PER_USER),
+    ),
 };
 
 /** The users the figures that count people read a bill for: an app a few months into its launch. */
 export const BASE_USERS = 1_000;
 
-/** The work a tool's job takes a month: in database and file bytes, GB-hours and requests. */
-export type Usage = { database: number; files: number; compute: number; requests: number };
+/** The bytes a tool keeps, averaged over the month. */
+type Kept = { database: number; files: number };
 
-/** The work a tool's job takes: once for the team, per person, and per user. */
-export type Workload = { shared: Usage; perPerson: Usage; perUser: Usage; isAtLeast: boolean };
+/** The work a tool's job takes: once for the team, per person, per user, and in batch jobs. */
+export type Workload = {
+    /** What the team keeps once, whatever its size. */
+    shared: Kept;
+    /** What each person keeps, the hours they have the tool open a workday, and their requests. */
+    perPerson: Kept & { hours: number; requests: number };
+    /** What an app keeps for each of its users, and the requests each user makes a month. */
+    perUser: Kept & { requests: number };
+    /** The GB-hours of batch jobs a month, such as CI runs, beside the requests. */
+    batch: (scale: Scale) => number;
+    /** Whether the work is a floor, since it runs code of the team's own. */
+    isAtLeast: boolean;
+};
 
-/** No work at all. */
-const none: Usage = { database: 0, files: 0, compute: 0, requests: 0 };
+/** A month of work on every meter Destack bills. */
+export type Usage = {
+    /** The bytes kept in databases. */
+    database: number;
+    /** The bytes kept in buckets. */
+    files: number;
+    /** The memory held, in GB-hours. */
+    memory: number;
+    /** The CPU time spent on requests, in milliseconds. */
+    cpu: number;
+    /** The requests served. */
+    requests: number;
+    /** The database rows read. */
+    rowsRead: number;
+    /** The database rows written. */
+    rowsWritten: number;
+    /** The bucket reads. */
+    fileReads: number;
+    /** The bucket writes. */
+    fileWrites: number;
+};
+
+/** Destack's usage rates in US dollars: per GB-month, per GB-hour, and per million of the rest. */
+export type Rates = Readonly<Record<keyof Usage, number>>;
+
+/** Nothing kept. */
+const nothing: Kept = { database: 0, files: 0 };
 
 /** Return a workload from the parts of it a tool has. */
 function workloadFrom(parts: {
-    shared?: Partial<Usage>;
-    perPerson?: Partial<Usage>;
-    perUser?: Partial<Usage>;
+    shared?: Partial<Kept>;
+    perPerson?: Partial<Workload["perPerson"]>;
+    perUser?: Partial<Workload["perUser"]>;
+    batch?: (scale: Scale) => number;
     isAtLeast?: boolean;
 }): Workload {
     return {
-        shared: { ...none, ...parts.shared },
-        perPerson: { ...none, ...parts.perPerson },
-        perUser: { ...none, ...parts.perUser },
+        shared: { ...nothing, ...parts.shared },
+        perPerson: { ...nothing, hours: 0, requests: 0, ...parts.perPerson },
+        perUser: { ...nothing, requests: 0, ...parts.perUser },
+        batch: parts.batch ?? (() => 0),
         isAtLeast: parts.isAtLeast ?? false,
     };
 }
 
 /** Return the workload of a tool each person uses alone, such as their docs or mail. */
-function personal(usage: Partial<Usage>): Workload {
-    return workloadFrom({ perPerson: usage });
+function personal(perPerson: Workload["perPerson"]): Workload {
+    return workloadFrom({ perPerson });
 }
 
-/** The work each tool's job takes a few months into a launch, by tool. */
+/** Documents: open 2 hours a workday with a request every 5 seconds, and a year of pages. */
+const documents = personal({
+    hours: 2,
+    requests: 1_440,
+    // 30 pages a month of 200 blocks at 2 KB with indexes and history, kept a year
+    database: 144 * MB,
+    // 20 images a month of 400 KB, kept a year
+    files: 96 * MB,
+});
+
+/** Tasks: open 1.5 hours a workday at 200 requests an hour, and a year of issues. */
+const tasks = personal({
+    hours: 1.5,
+    requests: 300,
+    // 100 issues a month of 35 KB with their comments and history, kept a year
+    database: 42 * MB,
+    // a month's attachments, kept a year
+    files: 12 * ATTACHMENTS,
+});
+
+/** Chat: open all workday at 120 requests an hour, and a year of messages. */
+const chat = personal({
+    hours: 8,
+    requests: 960,
+    // 200 messages a workday at 2 KB with indexes, kept a year
+    database: 106 * MB,
+    // 2 shared files a workday of 1 MB, kept a year
+    files: 528 * MB,
+});
+
+/** Mail: open 3 hours a workday at 120 requests an hour, and an 8 GB mailbox. */
+const mail = personal({
+    hours: 3,
+    requests: 360,
+    // the mailbox's index, 5% of it
+    database: 400 * MB,
+    // the bodies and attachments
+    files: 7.6 * GB,
+});
+
+/** Calendar: open half an hour a workday at 60 requests an hour, and a year of events. */
+const calendar = personal({
+    hours: 0.5,
+    requests: 30,
+    // 100 events a month of 2 KB, kept a year
+    database: 2.4 * MB,
+    files: 0,
+});
+
+/** Tables: open an hour a workday at 200 requests an hour, and 5,000 rows with history. */
+const tables = personal({ hours: 1, requests: 200, database: 20 * MB, files: 100 * MB });
+
+/** Canvas: open an hour a workday with every cursor move sent, 600 requests an hour. */
+const canvas = personal({ hours: 1, requests: 600, database: 30 * MB, files: 30 * MB });
+
+/** Automation: 750 runs a month of 5 steps, and a year of run history at 2 KB a step. */
+const automation = personal({ hours: 0.5, requests: 170, database: 90 * MB, files: 0 });
+
+/** Agents: calling into the space an hour a workday at 120 requests an hour. */
+const agents = personal({ hours: 1, requests: 120, database: 15 * MB, files: 0 });
+
+/** The work each tool's job takes after a year of use, by tool. */
 export const workloads: Readonly<Record<string, Workload>> = {
-    Notion: personal({ database: 141 * MB, files: 94 * MB, compute: 0.01 }),
-    Linear: personal({ database: 22 * MB, files: ATTACHMENTS, compute: 0.01 }),
-    Slack: personal({ database: 326 * MB, files: 489 * MB, compute: 0.5 }),
-    Discord: personal({ database: 160 * MB, files: 240 * MB, compute: 0.3 }),
-    Calendly: personal({ database: 0.6 * MB, files: 0, compute: 0.005 }),
-    Gmail: personal({ database: 400 * MB, files: 7.6 * GB, compute: 0.2 }),
-    Superhuman: personal({ database: 400 * MB, files: 7.6 * GB, compute: 0.2 }),
-    Jira: personal({ database: 22 * MB, files: ATTACHMENTS, compute: 0.01 }),
-    Trello: personal({ database: 15 * MB, files: ATTACHMENTS, compute: 0.01 }),
-    Asana: personal({ database: 22 * MB, files: ATTACHMENTS, compute: 0.01 }),
-    Airtable: personal({ database: 12 * MB, files: 100 * MB, compute: 0.02 }),
-    Miro: personal({ database: 30 * MB, files: 30 * MB, compute: 0.05 }),
-    Zapier: personal({ database: 1 * MB, files: 0, compute: 0.05 }),
-    Calendar: personal({ database: 1 * MB, files: 0, compute: 0.005 }),
-    Docs: personal({ database: 12 * MB, files: 80 * MB, compute: 0.01 }),
-    Confluence: personal({ database: 24 * MB, files: 100 * MB, compute: 0.01 }),
-    Obsidian: personal({ database: 45 * MB, files: 105 * MB, compute: 0.005 }),
-    ClickUp: personal({ database: 27 * MB, files: ATTACHMENTS, compute: 0.01 }),
-    Excalidraw: personal({ database: 10 * MB, files: 10 * MB, compute: 0.01 }),
-    FigJam: personal({ database: 30 * MB, files: 30 * MB, compute: 0.03 }),
-    Mural: personal({ database: 30 * MB, files: 30 * MB, compute: 0.04 }),
-    Lucid: personal({ database: 20 * MB, files: 20 * MB, compute: 0.03 }),
-    Thunderbird: personal({ database: 300 * MB, files: 5.7 * GB, compute: 0.2 }),
-    DeepSeek: personal({ database: 15 * MB, files: 0, compute: 0 }),
-    "Power Automate": personal({ database: 1 * MB, files: 0, compute: 0.05 }),
-    "Outlook Calendar": personal({ database: 1 * MB, files: 0, compute: 0.005 }),
-    Make: personal({ database: 1 * MB, files: 0, compute: 0.05 }),
-    Word: personal({ database: 9 * MB, files: 80 * MB, compute: 0.01 }),
-    Excel: personal({ database: 5 * MB, files: 30 * MB, compute: 0.01 }),
-    "Cal.com": personal({ database: 0.6 * MB, files: 0, compute: 0.005 }),
-    Teams: personal({ database: 360 * MB, files: 540 * MB, compute: 0.5 }),
-    "Google Chat": personal({ database: 150 * MB, files: 150 * MB, compute: 0.2 }),
-    WhatsApp: personal({ database: 100 * MB, files: 400 * MB, compute: 0.1 }),
-    Outlook: personal({ database: 400 * MB, files: 7.6 * GB, compute: 0.2 }),
-    "Proton Mail": personal({ database: 150 * MB, files: 2850 * MB, compute: 0.1 }),
-    Coda: personal({ database: 12 * MB, files: 60 * MB, compute: 0.02 }),
-    Sheets: personal({ database: 7.2 * MB, files: 10 * MB, compute: 0.01 }),
-    n8n: personal({ database: 1 * MB, files: 0, compute: 0.1 }),
-    ChatGPT: personal({ database: 15 * MB, files: 0, compute: 0 }),
-    Claude: personal({ database: 15 * MB, files: 0, compute: 0 }),
-    Gemini: personal({ database: 15 * MB, files: 0, compute: 0 }),
-    Grok: personal({ database: 20 * MB, files: 0, compute: 0 }),
+    // documents
+    Notion: documents,
+    Docs: documents,
+    Word: documents,
+    Confluence: documents,
+    Obsidian: documents,
+
+    // tasks
+    Linear: tasks,
+    Jira: tasks,
+    Asana: tasks,
+    Trello: tasks,
+    ClickUp: tasks,
+
+    // chat
+    Slack: chat,
+    Teams: chat,
+    Discord: chat,
+    "Google Chat": chat,
+    WhatsApp: chat,
+
+    // mail
+    Gmail: mail,
+    Outlook: mail,
+    Superhuman: mail,
+    Thunderbird: mail,
+    "Proton Mail": mail,
+
+    // calendar
+    Calendar: calendar,
+    "Outlook Calendar": calendar,
+    Calendly: calendar,
+    "Cal.com": calendar,
+
+    // tables
+    Airtable: tables,
+    Sheets: tables,
+    Excel: tables,
+    Coda: tables,
+
+    // canvas
+    Miro: canvas,
+    FigJam: canvas,
+    Mural: canvas,
+    Lucid: canvas,
+    Excalidraw: canvas,
+
+    // automation
+    Zapier: automation,
+    Make: automation,
+    n8n: automation,
+    "Power Automate": automation,
+
+    // agents
+    ChatGPT: agents,
+    Claude: agents,
+    Gemini: agents,
+    DeepSeek: agents,
+    Grok: agents,
+
+    // code: a repository, each developer's work, and CI runs
     GitHub: workloadFrom({
-        shared: {
-            database: 100 * MB,
-            files: 2.85 * GB,
-            compute: ((ciMinutesAt(1) - CI_MINUTES_PER_DEVELOPER) / 60) * CI_MEMORY,
-        },
-        perPerson: { database: 50 * MB, compute: (CI_MINUTES_PER_DEVELOPER / 60) * CI_MEMORY },
+        shared: { database: 100 * MB, files: 2.85 * GB },
+        perPerson: { hours: 2, requests: 200, database: 50 * MB },
+        batch: ({ people }) => (ciMinutesAt(people) / 60) * CI_MEMORY,
     }),
+
+    // a website: its pages, the team's edits, and each visitor's page loads
     Framer: workloadFrom({
         shared: { database: 33 * MB, files: 77 * MB },
-        perUser: { compute: 0.000_02, requests: REQUESTS_PER_USER },
+        perPerson: { hours: 0.25, requests: 100 },
+        perUser: { requests: REQUESTS_PER_USER },
     }),
+
+    // a waitlist app of the team's own code, and each signup's page loads
     Replit: workloadFrom({
         shared: { files: 150 * MB },
-        perUser: { database: 0.15 * MB, compute: 0.01, requests: REQUESTS_PER_USER },
+        perPerson: { hours: 0.5, requests: 100 },
+        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
         isAtLeast: true,
     }),
+
+    // identity: a 25 KB account with its sessions
+    WorkOS: workloadFrom({ perUser: { database: 0.025 * MB, requests: SIGN_IN_REQUESTS } }),
+    // secrets: a few hundred keys with their history, read only as instances start
+    Doppler: workloadFrom({ shared: { database: 2 * MB } }),
+    // data: each user's rows and indexes, 0.4 MB, and 45 KB of uploads
+    Supabase: workloadFrom({
+        perUser: { database: 0.405 * MB, files: 0.045 * MB, requests: REQUESTS_PER_USER },
+    }),
+    // messages: a year of 3 emails a month, logged and kept
+    Resend: workloadFrom({
+        perUser: { database: 0.05 * MB, files: 0.05 * MB, requests: EMAILS_PER_USER },
+    }),
+    // jobs: a year of workflow history
+    Temporal: workloadFrom({
+        perUser: { database: 0.2 * MB, requests: ACTIONS_PER_USER * STEPS_PER_ACTION },
+    }),
+    // analytics: a year of 50 events a month at 1.5 KB
+    PostHog: workloadFrom({ perUser: { database: 0.9 * MB, requests: EVENTS_PER_USER } }),
+    // hosting: the app's build and assets, and each user's page loads
     Vercel: workloadFrom({
         shared: { database: 40 * MB, files: 1.96 * GB },
-        perUser: { compute: 0.018, requests: REQUESTS_PER_USER },
+        perUser: { requests: REQUESTS_PER_USER },
         isAtLeast: true,
     }),
-    Supabase: workloadFrom({
-        perUser: {
-            database: 0.405 * MB,
-            files: 0.045 * MB,
-            compute: 0.000_3,
-            requests: REQUESTS_PER_USER,
-        },
-    }),
-    PostHog: workloadFrom({ perUser: { database: 3 * MB, compute: 0.000_5 } }),
-    Resend: workloadFrom({ perUser: { database: 0.05 * MB, files: 0.05 * MB, compute: 0.000_01 } }),
-    Temporal: workloadFrom({ perUser: { database: 0.2 * MB, compute: 0.000_1 } }),
-    WorkOS: workloadFrom({ perUser: { database: 0.025 * MB, compute: 0.000_01 } }),
-    Doppler: workloadFrom({ shared: { database: 2 * MB, compute: 0.001 } }),
 };
 
 /** Return the CI minutes a repository runs a month for a team of developers. */
@@ -252,36 +424,78 @@ function ciMinutesAt(people: number): number {
     return CI_MINUTES + (people - 1) * CI_MINUTES_PER_DEVELOPER;
 }
 
-/** Return the work a workload takes for a team and its audience. */
+/** Return the work a workload takes for a team and its audience, on every meter. */
 export function usageAt(workload: Workload, scale: Scale): Usage {
-    const at = (key: keyof Usage) =>
+    // keep the team's bytes, each person's and each user's
+    const kept = (key: keyof Kept) =>
         workload.shared[key] +
         workload.perPerson[key] * scale.people +
         workload.perUser[key] * scale.users;
 
+    // count each person's requests over their workdays and each user's over the month
+    const personRequests = workload.perPerson.requests * WORKDAYS * scale.people;
+    const userRequests = workload.perUser.requests * scale.users;
+    const requests = personRequests + userRequests;
+
+    // hold instances awake for every open hour and every user request, none overlapping
+    const hours = workload.perPerson.hours * WORKDAYS * scale.people;
+    const awake = hours + (userRequests * AWAKE_SECONDS) / SECONDS_PER_HOUR;
+    const instances = instancesAt(scale.people, userRequests);
+    const memory = INSTANCE_MEMORY * Math.min(awake, instances * HOURS_PER_MONTH);
+
+    // write every file again each month, and read each write ten times
+    const files = kept("files");
+    const fileWrites = files / FILE_SIZE;
+
     return {
-        database: at("database"),
-        files: at("files"),
-        compute: at("compute"),
-        requests: at("requests"),
+        database: kept("database"),
+        files,
+        memory: memory + workload.batch(scale),
+        cpu: requests * CPU_PER_REQUEST,
+        requests,
+        rowsRead: requests * ROWS_READ_PER_REQUEST,
+        rowsWritten: requests * ROWS_WRITTEN_PER_REQUEST,
+        fileReads: fileWrites * FILE_READS_PER_WRITE,
+        fileWrites,
     };
+}
+
+/** Return the instances a team and its users keep busy: one per 25 people or per peak load. */
+function instancesAt(people: number, userRequests: number): number {
+    // count an instance per 25 people and per 50 requests a second at the busiest hour
+    const peak = (PEAK_FACTOR * userRequests) / (HOURS_PER_MONTH * SECONDS_PER_HOUR);
+    const byPeople = Math.ceil(people / PEOPLE_PER_INSTANCE);
+    const byLoad = Math.ceil(peak / REQUESTS_PER_SECOND);
+
+    return Math.max(1, byPeople, byLoad);
 }
 
 /** Return the sum of workloads, such as the tools a row puts together. */
 export function sumOf(tools: readonly Workload[]): Workload {
-    const add = (part: "shared" | "perPerson" | "perUser"): Usage => ({
-        database: tools.reduce((sum, each) => sum + each[part].database, 0),
-        files: tools.reduce((sum, each) => sum + each[part].files, 0),
-        compute: tools.reduce((sum, each) => sum + each[part].compute, 0),
-        requests: tools.reduce((sum, each) => sum + each[part].requests, 0),
-    });
-
     return {
-        shared: add("shared"),
-        perPerson: add("perPerson"),
-        perUser: add("perUser"),
+        shared: {
+            database: totalOf(tools.map((each) => each.shared.database)),
+            files: totalOf(tools.map((each) => each.shared.files)),
+        },
+        perPerson: {
+            database: totalOf(tools.map((each) => each.perPerson.database)),
+            files: totalOf(tools.map((each) => each.perPerson.files)),
+            hours: totalOf(tools.map((each) => each.perPerson.hours)),
+            requests: totalOf(tools.map((each) => each.perPerson.requests)),
+        },
+        perUser: {
+            database: totalOf(tools.map((each) => each.perUser.database)),
+            files: totalOf(tools.map((each) => each.perUser.files)),
+            requests: totalOf(tools.map((each) => each.perUser.requests)),
+        },
+        batch: (scale) => totalOf(tools.map((each) => each.batch(scale))),
         isAtLeast: tools.some((each) => each.isAtLeast),
     };
+}
+
+/** Return the sum of numbers. */
+function totalOf(values: readonly number[]): number {
+    return values.reduce((sum, value) => sum + value, 0);
 }
 
 /** Return what Resend charges for a month's emails: Pro, then Scale, then overage. */
@@ -301,6 +515,31 @@ function resendAt(emails: number): number {
     return plan === undefined ? 1_150 + (emails - 2_500_000) * 0.000_46 : plan[1];
 }
 
+/** Return what Temporal Cloud charges for a month's actions: $50 a million to 5M, then $25. */
+function temporalAt(actions: number): number {
+    const first = Math.min(actions, 5_000_000);
+    const rest = Math.max(0, actions - 5_000_000);
+
+    return first * 0.000_05 + rest * 0.000_025;
+}
+
+/** Return what Vercel's flat rate CDN charges for a month's requests: free to 1M, then by tier. */
+function cdnAt(requests: number): number {
+    // read the tiers, each with the requests it covers
+    const tiers: readonly (readonly [requests: number, monthly: number])[] = [
+        [1_000_000, 0],
+        [10_000_000, 20],
+        [50_000_000, 100],
+        [150_000_000, 300],
+    ];
+
+    // pick the smallest tier that covers the requests
+    const tier = tiers.find(([included]) => requests <= included);
+
+    // take the top tier again for every 150M requests past it
+    return tier === undefined ? 300 * Math.ceil(requests / 150_000_000) : tier[1];
+}
+
 /** Return what PostHog charges for a month's events: a free million, then falling rates. */
 function postHogAt(events: number): number {
     // read the tiers, each priced up to its top
@@ -310,7 +549,8 @@ function postHogAt(events: number): number {
         [15_000_000, 0.000_034_3],
         [50_000_000, 0.000_029_5],
         [100_000_000, 0.000_021_8],
-        [Number.POSITIVE_INFINITY, 0.000_015],
+        [250_000_000, 0.000_015],
+        [Number.POSITIVE_INFINITY, 0.000_009],
     ];
 
     // add each tier's share of the events at its rate
@@ -334,17 +574,22 @@ export function workloadOf(tool: string): Workload {
     return workload;
 }
 
-/** Return what a month's work costs at Destack's unit prices, requests priced by the million. */
-export function usageCostOf(
-    usage: Usage,
-    rates: { database: number; files: number; compute: number; requests: number },
-): number {
-    // price each meter at its rate
-    const database = (usage.database / GB) * rates.database;
-    const files = (usage.files / GB) * rates.files;
-    const requests = (usage.requests / 1_000_000) * rates.requests;
+/** Return what a month's work costs at Destack's unit prices, on every meter it bills. */
+export function usageCostOf(usage: Usage, rates: Rates): number {
+    // price the bytes kept by the GB-month, and the memory by the GB-hour
+    const kept = (usage.database / GB) * rates.database + (usage.files / GB) * rates.files;
+    const memory = usage.memory * rates.memory;
 
-    return database + files + usage.compute * rates.compute + requests;
+    // price every counted meter by the million
+    const counted =
+        usage.cpu * rates.cpu +
+        usage.requests * rates.requests +
+        usage.rowsRead * rates.rowsRead +
+        usage.rowsWritten * rates.rowsWritten +
+        usage.fileReads * rates.fileReads +
+        usage.fileWrites * rates.fileWrites;
+
+    return kept + memory + counted / MILLION;
 }
 
 /** Return the price of a subscription by its name, or refuse a name the price list lacks. */

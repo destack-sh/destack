@@ -3,17 +3,22 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
 import {
+    cpuUnit,
     CREDIT_PRICES,
     databaseBytesUnit,
     memoryUnit,
     requestsUnit,
+    rowsReadUnit,
+    rowsWrittenUnit,
     storageBytesUnit,
+    storageReadsUnit,
+    storageWritesUnit,
 } from "@platform/pricing";
 
 /** The GB-seconds in a GB-hour. */
 const SECONDS_PER_HOUR = 3600;
 
-/** The requests in a million, the quantity the site prices requests per. */
+/** The units in a million, the quantity the site prices counted meters per. */
 const MILLION = 1_000_000;
 
 /** The minor units of credits in a credit. */
@@ -33,19 +38,24 @@ const generatedFile = join(
 const isCheck = process.argv.includes("--check");
 
 // price usage at Destack's own unit prices, in US dollars
-/** The site's usage rates in US dollars, per GB-month, GB-hour and million requests. */
+/** The site's usage rates in US dollars, per GB-month, GB-hour or million. */
 const rates = {
     database: rateOf(databaseBytesUnit, GIGABYTE),
     files: rateOf(storageBytesUnit, GIGABYTE),
-    compute: rateOf(memoryUnit, SECONDS_PER_HOUR),
+    memory: rateOf(memoryUnit, SECONDS_PER_HOUR),
+    cpu: rateOf(cpuUnit, MILLION),
     requests: rateOf(requestsUnit, MILLION),
+    rowsRead: rateOf(rowsReadUnit, MILLION),
+    rowsWritten: rateOf(rowsWrittenUnit, MILLION),
+    fileReads: rateOf(storageReadsUnit, MILLION),
+    fileWrites: rateOf(storageWritesUnit, MILLION),
 };
 
 // render the generated module
 /** The generated rates module source. */
 const generatedSource = await formatSource(
     generatedFile,
-    `/** The homepage's usage rates in US dollars, per GB-month, GB-hour and million requests. */\n` +
+    `/** The homepage's usage rates in US dollars, per GB-month, GB-hour or million. */\n` +
         `export const rates = ${JSON.stringify(rates)} as const;\n`,
 );
 

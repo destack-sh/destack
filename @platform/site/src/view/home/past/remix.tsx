@@ -52,24 +52,24 @@ export const entities: Record<string, Entity> = {
     chatgpt: { label: "ChatGPT", icon: "openai", role: "Agent", tint: "#10a37f" },
     claude: { label: "Claude", icon: "claude", role: "Agent", tint: "#d97757" },
 
-    // silos, at the list price of their recommended plan, billed yearly
+    // silos, at the list price of their entry team plan, billed yearly
     notion: {
         label: "Notion",
         icon: "notion",
-        role: "$20/seat/mo + credits",
+        role: "$10/seat/mo + credits",
         tint: "#ffffff",
         glyph: "#191919",
     },
     airtable: {
         label: "Airtable",
         icon: "airtable",
-        role: "$45/seat/mo + credits",
+        role: "$20/seat/mo",
         tint: "#18bfff",
     },
-    typeform: { label: "Typeform", icon: "typeform", role: "$91/mo + credits", tint: "#262627" },
-    dropbox: { label: "Dropbox", icon: "dropbox", role: "$18/seat/mo", tint: "#0061ff" },
-    figma: { label: "Figma", icon: "figma", role: "$55/seat/mo + credits", tint: "#f24e1e" },
-    slack: { label: "Slack", icon: "slack", role: "$15/seat/mo", tint: "#4a154b" },
+    typeform: { label: "Typeform", icon: "typeform", role: "$28/mo", tint: "#262627" },
+    dropbox: { label: "Dropbox", icon: "dropbox", role: "$15/seat/mo", tint: "#0061ff" },
+    figma: { label: "Figma", icon: "figma", role: "$16/seat/mo + credits", tint: "#f24e1e" },
+    slack: { label: "Slack", icon: "slack", role: "$7.25/seat/mo", tint: "#4a154b" },
     granola: {
         label: "Granola",
         icon: "file",
@@ -77,10 +77,10 @@ export const entities: Record<string, Entity> = {
         tint: "#9cbb3c",
         logos: ["granola.png"],
     },
-    gdocs: { label: "Google Docs", icon: "googledocs", role: "$14/seat/mo", tint: "#4285f4" },
-    calendly: { label: "Calendly", icon: "calendly", role: "$16/seat/mo", tint: "#006bff" },
-    linear: { label: "Linear", icon: "linear", role: "$16/seat/mo + credits", tint: "#5e6ad2" },
-    github: { label: "GitHub", icon: "github", role: "$21/seat/mo + credits", tint: "#24292f" },
+    gdocs: { label: "Google Docs", icon: "googledocs", role: "$7/seat/mo", tint: "#4285f4" },
+    calendly: { label: "Calendly", icon: "calendly", role: "$10/seat/mo", tint: "#006bff" },
+    linear: { label: "Linear", icon: "linear", role: "$10/seat/mo + credits", tint: "#5e6ad2" },
+    github: { label: "GitHub", icon: "github", role: "$4/seat/mo", tint: "#24292f" },
     // homemade apps, each built with an app builder on rented services
     tracker: {
         label: "Launch tracker",
@@ -935,11 +935,11 @@ export function Remix(properties: {
                     const own = calls.filter((call) => call.id === card.id);
                     own.forEach((call) => {
                         // find the service cell, or skip a service its band does not show
-                        const service = item(call.self);
+                        const service = item(call.service);
                         if (!service) {
                             return;
                         }
-                        const key = `drop:${card.id}:${call.self}`;
+                        const key = `drop:${card.id}:${call.service}`;
                         kept.add(key);
                         const place = places.get(card.id);
                         const anchor = {

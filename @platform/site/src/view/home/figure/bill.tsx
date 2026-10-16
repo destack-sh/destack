@@ -117,7 +117,7 @@ function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
     return [
         meterOf(usage.database / GB, false),
         meterOf(usage.files / GB, false),
-        meterOf(usage.compute, line.workload.isAtLeast),
+        meterOf(usage.memory, line.workload.isAtLeast),
         { value: dollarsOf(cost), isQuiet: false, isFloor: false },
     ];
 }
