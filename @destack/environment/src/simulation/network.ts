@@ -351,9 +351,14 @@ export class SimulatedNetwork {
 
         // open the socket on an accepted upgrade, and fail it otherwise
         const opening = async () => {
-            // fail the socket on a plain answer, or once it closed while connecting
+            // ask the endpoint, discarding a plain answer's body as a refused client does
             const endpoint = await this.#reach(from, request);
             const answer = await endpoint.answer(request);
+            if (answer.kind === "response") {
+                await answer.response.body?.cancel();
+            }
+
+            // fail the socket on a plain answer, or once it closed while connecting
             if (answer.kind === "response" || socket.readyState !== SimulatedWebSocket.CONNECTING) {
                 socket.closed(ABNORMAL_CLOSURE, "");
 

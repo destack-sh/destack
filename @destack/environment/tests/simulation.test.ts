@@ -243,6 +243,23 @@ test("carry a socket's messages in order through latency, and close it from eith
     ]);
 });
 
+test("fail a socket its listener refuses with a plain answer, and discard the answer's body", async () => {
+    // refuse every upgrade with a streamed body, recording its cancellation
+    const simulation = new Simulation({ seed: 9, start: START });
+    const cancelled: string[] = [];
+    simulation.network.of("server").serve({
+        hostname: "echo.test",
+        port: 443,
+        fetch: () =>
+            new Response(new ReadableStream({ cancel: () => void cancelled.push("cancelled") }), {
+                status: 503,
+            }),
+    });
+    const refused = dial(simulation, "laptop", "ada");
+    await simulation.run({ until: () => refused.events.length === 1 });
+    expect([refused.events, cancelled]).toEqual([["close 1006"], ["cancelled"]]);
+});
+
 test("break sockets across a partition and from a crashed node, and close them on a stopped listener", async () => {
     // serve the echo from a node, and open one socket to be cut off and one to see the crash
     const simulation = new Simulation({ seed: 9, start: START });
