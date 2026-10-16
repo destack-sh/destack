@@ -1,4 +1,4 @@
-import { aligned, canonicalize } from "@destack/schema";
+import { nth, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
@@ -250,7 +250,7 @@ export class ChangeSet {
             // extend a run of the same table's same batched operation, else start another
             const current = runs.at(-1);
             const operation = ChangeSet.#operation(change, dialect);
-            const last = current === undefined ? undefined : aligned(current, 0);
+            const last = current === undefined ? undefined : nth(current, 0);
             const isExtended =
                 current !== undefined &&
                 last !== undefined &&
@@ -298,7 +298,7 @@ export class ChangeSet {
     /** Apply one run of changes: batched inserts and deletes, updates by changed columns. */
     static async #apply(transaction: DatabaseConnection, run: readonly RowChange[]): Promise<void> {
         // read the run's table and operation from its first change
-        const first = aligned(run, 0);
+        const first = nth(run, 0);
         const { table } = first;
         const operation = ChangeSet.#operation(first, transaction.dialect);
 
@@ -370,7 +370,7 @@ export class ChangeSet {
         group: readonly RowChange[],
     ): Promise<void> {
         // update a lone row by its own statement
-        const first = aligned(group, 0);
+        const first = nth(group, 0);
         if (group.length === 1) {
             return ChangeSet.#set(transaction, first);
         }
