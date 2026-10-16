@@ -1,6 +1,6 @@
 # @destack/test
 
-`@destack/test` is Vitest, `defineConfiguration` is Vitest's `defineConfig` with Destack's module metadata, `TestClock` is a clock a test sets, and `Runner` plays declared scenarios through a driver per interaction, as Playwright drives a page.
+`@destack/test` is Vitest, `defineConfiguration` is Vitest's `defineConfig` with Destack's module metadata, and `Runner` plays declared scenarios through a driver per interaction, as Playwright drives a page.
 
 ```ts
 import { expect, test } from "@destack/test"; // vitest
@@ -9,10 +9,6 @@ export default defineConfiguration({ test: { include: ["src/**/*.test.ts"] } });
 // the code and message of a refused call
 expect(await refusal(client.read(pageId))).toEqual(["NOT_FOUND", `no page ${pageId}`]);
 const row = single(await database.select().from(page)); // the only row, or a throw
-// Go's mock clock: follows the system's until set, frozen or advanced
-const clock = new TestClock();
-const destroyedAt = clock.freeze();
-clock.advance(60_000); // releases the clock's sleeps it passes, earliest first
 // picks the driver by the interaction's name
 Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]);
 ```
