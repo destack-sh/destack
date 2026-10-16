@@ -1,5 +1,5 @@
 import { PackageId, type Package } from "@destack/package";
-import { aligned, defineSchema, schema, Version, canonicalize } from "@destack/schema";
+import { nth, defineSchema, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
@@ -223,8 +223,8 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     ): SettingResolution<schema.Infer<Value>> {
         // reject equally ranked candidates other than agreeing recommendations
         for (let index = 1; index < ordinary.length; index++) {
-            const previous = aligned(ordinary, index - 1);
-            const current = aligned(ordinary, index);
+            const previous = nth(ordinary, index - 1);
+            const current = nth(ordinary, index);
             const isShared =
                 previous.mode === "recommend" &&
                 current.mode === "recommend" &&
@@ -247,7 +247,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
 
         // take the requirements, or else the highest ranked candidates
-        const winner = requirement ?? aligned(ordinary, ordinary.length - 1);
+        const winner = requirement ?? nth(ordinary, -1);
         const winners =
             required.length > 0
                 ? required
@@ -591,7 +591,7 @@ function decideKey(
     }
 
     // take the requirement or the highest ranked candidate, refusing a tie of different values
-    const winner = requirement ?? aligned(candidates.ordinary, candidates.ordinary.length - 1);
+    const winner = requirement ?? nth(candidates.ordinary, -1);
     const tied = candidates.ordinary.filter(
         (candidate) => candidate !== winner && compareRanks(candidate, winner) === 0,
     );
