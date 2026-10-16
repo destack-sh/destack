@@ -1,8 +1,3 @@
 # all other generated files
-*.generated.rs linguist-generated
 *.generated.ts linguist-generated
 *.generated.js linguist-generated
-*.generated.cpp linguist-generated
-*.generated.h linguist-generated
-*.generated.kt linguist-generated
-*.generated.swift linguist-generated

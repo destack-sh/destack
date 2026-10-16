@@ -223,13 +223,13 @@ Use the idiomatic vocabulary with zero fluff:
 - **WN10** Names SHOULD follow Simplified Technical English (STE).
 - **WN11** Names SHOULD follow modern prior art terminology where it exists.
 - **WN12** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
-- **WN13** Terminology MUST be established and kept consistent across nouns, verbs and their families for types, methods, enums, variants and fields.
-- **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb).
+- **WN13** Terminology MUST be established and kept consistent, continously, across nouns, verbs and their families for types, methods, enums, variants and fields.
+- **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), keep.
 
 Keep names symmetric and general:
 - **WN20** Names of related logic SHOULD be symmetric.
-- **WN21** Names MUST NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet.
-- **WN22** Generalisations MUST NOT introduce arbitrary interfaces only to avoid `x_for_y`.
+- **WN21** Names should share common and consistent prefixes (whether implicit namespaces or explicit preambles) at common layers (e.g., the sibling noun for `LocalKeyring` should be `LocalKeyringReader`, not just `KeyringReader` if it's specific to `LocalKeyring`)
+- **WN22** Names SHOULD NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet, and generalisations SHOULD NOT introduce arbitrary interfaces only to avoid `x_for_y`.
 - **WN23** Names MAY keep `x_for_y` in data transcription.
 
 Write words out properly:
@@ -240,7 +240,7 @@ Mark booleans, prefer enums:
 - **WN40** Booleans SHOULD start with `is` unless already clear or required by context. (`destack/boolean-prefix`)
 - **WN41** Booleans SHOULD give way to enums where an enum fits.
 
-Name files and accessors by domain:
+Organise files and accessors by domain:
 - **WN50** File and module names SHOULD be single words. (`unicorn/filename-case`)
 - **WN51** File and module names MUST describe their domain or purpose.
 - **WN52** Accessors SHOULD NOT nest projections such as `revision_files`; a general `files` with a filter, or `files_at_revision`, reads better.
@@ -279,8 +279,8 @@ Branch in structured, symmetric chains:
       Error(..)
   }
   ```
-- **WL31** Branching SHOULD keep a predictable, consistent flow, breadth and depth.
-- **WL32** Early exits MAY use guard returns.
+- **WL31** Branching SHOULD keep a predictable, consistent flow, with symmetrical breadth and depth.
+- **WL32** Early exits MAY use guard returns, but continuous changes are preferred.
 - **WL33** Main branching SHOULD use coherent if-else chains or match statements instead of sequences of jumps.
   ```text
   let Some(extracted) = extract(foo) else {
@@ -305,8 +305,8 @@ Keep state minimal and explicit:
 - **WS03** Fields and dependencies SHOULD be few.
 - **WS04** Fewer state combinations is better, less entropy is better. 
 
-Minimise and model indirect state:s
-- **WS10** Indirect state (global, static, etc.) SHOULD be minimised and is generally considered evil by default and must be reported (this includes those inside classes or similar such constructs, *any* hidden side channel state).
+Minimise and model indirect state:
+- **WS10** Indirect state (global, static, etc.) SHOULD be minimised and is generally considered evil by default and ALL global state new and pre-existing MUST be reported (this includes those inside classes or similar such constructs, *any* hidden side channel state).
 - **WS11** General effect state (time, file system, network, etc.) SHOULD use the platform idiomatic mechanism and MAY be encapsulated in an indirection. 
 
 Name intermediate values:

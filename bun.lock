@@ -18,6 +18,7 @@
       "dependencies": {
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -64,6 +65,7 @@
         "uuid": "14.0.2",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
@@ -77,6 +79,7 @@
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -116,6 +119,7 @@
         "@aws-sdk/client-s3": "3.1141.0",
         "@aws-sdk/s3-request-presigner": "3.1141.0",
         "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
         "esbuild": "~0.28.1",
@@ -153,6 +157,7 @@
         "vite": "8.3.0",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/theme": "workspace:*",
@@ -262,6 +267,7 @@
         "@destack/vault": "workspace:*",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
@@ -274,23 +280,24 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/vault": "workspace:*",
         "jose": "6.2.12",
-        "uuid": "14.0.2",
       },
       "devDependencies": {
         "@destack/event": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
+        "uuid": "14.0.2",
       },
     },
     "@destack/db": {
@@ -339,8 +346,20 @@
         "@destack/view": "workspace:*",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@tauri-apps/cli": "2.12.0",
+        "@types/bun": "1.4.2",
+      },
+    },
+    "@destack/environment": {
+      "name": "@destack/environment",
+      "version": "2026.9.0",
+      "dependencies": {
+        "@destack/schema": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
     },
@@ -358,6 +377,7 @@
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/runtime": "workspace:*",
@@ -398,6 +418,7 @@
         "@destack/vault": "workspace:*",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
         "uuid": "14.0.2",
@@ -413,6 +434,7 @@
         "@destack/build": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -510,6 +532,7 @@
         "@destack/check": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/finance": "workspace:*",
@@ -597,6 +620,7 @@
         "jose": "6.2.12",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
@@ -625,6 +649,7 @@
         "uuid": "14.0.2",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
@@ -637,6 +662,7 @@
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -681,6 +707,7 @@
         "@jridgewell/trace-mapping": "0.3.31",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
@@ -714,6 +741,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
@@ -748,6 +776,7 @@
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -803,6 +832,7 @@
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
@@ -848,6 +878,7 @@
         "uuid": "14.0.2",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/test": "workspace:*",
@@ -863,6 +894,7 @@
         "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/fs": "workspace:*",
@@ -914,6 +946,7 @@
       "version": "2026.9.0",
       "dependencies": {
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -956,6 +989,9 @@
         "@vitest/ui": "5.0.1",
         "vite": "8.3.0",
         "vitest": "5.0.1",
+      },
+      "devDependencies": {
+        "@destack/environment": "workspace:*",
       },
     },
     "@destack/theme": {
@@ -1000,6 +1036,7 @@
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -1058,6 +1095,7 @@
         "@destack/sync": "workspace:*",
       },
       "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/test": "workspace:*",
       },
@@ -1072,6 +1110,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
@@ -1148,6 +1187,26 @@
         "@destack/build",
         "vite",
       ],
+    },
+    "@destack/workflow": {
+      "name": "@destack/workflow",
+      "version": "2026.9.0",
+      "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/runtime": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/sync": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "uuid": "14.0.2",
+      },
     },
     "@platform/brand": {
       "name": "@platform/brand",
@@ -1246,6 +1305,7 @@
         "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/desktop": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -1501,6 +1561,8 @@
 
     "@destack/desktop": ["@destack/desktop@workspace:@destack/desktop"],
 
+    "@destack/environment": ["@destack/environment@workspace:@destack/environment"],
+
     "@destack/error": ["@destack/error@workspace:@destack/error"],
 
     "@destack/event": ["@destack/event@workspace:@destack/event"],
@@ -1574,6 +1636,8 @@
     "@destack/view-notebook-fixture": ["@destack/view-notebook-fixture@workspace:@destack/view/tests/fixture/notebook"],
 
     "@destack/web": ["@destack/web@workspace:@destack/web"],
+
+    "@destack/workflow": ["@destack/workflow@workspace:@destack/workflow"],
 
     "@dual-bundle/import-meta-resolve": ["@dual-bundle/import-meta-resolve@4.2.1", "", {}, "sha512-id+7YRUgoUX6CgV0DtuhirQWodeeA7Lf4i2x71JS/vtA5pRb/hIGWlw+G6MeXvsM+MXrz0VAydTGElX1rAfgPg=="],
 

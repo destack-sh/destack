@@ -10,7 +10,7 @@ If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 
 ## Licensing
 
-Repository authored code is MIT unless otherwise noted; vendored components may retain their own licenses.
+The monorepo is MIT licensed unless otherwise noted; vendored components may retain their own licenses.
 See [LICENSE.txt](LICENSE.txt).
 
 ## Setup
