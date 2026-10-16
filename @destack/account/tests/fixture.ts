@@ -132,7 +132,7 @@ export async function claimNames(
 ): Promise<void> {
     const service = {
         object: claim,
-        home: RemoteStore.of(caller.client.replica, Scope.universe.id),
+        home: RemoteStore.of(caller.client.store, Scope.universe.id),
     };
     const now = Date.now();
     const request = { id: RequestId.create(now), now };

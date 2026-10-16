@@ -319,7 +319,7 @@ test("follow a space's chain at the universe as the space, through the tokens it
         { kind: "home", parent: accountId },
         fixture.objects.source.reached(),
     );
-    const stream = await accounts.replica.stream(present(chain, "the space's chain"), {
+    const stream = await accounts.store.stream(present(chain, "the space's chain"), {
         signal: AbortSignal.timeout(5000),
     });
     const [page] = await Array.fromAsync(take(stream, 1));

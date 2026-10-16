@@ -293,7 +293,7 @@ async function expired(caller: Actor): Promise<unknown[]> {
 /** Replicate an account's chain as a platform installation for its space, reporting the refusal. */
 async function replicas(caller: Actor, space: string, accountId: string): Promise<string> {
     const controller = new AbortController();
-    const replicated = caller.client.replica
+    const replicated = caller.client.store
         .stream(chain(space, accountId), { signal: controller.signal })
         .then((pages) => firstPage(pages));
 
@@ -303,7 +303,7 @@ async function replicas(caller: Actor, space: string, accountId: string): Promis
 /** Read the accounts a platform installation reads among the universe's rows. */
 async function accounts(caller: Actor, space: string): Promise<unknown[]> {
     const controller = new AbortController();
-    const pages = await caller.client.replica.stream(
+    const pages = await caller.client.store.stream(
         {
             name: space,
             scope: Scope.universe.id,

@@ -104,7 +104,7 @@ test("place spaces where they are created, keep names in them, let exactly a spa
 
     // keep the account's row in the chain replica of a space keeping accounts
     const following = new AbortController();
-    const chain = await laptopSpace.client.replica.stream(
+    const chain = await laptopSpace.client.store.stream(
         {
             name: "chain",
             scope: accountId,
@@ -439,7 +439,7 @@ function claims(caller: Actor) {
 /** Replicate the chain above a scope as a machine, below a space if given, reporting a refusal. */
 async function replicas(machine: Actor, scope: string, spaceId?: string): Promise<string> {
     const controller = new AbortController();
-    const replicated = machine.client.replica
+    const replicated = machine.client.store
         .stream(
             {
                 name: "chain",
@@ -476,7 +476,7 @@ async function assignments(machine: Actor): Promise<unknown[]> {
 /** Read the first page of a machine's replica of its placements and work. */
 async function placementChanges(machine: Actor) {
     const controller = new AbortController();
-    const pages = await machine.client.replica.stream(
+    const pages = await machine.client.store.stream(
         Shape.subscription(
             placementShape,
             { scope: Scope.universe.id, machine: machine.id },

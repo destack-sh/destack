@@ -25,7 +25,7 @@ test("replicate every account of a residency to its cloud machine as it is creat
     const { machine } = await fixture.personalHome(owner);
     const controller = new AbortController();
     const pages = (
-        await machine.client.replica.stream(
+        await machine.client.store.stream(
             Shape.subscription(
                 residentShape,
                 { scope: Scope.universe.id, residency: "eu" },
