@@ -10,7 +10,7 @@ export const page = defineObject({
     nested: {
         in: "self",
         optional: true,
-        receive: "edit",
+        receive: "write",
         move: "manage",
     },
     fields: {
@@ -23,9 +23,4 @@ export const page = defineObject({
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     shareable: { isPublic: true },
-}).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+});

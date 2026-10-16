@@ -1,5 +1,5 @@
-import { definePackage } from "@destack/package/declare";
-import { pagesDatabase } from "./stack/index.ts";
+import { definePackage } from "@destack/runtime";
+import { page } from "./object/index.ts";
 
-/** The handle stacks import to install this package. */
-export default definePackage({ resources: { main: pagesDatabase } });
+/** The handle stacks import to install pages in a space, and clients call its pages through. */
+export default definePackage({ objects: { page } });

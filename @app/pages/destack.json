@@ -4,9 +4,6 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
-        "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./package": {
             "runtimes": ["bun", "workerd"]
         }

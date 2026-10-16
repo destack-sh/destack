@@ -51,20 +51,13 @@ await client.page.grant({
 });
 ```
 
-## Service
+## Package
 
-`pagesService` serves pages with their trees, sharing, links and trash.
-
-```ts
-import { pagesService } from "@app/pages/service";
-```
-
-## Tables
-
-`pagesTables` adds the page tables to another package's database, and `install(pages, …)` installs the package with its `main` database.
+The package handle serves pages, stacks install it, and clients call pages through it.
 
 ```ts
 import pages from "@app/pages/package";
 
-export const personal = defineStack({ installations: { pages: install(pages, { main: "main" }) } });
+export const personal = defineStack({ installations: { pages: install(pages, {}) } });
+const client = createClient(pages, { url });
 ```
