@@ -19,7 +19,7 @@ import {
     type MultipartUpload,
 } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
-import { Clock } from "@destack/schema";
+import { Clock } from "@destack/environment";
 
 /** A file a memory bucket keeps: its metadata and bytes. */
 interface MemoryFile {
