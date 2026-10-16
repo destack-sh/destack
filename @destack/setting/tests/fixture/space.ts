@@ -8,4 +8,4 @@ export const space = defineObject({
     isScope: true,
     fields: {},
     permissions: ["read", "write"],
-}).methods();
+});

@@ -1,6 +1,6 @@
 # @destack/setting
 
-`@destack/setting` declares typed settings, keeps their values as `setting` rows along a scope chain, and resolves the value that applies.
+`@destack/setting` declares typed settings, stores their values as `setting` rows along a scope chain, and resolves the value that applies.
 
 ```ts
 import { defineSetting } from "@destack/setting/declare";

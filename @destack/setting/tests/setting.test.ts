@@ -142,11 +142,11 @@ test("resolve each key of a merged setting from its own nearest placement, requi
     // bind one command personally, another on the client, and require a third in the space
     const bindings = { ...personal, ...named(keybindings) };
     const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
-    const kept = { ...laptop, ...named(keybindings), value: { "note.search": "mod+k" } };
+    const local = { ...laptop, ...named(keybindings), value: { "note.search": "mod+k" } };
     const fixed = { ...required, ...named(keybindings), value: { "note.pin": null } };
-    const resolved = keybindings.resolve(selection, [fixed, mine], chain, [kept]);
+    const resolved = keybindings.resolve(selection, [fixed, mine], chain, [local]);
 
-    // keep every key from the placement deciding it, the client override leaving the personal keys
+    // take every key from the placement deciding it, the client override leaving the personal keys
     expect(resolved).toEqual({
         setting: keybindings.reference,
         selection,
@@ -154,7 +154,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
         sources: [
             { kind: "default", package: notes },
             source(mine),
-            clientSource(kept),
+            clientSource(local),
             source(fixed),
         ],
         overridden: [],
@@ -170,7 +170,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
                 overridden: [source(mine)],
                 enforcement: "required",
             },
-            "note.search": { source: clientSource(kept), overridden: [], enforcement: "ordinary" },
+            "note.search": { source: clientSource(local), overridden: [], enforcement: "ordinary" },
         },
     });
 
@@ -310,7 +310,7 @@ test("resolve space settings per installation and machine settings per machine",
         { ...standard, setting: template.reference, selection: second },
     ]);
 
-    // resolve a client setting from the value its client keeps, and refuse a value placed in a scope
+    // resolve a client setting from the value its client stores, and refuse a value placed in a scope
     const cache = defineSetting(
         {
             ...editor.definition,
@@ -370,7 +370,7 @@ test("refuse placements and writes a setting does not permit", () => {
         unsupported,
         {
             code: "INVALID_PLACEMENT",
-            message: `clients cannot keep values of ${SettingReference.key(plain.reference)}`,
+            message: `clients cannot store values of ${SettingReference.key(plain.reference)}`,
         },
         {
             code: "INVALID_PLACEMENT",
@@ -441,12 +441,12 @@ test("skip stored values a changed schema rejects, falling through to the next s
 
     // find the invalid values at their placement and on the client, and nothing where no value is placed
     const resolution = upgraded.resolve(selection, [personal], chain);
-    const kept = upgraded.resolve(selection, [personal], chain, [emacs]);
+    const local = upgraded.resolve(selection, [personal], chain, [emacs]);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
         SettingResolution.observed(resolution, { scope: alice, installation }),
         SettingResolution.observed(resolution, "client"),
-        SettingResolution.observed(kept, "client"),
+        SettingResolution.observed(local, "client"),
     ]).toEqual([
         { id: personal.id, revision: personal.revision },
         null,

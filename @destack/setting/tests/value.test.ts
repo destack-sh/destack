@@ -32,17 +32,21 @@ test.each(TEST_DIALECTS)(
             mode: "set",
             release: "2026.9.0",
         } as const;
-        const base = await storage.call(setting, "create", { ...written, value: "vim" });
-        const override = await storage.call(setting, "create", {
-            ...written,
-            installation,
-            value: "standard",
-        });
-        const changed = await storage.call(setting, "update", {
-            scope: alice,
-            id: override.id,
-            value: "vim",
-        });
+        const base = await storage.call(setting.call("create", { ...written, value: "vim" }));
+        const override = await storage.call(
+            setting.call("create", {
+                ...written,
+                installation,
+                value: "standard",
+            }),
+        );
+        const changed = await storage.call(
+            setting.call("update", {
+                scope: alice,
+                id: override.id,
+                value: "vim",
+            }),
+        );
         const rows = await storage.database
             .select()
             .from(setting.table)
@@ -117,13 +121,15 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => storage.close());
 
         // set a personal editor mode and leave line numbers unset
-        await storage.call(setting, "create", {
-            scope: alice,
-            ...named(editor),
-            mode: "set",
-            value: "vim",
-            release: editor.package.version,
-        });
+        await storage.call(
+            setting.call("create", {
+                scope: alice,
+                ...named(editor),
+                mode: "set",
+                value: "vim",
+                release: editor.package.version,
+            }),
+        );
 
         // resolve the set value and the other setting's default
         expect([
@@ -138,13 +144,15 @@ test.each(TEST_DIALECTS)(
     async (dialect) => {
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
-        const created = await storage.call(setting, "create", {
-            scope: alice,
-            ...named(editor),
-            mode: "set",
-            value: "vim",
-            release: "2026.9.0",
-        });
+        const created = await storage.call(
+            setting.call("create", {
+                scope: alice,
+                ...named(editor),
+                mode: "set",
+                value: "vim",
+                release: "2026.9.0",
+            }),
+        );
 
         // read the values before and after a change
         const stopping = new AbortController();
@@ -156,7 +164,9 @@ test.each(TEST_DIALECTS)(
             stopping.signal,
         );
         const first = await followed.next();
-        await storage.call(setting, "update", { scope: alice, id: created.id, value: "standard" });
+        await storage.call(
+            setting.call("update", { scope: alice, id: created.id, value: "standard" }),
+        );
         const second = await followed.next();
         expect(
             [first, second].map((step) =>

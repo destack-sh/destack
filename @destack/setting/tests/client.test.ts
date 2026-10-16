@@ -115,13 +115,15 @@ test.each(TEST_DIALECTS)(
         });
 
         // watch the space's recommendation apply beneath Alice's own values
-        const recommended = await storage.call(setting, "create", {
-            scope: spaceId,
-            ...named(lineNumbers),
-            mode: "recommend",
-            value: false,
-            release: lineNumbers.package.version,
-        });
+        const recommended = await storage.call(
+            setting.call("create", {
+                scope: spaceId,
+                ...named(lineNumbers),
+                mode: "recommend",
+                value: false,
+                release: lineNumbers.package.version,
+            }),
+        );
         const lowered = {
             ...numbered,
             value: false,
@@ -151,27 +153,29 @@ test.each(TEST_DIALECTS)(
     5000,
 );
 
-test("resolve a value the client keeps over the user's own, keeping it off the server", async () => {
+test("resolve a value the client stores over the user's own, off the server", async () => {
     const storage = await Storage.open("sqlite");
     onTestFinished(() => storage.close());
     const personal = await follow(storage, alice);
     const release = editor.package.version;
 
-    // set Alice's own value on the server, and keep the client's value in its database
-    const placed = await storage.call(setting, "create", {
-        scope: alice,
-        ...named(editor),
-        mode: "set",
-        value: "vim",
-        release,
-    });
-    const kept = personal.mutate(clientSetting).create({
+    // set Alice's own value on the server, and store the client's value in its database
+    const placed = await storage.call(
+        setting.call("create", {
+            scope: alice,
+            ...named(editor),
+            mode: "set",
+            value: "vim",
+            release,
+        }),
+    );
+    const local = personal.mutate(clientSetting).create({
         ...named(editor),
         value: "standard",
         release,
     });
-    const value = await kept.predicted;
-    await kept.confirmed;
+    const value = await local.predicted;
+    await local.confirmed;
 
     // read both layers and resolve the client's value over Alice's
     const selection = SettingSelection.parse({ scope: alice });
@@ -230,13 +234,15 @@ test("replicate a person's values along their chain into a database, yielding ea
 
     // yield none, then Alice's value once she sets it
     const first = await replicated.next();
-    await storage.call(setting, "create", {
-        scope: alice,
-        ...named(editor),
-        mode: "set",
-        value: "vim",
-        release: editor.package.version,
-    });
+    await storage.call(
+        setting.call("create", {
+            scope: alice,
+            ...named(editor),
+            mode: "set",
+            value: "vim",
+            release: editor.package.version,
+        }),
+    );
     const second = await replicated.next();
     await replicated.return(undefined);
 
@@ -272,13 +278,15 @@ test("yield a person's values set before the replica starts in its first yield, 
     const server = serve(storage, alice);
 
     // set Alice's editor before replicating her values
-    await storage.call(setting, "create", {
-        scope: alice,
-        ...named(editor),
-        mode: "set",
-        value: "vim",
-        release: editor.package.version,
-    });
+    await storage.call(
+        setting.call("create", {
+            scope: alice,
+            ...named(editor),
+            mode: "set",
+            value: "vim",
+            release: editor.package.version,
+        }),
+    );
 
     // replicate them, the access rows carrying the scope chain arriving late, and read the first yield
     const database = await connectBunSqlite(":memory:", ObjectClient.tables({ setting }));

@@ -19,7 +19,7 @@ const ValueSource = PlacedValue.extend({
     kind: schema.literal("value"),
 });
 
-/** A value the client keeps. */
+/** A value the client stores. */
 const ClientSource = schema.object({
     /** A client's value. */
     kind: schema.literal("client"),

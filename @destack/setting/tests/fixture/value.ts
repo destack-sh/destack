@@ -53,7 +53,7 @@ export const personal: SettingValue = {
     release: "2026.9.0",
 };
 
-/** The editor mode Alice's laptop keeps. */
+/** The editor mode Alice's laptop stores. */
 export const laptop: ClientSettingValue = {
     id: schema
         .identifier("client-setting")
@@ -100,7 +100,7 @@ export function clientSource(
     value: ClientSettingValue,
     kind: "client" | "invalid" = "client",
 ): SettingSource {
-    const kept = { kind: "client" as const, id: value.id, revision: value.revision };
+    const local = { kind: "client" as const, id: value.id, revision: value.revision };
 
-    return kind === "client" ? kept : { kind, source: kept };
+    return kind === "client" ? local : { kind, source: local };
 }

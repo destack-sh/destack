@@ -5,7 +5,7 @@ import { PackageId } from "@destack/package";
 import { schema, Version } from "@destack/schema";
 import { SettingName } from "../setting/setting.ts";
 
-/** A setting value one client keeps for everyone using it, above every value placed in a scope. */
+/** A setting value one client stores for everyone using it, above every value placed in a scope. */
 export const clientSetting = defineObject({
     name: "client-setting",
     plural: "clientSettings",
@@ -13,9 +13,9 @@ export const clientSetting = defineObject({
     storage: "local",
     fields: {
         /** The package declaring the setting. */
-        packageId: field.string(PackageId),
+        packageId: field.string(PackageId).immutable(),
         /** The setting's name in its declaring package. */
-        name: field.string(SettingName),
+        name: field.string(SettingName).immutable(),
         /** The value. */
         value: field.json(schema.json()),
         /** The release of the setting's package the value was written against. */
@@ -26,11 +26,7 @@ export const clientSetting = defineObject({
     constraints: {
         name: { kind: "index", on: ["packageId", "name"], unique: true },
     },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write", { fields: ["value", "release"] }),
-    delete: method.delete("write"),
-}));
+});
 
 /** A client's setting value as its row stores it. */
 export type ClientSettingValue = Select<typeof clientSetting.table>;

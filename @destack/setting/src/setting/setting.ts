@@ -16,7 +16,7 @@ const DEFAULT_TIER = 0;
 const ENCLOSING_TIER = 1;
 /** Values set in the selected scope follow every recommendation. */
 const SET_TIER = 2;
-/** Values the client keeps follow every value set in the selected scope. */
+/** Values the client stores follow every value set in the selected scope. */
 const CLIENT_TIER = 3;
 
 /** An enclosing recommendation one scope nearer follows a farther one, for any installation. */
@@ -31,7 +31,7 @@ const SPACE_WEIGHT = 2;
 /** A set value for the installation follows one for its space. */
 const INSTALLATION_WEIGHT = 4;
 
-/** A package-local setting name, kept across releases. */
+/** A package-local setting name, stable across releases. */
 export const SettingName = defineSchema(
     schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
 );
@@ -83,7 +83,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** The name, schema, default, scopes and conversions. */
     readonly definition: SettingDefinition<Value>;
 
-    /** Keep a checked declaration. */
+    /** Hold a checked declaration. */
     constructor(owner: Package, definition: SettingDefinition<Value>) {
         this.package = owner;
         this.definition = definition;
@@ -148,8 +148,8 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             : this.#decide(selection, ordinary, required, invalid);
     }
 
-    /** Report whether clients keep values of this setting. */
-    isClientKept(): boolean {
+    /** Report whether clients store values of this setting. */
+    isClientStored(): boolean {
         const { scope, overrides } = this.definition;
 
         return scope === "client" || overrides.some((override) => override === "client");
@@ -196,7 +196,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             ...client.map((value) => this.#clientCandidate(value)),
         ].filter((candidate) => candidate !== undefined);
         for (const candidate of candidates) {
-            // an invalid value, kept apart
+            // an invalid value, set apart
             if (candidate.source.kind === "invalid") {
                 invalid.push(candidate.source);
             }
@@ -413,13 +413,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
     /** Rank a client's value of this setting above every placed one. */
     #clientCandidate(value: ClientSettingValue): Candidate | undefined {
-        // skip the values of other settings, and refuse one the setting keeps off clients
+        // skip the values of other settings, and refuse one the setting holds off clients
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
             return undefined;
-        } else if (!this.isClientKept()) {
+        } else if (!this.isClientStored()) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
-                `clients cannot keep values of ${SettingReference.key(this.reference)}`,
+                `clients cannot store values of ${SettingReference.key(this.reference)}`,
             );
         }
 

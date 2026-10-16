@@ -20,17 +20,17 @@ export const setting = defineObject({
     inherited: {},
     fields: {
         /** The package declaring the setting. */
-        packageId: field.string(PackageId),
+        packageId: field.string(PackageId).immutable(),
         /** The setting's name in its declaring package. */
-        name: field.string(SettingName),
+        name: field.string(SettingName).immutable(),
 
-        // keep the overrides from other databases as identifiers
+        // read the overrides from other databases as identifiers
         /** The consuming package the value applies to. */
-        package: field.string(PackageId).optional(),
+        package: field.string(PackageId).optional().immutable(),
         /** The space the value applies in. */
-        space: field.string(schema.identifier("space")).optional(),
+        space: field.string(schema.identifier("space")).optional().immutable(),
         /** The installation the value applies to. */
-        installation: field.string(schema.identifier("installation")).optional(),
+        installation: field.string(schema.identifier("installation")).optional().immutable(),
 
         /** How the value applies. */
         mode: field.enum(SETTING_MODES),
@@ -64,11 +64,7 @@ export const setting = defineObject({
             },
         },
     },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write", { fields: ["mode", "value", "release"] }),
-    delete: method.delete("write"),
-}));
+});
 
 /** A setting value as its row stores it. */
 export type SettingValue = Select<typeof setting.table>;
@@ -131,7 +127,7 @@ export const SettingValue = {
             readonly scope: string;
             /** The principal reading them. */
             readonly caller: Subject;
-            /** The database keeping the replica, of `ObjectClient.tables({ setting })`. */
+            /** The database with the replica, of `ObjectClient.tables({ setting })`. */
             readonly database: DatabaseConnection;
             /** The settings yielded. */
             readonly settings: readonly SettingReference[];
@@ -156,7 +152,7 @@ export const SettingValue = {
             },
         });
 
-        // keep the first failure, which stops following
+        // record the first failure, which stops following
         const failed = Promise.withResolvers<never>();
         failed.promise.catch(() => {});
         let failure: { readonly error: unknown } | undefined;

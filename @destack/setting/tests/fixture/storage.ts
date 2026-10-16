@@ -1,8 +1,8 @@
 import { Package } from "@destack/package";
-import { Clock } from "@destack/schema";
+import { Clock, present, schema } from "@destack/schema";
 import { outbox } from "@destack/runtime/outbox";
 import { AccessFixture } from "@destack/access/test";
-import { Scope, type ObjectReference, Subject } from "@destack/sync";
+import { Call, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
 import { accessTables, principal, universe } from "@destack/access";
@@ -10,12 +10,7 @@ import { space } from "./space.ts";
 
 import type { Dialect } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
-import {
-    type CallableName,
-    type MethodOutput,
-    type CallInput,
-    type ObjectType,
-} from "@destack/object";
+import { ObjectType } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 
@@ -92,19 +87,15 @@ export class Storage {
             : this.objects.query(caller, call);
     }
 
-    /** Call a method as Alice in its input's scope. */
-    async call<Type extends ObjectType, Name extends CallableName<Type>>(
-        object: Type,
-        name: Name,
-        input: NoInfer<CallInput<Type, Name>> & { readonly scope: string },
-    ): Promise<MethodOutput<Type, Name>> {
+    /** Make a call as Alice in its input's scope. */
+    async call<Result>(call: Call<Result>): Promise<Result> {
         // act in the call's scope
-        const context = subjectContext(this.subject, input.scope);
-        const call = object.call(name, input);
-        const caller = context.access();
+        const object = present(ObjectType.find(this.objects.objects, call), Call.label(call));
+        const scope = schema.string().parse(call.input["scope"]);
+        const caller = subjectContext(this.subject, scope).access();
 
         // read through a query, or write through a one-call mutation
-        return object.method(name).mutates
+        return object.method(call.method).mutates
             ? this.objects
                   .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] })
                   .then(([result]) => result)
