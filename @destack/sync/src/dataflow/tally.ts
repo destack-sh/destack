@@ -100,14 +100,14 @@ export class Tally implements Result {
         selection: SQL,
         reading: TallyReading,
         visibility?: Visibility,
-        admit?: (rows: readonly Row[]) => Promise<ReadonlySet<number>>,
+        decide?: (rows: readonly Row[]) => Promise<ReadonlySet<number>>,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // tally real numbers and admitted rows in memory
+        // tally real numbers and visible rows in memory
         const aggregate = Tally.#aggregate(node);
         const grouping = node.grouping;
         const summed = Tally.#summedColumns(aggregate.values);
-        if (admit !== undefined || summed.some((name) => node.columnKind(name) === "real")) {
-            return Tally.#tally(database, node, selection, visibility, admit);
+        if (decide !== undefined || summed.some((name) => node.columnKind(name) === "real")) {
+            return Tally.#tally(database, node, selection, visibility, decide);
         }
 
         // select the group columns and each measure's terms
@@ -149,13 +149,13 @@ export class Tally implements Result {
         return { sequence, tallies: [...tallies.values()] };
     }
 
-    /** Tally the matched and admitted rows by group in memory, at one log sequence. */
+    /** Tally the matched and visible rows by group in memory, at one log sequence. */
     static async #tally(
         database: DatabaseConnection,
         node: Node,
         selection: SQL,
         visibility: Visibility | undefined,
-        admit: ((rows: readonly Row[]) => Promise<ReadonlySet<number>>) | undefined,
+        decide: ((rows: readonly Row[]) => Promise<ReadonlySet<number>>) | undefined,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
         // select the measured and computed columns
         const measured = Object.values(Tally.#aggregate(node).values).flatMap((measure) =>
@@ -165,7 +165,7 @@ export class Tally implements Result {
             [...node.grouping, ...measured].flatMap((name) => node.columnsRead(name)),
         );
         const fields = {
-            ...(admit === undefined ? {} : node.table[TABLE].logged),
+            ...(decide === undefined ? {} : node.table[TABLE].logged),
             ...Object.fromEntries([...names].map((name) => [name, node.column(name)])),
             ...Object.fromEntries(
                 Object.keys(node.extras).map((name) => [
@@ -185,11 +185,11 @@ export class Tally implements Result {
         const sequence = read.sequence;
         const rows = read.rows.map((row) => Tally.#row(row));
 
-        // tally each admitted row in its group
-        const admitted = admit === undefined ? undefined : await admit(rows);
+        // tally each visible row in its group
+        const shown = decide === undefined ? undefined : await decide(rows);
         const tallies = new Map<string, Tally>();
         for (const [index, row] of rows.entries()) {
-            if (admitted !== undefined && !admitted.has(index)) {
+            if (shown !== undefined && !shown.has(index)) {
                 continue;
             }
             const group = node.rowGroup(row);

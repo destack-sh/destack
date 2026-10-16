@@ -35,9 +35,9 @@ class SwitchingAudience implements Audience {
         return this.#current.where(table);
     }
 
-    /** Admit the rows the current conditions admit. */
-    admits(table: Table, rows: readonly Row[]) {
-        return this.#current.admits(table, rows);
+    /** Show the rows the current conditions allow. */
+    visible(table: Table, rows: readonly Row[]) {
+        return this.#current.visible(table, rows);
     }
 
     /** List no concealed columns. */
@@ -95,9 +95,9 @@ class TimedAudience implements Audience {
         return this.#current.where(table);
     }
 
-    /** Admit the rows visible now. */
-    admits(table: Table, rows: readonly Row[]) {
-        return this.#current.admits(table, rows);
+    /** Show the rows visible now. */
+    visible(table: Table, rows: readonly Row[]) {
+        return this.#current.visible(table, rows);
     }
 
     /** List no concealed columns. */
@@ -132,7 +132,7 @@ class TimedAudience implements Audience {
 }
 
 test.for(TEST_DIALECTS)(
-    "send the rows an audience admits after deciding again at the same position on %s",
+    "send the rows an audience shows after deciding again at the same position on %s",
     async (dialect) => {
         const database = await open(dialect);
         const feed = new Feed(database, [note], { clock: Clock.system });

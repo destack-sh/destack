@@ -39,9 +39,9 @@ export type Subscription = schema.Infer<typeof Subscription>;
 /** Where a replica resumes its subscription, and the origin it follows as. */
 export type Resumption = Pick<Subscription, "after" | "previous" | "origin">;
 
-/** Who a publication's replica is for, which admits its followers and decides its rows. */
+/** Who a publication's replica is for, which authorizes its followers and decides its rows. */
 export const PublicationAudience = schema.enum(["contained", "reader", "caller"]);
-/** Who a publication's replica is for, which admits its followers and decides its rows. */
+/** Who a publication's replica is for, which authorizes its followers and decides its rows. */
 export type PublicationAudience = schema.Infer<typeof PublicationAudience>;
 
 /** A publication a server streams and follows: its audience and the replicas it builds. */

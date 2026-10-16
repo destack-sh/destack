@@ -137,7 +137,7 @@ test.for(TEST_DIALECTS)(
         const audience: Audience = {
             ...EVERYONE,
             watches: [{ table: note, scopes: ["grants"] }],
-            admits: async (table, rows) => {
+            visible: async (table, rows) => {
                 const granted = new Set(
                     (await database.select({ id: note.id }).from(note)).map((row) => row.id),
                 );
@@ -210,7 +210,7 @@ test.for(TEST_DIALECTS)(
             watches: [{ table: task, scopes: ["inbox"] }],
             where: (table, permission) =>
                 table === task && permission === "edit" ? sql`${task.rank} < 5` : sql`true`,
-            admits: async (table, rows, _position, permission) =>
+            visible: async (table, rows, _position, permission) =>
                 new Set(
                     rows.flatMap((row, index) =>
                         table !== task || permission !== "edit" || isEditable(row) ? [index] : [],

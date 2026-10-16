@@ -221,8 +221,8 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Admit a decided row to its windows or partitions. */
-    protected admit(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
+    /** Place a decided row in its windows or partitions. */
+    protected place(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
         this.context.sink.touch(run, this.node.table, key, row);
         if (this.node.limit === undefined) {
             this.#assign(key, row, names, run);

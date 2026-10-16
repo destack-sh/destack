@@ -1043,7 +1043,7 @@ export class Node {
     }
 }
 
-/** The SQL admitting the visible rows of a table. */
+/** The SQL matching the visible rows of a table. */
 export type Visibility = (table: Table) => SQL | undefined;
 
 /** A relation and condition a node measures, with the measures its uses read. */

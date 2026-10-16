@@ -69,10 +69,10 @@ export class Run {
         const pending = rows.filter((row) => !deciding.has(row));
         if (pending.length > 0) {
             const decided = this.#audience
-                .admits(table, pending, this.view.position, permission)
-                .then((admitted) => {
+                .visible(table, pending, this.view.position, permission)
+                .then((shown) => {
                     for (const [index, row] of pending.entries()) {
-                        visible.set(row, admitted.has(index));
+                        visible.set(row, shown.has(index));
                     }
                 });
             for (const row of pending) {

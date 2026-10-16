@@ -112,7 +112,7 @@ export abstract class Pipeline {
         const located = await this.input.locate(candidates, run);
         const partitions = new Map(zip(candidates, located));
 
-        // admit each row to its open partitions
+        // place each row in its open partitions
         for (const [key, row] of rows) {
             const values = row === null ? undefined : partitions.get(row);
             const names = new Set<string>();
@@ -122,7 +122,7 @@ export abstract class Pipeline {
                     names.add(name);
                 }
             }
-            this.admit(
+            this.place(
                 key,
                 row === null || values === undefined ? null : this.filter.resolve(row, run),
                 names,
@@ -131,8 +131,8 @@ export abstract class Pipeline {
         }
     }
 
-    /** Admit a decided row to its partitions. */
-    protected abstract admit(
+    /** Place a decided row in its partitions. */
+    protected abstract place(
         key: string,
         row: Row | null,
         names: ReadonlySet<string>,

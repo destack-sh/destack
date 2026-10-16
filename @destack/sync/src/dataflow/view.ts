@@ -274,20 +274,20 @@ export class View {
         audience: Audience,
         reading: TallyReading,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // admit rows in memory when the audience decides none in SQL
-        const admitted = (table: Table) => View.#admittedSQL(audience, table);
+        // decide rows in memory when the audience decides none in SQL
+        const matching = (table: Table) => View.#visibleSQL(audience, table);
         const current = audience.where(node.table, node.permission);
         const selection = Predicate.render(
             node.resolve({ AND: [node.condition(), within] }),
-            node.bind(admitted),
+            node.bind(matching),
         );
         if (current === "memory") {
-            return Tally.measure(this.database, node, selection, reading, admitted, async (rows) =>
-                audience.admits(node.table, rows, this.position, node.permission),
+            return Tally.measure(this.database, node, selection, reading, matching, async (rows) =>
+                audience.visible(node.table, rows, this.position, node.permission),
             );
         }
 
-        return Tally.measure(this.database, node, and(selection, current), reading, admitted);
+        return Tally.measure(this.database, node, and(selection, current), reading, matching);
     }
 
     /** Read a node's rows before and after their related rows changed between two sequences. */
@@ -466,12 +466,12 @@ export class View {
     ): Omit<WindowRead, "where"> {
         return {
             orderBy: node.orderBy,
-            namespace: node.namespace((table: Table) => View.#admittedSQL(audience, table)),
+            namespace: node.namespace((table: Table) => View.#visibleSQL(audience, table)),
             limit: count,
-            admits: {
+            visible: {
                 ...(audience.where(node.table, node.permission) === "memory"
                     ? {}
-                    : { current: View.#admittedSQL(audience, node.table, node.permission) }),
+                    : { current: View.#visibleSQL(audience, node.table, node.permission) }),
                 image: async (row: Row) =>
                     (await run.seen(node.table, [row], node.permission)).length > 0,
             },
@@ -479,8 +479,8 @@ export class View {
         };
     }
 
-    /** Match the rows of a table an audience admits in SQL, under a query's own permission too. */
-    static #admittedSQL(audience: Audience, table: Table, permission?: string): SQL {
+    /** Match the rows of a table an audience shows in SQL, under a query's own permission too. */
+    static #visibleSQL(audience: Audience, table: Table, permission?: string): SQL {
         const where = audience.where(table, permission);
         if (where === "memory") {
             throw new DatabaseError(

@@ -144,7 +144,7 @@ export class Evaluation {
 
     /** Decide the subscriber's rows again at a position, sending the difference to what it has. */
     async redecide(position: LogPosition, isComplete: boolean): Promise<Page> {
-        // keep what the subscriber has, decide again, and collect what the new decisions admit
+        // keep what the subscriber has, decide again, and collect what the new decisions allow
         const before = this.#dataflow.sink.rows();
         await this.#audience.refresh();
         const after = await this.collect(this.#view(position));

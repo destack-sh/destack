@@ -52,7 +52,7 @@ export class ConditionAudience implements Audience {
     where(table: Table) {
         const condition = this.#visible.get(table);
 
-        // admit every row of a table without a condition, and decide the others in memory or SQL
+        // show every row of a table without a condition, and decide the others in memory or SQL
         if (condition === undefined) {
             return sql`true`;
         } else if (this.#isInMemory) {
@@ -63,7 +63,7 @@ export class ConditionAudience implements Audience {
     }
 
     /** Decide which rows of a table are visible. */
-    async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
+    async visible(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
         return new Set(rows.flatMap((row, index) => (this.isVisible(table, row) ? [index] : [])));
     }
 

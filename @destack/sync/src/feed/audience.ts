@@ -12,12 +12,12 @@ import {
 } from "@destack/db";
 import type { Query } from "../query/query.ts";
 
-/** An audience that admits and reads every row. */
+/** An audience that shows and reads every row. */
 export const EVERYONE: Audience = {
     watches: [],
     where: () => sql`true`,
     key: "everyone",
-    admits: async (_table, rows) => new Set(rows.keys()),
+    visible: async (_table, rows) => new Set(rows.keys()),
     concealable: () => [],
     conceals: async (_table, rows) => rows.map(() => []),
     decides: async () => false,
@@ -34,7 +34,7 @@ export interface Audience {
     /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
     /** Decide which rows the subscriber may have by index, under a query's own permission too. */
-    readonly admits: (
+    readonly visible: (
         table: Table,
         rows: readonly Row[],
         position: LogPosition,

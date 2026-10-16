@@ -278,8 +278,8 @@ export class Aggregation extends Pipeline {
         }
     }
 
-    /** Admit a tracked member to its partitions. */
-    protected admit(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
+    /** Place a tracked member in its partitions. */
+    protected place(key: string, row: Row | null, names: ReadonlySet<string>, run: Run): void {
         this.#assign(key, row, names, run);
     }
 
@@ -781,8 +781,8 @@ export class Mirror extends Pipeline {
         return [...this.#shown.values()];
     }
 
-    /** Admit no rows. */
-    protected admit(): void {}
+    /** Place no rows. */
+    protected place(): void {}
 
     /** Read a source's group as a result. */
     static #result(group: Group): Result {

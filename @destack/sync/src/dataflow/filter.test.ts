@@ -6,16 +6,16 @@ import { ConditionAudience } from "../feed/test/audience.ts";
 import { first, note, open, take } from "../test/fixture.ts";
 import { Clock } from "@destack/environment";
 
-/** An audience admitting every row and counting the rows it decides. */
+/** An audience showing every row and counting the rows it decides. */
 class CountingAudience extends ConditionAudience {
     /** The rows the audience decided. */
     decided = 0;
 
-    /** Admit every row and count it. */
-    override async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
+    /** Show every row and count it. */
+    override async visible(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
         this.decided += rows.length;
 
-        return super.admits(table, rows);
+        return super.visible(table, rows);
     }
 }
 
