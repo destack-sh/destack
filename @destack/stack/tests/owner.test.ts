@@ -5,11 +5,11 @@ import { account, space } from "@destack/account/object";
 import { Transaction } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { ObjectStore } from "@destack/object/server";
-import { Clock } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { ids, spaceDatabase } from "../src/test/index.ts";
 import { serversOf } from "@destack/object/test";
+import { Clock } from "@destack/environment";
 
 test("decide an owner's permissions on a space in its own store through the predefined owner role, for its person and the space itself", async () => {
     // keep the space's row and chain in its database, owned by its person and by itself

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { mkdtemp, rm } from "node:fs/promises";
 import { spaceReplicated } from "../../stack/index.ts";
 import { PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import {
     and,
     type DatabaseConnection,
@@ -51,6 +51,7 @@ import {
 import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** A database a stack declares for its own use, beside the space's main database. */
 const archiveDatabase = defineDatabase({ name: "archive", tables: [] });
@@ -247,7 +248,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
 
     // apply the submission and create every declared record once, at a fixed time
     const now = Date.now();
-    const store = await serve(fixture, { clock: new TestClock(now) });
+    const store = await serve(fixture, { clock: new VirtualClock(now) });
     const first = await submit(fixture, store, stack, submission);
     expect([first.appliedRevisionId, first.conditions["ready"]?.reason]).toEqual([
         first.revisionId,

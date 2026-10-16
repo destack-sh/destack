@@ -1,10 +1,11 @@
 import type { ResourceDeclaration } from "@destack/resource";
-import { Clock, present } from "@destack/schema";
+import { present } from "@destack/schema";
 import { runWorkload } from "@destack/runtime/bun";
 import type { EphemeralHost, Workload } from "@destack/runtime/workload";
 import { connectBunSqlite } from "@destack/db/bun";
 import { EphemeralStorage } from "@destack/object/server";
 import { spaceRunner } from "../client/index.ts";
+import { Clock } from "@destack/environment";
 
 /** Keep a Bun instance's ephemeral objects in a memory database. */
 export const bunEphemeral: EphemeralHost = {

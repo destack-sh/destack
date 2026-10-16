@@ -4,7 +4,7 @@ import { type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Manager } from "@destack/access";
 import { type ClaimHome, Stack } from "@destack/object/server";
-import { aligned, Clock, Identifier, type JsonObject } from "@destack/schema";
+import { aligned, Identifier, type JsonObject } from "@destack/schema";
 import { installation } from "../object/index.ts";
 import { type ObjectType, Claim, Claimant, ClaimLookup, claimTable } from "@destack/object";
 import { STACKS, TestDirectory } from "@destack/account/test";
@@ -13,6 +13,7 @@ import { serveSpace } from "../server/index.ts";
 import { StackFixture } from "./fixture.ts";
 import { accountDatabase } from "@destack/account/stack";
 import type {} from "@destack/package/import-meta";
+import { Clock } from "@destack/environment";
 
 /** The package declaring the fixture's stacks and installations. */
 const PACKAGE_ID = import.meta.destack.package.id;

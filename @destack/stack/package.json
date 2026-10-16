@@ -28,7 +28,10 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/fs": "workspace:*",
@@ -38,15 +41,13 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "jose": "6.2.12",
-        "@destack/bucket": "workspace:*",
-        "@destack/build": "workspace:*"
+        "jose": "6.2.12"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",

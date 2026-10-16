@@ -4,7 +4,7 @@ import { placement, Space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
 import type { Runtime } from "../../runtime/index.ts";
-import { aligned, type Clock, type Identifier, present, schema } from "@destack/schema";
+import { aligned, type Identifier, present, schema } from "@destack/schema";
 import {
     and,
     Change,
@@ -56,6 +56,7 @@ import {
 } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
 import { retireSnapshots } from "../resource/snapshot.ts";
+import type { Clock } from "@destack/environment";
 
 /** The spaces a machine receives at once. */
 const TRANSFER_CONCURRENCY = 4;

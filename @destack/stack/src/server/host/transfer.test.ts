@@ -22,12 +22,13 @@ import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
-import { canonicalize, Clock, Identifier, present, schema } from "@destack/schema";
+import { canonicalize, Identifier, present, schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { Scope, Replica, replicaTables } from "@destack/sync";
 import { ProviderIndex, SpaceReplica, SpaceTransfer } from "../index.ts";
+import { Clock } from "@destack/environment";
 
 /** The identifiers the scenarios place, assign and publish. */
 const ids = {

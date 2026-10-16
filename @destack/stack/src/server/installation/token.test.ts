@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { PublicKey } from "@destack/identity";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
-import { Clock, Digest, Identifier, present } from "@destack/schema";
+import { Digest, Identifier, present } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import {
     Assertion,
@@ -11,7 +11,7 @@ import {
 } from "@destack/runtime/authentication";
 import { createClient } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
-import { expect, refusal, test, TestClock } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import {
     createLocalJWKSet,
     decodeJwt,
@@ -27,6 +27,8 @@ import { Snapshot } from "@destack/db";
 import stackPackage from "../../package.ts";
 import { ids, openUniverse, StackFixture } from "../../test/index.ts";
 import { TestDirectory } from "@destack/account/test";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The audience of installations' assertions: the stack package granting their tokens. */
 const ENDPOINT = PackageId.resource(stackPackage.id);
@@ -56,7 +58,7 @@ test("grant an installation tokens of its space as it asks by assertions its key
         createdAt: now,
         updatedAt: now,
     });
-    const { server } = await fixture.server({ ...opened, keystore, clock: new TestClock(now) });
+    const { server } = await fixture.server({ ...opened, keystore, clock: new VirtualClock(now) });
     const owner = createClient(stackPackage, StackFixture.endpoint(server, ids.owner));
 
     // register an Ed25519 and a P-256 key of the installation and refuse a point off its curve

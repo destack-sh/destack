@@ -8,9 +8,10 @@ import { account, space } from "@destack/account/object";
 import * as sqlite from "@destack/db/bun";
 import { ObjectStore, Stack } from "@destack/object/server";
 import { testCallKey } from "@destack/runtime/test";
-import { aligned, schema, Clock } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { implementRole, implementRelationship } from "../index.ts";
+import { Clock } from "@destack/environment";
 
 /** The stack declaring the roles. */
 const stackId = schema

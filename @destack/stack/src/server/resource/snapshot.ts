@@ -5,13 +5,14 @@ import { type ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Plan, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { Clock, type Digest, type Identifier, present } from "@destack/schema";
+import { type Digest, type Identifier, present } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { Restore, restore, snapshot } from "../../object/snapshot.ts";
 import { SpaceTransfer, type TransferOptions } from "../host/transfer.ts";
 import type { Transfer } from "../../object/index.ts";
 import type { Handoff } from "../host/handoff.ts";
 import { RequestId } from "@destack/runtime/request";
+import { Clock } from "@destack/environment";
 
 /** How long a snapshot no move retires stays in the store: a day. */
 const SNAPSHOT_RETENTION_MILLISECONDS = 24 * 60 * 60 * 1000;

@@ -1,6 +1,6 @@
 import { placement } from "@destack/account/object";
 import { identityKey } from "@destack/account/identity";
-import { canonicalize, type Clock, Digest, type Identifier } from "@destack/schema";
+import { canonicalize, Digest, type Identifier } from "@destack/schema";
 import { accessInvitation, decisionTables } from "@destack/access";
 import { call, journal, storeTables } from "@destack/object";
 import {
@@ -18,6 +18,7 @@ import { CallError } from "@destack/runtime/error";
 import { Feed, Replica, replica, replicaPosition } from "@destack/sync";
 import { type Fence, restore, snapshot, transfer } from "../../object/index.ts";
 import type { Handoff } from "./handoff.ts";
+import type { Clock } from "@destack/environment";
 
 /** The rows one digest page reads: 5000 rows of about 500 B keep a page near 2.5 MB. */
 const DIGEST_PAGE_ROWS = 5000;

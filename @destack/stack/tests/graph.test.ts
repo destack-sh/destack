@@ -15,7 +15,7 @@ import { graph, PackageId } from "@destack/package";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, Digest, found, present, schema } from "@destack/schema";
+import { Digest, found, present, schema } from "@destack/schema";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
@@ -24,6 +24,7 @@ import { module, symbol } from "../src/graph/index.ts";
 import { build } from "../src/object/index.ts";
 import { stackTables } from "../src/stack/index.ts";
 import { ids } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The notebook's package identifier. */
 const NOTEBOOK_ID = "package-01996ab0-0000-7000-8000-00000000000a";

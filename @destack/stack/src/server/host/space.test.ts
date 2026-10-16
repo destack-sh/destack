@@ -6,7 +6,7 @@ import { AccessFixture } from "@destack/access/test";
 import * as accountObject from "@destack/account/object";
 import { account } from "@destack/account/object";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import { Identifier, Clock } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
 import * as object from "../../object/index.ts";
@@ -19,6 +19,7 @@ import {
     StackFixture,
     subjectAuthentication,
 } from "../../test/index.ts";
+import { Clock } from "@destack/environment";
 
 test("delete a space at its home once its installations are gone", async () => {
     // keep a space at home in the universe, placed here with its placement replicated, its identity started, and an installation in it

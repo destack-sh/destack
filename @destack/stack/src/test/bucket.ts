@@ -27,7 +27,7 @@ import { type BucketReference, S3Server, S3Signature } from "@destack/bucket/s3"
 import { and, defineDatabase, eq, type DatabaseConnection, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, schema, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { Health } from "@destack/runtime/health";
@@ -40,6 +40,7 @@ import { implementBucket } from "../server/resource/bucket.ts";
 import type { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
 import { testCallKey } from "@destack/runtime/test";
+import { Clock } from "@destack/environment";
 
 /** A database keeping buckets beside its journal and calls, replicating the spaces they live in. */
 export const bucketDatabase = defineDatabase({

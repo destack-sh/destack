@@ -11,9 +11,10 @@ import {
     Condition,
 } from "@destack/db";
 import type { Controller } from "@destack/runtime/control";
-import { type Clock, type Identifier } from "@destack/schema";
+import { type Identifier } from "@destack/schema";
 import type { Uplink } from "@destack/sync";
 import { ACTIVE_BUILD_STATES, build, deployment, Deployment } from "../../object/index.ts";
+import type { Clock } from "@destack/environment";
 
 /** Give other machines with work in a space an assignment in the directory until it ends. */
 export class AssignmentController implements Controller {

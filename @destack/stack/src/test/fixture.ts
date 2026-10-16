@@ -40,7 +40,7 @@ import { MemoryContentStore, TestDatabase, TestSeed } from "@destack/db/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { canonicalize, Clock, Identifier, type JsonObject, present, schema } from "@destack/schema";
+import { canonicalize, Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { Health } from "@destack/runtime/health";
 import { type ClientOptions, createClient } from "@destack/runtime/client";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
@@ -68,6 +68,7 @@ import { outbox } from "@destack/runtime/outbox";
 import { allowance } from "@destack/account/object";
 import { TestRegistry } from "./build.ts";
 import { TestRuntime } from "./runtime.ts";
+import { Clock } from "@destack/environment";
 
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({

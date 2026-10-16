@@ -1,11 +1,12 @@
 import { eq } from "@destack/db";
 import { assignment } from "@destack/account/object";
 import { TestDirectory } from "@destack/account/test";
-import { Clock, schema, Identifier } from "@destack/schema";
+import { schema, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { build } from "../../object/index.ts";
 import { AssignmentController } from "../index.ts";
 import { ids, openUniverse, placeSpace, StackFixture } from "../../test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** A laptop whose checkout a build of the space compiles. */
 const LAPTOP = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000b1");

@@ -1,10 +1,11 @@
 import { type Channel, type DatabaseConnection, eq, type Table } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { EphemeralStorage } from "@destack/object/server";
-import { Clock, type Identifier, present } from "@destack/schema";
+import { type Identifier, present } from "@destack/schema";
 import { ObjectReference, type Subject } from "@destack/sync";
 import { socket, type SocketKind } from "../../object/socket.ts";
 import stackPackage from "../../package.ts";
+import { Clock } from "@destack/environment";
 
 /** What a socket's opener knows of the socket. */
 export interface SocketOptions {

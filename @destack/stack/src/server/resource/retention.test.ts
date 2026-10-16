@@ -1,18 +1,19 @@
 import { eq } from "@destack/db";
 import { Identifier } from "@destack/schema";
 import { setting } from "@destack/setting/object";
-import { expect, test, TestClock } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { build } from "../../object/index.ts";
 import { buildRetention } from "../../setting/index.ts";
 import { fixtureBuild, ids, StackFixture } from "../../test/index.ts";
 import { PackageStore } from "@destack/build/store";
 import { serveSpace } from "../server.ts";
 import { RetentionController } from "./retention.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 test("expire dropped builds and sweep the pull cache, looking again after the interval", async () => {
     // keep one build of each source, with two succeeded builds of the fixture's checkout
     const fixture = await StackFixture.open();
-    const clock = new TestClock(Date.UTC(2026, 9, 5));
+    const clock = new VirtualClock(Date.UTC(2026, 9, 5));
     const objects = serveSpace(await fixture.options({ clock })).store;
     await objects.database.insert(setting.table).values({
         id: Identifier.create("setting"),

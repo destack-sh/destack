@@ -1,4 +1,4 @@
-import { type Identifier, Clock, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { Snapshot, type Database, type DatabaseConnection } from "@destack/db";
 import { type Publisher, type Subject, Scope, type Uplink } from "@destack/sync";
 import type { CallKey } from "@destack/runtime/request";
@@ -63,6 +63,7 @@ import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
+import { Clock } from "@destack/environment";
 
 /** The account package's methods a machine calls about its spaces, as the machine. */
 export interface SpaceAccounts {

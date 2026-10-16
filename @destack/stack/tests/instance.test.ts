@@ -1,7 +1,7 @@
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
 import { ObjectReference, Scope } from "@destack/sync";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,6 +44,7 @@ import {
 } from "../src/test/index.ts";
 import { InstallationBindingSpec } from "@destack/runtime/declare";
 import { RequestId } from "@destack/runtime/request";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The notes package the scenarios install. */
 const notesPackage = Package.parse({
@@ -497,7 +498,7 @@ test("restart a failing instance in place after a doubling backoff, keeping one 
     const { database } = fixture;
     const notes = await installNotes(fixture);
     const failing = new FailingRuntime();
-    const clock = new TestClock(T0);
+    const clock = new VirtualClock(T0);
     const { deployments, instances, resources } = await serveControllers(fixture, {
         runtime: failing,
         clock,
