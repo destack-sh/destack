@@ -1,6 +1,6 @@
 import { defineDatabase } from "@destack/db";
 import { defineSecret, defineVault } from "@destack/vault";
-import { defineTrigger } from "@destack/runtime/trigger";
+import { defineWorkflow } from "@destack/workflow";
 import { defineAdapter, defineInstallationBinding, definePackage } from "@destack/runtime";
 import type { PackageImplementation } from "@destack/runtime/server";
 import { defineWorkload } from "@destack/runtime/workload";
@@ -60,54 +60,42 @@ export const web = defineWorkload({
     },
 });
 
-/** Send the reminders that are due. */
-const remind = {
-    type: { packageId: import.meta.destack.package.id, type: "reminder" },
-    method: "send",
-    input: {},
-    release: "2026.9.0",
-};
-
-/** The daily reminder schedule. */
-export const reminders = defineTrigger({
-    name: "reminders",
-    on: {
-        schedule: {
-            timing: { timing: "cron", cron: "0 9 * * *", timezone: "UTC" },
-            concurrency: "forbid",
-            deadline: 60000,
-            call: remind,
-        },
-    },
-});
-
-/** Repeat from a fixed first occurrence. */
-export const refresh = defineTrigger({
-    name: "refresh",
-    on: {
-        schedule: {
-            timing: {
-                timing: "interval",
-                interval: 300000,
-                startsAt: 1800000000000,
-                endsAt: 1800086400000,
+/** Send the reminders that are due: daily, every five minutes for a day, and once. */
+export const remind = defineWorkflow({
+    name: "remind",
+    input: schema.object({ at: schema.number() }),
+    triggers: {
+        reminders: {
+            kind: "schedule",
+            schedule: {
+                timing: { timing: "cron", cron: "0 9 * * *", timezone: "UTC" },
+                concurrency: "forbid",
+                deadline: 60000,
             },
-            concurrency: "forbid",
-            deadline: 60000,
-            call: remind,
+            input: (occurrence) => ({ at: occurrence.at }),
         },
-    },
-});
-
-/** Send a reminder at one specified time. */
-export const appointment = defineTrigger({
-    name: "appointment",
-    on: {
-        schedule: {
-            timing: { timing: "once", startsAt: 1800000000000 },
-            concurrency: "allow",
-            deadline: 60000,
-            call: remind,
+        refresh: {
+            kind: "schedule",
+            schedule: {
+                timing: {
+                    timing: "interval",
+                    interval: 300000,
+                    startsAt: 1800000000000,
+                    endsAt: 1800086400000,
+                },
+                concurrency: "forbid",
+                deadline: 60000,
+            },
+            input: (occurrence) => ({ at: occurrence.at }),
+        },
+        appointment: {
+            kind: "schedule",
+            schedule: {
+                timing: { timing: "once", startsAt: 1800000000000 },
+                concurrency: "allow",
+                deadline: 60000,
+            },
+            input: (occurrence) => ({ at: occurrence.at }),
         },
     },
 });

@@ -14,6 +14,7 @@
         "@destack/schema": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/vault": "workspace:*"
+        "@destack/vault": "workspace:*",
+        "@destack/workflow": "workspace:*"
     }
 }
