@@ -5,6 +5,7 @@ import * as style from "@destack/style";
 import { For, type JSX } from "@destack/view";
 
 import { browserStyles } from "./browser";
+import { Digits } from "./digits";
 import { ItemBadge, type ItemMark } from "./item";
 import { chrome } from "./chrome.stylex";
 import { screen } from "../../layout/screen.stylex";
@@ -192,8 +193,7 @@ function Figure(properties: { cell: Cell; isWide: boolean }) {
     return (
         <span {...style.attrs(styles.cell, properties.isWide && styles.wide)}>
             <span {...style.attrs(styles.value, properties.cell.isQuiet && styles.valueQuiet)}>
-                {properties.cell.isFloor ? ">" : ""}
-                {properties.cell.value}
+                <Digits text={`${properties.cell.isFloor ? ">" : ""}${properties.cell.value}`} />
             </span>
         </span>
     );
