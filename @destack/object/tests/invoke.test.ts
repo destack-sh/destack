@@ -4,7 +4,7 @@ import { none, principal, relation } from "@destack/access";
 
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
@@ -17,6 +17,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { createRouterClient } from "@destack/runtime/server";
+import { Clock } from "@destack/environment";
 
 /** The space containing the shelves. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -283,7 +284,7 @@ test.each(TEST_DIALECTS)(
 
         // refuse a client pushing a method left out of its routes
         const mutationId = RequestId.create(Date.now());
-        const pushed = createRouterClient(store.router(), { context: context }).replica.push({
+        const pushed = createRouterClient(store.router(), { context: context }).store.push({
             scope: spaceId,
             mutations: [
                 {

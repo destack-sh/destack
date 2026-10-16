@@ -24,7 +24,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { aligned, Identifier, present, schema } from "@destack/schema";
+import { nth, Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -172,7 +172,7 @@ test.each(TEST_DIALECTS)(
             .values({ ...row, id: schema.identifier("profile").parse(`profile-${v7()}`) });
         const { changes } = await east.database.log.read({ tables: [profile.table], after });
         const replace = async (position: number) => {
-            const change = aligned(changes, position);
+            const change = nth(changes, position);
             const image = Change.image(change);
             const object = { objectId: schema.string().parse(change.key.id), owner: east.spaceId };
             const owned = await Claimant.of(profile, object, image, Snapshot.live(east.database));
@@ -184,13 +184,13 @@ test.each(TEST_DIALECTS)(
             return ClaimRefusal.parse(replaced).refused;
         };
         await replace(0);
-        expect(await handle("carol")).toBe(aligned(changes, 0).key.id);
+        expect(await handle("carol")).toBe(nth(changes, 0).key.id);
         expect(await replace(1)).toEqual([
             {
                 index: Claim.index(profile, "handle"),
                 key: '["universe","carol"]',
                 packageId: profile.policy.definition.packageId,
-                objectId: aligned(changes, 1).key.id,
+                objectId: nth(changes, 1).key.id,
                 owner: east.spaceId,
             },
         ]);
@@ -303,7 +303,7 @@ async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
-        ...aligned(
+        ...nth(
             new ObjectStore({
                 servers: [defineServer(profilesPackage, {})],
                 chain: async () => undefined,
@@ -467,7 +467,7 @@ test("hold a trashed object's names, activate them on restore, and release them 
     }
 
     // resolve the name while it stands, hold it in the trash, and free it once purged
-    const refused = aligned(await Claim.list(tag, other, snapshot), 0);
+    const refused = nth(await Claim.list(tag, other, snapshot), 0);
     expect(states).toEqual([
         [[], first],
         [[], undefined],

@@ -56,8 +56,6 @@ import type { Follow, FollowKey } from "../replica/shape.ts";
 import { EventView } from "../query/event.ts";
 import { Execution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
-import type { Workflow } from "@destack/runtime/workflow";
-import { StepJournal } from "../workflow/step.ts";
 import { Replay } from "../audit/replay.ts";
 
 /** How long a call waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
@@ -674,33 +672,6 @@ export class MethodContext<
                 ...(exchange === undefined ? {} : { exchange }),
             },
             location.transaction,
-        );
-    }
-
-    /** Start a run of a workflow of the call's package once this call commits, once per request. */
-    async start<Input>(request: {
-        readonly workflow: Workflow<Input>;
-        readonly input: NoInfer<Input>;
-        readonly at?: number;
-        readonly requestId?: string;
-    }): Promise<void> {
-        // start from the store only, for the caller's subject
-        const location = this.#location;
-        if (location.kind !== "store") {
-            throw new TypeError(`${this.object.name}.${this.name} starts runs from its store`);
-        }
-
-        // record the run with its input as its schema reads it
-        const exchange = Exchange.of(location.authorization.context());
-        await location.store.send(
-            {
-                workflow: request.workflow.name,
-                input: StepJournal.json(request.workflow.input.parse(request.input)),
-                ...(request.at === undefined ? {} : { at: request.at }),
-                ...(exchange === undefined ? {} : { exchange }),
-            },
-            location.transaction,
-            request.requestId,
         );
     }
 

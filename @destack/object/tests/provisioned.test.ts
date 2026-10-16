@@ -15,7 +15,7 @@ import { Package, PackageId } from "@destack/package";
 import { definePackage } from "@destack/runtime";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { canonicalize, Clock, Digest, present, schema } from "@destack/schema";
+import { canonicalize, Digest, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 
 import {
@@ -35,6 +35,7 @@ import {
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
+import { Clock } from "@destack/environment";
 
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -590,7 +591,7 @@ test("route another package's provisioned type to the package whose provider pro
 
     // implement the boxes in the providing package alone
     const hosting = serveHost({ providers: [new Boxes().provider()] });
-    expect(Object.keys(hosting.package(host).router)).toEqual(["replica", "box"]);
+    expect(Object.keys(hosting.package(host).router)).toEqual(["store", "box"]);
     expect(() => serveHost({})).toThrow(
         new TypeError(
             `package @example/host routes box objects of ${box.package.id}, but nothing here implements or replicates them`,

@@ -2,11 +2,11 @@ import type { CallableName } from "../src/index.ts";
 import { ObjectReference, Subject } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { CallError } from "@destack/runtime/error";
 import { type Dialect, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { aligned, present, schema, toJsonSchema, Clock, type Identifier } from "@destack/schema";
+import { nth, present, schema, toJsonSchema, type Identifier } from "@destack/schema";
 import { AuditTarget } from "../src/index.ts";
 
 import { RequestId } from "@destack/runtime/request";
@@ -29,6 +29,8 @@ import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -141,7 +143,7 @@ test.each(TEST_DIALECTS)(
 
         // route the replica procedures and each served object
         expect(Object.keys(store.router())).toEqual([
-            "replica",
+            "store",
             "task",
             "comment",
             "taskVersion",
@@ -705,7 +707,7 @@ test("prepare external work after the access check, settle it after commit, comp
             },
         },
     });
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const store = new ObjectStore({
         chain: async () => undefined,
         clock,
@@ -974,7 +976,7 @@ test("authorize a creation before its external work, and settle committed work t
     const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     expect(
         await controller.reconcile(
-            aligned(settled, 0).id,
+            nth(settled, 0).id,
             reconciliation(AbortSignal.timeout(5000)),
         ),
     ).toBeUndefined();
@@ -1284,7 +1286,7 @@ async function serveTasks(dialect: Dialect) {
     let context = sign();
 
     // serve the objects at a fixed time, recording each audited change in the outbox
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const store = new ObjectStore({
         chain: async () => undefined,
         clock,

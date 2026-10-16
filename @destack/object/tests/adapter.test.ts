@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, aligned } from "@destack/schema";
+import { schema, nth } from "@destack/schema";
 import { defineAdapter, definePackage } from "@destack/runtime";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
@@ -64,7 +64,7 @@ test("answer each request at or below an adapter's path by its fetch, below the 
     const composed = await servePages({ feed });
     const server = Server.start({
         clock: Clock.system,
-        ...aligned(composed().packages, 0),
+        ...nth(composed().packages, 0),
         scope: spaceId,
         resources: new ResourceContext(),
         health: new Health("pages"),

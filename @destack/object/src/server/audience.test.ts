@@ -292,6 +292,111 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     });
 });
 
+test("pass the keys an account hands down to its space for listing, and only those the caller uses under the query's own permission", async () => {
+    // hand down two keys of an account to its space, one ada uses and one bob uses
+    const account = defineObject({
+        name: "account",
+        plural: "accounts",
+        scope: "universe",
+        isScope: true,
+        fields: {},
+        permissions: { read: none() },
+    });
+    const room = defineObject({
+        name: "room",
+        plural: "rooms",
+        scope: account,
+        isScope: true,
+        fields: {},
+        permissions: { read: none() },
+    });
+    const key = defineObject({
+        name: "key",
+        plural: "keys",
+        scope: [account, room],
+        inherited: {},
+        fields: { name: field.string() },
+        relations: { consumer: { subjects: [principal.user] } },
+        permissions: { read: none(), use: relation("consumer") },
+    });
+    const storage = await TestDatabase.create(
+        "sqlite",
+        [...account.tables, ...room.tables, ...key.tables, ...call.tables],
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const accountId = newId("account");
+    const roomId = newId("room");
+    const access = new AccessFixture(database);
+    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(room.reference(accountId, roomId), "own");
+    const bob = principal.user.reference(Scope.universe.id, "bob");
+    const keys = [
+        { id: newId("key"), name: "Ada's", consumer: ada },
+        { id: newId("key"), name: "Bob's", consumer: bob },
+    ];
+    for (const { id, name, consumer } of keys) {
+        await database
+            .insert(key.table)
+            .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 });
+        await database.insert(accessRelationship).values(
+            Relationship.encode(
+                {
+                    id: newId("relationship"),
+                    object: key.reference(accountId, id),
+                    relation: "consumer",
+                    subject: consumer,
+                    createdAt: 1,
+                    expiresAt: null,
+                },
+                accountId,
+            ),
+        );
+    }
+
+    // decide the handed-down keys for ada in the room, by listing and by her use of them
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: principal.space.reference(Scope.universe.id, roomId),
+        servers: serversOf([account, room, key]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: key.package },
+    });
+    const audience = await ObjectAudience.of(
+        store,
+        roomId,
+        AccessContext.of(Caller.of(ada), Date.now()),
+    );
+    const rows = await database.select().from(key.table).orderBy(key.table.name);
+    const position = await database.log.position();
+    const names = (admitted: ReadonlySet<number>) =>
+        rows.filter((_row, index) => admitted.has(index)).map((row) => row.name);
+    const selected = async (permission?: string) => {
+        const where = audience.where(key.table, permission);
+
+        return where === "memory"
+            ? where
+            : (await database.select().from(key.table).where(where)).map((row) => row.name);
+    };
+
+    // pass both keys for listing in SQL and in memory, and only ada's under her use, decided in memory
+    expect({
+        listed: names(await audience.admits(key.table, rows, position)),
+        used: names(await audience.admits(key.table, rows, position, "use")),
+        selected: await selected(),
+        selectedUsed: await selected("use"),
+    }).toEqual({
+        listed: ["Ada's", "Bob's"],
+        used: ["Ada's"],
+        selected: ["Ada's", "Bob's"],
+        selectedUsed: "memory",
+    });
+});
+
 /** Take pages until one satisfies a condition, holding the stream open. */
 async function take(pages: AsyncGenerator<Page>, isLast: (page: Page) => boolean): Promise<Page[]> {
     // read the pages one by one, leaving the stream open for a later take

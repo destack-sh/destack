@@ -2,11 +2,12 @@ import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { aligned, Clock } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
     const { endpoint, server } = await serveNotes("sqlite");
@@ -15,7 +16,7 @@ test("push again after transient failures, waiting twice as long after each", as
     // fail the first two pushes as a broken network does, recording each start
     const attempts: number[] = [];
     const fetch = async (request: Request) => {
-        const isPush = new URL(request.url).pathname.endsWith("/replica/push");
+        const isPush = new URL(request.url).pathname.endsWith("/store/push");
         if (isPush) {
             attempts.push(performance.now());
         }
@@ -51,10 +52,10 @@ test("push again after transient failures, waiting twice as long after each", as
     // confirm the note after two reported failures with doubling retry waits
     const created = client.mutate(note).create({ title: "Ideas" });
     await created.confirmed;
-    const waits = attempts.slice(1).map((at, position) => at - aligned(attempts, position));
+    const waits = attempts.slice(1).map((at, position) => at - nth(attempts, position));
     expect([
         reported.map((error) => (error instanceof Error ? error.message : error)),
         attempts.length,
-        aligned(waits, 0) >= 20 && aligned(waits, 1) >= 40,
+        nth(waits, 0) >= 20 && nth(waits, 1) >= 40,
     ]).toEqual([["fetch failed", "fetch failed"], 3, true]);
 });

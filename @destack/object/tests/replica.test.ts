@@ -1,5 +1,13 @@
 import { users } from "./fixture/user.ts";
-import { AccessContext, AccessError, Caller, none, principal, relation } from "@destack/access";
+import {
+    AccessContext,
+    AccessError,
+    Caller,
+    none,
+    principal,
+    relation,
+    union,
+} from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -494,4 +502,141 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         described: { title: "Atlas" },
         renamed: ["CONFLICT", "realm rows are replicas here, so send their changes to their home"],
     });
+});
+
+test("replicate only the rows a query's own permission admits, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
+    // store two loans alice reads, the first one hers to use
+    const loan = defineObject(
+        {
+            name: "loan",
+            plural: "loans",
+            scope: space,
+            fields: { reader: field.subject(), consumer: field.subject(), title: field.string() },
+            relations: {
+                reader: { subjects: [principal.user] },
+                consumer: { subjects: [principal.user] },
+            },
+            permissions: {
+                read: union(relation("reader"), relation("consumer")),
+                use: relation("consumer"),
+                post: none(),
+            },
+        },
+        (method) => ({
+            create: method.create("post", {
+                fields: [
+                    "readerPackageId",
+                    "readerType",
+                    "readerScope",
+                    "readerId",
+                    "consumerPackageId",
+                    "consumerType",
+                    "consumerScope",
+                    "consumerId",
+                    "title",
+                ],
+            }),
+            update: method.update("post", {
+                fields: ["consumerPackageId", "consumerType", "consumerScope", "consumerId"],
+            }),
+        }),
+    );
+    const storage = await TestDatabase.create("sqlite", [...loan.tables, ...callTables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([loan]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: loan.package },
+    });
+    const alice = principal.user.reference("universe", users.alice);
+    const bob = principal.user.reference("universe", users.bob);
+    const self = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
+    const create = async (title: string, consumer: Subject) => {
+        const [created] = await store.mutate(self, {
+            id: RequestId.create(Date.now()),
+            calls: [
+                loan.call("create", {
+                    spaceId,
+                    ...ObjectReference.columns("reader", alice),
+                    ...ObjectReference.columns("consumer", consumer),
+                    title,
+                }),
+            ],
+        });
+
+        return schema
+            .looseObject({ id: schema.string(), revision: schema.number() })
+            .parse(created);
+    };
+    const lent = await create("Lent", alice);
+    await create("Read", bob);
+
+    // follow the loans alice may use, as alice
+    const following = new AbortController();
+    onTestFinished(() => following.abort());
+    const pages = store.source.relayed(
+        store.source.queriesPublication.subscription({
+            name: "loans",
+            scope: spaceId,
+            below: spaceId,
+            parameters: { queries: { loans: loan.query({ permission: "use" }) } },
+        }),
+        subjectContext(alice, spaceId, { signal: following.signal }),
+    );
+    const table = loan.table[TABLE].sqlName;
+    const titles = async () => {
+        // read the open stream's pages until one changes the loans
+        for (;;) {
+            const next = await pages.next();
+            const changes = next.done === true ? [] : next.value.changes;
+            const loans = changes.filter((change) => change.table === table);
+            if (next.done === true || loans.length > 0) {
+                return loans.map((change) => [change.operation, change.row["id"]]);
+            }
+        }
+    };
+    const first = await titles();
+
+    // let bob use the first loan instead, which alice still reads
+    await store.mutate(self, {
+        id: RequestId.create(Date.now()),
+        calls: [
+            loan.call("update", {
+                spaceId,
+                id: lent.id,
+                revision: lent.revision,
+                ...ObjectReference.columns("consumer", bob),
+            }),
+        ],
+    });
+    const second = await titles();
+
+    // replicate the loan alice may use alone, drop it once she may no longer use it, and refuse an undeclared permission
+    const undeclared = await refusal(
+        store.source
+            .relayed(
+                store.source.queriesPublication.subscription({
+                    name: "loans",
+                    scope: spaceId,
+                    below: spaceId,
+                    parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
+                }),
+                subjectContext(alice, spaceId, { signal: following.signal }),
+            )
+            .next(),
+    );
+    expect([first, second, undeclared]).toEqual([
+        [["insert", lent.id]],
+        [["delete", lent.id]],
+        ["BAD_REQUEST", "object loan has no permission lend"],
+    ]);
 });

@@ -3,7 +3,7 @@ import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, aligned, type Identifier } from "@destack/schema";
+import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -103,7 +103,7 @@ test("read external objects named by their key from the database their files ope
     // follow the entries in a client's live query, through the external replica
     const notebooks = definePackage({ objects: { notebook, entry } });
     const served = serveObjects(
-        aligned(
+        nth(
             new ObjectStore({
                 servers: [
                     defineServer(notebooks, {

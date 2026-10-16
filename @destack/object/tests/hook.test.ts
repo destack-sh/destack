@@ -4,7 +4,7 @@ import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { schema, Clock, present, type Identifier, type JsonValue } from "@destack/schema";
+import { schema, present, type Identifier, type JsonValue } from "@destack/schema";
 import type { Package } from "@destack/package";
 import { definePackage, PACKAGE_DECLARATION, type PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
@@ -28,6 +28,7 @@ import type { InstalledDeclaration } from "../src/inspect/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** Cards their owner remarks on. */
 const card = defineObject(
@@ -716,8 +717,8 @@ test("route the platform's cards from an installed package to their one implemen
         routed: [{ packageId: card.package.id, type: "card" }],
         installed: undefined,
         routes: [
-            ["replica", "card"],
-            ["replica", "card"],
+            ["store", "card"],
+            ["store", "card"],
         ],
     });
 
@@ -768,8 +769,8 @@ test("serve the cards of the platform and of an installed package from one store
         { packageId: OTHER_PACKAGE, type: "card" },
     ]);
     expect(store.packages.map((served) => Object.keys(served.router))).toEqual([
-        ["replica", "card"],
-        ["replica", "card"],
+        ["store", "card"],
+        ["store", "card"],
     ]);
 });
 

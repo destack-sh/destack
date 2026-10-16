@@ -16,7 +16,7 @@ test("read through methods that change nothing on the server, and refuse mutatio
     const read = await device.client.read(notebook).get({ id });
 
     // refuse a mutation sent as a read
-    const refused = alice.replica.call({
+    const refused = alice.store.call({
         scope: spaceId,
         call: {
             type: notebook.typeReference,

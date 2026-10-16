@@ -20,7 +20,7 @@ import {
     Table,
 } from "@destack/db";
 import {
-    aligned,
+    nth,
     canonicalize,
     present,
     schema,
@@ -594,7 +594,7 @@ export const RecordMethod = {
         if (!isSequential && execution.kind === "store") {
             const ids = await RecordMethod.createTogether(context, execution);
             await RecordMethod.eachItem(context, (item, index) =>
-                execution.authorization.requireWritable(item, aligned(ids, index), execution),
+                execution.authorization.requireWritable(item, nth(ids, index), execution),
             );
 
             return { ids };
@@ -873,10 +873,13 @@ export const RecordMethod = {
         const rows =
             execution.kind === "client"
                 ? await context.read(table).findMany({ where: listed })
-                : await execution.authorization.filter(
-                      await execution.transaction.read(table).findMany({ where: listed }),
-                      context.permission(),
-                  );
+                : (
+                      await execution.authorization.filter(
+                          context.object,
+                          context.permission(),
+                          await execution.transaction.read(table).findMany({ where: listed }),
+                      )
+                  ).rows;
         const targets = new Map(rows.map((row) => [RecordedRow.parse(row).id, row]));
 
         // stamp each item's written fields at its revision, as an update of one object does
@@ -997,10 +1000,13 @@ export const RecordMethod = {
         const rows =
             execution.kind === "client"
                 ? await context.read(table).findMany({ where })
-                : await execution.authorization.filter(
-                      await execution.transaction.read(table).findMany({ where }),
-                      context.permission(),
-                  );
+                : (
+                      await execution.authorization.filter(
+                          context.object,
+                          context.permission(),
+                          await execution.transaction.read(table).findMany({ where }),
+                      )
+                  ).rows;
 
         // refuse matching a predefined row
         rows.forEach((row) => context.object.refusePredefined(RecordedRow.parse(row).id));

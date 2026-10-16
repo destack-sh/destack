@@ -1,5 +1,5 @@
 import { users } from "./fixture/user.ts";
-import { expect, test, TestClock } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     defineTrigger,
@@ -13,6 +13,7 @@ import { v7 } from "uuid";
 import { ChangeController } from "../src/server/change.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** Pin each note entering or changing among the titled ones. */
 const titled = changeTrigger(
@@ -67,7 +68,7 @@ test("build a call of an object's method, leaving the scope to the one it is pus
 
     // run a call that leaves out its space in the space it is pushed to
     const call = notebook.call("update", { id, name: "Trips" });
-    const { outcomes } = await alice.replica.push({
+    const { outcomes } = await alice.store.push({
         scope: spaceId,
         mutations: [{ id: v7(), calls: [call] }],
     });
@@ -247,7 +248,7 @@ test.each(TEST_DIALECTS)(
         );
         const recorded: string[] = [];
         const reports: string[] = [];
-        const clock = new TestClock(Date.now());
+        const clock = new VirtualClock(Date.now());
         const controller = new ChangeController(
             database,
             [lagging],

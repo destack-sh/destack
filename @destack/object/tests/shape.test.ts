@@ -42,7 +42,7 @@ const plans: Follow<{ title: string }> = {
 /** Follow the pages of each icon the space's pages show. */
 const icons: Follow<{ icon: string }> = {
     shape: iconed,
-    rows: () => page.query(),
+    from: page.query(),
     key: async (row) =>
         row["icon"] === null
             ? undefined

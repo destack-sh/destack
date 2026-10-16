@@ -6,7 +6,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, aligned, type Identifier } from "@destack/schema";
+import { schema, nth, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
@@ -34,7 +34,7 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
 
     // serve the notes over HTTP to bearer-identified users
     const served = serveObjects(
-        aligned(
+        nth(
             new ObjectStore({
                 servers: [defineServer(notesPackage, {})],
                 chain: async () => undefined,

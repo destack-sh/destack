@@ -6,7 +6,7 @@ import { principal, relation } from "@destack/access";
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/runtime";
-import { schema, aligned, type Identifier } from "@destack/schema";
+import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectReference } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
@@ -118,8 +118,8 @@ test.each(TEST_DIALECTS)(
             row.revision,
             ObjectReference.at("createdBy", row),
         ]);
-        const urgent = aligned(created.ids, 0);
-        const done = aligned(created.ids, 2);
+        const urgent = nth(created.ids, 0);
+        const done = nth(created.ids, 2);
         const author = principal.user.reference("universe", users.frank);
         expect(created.ids[1]).toBe(chosen);
         expect(written).toEqual([
@@ -217,7 +217,7 @@ test("undo a bulk creation by deleting each created object on the device and the
     const { storage } = await serveLabels("sqlite");
     const labels = definePackage({ objects: { label } });
     const served = serveObjects(
-        aligned(
+        nth(
             new ObjectStore({
                 servers: [defineServer(labels, {})],
                 chain: async () => undefined,
@@ -374,8 +374,8 @@ test.each(TEST_DIALECTS)(
                 { name: "later", color: "blue" },
             ],
         });
-        const urgent = aligned(ids, 0);
-        const later = aligned(ids, 1);
+        const urgent = nth(ids, 0);
+        const later = nth(ids, 1);
         const { ids: alarms } = await call(users.grace, "createMany", {
             items: [{ name: "alarm", color: "red" }],
         });
@@ -400,7 +400,7 @@ test.each(TEST_DIALECTS)(
                 call(users.frank, "recolor", {
                     items: [
                         { id: urgent, revision: 2, color: "white" },
-                        { id: aligned(alarms, 0), revision: 1, color: "white" },
+                        { id: nth(alarms, 0), revision: 1, color: "white" },
                     ],
                 }),
             ),

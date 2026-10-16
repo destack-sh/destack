@@ -1,7 +1,16 @@
 import { Caller, type Permission } from "@destack/access";
-import { type Snapshot, sql, TABLE, Transaction, type Row, type SQL, Table } from "@destack/db";
+import {
+    type LogPosition,
+    type Snapshot,
+    sql,
+    TABLE,
+    Transaction,
+    type Row,
+    type SQL,
+    Table,
+} from "@destack/db";
 import { CallError } from "@destack/runtime/error";
-import { aligned, canonicalize, schema } from "@destack/schema";
+import { nth, canonicalize, schema } from "@destack/schema";
 import { type Audience, Dataflow, Replica, View, type Watch } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Page } from "../method/page.ts";
@@ -76,7 +85,7 @@ export class Listing implements Audience {
             scopes: [...new Set([...call.object.readScopes(call.chain), ...replicated])],
         };
         const dataflow = this.#dataflow(compiled);
-        const node = aligned(dataflow.roots, 0);
+        const node = nth(dataflow.roots, 0);
 
         // read groups at the latest position, or rows
         const requested = this.#requested();
@@ -189,35 +198,40 @@ export class Listing implements Audience {
         };
     }
 
-    /** Match the rows the caller may list. */
-    where(table: Table): SQL | "memory" {
+    /** Match the rows the caller may list, under a query's own permission too. */
+    where(table: Table, permission?: string): SQL | "memory" {
         // list every row of a prediction
-        const { object, permission } = this.#objects.listed(table);
+        const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
         if (execution.kind === "client") {
             return sql`true`;
         }
+        const required = permission === undefined ? undefined : object.permission(permission);
 
-        return execution.authorization.listable(object, permission);
+        return execution.authorization.where(object, listing, required);
     }
 
-    /** Decide which rows of a table the caller may list, at once. */
-    async admits(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
+    /** Decide which rows of a table the caller may list, under a query's own permission too. */
+    async admits(
+        table: Table,
+        rows: readonly Row[],
+        _position: LogPosition,
+        permission?: string,
+    ): Promise<ReadonlySet<number>> {
         // admit every row of a prediction
-        const { object, permission } = this.#objects.listed(table);
+        const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
         if (execution.kind === "client") {
             return new Set(rows.keys());
         }
         const { authorization } = execution;
-        const admitted = await authorization.admitRows(
-            object,
-            permission,
-            this.#context.scope,
-            rows,
-        );
+        const { rows: admitted } = await authorization.filter(object, listing, rows, {
+            scope: this.#context.scope,
+            ...(permission === undefined ? {} : { required: object.permission(permission) }),
+        });
+        const kept = new Set<Row>(admitted);
 
-        return admitted.permitted;
+        return new Set(rows.flatMap((row, position) => (kept.has(row) ? [position] : [])));
     }
 
     /** List an object type's guarded fields. */

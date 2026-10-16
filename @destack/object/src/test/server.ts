@@ -1,5 +1,5 @@
 import { PackageHandle } from "@destack/runtime";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import type { ObjectType } from "../object/object.ts";
 import { defineServer, type PackageServer, type ServerDefinition } from "../server/server.ts";
 
@@ -18,7 +18,7 @@ export function serversOf(
 
     return [...byPackage.values()].map((types, index) => {
         // declare the package's types and serve them as handled
-        const owner = aligned(types, 0).package;
+        const owner = nth(types, 0).package;
         const declared = Object.fromEntries(types.map((type) => [type.name, type]));
         const handle = PackageHandle.of(owner, { objects: declared });
 

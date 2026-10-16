@@ -5,7 +5,7 @@ import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, aligned, type Identifier } from "@destack/schema";
+import { schema, nth, type Identifier } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -34,7 +34,7 @@ test.each(TEST_DIALECTS)(
         // serve the space's tasks to users identified by their bearer credential
         const server = Server.start({
             clock: Clock.system,
-            ...aligned(
+            ...nth(
                 new ObjectStore({
                     servers: [defineServer(tasksPackage, {})],
                     chain: async () => undefined,
@@ -215,7 +215,7 @@ test("serve a handled type in place of the package's own", async () => {
             },
         },
     });
-    const served = aligned(
+    const served = nth(
         new ObjectStore({
             servers: [defineServer(tasksPackage, { objects: [frozen] })],
             chain: async () => undefined,

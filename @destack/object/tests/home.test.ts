@@ -5,7 +5,7 @@ import { accessTables, Authorizer, none, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import type { ClientOptions } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
@@ -16,6 +16,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** How long a commit may take to reach a replica: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;
@@ -310,13 +311,13 @@ test("send a write of an enclosing scope's row to its home, predicted on the roo
         predicted,
         replicated,
         home: await homeTheme(served.homeDatabase, id),
-        writes: served.writes.filter((write) => !write.endsWith("/replica/stream")),
+        writes: served.writes.filter((write) => !write.endsWith("/store/stream")),
         failures,
     }).toEqual({
         predicted: "dark",
         replicated: "dark",
         home: "dark",
-        writes: ["home /replica/push", "replica /replica/watermark"],
+        writes: ["home /store/push", "replica /store/watermark"],
         failures: [],
     });
 });
@@ -352,16 +353,16 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
     expect({
         home: await homeTheme(served.homeDatabase, id),
         replicated: Valued.parse(await client.row(client.database, preference, id)).value,
-        writes: served.writes.filter((write) => !write.endsWith("/replica/stream")),
+        writes: served.writes.filter((write) => !write.endsWith("/store/stream")),
         failures,
     }).toEqual({
         home: "light",
         replicated: "light",
         writes: [
-            "home /replica/push",
-            "replica /replica/watermark",
-            "home /replica/push",
-            "replica /replica/watermark",
+            "home /store/push",
+            "replica /store/watermark",
+            "home /store/push",
+            "replica /store/watermark",
         ],
         failures: [],
     });

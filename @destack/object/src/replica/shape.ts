@@ -1,5 +1,5 @@
 import { type DatabaseConnection, eq, type Snapshot, sql } from "@destack/db";
-import { schema } from "@destack/schema";
+import { type Duration, schema } from "@destack/schema";
 import { replica, Subject, type Subscription } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import { QUERIES_PUBLICATION, type ObjectQuery } from "./replica.ts";
@@ -32,7 +32,7 @@ export interface FollowKey<Parameters extends object = object> {
     readonly subject?: Subject;
 }
 
-/** A shape a package's code reads replicated: at fixed keys, or at one key per row of its own. */
+/** A shape a package's code reads replicated: at fixed keys, one key per own row, or on demand. */
 export type Follow<Parameters extends object = object> = {
     /** Whether the store waits for these replicas before serving, true by default. */
     readonly isReadinessGate?: boolean;
@@ -46,8 +46,8 @@ export type Follow<Parameters extends object = object> = {
     | {
           /** The followed shape. */
           readonly shape: Shape<Parameters>;
-          /** Write the query of the follower's own rows that give its keys. */
-          readonly rows: (self: Subject) => ObjectQuery;
+          /** The query of the follower's own rows its keys come from. */
+          readonly from: ObjectQuery;
           /** Read a row's key as the follower, absent for a row it follows nothing for. */
           readonly key: (
               row: Readonly<Record<string, unknown>>,
@@ -55,16 +55,22 @@ export type Follow<Parameters extends object = object> = {
               self: Subject,
           ) => Promise<FollowKey<Parameters> | undefined>;
       }
+    | {
+          /** The followed shape. */
+          readonly shape: Shape<Parameters>;
+          /** How long a key the store acquires stays followed after its last acquisition. */
+          readonly onDemand: { readonly ttl: Duration };
+      }
 );
 
 /** Follows of shapes. */
 export const Follow = {
-    /** Follow a shape at fixed keys, or at one key per row of the follower's own. */
-    of<Parameters extends object>(
+    /** Follow a shape at fixed keys, at one key per row of the follower's own, or on demand. */
+    of<Parameters extends object, const At extends DistributiveOmit<Follow<Parameters>, "shape">>(
         shape: Shape<Parameters>,
-        at: DistributiveOmit<Follow<Parameters>, "shape">,
-    ): Follow<Parameters> {
-        return { shape, ...at };
+        at: At,
+    ): NoInfer<At & { readonly shape: Shape<Parameters> }> {
+        return { ...at, shape };
     },
 };
 
@@ -86,8 +92,8 @@ export const Shape = {
         return [shape.name, scope, ...Shape.listValues(parameters)].join(":");
     },
 
-    /** List the replicas a database keeps of a shape for some parameters, at whatever scope. */
-    async kept<Parameters extends object>(
+    /** List the replicas a database has of a shape for some parameters, at whatever scope. */
+    async replicas<Parameters extends object>(
         database: DatabaseConnection,
         shape: Shape<Parameters>,
         parameters: Parameters,
@@ -110,24 +116,43 @@ export const Shape = {
         below: string,
         subject?: Subject,
     ): Subscription {
-        // read the key's parameters, and name each query by its type and position
+        // name each query of the key's parameters by its type and position
         const { scope, ...rest } = key;
-        const parameters = shape.parameters.parse(rest);
-        const queries = shape.queries(parameters);
-        const stray = queries.find(
-            (query) => !shape.objects.some((object) => object.name === query.object),
-        );
-        if (stray !== undefined) {
-            throw new TypeError(
-                `shape ${shape.name} queries ${stray.object}, which it does not list`,
-            );
-        }
-        const named = Object.fromEntries(
-            queries.map((query, index) => [`${index}:${query.object}`, query]),
-        );
+        const named = namedQueries(shape, shape.parameters.parse(rest), "");
 
         return {
             name: Shape.replicaName(shape, key),
+            publication: QUERIES_PUBLICATION,
+            scope,
+            below,
+            ...(subject === undefined ? {} : { subject }),
+            parameters: { queries: schema.json().parse(named) },
+        };
+    },
+
+    /** Subscribe to the keys a follower acquired of a shape at one scope, as one replica. */
+    demanded<Parameters extends object>(
+        shape: Shape<Parameters>,
+        scope: string,
+        keys: readonly Parameters[],
+        below: string,
+        subject?: Subject,
+    ): Subscription {
+        // name each key's queries by its parameter values, its type and its position
+        const named = Object.fromEntries(
+            keys.flatMap((parameters) =>
+                Object.entries(
+                    namedQueries(shape, parameters, `${Shape.listValues(parameters).join(":")}:`),
+                ),
+            ),
+        );
+
+        return {
+            name: [
+                shape.name,
+                scope,
+                ...(subject === undefined ? [] : [Subject.key(subject)]),
+            ].join(":"),
             publication: QUERIES_PUBLICATION,
             scope,
             below,
@@ -143,6 +168,26 @@ export const Shape = {
             .map(([, value]) => String(value));
     },
 };
+
+/** Name a shape's queries for some parameters by a prefix, their type and position. */
+function namedQueries<Parameters extends object>(
+    shape: Shape<Parameters>,
+    parameters: Parameters,
+    prefix: string,
+): Record<string, ObjectQuery> {
+    // refuse a query of a type the shape does not list
+    const queries = shape.queries(parameters);
+    const stray = queries.find(
+        (query) => !shape.objects.some((object) => object.name === query.object),
+    );
+    if (stray !== undefined) {
+        throw new TypeError(`shape ${shape.name} queries ${stray.object}, which it does not list`);
+    }
+
+    return Object.fromEntries(
+        queries.map((query, index) => [`${prefix}${index}:${query.object}`, query]),
+    );
+}
 
 /** Declare a shape: its name, the parameters of its key, and the object queries they write. */
 export function defineShape<Parameters extends object>(definition: {

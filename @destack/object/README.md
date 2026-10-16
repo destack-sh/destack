@@ -38,29 +38,30 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 // page.ts, which clients and the server import
-export const page = defineObject({
-    name: "page",
-    plural: "pages",
-    scope: space,
-    fields: {
-        title: field.string(schema.string().max(500)).default(""),
-        archivedAt: field.time().optional(),
-        url: field.string(schema.string()).optional(),
-        template: field.string().immutable(),
+export const page = defineObject(
+    {
+        name: "page",
+        plural: "pages",
+        scope: space,
+        fields: {
+            title: field.string(schema.string().max(500)).default(""),
+            archivedAt: field.time().optional(),
+            url: field.string(schema.string()).optional(),
+            template: field.string().immutable(),
+        },
+        permissions: { read: relation("viewer"), write: relation("editor") },
     },
-    permissions: { read: relation("viewer"), write: relation("editor") },
-})
-    .methods((method) => ({
+    (method) => ({
         delete: false,
         archive: method.mutation({ permission: "write" }),
         publish: method.mutation({
             permission: "write",
             prepared: schema.object({ url: schema.string() }),
         }),
-    }))
-    .implement({
-        methods: { archive: (context) => context.update({ archivedAt: context.now }) },
-    });
+    }),
+).implement({
+    methods: { archive: (context) => context.update({ archivedAt: context.now }) },
+});
 
 // server/page.ts: prepare runs outside the transaction, so clients never predict publish
 export const servedPage = page.implement({
@@ -81,13 +82,16 @@ const { predicted, confirmed } = client.mutate(page).archive({ id });
 Every type derives `get` and `list` under `read`, and a type with a `write` permission derives `create`, `update` and `delete` under it: a declared method replaces its derived one, `false` removes one, and an `immutable` field is written at creation only.
 
 ```ts
-export const label = defineObject({
-    name: "label",
-    plural: "labels",
-    scope: space,
-    fields: { name: field.string(), color: field.string().immutable() },
-    permissions: { read: relation("viewer"), write: relation("editor") },
-}).methods(() => ({ delete: false })); // get, list, create, update; update leaves color out
+export const label = defineObject(
+    {
+        name: "label",
+        plural: "labels",
+        scope: space,
+        fields: { name: field.string(), color: field.string().immutable() },
+        permissions: { read: relation("viewer"), write: relation("editor") },
+    },
+    () => ({ delete: false }), // get, list, create, update; update leaves color out
+);
 ```
 
 ## References
@@ -217,34 +221,17 @@ const cards = defineShape({
     objects: [card],
     queries: ({ title }) => [card.query({ where: { title } })],
 });
+const usable = defineShape({
+    name: "connections",
+    parameters: schema.object({}),
+    objects: [connection],
+    queries: () => [connection.query({ permission: "use" })], // only the connections the follower may use
+});
 const directory = Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] });
-const activities = Follow.of(activityShape, { rows: () => relationship.query(), key: keyOf });
+const activities = Follow.of(activityShape, { from: relationship.query(), key: keyOf });
 const byTitle = Follow.of(cards, { onDemand: { ttl: { minutes: 10 } } });
 
 await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns
-```
-
-## Workflows
-
-`Workflows.implement` gives a `defineWorkflow` its function, whose steps the store records in `workflow_step` by name and answers again on every later advance of the run.
-
-```ts
-import { defineWorkflow } from "@destack/runtime/workflow";
-import { defineServer, Workflows } from "@destack/object/server";
-
-const review = defineWorkflow({ name: "review", input: schema.object({ title: schema.string() }) });
-const reviewed = Workflows.implement(review, async (step, { title }) => {
-    const draft = await step.call("write", note.call("create", { spaceId, title }));
-    const read = await step.query("read", note.call("get", { spaceId, id: draft.id }));
-    await step.sleep("pause", { minutes: 5 });
-    const where = { title: `Approved: ${read.title}` };
-    await step.waitFor("approval", note.call("list", { spaceId, where, limit: 1 }), {
-        timeout: { days: 1 },
-    });
-});
-export default defineServer(notes, { objects: [note], workflows: [reviewed] });
-
-await context.start({ workflow: review, input: { title: "Plan" } }); // from a method, once it commits
 ```
 
 ## Events
@@ -252,26 +239,32 @@ await context.start({ workflow: review, input: { title: "Plan" } }); // from a m
 A type stored in the event log takes `storage: { kind: "events", … }`: `create` and `createMany` append its rows under the caller's `id` and `time`, internally or under a permission, the same `get` and `list` read them hot and flushed alike, also from a durable method's handler, and `series` folds them; a guarded field masks the personal values its schema marks.
 
 ```ts
-export const call = defineObject({
-    name: "call",
-    plural: "calls",
-    storage: {
-        kind: "events",
-        flush: { maxAge: { hours: 1 }, maxRows: 100_000 },
-        retention: { days: 400 },
-        delivery: "exactly-once",
-        isLocked: true,
-        subject: "actor",
+export const call = defineObject(
+    {
+        name: "call",
+        plural: "calls",
+        storage: {
+            kind: "events",
+            flush: { maxAge: { hours: 1 }, maxRows: 100_000 },
+            retention: { days: 400 },
+            delivery: "exactly-once",
+            isLocked: true,
+            subject: "actor",
+        },
+        fields: {
+            data: field.json(CallEvent).guard({ read: "unmask" }),
+            actor: field.string(),
+            method: field.string(),
+        },
+        permissions: ["read", "unmask", "record"],
     },
-    fields: {
-        data: field.json(CallEvent).guard({ read: "unmask" }),
-        actor: field.string(),
-        method: field.string(),
-    },
-    permissions: ["read", "unmask", "record"],
-}).methods((method) => ({
-    record: method.createMany("record", { isInternal: true, fields: ["data", "actor", "method"] }),
-}));
+    (method) => ({
+        record: method.createMany("record", {
+            isInternal: true,
+            fields: ["data", "actor", "method"],
+        }),
+    }),
+);
 const events = new EventStore({
     database,
     kinds: [call.eventKind()],
@@ -322,8 +315,8 @@ An index declared `across` a scope holds its names unique across databases: a st
 ```ts
 indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
 
-const claim = defineObject({ name: "claim", /* … */ }).methods((method) => ({ ...claimMethods }));
-const home = RemoteStore.of(() => accounts.replica, Scope.universe.id);
+const claim = defineObject({ name: "claim", /* … */ }, () => claimMethods);
+const home = RemoteStore.of(accounts.store, Scope.universe.id);
 const store = new ObjectStore({ servers: [profileServer], claims: { object: claim, home }, principal: space, database, callKey, events, origin });
 const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // { scope, id }
 ```

@@ -97,7 +97,11 @@ export const EventLog = {
             read.events.map((event) => kind.row(event)),
             (row) => EventCursor.parse(row),
         );
-        const items = await execution.authorization.filter(page.items, context.permission());
+        const { rows: items } = await execution.authorization.filter(
+            context.object,
+            context.permission(),
+            page.items,
+        );
 
         return { items, cursor: page.cursor };
     },

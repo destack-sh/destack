@@ -5,7 +5,7 @@ import { AccessContext, accessTables, Caller, principal, relation } from "@desta
 
 import { asc, defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Clock, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import type { Mutation } from "@destack/sync";
 
 import { outbox } from "@destack/runtime/outbox";
@@ -19,6 +19,7 @@ import { until } from "@destack/runtime/timer";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { createRouterClient } from "@destack/runtime/server";
+import { Clock } from "@destack/environment";
 
 /** The space with the accounts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
@@ -286,7 +287,7 @@ test("refuse a pushed mutation of replicated rows, alone or beside local rows, w
     const join = member.call("create", { name: "Bob" });
     const pushed = await createRouterClient(follower.router(), {
         context: userContext(users.bob, spaceId),
-    }).replica.push({
+    }).store.push({
         scope: spaceId,
         mutations: [
             { id: RequestId.create(Date.now()), calls: [create] },

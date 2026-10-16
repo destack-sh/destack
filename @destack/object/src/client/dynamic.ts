@@ -1,6 +1,6 @@
 import { type DatabaseConnection, TABLE, type TableState } from "@destack/db";
 import type { Package } from "@destack/package";
-import { Clock, Digest, present, type JsonObject, type JsonValue, schema } from "@destack/schema";
+import { Digest, present, type JsonObject, type JsonValue, schema } from "@destack/schema";
 import type { Client } from "@destack/runtime";
 import type { ClientOptions } from "@destack/runtime/client";
 import { errorOf, refuseInput, CallError } from "@destack/runtime/error";
@@ -13,8 +13,9 @@ import {
     EXTERNAL_PUBLICATION,
     ObjectQuery,
     QUERIES_PUBLICATION,
-    type ReplicaProcedures,
+    type StoreProcedures,
 } from "../replica/replica.ts";
+import { Clock } from "@destack/environment";
 
 /** The hex digest digits of a watched query's identity: 64 bits, safe among watches. */
 const QUERY_NAME_LENGTH = 16;
@@ -53,21 +54,21 @@ export interface DynamicObjectClientOptions {
 export class DynamicObjectClient {
     /** The installation the client reaches, and its local database. */
     readonly options: DynamicObjectClientOptions;
-    /** The replica procedures of the package serving the objects. */
-    readonly #replica: Client<ReplicaProcedures>;
-    /** Reach the replica procedures of a scope's home, the client's replica for its scope. */
-    readonly #home: (scope: string) => Client<ReplicaProcedures>;
+    /** The store procedures of the package serving the objects. */
+    readonly #store: Client<StoreProcedures>;
+    /** Reach the store procedures of a scope's home, the client's store for its scope. */
+    readonly #home: (scope: string) => Client<StoreProcedures>;
     /** The local tables each watch's database has, created once per database. */
     readonly #migrated = new WeakMap<DatabaseConnection, Promise<unknown>>();
 
     /** Reach an installation's objects through the package serving them. */
     constructor(options: DynamicObjectClientOptions) {
         this.options = options;
-        this.#replica = ObjectClient.replica(options.package, options.endpoint);
+        this.#store = ObjectClient.store(options.package, options.endpoint);
         this.#home = ObjectClient.homes(
             options.package,
             options.scope,
-            () => this.#replica,
+            () => this.#store,
             options.homes,
         );
     }
@@ -115,9 +116,9 @@ export class DynamicObjectClient {
         const called = schema.jsonObject().parse(validated.data);
         const { scope } = this.options;
 
-        // read through the replica procedures
+        // read through the store procedures
         if (!declared.mutates) {
-            return this.#replica.call({
+            return this.#store.call({
                 scope,
                 call: object.call(method, called),
             });
@@ -156,7 +157,7 @@ export class DynamicObjectClient {
         }
 
         // describe them at the package
-        const { objects } = await this.#replica.describe(
+        const { objects } = await this.#store.describe(
             types === undefined ? {} : { types: [...types] },
         );
 
@@ -260,7 +261,7 @@ export class DynamicObjectClient {
             while (!signal.aborted) {
                 // stream from where the replica is, and compact the log after each completed run
                 const from = await replica.resume(database, subscription);
-                const pages = await this.#replica.stream({ ...subscription, ...from }, { signal });
+                const pages = await this.#store.stream({ ...subscription, ...from }, { signal });
                 for await (const page of replica.apply(database, pages, {
                     subscription,
                     clock: this.options.clock,

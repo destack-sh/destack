@@ -21,13 +21,16 @@ import {
     type Row,
     type Transaction,
 } from "@destack/db";
-import { aligned, schema } from "@destack/schema";
+import { schema, zip } from "@destack/schema";
 import { conceal, CallError, isCallError } from "@destack/runtime/error";
 import type { MethodContext } from "../method/context.ts";
 import { EventLog } from "../query/event.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_LIST, SCOPE_READ, type ObjectType } from "../object/object.ts";
+
+/** How a decision treats replicas of other scopes: passed as included, or checked like own rows. */
+type ReplicaAdmission = "included" | "checked";
 
 /** The kinds of method a scope with capped storage still runs, since they free storage. */
 const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "deleteMany", "purge"]);
@@ -48,34 +51,92 @@ export class Authorization extends access.Authorization {
         this.access = resolved;
     }
 
-    /** Match the rows the caller may list. */
-    listable(object: ObjectType, permission: Permission): SQL | "memory" {
-        // decide ephemeral and external rows in memory
-        if (object.storage !== "durable") {
+    /** Match the rows the caller holds a permission on, and a required one too, or "memory". */
+    where(object: ObjectType, permission: Permission, required?: Permission): SQL | "memory" {
+        // match both permissions, checking the required one on replicas too
+        const permitted = this.#where(object, permission, "included");
+        const held = required === undefined ? undefined : this.#where(object, required, "checked");
+        if (permitted === "memory" || held === "memory") {
             return "memory";
         }
 
-        // match permitted rows and the replicas handed down or decided for the caller below the scope
+        return held === undefined ? permitted : and(permitted, held);
+    }
+
+    /** Filter the rows in hand the caller holds a permission on, and a required one too. */
+    async filter<Filtered extends Row>(
+        object: ObjectType,
+        permission: Permission,
+        rows: readonly Filtered[],
+        options: {
+            readonly scope?: string;
+            readonly reader?: TupleReader;
+            readonly required?: Permission;
+        } = {},
+    ): Promise<{
+        readonly rows: Filtered[];
+        readonly until?: number;
+        readonly below: readonly string[];
+    }> {
+        // filter by the permission, then by the required one checked on replicas too
+        const { required, ...deciding } = options;
+        const permitted = await this.#filter(object, permission, rows, deciding, "included");
+        if (required === undefined) {
+            return permitted;
+        }
+        const held = await this.#filter(object, required, permitted.rows, deciding, "checked");
+        const until = earliest([permitted.until, held.until]);
+
+        return {
+            rows: held.rows,
+            ...(until === undefined ? {} : { until }),
+            below: [...new Set([...permitted.below, ...held.below])],
+        };
+    }
+
+    /** Match the rows the caller holds a permission on in SQL, or "memory" for `#filter`. */
+    #where(object: ObjectType, permission: Permission, replicas: ReplicaAdmission): SQL | "memory" {
+        // decide ephemeral and external rows in memory, and checked replicas at their own scopes
+        if (object.storage !== "durable" || replicas === "checked") {
+            return "memory";
+        }
+
+        // match the permitted rows
         const table = object.table;
         const permitted = this.authorizer.where(permission, this.access, table);
         const isReplica = sql<boolean>`${table[TABLE].column("scope")} <> ${this.access.scope}`;
-        const caller = Caller.principal(this.context());
-        const included = Replica.includes(table, this.access.scope, caller);
 
-        return object.inherited === undefined
-            ? or(and(isReplica, included), permitted)
-            : or(isReplica, permitted);
+        // pass the replicas handed down from enclosing scopes
+        if (object.inherited !== undefined) {
+            return or(isReplica, permitted);
+        }
+        // pass the replicas decided for the caller below the scope
+        else {
+            const caller = Caller.principal(this.context());
+
+            return or(
+                and(isReplica, Replica.includes(table, this.access.scope, caller)),
+                permitted,
+            );
+        }
     }
 
-    /** Decide which rows the caller may list. */
-    async admitRows(
+    /** Decide which rows in hand the caller holds a permission on, as `#where` matches them. */
+    async #filter<Filtered extends Row>(
         object: ObjectType,
         permission: Permission,
-        scope: string,
-        rows: readonly Row[],
-        reader?: TupleReader,
-    ): Promise<access.Admission & { readonly below: readonly string[] }> {
-        // admit the inherited replicas of enclosing scopes wholesale
+        rows: readonly Filtered[],
+        options: { readonly scope?: string; readonly reader?: TupleReader },
+        replicas: ReplicaAdmission,
+    ): Promise<{
+        readonly rows: Filtered[];
+        readonly until?: number;
+        readonly below: readonly string[];
+    }> {
+        // decide in the call's scope
+        const { scope = this.access.scope, reader } = options;
+
+        // place each row in its scope
         const table = object.table;
         const scoped = rows.map((row, position) => ({
             position,
@@ -83,12 +144,17 @@ export class Authorization extends access.Authorization {
             scope: schema.string().parse(row["scope"]),
         }));
         const others = scoped.filter((entry) => entry.scope !== scope);
-        let replicas: ReadonlySet<number>;
+        let passed: ReadonlySet<number>;
         let below: ReadonlyMap<string, Access> = new Map();
-        if (object.inherited !== undefined) {
-            replicas = new Set(others.map((entry) => entry.position));
+        // check replicas like own rows
+        if (replicas === "checked") {
+            passed = new Set();
         }
-        // admit the caller's durable replicas below the scope, and resolve the other rows' scopes
+        // pass the replicas handed down from enclosing scopes wholesale
+        else if (object.inherited !== undefined) {
+            passed = new Set(others.map((entry) => entry.position));
+        }
+        // pass the durable replicas the caller's replica includes
         else if (object.storage === "durable" && others.length > 0) {
             const included = await Replica.keysIncluded(
                 this.transaction.database,
@@ -97,22 +163,27 @@ export class Authorization extends access.Authorization {
                 scope,
                 Caller.principal(this.context()),
             );
-            const replicated = others.filter((entry) => included.has(Key.name(table, entry.row)));
-            replicas = new Set(replicated.map((entry) => entry.position));
-            const scopes = others
-                .filter((entry) => !replicas.has(entry.position))
-                .map((entry) => entry.scope);
-            below = await this.descend(scope, [...new Set(scopes)]);
+            passed = new Set(
+                others
+                    .filter((entry) => included.has(Key.name(table, entry.row)))
+                    .map((entry) => entry.position),
+            );
         }
-        // admit no other scope's rows
+        // pass no other scope's rows
         else {
-            replicas = new Set();
+            passed = new Set();
         }
 
-        // check the caller's permission on the scope's own rows and on the rows of the scopes it encloses
+        // resolve the scopes the scope encloses, which the rows left over live in
+        const left = others.filter((entry) => !passed.has(entry.position));
+        if (object.storage === "durable" && object.inherited === undefined && left.length > 0) {
+            below = await this.descend(scope, [...new Set(left.map((entry) => entry.scope))]);
+        }
+
+        // check the permission on the scope's own rows and on the rows of the scopes it encloses
         const own = scoped.filter(
             (entry) =>
-                !replicas.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
+                !passed.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
         );
         const admission = await this.checkRows(
             permission,
@@ -122,12 +193,35 @@ export class Authorization extends access.Authorization {
             below,
         );
 
+        // check the permission on each checked replica of another scope at its governing scope
+        const outside = left.filter((entry) => replicas === "checked" && !below.has(entry.scope));
+        const decisions = await Promise.all(
+            outside.map(async (entry) => {
+                const id = schema.string().parse(entry.row["id"]);
+                const decision = await this.check(permission, object.reference(entry.scope, id));
+
+                return { entry, decision };
+            }),
+        );
+        const until = earliest([
+            admission.until,
+            ...decisions.map(({ decision }) => decision.until),
+        ]);
+
+        // permit the passed replicas, the permitted own rows and the allowed checked replicas
+        const permitted = new Set([
+            ...passed,
+            ...own
+                .filter((_entry, index) => admission.permitted.has(index))
+                .map((entry) => entry.position),
+            ...decisions
+                .filter(({ decision }) => decision.isAllowed)
+                .map(({ entry }) => entry.position),
+        ]);
+
         return {
-            ...admission,
-            permitted: new Set([
-                ...replicas,
-                ...[...admission.permitted].map((index) => aligned(own, index).position),
-            ]),
+            rows: rows.filter((_row, position) => permitted.has(position)),
+            ...(until === undefined ? {} : { until }),
             below: [...below.keys()],
         };
     }
@@ -149,7 +243,7 @@ export class Authorization extends access.Authorization {
         const row = await snapshot.read(object.table).findFirst({ where: { id } });
         const isAdmitted =
             row !== undefined &&
-            (await this.admitRows(object, permission, scope, [row])).permitted.has(0);
+            (await this.filter(object, permission, [row], { scope })).rows.length > 0;
 
         // decide the permission as of a position too
         const reference = object.reference(scope, id);
@@ -486,22 +580,6 @@ export class Authorization extends access.Authorization {
         return rows.filter((_, position) => permitted.has(position));
     }
 
-    /** Filter the rows an access has a permission on, decided in memory. */
-    async filter<Filtered extends Row>(
-        rows: readonly Filtered[],
-        permission: access.PermissionReference,
-        evaluated: Access = this.access,
-    ): Promise<Filtered[]> {
-        const { permitted } = await this.authorizer.checkRows(
-            this.snapshot,
-            permission,
-            evaluated,
-            rows,
-        );
-
-        return rows.filter((_, position) => permitted.has(position));
-    }
-
     /** List each row's guarded fields the caller may not read, and until when. */
     async concealed(
         object: ObjectType,
@@ -568,8 +646,8 @@ export class Authorization extends access.Authorization {
                 : (await this.concealed(object, rows)).hidden;
 
         return {
-            rows: rows.map((row, position) =>
-                table.conceal(row, [...object.sensitive, ...aligned(hidden, position)]),
+            rows: zip(rows, hidden).map(([row, fields]) =>
+                table.conceal(row, [...object.sensitive, ...fields]),
             ),
             isRevealing: object.reveals(rows, hidden),
         };

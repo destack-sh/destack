@@ -10,7 +10,7 @@ import {
     type Step,
 } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { aligned, Digest, Duration, type Identifier, present } from "@destack/schema";
+import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
     ObjectWatch,
@@ -111,7 +111,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     reconcile(reconciliation: ObjectReconciliation<ResourceType<"space">>) {
         return ResourceController.#reconcile(
             this.#object,
-            aligned(reconciliation.rows, 0),
+            nth(reconciliation.rows, 0),
             reconciliation,
             {
                 ...this.#options,
@@ -132,16 +132,16 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             const parsed = this.#kind.states(
                 await DesiredState.read(Snapshot.live(database), row.scope, missing),
             );
-            for (const [index, digest] of missing.entries()) {
-                this.#states.set(digest, aligned(parsed, index));
+            for (const [digest, state] of zip(missing, parsed)) {
+                this.#states.set(digest, state);
             }
         }
 
         // hold the latest read states
         const states = digests.map((digest) => present(this.#states.get(digest), digest));
-        for (const [index, digest] of digests.entries()) {
+        for (const [digest, state] of zip(digests, states)) {
             this.#states.delete(digest);
-            this.#states.set(digest, aligned(states, index));
+            this.#states.set(digest, state);
         }
         for (const digest of [...this.#states.keys()].slice(0, -DESIRED_STATES_KEPT)) {
             this.#states.delete(digest);

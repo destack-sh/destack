@@ -18,7 +18,7 @@ import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { userContext } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { aligned, type Identifier } from "@destack/schema";
+import { nth, type Identifier } from "@destack/schema";
 import { Clock } from "@destack/environment";
 
 /** The space with the documents. */
@@ -68,7 +68,7 @@ async function serveDocuments(dialect: Dialect) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
-        ...aligned(
+        ...nth(
             new ObjectStore({
                 servers: [defineServer(documentsPackage, {})],
                 chain: async () => undefined,
@@ -205,7 +205,7 @@ test.for(TEST_DIALECTS)(
         expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
         expect(
             after.flatMap((row, index) =>
-                row.runs === aligned(before, index).runs ? [] : [index],
+                row.runs === nth(before, index).runs ? [] : [index],
             ),
         ).toEqual([7, 8]);
 

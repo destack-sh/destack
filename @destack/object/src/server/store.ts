@@ -48,15 +48,15 @@ import { Journal } from "../audit/journal.ts";
 import type { CallKey } from "@destack/runtime/request";
 
 import {
-    aligned,
+    nth,
     canonicalize,
-    Clock,
     Duration,
     type Identifier,
     type JsonObject,
     JsonValue,
     present,
     schema,
+    zip,
 } from "@destack/schema";
 import type { ServerContext } from "@destack/runtime/workload";
 import type { Watermark } from "@destack/runtime/bookmark";
@@ -91,9 +91,9 @@ import { callableProcedures } from "../method/procedure.ts";
 import { InputSchema } from "../method/input.ts";
 import {
     WriterId,
-    replicaProcedures,
+    storeProcedures,
     type PushResult,
-    type ReplicaProcedures,
+    type StoreProcedures,
 } from "../replica/replica.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
 import { INTRINSIC } from "../object/intrinsic.ts";
@@ -128,15 +128,9 @@ import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
 import { declareInstalled } from "../inspect/object.ts";
-import type { Advance } from "@destack/runtime/workflow";
-import {
-    type AdvanceRequest,
-    type WorkflowImplementation,
-    Workflows,
-} from "../workflow/workflow.ts";
-import { StepController } from "../workflow/controller.ts";
 import type { RunRequest } from "@destack/runtime/trigger";
 import type { AdapterFetch, PackageServer, ServedPackage, ServerDefinition } from "./server.ts";
+import { Clock } from "@destack/environment";
 
 /** The object call spans. */
 const { span } = telemetry.scope(import.meta.destack.package);
@@ -412,9 +406,9 @@ interface StoreParts {
     readonly provisioned?: ResourceControllerOptions;
 }
 
-/** A store's routes: each served object's procedures by its key, and the replica procedures. */
+/** A store's routes: each served object's procedures by its key, and the store procedures. */
 export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, RequestContext>>> & {
-    readonly replica: Router<ReplicaProcedures, RequestContext>;
+    readonly store: Router<StoreProcedures, RequestContext>;
 };
 
 /** A store serving object types' methods over one database. */
@@ -495,8 +489,6 @@ export class ObjectStore {
     readonly #declared: readonly ObjectType[];
     /** The served packages' implementations, in the order of their servers. */
     readonly packages: readonly (PackageImplementation & { readonly objects: ObjectStore })[];
-    /** The workflows the served packages implement. */
-    readonly #workflows: readonly WorkflowImplementation[];
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
 
@@ -564,30 +556,8 @@ export class ObjectStore {
             this.#sends = followed.sends;
         }
 
-        // list the call's workflow and the served packages', refusing two of one name
-        this.#workflows = [
-            Workflows.call,
-            ...served.flatMap((entry) => entry.definition.workflows ?? []),
-        ];
-        const twice = this.#workflows.find(
-            (each, index) => this.#workflows.findIndex((other) => other.name === each.name) < index,
-        );
-        if (twice !== undefined) {
-            throw new TypeError(`the store runs two workflows named ${twice.name}`);
-        }
-
         // implement each served package, the first one running the store's own controllers
         this.packages = served.map((entry, index) => this.#implementPackage(entry, index === 0));
-    }
-
-    /** Advance a run of one call or of a workflow a served package implements, refusing others. */
-    async advance(workflow: string, request: AdvanceRequest): Promise<Advance> {
-        const found = this.#workflows.find((each) => each.name === workflow);
-        if (found === undefined) {
-            throw new CallError("NOT_FOUND", { message: `the store runs no workflow ${workflow}` });
-        }
-
-        return found.advance(this, request);
     }
 
     /** Read the implementation of a package the store serves, refusing one it serves not. */
@@ -1138,7 +1108,7 @@ export class ObjectStore {
         };
     }
 
-    /** Route the served objects' methods, or some of them, and the replica procedures. */
+    /** Route the served objects' methods, or some of them, and the store procedures. */
     router(types: readonly ObjectType[] = this.#declared): ObjectRouter {
         // route each object under its key, which its package's handle holds unique
         const routers: Record<string, Router<ProcedureRouter, RequestContext>> = {};
@@ -1146,7 +1116,7 @@ export class ObjectStore {
             routers[object.key] = this.#route(object);
         }
 
-        return { replica: this.#replica(), ...routers };
+        return { store: this.#procedures(), ...routers };
     }
 
     /** Route an object's methods to the call pipeline. */
@@ -1162,33 +1132,22 @@ export class ObjectStore {
         return routes;
     }
 
-    /** Route the replica procedures. */
-    #replica(): Router<ReplicaProcedures, RequestContext> {
-        const replica = implement(replicaProcedures).$context<RequestContext>();
+    /** Route the store procedures. */
+    #procedures(): Router<StoreProcedures, RequestContext> {
+        const store = implement(storeProcedures).$context<RequestContext>();
 
-        return replica.router({
-            push: replica.push.handler(({ input, context }) =>
+        return store.router({
+            push: store.push.handler(({ input, context }) =>
                 this.#push(input.scope, input.mutations, context, input.writerId),
             ),
-            advance: replica.advance.handler(async ({ input, context }) => {
-                // advance the run as the caller in its scope
-                await this.enter(context, input.scope);
-                const { workflow, ...run } = input;
-
-                return this.advance(workflow, {
-                    ...run,
-                    id: input.run,
-                    caller: context.access(input.scope),
-                });
-            }),
-            watermark: replica.watermark.handler(async ({ input, context }) => {
+            watermark: store.watermark.handler(async ({ input, context }) => {
                 // read the scope's watermark once its replicas have the homes' commits
                 await this.enter(context, input.scope);
                 await this.#reachHomes(context, input.scope, input.homes);
 
                 return this.watermark(input.scope);
             }),
-            call: replica.call.handler(async ({ input, context }) => {
+            call: store.call.handler(async ({ input, context }) => {
                 // read in the given scope
                 const {
                     object,
@@ -1203,18 +1162,18 @@ export class ObjectStore {
 
                 return await this.#answer(object, name, called, context);
             }),
-            receive: replica.receive.handler(async ({ input, context }) => {
+            receive: store.receive.handler(async ({ input, context }) => {
                 // run the follower's mutation as the caller the route's identity verified
                 await this.receiveFrom(input.mutation, context.access());
 
                 return {};
             }),
-            broadcast: replica.broadcast.handler(async ({ input, context }) => {
+            broadcast: store.broadcast.handler(async ({ input, context }) => {
                 await this.source.broadcast(input.scope, input.object, input.event, context);
 
                 return {};
             }),
-            stream: replica.stream.handler(({ input, context, lastEventId }) => {
+            stream: store.stream.handler(({ input, context, lastEventId }) => {
                 const { after: _after, ...subscription } = input;
                 const after = ObjectStore.#resumed(input.after, lastEventId);
 
@@ -1223,7 +1182,7 @@ export class ObjectStore {
                     context,
                 );
             }),
-            describe: replica.describe.handler(({ input }) => ({
+            describe: store.describe.handler(({ input }) => ({
                 objects: this.describe(input.types),
             })),
         });
@@ -1453,7 +1412,9 @@ export class ObjectStore {
         }
 
         // answer the submitted calls without their expansions
-        return results.filter((_result, index) => aligned(calls, index).as === undefined);
+        return zip(results, calls)
+            .filter(([, call]) => call.as === undefined)
+            .map(([result]) => result);
     }
 
     /** Place a call without a scope in one, by its served or replicated type's route field. */
@@ -1557,7 +1518,7 @@ export class ObjectStore {
     /** Read the one scope a mutation's calls act in. */
     #mutationScope(originals: readonly ReturnType<typeof ObjectType.resolve>[]): string {
         // require every call to act in the first call's scope
-        const first = aligned(originals, 0);
+        const first = nth(originals, 0);
         const scope = first.object.readScope(first.name, first.input);
         if (originals.some((call) => call.object.readScope(call.name, call.input) !== scope)) {
             throw new CallError("BAD_REQUEST", {
@@ -1661,8 +1622,7 @@ export class ObjectStore {
         originals: readonly ReturnType<typeof ObjectType.resolve>[],
     ): Promise<string> {
         const sensitive: unknown[] = [];
-        const calls = mutation.calls.map((entry, index) => {
-            const { object, name, input } = aligned(originals, index);
+        const calls = zip(mutation.calls, originals).map(([entry, { object, name, input }]) => {
             const fields = InputSchema.fields(object.input(name));
 
             return {
@@ -1753,7 +1713,7 @@ export class ObjectStore {
         }
 
         // record the failed call with its request
-        const failed = aligned(run.calls, position);
+        const failed = nth(run.calls, position);
         const { action, values } = failed.object.auditCall(failed.name, failed.input, run.scope);
         await this.audit(
             run.scope,
@@ -1775,7 +1735,7 @@ export class ObjectStore {
             caller: run.request.caller,
             position,
             digest: run.fingerprint,
-            input: aligned(run.redacted, position),
+            input: nth(run.redacted, position),
         };
     }
 
@@ -1795,9 +1755,8 @@ export class ObjectStore {
         const reading = Transaction.reading(this.database);
         const authorization = await this.admit(reading, scope, caller, { calls });
         const expanded: Expansion[] = [];
-        for (const [index, call] of calls.entries()) {
+        for (const [call, method] of zip(calls, methods)) {
             // pass a call that expands into nothing
-            const method = aligned(methods, index);
             if (method.expand === undefined) {
                 expanded.push(call);
             }
@@ -1855,7 +1814,7 @@ export class ObjectStore {
                 this.#requireServed(mutation);
 
                 // require the pushed scope to be the home running the mutation
-                const first = this.#resolve(aligned(mutation.calls, 0), true, CallSite.of(caller));
+                const first = this.#resolve(nth(mutation.calls, 0), true, CallSite.of(caller));
                 if (first.object.readScope(first.name, first.input) !== scope) {
                     throw new CallError("BAD_REQUEST", {
                         message: `a mutation pushed to ${scope} acts in another scope`,
@@ -1907,19 +1866,19 @@ export class ObjectStore {
         );
     }
 
-    /** Send a call or start a workflow once the transaction commits, once per request. */
+    /** Send a call once the transaction commits, once per request. */
     async send(
         request: Exclude<RunRequest, { readonly triggerName: string }>,
         transaction: Transaction,
-        requestId: string = RequestId.create(this.clock.now()),
     ): Promise<void> {
         // require an outbox delivering the store's sends
         if (this.#sends === undefined) {
-            const label = "call" in request ? sync.Call.label(request.call) : request.workflow;
+            const label = sync.Call.label(request.call);
             throw new TypeError(`the store sends ${label}, but nothing receives its sends`);
         }
 
-        // record the run once the mutation commits, once per request
+        // record the run once the mutation commits
+        const requestId = RequestId.create(this.clock.now());
         const sends = this.#sends;
         transaction.record(async (committing) => {
             await sends.append(OutboxMessage, requestId, { requestId, request }, committing);
@@ -2052,10 +2011,7 @@ export class ObjectStore {
     async #deliver(sent: OutboxMessage, signal: AbortSignal): Promise<void> {
         // deliver a sent change of replicated rows toward their home
         const { request } = sent;
-        if (
-            "call" in request &&
-            (await this.#forward({ id: sent.requestId, calls: [request.call] }))
-        ) {
+        if (await this.#forward({ id: sent.requestId, calls: [request.call] })) {
             return;
         }
         // record any other sent call's run at the machine
@@ -2065,7 +2021,7 @@ export class ObjectStore {
         // refuse a call nothing receives
         else {
             throw new CallError("BAD_REQUEST", {
-                message: `nothing receives the sent run of ${"call" in request ? sync.Call.label(request.call) : request.workflow}`,
+                message: `nothing receives the sent run of ${sync.Call.label(request.call)}`,
             });
         }
     }
@@ -2085,11 +2041,7 @@ export class ObjectStore {
             new CompactionController(this.database, this.clock),
             ...(this.#journal === undefined
                 ? []
-                : [
-                      this.#journal.controller(),
-                      ...this.#journal.events.controllers,
-                      new StepController(this, this.#workflows.length > 1),
-                  ]),
+                : [this.#journal.controller(), ...this.#journal.events.controllers]),
             ...(this.claims === undefined
                 ? []
                 : [new ClaimController(this.claims, this.database, this.objects, this.clock)]),
@@ -2591,9 +2543,9 @@ export class ObjectStore {
         const permission = types.object.permission("read");
         const admitted =
             row === undefined
-                ? undefined
-                : await authorization.admitRows(types.object, permission, scope, [row]);
-        if (admitted?.permitted.has(0) !== true) {
+                ? []
+                : (await authorization.filter(types.object, permission, [row], { scope })).rows;
+        if (admitted.length === 0) {
             throw new CallError("NOT_FOUND", { message: `no branch ${id}` });
         }
 
@@ -2638,8 +2590,7 @@ export class ObjectStore {
 
         return this.#prepareEach(
             requestId,
-            calls.map((entry, index) => {
-                const method = aligned(methods, index);
+            zip(calls, methods).map(([entry, method]) => {
                 if (method.prepare === undefined) {
                     return undefined;
                 }
@@ -3001,7 +2952,7 @@ export class ObjectStore {
         // answer one object with its texts
         else {
             const redacted = await authorization.redact(object, [Row.parse(executed)]);
-            const row = aligned(redacted.rows, 0);
+            const row = nth(redacted.rows, 0);
             const id = IDENTIFIER.parse(row["id"]);
             if (redacted.isRevealing) {
                 await this.recordUnmask({
@@ -3190,12 +3141,12 @@ export class ObjectStore {
     /** List the tables whose rows decide a follow's keys: its rows' type's, none for fixed keys. */
     static #followedTables(follow: Follow, objects: readonly ObjectType[]): Table[] {
         // follow fixed and on-demand keys whatever the store's rows change
-        if (!("rows" in follow)) {
+        if (!("from" in follow)) {
             return [];
         }
 
         // watch the table of the rows the keys come from
-        const { object } = follow.rows(Scope.universe);
+        const { object } = follow.from;
 
         return objects.filter((type) => type.name === object).map((type) => type.table);
     }
@@ -3608,7 +3559,7 @@ export class ObjectStore {
                 keys:
                     "keys" in follow
                         ? follow.keys
-                        : "rows" in follow
+                        : "from" in follow
                           ? await ObjectStore.#readKeys(store, follow)
                           : [],
             })),
@@ -3703,10 +3654,10 @@ export class ObjectStore {
     /** Read the keys of a follow over the store's own rows: one per row its query reads. */
     static async #readKeys(
         store: ObjectStore,
-        follow: Extract<Follow, { readonly rows: unknown }>,
+        follow: Extract<Follow, { readonly from: unknown }>,
     ): Promise<FollowKey[]> {
         // read the queried rows of the store's own database
-        const query = follow.rows(store.principal);
+        const query = follow.from;
         const type = present(
             store.decided.find((object) => object.name === query.object),
             `the object type ${query.object} a follow's keys come from`,

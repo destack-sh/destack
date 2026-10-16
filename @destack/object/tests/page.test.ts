@@ -6,7 +6,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema, aligned, type Identifier } from "@destack/schema";
+import { present, schema, nth, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -36,7 +36,7 @@ async function servePages(dialect: Dialect) {
     // serve the space's pages
     const server = Server.start({
         clock: Clock.system,
-        ...aligned(
+        ...nth(
             new ObjectStore({
                 servers: [defineServer(pagesPackage, {})],
                 chain: async () => undefined,

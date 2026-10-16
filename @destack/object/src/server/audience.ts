@@ -189,10 +189,10 @@ export class ObjectAudience implements Audience {
         return this.#authorization.access.scopes[0];
     }
 
-    /** Match the rows of a table the caller may list. */
-    where(table: Table): SQL | "memory" {
+    /** Match the rows of a table the caller may list, under a query's own permission too. */
+    where(table: Table, permission?: string): SQL | "memory" {
         // leave the journal and the replicas' records to their queries
-        const listed = this.#listed(table);
+        const listed = this.#listed(table, permission);
         if (listed === "query") {
             return sql`true`;
         }
@@ -206,7 +206,8 @@ export class ObjectAudience implements Audience {
             return "memory";
         }
 
-        return this.#authorization.listable(listed.object, listed.permission);
+        // match the listed rows the caller holds the query's own permission on
+        return this.#authorization.where(listed.object, listed.listing, listed.own);
     }
 
     /** The name of the caller's access inputs and resolved access, apart from time. */
@@ -226,39 +227,39 @@ export class ObjectAudience implements Audience {
         return this.#key;
     }
 
-    /** Decide which rows the caller may list. */
+    /** Decide which rows the caller may list, under a query's own permission too. */
     async admits(
         table: Table,
         rows: readonly Row[],
         position: LogPosition,
+        permission?: string,
     ): Promise<ReadonlySet<number>> {
         // admit every row left to its query
-        const listed = this.#listed(table);
+        const listed = this.#listed(table, permission);
         if (listed === "query") {
             return new Set(rows.keys());
         }
-        const { permission } = listed;
-
-        // check the listing permission, admitting inherited replicas
-        const admission = await this.#authorization.admitRows(
-            listed.object,
-            permission,
-            this.#scope,
-            rows,
-            this.#reader(position),
-        );
-        this.#until = earliest([this.#until, admission.until]);
+        // filter the listed rows the caller holds the query's own permission on
+        const filtered = await this.#authorization.filter(listed.object, listed.listing, rows, {
+            scope: this.#scope,
+            reader: this.#reader(position),
+            ...(listed.own === undefined ? {} : { required: listed.own }),
+        });
+        this.#until = earliest([this.#until, filtered.until]);
 
         // watch the access of the scopes below that decided rows
         const known = this.#below.size;
-        for (const scope of admission.below) {
+        for (const scope of filtered.below) {
             this.#below.add(scope);
         }
         if (this.#below.size > known) {
             this.watches = this.#watched();
         }
 
-        return admission.permitted;
+        // admit the positions of the rows left
+        const admitted = new Set<Row>(filtered.rows);
+
+        return new Set(rows.flatMap((row, index) => (admitted.has(row) ? [index] : [])));
     }
 
     /** List an object type's guarded fields. */
@@ -409,10 +410,17 @@ export class ObjectAudience implements Audience {
         return this.#authorization.chain;
     }
 
-    /** Read the listing permission deciding a table's rows. */
+    /** Read the listing permission of a table's rows, and a query's own permission on them. */
     #listed(
         table: Table,
-    ): { readonly object: ObjectType; readonly permission: Permission } | "query" {
+        permission?: string,
+    ):
+        | {
+              readonly object: ObjectType;
+              readonly listing: Permission;
+              readonly own: Permission | undefined;
+          }
+        | "query" {
         // leave the journal and replica records to their queries, and contained rows to their follower
         if (
             this.#isContained ||
@@ -423,8 +431,11 @@ export class ObjectAudience implements Audience {
             return "query";
         }
 
-        // read the listing permission
-        return this.#objects.listed(table);
+        // read the listing permission and the query's own
+        const { object, permission: listing } = this.#objects.listed(table);
+        const own = permission === undefined ? undefined : object.permission(permission);
+
+        return { object, listing, own };
     }
 
     /** Share one grant reader among the scope's subscribers at a position. */

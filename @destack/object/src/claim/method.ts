@@ -118,8 +118,9 @@ export const claimMethods = {
         async (call, execution) => {
             // filter the reservations the caller may claim names in
             const { authorization } = Execution.store(execution, call);
-            const filter = (rows: readonly ClaimRow[]) =>
-                authorization.filter(rows, call.object.permission("claim"));
+            const filter = async (rows: readonly ClaimRow[]) =>
+                (await authorization.filter(call.object, call.object.permission("claim"), rows))
+                    .rows;
 
             return Claim.expired(call.read(claimTable), call.input.indexes, call.now, filter);
         },

@@ -6,7 +6,7 @@ import { Scope, type Subject } from "@destack/sync";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { Identifier, aligned } from "@destack/schema";
+import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -119,7 +119,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
     expect([
         failure(() =>
-            aligned(
+            nth(
                 new ObjectStore({
                     servers: [defineServer(definePackage({ objects: { draft } }), {})],
                     chain: async () => undefined,

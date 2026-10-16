@@ -10,7 +10,7 @@ import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
-import { found, aligned } from "@destack/schema";
+import { found, nth } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -333,7 +333,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     await openSpace(storage.database, spaceId);
     const tallies = definePackage({ objects: { tally } });
     const served = serveObjects(
-        aligned(
+        nth(
             new ObjectStore({
                 servers: [defineServer(tallies, {})],
                 chain: async () => undefined,
@@ -405,7 +405,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     await openSpace(storage.database, spaceId);
     const stamps = definePackage({ objects: { stamp } });
     const served = serveObjects(
-        aligned(
+        nth(
             new ObjectStore({
                 servers: [defineServer(stamps, {})],
                 chain: async () => undefined,

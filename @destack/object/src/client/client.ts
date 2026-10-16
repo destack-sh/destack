@@ -36,9 +36,8 @@ import {
     Transaction,
 } from "@destack/db";
 import {
-    aligned,
+    nth,
     canonicalize,
-    Clock,
     Digest,
     Duration,
     found,
@@ -48,6 +47,7 @@ import {
     mapValues,
     present,
     schema,
+    zip,
 } from "@destack/schema";
 import type { Client } from "@destack/runtime";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
@@ -73,8 +73,8 @@ import {
     ObjectQuery,
     PUSH_MUTATIONS,
     QUERIES_PUBLICATION,
-    replicaProcedures,
-    type ReplicaProcedures,
+    storeProcedures,
+    type StoreProcedures,
 } from "../replica/replica.ts";
 import { ObjectKey, ObjectType, type ObjectStorage, type PermissionOf } from "../object/object.ts";
 import { ObjectPolicy } from "../object/access.ts";
@@ -89,6 +89,7 @@ import {
     type Subscriber,
     type SubscribeOptions,
 } from "./query.ts";
+import { Clock } from "@destack/environment";
 
 /** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set([
@@ -360,12 +361,12 @@ export class ObjectClient<
     readonly #undoStack: UndoStack;
     /** The party sharing the database, such as one browser tab. */
     readonly origin: string;
-    /** The replica procedures of the machine serving the scope now. */
-    #replica: Client<ReplicaProcedures>;
-    /** Connect to the replica procedures of the machine serving a moved scope now. */
-    readonly #reconnect: (machine: Identifier<"machine">) => Client<ReplicaProcedures>;
-    /** Reach the replica procedures of a scope's home, the client's replica for its scope. */
-    readonly #home: (scope: string) => Client<ReplicaProcedures>;
+    /** The store procedures of the machine serving the scope now. */
+    #store: Client<StoreProcedures>;
+    /** Connect to the store procedures of the machine serving a moved scope now. */
+    readonly #reconnect: (machine: Identifier<"machine">) => Client<StoreProcedures>;
+    /** Reach the store procedures of a scope's home, the client's store for its scope. */
+    readonly #home: (scope: string) => Client<StoreProcedures>;
     /** Whether the client reaches the homes of scopes other than its own. */
     readonly #isReachingHomes: boolean;
     /** Aborts the streams following the machine that served a moved scope before. */
@@ -441,10 +442,10 @@ export class ObjectClient<
         // reach the package serving the replicated objects
         const replicated = this.objects.filter((object) => object.storage !== "local");
         const served = ObjectClient.#served(replicated, options.package);
-        this.#replica = ObjectClient.replica(served, options.endpoint);
-        this.#reconnect = (machine) => ObjectClient.replica(served, options.reconnect(machine));
+        this.#store = ObjectClient.store(served, options.endpoint);
+        this.#reconnect = (machine) => ObjectClient.store(served, options.reconnect(machine));
         this.#isReachingHomes = options.homes !== undefined;
-        this.#home = ObjectClient.homes(served, this.scope, () => this.#replica, options.homes);
+        this.#home = ObjectClient.homes(served, this.scope, () => this.#store, options.homes);
 
         // replicate durable objects with their predictions, and ephemeral and external objects apart
         const tables = ObjectClient.#storedTables(this.objects, "durable");
@@ -620,14 +621,14 @@ export class ObjectClient<
         };
     }
 
-    /** Reach a scope's home replica procedures: the client's replica, else each home once. */
+    /** Reach the store procedures of a scope's home: the client's own, else each home once. */
     static homes(
         served: Package,
         scope: string,
-        own: () => Client<ReplicaProcedures>,
+        own: () => Client<StoreProcedures>,
         homes: ((scope: string) => ClientOptions) | undefined,
-    ): (home: string) => Client<ReplicaProcedures> {
-        const known = new Map<string, Client<ReplicaProcedures>>();
+    ): (home: string) => Client<StoreProcedures> {
+        const known = new Map<string, Client<StoreProcedures>>();
 
         return (home) => {
             // reach the client's scope at its replica, refusing another scope without homes
@@ -640,18 +641,18 @@ export class ObjectClient<
             }
 
             // connect to each other scope's home once
-            const connected = known.get(home) ?? ObjectClient.replica(served, homes(home));
+            const connected = known.get(home) ?? ObjectClient.store(served, homes(home));
             known.set(home, connected);
 
             return connected;
         };
     }
 
-    /** Call the replica procedures of the serving package, speaking its release. */
-    static replica(served: Package, endpoint: ClientOptions): Client<ReplicaProcedures> {
-        const router = { replica: replicaProcedures };
+    /** Call the store procedures of the serving package, speaking its release. */
+    static store(served: Package, endpoint: ClientOptions): Client<StoreProcedures> {
+        const router = { store: storeProcedures };
 
-        return createClient({ version: served.version, router }, endpoint).replica;
+        return createClient({ version: served.version, router }, endpoint).store;
     }
 
     /** List the tables a client's local database has for some object types. */
@@ -1103,16 +1104,16 @@ export class ObjectClient<
             const reshaped = new AbortController();
             const stream = AbortSignal.any([signal, reshaped.signal, this.#moves.signal]);
             this.#restartOnChange(isChanged, stream, reshaped, report);
-            const replica = this.#replica;
+            const store = this.#store;
             let isFinal = false;
             try {
                 // follow the replica, resetting failures on each page
-                await this.#followPages(follow, subscribed, replica, stream, resetFailures);
+                await this.#followPages(follow, subscribed, store, stream, resetFailures);
             } catch (error) {
                 // restart on change or move, report other failures
                 if (signal.aborted) {
                     return;
-                } else if (stream.aborted || this.#redirect(error, replica)) {
+                } else if (stream.aborted || this.#redirect(error, store)) {
                     continue;
                 }
                 report(error);
@@ -1166,7 +1167,7 @@ export class ObjectClient<
     async #followPages(
         follow: ClientFollow,
         parameters: JsonObject,
-        procedures: Client<ReplicaProcedures>,
+        procedures: Client<StoreProcedures>,
         stream: AbortSignal,
         onPage: () => void,
     ): Promise<void> {
@@ -1451,8 +1452,8 @@ export class ObjectClient<
         readonly mutations: sync.Mutation[];
     } {
         // read each mutation's home from its first call
-        const homes = pushed.map((entry) => this.#readHome(aligned(entry.calls, 0)));
-        const home = aligned(homes, 0);
+        const homes = pushed.map((entry) => this.#readHome(nth(entry.calls, 0)));
+        const home = nth(homes, 0);
         const other = homes.findIndex((each) => each !== home);
 
         return { home, mutations: pushed.slice(0, other === -1 ? pushed.length : other) };
@@ -1770,10 +1771,10 @@ export class ObjectClient<
             const items = new Map(lists.flatMap((list) => list.map((item) => [item.row, item])));
             const merged = Order.merge(
                 Order.of(orderBy),
-                followed.map(({ name, table }, index) => ({
+                zip(followed, lists).map(([{ name, table }, list]) => ({
                     name,
                     table,
-                    rows: aligned(lists, index).map((item) => item.row),
+                    rows: list.map((item) => item.row),
                 })),
                 options.limit,
             );
@@ -2269,25 +2270,23 @@ export class ObjectClient<
         });
     }
 
-    /** Call the replica procedures, forwarding once to the machine now serving a moved scope. */
-    async #call<Value>(
-        send: (replica: Client<ReplicaProcedures>) => Promise<Value>,
-    ): Promise<Value> {
-        const replica = this.#replica;
+    /** Call the store procedures, forwarding once to the machine now serving a moved scope. */
+    async #call<Value>(send: (store: Client<StoreProcedures>) => Promise<Value>): Promise<Value> {
+        const store = this.#store;
         try {
-            return await send(replica);
+            return await send(store);
         } catch (error) {
             // retry once after a move
-            if (!this.#redirect(error, replica)) {
+            if (!this.#redirect(error, store)) {
                 throw error;
             }
 
-            return send(this.#replica);
+            return send(this.#store);
         }
     }
 
     /** Reconnect to the machine serving a moved scope, returning whether it was a move. */
-    #redirect(error: unknown, replica: Client<ReplicaProcedures>): boolean {
+    #redirect(error: unknown, store: Client<StoreProcedures>): boolean {
         // ignore other failures
         const moved = CallError.data(error, "MISDIRECTED_REQUEST");
         if (moved === undefined || !("machine" in moved)) {
@@ -2295,8 +2294,8 @@ export class ObjectClient<
         }
 
         // reconnect once per move
-        if (replica === this.#replica) {
-            this.#replica = this.#reconnect(moved.machine);
+        if (store === this.#store) {
+            this.#store = this.#reconnect(moved.machine);
             this.#moves.abort();
             this.#moves = new AbortController();
         }
@@ -2609,7 +2608,7 @@ export class ObjectClient<
 }
 
 /** What the server answers a push. */
-type PushResult = Awaited<ReturnType<Client<ReplicaProcedures>["push"]>>;
+type PushResult = Awaited<ReturnType<Client<StoreProcedures>["push"]>>;
 
 /** What the server made of one pushed mutation. */
 type PushOutcome = PushResult["outcomes"][number];

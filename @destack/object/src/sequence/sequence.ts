@@ -1,4 +1,4 @@
-import { aligned, found, present } from "@destack/schema";
+import { nth, found, present } from "@destack/schema";
 import type { Anchor } from "./anchor.ts";
 import type { Annotation, Span } from "./annotation.ts";
 import type { Element, Run } from "./element.ts";
@@ -203,7 +203,7 @@ export class Sequence {
     /** Find the text offset right after an element. */
     #after(element: Element): number {
         const index = this.#find(element);
-        const piece = aligned(this.runs, index);
+        const piece = nth(this.runs, index);
 
         return this.offset(element) + (typeof piece.text === "number" ? 0 : 1);
     }
@@ -237,7 +237,7 @@ export class Sequence {
 
         // split after the anchor and insert between
         const index = this.#find(after);
-        const piece = aligned(this.runs, index);
+        const piece = nth(this.runs, index);
         const cut = after.offset - piece.start + 1;
         const [head, tail] = Sequence.split(piece, cut);
 
@@ -299,7 +299,7 @@ export class Sequence {
     #cut(element: Element, edge: "before" | "after"): Sequence {
         // cut the piece before the element, or after it
         const index = this.#find(element);
-        const piece = aligned(this.runs, index);
+        const piece = nth(this.runs, index);
         const count = element.offset - piece.start + (edge === "after" ? 1 : 0);
         const [head, tail] = Sequence.split(piece, count);
 

@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { Sequence, TextChange, type Annotation, type Element, type SequenceEdit } from "./index.ts";
 
 /** The edits each seeded run makes. */
@@ -97,7 +97,7 @@ test.for([3, 17, 91])(
 
         // edit, push and follow in turns
         for (let step = 0; step < EDITS; step++) {
-            const party = aligned(parties, Math.floor(random(seed) * parties.length));
+            const party = nth(parties, Math.floor(random(seed) * parties.length));
             const draw = random(seed);
             if (draw < 0.7) {
                 party.counter += 1;

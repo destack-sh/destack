@@ -5,6 +5,7 @@ import { accessTables } from "@destack/access";
 import { controllerLease } from "@destack/runtime/control";
 import { outbox } from "@destack/runtime/outbox";
 import { settlement } from "../method/settlement.ts";
+import { replicaLease } from "../replica/lease.ts";
 
 /** The calls a database executed recently, which retries of their requests replay. */
 export const journal = defineTable(
@@ -48,5 +49,6 @@ export const storeTables: readonly Table[] = [
     journal,
     settlement,
     controllerLease,
+    replicaLease,
     outbox,
 ];

@@ -319,7 +319,7 @@ test("drop a replica once its source refuses its follow and no follow names it a
         servers: serversOf([document], {
             follows: [
                 Follow.of(documentShape, {
-                    rows: () => document.query(),
+                    from: document.query(),
                     key: async () =>
                         requested.has(otherSpaceId) ? { key: { scope: otherSpaceId } } : undefined,
                 }),

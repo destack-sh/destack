@@ -48,7 +48,7 @@ export const QueryShape = {
     ...RelationShape,
     /** Which trashed rows of a recoverable type to select, none by default. */
     deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
-    /** Aggregates of the rows, kept instead of the rows. */
+    /** Aggregates of the rows, replicated instead of the rows. */
     aggregate: Aggregate.exactOptional(),
 };
 
@@ -87,8 +87,10 @@ export interface ObjectQuery extends FindOptions {
     readonly scopes?: "every";
     /** Which trashed rows of a recoverable type to select, none by default. */
     readonly deleted?: "exclude" | "include" | "only";
-    /** Aggregates of the rows, kept instead of the rows. */
+    /** Aggregates of the rows, replicated instead of the rows. */
     readonly aggregate?: Aggregate;
+    /** The permission the caller also holds on each row, by its name on the type. */
+    readonly permission?: string;
 }
 
 /** A query of one object type's rows in the scope a replica follows, or in every scope. */
@@ -96,6 +98,7 @@ export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     object: schema.string().min(1),
     scopes: schema.literal("every").exactOptional(),
     ...QueryShape,
+    permission: schema.string().min(1).exactOptional(),
 });
 
 /** The publication of a scope's durable objects a caller follows. */
@@ -112,7 +115,10 @@ export const ACCESS_PUBLICATION = "access";
 
 /** The parameters of the durable objects publication: named queries, else every listed type. */
 export const QueriesParameters = defineSchema(
-    schema.object({ queries: schema.record(schema.string(), ObjectQuery).exactOptional() }),
+    schema.object({
+        /** The named queries, every durable table without them. */
+        queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
+    }),
 );
 /** The parameters of the durable objects publication. */
 export type QueriesParameters = schema.Infer<typeof QueriesParameters>;
@@ -152,9 +158,9 @@ export const PushResult = schema.object({
 export type PushResult = schema.Infer<typeof PushResult>;
 
 /** The procedures a client replica or a database replicating the served one uses. */
-export const replicaProcedures = {
+export const storeProcedures = {
     push: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/push" })
+        .route({ method: "POST", path: "/store/push" })
         .input(
             schema.object({
                 /** The scope the mutations change. */
@@ -167,7 +173,7 @@ export const replicaProcedures = {
         )
         .output(PushResult),
     watermark: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/watermark" })
+        .route({ method: "POST", path: "/store/watermark" })
         .input(
             schema.object({
                 /** The scope whose watermark to read. */
@@ -178,7 +184,7 @@ export const replicaProcedures = {
         )
         .output(Watermark),
     call: defineProcedure({ authentication: "public", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/call" })
+        .route({ method: "POST", path: "/store/call" })
         .input(
             schema.object({
                 /** The scope the call reads. */
@@ -189,7 +195,7 @@ export const replicaProcedures = {
         )
         .output(schema.json()),
     receive: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/receive" })
+        .route({ method: "POST", path: "/store/receive" })
         .input(
             schema.object({
                 /** The mutation of replicated rows a follower sends toward their home. */
@@ -198,7 +204,7 @@ export const replicaProcedures = {
         )
         .output(schema.object({})),
     broadcast: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/broadcast" })
+        .route({ method: "POST", path: "/store/broadcast" })
         .input(
             schema.object({
                 /** The scope with the object. */
@@ -211,11 +217,11 @@ export const replicaProcedures = {
         )
         .output(schema.object({})),
     stream: defineProcedure({ authentication: "public", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/stream" })
+        .route({ method: "POST", path: "/store/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
     describe: defineProcedure({ authentication: "public", permission: "rows", audit: false })
-        .route({ method: "POST", path: "/replica/describe" })
+        .route({ method: "POST", path: "/store/describe" })
         .input(
             schema.object({
                 /** The object types to describe, every served one when absent. */
@@ -231,4 +237,4 @@ export const replicaProcedures = {
 };
 
 /** The procedures a client replica or a database replicating the served one uses. */
-export type ReplicaProcedures = typeof replicaProcedures;
+export type StoreProcedures = typeof storeProcedures;

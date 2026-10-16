@@ -36,7 +36,7 @@ import {
     type Tree,
 } from "@destack/db";
 import {
-    aligned,
+    nth,
     Duration,
     Identifier,
     type JsonObject,
@@ -46,6 +46,7 @@ import {
     Version,
     JsonValue,
     mapValues,
+    zip,
 } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { AuditAction } from "../audit/action.ts";
@@ -72,7 +73,7 @@ import {
     type ScopeRoute,
     type ObjectSchema,
 } from "../method/procedure.ts";
-import { replicaProcedures, type ObjectQuery, type ReplicaProcedures } from "../replica/replica.ts";
+import { storeProcedures, type ObjectQuery, type StoreProcedures } from "../replica/replica.ts";
 import { compile, compileQueries } from "../query/query.ts";
 import { record } from "../trait/record.ts";
 import { series, type SeriesMethodMap } from "../trait/series.ts";
@@ -761,10 +762,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     reveals(rows: readonly Row[], hidden: readonly (readonly string[])[]): boolean {
         const personal = this.guarded.filter((name) => this.table[TABLE].personal.has(name));
 
-        return rows.some((row, position) =>
-            personal.some(
-                (name) => row[name] !== undefined && !aligned(hidden, position).includes(name),
-            ),
+        return zip(rows, hidden).some(([row, fields]) =>
+            personal.some((name) => row[name] !== undefined && !fields.includes(name)),
         );
     }
 
@@ -1125,8 +1124,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** The procedures every object type shares. */
-    get shared(): { readonly replica: ReplicaProcedures } {
-        return { replica: replicaProcedures };
+    get shared(): { readonly store: StoreProcedures } {
+        return { store: storeProcedures };
     }
 
     /** Derive the audit action `Noun.method` recording one method. */
@@ -1244,7 +1243,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Write a query of the objects as data, as clients and shapes send it. */
-    query(options: Omit<ObjectQuery, "object"> = {}): ObjectQuery {
+    query<Self extends ObjectType>(
+        this: Self,
+        options: Omit<ObjectQuery, "object" | "permission"> & {
+            readonly permission?: PermissionOf<Self>;
+        } = {},
+    ): ObjectQuery {
         return { object: this.name, ...options };
     }
 
@@ -1392,7 +1396,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const held = this.table[TABLE].column("scope").definition.schema;
 
         return this.inherited === undefined
-            ? [aligned(chain, 0)]
+            ? [nth(chain, 0)]
             : chain.filter((scope) => held.safeParse(scope).success);
     }
 

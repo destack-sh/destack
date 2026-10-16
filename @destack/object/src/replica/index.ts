@@ -5,9 +5,10 @@ export {
     QUERIES_PUBLICATION,
     QueriesParameters,
     ObjectQuery,
-    replicaProcedures,
+    storeProcedures,
     PushResult,
-    type ReplicaProcedures,
+    type StoreProcedures,
 } from "./replica.ts";
 
 export * from "./shape.ts";
+export * from "./lease.ts";

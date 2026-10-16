@@ -52,10 +52,19 @@ export function compile(
     options: Omit<ObjectQuery, "object">,
     objects: readonly ObjectType[],
 ): Omit<Query, "scopes"> {
+    // refuse a permission the type does not declare
+    const { permission, ...found } = options;
+    if (permission !== undefined && !object.permissions.includes(permission)) {
+        throw new CallError("BAD_REQUEST", {
+            message: `object ${object.name} has no permission ${permission}`,
+        });
+    }
+
     return {
         table: object.table,
         relations: RelationGraph.of(objects),
-        ...QueryDerivation.compileOptions(object, options, objects, true),
+        ...QueryDerivation.compileOptions(object, found, objects, true),
+        ...(permission === undefined ? {} : { permission }),
     };
 }
 
