@@ -313,6 +313,9 @@ const WATER_COLORS: WaterColors = {
     ink: palette.ink,
 };
 
+/** The most device pixels the water and ice draw: the desktop figure's 1216 by 602 at 2x. */
+const WATER_PIXELS = 2432 * 1204;
+
 /** The box of the water and ice layers. */
 const spillStyle = {
     "clip-path": `inset(0 ${WATER_SPILL}px ${WATER_SPILL}px)`,
@@ -618,6 +621,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 fragmentShader={WATER_FRAGMENT}
                 uniforms={waterValues("ice")}
                 speed={1}
+                maxPixelCount={WATER_PIXELS}
                 style={spillStyle}
                 xstyle={[styles.ice, !isPainted() && styles.unpainted]}
                 onFailure={reportFailure}
@@ -736,6 +740,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 fragmentShader={WATER_FRAGMENT}
                 uniforms={waterValues("water")}
                 speed={1}
+                maxPixelCount={WATER_PIXELS}
                 style={spillStyle}
                 xstyle={[styles.water, !isPainted() && styles.unpainted]}
                 onMount={(mount) => {
