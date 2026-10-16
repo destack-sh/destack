@@ -9,6 +9,10 @@ import {
     principal,
     type RelationInput,
     relationsOf,
+    Grant,
+    Invitation,
+    Relationship,
+    Role,
 } from "@destack/access";
 import type { Package, PackageId } from "@destack/package";
 import { Field } from "../field/field.ts";
@@ -529,9 +533,10 @@ export const role = {
                 // create the role through the access role API
                 const { name, description, permissions } = call.input;
                 const store = Execution.store(execution, call);
-                const created = await store.authorization.createRole(
+                const created = await Role.create(
                     await ObjectPolicy.scopeObject(call, execution),
                     { name, description, permissions },
+                    store.authorization,
                 );
 
                 return ObjectPolicy.readRow(store, created.id);
@@ -549,7 +554,7 @@ export const role = {
                 // change the given values at the loaded revision
                 const { name, description, permissions } = call.input;
                 const store = Execution.store(execution, call);
-                await store.authorization.updateRole(
+                await Role.update(
                     await ObjectPolicy.scopeObject(call, execution),
                     call.target.id,
                     {
@@ -558,6 +563,7 @@ export const role = {
                         ...(permissions === undefined ? {} : { permissions }),
                         revision: call.target.revision,
                     },
+                    store.authorization,
                 );
 
                 return ObjectPolicy.readRow(store, call.target.id);
@@ -588,9 +594,11 @@ export const role = {
             handler: async (context, execution) => {
                 // bind the role under the manager with exactly its permissions, dropping both without any
                 const { manager, ...binding } = RoleBinding.parse(context.input);
-                await Execution.store(execution, context)
-                    .authorization.applying(manager)
-                    .upsertBinding(await ObjectPolicy.scopeObject(context, execution), binding);
+                await Role.upsertBinding(
+                    await ObjectPolicy.scopeObject(context, execution),
+                    binding,
+                    Execution.store(execution, context).authorization.applying(manager),
+                );
 
                 return {};
             },
@@ -599,10 +607,11 @@ export const role = {
             method.delete("delete", { isPredicted: false }),
             async (call, execution) => {
                 // delete the unbound role at the loaded revision
-                await Execution.store(execution, call).authorization.deleteRole(
+                await Role.delete(
                     await ObjectPolicy.scopeObject(call, execution),
                     call.target.id,
                     call.target.revision,
+                    Execution.store(execution, call).authorization,
                 );
 
                 return {};
@@ -713,10 +722,13 @@ export const relationship = {
                 // grant under the relation's grant rules
                 const { object, ...granted } = RelationshipInput.parse(context.input);
 
-                return Execution.store(execution, context).authorization.grant({
-                    ...GrantInput.parse(granted),
-                    object,
-                });
+                return Relationship.grant(
+                    {
+                        ...GrantInput.parse(granted),
+                        object,
+                    },
+                    Execution.store(execution, context).authorization,
+                );
             },
         }),
         delete: defineMethod<{
@@ -745,9 +757,10 @@ export const relationship = {
                 // revoke under the relation's grant rules
                 const { object, relationshipId } = RelationshipKey.parse(context.input);
 
-                return Execution.store(execution, context).authorization.revoke(
+                return Relationship.revoke(
                     object,
                     relationshipId,
+                    Execution.store(execution, context).authorization,
                 );
             },
         }),
@@ -800,10 +813,13 @@ export const invitation = {
                 const { object, ...invited } = InvitationInput.parse(context.input);
                 const { relationship: offered, ...details } = InviteInput.parse(invited);
 
-                return Execution.store(execution, context).authorization.invite({
-                    ...details,
-                    relationship: { ...offered, object },
-                });
+                return Invitation.create(
+                    {
+                        ...details,
+                        relationship: { ...offered, object },
+                    },
+                    Execution.store(execution, context).authorization,
+                );
             },
         }),
         accept: defineMethod<{
@@ -832,9 +848,10 @@ export const invitation = {
                 // accept as the caller
                 const { object, invitationId } = InvitationKey.parse(context.input);
 
-                return Execution.store(execution, context).authorization.accept(
+                return Invitation.accept(
                     object,
                     invitationId,
+                    Execution.store(execution, context).authorization,
                 );
             },
         }),
@@ -864,9 +881,10 @@ export const invitation = {
                 // withdraw as its inviter, its addressee or a granter
                 const { object, invitationId } = InvitationKey.parse(context.input);
 
-                return Execution.store(execution, context).authorization.withdraw(
+                return Invitation.withdraw(
                     object,
                     invitationId,
+                    Execution.store(execution, context).authorization,
                 );
             },
         }),
@@ -901,12 +919,13 @@ export const invitation = {
                     schema.string(),
                 );
                 const { authorization } = Execution.store(execution, context);
-                const invitations = await authorization.invitations(
+                const invitations = await Invitation.list(
                     { object },
                     {
                         ...(listing.after === undefined ? {} : { after: listing.after }),
                         limit: listing.limit,
                     },
+                    authorization,
                 );
 
                 return listing.result(invitations, (each) => each.id);
@@ -934,9 +953,10 @@ export const grant = {
         create: Execution.handle(
             method.create("create", { fields: [], input: GrantRequest, isPredicted: false }),
             async (call, execution) =>
-                Execution.store(execution, call).authorization.createGrant(
+                Grant.create(
                     await ObjectPolicy.scopeObject(call, execution),
                     call.input,
+                    Execution.store(execution, call).authorization,
                 ),
         ),
         revoke: Execution.handle(
@@ -952,9 +972,10 @@ export const grant = {
                 }
 
                 // revoke the grant as its delegator
-                await Execution.store(execution, call).authorization.revokeGrant(
+                await Grant.revoke(
                     await ObjectPolicy.scopeObject(call, execution),
                     id,
+                    Execution.store(execution, call).authorization,
                 );
 
                 return {};

@@ -77,10 +77,13 @@ export const ShareableMethod = {
                     // grant only on an object outside the trash
                     await ShareableMethod.requirePresent(call, "live");
 
-                    return authorization.grant({
-                        ...GrantInput.parse(call.input),
-                        object: call.reference(),
-                    });
+                    return Relationship.grant(
+                        {
+                            ...GrantInput.parse(call.input),
+                            object: call.reference(),
+                        },
+                        authorization,
+                    );
                 },
                 (step) => {
                     // revoke the granted relationship
@@ -105,9 +108,10 @@ export const ShareableMethod = {
                 async (call, { authorization }) => {
                     // revoke on any object that exists, in the trash too
                     await ShareableMethod.requirePresent(call, "stored");
-                    await authorization.revoke(
+                    await Relationship.revoke(
                         call.reference(),
                         schema.object(RelationshipShape).parse(call.input).relationshipId,
+                        authorization,
                     );
 
                     return {};
@@ -122,12 +126,13 @@ export const ShareableMethod = {
                 async (call, { authorization }) => {
                     // page the object's invitations by identifier
                     const listing = ShareableMethod.sharingPage(call, "invitations");
-                    const invitations = await authorization.invitations(
+                    const invitations = await Invitation.list(
                         { object: call.reference() },
                         {
                             ...(listing.after === undefined ? {} : { after: listing.after }),
                             limit: listing.limit,
                         },
+                        authorization,
                     );
 
                     return listing.result(invitations, (invitation) => invitation.id);
@@ -144,10 +149,13 @@ export const ShareableMethod = {
                     await ShareableMethod.requirePresent(call, "live");
                     const { relationship, ...invitation } = InviteInput.parse(call.input);
 
-                    return authorization.invite({
-                        ...invitation,
-                        relationship: { ...relationship, object: call.reference() },
-                    });
+                    return Invitation.create(
+                        {
+                            ...invitation,
+                            relationship: { ...relationship, object: call.reference() },
+                        },
+                        authorization,
+                    );
                 },
             ),
             accept: ShareableMethod.sharingMethod(
@@ -160,9 +168,10 @@ export const ShareableMethod = {
                     // accept only on an object outside the trash
                     await ShareableMethod.requirePresent(call, "live");
 
-                    return authorization.accept(
+                    return Invitation.accept(
                         call.reference(),
                         schema.object(InvitationShape).parse(call.input).invitationId,
+                        authorization,
                     );
                 },
             ),
@@ -190,9 +199,10 @@ export const ShareableMethod = {
                 async (call, { authorization }) => {
                     // withdraw on any object that exists, in the trash too
                     await ShareableMethod.requirePresent(call, "stored");
-                    await authorization.withdraw(
+                    await Invitation.withdraw(
                         call.reference(),
                         schema.object(InvitationShape).parse(call.input).invitationId,
+                        authorization,
                     );
 
                     return {};

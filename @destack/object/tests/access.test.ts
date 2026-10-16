@@ -7,6 +7,7 @@ import {
     Caller,
     Policy,
     principal,
+    Relationship,
 } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -131,11 +132,14 @@ test.for(TEST_DIALECTS)(
         expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
         const granting = await Transaction.open(database);
         const authorization = await store.authorize(granting, SPACE_ID, context.access());
-        await authorization.grant({
-            object,
-            role: reviewer.id,
-            subject: principal.user.reference("universe", users.member),
-        });
+        await Relationship.grant(
+            {
+                object,
+                role: reviewer.id,
+                subject: principal.user.reference("universe", users.member),
+            },
+            authorization,
+        );
         await granting.commit();
         expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
     },

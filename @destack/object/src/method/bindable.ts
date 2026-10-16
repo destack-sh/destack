@@ -1,3 +1,4 @@
+import { Relationship } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { defineMethod, type Method } from "./method.ts";
@@ -42,7 +43,7 @@ export const bind: Method<{
         // replace the consumer's relationships with exactly those on the type's objects in the scope
         const { consumer, ids } = BindInput.parse(context.input);
         const { packageId } = context.object.policy.definition;
-        await Execution.store(execution, context).authorization.replaceRelationships(
+        await Relationship.replace(
             {
                 scope: context.scope,
                 objects: [{ packageId, type: context.object.name }],
@@ -54,6 +55,7 @@ export const bind: Method<{
                 relation: CONSUMER,
                 subject: consumer,
             })),
+            Execution.store(execution, context).authorization,
         );
 
         return {};
