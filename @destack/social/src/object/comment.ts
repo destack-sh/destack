@@ -14,11 +14,11 @@ import { type Select } from "@destack/db";
 import { activity, announcement, type Reason, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
 import {
-    Call,
+    MethodContext,
     Containment,
     defineObject,
     field,
-    type ObjectType,
+    type ObjectOf,
     Selection,
 } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -60,64 +60,67 @@ export const Body = schema.object({
 export type Body = schema.Infer<typeof Body>;
 
 /** A comment that starts or replies to a thread on any object. */
-export const comment = defineObject({
-    name: "comment",
-    plural: "comments",
-    scope: space,
-    nested: { in: "any", receive: "comment" },
-    fields: {
-        /** The author. */
-        author: field.subject().caller(),
-        /** The text and its mentions. */
-        body: field.json(Body),
-        /** The text the thread comments on, on its first comment only. */
-        selection: field.json(Selection).optional(),
-        /** The thread's first comment, absent on the first comment itself. */
-        thread: field
-            .reference("comment", (): ObjectType => comment, { delete: "cascade" })
-            .optional(),
-        /** When the author last edited the body. */
-        editedAt: field.time().optional(),
-        /** When the thread was resolved, absent while open. */
-        resolvedAt: field.time().optional(),
-        /** Who resolved the thread, absent while open. */
-        resolvedBy: field.subject().optional(),
-        /** The number of reactions. */
-        reactionCount: field.count(),
+export const comment = defineObject(
+    {
+        name: "comment",
+        plural: "comments",
+        scope: space,
+        nested: { in: "any", receive: "comment" },
+        fields: {
+            /** The author. */
+            author: field.subject().caller(),
+            /** The text and its mentions. */
+            body: field.json(Body),
+            /** The text the thread comments on, on its first comment only. */
+            selection: field.json(Selection).optional(),
+            /** The thread's first comment, absent on the first comment itself. */
+            thread: field
+                .reference((): ObjectOf<{ identity: "comment" }> => comment, { delete: "cascade" })
+                .optional(),
+            /** When the author last edited the body. */
+            editedAt: field.time().optional(),
+            /** When the thread was resolved, absent while open. */
+            resolvedAt: field.time().optional(),
+            /** Who resolved the thread, absent while open. */
+            resolvedBy: field.subject().optional(),
+            /** The number of reactions. */
+            reactionCount: field.count(),
+        },
+        permissions: {
+            read: through("parent", "read"),
+            comment: through("parent", "comment"),
+            write: intersection(relation("author"), through("parent", "comment")),
+            resolve: union(permission("write"), through("parent", "write")),
+            delete: union(permission("write"), through("parent", "manage")),
+        },
+        aggregates: { commentCount: { function: "count" } },
+        attachments: [
+            reaction.attach({ by: "comment" }),
+            // attach a thread's subscriptions and activities
+            subscription.attach({ by: "read" }),
+            activity.attach({ by: "read" }),
+            announcement.attach({ by: "read" }),
+        ],
+        constraints: {
+            // find a thread's replies
+            thread: { kind: "index", on: ["threadId"] },
+        },
     },
-    permissions: {
-        read: through("parent", "read"),
-        comment: through("parent", "comment"),
-        edit: intersection(relation("author"), through("parent", "comment")),
-        resolve: union(permission("edit"), through("parent", "edit")),
-        delete: union(permission("edit"), through("parent", "manage")),
-    },
-    aggregates: { commentCount: { function: "count" } },
-    attachments: [
-        reaction.attach({ by: "comment" }),
-        // keep a thread's subscriptions and activities
-        subscription.attach({ by: "read" }),
-        activity.attach({ by: "read" }),
-        announcement.attach({ by: "read" }),
-    ],
-    constraints: {
-        // find a thread's replies
-        thread: { kind: "index", on: ["threadId"] },
-    },
-}).methods((method) => ({
-    create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
-    resolve: method.mutation({ permission: "resolve" }),
-    reopen: method.mutation({ permission: "resolve" }),
-    reply: method.mutation({
-        permission: "comment",
-        input: schema.object({
-            /** The reply's plain text. */
-            text: schema.string().min(1).max(TEXT_LENGTH),
+    (method) => ({
+        create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
+        resolve: method.mutation({ permission: "resolve" }),
+        reopen: method.mutation({ permission: "resolve" }),
+        reply: method.mutation({
+            permission: "comment",
+            input: schema.object({
+                /** The reply's plain text. */
+                text: schema.string().min(1).max(TEXT_LENGTH),
+            }),
         }),
+        update: method.update("write", { fields: ["body"] }),
+        delete: method.delete("delete"),
     }),
-    update: method.update("edit", { fields: ["body"] }),
-    delete: method.delete("delete"),
-}));
+);
 
 /** A comment as its table stores it. */
 export type Comment = Select<typeof comment.table>;
@@ -140,7 +143,7 @@ export const Comment = {
         const isSplit = /[\uD800-\uDBFF]$/u.test(text);
 
         return {
-            author: Subject.read(row.author),
+            author: ObjectReference.at("author", row),
             comment: row.id,
             thread: row.threadId ?? row.id,
             text: isSplit ? text.slice(0, -1) : text,
@@ -173,17 +176,19 @@ export const Comment = {
 
     /** Require a reply to answer its thread's first comment on its host, without a selection. */
     async requireThread(
-        call: Call<typeof comment.table>,
+        context: MethodContext,
         thread: Comment["id"],
         selection: Selection | null | undefined,
     ): Promise<void> {
         // read the thread's first comment on the same host
-        const host = call.requireParent();
-        const [first] = await call.read(comment).rows({
-            id: thread,
-            parentPackageId: host.packageId,
-            parentType: host.type,
-            parentId: host.id,
+        const host = context.requireParent();
+        const [first] = await context.read(comment).findMany({
+            where: {
+                id: thread,
+                parentPackageId: host.packageId,
+                parentType: host.type,
+                parentId: host.id,
+            },
         });
 
         // refuse a missing thread, a nested reply and a reply's own selection
@@ -199,10 +204,10 @@ export const Comment = {
     },
 
     /** Require a selection within a text field of the comment's host. */
-    async requireSelection(call: Call, selection: Selection): Promise<void> {
+    async requireSelection(context: MethodContext, selection: Selection): Promise<void> {
         // find the host's type and the selected elements
-        const host = call.requireParent();
-        const type = call.objects.find((object) => object.policy.is(host));
+        const host = context.requireParent();
+        const type = context.objects.find((object) => object.policy.is(host));
         const elements = [selection.anchor.element, selection.head.element];
 
         // refuse unknown fields
@@ -213,12 +218,12 @@ export const Comment = {
         }
 
         // refuse elements the host's text lacks, as the caller reads it
-        const asked = Call.record(type, "contains", {
+        const asked = type.call("contains", {
             ...type.target(host),
             field: selection.field,
             elements,
         });
-        const { isContained } = Containment.parse(await call.query(call.caller, asked));
+        const { isContained } = Containment.parse(await context.query(context.caller, asked));
         if (!isContained) {
             throw new CallError("BAD_REQUEST", {
                 message: `${selection.field} has no such selection`,
@@ -239,7 +244,7 @@ export const Comment = {
     subscribe(host: ObjectReference, principal: Subject, reason: Reason) {
         return subscription.call("add", {
             parent: { packageId: host.packageId, type: host.type, id: host.id },
-            owner: Subject.key(principal),
+            ...ObjectReference.columns("owner", principal),
             reason,
         });
     },

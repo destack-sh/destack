@@ -2,57 +2,58 @@ import { space } from "@destack/account/object";
 import { activity, announcement, subscription } from "@destack/notification";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Subject } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 
 import { comment, favourite, presence, reaction, receipt } from "../../src/index.ts";
 
 /** Articles with every social attachment, shared with editors, commenters and viewers. */
-export const article = defineObject({
-    name: "article",
-    plural: "articles",
-    scope: space,
-    fields: {
-        /** The article title. */
-        title: field.string(schema.string().min(1).max(200)),
-        /** The article text. */
-        body: field.text(),
-        /** The number of comments on the article. */
-        commentCount: field.count(),
-        /** The number of reactions to the article. */
-        reactionCount: field.count(),
-    },
-    shareable: {},
-    attachments: [
-        comment.attach({ by: "comment" }),
-        reaction.attach({ by: "comment" }),
-        activity.attach({ by: "read" }),
-        announcement.attach({ by: "read" }),
-        subscription.attach({ by: "read" }),
-        receipt.attach({ by: "read" }),
-        favourite.attach({ by: "read" }),
-        presence.attach({ by: "read" }),
-    ],
-})
-    .methods((method) => ({
-        create: method.create("manage"),
-        update: method.update("edit", { fields: ["title"] }),
-        delete: method.delete("manage"),
-    }))
-    .implement({
-        methods: {
-            create: async (call, next) => {
-                // subscribe the owner to the article it creates
-                const row = await next();
-                const host = call.reference();
-                await call.mutate(call.caller, [
-                    subscription.call("add", {
-                        parent: { packageId: host.packageId, type: host.type, id: host.id },
-                        owner: Subject.key(call.requireCaller()),
-                        reason: "author",
-                    }),
-                ]);
-
-                return row;
-            },
+export const article = defineObject(
+    {
+        name: "article",
+        plural: "articles",
+        scope: space,
+        fields: {
+            /** The article title. */
+            title: field.string(schema.string().min(1).max(200)),
+            /** The article text. */
+            body: field.text(),
+            /** The number of comments on the article. */
+            commentCount: field.count(),
+            /** The number of reactions to the article. */
+            reactionCount: field.count(),
         },
-    });
+        shareable: {},
+        attachments: [
+            comment.attach({ by: "comment" }),
+            reaction.attach({ by: "comment" }),
+            activity.attach({ by: "read" }),
+            announcement.attach({ by: "read" }),
+            subscription.attach({ by: "read" }),
+            receipt.attach({ by: "read" }),
+            favourite.attach({ by: "read" }),
+            presence.attach({ by: "read" }),
+        ],
+    },
+    (method) => ({
+        create: method.create("manage"),
+        update: method.update("write", { fields: ["title"] }),
+        delete: method.delete("manage"),
+    }),
+).implement({
+    methods: {
+        create: async (call, next) => {
+            // subscribe the owner to the article it creates
+            const row = await next();
+            const host = call.reference();
+            await call.mutate(call.caller, [
+                subscription.call("add", {
+                    parent: { packageId: host.packageId, type: host.type, id: host.id },
+                    ...ObjectReference.columns("owner", call.caller.subject),
+                    reason: "author",
+                }),
+            ]);
+
+            return row;
+        },
+    },
+});

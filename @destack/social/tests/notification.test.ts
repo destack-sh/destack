@@ -1,6 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned } from "@destack/schema";
-import { Subject } from "@destack/sync";
+import { aligned, present } from "@destack/schema";
 import { activity, subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
 import { Body, comment } from "../src/index.ts";
@@ -10,7 +9,7 @@ import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 test.for(TEST_DIALECTS)(
     "record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply, on %s",
     async (dialect) => {
-        const { call, list, host, as, expand, send } = await serveArticles(dialect);
+        const { call, list, host, as, expand, send, scope } = await serveArticles(dialect);
         const activities = async (actor: Actor) => {
             as(actor);
 
@@ -18,26 +17,46 @@ test.for(TEST_DIALECTS)(
         };
 
         // share an article with two commenters and a viewer subscribing to it
-        const draft = await call(article, "create", { title: "Launch plan" });
-        await call(article, "grant", { id: draft.id, relation: "commenter", subject: actors.bob });
-        await call(article, "grant", {
-            id: draft.id,
-            relation: "commenter",
-            subject: actors.carol,
-        });
-        await call(article, "grant", { id: draft.id, relation: "viewer", subject: actors.dave });
+        const draft = await call(article.call("create", { ...scope, title: "Launch plan" }));
+        await call(
+            article.call("grant", {
+                ...scope,
+                id: draft.id,
+                relation: "commenter",
+                subject: actors.bob,
+            }),
+        );
+        await call(
+            article.call("grant", {
+                ...scope,
+                id: draft.id,
+                relation: "commenter",
+                subject: actors.carol,
+            }),
+        );
+        await call(
+            article.call("grant", {
+                ...scope,
+                id: draft.id,
+                relation: "viewer",
+                subject: actors.dave,
+            }),
+        );
         as("dave");
-        await call(subscription, "create", host(article, draft.id));
+        await call(subscription.call("create", { ...scope, ...host(article, draft.id) }));
 
         // start a thread mentioning a commenter, announcing it to the article's other subscribers for their reasons
         as("bob");
-        const first = await call(comment, "create", {
-            ...host(article, draft.id),
-            body: {
-                text: "@carol, tighten the intro",
-                mentions: [{ offset: 0, length: 6, principal: actors.carol }],
-            },
-        });
+        const first = await call(
+            comment.call("create", {
+                ...scope,
+                ...host(article, draft.id),
+                body: {
+                    text: "@carol, tighten the intro",
+                    mentions: [{ offset: 0, length: 6, principal: actors.carol }],
+                },
+            }),
+        );
         await expand();
         expect([
             await activities("alice"),
@@ -65,21 +84,27 @@ test.for(TEST_DIALECTS)(
         ]);
 
         // announce replies to the thread's subscribers for their reasons except the mentioned
-        await call(comment, "create", {
-            ...host(article, draft.id),
-            body: { text: "Agreed", mentions: [] },
-            threadId: first.id,
-        });
+        await call(
+            comment.call("create", {
+                ...scope,
+                ...host(article, draft.id),
+                body: { text: "Agreed", mentions: [] },
+                threadId: first.id,
+            }),
+        );
         await expand();
         as("alice");
-        await call(comment, "create", {
-            ...host(article, draft.id),
-            body: {
-                text: "@bob, ship it",
-                mentions: [{ offset: 0, length: 4, principal: actors.bob }],
-            },
-            threadId: first.id,
-        });
+        await call(
+            comment.call("create", {
+                ...scope,
+                ...host(article, draft.id),
+                body: {
+                    text: "@bob, ship it",
+                    mentions: [{ offset: 0, length: 4, principal: actors.bob }],
+                },
+                threadId: first.id,
+            }),
+        );
         await expand();
         expect([
             await activities("alice"),
@@ -105,37 +130,50 @@ test.for(TEST_DIALECTS)(
         if (bobMentioned === undefined) {
             throw new TypeError("bob has no mention");
         }
-        await call(activity, "act", {
-            id: bobMentioned.id,
-            action: "reply",
-            text: "Shipping",
-        });
+        await call(
+            activity.call("act", {
+                ...scope,
+                id: present(bobMentioned.id, "bob's mention"),
+                action: "reply",
+                text: "Shipping",
+            }),
+        );
         await send();
         const replies = (await list(comment))
             .filter((row) => row.threadId === first.id)
-            .map((row) => [row.author, Body.parse(row.body).text]);
-        expect(replies.at(-1)).toEqual([Subject.key(actors.bob), "Shipping"]);
+            .map((row) => [row.authorId, Body.parse(row.body).text]);
+        expect(replies.at(-1)).toEqual([actors.bob.id, "Shipping"]);
     },
 );
 
 test.for(TEST_DIALECTS)(
     "notify a principal mentioned twice in one comment once, and answer a reply with the reply it creates, on %s",
     async (dialect) => {
-        const { call, list, host, as, expand } = await serveArticles(dialect);
+        const { call, list, host, as, expand, scope } = await serveArticles(dialect);
 
         // share an article with a commenter, and mention them twice in one comment
-        const draft = await call(article, "create", { title: "Launch plan" });
-        await call(article, "grant", { id: draft.id, relation: "commenter", subject: actors.bob });
-        const first = await call(comment, "create", {
-            ...host(article, draft.id),
-            body: {
-                text: "@bob, @bob: tighten the intro",
-                mentions: [
-                    { offset: 0, length: 4, principal: actors.bob },
-                    { offset: 6, length: 4, principal: actors.bob },
-                ],
-            },
-        });
+        const draft = await call(article.call("create", { ...scope, title: "Launch plan" }));
+        await call(
+            article.call("grant", {
+                ...scope,
+                id: draft.id,
+                relation: "commenter",
+                subject: actors.bob,
+            }),
+        );
+        const first = await call(
+            comment.call("create", {
+                ...scope,
+                ...host(article, draft.id),
+                body: {
+                    text: "@bob, @bob: tighten the intro",
+                    mentions: [
+                        { offset: 0, length: 4, principal: actors.bob },
+                        { offset: 6, length: 4, principal: actors.bob },
+                    ],
+                },
+            }),
+        );
         await expand();
 
         // give bob one mention activity
@@ -144,7 +182,7 @@ test.for(TEST_DIALECTS)(
         expect(mentions.length).toBe(1);
 
         // reply in the thread, answered with the new reply and not the thread's first comment
-        const replied = await call(comment, "reply", { id: first.id, text: "Done" });
+        const replied = await call(comment.call("reply", { ...scope, id: first.id, text: "Done" }));
         expect([replied.threadId, Body.parse(replied.body).text]).toEqual([first.id, "Done"]);
     },
 );

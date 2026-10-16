@@ -3,7 +3,7 @@ import { intersection, relation, through } from "@destack/access";
 import { defineObject, field, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
 
-/** One writer's presence on an object, kept in memory. */
+/** One writer's presence on an object, stored in memory. */
 export const presence = defineObject({
     name: "presence",
     plural: "presences",
@@ -29,11 +29,7 @@ export const presence = defineObject({
     constraints: {
         writer: {
             kind: "unique",
-            on: ["parentPackageId", "parentType", "parentId", "principal", "writerId"],
+            on: ["parentPackageId", "parentType", "parentId", "principalId", "writerId"],
         },
     },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-    delete: method.delete("write"),
-}));
+});

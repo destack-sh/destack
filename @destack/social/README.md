@@ -39,7 +39,7 @@ The package's server, its default export of `./server`, implements comments that
 ```ts
 import socialServer from "@destack/social/server";
 
-const { store } = ObjectExtension.compose([socialServer, notificationServer], options);
+const store = new ObjectStore({ servers: [socialServer, notificationServer], ...options });
 ```
 
 ## Tables

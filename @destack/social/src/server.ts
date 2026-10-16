@@ -9,22 +9,22 @@ export default defineServer(socialPackage, {
     objects: [
         comment.implement({
             methods: {
-                create: async (call, next) => {
+                create: async (context, next) => {
                     // validate mentions, then the thread, then the selection
-                    const { body, threadId, selection } = call.input;
+                    const { body, threadId, selection } = context.input;
                     Comment.requireSpans(body);
                     if (threadId !== null && threadId !== undefined) {
-                        await Comment.requireThread(call, threadId, selection);
+                        await Comment.requireThread(context, threadId, selection);
                     } else if (selection !== null && selection !== undefined) {
-                        await Comment.requireSelection(call, selection);
+                        await Comment.requireSelection(context, selection);
                     }
 
                     // subscribe the author, notify the mentioned and announce the comment to the others
                     const row = await next();
                     const isReply = row.threadId !== null;
                     const mentioned = Comment.mentioned(row);
-                    const author = call.requireCaller();
-                    await call.mutate(call.caller, [
+                    const author = context.caller.subject;
+                    await context.mutate(context.caller, [
                         Comment.subscribe(
                             Comment.thread(row),
                             author,
@@ -43,37 +43,40 @@ export default defineServer(socialPackage, {
                     return row;
                 },
 
-                resolve: async (call) => {
+                resolve: async (context) => {
                     // refuse a resolved thread
-                    const target = Comment.requireFirst(call.target);
+                    const target = Comment.requireFirst(context.target);
                     if (target.resolvedAt !== null) {
                         throw new CallError("CONFLICT", { message: "thread is already resolved" });
                     }
 
-                    return call.update({
-                        resolvedAt: call.now,
-                        resolvedBy: Subject.key(call.requireCaller()),
+                    return context.update({
+                        resolvedAt: context.now,
+                        ...ObjectReference.columns("resolvedBy", context.caller.subject),
                     });
                 },
 
-                reopen: async (call) => {
+                reopen: async (context) => {
                     // refuse an open thread
-                    const target = Comment.requireFirst(call.target);
+                    const target = Comment.requireFirst(context.target);
                     if (target.resolvedAt === null) {
                         throw new CallError("CONFLICT", { message: "thread is open" });
                     }
 
-                    return call.update({ resolvedAt: null, resolvedBy: null });
+                    return context.update({
+                        resolvedAt: null,
+                        ...ObjectReference.columns("resolvedBy", undefined),
+                    });
                 },
 
-                reply: async (call) => {
+                reply: async (context) => {
                     // create the reply on the thread's host, answering with it
-                    const target = Comment.requireFirst(call.target);
+                    const target = Comment.requireFirst(context.target);
                     const host = ObjectReference.parent(target);
-                    const [created] = await call.mutate(call.caller, [
+                    const [created] = await context.mutate(context.caller, [
                         comment.call("create", {
                             parent: { packageId: host.packageId, type: host.type, id: host.id },
-                            body: { text: call.input.text, mentions: [] },
+                            body: { text: context.input.text, mentions: [] },
                             threadId: target.id,
                         }),
                     ]);
@@ -81,21 +84,23 @@ export default defineServer(socialPackage, {
                     return created;
                 },
 
-                update: async (call, next) => {
+                update: async (context, next) => {
                     // validate a changed body and stamp the edit
-                    const { body } = call.input;
+                    const { body } = context.input;
                     if (body !== undefined) {
                         Comment.requireSpans(body);
                     }
-                    const edited = call.with({ input: { ...call.input, editedAt: call.now } });
+                    const edited = context.with({
+                        input: { ...context.input, editedAt: context.now },
+                    });
 
                     // notify the principals mentioned for the first time
-                    const before = Comment.mentioned(call.target);
-                    const row = await next(body === undefined ? call : edited);
+                    const before = Comment.mentioned(context.target);
+                    const row = await next(body === undefined ? context : edited);
                     const mentioned = Comment.mentioned(row).filter(
                         (principal) => !before.some((known) => Subject.same(known, principal)),
                     );
-                    await call.mutate(call.caller, Comment.mention(row, mentioned));
+                    await context.mutate(context.caller, Comment.mention(row, mentioned));
 
                     return row;
                 },

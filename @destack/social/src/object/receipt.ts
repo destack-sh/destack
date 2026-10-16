@@ -4,25 +4,28 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 
 /** A principal's private mark that it read an object, as of its last update. */
-export const receipt = defineObject({
-    name: "receipt",
-    plural: "receipts",
-    scope: space,
-    nested: { in: "any", receive: "receipt" },
-    fields: {
-        /** The reader. */
-        owner: field.subject().caller(),
+export const receipt = defineObject(
+    {
+        name: "receipt",
+        plural: "receipts",
+        scope: space,
+        nested: { in: "any", receive: "receipt" },
+        fields: {
+            /** The reader. */
+            owner: field.subject().caller(),
+        },
+        permissions: { own: intersection(relation("owner"), through("parent", "receipt")) },
+        constraints: {
+            owner: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "ownerId"] },
+        },
     },
-    permissions: { own: intersection(relation("owner"), through("parent", "receipt")) },
-    constraints: {
-        owner: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "owner"] },
-    },
-}).methods((method) => ({
-    create: method.create("own"),
-    list: method.list("own"),
-    update: method.update("own"),
-    delete: method.delete("own"),
-}));
+    (method) => ({
+        create: method.create("own"),
+        list: method.list("own"),
+        update: method.update("own"),
+        delete: method.delete("own"),
+    }),
+);
 
 /** A receipt as its table stores it. */
 export type Receipt = Select<typeof receipt.table>;

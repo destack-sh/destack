@@ -1,9 +1,10 @@
 import { LocaleTag } from "@destack/locale";
 import { MemoryBuild } from "@destack/package/test";
-import { anyone, principal, Caller } from "@destack/access";
-import { Scope, type TrackerMessage, type Uplink } from "@destack/sync";
+import { anyone, principal } from "@destack/access";
+import { type Call, Scope, type TrackerMessage, type Uplink } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
+import { STACKS } from "@destack/account/test";
 import {
     and,
     type DatabaseConnection,
@@ -11,13 +12,17 @@ import {
     eq,
     isNull,
     defineDatabase,
+    Table,
 } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Call, type CallableName, type CallOutput, type ObjectType } from "@destack/object";
+import { ObjectType } from "@destack/object";
 import { announcement, notification } from "@destack/notification";
-import { notificationExtension } from "@destack/notification/server";
-import { EphemeralStorage, ObjectExtension, ObjectStore } from "@destack/object/server";
+import notificationServer from "@destack/notification/server";
+import { NotificationFixture } from "@destack/notification/test";
+import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { user } from "@destack/account/object";
+import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { callTables, TestRunClient, testEvents } from "@destack/object/test";
 import { aligned, type Identifier, present, schema, Clock } from "@destack/schema";
@@ -27,18 +32,18 @@ import { reconciliation, subjectContext, testCallKey, testKeys } from "@destack/
 
 import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
-import { comment, mention, presence, reply, thread } from "../../src/index.ts";
+import { comment, Mention, mention, presence, reply, thread } from "../../src/index.ts";
 import socialServer from "../../src/server.ts";
 import { article } from "./article.ts";
 import { ResourceContext } from "@destack/resource/context";
 
 /** The principals the scenarios act as: people, and an agent installation. */
 export const actors = {
-    alice: principal.user.reference(Scope.universe.id, "alice"),
-    bob: principal.user.reference(Scope.universe.id, "bob"),
-    carol: principal.user.reference(Scope.universe.id, "carol"),
-    dave: principal.user.reference(Scope.universe.id, "dave"),
-    agent: principal.installation.reference(Scope.universe.id, "agent"),
+    alice: mentioned(principal.user, "user-019f5530-8000-7000-8000-00000000a001"),
+    bob: mentioned(principal.user, "user-019f5530-8000-7000-8000-00000000a002"),
+    carol: mentioned(principal.user, "user-019f5530-8000-7000-8000-00000000a003"),
+    dave: mentioned(principal.user, "user-019f5530-8000-7000-8000-00000000a004"),
+    agent: mentioned(principal.installation, "agent"),
 };
 
 /** A principal the scenarios act as. */
@@ -75,28 +80,24 @@ const SOCIAL_BUILD = await MemoryBuild.declaring(
 /** The types the articles' package serves. */
 const ARTICLE_TYPES = [article];
 
-/** The extensions a space composes: the articles, social and notifications. */
-const extensions = [
-    {
-        package: PackageHandle.of(article.package, {
-            objects: Object.fromEntries(ARTICLE_TYPES.map((type) => [type.name, type])),
-        }),
-        objects: ARTICLE_TYPES,
-    },
+/** The package of the articles. */
+const articles = PackageHandle.of(article.package, {
+    objects: Object.fromEntries(ARTICLE_TYPES.map((type) => [type.name, type])),
+});
+
+/** The servers a space composes: the articles, social and notifications. */
+const servers = [
+    defineServer(articles, { objects: ARTICLE_TYPES }),
     socialServer,
-    notificationExtension({
-        declared: async () => SOCIAL_BUILD,
-        locale: async () => LocaleTag.parse("en"),
-        key: () => Promise.reject(new TypeError("the fixture seals no messages")),
-    }),
+    notificationServer,
 ];
 
-/** Every type the extensions serve. */
-const objects = extensions.flatMap((extension) => extension.objects);
+/** Every type the servers' packages declare. */
+const objects = servers.flatMap((server) => Object.values(server.package.objects));
 
 /** Serve articles and their attachments over a new database to one actor at a time. */
 export async function serveArticles(dialect: Dialect) {
-    // keep the articles in a space of their own in the dialect's shared database, and presence in memory
+    // store the articles in a space of their own in the dialect's shared database, and presence in memory
     const storage = await durable(dialect);
     const spaceId = await openSpace(storage.database);
     const store = await serveInstallation(storage.database, await openEphemeral(), spaceId);
@@ -107,12 +108,11 @@ export async function serveArticles(dialect: Dialect) {
     return {
         store,
         spaceId,
-        /** Call a method as the current actor. */
-        call: <Type extends ObjectType, Name extends CallableName<Type>>(
-            object: Type,
-            name: Name,
-            input: Readonly<Record<string, unknown>>,
-        ) => request(store, spaceId, current, object, name, input),
+        /** The space's selection, which every call of the scenarios spreads. */
+        scope: { spaceId },
+        /** Make a call as the current actor, presence as the actor's writer unless given. */
+        call: <Result>(called: Call<Result>, writerId = `writer-${current}`) =>
+            request(store, spaceId, current, called, writerId),
         /** List the objects of a type the current actor may list, oldest first. */
         list: <Type extends ObjectType>(object: Type, input: object = {}) =>
             list(store, spaceId, current, object, input),
@@ -134,42 +134,26 @@ export async function serveArticles(dialect: Dialect) {
 }
 
 /** Call a method as an actor: a query, else a one-call mutation, presence as a writer. */
-async function request<Type extends ObjectType, Name extends CallableName<Type>>(
+async function request<Result>(
     store: ObjectStore,
     spaceId: string,
     actor: Actor,
-    object: Type,
-    name: Name,
-    input: Readonly<Record<string, unknown>>,
-): Promise<CallOutput<Type, Name>>;
-/**
- * Call a method as an actor.
- *
- * @construct the result is the method's output, which CallOutput reads from the same method.
- */
-async function request(
-    store: ObjectStore,
-    spaceId: string,
-    actor: Actor,
-    object: ObjectType,
-    name: string,
-    input: Readonly<Record<string, unknown>>,
-): Promise<unknown> {
-    // write presence as the given writer or the actor's
-    const { writerId = `writer-${actor}`, ...fields } = input;
-    const call = Call.record(object, name, { spaceId, ...fields });
-    const caller = context(spaceId, actor).context.caller();
-    const options =
-        object.storage === "durable" ? {} : { writerId: schema.string().parse(writerId) };
+    called: Call<Result>,
+    writerId: string,
+): Promise<Result> {
+    // write presence as the given writer, in the space as the actor
+    const object = present(ObjectType.find(store.objects, called), "the called type");
+    const caller = context(spaceId, actor).context.access();
+    const options = object.storage === "durable" ? {} : { writerId };
 
-    return object.method(name).mutates
+    return object.method(called.method).mutates
         ? store
-              .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] }, options)
+              .mutate(caller, { id: RequestId.create(Date.now()), calls: [called] }, options)
               .then(([written]) => written)
-        : store.query(caller, call);
+        : store.query(caller, called);
 }
 
-/** Keep presence in a memory database, closed after the test. */
+/** Store presence in a memory database, closed after the test. */
 async function openEphemeral(): Promise<EphemeralStorage> {
     // migrate the memory database and report every failure loudly
     const memory = await TestDatabase.create("sqlite", presence.tables, { isMigrated: true });
@@ -200,16 +184,19 @@ async function serveInstallation(
     ephemeral: EphemeralStorage,
     spaceId: Identifier<"space">,
 ): Promise<ObjectStore> {
-    const composed: { readonly store: ObjectStore } = ObjectExtension.compose(extensions, {
+    const store: ObjectStore = new ObjectStore({
+        servers,
+        chain: async () => undefined,
         clock: Clock.system,
         database,
         ephemeral,
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: space.package },
-        runs: new TestRunClient(() => composed.store),
+        runs: new TestRunClient(() => store),
         server: {
             installation: INSTALLATION,
+            name: "social",
             space: spaceId,
             build: await MemoryBuild.write(new Map(), { package: article.package }),
             publisher: silent,
@@ -219,10 +206,11 @@ async function serveInstallation(
             resources: new ResourceContext(),
             keys: await testKeys(),
             fetch: () => Promise.reject(new Error("the test installation fetches nothing")),
+            url: "https://social.test",
         },
     });
 
-    return composed.store;
+    return store;
 }
 
 /** Refuse an installation's calls to an address, as the scenarios call no other package. */
@@ -244,13 +232,13 @@ async function list<Type extends ObjectType>(
     // list them as the actor
     const listed: ObjectType = object;
     const page = await store.query(
-        context(spaceId, actor).context.caller(),
+        context(spaceId, actor).context.access(),
         listed.call("list", { spaceId, ...input }),
     );
 
     return ListPage.parse(page)
         .items.toSorted((left, right) => left.createdAt - right.createdAt)
-        .map((row) => object.rowSchema().parse(row));
+        .map((row) => Table.selectSchema<Type["table"]>(object.table).partial().parse(row));
 }
 
 /** Expand the space's announcements batch by batch as their controller does, until none waits. */
@@ -274,7 +262,7 @@ async function expand(
 
     // expand them until none waits
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
-        await store.mutate(Caller.of(store.principal, Date.now()), {
+        await store.mutate(store.self, {
             id: RequestId.create(Date.now()),
             calls: rows.map((row) => announcement.call("expand", announcement.target(row))),
         });
@@ -302,6 +290,13 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
     await access.replicateScope(reference);
 
+    // create the space's row, which its installations refer to
+    const now = Date.now();
+    const row = { id: spaceId, scope: accountId, name: "articles", stack: STACKS.space };
+    await database
+        .insert(space.table)
+        .values(Table.complete(space.table, { ...row, createdAt: now, updatedAt: now }));
+
     // define a role reading the space and bind it to anyone
     await access.replicateRole(
         reference,
@@ -320,6 +315,18 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
         principal.installation.reference(spaceId, INSTALLATION),
     );
 
+    // install the social package and store each person's profile, as the space replicates them
+    await NotificationFixture.install(database, spaceId, [SOCIAL_BUILD]);
+    for (const [name, person] of Object.entries(actors)) {
+        if (principal.user.is(person)) {
+            await NotificationFixture.person(database, person, {
+                name,
+                locale: LocaleTag.parse("en"),
+                timeZone: "UTC",
+            });
+        }
+    }
+
     return spaceId;
 }
 
@@ -335,6 +342,9 @@ async function durable(dialect: Dialect): Promise<TestDatabase> {
                 ...objects
                     .filter((object) => object.storage === "durable")
                     .flatMap((object) => object.tables),
+                ...[user, account, space, installation, installationRevision, declaration].flatMap(
+                    (type) => type.tables,
+                ),
             ],
         }),
         { isMigrated: true },
@@ -352,7 +362,7 @@ function follow(store: ObjectStore, spaceId: string, actor: Actor) {
     // read the pages in the background into the rows kept, waking whoever waits for the next
     const { context: followed, controller } = context(spaceId, actor);
     const pages = store.source.relayed(
-        store.source.ephemeralShape.subscription({
+        store.source.ephemeralPublication.subscription({
             name: "ephemeral",
             scope: spaceId,
             below: spaceId,
@@ -424,4 +434,9 @@ function context(spaceId: string, actor: Actor) {
         controller,
         context: subjectContext(actors[actor], spaceId, { signal: controller.signal }),
     };
+}
+
+/** Refer to a principal of a kind as comments mention it. */
+function mentioned(kind: typeof principal.user | typeof principal.installation, id: string) {
+    return Mention.shape.principal.parse(kind.reference(Scope.universe.id, id));
 }
