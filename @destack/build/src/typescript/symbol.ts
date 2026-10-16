@@ -1,4 +1,4 @@
-import { aligned, present, Text } from "@destack/schema";
+import { nth, present, Text } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 import {
     NodeBuilderFlags,
@@ -122,7 +122,7 @@ export class SymbolInspector {
         const members = await this.#members(symbol, declared, nodes, result);
         const declarations = await Promise.all(members.map((member) => this.#authored(member)));
         const described = members.flatMap((member, index) => {
-            const authored = aligned(declarations, index);
+            const authored = nth(declarations, index);
 
             return authored.length ? [this.member(member, symbol, authored)] : [];
         });
@@ -483,7 +483,7 @@ export class SymbolInspector {
             if (type === undefined) {
                 throw new BuildError(
                     "INSPECTION_FAILED",
-                    `missing type: ${aligned(symbols, index).name}`,
+                    `missing type: ${nth(symbols, index).name}`,
                 );
             }
 
@@ -587,8 +587,8 @@ export class SymbolInspector {
         return await Promise.all(
             parameters.map(async (parameter, index) => {
                 // require a resolved parameter type
-                const declaration = aligned(nodes, index).find(isParameterDeclaration);
-                const type = aligned(types, index);
+                const declaration = nth(nodes, index).find(isParameterDeclaration);
+                const type = nth(types, index);
                 if (type.isErrorType()) {
                     throw new BuildError("INSPECTION_FAILED", "cannot inspect an unresolved type");
                 }

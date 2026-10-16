@@ -10,7 +10,7 @@ import {
     type DeclarationDescription,
 } from "@destack/package";
 import type { ModuleDescription } from "@destack/package/code";
-import { aligned, type Commit, Digest, found, present, schema } from "@destack/schema";
+import { nth, type Commit, Digest, found, present, schema } from "@destack/schema";
 import {
     type BuildExtension,
     type ExpandedOutput,
@@ -608,7 +608,7 @@ export class CompilerWorker implements AsyncDisposable {
             ]),
         );
         const pass = new OutputPass(
-            found(inspected, aligned(members, 0)).project,
+            found(inspected, nth(members, 0)).project,
             options.dependencies,
             files.retained,
             files.directory,
