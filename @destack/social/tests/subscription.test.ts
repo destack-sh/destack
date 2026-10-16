@@ -1,6 +1,6 @@
 import type { Call } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { subscription } from "@destack/notification";
 import { expect, refusal, test } from "@destack/test";
 import { comment } from "../src/index.ts";
@@ -113,7 +113,7 @@ test.for(TEST_DIALECTS)(
 
         // unsubscribe by deleting, and subscribe only principals an edit mentions for the first time
         as("carol");
-        const kept = aligned(await list(subscription), 1);
+        const kept = nth(await list(subscription), 1);
         await call(
             subscription.call("delete", { ...scope, id: present(kept.id, "carol's subscription") }),
         );

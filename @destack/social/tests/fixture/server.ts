@@ -25,7 +25,7 @@ import { user } from "@destack/account/object";
 import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { callTables, TestRunClient, testEvents } from "@destack/object/test";
-import { aligned, type Identifier, present, schema } from "@destack/schema";
+import { nth, type Identifier, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { reconciliation, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
@@ -423,7 +423,7 @@ function arrival(
         arrivals.push(Promise.withResolvers<void>());
     }
 
-    return aligned(arrivals, position);
+    return nth(arrivals, position);
 }
 
 /** Build an actor's request context in a space with its own cancellation. */

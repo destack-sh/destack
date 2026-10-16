@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { activity, subscription } from "@destack/notification";
 import { expect, test } from "@destack/test";
 import { Body, comment } from "../src/index.ts";
@@ -72,7 +72,7 @@ test.for(TEST_DIALECTS)(
 
         // carry an excerpt of the mentioning comment and its thread
         as("carol");
-        const mentioned = aligned(await list(activity), 0);
+        const mentioned = nth(await list(activity), 0);
         expect([mentioned.payload, mentioned.thread]).toEqual([
             {
                 author: actors.bob,
