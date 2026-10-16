@@ -48,10 +48,10 @@ const declaredRole = role.implement({
                 JSON.stringify(sortPermissions(resolved.permissions))
             );
         },
-        keep: async (stack, manager, resolved) => {
+        upsert: async (stack, manager, resolved) => {
             // keep the role with its manager and permissions as the stack's principal in one write
             const scope = await Scope.object(stack.transaction.view(), stack.scope);
-            await (await stack.authorization()).applying(manager).keepRole(scope, {
+            await (await stack.authorization()).applying(manager).upsertRole(scope, {
                 name: manager.name,
                 description: resolved.description,
                 permissions: resolved.permissions,
@@ -111,13 +111,13 @@ const declaredRelationship = relationship.implement({
             ...Relationship.subjectColumns(resolved.subject),
             expiresAt: resolved.expiresAt ?? null,
         }),
-        keep: async (stack, manager, resolved) => {
+        upsert: async (stack, manager, resolved) => {
             // keep the one relationship the declaration manages as the stack's principal and replace a changed one
             await (
                 await stack.authorization()
             )
                 .applying(manager)
-                .keepRelationships({ scope: stack.scope }, [resolved]);
+                .replaceRelationships({ scope: stack.scope }, [resolved]);
         },
         retire: {
             isRetiring: async () => false,

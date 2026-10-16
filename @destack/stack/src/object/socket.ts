@@ -40,7 +40,7 @@ export const socket = defineObject({
         read: union(relation("principal"), through("space", "member")),
         inspect: union(relation("principal"), through("space", "manage")),
     },
-}).methods();
+});
 
 /** A live socket as its memory table keeps it. */
 export type Socket = Select<typeof socket.table>;

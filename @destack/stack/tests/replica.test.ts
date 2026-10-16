@@ -60,7 +60,7 @@ test("relay the access deciding a space's objects to each of its installations a
     await expect(snapshot(other, ids.space)).rejects.toEqual(
         new CallError("FORBIDDEN", {
             defined: true,
-            message: `only ${ids.space} and its contents can follow the replicas kept for it`,
+            message: `only ${ids.space} and its contents can follow the replicas held for it`,
         }),
     );
     await expect(snapshot(notes, "account-elsewhere")).rejects.toEqual(

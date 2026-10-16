@@ -33,7 +33,7 @@ export const module = defineObject({
         relationships: field.json(schema.array(Relationship)),
     },
     permissions: { read: through("build", "read") },
-}).methods();
+});
 
 /** One symbol of a build's graph, keyed by its moniker. */
 export const symbol = defineObject({
@@ -69,4 +69,4 @@ export const symbol = defineObject({
         relationships: field.json(schema.array(Relationship)),
     },
     permissions: { read: through("build", "read") },
-}).methods();
+});

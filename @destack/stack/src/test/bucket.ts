@@ -238,7 +238,7 @@ export class BucketFixture implements AsyncDisposable {
             { scopes: [this.spaceId] },
             { limit: AUDITED_CALLS },
         );
-        const calls = page.events.map((event) => Journal.kept(CallEvent.parse(event.data)));
+        const calls = page.events.map((event) => Journal.recorded(CallEvent.parse(event.data)));
 
         // keep the fixture's own callers, ordered by their time-ordered identifiers
         return calls

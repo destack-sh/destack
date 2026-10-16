@@ -30,15 +30,18 @@ const tasks = Package.parse({
 
 /** A named record of one package, as that package declares it. */
 const named = (name: string, plural: string) =>
-    defineObject({
-        name,
-        plural,
-        scope: space,
-        fields: { title: field.string(schema.string().min(1)) },
-        shareable: {},
-    }).methods((method) => ({
-        create: method.create("manage"),
-    }));
+    defineObject(
+        {
+            name,
+            plural,
+            scope: space,
+            fields: { title: field.string(schema.string().min(1)) },
+            shareable: {},
+        },
+        (method) => ({
+            create: method.create("manage"),
+        }),
+    );
 
 /** A listing of titled objects. */
 const Listed = schema.looseObject({

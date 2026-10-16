@@ -165,28 +165,26 @@ const gauge = defineObject({
     scope: space,
     declarable: { schema: schema.object({}) },
     fields: {},
-})
-    .methods()
-    .implement({
-        declaration: {
-            after: [object.database],
-            resolve: async (_name, declared, context) => {
-                // wait while the main database is not applied
-                const [main] = await context.transaction.read(object.database.table).findMany({
-                    where: {
-                        scope: schema.identifier("space").parse(context.scope),
-                        name: "main",
-                    },
-                });
-                if (main?.conditions["ready"]?.reason !== "Applied") {
-                    context.wait("main is not ready");
-                }
+}).implement({
+    declaration: {
+        after: [object.database],
+        resolve: async (_name, declared, context) => {
+            // wait while the main database is not applied
+            const [main] = await context.transaction.read(object.database.table).findMany({
+                where: {
+                    scope: schema.identifier("space").parse(context.scope),
+                    name: "main",
+                },
+            });
+            if (main?.conditions["ready"]?.reason !== "Applied") {
+                context.wait("main is not ready");
+            }
 
-                return declared;
-            },
-            values: () => ({}),
+            return declared;
         },
-    });
+        values: () => ({}),
+    },
+});
 
 /** A space's database keeping gauges beside the space's tables. */
 const gaugeDatabase = defineDatabase({
@@ -213,9 +211,7 @@ const meter = defineObject({
     scope: space,
     declarable: { schema: schema.object({}) },
     fields: {},
-})
-    .methods()
-    .implement({ declaration: { values: () => ({}) } });
+}).implement({ declaration: { values: () => ({}) } });
 
 /** A space's database keeping meters beside the space's tables. */
 const meterDatabase = defineDatabase({

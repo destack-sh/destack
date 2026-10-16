@@ -10,4 +10,4 @@ export const https = defineObject({
     provisioned: { kind: HttpsKind },
     fields: {},
     administration: ["read"],
-}).methods();
+});

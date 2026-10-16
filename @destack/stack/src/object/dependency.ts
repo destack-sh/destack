@@ -10,4 +10,4 @@ export const dependency = defineObject({
     provisioned: { kind: InstallationKind },
     fields: {},
     administration: ["read"],
-}).methods();
+});

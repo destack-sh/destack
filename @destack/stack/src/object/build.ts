@@ -127,147 +127,157 @@ export const BuildOutcome = schema.discriminatedUnion("kind", [
 ]);
 
 /** One compilation of a package's source into a stored build, run by its runner. */
-export const build = defineObject({
-    name: "build",
-    plural: "builds",
-    scope: space,
-    isScope: true,
-    fields: {
-        // what to build
-        /** The source compiled. */
-        source: field.json(BuildSource),
-        /** The outputs compiled by the names the exports imply, every implied one while absent. */
-        outputs: field.json(schema.array(schema.string().min(1)).min(1)).optional(),
+export const build = defineObject(
+    {
+        name: "build",
+        plural: "builds",
+        scope: space,
+        isScope: true,
+        fields: {
+            // what to build
+            /** The source compiled. */
+            source: field.json(BuildSource),
+            /** The outputs compiled by the names the exports imply, every one while absent. */
+            outputs: field.json(schema.array(schema.string().min(1)).min(1)).optional(),
 
-        // how it runs
-        /** Where the build stands. */
-        state: field.enum(BUILD_STATES).default("pending"),
-        /** The step of a running build. */
-        phase: field.enum(BUILD_PHASES).optional(),
-        /** The commit a clean checkout was at when built. */
-        commit: field.string(Commit).optional(),
-        /** The digest of the stored build's manifest, once succeeded. */
-        manifest: field.string(Digest).optional(),
-        /** Why the build failed, once failed. */
-        failure: field.json(Failure).optional(),
-        /** The start of the build's run, in UTC epoch milliseconds. */
-        startedAt: field.time().optional(),
-        /** The finish, in UTC epoch milliseconds. */
-        finishedAt: field.time().optional(),
-        /** The machine running the build, absent on a machine running none. */
-        runner: field.subject(machine).optional(),
-        /** When retention removed the succeeded build's files, in UTC epoch milliseconds. */
-        expiredAt: field.time().optional(),
+            // how it runs
+            /** Where the build stands. */
+            state: field.enum(BUILD_STATES).default("pending"),
+            /** The step of a running build. */
+            phase: field.enum(BUILD_PHASES).optional(),
+            /** The commit a clean checkout was at when built. */
+            commit: field.string(Commit).optional(),
+            /** The digest of the stored build's manifest, once succeeded. */
+            manifest: field.string(Digest).optional(),
+            /** Why the build failed, once failed. */
+            failure: field.json(Failure).optional(),
+            /** The start of the build's run, in UTC epoch milliseconds. */
+            startedAt: field.time().optional(),
+            /** The finish, in UTC epoch milliseconds. */
+            finishedAt: field.time().optional(),
+            /** The machine running the build, absent on a machine running none. */
+            runner: field.subject(machine).optional(),
+            /** When retention removed the succeeded build's files, in UTC epoch milliseconds. */
+            expiredAt: field.time().optional(),
+        },
+        relations: {
+            runner: { subjects: [machine] },
+        },
+        // let a build's runner alone read and run it
+        permissions: {
+            read: relation("runner"),
+            create: none(),
+            cancel: none(),
+            run: relation("runner"),
+            record: none(),
+            push: none(),
+        },
+        reserved: ["run"],
+        constraints: {
+            state: { kind: "index", on: ["state"] },
+            live: { kind: "index", on: ["scope", "expiredAt", "state"] },
+            phase: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { state: "running", phase: { isNotNull: true } },
+                        { state: { ne: "running" }, phase: { isNull: true } },
+                    ],
+                },
+            },
+            manifest: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { state: "succeeded", manifest: { isNotNull: true } },
+                        { state: { ne: "succeeded" }, manifest: { isNull: true } },
+                    ],
+                },
+            },
+            failure: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { state: "failed", failure: { isNotNull: true } },
+                        { state: { ne: "failed" }, failure: { isNull: true } },
+                    ],
+                },
+            },
+            expiry: {
+                kind: "check",
+                condition: { OR: [{ expiredAt: { isNull: true } }, { state: "succeeded" }] },
+            },
+            outputs: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { outputs: { isNotNull: true } },
+                        { state: { in: ["pending", "failed", "cancelled"] } },
+                        { phase: "preparing" },
+                    ],
+                },
+            },
+            start: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { state: "cancelled" },
+                        { state: "pending", startedAt: { isNull: true } },
+                        { state: { ne: "pending" }, startedAt: { isNotNull: true } },
+                    ],
+                },
+            },
+            finish: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            state: { in: ["succeeded", "failed", "cancelled"] },
+                            finishedAt: { isNotNull: true },
+                        },
+                        {
+                            state: { notIn: ["succeeded", "failed", "cancelled"] },
+                            finishedAt: { isNull: true },
+                        },
+                    ],
+                },
+            },
+        },
     },
-    relations: {
-        runner: { subjects: [machine] },
-    },
-    // let a build's runner alone read and run it
-    permissions: {
-        read: relation("runner"),
-        create: none(),
-        cancel: none(),
-        run: relation("runner"),
-        record: none(),
-        push: none(),
-    },
-    reserved: ["run"],
-    constraints: {
-        state: { kind: "index", on: ["state"] },
-        live: { kind: "index", on: ["scope", "expiredAt", "state"] },
-        phase: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { state: "running", phase: { isNotNull: true } },
-                    { state: { ne: "running" }, phase: { isNull: true } },
-                ],
-            },
-        },
-        manifest: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { state: "succeeded", manifest: { isNotNull: true } },
-                    { state: { ne: "succeeded" }, manifest: { isNull: true } },
-                ],
-            },
-        },
-        failure: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { state: "failed", failure: { isNotNull: true } },
-                    { state: { ne: "failed" }, failure: { isNull: true } },
-                ],
-            },
-        },
-        expiry: {
-            kind: "check",
-            condition: { OR: [{ expiredAt: { isNull: true } }, { state: "succeeded" }] },
-        },
-        outputs: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { outputs: { isNotNull: true } },
-                    { state: { in: ["pending", "failed", "cancelled"] } },
-                    { phase: "preparing" },
-                ],
-            },
-        },
-        start: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { state: "cancelled" },
-                    { state: "pending", startedAt: { isNull: true } },
-                    { state: { ne: "pending" }, startedAt: { isNotNull: true } },
-                ],
-            },
-        },
-        finish: {
-            kind: "check",
-            condition: {
-                OR: [
-                    {
-                        state: { in: ["succeeded", "failed", "cancelled"] },
-                        finishedAt: { isNotNull: true },
-                    },
-                    {
-                        state: { notIn: ["succeeded", "failed", "cancelled"] },
-                        finishedAt: { isNull: true },
-                    },
-                ],
-            },
-        },
-    },
-}).methods((method) => ({
-    create: method.create("create", {
-        fields: ["source", "outputs", "runnerPackageId", "runnerType", "runnerScope", "runnerId"],
+    (method) => ({
+        create: method.create("create", {
+            fields: [
+                "source",
+                "outputs",
+                "runnerPackageId",
+                "runnerType",
+                "runnerScope",
+                "runnerId",
+            ],
+        }),
+        cancel: method.update("cancel", { fields: [] }),
+        update: method.update("record", { isInternal: true }),
+        start: method.mutation({ permission: "run", output: schema.object({}) }),
+        /** Push the succeeded build's files to the forge of its package's account. */
+        push: method.mutation({
+            permission: "push",
+            output: schema.object({ manifest: Digest }),
+            prepared: schema.object({ manifest: Digest }),
+        }),
+        progress: method.mutation({
+            permission: "run",
+            input: schema.object({ progress: BuildProgress }),
+            output: schema.object({ uploads: schema.array(BuildUpload) }),
+            prepared: schema.object({ uploads: schema.array(BuildUpload) }),
+        }),
+        finish: method.mutation({
+            permission: "run",
+            input: schema.object({ end: BuildEnd }),
+            output: schema.object({}),
+            prepared: BuildOutcome,
+        }),
     }),
-    cancel: method.update("cancel", { fields: [] }),
-    update: method.update("record", { isInternal: true }),
-    start: method.mutation({ permission: "run", output: schema.object({}) }),
-    /** Push the succeeded build's files to the forge of its package's account. */
-    push: method.mutation({
-        permission: "push",
-        output: schema.object({ manifest: Digest }),
-        prepared: schema.object({ manifest: Digest }),
-    }),
-    progress: method.mutation({
-        permission: "run",
-        input: schema.object({ progress: BuildProgress }),
-        output: schema.object({ uploads: schema.array(BuildUpload) }),
-        prepared: schema.object({ uploads: schema.array(BuildUpload) }),
-    }),
-    finish: method.mutation({
-        permission: "run",
-        input: schema.object({ end: BuildEnd }),
-        output: schema.object({}),
-        prepared: BuildOutcome,
-    }),
-}));
+);
 
 /** A build's state with the manifest and failure the table's checks require of it. */
 export type BuildState =

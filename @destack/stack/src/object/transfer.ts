@@ -18,68 +18,69 @@ export const Fence = schema.object({
 export type Fence = schema.Infer<typeof Fence>;
 
 /** A move of a space with its rows and resources from the machine serving it to another. */
-export const transfer = defineObject({
-    name: "transfer",
-    plural: "transfers",
-    scope: space,
-    fields: {
-        /** The machine serving the space until the transfer activates. */
-        source: field.reference(principal.machine),
-        /** The machine receiving the space. */
-        target: field.reference(principal.machine),
-        /** The epoch the source serves the space at. */
-        sourceEpoch: field.integer(),
-        /** The verified identity requesting the transfer. */
-        requestedBy: field.subject(),
-        /** The time the transfer ended, in UTC epoch milliseconds, absent while it runs. */
-        completedAt: field.time().optional(),
-        /** How the transfer ended: the target took the space over, or the source cancelled it. */
-        outcome: field.enum(["succeeded", "cancelled"]).optional(),
-    },
-    permissions: {
-        read: none(),
-        create: none(),
-        finish: none(),
-        receive: relation("target"),
-        cancel: union(relation("source"), permission("create")),
-    },
-    elevated: { create: sudo },
-    moving: ["receive", "cancel"],
-    fencing: { by: "cancel" },
-    constraints: {
-        space: {
-            kind: "foreignKey",
-            on: ["scope"],
-            references: { object: () => space, on: ["id"] },
-            onDelete: "no action",
+export const transfer = defineObject(
+    {
+        name: "transfer",
+        plural: "transfers",
+        scope: space,
+        fields: {
+            /** The machine serving the space until the transfer activates. */
+            source: field.reference(principal.machine),
+            /** The machine receiving the space. */
+            target: field.reference(principal.machine),
+            /** The epoch the source serves the space at. */
+            sourceEpoch: field.integer(),
+            /** The verified identity requesting the transfer. */
+            requestedBy: field.subject(),
+            /** The time the transfer ended, in UTC epoch milliseconds, absent while it runs. */
+            completedAt: field.time().optional(),
+            /** How the transfer ended: the target took the space over or the source cancelled. */
+            outcome: field.enum(["succeeded", "cancelled"]).optional(),
         },
-        scopeId: { kind: "unique", on: ["scope", "id"] },
-        holder: { kind: "check", condition: { sourceId: { ne: { field: "targetId" } } } },
-        active: {
-            kind: "index",
-            on: ["scope"],
-            unique: true,
-            where: { completedAt: { isNull: true } },
+        permissions: {
+            read: none(),
+            create: none(),
+            finish: none(),
+            receive: relation("target"),
+            cancel: union(relation("source"), permission("create")),
         },
-        epoch: { kind: "check", condition: { sourceEpoch: { gt: 0 } } },
-        completion: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { completedAt: { isNull: true }, outcome: { isNull: true } },
-                    { completedAt: { isNotNull: true }, outcome: { isNotNull: true } },
-                ],
+        elevated: { create: sudo },
+        moving: ["receive", "cancel"],
+        fencing: { by: "cancel" },
+        constraints: {
+            space: {
+                kind: "foreignKey",
+                on: ["scope"],
+                references: { object: () => space, on: ["id"] },
+                onDelete: "no action",
+            },
+            scopeId: { kind: "unique", on: ["scope", "id"] },
+            holder: { kind: "check", condition: { sourceId: { ne: { field: "targetId" } } } },
+            active: {
+                kind: "index",
+                on: ["scope"],
+                unique: true,
+                where: { completedAt: { isNull: true } },
+            },
+            epoch: { kind: "check", condition: { sourceEpoch: { gt: 0 } } },
+            completion: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { completedAt: { isNull: true }, outcome: { isNull: true } },
+                        { completedAt: { isNotNull: true }, outcome: { isNotNull: true } },
+                    ],
+                },
+            },
+            times: {
+                kind: "check",
+                condition: {
+                    completedAt: { OR: [{ isNull: true }, { gte: { field: "createdAt" } }] },
+                },
             },
         },
-        times: {
-            kind: "check",
-            condition: {
-                completedAt: { OR: [{ isNull: true }, { gte: { field: "createdAt" } }] },
-            },
-        },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         create: method.create("create", { fields: ["targetId"], prepared: Placement }),
 
         /** Fence the space against writes as its target, answering where its database stands. */
@@ -105,12 +106,12 @@ export const transfer = defineObject({
 
         /** Record as the target a transfer's success once it took the space over. */
         complete: method.mutation({ permission: "finish", isInternal: true }),
-    }))
-    .implement({
-        methods: {
-            complete: (call) => call.update({ completedAt: call.now, outcome: "succeeded" }),
-        },
-    });
+    }),
+).implement({
+    methods: {
+        complete: (call) => call.update({ completedAt: call.now, outcome: "succeeded" }),
+    },
+});
 
 /** A transfer of a space between machines. */
 export type Transfer = Select<typeof transfer.table>;

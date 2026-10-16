@@ -41,7 +41,7 @@ export const InstallationGrant = {
             name: GRANT_NAME,
         };
         await context.mutate(context.self, [
-            role.call("keep", {
+            role.call("upsertBinding", {
                 ...role.in(target.scope),
                 name: `installation/${target.id}`,
                 description: `What ${target.name} requests in this space`,

@@ -22,7 +22,7 @@ export const database = defineObject({
     fields: {},
     administration: ["read", "manage"],
     elevated: { manage: sudo },
-}).methods();
+});
 
 /** A persisted database resource. */
 export type Database = Select<typeof database.table>;

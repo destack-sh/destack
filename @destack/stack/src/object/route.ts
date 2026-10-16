@@ -66,7 +66,7 @@ export const route = defineObject({
             },
         },
     },
-}).methods();
+});
 
 /** A persisted route record. */
 export type Route = Select<typeof route.table>;

@@ -94,7 +94,7 @@ function noteType(
         scope: space,
         fields,
         shareable: {},
-    }).methods();
+    });
     const { definition } = note.describe();
     const description = {
         package: { ...notesPackage, version },

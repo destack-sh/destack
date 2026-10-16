@@ -23,91 +23,103 @@ const boundFields = {
 };
 
 /** An installation's binding of a package declaration to a bindable object in the space. */
-export const binding = defineObject({
-    name: "binding",
-    plural: "bindings",
-    scope: space,
-    declarable: { schema: StackBinding },
-    fields: {
-        /** The installation whose package declares the need. */
-        installation: field.reference((): ObjectOf<{ identity: "installation" }> => installation, {
-            delete: "cascade",
-        }),
-        ...boundFields,
-        /** An exact version or generation to run with, else the target's current one at capture. */
-        version: field.integer().optional(),
-    },
-    permissions: ["record"],
-    constraints: {
-        managerInstallation: {
-            kind: "foreignKey",
-            on: ["scope", "managerInstallationId"],
-            references: { object: () => installation, on: ["scope", "id"] },
+export const binding = defineObject(
+    {
+        name: "binding",
+        plural: "bindings",
+        scope: space,
+        declarable: { schema: StackBinding },
+        fields: {
+            /** The installation whose package declares the need. */
+            installation: field.reference(
+                (): ObjectOf<{ identity: "installation" }> => installation,
+                {
+                    delete: "cascade",
+                },
+            ),
+            ...boundFields,
+            /** An exact version or generation to run with, else the target's current one. */
+            version: field.integer().optional(),
         },
-        declaration: { kind: "unique", on: ["installationId", "packageId", "name"] },
-        installation: {
-            kind: "foreignKey",
-            on: ["scope", "installationId"],
-            references: { object: () => installation, on: ["scope", "id"] },
-            onDelete: "cascade",
-        },
-        target: { kind: "index", on: ["scope", "target"] },
-        name: { kind: "check", condition: { name: { length: { gt: 0 } } } },
-        version: { kind: "check", condition: { version: { OR: [{ isNull: true }, { gt: 0 }] } } },
-        targetSpace: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { targetSpaceId: { isNull: true } },
-                    { targetSpaceId: { ne: { field: "scope" } }, version: { isNull: true } },
-                ],
+        permissions: ["record"],
+        constraints: {
+            managerInstallation: {
+                kind: "foreignKey",
+                on: ["scope", "managerInstallationId"],
+                references: { object: () => installation, on: ["scope", "id"] },
+            },
+            declaration: { kind: "unique", on: ["installationId", "packageId", "name"] },
+            installation: {
+                kind: "foreignKey",
+                on: ["scope", "installationId"],
+                references: { object: () => installation, on: ["scope", "id"] },
+                onDelete: "cascade",
+            },
+            target: { kind: "index", on: ["scope", "target"] },
+            name: { kind: "check", condition: { name: { length: { gt: 0 } } } },
+            version: {
+                kind: "check",
+                condition: { version: { OR: [{ isNull: true }, { gt: 0 }] } },
+            },
+            targetSpace: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { targetSpaceId: { isNull: true } },
+                        { targetSpaceId: { ne: { field: "scope" } }, version: { isNull: true } },
+                    ],
+                },
             },
         },
     },
-}).methods((method) => ({
-    create: method.create("record", { isInternal: true }),
-    update: method.update("record", { isInternal: true, fields: ["state"] }),
-    delete: method.delete("record", { isInternal: true }),
-    /** Delete a binding with the resource its installation owns. */
-    release: method.delete("record", { isInternal: true }),
-}));
+    (method) => ({
+        create: method.create("record", { isInternal: true }),
+        update: method.update("record", { isInternal: true, fields: ["state"] }),
+        delete: method.delete("record", { isInternal: true }),
+        /** Delete a binding with the resource its installation owns. */
+        release: method.delete("record", { isInternal: true }),
+    }),
+);
 
 /** What a deployment runs with for one of its declarations. */
-export const capture = defineObject({
-    name: "capture",
-    plural: "captures",
-    scope: space,
-    fields: {
-        /** The deployment running with the capture. */
-        deployment: field.reference((): ObjectOf<{ identity: "deployment" }> => deployment),
-        ...boundFields,
-        /** The target's version or generation the deployment runs with. */
-        version: field.integer().optional(),
-    },
-    permissions: ["read", "record"],
-    constraints: {
-        declaration: { kind: "unique", on: ["deploymentId", "packageId", "name"] },
-        deployment: {
-            kind: "foreignKey",
-            on: ["scope", "deploymentId"],
-            references: { object: () => deployment, on: ["scope", "id"] },
-            onDelete: "no action",
+export const capture = defineObject(
+    {
+        name: "capture",
+        plural: "captures",
+        scope: space,
+        fields: {
+            /** The deployment running with the capture. */
+            deployment: field.reference((): ObjectOf<{ identity: "deployment" }> => deployment),
+            ...boundFields,
+            /** The target's version or generation the deployment runs with. */
+            version: field.integer().optional(),
         },
-        target: { kind: "index", on: ["scope", "target"] },
-        version: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { targetSpaceId: { isNull: true }, version: { gt: 0 } },
-                    { targetSpaceId: { isNotNull: true }, version: { isNull: true } },
-                ],
+        permissions: ["read", "record"],
+        constraints: {
+            declaration: { kind: "unique", on: ["deploymentId", "packageId", "name"] },
+            deployment: {
+                kind: "foreignKey",
+                on: ["scope", "deploymentId"],
+                references: { object: () => deployment, on: ["scope", "id"] },
+                onDelete: "no action",
+            },
+            target: { kind: "index", on: ["scope", "target"] },
+            version: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { targetSpaceId: { isNull: true }, version: { gt: 0 } },
+                        { targetSpaceId: { isNotNull: true }, version: { isNull: true } },
+                    ],
+                },
             },
         },
     },
-}).methods((method) => ({
-    create: method.create("record", { isInternal: true }),
-    delete: method.delete("record", { isInternal: true }),
-}));
+    (method) => ({
+        create: method.create("record", { isInternal: true }),
+        delete: method.delete("record", { isInternal: true }),
+    }),
+);
 
 /** A persisted binding. */
 export type Binding = Select<typeof binding.table>;

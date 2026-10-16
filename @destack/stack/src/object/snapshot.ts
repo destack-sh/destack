@@ -5,145 +5,151 @@ import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 
 /** A copy of a resource's content at a point in time in its machine's content store. */
-export const snapshot = defineObject({
-    name: "snapshot",
-    plural: "snapshots",
-    scope: "universe",
-    fields: {
-        /** The space keeping the resource. */
-        space: field.reference(principal.space),
-        /** The resource whose content the snapshot copies. */
-        resourceId: field.string(ResourceId),
-        /** The recipient the content's machine-bound values are encrypted to. */
-        recipient: field.string(),
+export const snapshot = defineObject(
+    {
+        name: "snapshot",
+        plural: "snapshots",
+        scope: "universe",
+        fields: {
+            /** The space keeping the resource. */
+            space: field.reference(principal.space),
+            /** The resource whose content the snapshot copies. */
+            resourceId: field.string(ResourceId),
+            /** The recipient the content's machine-bound values are encrypted to. */
+            recipient: field.string(),
 
-        // the replica the controller took
-        /** The digest of the replica in the machine's content store, absent until taken. */
-        digest: field.string(Digest).optional(),
-        /** The time the replica was taken, in UTC epoch milliseconds. */
-        takenAt: field.time().optional(),
-        /** The digests of the store's blobs the replica reads. */
-        blobs: field.json(schema.array(Digest)).default([]),
-    },
-    // the space a record serves reads and writes it
-    permissions: { read: permission("record"), record: relation("space") },
-    constraints: {
-        recipient: { kind: "unique", on: ["resourceId", "recipient"] },
-        taken: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { digest: { isNull: true }, takenAt: { isNull: true } },
-                    { digest: { isNotNull: true }, takenAt: { isNotNull: true } },
-                ],
+            // the replica the controller took
+            /** The digest of the replica in the machine's content store, absent until taken. */
+            digest: field.string(Digest).optional(),
+            /** The time the replica was taken, in UTC epoch milliseconds. */
+            takenAt: field.time().optional(),
+            /** The digests of the store's blobs the replica reads. */
+            blobs: field.json(schema.array(Digest)).default([]),
+        },
+        // the space a record serves reads and writes it
+        permissions: { read: permission("record"), record: relation("space") },
+        constraints: {
+            recipient: { kind: "unique", on: ["resourceId", "recipient"] },
+            taken: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { digest: { isNull: true }, takenAt: { isNull: true } },
+                        { digest: { isNotNull: true }, takenAt: { isNotNull: true } },
+                    ],
+                },
             },
         },
     },
-}).methods((method) => ({
-    create: method.create("record", {
-        isInternal: true,
-        fields: ["spaceId", "resourceId", "recipient"],
+    (method) => ({
+        create: method.create("record", {
+            isInternal: true,
+            fields: ["spaceId", "resourceId", "recipient"],
+        }),
+        update: method.update("record", {
+            isInternal: true,
+            fields: ["digest", "takenAt", "blobs"],
+        }),
+        delete: method.delete("record", { isInternal: true }),
     }),
-    update: method.update("record", {
-        isInternal: true,
-        fields: ["digest", "takenAt", "blobs"],
-    }),
-    delete: method.delete("record", { isInternal: true }),
-}));
+);
 
 /** A restore of a snapshot's content into a resource provisioned here. */
-export const restore = defineObject({
-    name: "restore",
-    plural: "restores",
-    scope: "universe",
-    fields: {
-        /** The space keeping the resource. */
-        space: field.reference(principal.space),
-        /** The resource whose content the restore receives. */
-        resourceId: field.string(ResourceId),
-        /** The machine whose content store keeps the snapshot. */
-        source: field.reference(principal.machine),
-        /** The epoch the source served the space at when the restore was requested. */
-        sourceEpoch: field.integer(),
+export const restore = defineObject(
+    {
+        name: "restore",
+        plural: "restores",
+        scope: "universe",
+        fields: {
+            /** The space keeping the resource. */
+            space: field.reference(principal.space),
+            /** The resource whose content the restore receives. */
+            resourceId: field.string(ResourceId),
+            /** The machine whose content store keeps the snapshot. */
+            source: field.reference(principal.machine),
+            /** The epoch the source served the space at when the restore was requested. */
+            sourceEpoch: field.integer(),
 
-        // the resource the controller restored
-        /** The digest of the restored replica in the source's content store. */
-        digest: field.string(Digest).optional(),
-        /** The provider keeping the restored resource here. */
-        provider: field.string().optional(),
-        /** The provider's reference of the restored resource. */
-        reference: field.string().optional(),
-        /** The provider's location of the restored resource. */
-        location: field.string().optional(),
-        /** The specification the resource was provisioned at. */
-        spec: field.json(schema.json()).optional(),
-        /** The time the content was restored, in UTC epoch milliseconds. */
-        restoredAt: field.time().optional(),
+            // the resource the controller restored
+            /** The digest of the restored replica in the source's content store. */
+            digest: field.string(Digest).optional(),
+            /** The provider keeping the restored resource here. */
+            provider: field.string().optional(),
+            /** The provider's reference of the restored resource. */
+            reference: field.string().optional(),
+            /** The provider's location of the restored resource. */
+            location: field.string().optional(),
+            /** The specification the resource was provisioned at. */
+            spec: field.json(schema.json()).optional(),
+            /** The time the content was restored, in UTC epoch milliseconds. */
+            restoredAt: field.time().optional(),
 
-        // the catch-up from the fenced source
-        /** The time the source fenced the space. */
-        fencedAt: field.time().optional(),
-        /** The time the content caught up with the fenced source, in UTC epoch milliseconds. */
-        caughtUpAt: field.time().optional(),
-    },
-    // the space a record serves reads and writes it
-    permissions: { read: permission("record"), record: relation("space") },
-    constraints: {
-        source: { kind: "unique", on: ["resourceId", "sourceId", "sourceEpoch"] },
-        restored: {
-            kind: "check",
-            condition: {
-                OR: [
-                    {
-                        restoredAt: { isNull: true },
-                        digest: { isNull: true },
-                        provider: { isNull: true },
-                        reference: { isNull: true },
-                        spec: { isNull: true },
-                    },
-                    {
-                        restoredAt: { isNotNull: true },
-                        digest: { isNotNull: true },
-                        provider: { isNotNull: true },
-                        reference: { isNotNull: true },
-                        spec: { isNotNull: true },
-                    },
-                ],
+            // the catch-up from the fenced source
+            /** The time the source fenced the space. */
+            fencedAt: field.time().optional(),
+            /** The time the content caught up with the fenced source, in UTC epoch milliseconds. */
+            caughtUpAt: field.time().optional(),
+        },
+        // the space a record serves reads and writes it
+        permissions: { read: permission("record"), record: relation("space") },
+        constraints: {
+            source: { kind: "unique", on: ["resourceId", "sourceId", "sourceEpoch"] },
+            restored: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            restoredAt: { isNull: true },
+                            digest: { isNull: true },
+                            provider: { isNull: true },
+                            reference: { isNull: true },
+                            spec: { isNull: true },
+                        },
+                        {
+                            restoredAt: { isNotNull: true },
+                            digest: { isNotNull: true },
+                            provider: { isNotNull: true },
+                            reference: { isNotNull: true },
+                            spec: { isNotNull: true },
+                        },
+                    ],
+                },
+            },
+            caughtUp: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { caughtUpAt: { isNull: true } },
+                        {
+                            fencedAt: { isNotNull: true },
+                            restoredAt: { isNotNull: true },
+                            caughtUpAt: { gte: { field: "restoredAt" } },
+                        },
+                    ],
+                },
             },
         },
-        caughtUp: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { caughtUpAt: { isNull: true } },
-                    {
-                        fencedAt: { isNotNull: true },
-                        restoredAt: { isNotNull: true },
-                        caughtUpAt: { gte: { field: "restoredAt" } },
-                    },
-                ],
-            },
-        },
     },
-}).methods((method) => ({
-    create: method.create("record", {
-        isInternal: true,
-        fields: ["spaceId", "resourceId", "sourceId", "sourceEpoch", "fencedAt"],
+    (method) => ({
+        create: method.create("record", {
+            isInternal: true,
+            fields: ["spaceId", "resourceId", "sourceId", "sourceEpoch", "fencedAt"],
+        }),
+        update: method.update("record", {
+            isInternal: true,
+            fields: [
+                "digest",
+                "provider",
+                "reference",
+                "location",
+                "spec",
+                "restoredAt",
+                "fencedAt",
+                "caughtUpAt",
+            ],
+        }),
     }),
-    update: method.update("record", {
-        isInternal: true,
-        fields: [
-            "digest",
-            "provider",
-            "reference",
-            "location",
-            "spec",
-            "restoredAt",
-            "fencedAt",
-            "caughtUpAt",
-        ],
-    }),
-}));
+);
 
 /** A resource snapshot. */
 export type Snapshot = Select<typeof snapshot.table>;

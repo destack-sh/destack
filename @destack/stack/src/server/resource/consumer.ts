@@ -145,7 +145,7 @@ export class ConsumerController implements Controller {
             input.approval !== row.approval;
         if (isChanged) {
             await Transaction.run(database, async (transaction) => {
-                await DesiredState.keep(transaction, row.scope, [
+                await DesiredState.upsert(transaction, row.scope, [
                     ...active.values(),
                     ...draining.values(),
                 ]);

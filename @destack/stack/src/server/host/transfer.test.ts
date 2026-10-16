@@ -46,7 +46,7 @@ const space = defineObject({
     relations: { reader: { subjects: [anyone.all()] } },
     permissions: { read: relation("reader"), share: none() },
     shareable: { by: "share" },
-}).methods();
+});
 
 /** The account the moved space belongs to in the directory. */
 const accountId = schema
@@ -57,19 +57,22 @@ const accountId = schema
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
 
 /** Keys that a space's owners have, logged whole. */
-const key = defineObject({
-    name: "key",
-    plural: "keys",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(),
+const key = defineObject(
+    {
+        name: "key",
+        plural: "keys",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["name"] }),
-    update: method.update("write", { fields: ["name"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["name"] }),
+        update: method.update("write", { fields: ["name"] }),
+    }),
+);
 
 test.each(TEST_DIALECTS)(
     "hand a space's database to another machine and send its clients there on %s",

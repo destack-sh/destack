@@ -92,118 +92,123 @@ export const InstallationToken = defineSchema(
 export type InstallationToken = schema.Infer<typeof InstallationToken>;
 
 /** A package installed into a space: its stack or one of its applications. */
-export const installation = defineObject({
-    name: "installation",
-    plural: "installations",
-    scope: space,
-    represents: principal.installation,
-    controlled: { approval: true },
-    declarable: { schema: InstallationDefinition },
-    fields: {
-        /** The installed package. */
-        packageId: field.string(PackageId),
-        /** Whether the installation declares the space's contents or serves as an application. */
-        role: field.enum(["stack", "application"]).default("application"),
-        /** The release, repository reference or checkout the installation follows. */
-        selection: field.json(InstallationSelection),
-        /** The exported stack definition or parameterised function, for stacks. */
-        export: field.string().optional(),
-        /** Arguments supplied to the exported definition function, for stacks. */
-        parameters: field.json(schema.jsonObject()).optional(),
-        /** The revision to apply, absent before the first submission. */
-        revision: field.reference(() => installationRevision).optional(),
-        /** The principal submitting the followed revision, absent before the first submission. */
-        submittedBy: field.subject().optional(),
-        /** The digest of the space's stack the installation last submitted, absent for none. */
-        spaceStack: field.string(Digest).optional(),
-        /** The revision fully applied, absent before the first application. */
-        appliedRevision: field.reference(() => installationRevision).optional(),
-        /** The revision applied before the applied one, which a rollback follows again. */
-        previousRevision: field.reference(() => installationRevision).optional(),
-        /** Whether the installation should serve requests. */
-        status: field.enum(["enabled", "suspended"]).default("enabled"),
-        /** The space-local address for this installation. */
-        name: field.string(InstallationName),
-        /** Workload compute settings checked against package and machine policy. */
-        compute: field.json(schema.record(DeclarationName, ComputeDefinition)).default({}),
-        /** The optional capabilities the installation allows. */
-        capabilities: field.json(schema.array(CapabilityName)).default([]),
-        /** The directories granted to the package's `fs` capability, each with its access. */
-        directories: field.json(schema.array(DirectoryGrant)).default([]),
-        /** The digest of the objects the installation last related as their consumer. */
-        consumption: field.string(Digest).optional(),
-    },
-    permissions: {
-        read: none(),
-        list: none(),
-        create: none(),
-        update: none(),
-        delete: none(),
-        apply: none(),
-        open: none(),
-        replicate: self(),
-        run: self(),
-        token: self(),
-        follow: none(),
-        deploy: none(),
-        observe: none(),
-        analyze: none(),
-        unmask: none(),
-    },
-    reserved: ["replicate", "run", "token"],
-    // bind roles on an installation directly
-    shareable: { by: "update" },
-    constraints: {
-        space: {
-            kind: "foreignKey",
-            on: ["scope"],
-            references: { object: () => space, on: ["id"] },
-            onDelete: "no action",
+export const installation = defineObject(
+    {
+        name: "installation",
+        plural: "installations",
+        scope: space,
+        represents: principal.installation,
+        controlled: { approval: true },
+        declarable: { schema: InstallationDefinition },
+        fields: {
+            /** The installed package. */
+            packageId: field.string(PackageId),
+            /** Whether the installation declares the space's contents or serves an application. */
+            role: field.enum(["stack", "application"]).default("application"),
+            /** The release, repository reference or checkout the installation follows. */
+            selection: field.json(InstallationSelection),
+            /** The exported stack definition or parameterised function, for stacks. */
+            export: field.string().optional(),
+            /** Arguments supplied to the exported definition function, for stacks. */
+            parameters: field.json(schema.jsonObject()).optional(),
+            /** The revision to apply, absent before the first submission. */
+            revision: field.reference(() => installationRevision).optional(),
+            /** The principal submitting the followed revision, absent before the first one. */
+            submittedBy: field.subject().optional(),
+            /** The digest of the space's stack the installation last submitted, absent for none. */
+            spaceStack: field.string(Digest).optional(),
+            /** The revision fully applied, absent before the first application. */
+            appliedRevision: field.reference(() => installationRevision).optional(),
+            /** The revision applied before the applied one, which a rollback follows again. */
+            previousRevision: field.reference(() => installationRevision).optional(),
+            /** Whether the installation should serve requests. */
+            status: field.enum(["enabled", "suspended"]).default("enabled"),
+            /** The space-local address for this installation. */
+            name: field.string(InstallationName),
+            /** Workload compute settings checked against package and machine policy. */
+            compute: field.json(schema.record(DeclarationName, ComputeDefinition)).default({}),
+            /** The optional capabilities the installation allows. */
+            capabilities: field.json(schema.array(CapabilityName)).default([]),
+            /** The directories granted to the package's `fs` capability, each with its access. */
+            directories: field.json(schema.array(DirectoryGrant)).default([]),
+            /** The digest of the objects the installation last related as their consumer. */
+            consumption: field.string(Digest).optional(),
         },
-        managerInstallation: {
-            kind: "foreignKey",
-            on: ["scope", "managerInstallationId"],
-            references: { object: "self", on: ["scope", "id"] },
+        permissions: {
+            read: none(),
+            list: none(),
+            create: none(),
+            update: none(),
+            delete: none(),
+            apply: none(),
+            open: none(),
+            replicate: self(),
+            run: self(),
+            token: self(),
+            follow: none(),
+            deploy: none(),
+            observe: none(),
+            analyze: none(),
+            unmask: none(),
         },
-        scopeName: { kind: "unique", on: ["scope", "name"] },
-        scopePackage: { kind: "unique", on: ["scope", "packageId"] },
-        scopeId: { kind: "unique", on: ["scope", "id"] },
-        spacePackage: { kind: "unique", on: ["scope", "id", "packageId"] },
-        stack: { kind: "index", on: ["scope"], unique: true, where: { role: "stack" } },
-        package: { kind: "index", on: ["packageId"] },
-        revisionInstallation: {
-            kind: "foreignKey",
-            on: ["id", "revisionId"],
-            references: { object: () => installationRevision, on: ["installationId", "id"] },
-            onDelete: "no action",
-        },
-        appliedRevisionInstallation: {
-            kind: "foreignKey",
-            on: ["id", "appliedRevisionId"],
-            references: { object: () => installationRevision, on: ["installationId", "id"] },
-            onDelete: "no action",
-        },
-        previousRevisionInstallation: {
-            kind: "foreignKey",
-            on: ["id", "previousRevisionId"],
-            references: { object: () => installationRevision, on: ["installationId", "id"] },
-            onDelete: "no action",
-        },
-        stackExport: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { role: "stack", export: { isNotNull: true }, parameters: { isNotNull: true } },
-                    {
-                        role: { ne: "stack" },
-                        OR: [{ export: { isNull: true } }, { parameters: { isNull: true } }],
-                    },
-                ],
+        reserved: ["replicate", "run", "token"],
+        // bind roles on an installation directly
+        shareable: { by: "update" },
+        constraints: {
+            space: {
+                kind: "foreignKey",
+                on: ["scope"],
+                references: { object: () => space, on: ["id"] },
+                onDelete: "no action",
+            },
+            managerInstallation: {
+                kind: "foreignKey",
+                on: ["scope", "managerInstallationId"],
+                references: { object: "self", on: ["scope", "id"] },
+            },
+            scopeName: { kind: "unique", on: ["scope", "name"] },
+            scopePackage: { kind: "unique", on: ["scope", "packageId"] },
+            scopeId: { kind: "unique", on: ["scope", "id"] },
+            spacePackage: { kind: "unique", on: ["scope", "id", "packageId"] },
+            stack: { kind: "index", on: ["scope"], unique: true, where: { role: "stack" } },
+            package: { kind: "index", on: ["packageId"] },
+            revisionInstallation: {
+                kind: "foreignKey",
+                on: ["id", "revisionId"],
+                references: { object: () => installationRevision, on: ["installationId", "id"] },
+                onDelete: "no action",
+            },
+            appliedRevisionInstallation: {
+                kind: "foreignKey",
+                on: ["id", "appliedRevisionId"],
+                references: { object: () => installationRevision, on: ["installationId", "id"] },
+                onDelete: "no action",
+            },
+            previousRevisionInstallation: {
+                kind: "foreignKey",
+                on: ["id", "previousRevisionId"],
+                references: { object: () => installationRevision, on: ["installationId", "id"] },
+                onDelete: "no action",
+            },
+            stackExport: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            role: "stack",
+                            export: { isNotNull: true },
+                            parameters: { isNotNull: true },
+                        },
+                        {
+                            role: { ne: "stack" },
+                            OR: [{ export: { isNull: true } }, { parameters: { isNull: true } }],
+                        },
+                    ],
+                },
             },
         },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         list: method.list("list"),
         create: method.create("create", {
             fields: ["packageId", "selection", "name", "capabilities", "directories"],
@@ -300,82 +305,91 @@ export const installation = defineObject({
                 revisionId: schema.identifier("installation-revision"),
             }),
         }),
-    }))
-    .implement({
-        methods: {
-            rollBack: async (call) => {
-                // read the revision applied before the applied one
-                const { previousRevisionId } = call.target;
-                const previous =
-                    previousRevisionId === null
-                        ? undefined
-                        : await call
-                              .read(installationRevision)
-                              .findFirst({ where: { id: previousRevisionId } });
-                // refuse an installation without one
-                if (previous === undefined) {
-                    throw new CallError("CONFLICT", {
-                        message: `installation ${call.target.name} has no revision before its applied one`,
-                    });
-                }
-                // refuse a revision of a build, whose repository or checkout the installation follows on
-                else if (previous.build.kind !== "release") {
-                    throw new CallError("CONFLICT", {
-                        message: `installation ${call.target.name} rolls back only to a release, its previous revision is a build`,
-                    });
-                }
-
-                // follow it and pin its release
-                await call.update({
-                    revisionId: previous.id,
-                    selection: { kind: "release", version: previous.build.version },
+    }),
+).implement({
+    methods: {
+        rollBack: async (call) => {
+            // read the revision applied before the applied one
+            const { previousRevisionId } = call.target;
+            const previous =
+                previousRevisionId === null
+                    ? undefined
+                    : await call
+                          .read(installationRevision)
+                          .findFirst({ where: { id: previousRevisionId } });
+            // refuse an installation without one
+            if (previous === undefined) {
+                throw new CallError("CONFLICT", {
+                    message: `installation ${call.target.name} has no revision before its applied one`,
                 });
+            }
+            // refuse a revision of a build, whose repository or checkout the installation follows on
+            else if (previous.build.kind !== "release") {
+                throw new CallError("CONFLICT", {
+                    message: `installation ${call.target.name} rolls back only to a release, its previous revision is a build`,
+                });
+            }
 
-                return { revisionId: previous.id };
-            },
-            follow: (call) => call.update(call.input),
+            // follow it and pin its release
+            await call.update({
+                revisionId: previous.id,
+                selection: { kind: "release", version: previous.build.version },
+            });
+
+            return { revisionId: previous.id };
         },
-    });
+        follow: (call) => call.update(call.input),
+    },
+});
 
 /** An immutable evaluation of an installation's selected build. */
-export const installationRevision = defineObject({
-    name: "installation-revision",
-    plural: "installationRevisions",
-    scope: space,
-    fields: {
-        /** The evaluated installation. */
-        installation: field.reference((): ObjectOf<{ identity: "installation" }> => installation, {
-            delete: "cascade",
-        }),
-        /** The exact build evaluated. */
-        build: field.json(InstallationBuild),
-        /** The views the build's outputs mount, keyed by name. */
-        views: field.json(schema.record(DeclarationName, BuildView)),
-        /** The settings the build declares. */
-        settings: field.json(schema.array(SettingDescription)),
-        /** The translations the build ships of its messages and its unpublished dependencies'. */
-        catalogs: field.json(schema.array(Catalog)),
-        /** The evaluated stack definition, for stacks. */
-        definition: field.json(StackDefinition).optional(),
-        /** The SHA-256 digest of the canonical build, parameters and definition. */
-        digest: field.string(Digest),
+export const installationRevision = defineObject(
+    {
+        name: "installation-revision",
+        plural: "installationRevisions",
+        scope: space,
+        fields: {
+            /** The evaluated installation. */
+            installation: field.reference(
+                (): ObjectOf<{ identity: "installation" }> => installation,
+                {
+                    delete: "cascade",
+                },
+            ),
+            /** The exact build evaluated. */
+            build: field.json(InstallationBuild),
+            /** The views the build's outputs mount, keyed by name. */
+            views: field.json(schema.record(DeclarationName, BuildView)),
+            /** The settings the build declares. */
+            settings: field.json(schema.array(SettingDescription)),
+            /** The translations of its own and its unpublished dependencies' messages. */
+            catalogs: field.json(schema.array(Catalog)),
+            /** The evaluated stack definition, for stacks. */
+            definition: field.json(StackDefinition).optional(),
+            /** The SHA-256 digest of the canonical build, parameters and definition. */
+            digest: field.string(Digest),
+        },
+        permissions: ["read", "record"],
+        constraints: {
+            installationId: { kind: "unique", on: ["installationId", "id"] },
+            digest: { kind: "unique", on: ["installationId", "digest"] },
+            digestForm: {
+                kind: "check",
+                condition: { digest: { length: 64, characters: "0-9a-f" } },
+            },
+        },
     },
-    permissions: ["read", "record"],
-    constraints: {
-        installationId: { kind: "unique", on: ["installationId", "id"] },
-        digest: { kind: "unique", on: ["installationId", "digest"] },
-        digestForm: { kind: "check", condition: { digest: { length: 64, characters: "0-9a-f" } } },
-    },
-}).methods((method) => ({
-    create: method.create("record", {
-        isInternal: true,
-        fields: ["installationId", "build", "definition", "digest"],
-        input: schema.object({
-            /** The package whose build the revision evaluates. */
-            packageId: PackageId,
+    (method) => ({
+        create: method.create("record", {
+            isInternal: true,
+            fields: ["installationId", "build", "definition", "digest"],
+            input: schema.object({
+                /** The package whose build the revision evaluates. */
+                packageId: PackageId,
+            }),
         }),
     }),
-}));
+);
 
 /** A persisted installation record. */
 export type Installation = Select<typeof installation.table>;
