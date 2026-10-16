@@ -9,6 +9,7 @@ import {
     principal,
     PermissionReference,
     Relationship,
+    Role,
     type RelationshipRequest,
 } from "@destack/access";
 import { group } from "@destack/account/object";
@@ -51,11 +52,16 @@ const declaredRole = role.implement({
         upsert: async (stack, manager, resolved) => {
             // keep the role with its manager and permissions as the stack's principal in one write
             const scope = await Scope.object(stack.transaction.view(), stack.scope);
-            await (await stack.authorization()).applying(manager).upsertRole(scope, {
-                name: manager.name,
-                description: resolved.description,
-                permissions: resolved.permissions,
-            });
+            const authorization = (await stack.authorization()).applying(manager);
+            await Role.upsert(
+                scope,
+                {
+                    name: manager.name,
+                    description: resolved.description,
+                    permissions: resolved.permissions,
+                },
+                authorization,
+            );
         },
         retire: {
             isRetiring: async () => false,
@@ -63,11 +69,8 @@ const declaredRole = role.implement({
                 // delete the role the stack no longer declares, through its declaration
                 const scope = await Scope.object(stack.transaction.view(), row.scope);
                 const manager = present(Manager.read(row), `the declaration managing ${row.id}`);
-                await (
-                    await stack.authorization()
-                )
-                    .applying(manager)
-                    .deleteRole(scope, row.id, row.revision);
+                const authorization = (await stack.authorization()).applying(manager);
+                await Role.delete(scope, row.id, row.revision, authorization);
             },
         },
     },
@@ -113,22 +116,16 @@ const declaredRelationship = relationship.implement({
         }),
         upsert: async (stack, manager, resolved) => {
             // keep the one relationship the declaration manages as the stack's principal and replace a changed one
-            await (
-                await stack.authorization()
-            )
-                .applying(manager)
-                .replaceRelationships({ scope: stack.scope }, [resolved]);
+            const authorization = (await stack.authorization()).applying(manager);
+            await Relationship.replace({ scope: stack.scope }, [resolved], authorization);
         },
         retire: {
             isRetiring: async () => false,
             start: async (stack, row) => {
                 // revoke the relationship the stack no longer declares, through its declaration
                 const manager = present(Manager.read(row), `the declaration managing ${row.id}`);
-                await (
-                    await stack.authorization()
-                )
-                    .applying(manager)
-                    .revoke(Relationship.decode(row).object, row.id);
+                const authorization = (await stack.authorization()).applying(manager);
+                await Relationship.revoke(Relationship.decode(row).object, row.id, authorization);
             },
         },
     },
