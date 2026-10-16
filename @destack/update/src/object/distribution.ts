@@ -17,31 +17,34 @@ export const Staging = defineSchema(
 export type Staging = schema.Infer<typeof Staging>;
 
 /** This machine's Destack distribution: its channel, the release installed and the one staged. */
-export const distribution = defineObject({
-    name: "distribution",
-    plural: "distributions",
-    scope: machine,
-    fields: {
-        /** The release channel the distribution follows. */
-        channel: field.enum(CHANNELS),
+export const distribution = defineObject(
+    {
+        name: "distribution",
+        plural: "distributions",
+        scope: machine,
+        fields: {
+            /** The release channel the distribution follows. */
+            channel: field.enum(CHANNELS),
 
-        // observed
-        /** The installed release's version. */
-        installed: field.string(Version),
-        /** The version of the release staged for activation, absent while none newer is. */
-        staged: field.string(Version).optional(),
-        /** Whether the release is current, a newer one is staged, or the restart into it runs. */
-        status: field.enum(["current", "staged", "activating"]).default("current"),
-        /** When the channel's repository was last checked. */
-        checkedAt: field.time().optional(),
+            // observed
+            /** The installed release's version. */
+            installed: field.string(Version),
+            /** The version of the release staged for activation, absent while none newer is. */
+            staged: field.string(Version).optional(),
+            /** Whether the release is current, a newer one is staged, or the restart runs. */
+            status: field.enum(["current", "staged", "activating"]).default("current"),
+            /** When the channel's repository was last checked. */
+            checkedAt: field.time().optional(),
+        },
+        permissions: ["read", "update", "record"],
     },
-    permissions: ["read", "update", "record"],
-}).methods((method) => ({
-    create: method.create("record", { isInternal: true }),
-    /** Download and verify the channel's latest release if newer than the installed one. */
-    stage: method.mutation({ permission: "update", prepared: Staging }),
-    /** Restart the distribution into the staged release. */
-    activate: method.mutation({ permission: "update", prepared: Version }),
-}));
+    (method) => ({
+        create: method.create("record", { isInternal: true }),
+        /** Download and verify the channel's latest release if newer than the installed one. */
+        stage: method.mutation({ permission: "update", prepared: Staging }),
+        /** Restart the distribution into the staged release. */
+        activate: method.mutation({ permission: "update", prepared: Version }),
+    }),
+);
 /** A distribution as its table stores it. */
 export type DistributionRow = Select<typeof distribution.table>;
