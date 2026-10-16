@@ -12,7 +12,7 @@ import { machine } from "./machine.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
-import { PushSubscription } from "./contact.ts";
+import { PushSubscription } from "./recipient.ts";
 
 /** The name a device's client starts with, which its program renames once it signs in. */
 export const DEVICE_CLIENT_NAME = "Destack app";

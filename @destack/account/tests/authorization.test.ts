@@ -228,7 +228,7 @@ test("let a person's home follow on their behalf and read their contact from the
         });
 
         // decide `follow` and `contact` on the person as their home and as another space
-        const decide = async (space: string, permission: "follow" | "contact") => {
+        const decide = async (space: string, permission: "follow" | "recipient") => {
             const subject = principal.space.reference(Scope.universe.id, space);
             const context = AccessContext.of(Caller.of(subject), time);
             const access = await authorizer.resolve(Snapshot.live(database), "universe", context);
@@ -245,8 +245,8 @@ test("let a person's home follow on their behalf and read their contact from the
         expect([
             await decide(home, "follow"),
             await decide(other, "follow"),
-            await decide(home, "contact"),
-            await decide(other, "contact"),
+            await decide(home, "recipient"),
+            await decide(other, "recipient"),
         ]).toEqual([true, false, true, false]);
     } finally {
         await opened.close();

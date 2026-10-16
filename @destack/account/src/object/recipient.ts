@@ -1,5 +1,7 @@
-import { defineSchema, schema, TimeZone } from "@destack/schema";
+import { defineSchema, present, schema, TimeZone } from "@destack/schema";
 import { LocaleTag } from "@destack/locale";
+import type { Client } from "./client.ts";
+import type { User } from "./user.ts";
 
 /** The longest push service URL a browser hands out. */
 const PUSH_URL_LENGTH = 2048;
@@ -21,8 +23,8 @@ export const PushSubscription = defineSchema(
 /** A browser's Web Push subscription. */
 export type PushSubscription = schema.Infer<typeof PushSubscription>;
 
-/** Where a person receives notifications beyond an inbox, and in which language. */
-export const Contact = defineSchema(
+/** The schema of a recipient. */
+const RecipientSchema = defineSchema(
     schema.object({
         /** The desktop clients showing the person's notifications. */
         desktops: schema.array(schema.identifier("client")),
@@ -37,4 +39,28 @@ export const Contact = defineSchema(
     }),
 );
 /** Where a person receives notifications beyond an inbox, and in which language. */
-export type Contact = schema.Infer<typeof Contact>;
+export const Recipient = Object.assign(RecipientSchema, {
+    /** Read where a person receives notifications from their profile and unrevoked clients. */
+    of(
+        person: Pick<User, "email" | "emailVerified" | "timeZone" | "locale">,
+        clients: readonly Pick<Client, "id" | "kind" | "push" | "revokedAt">[],
+    ): Recipient {
+        const live = clients.filter((client) => client.revokedAt === null);
+
+        return {
+            desktops: live.filter((client) => client.kind === "native").map((client) => client.id),
+            browsers: live.flatMap((client) =>
+                client.kind === "browser" && client.push !== null
+                    ? [{ id: client.id, ...client.push }]
+                    : [],
+            ),
+            ...(person.emailVerified === true && person.email !== null
+                ? { email: person.email }
+                : {}),
+            timeZone: present(person.timeZone, "the person's time zone"),
+            locale: person.locale,
+        };
+    },
+});
+/** Where a person receives notifications beyond an inbox, and in which language. */
+export type Recipient = schema.Infer<typeof RecipientSchema>;

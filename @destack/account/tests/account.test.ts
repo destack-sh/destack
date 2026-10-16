@@ -389,7 +389,7 @@ test("show a person's public profile with their locale to anyone signed in, and 
     });
 });
 
-test("refuse a person's contact to another home's installations and to other people", async () => {
+test("refuse where a person receives notifications to another home's installations and to other people", async () => {
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const other = await fixture.person("other@example.com");
@@ -402,13 +402,13 @@ test("refuse a person's contact to another home's installations and to other peo
         ),
     );
 
-    // refuse the contact to another home's installation and to the other person
+    // refuse the recipient to another home's installation and to the other person
     expect({
-        stranger: await refusal(stranger.user.contact({ id: owner.id })),
-        other: await refusal(other.client.user.contact({ id: owner.id })),
+        stranger: await refusal(stranger.user.recipient({ id: owner.id })),
+        other: await refusal(other.client.user.recipient({ id: owner.id })),
     }).toEqual({
-        stranger: ["FORBIDDEN", "permission denied: contact"],
-        other: ["FORBIDDEN", "permission denied: contact"],
+        stranger: ["FORBIDDEN", "permission denied: recipient"],
+        other: ["FORBIDDEN", "permission denied: recipient"],
     });
 });
 

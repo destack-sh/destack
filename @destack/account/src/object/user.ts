@@ -16,7 +16,7 @@ import { Subject } from "@destack/sync";
 import { AccountHandle, HandleAvailability } from "../address/handle.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
-import { Contact } from "./contact.ts";
+import { Recipient } from "./recipient.ts";
 
 /** The longest text a handle check accepts, beyond which nothing is a handle. */
 const HANDLE_INPUT_LENGTH = 256;
@@ -69,7 +69,7 @@ export const user = defineObject(
             // the person's home, following replicas on their behalf
             follow: relation("home"),
             // the person's home, reading where the person receives notifications
-            contact: relation("home"),
+            recipient: relation("home"),
             update: relation("self"),
             lend: relation("self"),
             impersonate: relation("delegate"),
@@ -115,7 +115,7 @@ export const user = defineObject(
             }),
         }),
         /** Read where the person receives notifications beyond an inbox, and in which language. */
-        contact: method.query({ permission: "contact", output: Contact }),
+        recipient: method.query({ permission: "recipient", output: Recipient }),
         /** Read the home space of the person's personal account. */
         home: method.query({
             permission: "home",

@@ -1,6 +1,4 @@
-import { aligned, TimeZone } from "@destack/schema";
-import { Contact, INVITATION_PAGE, Invitation, principal } from "@destack/access";
-import { Scope } from "@destack/sync";
+import { aligned, present, TimeZone } from "@destack/schema";
 import {
     type MethodContextOf,
     type NextOf,
@@ -12,6 +10,9 @@ import { CallError } from "@destack/runtime/error";
 import { Account, account } from "../object/account.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { user } from "../object/user.ts";
+import { client } from "../object/client.ts";
+import { Recipient } from "../object/recipient.ts";
+import { invited } from "./invitation.ts";
 
 /** The candidate handles one suggestion reads at once. */
 const SUGGESTION_BATCH = 100;
@@ -28,6 +29,14 @@ export function implementUser(): typeof user {
             checkHandle,
             invited,
             home: (call) => Account.homeOf(call, call.target.id),
+            recipient: async (call) => {
+                // read the person's guarded profile and unrevoked clients, which only account reveals
+                const { id } = call.target;
+                const person = await call.reveal(user).findFirst({ where: { id } });
+                const clients = await call.reveal(client).findMany({ where: { scope: id } });
+
+                return Recipient.of(present(person, `the profile of ${id}`), clients);
+            },
         },
     });
 }
@@ -95,27 +104,4 @@ async function checkHandle(
     const { handle } = context.input;
 
     return { handle, availability: await Account.availability(context.read(claimTable), handle) };
-}
-
-/** List the pending invitations addressed to a user, or to the user's email once verified. */
-async function invited(
-    context: MethodContextOf<typeof user, "invited">,
-): Promise<ResultOf<typeof user, "invited">> {
-    // address the user and the email's contact
-    const { target } = context;
-    const person = principal.user.reference(Scope.universe.id, target.id);
-    const contacts =
-        target.email === null || target.emailVerified !== true
-            ? []
-            : [Contact.subject(Contact.email(target.email))];
-
-    // read a page of the pending invitations to either
-    const items = await Invitation.addressed(
-        context,
-        [person, ...contacts],
-        { limit: INVITATION_PAGE },
-        context.now,
-    );
-
-    return { items };
 }

@@ -3,7 +3,7 @@ export * from "./session.ts";
 export * from "./user-login.ts";
 export * from "./passkey.ts";
 export * from "./two-factor.ts";
-export * from "./contact.ts";
+export * from "./recipient.ts";
 export * from "./client.ts";
 export * from "./key.ts";
 export * from "./personal-access-token.ts";
