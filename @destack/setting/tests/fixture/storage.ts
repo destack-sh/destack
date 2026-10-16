@@ -1,6 +1,5 @@
 import { Package } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { outbox } from "@destack/runtime/outbox";
 import { AccessFixture } from "@destack/access/test";
 import { Call, Scope, type ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
@@ -38,6 +37,8 @@ export class Storage {
     readonly catalog: ReturnType<typeof SettingCatalog.cached>;
     /** The served setting values. */
     readonly objects: ObjectStore;
+    /** The events the stores record their calls in. */
+    readonly #events: Awaited<ReturnType<typeof testEvents>>;
 
     /** Serve values checked against a release declaring some settings. */
     constructor(
@@ -50,16 +51,25 @@ export class Storage {
         this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
         this.reader = release(declarations);
         this.catalog = SettingCatalog.cached(() => this.reader);
-        this.objects = new ObjectStore({
+        this.#events = events;
+        this.objects = this.#serve(universe.reference(Scope.universe.id, Scope.universe.id));
+    }
+    /** Serve a space's values from its own store, as the space's machine does. */
+    space(id: string): ObjectStore {
+        return this.#serve(space.reference(Scope.universe.id, id));
+    }
+
+    /** Serve the values as a principal, deciding access in the scopes the values live in. */
+    #serve(served: Subject): ObjectStore {
+        return new ObjectStore({
             chain: async () => undefined,
             clock: Clock.system,
-            principal: universe.reference(Scope.universe.id, Scope.universe.id),
+            principal: served,
             servers: [settingServer({ declared: this.catalog, after: [] })],
-            // decide access in the scopes the values live in
             policies: [principal.user, space.policy],
-            database: test.database,
+            database: this.database,
             callKey: testCallKey,
-            events,
+            events: this.#events,
             origin: { package: Package.of(settingPackage) },
         });
     }
@@ -108,7 +118,7 @@ export class Storage {
         dialect: Dialect,
         declarations: readonly Setting[] = [editor, lineNumbers],
     ): Promise<Storage> {
-        const tables = [...accessTables, ...settingTables, outbox];
+        const tables = [...accessTables, ...settingTables];
         const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
         const storage = new Storage(test, declarations, await testEvents(test.database));
         await storage.own(principal.user.reference(Scope.universe.id, alice));

@@ -40,13 +40,14 @@ test.each(TEST_DIALECTS)(
             "own",
         );
         const objects = [implementSetting({ declared: storage.catalog, after: [] })];
+        const served = storage.space(spaceId);
         const apply = (settings: JsonObject) =>
             Stack.apply({
                 now: Date.now(),
                 database: storage.database,
                 objects,
-                store: storage.objects,
-                as: storage.objects.principal,
+                store: served,
+                as: served.principal,
                 release: () => storage.reader,
                 manager,
                 scope: spaceId,
