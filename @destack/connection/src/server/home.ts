@@ -10,9 +10,10 @@ import {
     type DeviceAuthorization,
 } from "../oauth/server.ts";
 import type connectionPackage from "../package.ts";
-import { type Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
 import type { ObjectReference } from "@destack/sync";
+import type { Clock } from "@destack/environment";
 
 /** A replicated integration's client, which writes its authorization pages here. */
 export class HomeClient implements AuthorizationClient {

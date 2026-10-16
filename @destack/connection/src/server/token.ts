@@ -6,7 +6,7 @@ import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
 import type { MethodContext, Condition, ResultsOf } from "@destack/object";
-import { Clock, type Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { type Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { type ObjectReference, Replica, type Subject } from "@destack/sync";
 import { Credential, Token } from "../credential/credential.ts";
@@ -28,6 +28,7 @@ import { Secret, SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
 import { AccessContext, Caller } from "@destack/access";
+import { Clock } from "@destack/environment";
 
 /** How long before expiry an access token is refreshed: a minute. */
 export const REFRESH_MARGIN = 60_000;

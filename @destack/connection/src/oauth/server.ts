@@ -1,9 +1,10 @@
-import { aligned, defineSchema, Duration, schema, Clock } from "@destack/schema";
+import { aligned, defineSchema, Duration, schema } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { AuthorizationEndpoints, ClientAuthentication } from "../object/integration.ts";
 import { Assertion } from "./assertion.ts";
+import { Clock } from "@destack/environment";
 
 /** The grant type of a JWT assertion presented for a token (RFC 7523 2.1). */
 export const JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer";
