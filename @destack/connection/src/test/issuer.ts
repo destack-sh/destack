@@ -11,6 +11,4 @@ export const ISSUING: Package = {
 };
 
 /** The issuing package's issuers. */
-export const testIssuer = defineObject(Issuer.definition(), { package: ISSUING }).methods(
-    Issuer.methods,
-);
+export const testIssuer = defineObject(Issuer.definition(), Issuer.methods, { package: ISSUING });

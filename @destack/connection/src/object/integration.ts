@@ -101,100 +101,103 @@ export const Registration = defineSchema(
 export type Registration = schema.Infer<typeof Registration>;
 
 /** An integration registered at an external authorization server, used by OAuth connections. */
-export const integration = defineObject({
-    name: "integration",
-    plural: "integrations",
-    // replicate the integrations of platforms and organisations into their scopes and the spaces connecting through them
-    inherited: {},
-    fields: {
-        /** Who issues the integration's tokens. */
-        issuer: field.json(IntegrationIssuer),
-        /** The authorization server's endpoints. */
-        endpoints: field.json(AuthorizationEndpoints),
-        /** The client identifier the server assigned. */
-        clientId: field.string(schema.string().min(1)),
-        /** How the client authenticates at the token endpoint. */
-        authentication: field.enum(CLIENT_AUTHENTICATIONS),
-        /** The redirect URIs the client registered. */
-        redirectUris: field.json(schema.array(schema.httpUrl())),
-        /** Whether the owner registered the client, or a connection did dynamically (RFC 7591). */
-        registration: field.enum(["static", "dynamic"]).default("static"),
-        /** The vault keeping the client secret or private key, absent for a public client. */
-        vault: field.json(ObjectReference).optional(),
+export const integration = defineObject(
+    {
+        name: "integration",
+        plural: "integrations",
+        // replicate the integrations of platforms and organisations into their scopes and the spaces connecting through them
+        inherited: {},
+        fields: {
+            /** Who issues the integration's tokens. */
+            issuer: field.json(IntegrationIssuer),
+            /** The authorization server's endpoints. */
+            endpoints: field.json(AuthorizationEndpoints),
+            /** The client identifier the server assigned. */
+            clientId: field.string(schema.string().min(1)),
+            /** How the client authenticates at the token endpoint. */
+            authentication: field.enum(CLIENT_AUTHENTICATIONS),
+            /** The redirect URIs the client registered. */
+            redirectUris: field.json(schema.array(schema.httpUrl())),
+            /** Whether the owner registered the client or a connection did (RFC 7591). */
+            registration: field.enum(["static", "dynamic"]).default("static"),
+            /** The vault keeping the client secret or private key, absent for a public client. */
+            vault: field.json(ObjectReference).optional(),
+        },
+        relations: {
+            // every space a public integration serves, beside its owner's spaces and the spaces below them
+            public: { subjects: [anyone.all()], grantedBy: null },
+        },
+        // let the spaces it serves replicate it, their connection installations request its tokens by possession, and its residency's servers replicate it
+        permissions: {
+            read: union(contained(principal.space), relation("public"), through("scope", "serve")),
+            manage: none(),
+            request: union(contained(principal.installation), relation("public")),
+        },
+        reserved: ["request"],
     },
-    relations: {
-        // every space a public integration serves, beside its owner's spaces and the spaces below them
-        public: { subjects: [anyone.all()], grantedBy: null },
-    },
-    // let the spaces it serves replicate it, their connection installations request its tokens by possession, and its residency's servers replicate it
-    permissions: {
-        read: union(contained(principal.space), relation("public"), through("scope", "serve")),
-        manage: none(),
-        request: union(contained(principal.installation), relation("public")),
-    },
-    reserved: ["request"],
-}).methods((method) => ({
-    /** Register an integration, keeping its client secret or private key in the vault. */
-    create: method.create("manage", {
-        fields: ["issuer", "endpoints", "clientId", "authentication", "redirectUris", "vault"],
-        input: schema.object({
-            /** The client secret or private key as JWK or PEM text, kept in the vault. */
-            secret: schema.sensitive(schema.string().min(1)).exactOptional(),
-            /** Whether it serves every space, not only its owner's spaces and those below them. */
-            isPublic: schema.boolean().exactOptional(),
+    (method) => ({
+        /** Register an integration, keeping its client secret or private key in the vault. */
+        create: method.create("manage", {
+            fields: ["issuer", "endpoints", "clientId", "authentication", "redirectUris", "vault"],
+            input: schema.object({
+                /** The client secret or private key as JWK or PEM text, kept in the vault. */
+                secret: schema.sensitive(schema.string().min(1)).exactOptional(),
+                /** Whether it serves every space beside its owner's and those below them. */
+                isPublic: schema.boolean().exactOptional(),
+            }),
+            prepared: schema.object({}),
+            isPredicted: false,
         }),
-        prepared: schema.object({}),
-        isPredicted: false,
-    }),
-    /** Register a client at a resource's authorization server, for a space's connection. */
-    register: method.create("request", {
-        fields: [],
-        input: schema.object({
-            /** The protected resource whose metadata lists the authorization server. */
-            resource: schema.url({ protocol: /^https$/u }),
-            /** The URI the authorization server redirects the person back to. */
-            redirectUri: schema.httpUrl(),
-            /** The scope's vault for an issued secret, null if the connection has none. */
-            vault: ObjectReference.nullable(),
+        /** Register a client at a resource's authorization server, for a space's connection. */
+        register: method.create("request", {
+            fields: [],
+            input: schema.object({
+                /** The protected resource whose metadata lists the authorization server. */
+                resource: schema.url({ protocol: /^https$/u }),
+                /** The URI the authorization server redirects the person back to. */
+                redirectUri: schema.httpUrl(),
+                /** The scope's vault for an issued secret, null if the connection has none. */
+                vault: ObjectReference.nullable(),
+            }),
+            prepared: Registration,
+            isPredicted: false,
         }),
-        prepared: Registration,
-        isPredicted: false,
-    }),
-    /** Start a device authorization for another space's connection (RFC 8628 3.1). */
-    authorizeDevice: method.query({
-        permission: "request",
-        input: schema.object({
-            /** The scopes and resource asked for. */
-            request: DeviceRequest,
+        /** Start a device authorization for another space's connection (RFC 8628 3.1). */
+        authorizeDevice: method.query({
+            permission: "request",
+            input: schema.object({
+                /** The scopes and resource asked for. */
+                request: DeviceRequest,
+            }),
+            output: schema.sensitive(DeviceAuthorization),
+            prepared: schema.sensitive(DeviceAuthorization),
+            isAudited: true,
         }),
-        output: schema.sensitive(DeviceAuthorization),
-        prepared: schema.sensitive(DeviceAuthorization),
-        isAudited: true,
-    }),
-    /** Request a token for another space's connection as the client (RFC 6749 3.2). */
-    requestToken: method.query({
-        permission: "request",
-        input: schema.object({
-            /** The grant proving possession of the connection's authorization. */
-            grant: schema.sensitive(TokenGrant),
+        /** Request a token for another space's connection as the client (RFC 6749 3.2). */
+        requestToken: method.query({
+            permission: "request",
+            input: schema.object({
+                /** The grant proving possession of the connection's authorization. */
+                grant: schema.sensitive(TokenGrant),
+            }),
+            output: schema.sensitive(Token),
+            prepared: schema.sensitive(Token),
+            isAudited: true,
         }),
-        output: schema.sensitive(Token),
-        prepared: schema.sensitive(Token),
-        isAudited: true,
-    }),
-    /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
-    revokeToken: method.query({
-        permission: "request",
-        input: schema.object({
-            /** The token revoked. */
-            revocation: schema.sensitive(TokenRevocation),
+        /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
+        revokeToken: method.query({
+            permission: "request",
+            input: schema.object({
+                /** The token revoked. */
+                revocation: schema.sensitive(TokenRevocation),
+            }),
+            output: schema.object({}),
+            prepared: schema.object({}),
+            isAudited: true,
         }),
-        output: schema.object({}),
-        prepared: schema.object({}),
-        isAudited: true,
+        update: method.update("manage", { fields: ["endpoints", "redirectUris"] }),
+        delete: method.delete("manage"),
     }),
-    update: method.update("manage", { fields: ["endpoints", "redirectUris"] }),
-    delete: method.delete("manage"),
-}));
+);
 /** A registered integration. */
 export type Integration = Select<typeof integration.table>;

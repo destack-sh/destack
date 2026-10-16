@@ -118,7 +118,7 @@ export const placement = defineObject({
     },
     relations: { self: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("self") },
-}).methods();
+});
 
 /** A database of connections and their vaults, as a space keeps it. */
 export const connectionDatabase = defineDatabase({

@@ -183,8 +183,8 @@ async function revoke(
 /** Revoke a revocation's tokens at their server or uninstall its integration, then destroy it. */
 async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSource): Promise<void> {
     // read the credential the vault keeps, none before the first was kept
-    const isKept = withdrawn.keptAt !== null;
-    const token = isKept ? (await tokens.read(runner, withdrawn)).token : undefined;
+    const isRetained = withdrawn.keptAt !== null;
+    const token = isRetained ? (await tokens.read(runner, withdrawn)).token : undefined;
 
     // uninstall an installed integration through its issuer
     if (withdrawn.protocol.kind === "installation" && withdrawn.subject !== null) {
@@ -200,7 +200,7 @@ async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSour
     }
 
     // remove the kept credential
-    if (isKept) {
+    if (isRetained) {
         await tokens.remove(runner, withdrawn.vault, withdrawn.id);
     }
 }
@@ -307,13 +307,13 @@ async function keepToken(
 ): Promise<number | undefined> {
     // keep a kept token that never expires
     const authorized = current.conditions["Authorized"];
-    const isKept = authorized?.status === "true" && current.keptAt !== null;
-    if (isKept && current.expiresAt === null) {
+    const isRetained = authorized?.status === "true" && current.keptAt !== null;
+    if (isRetained && current.expiresAt === null) {
         return undefined;
     }
 
     // wait until its refresh is due, then obtain or refresh it
-    const due = isKept && current.expiresAt !== null ? current.expiresAt - REFRESH_MARGIN : now;
+    const due = isRetained && current.expiresAt !== null ? current.expiresAt - REFRESH_MARGIN : now;
     if (due > now) {
         return due - now;
     }

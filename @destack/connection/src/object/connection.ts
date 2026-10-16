@@ -171,111 +171,114 @@ export const Withdrawal = defineSchema(
 export type Withdrawal = schema.Infer<typeof Withdrawal>;
 
 /** Credentials for one external account, kept in a vault and lent to outbound calls. */
-export const connection = defineObject({
-    name: "connection",
-    plural: "connections",
-    controlled: true,
-    // relate the installations a person lends the connection to as its consumers
-    bindable: { by: "manage" },
-    // replicate the connections of accounts and organisations into their scopes
-    inherited: {},
-    fields: {
-        /** How the connection authenticates. */
-        protocol: field.json(ConnectionProtocol),
-        /** The integration whose client receives tokens, for OAuth kinds and installations. */
-        integration: field.json(ObjectReference).optional(),
-        /** The protected resource of the tokens (RFC 8707), listing its server (RFC 9728). */
-        resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
-        /** The scopes requested, then the ones granted. */
-        scopes: field.json(schema.array(schema.string().min(1))).default([]),
-        /** The vault keeping the credential. */
-        vault: field.json(ObjectReference),
+export const connection = defineObject(
+    {
+        name: "connection",
+        plural: "connections",
+        controlled: true,
+        // relate the installations a person lends the connection to as its consumers
+        bindable: { by: "manage" },
+        // replicate the connections of accounts and organisations into their scopes
+        inherited: {},
+        fields: {
+            /** How the connection authenticates. */
+            protocol: field.json(ConnectionProtocol),
+            /** The integration whose client receives tokens, for OAuth kinds and installations. */
+            integration: field.json(ObjectReference).optional(),
+            /** The protected resource of the tokens (RFC 8707), listing its server (RFC 9728). */
+            resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
+            /** The scopes requested, then the ones granted. */
+            scopes: field.json(schema.array(schema.string().min(1))).default([]),
+            /** The vault keeping the credential. */
+            vault: field.json(ObjectReference),
 
-        // the controller's authorization
-        /** The external account's identifier, such as a user or installation identifier. */
-        subject: field.string(schema.string().min(1)).optional(),
-        /** The current access token's expiry, absent for credentials that do not expire. */
-        expiresAt: field.time().optional(),
-        /** When the vault last took the connection's credential, absent while it keeps none. */
-        keptAt: field.time().optional(),
+            // the controller's authorization
+            /** The external account's identifier, such as a user or installation identifier. */
+            subject: field.string(schema.string().min(1)).optional(),
+            /** The current access token's expiry, absent for credentials that do not expire. */
+            expiresAt: field.time().optional(),
+            /** When the vault last took the connection's credential, absent while it keeps none. */
+            keptAt: field.time().optional(),
+        },
+        // let its consumers and the servers of its scope read it, and its consumers borrow it
+        permissions: {
+            read: union(relation(CONSUMER), through("scope", "serve")),
+            manage: none(),
+            lend: relation(CONSUMER),
+        },
+        reserved: ["lend"],
     },
-    // let its consumers and the servers of its scope read it, and its consumers borrow it
-    permissions: {
-        read: union(relation(CONSUMER), through("scope", "serve")),
-        manage: none(),
-        lend: relation(CONSUMER),
-    },
-    reserved: ["lend"],
-}).methods((method) => ({
-    /** Create a connection, keeping the material its kind sends in the vault. */
-    create: method.create("manage", {
-        fields: ["protocol", "integration", "resource", "scopes", "vault"],
-        input: schema.object({
-            /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
-            material: schema.sensitive(Material).exactOptional(),
+    (method) => ({
+        /** Create a connection, keeping the material its kind sends in the vault. */
+        create: method.create("manage", {
+            fields: ["protocol", "integration", "resource", "scopes", "vault"],
+            input: schema.object({
+                /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
+                material: schema.sensitive(Material).exactOptional(),
+            }),
+            prepared: schema.object({}),
+            isPredicted: false,
         }),
-        prepared: schema.object({}),
-        isPredicted: false,
+        /** Lend the connection's protocol and current credential to an installation bound to it. */
+        lend: method.query({
+            permission: "lend",
+            output: schema.sensitive(Loan),
+            prepared: schema.sensitive(Loan),
+            isAudited: true,
+        }),
+        /** List the scope's authorized installations of integrations with a client identifier. */
+        installations: method.query({
+            permission: "lend",
+            target: "scope",
+            input: schema.object({
+                /** The integrations' client identifier, such as a GitHub App's. */
+                clientId: schema.string().min(1),
+                /** The one connection to read, every one when absent. */
+                id: schema.identifier("connection").exactOptional(),
+                /** The issuer's installation to read, every one when absent. */
+                installation: schema.string().min(1).exactOptional(),
+            }),
+            output: schema.object({
+                /** The authorized installations. */
+                items: schema.array(
+                    schema.object({
+                        /** The connection. */
+                        id: schema.identifier("connection"),
+                        /** The issuer's identifier of the installation. */
+                        installation: schema.string(),
+                    }),
+                ),
+            }),
+        }),
+        /** Start authorizing the external account, answering the page a person approves it on. */
+        authorize: method.mutation({
+            permission: "manage",
+            input: schema.object({
+                /** The URI the authorization server redirects the person back to. */
+                redirectUri: schema.httpUrl().exactOptional(),
+            }),
+            output: schema.object({
+                /** The page the person approves the authorization on. */
+                url: schema.httpUrl(),
+                /** The code the person enters on the page, for the device authorization grant. */
+                userCode: schema.string().min(1).exactOptional(),
+            }),
+            prepared: AuthorizationStart,
+        }),
+        /** Complete the authorization with the authorization server's redirect parameters. */
+        complete: method.mutation({
+            permission: "manage",
+            input: schema.object({
+                /** The redirect's query parameters, its state and code among them. */
+                parameters: schema.record(schema.string(), schema.string()),
+            }),
+            prepared: AuthorizationGrant,
+        }),
+        /** Revoke the credential at the authorization server and destroy it. */
+        revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
+        delete: method.delete("manage"),
     }),
-    /** Lend the connection's protocol and current credential to an installation bound to it. */
-    lend: method.query({
-        permission: "lend",
-        output: schema.sensitive(Loan),
-        prepared: schema.sensitive(Loan),
-        isAudited: true,
-    }),
-    /** List the scope's authorized installations of the integrations with a client identifier. */
-    installations: method.query({
-        permission: "lend",
-        target: "scope",
-        input: schema.object({
-            /** The integrations' client identifier, such as a GitHub App's. */
-            clientId: schema.string().min(1),
-            /** The one connection to read, every one when absent. */
-            id: schema.identifier("connection").exactOptional(),
-            /** The issuer's installation to read, every one when absent. */
-            installation: schema.string().min(1).exactOptional(),
-        }),
-        output: schema.object({
-            /** The authorized installations. */
-            items: schema.array(
-                schema.object({
-                    /** The connection. */
-                    id: schema.identifier("connection"),
-                    /** The issuer's identifier of the installation. */
-                    installation: schema.string(),
-                }),
-            ),
-        }),
-    }),
-    /** Start authorizing the external account, answering the page a person approves it on. */
-    authorize: method.mutation({
-        permission: "manage",
-        input: schema.object({
-            /** The URI the authorization server redirects the person back to. */
-            redirectUri: schema.httpUrl().exactOptional(),
-        }),
-        output: schema.object({
-            /** The page the person approves the authorization on. */
-            url: schema.httpUrl(),
-            /** The code the person enters on the page, for the device authorization grant. */
-            userCode: schema.string().min(1).exactOptional(),
-        }),
-        prepared: AuthorizationStart,
-    }),
-    /** Complete the authorization with the authorization server's redirect parameters. */
-    complete: method.mutation({
-        permission: "manage",
-        input: schema.object({
-            /** The redirect's query parameters, its state and code among them. */
-            parameters: schema.record(schema.string(), schema.string()),
-        }),
-        prepared: AuthorizationGrant,
-    }),
-    /** Revoke the credential at the authorization server and destroy it. */
-    revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
-    delete: method.delete("manage"),
-}));
+);
 /** A persisted connection. */
 export type Connection = Select<typeof connection.table>;
 
