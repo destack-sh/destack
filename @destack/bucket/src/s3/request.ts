@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { type BucketRange, UploadedPart } from "../bucket/index.ts";
 import { EntityTag, type S3Condition } from "./condition.ts";
 import { CryptoHasher } from "./hasher.ts";
@@ -141,8 +141,8 @@ export class S3Request {
         if (match === null) {
             return undefined;
         }
-        const first = aligned(match, 1);
-        const last = aligned(match, 2);
+        const first = nth(match, 1);
+        const last = nth(match, 2);
         if (
             (first === "" && last === "") ||
             (first !== "" && last !== "" && Number(last) < Number(first))
@@ -163,8 +163,8 @@ export class S3Request {
 
         // require both ends in order
         const match = /^bytes=(\d+)-(\d+)$/u.exec(value.trim());
-        const first = match === null ? undefined : aligned(match, 1);
-        const last = match === null ? undefined : aligned(match, 2);
+        const first = match === null ? undefined : nth(match, 1);
+        const last = match === null ? undefined : nth(match, 2);
         if (first === undefined || last === undefined || Number(last) < Number(first)) {
             throw new S3Error(
                 "InvalidArgument",
@@ -191,7 +191,7 @@ export class S3Request {
         }
 
         // split the bucket from the key after an optional leading slash
-        const source = decodeUri(aligned(parts, 0).replace(/^\//u, ""));
+        const source = decodeUri(nth(parts, 0).replace(/^\//u, ""));
         const separator = source.indexOf("/");
         if (separator <= 0 || separator === source.length - 1) {
             throw new S3Error("InvalidArgument", "x-amz-copy-source must give a bucket and a key");

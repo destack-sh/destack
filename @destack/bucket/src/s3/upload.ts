@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.ts";
 import type { S3Bucket } from "./bucket.ts";
 import { S3Error } from "./error.ts";
@@ -113,7 +113,7 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
     for (const part of parts) {
         UploadedPart.checkNumber(part.partNumber);
     }
-    if (parts.slice(1).some((part, index) => part.partNumber <= aligned(parts, index).partNumber)) {
+    if (parts.slice(1).some((part, index) => part.partNumber <= nth(parts, index).partNumber)) {
         throw new S3Error("InvalidPartOrder", "the list of parts was not in ascending order");
     }
 

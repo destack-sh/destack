@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
 import type {
@@ -312,7 +312,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         metadata: typeof upload.$inferSelect,
         ordered: readonly (typeof part.$inferSelect)[],
     ): CatalogueFile {
-        const first = aligned(ordered, 0);
+        const first = nth(ordered, 0);
 
         return {
             key: this.key,
@@ -448,8 +448,8 @@ function matchParts(
 
 /** Require equal parts of at least five MiB, except a final part no larger than the first. */
 function requireSizes(ordered: readonly (typeof part.$inferSelect)[]): void {
-    const first = aligned(ordered, 0);
-    const last = aligned(ordered, ordered.length - 1);
+    const first = nth(ordered, 0);
+    const last = nth(ordered, -1);
     if (
         ordered.length > 1 &&
         (ordered

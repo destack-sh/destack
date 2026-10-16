@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { ResourceId } from "@destack/resource";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { aligned, schema, present } from "@destack/schema";
+import { nth, schema, present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
@@ -101,7 +101,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
     // read the file's segment, logged under the space, and its blob's bytes
     const handle = await provider.open.open({ ...record, ...provision }, []);
     onTestFinished(() => handle.close());
-    const stored = aligned(await handle.database.select().from(segment), 0);
+    const stored = nth(await handle.database.select().from(segment), 0);
     const changes = await handle.database.log.read({ tables: [segment], after: 0 });
     const read: Uint8Array[] = [];
     for await (const chunk of present(handle.blobs, "blobs").read(stored.blob)) {

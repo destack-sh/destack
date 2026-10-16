@@ -1,4 +1,4 @@
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { expect, test } from "@destack/test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
@@ -203,7 +203,7 @@ test("list uploads and parts, and copy parts from files", async () => {
                 {
                     key: "media/a",
                     uploadId: first.uploadId,
-                    initiated: aligned(uploads.uploads, 0).initiated,
+                    initiated: nth(uploads.uploads, 0).initiated,
                     storageClass: "InfrequentAccess",
                 },
             ],
@@ -225,8 +225,8 @@ test("list uploads and parts, and copy parts from files", async () => {
         const parts = await first.listParts();
         expect(parts).toEqual({
             parts: [
-                { ...range, size: 3, uploaded: aligned(parts.parts, 0).uploaded },
-                { ...whole, size: 10, uploaded: aligned(parts.parts, 1).uploaded },
+                { ...range, size: 3, uploaded: nth(parts.parts, 0).uploaded },
+                { ...whole, size: 10, uploaded: nth(parts.parts, 1).uploaded },
             ],
             truncated: false,
         });

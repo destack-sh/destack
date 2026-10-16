@@ -1,4 +1,4 @@
-import { aligned, found } from "@destack/schema";
+import { nth, found } from "@destack/schema";
 import { S3Error } from "./error.ts";
 
 /** The namespace of S3 response documents. */
@@ -50,7 +50,7 @@ export class XmlNode {
         TOKEN.lastIndex = 0;
         while (TOKEN.lastIndex < document.length) {
             const match = TOKEN.exec(document);
-            const current = aligned(open, open.length - 1);
+            const current = nth(open, -1);
             // refuse text the tokenizer cannot read and document type declarations
             if (match === null || match[2] !== undefined) {
                 throw new S3Error(
@@ -94,7 +94,7 @@ export class XmlNode {
             );
         }
 
-        return aligned(root.children, 0);
+        return nth(root.children, 0);
     }
 
     /** Select the child elements with a name. */

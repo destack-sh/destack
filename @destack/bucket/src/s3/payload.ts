@@ -1,4 +1,4 @@
-import { aligned, Digest } from "@destack/schema";
+import { nth, Digest } from "@destack/schema";
 import { Crc32, Crc32c } from "./checksum.ts";
 import { CryptoHasher, type Hasher } from "./hasher.ts";
 import { S3Error } from "./error.ts";
@@ -291,7 +291,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         if (match === null) {
             throw new S3Error("IncompleteBody", "an aws-chunked chunk header is malformed");
         }
-        this.#remaining = Number.parseInt(aligned(match, 1), 16);
+        this.#remaining = Number.parseInt(nth(match, 1), 16);
         this.#chunkSignature = match[2] ?? "";
         this.#chunkDigest = new CryptoHasher("sha256");
 

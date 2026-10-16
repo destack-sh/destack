@@ -5,7 +5,7 @@ import {
     type SignableRequest,
     UNSIGNED_PAYLOAD,
 } from "@destack/identity/aws";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { copyRequest } from "@destack/runtime/request";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
@@ -235,8 +235,8 @@ export class S3Signature {
                 : "InvalidRequest";
             throw new S3Error(code, "the authorization header must use AWS4-HMAC-SHA256");
         }
-        const credential = aligned(match, 1);
-        const names = aligned(match, 2).split(";");
+        const credential = nth(match, 1);
+        const names = nth(match, 2).split(";");
 
         // require a request time within the clock skew and the credential's day
         const date = request.headers.get("x-amz-date");
@@ -275,7 +275,7 @@ export class S3Signature {
         return this.#match(
             parts,
             credentials,
-            aligned(match, 3),
+            nth(match, 3),
             signed.signedHeaders,
             signed.signature,
         );

@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { BucketError } from "../error/error.ts";
 
 /** The longest file key in UTF-8 bytes, the S3 and R2 limit. */
@@ -33,7 +33,7 @@ function prefixEnd(prefix: string): string | undefined {
     }
 
     // increment it, skipping surrogates
-    const codepoint = aligned(characters, index).codePointAt(0);
+    const codepoint = nth(characters, index).codePointAt(0);
     if (codepoint === undefined) {
         throw new TypeError("prefix character has no code point");
     }

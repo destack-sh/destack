@@ -1,4 +1,4 @@
-import { aligned, Duration } from "@destack/schema";
+import { nth, Duration } from "@destack/schema";
 import { type BucketCondition, type BucketFile } from "../bucket/index.ts";
 import { BucketPreconditionError } from "../error/index.ts";
 
@@ -122,13 +122,13 @@ function isDirect(tags: EntityTag[] | "*" | undefined, isWeakComparison: boolean
     return (
         tags === undefined ||
         tags === "*" ||
-        (tags.length === 1 && (isWeakComparison || !aligned(tags, 0).isWeak))
+        (tags.length === 1 && (isWeakComparison || !nth(tags, 0).isWeak))
     );
 }
 
 /** The single unquoted tag or asterisk of a direct tag list. */
 function directTag(tags: EntityTag[] | "*"): string {
-    return tags === "*" ? "*" : aligned(tags, 0).etag;
+    return tags === "*" ? "*" : nth(tags, 0).etag;
 }
 
 /** Whether a tag list includes a file's tag, where strong comparison never matches weak tags. */

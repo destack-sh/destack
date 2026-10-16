@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 
 /** The bytes of one MD5 block. */
 const BLOCK_BYTES = 64;
@@ -45,10 +45,10 @@ export function md5(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
 /** Fold one 64-byte block into MD5's four state words (RFC 1321 3.4). */
 function fold(state: number[], view: DataView, offset: number): void {
     // start from the state words
-    let first = aligned(state, 0);
-    let second = aligned(state, 1);
-    let third = aligned(state, 2);
-    let fourth = aligned(state, 3);
+    let first = nth(state, 0);
+    let second = nth(state, 1);
+    let third = nth(state, 2);
+    let fourth = nth(state, 3);
     for (let index = 0; index < 64; index++) {
         // pick the round's function and message word
         const round = Math.floor(index / 16);
@@ -73,10 +73,10 @@ function fold(state: number[], view: DataView, offset: number): void {
         const sum =
             (first +
                 mixed +
-                aligned(CONSTANTS, index) +
+                nth(CONSTANTS, index) +
                 view.getUint32(offset + word * 4, true)) >>>
             0;
-        const shift = aligned(SHIFTS, index);
+        const shift = nth(SHIFTS, index);
         first = fourth;
         fourth = third;
         third = second;
@@ -84,8 +84,8 @@ function fold(state: number[], view: DataView, offset: number): void {
     }
 
     // add the block's result to the state words
-    state[0] = (aligned(state, 0) + first) >>> 0;
-    state[1] = (aligned(state, 1) + second) >>> 0;
-    state[2] = (aligned(state, 2) + third) >>> 0;
-    state[3] = (aligned(state, 3) + fourth) >>> 0;
+    state[0] = (nth(state, 0) + first) >>> 0;
+    state[1] = (nth(state, 1) + second) >>> 0;
+    state[2] = (nth(state, 2) + third) >>> 0;
+    state[3] = (nth(state, 3) + fourth) >>> 0;
 }

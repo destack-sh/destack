@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { CustomerKey } from "./encryption.ts";
@@ -88,7 +88,7 @@ export class ContentReader {
     /** Read, decrypt and pass on the next chunk of the current segment's selected range. */
     async #read(controller: ReadableStreamDefaultController<Uint8Array>): Promise<void> {
         // read the current segment's selected range
-        const segment = aligned(this.#segments, this.#index);
+        const segment = nth(this.#segments, this.#index);
         this.#chunks ??= this.#open(segment);
 
         // refuse content shorter than the catalogue records
