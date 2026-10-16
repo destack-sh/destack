@@ -12,10 +12,10 @@ class RecordingKeychain extends MemoryKeychain {
         expected: string | undefined,
         value: string,
     ): Promise<boolean> {
-        const isKept = await super.saveIf(name, expected, value);
-        this.outcomes.push(isKept);
+        const isSaved = await super.saveIf(name, expected, value);
+        this.outcomes.push(isSaved);
 
-        return isKept;
+        return isSaved;
     }
 }
 
