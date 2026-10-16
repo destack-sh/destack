@@ -212,7 +212,7 @@ export class Platform {
         const { database, principal: universe } = this.#objects;
         await Transaction.run(database, async (transaction) => {
             await Role.bindOwner(transaction, Scope.universe, universe, this.#now);
-            await Role.keepInherent(
+            await Role.upsertInherent(
                 transaction,
                 Scope.universe,
                 PLATFORM_ROLE,
@@ -235,7 +235,7 @@ export class Platform {
         };
         await this.#authorize(Scope.universe.id, async (authorization) => {
             // bind the operator role to the owners
-            const operator = await authorization.keepRole(Scope.universe, OPERATOR_ROLE);
+            const operator = await authorization.upsertRole(Scope.universe, OPERATOR_ROLE);
             await authorization.assign(Scope.universe, operator.id, owners);
 
             // bind the roles of the residencies' servers, of every machine and of every signed-in caller
@@ -377,7 +377,7 @@ export class Platform {
         subjects: readonly Subject[],
     ): Promise<void> {
         // read the subjects the role is bound to
-        const role = await authorization.keepRole(Scope.universe, request);
+        const role = await authorization.upsertRole(Scope.universe, request);
         const bindings = await Relationship.readOn(
             authorization.transaction.view(),
             Scope.universe,

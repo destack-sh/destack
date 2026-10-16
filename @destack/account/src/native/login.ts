@@ -11,9 +11,9 @@ export const login = defineObject({
     storage: "local",
     fields: {
         /** The universe that issued the session. */
-        issuer: field.string(schema.url()),
+        issuer: field.string(schema.url()).immutable(),
         /** The signed-in user. */
-        subject: field.reference(principal.user),
+        subject: field.reference(principal.user).immutable(),
         /** The client the sign-in registered in the user's account, whose key proves it locally. */
         registration: field.reference(principal.client),
         /** The user's display name at sign-in. */
@@ -26,10 +26,6 @@ export const login = defineObject({
     constraints: {
         subject: { kind: "unique", on: ["scope", "issuer", "subjectId"] },
     },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write", { fields: ["name", "status", "registrationId"] }),
-    delete: method.delete("write"),
-}));
+});
 /** A login as clients read it. */
 export type Login = Select<typeof login.table>;

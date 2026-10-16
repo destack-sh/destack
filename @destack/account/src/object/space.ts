@@ -34,61 +34,62 @@ import { Label } from "../address/label.ts";
 const TITLE_LENGTH = 128;
 
 /** An isolated place for installations and their data. */
-export const space = defineObject({
-    name: "space",
-    plural: "spaces",
-    scope: account,
-    represents: principal.space,
-    isScope: true,
-    partition: true,
-    controlled: true,
-    fields: {
-        /** The unique address within the account. */
-        name: field.string(SpaceName),
-        /** The display text, absent to show the name. */
-        title: field.string(schema.string().min(1).max(TITLE_LENGTH)).optional(),
-        /** The least risk a resource plan waits for approval at. */
-        approval: field.enum(RISKS).default("backward-incompatible"),
-        /** The stack the space keeps applied. */
-        stack: field.json(SpaceStack),
-    },
-    indexes: { name: { on: ["name"], across: () => account } },
-    relations: {
-        // the outsiders an object in the space is shared with, who find the space without reading it
-        guest: { subjects: [principal.user], grantedBy: "manage" },
-    },
-    permissions: {
-        // let the machines serving the account and each space itself read the space's row, which their replicas follow
-        read: union(permission("serve"), contained(principal.space)),
-        // let the space's readers, its guests and the installations living in it find it
-        list: union(permission("read"), relation("guest"), contained()),
-        create: permission("edit"),
-        update: permission("manage"),
-        delete: permission("manage"),
-        rotate: permission("manage"),
-        // let the platform move a space it declares to another stack
-        upgrade: none(),
-        // let the installations in the space keep replicas of its chain
-        replicate: contained(),
+export const space = defineObject(
+    {
+        name: "space",
+        plural: "spaces",
+        scope: account,
+        represents: principal.space,
+        isScope: true,
+        partition: true,
+        controlled: true,
+        fields: {
+            /** The unique address within the account. */
+            name: field.string(SpaceName),
+            /** The display text, absent to show the name. */
+            title: field.string(schema.string().min(1).max(TITLE_LENGTH)).optional(),
+            /** The least risk a resource plan waits for approval at. */
+            approval: field.enum(RISKS).default("backward-incompatible"),
+            /** The stack the space keeps applied. */
+            stack: field.json(SpaceStack),
+        },
+        indexes: { name: { on: ["name"], across: () => account } },
+        relations: {
+            // the outsiders an object in the space is shared with, who find the space without reading it
+            guest: { subjects: [principal.user], grantedBy: "manage" },
+        },
+        permissions: {
+            // let the machines serving the account and each space itself read the space's row, which their replicas follow
+            read: union(permission("serve"), contained(principal.space)),
+            // let the space's readers, its guests and the installations living in it find it
+            list: union(permission("read"), relation("guest"), contained()),
+            create: permission("write"),
+            update: permission("manage"),
+            delete: permission("manage"),
+            rotate: permission("manage"),
+            // let the platform move a space it declares to another stack
+            upgrade: none(),
+            // let the installations in the space keep replicas of its chain
+            replicate: contained(),
 
-        // let the space's readers read its operational telemetry and product analytics, its managers unmasked
-        observe: permission("read"),
-        analyze: permission("read"),
-        unmask: permission("manage"),
-        // let the machines serving the account forward the space's telemetry
-        serve: through("account", "serve"),
+            // let the space's readers read its operational telemetry and product analytics, its managers unmasked
+            observe: permission("read"),
+            analyze: permission("read"),
+            unmask: permission("manage"),
+            // let the machines serving the account forward the space's telemetry
+            serve: through("account", "serve"),
+        },
+        reserved: ["replicate", "upgrade", "serve"],
+        shareable: { isPublic: true },
+        suspendable: { by: "update" },
+        elevated: { delete: sudo, rotate: sudo },
+        administration: ["read", "list", "update", "manage"],
+        constraints: {
+            scopeId: { kind: "unique", on: ["scope", "id"] },
+            name: { kind: "check", condition: { name: Label.condition(SPACE_NAME_LENGTH) } },
+        },
     },
-    reserved: ["replicate", "upgrade", "serve"],
-    shareable: { isPublic: true },
-    suspendable: { by: "update" },
-    elevated: { delete: sudo, rotate: sudo },
-    administration: ["read", "list", "update", "manage"],
-    constraints: {
-        scopeId: { kind: "unique", on: ["scope", "id"] },
-        name: { kind: "check", condition: { name: Label.condition(SPACE_NAME_LENGTH) } },
-    },
-})
-    .methods((method) => ({
+    (method) => ({
         list: method.list("list"),
         // make a new space its own owner, since its code acts in it
         create: method.create("create", {
@@ -123,8 +124,8 @@ export const space = defineObject({
                 address: schema.string().min(1),
             }),
         }),
-    }))
-    .implement({ methods: { rename: (call) => call.update({ name: call.input.name }) } });
+    }),
+).implement({ methods: { rename: (call) => call.update({ name: call.input.name }) } });
 /** A space row in the space's own database. */
 export type Space = Select<typeof space.table>;
 

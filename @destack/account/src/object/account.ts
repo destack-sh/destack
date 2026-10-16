@@ -34,83 +34,86 @@ import { DisplayName } from "./display-name.ts";
 export const HOME_SPACE = "home";
 
 /** An account, the scope of its spaces. */
-export const account = defineObject({
-    name: "account",
-    plural: "accounts",
-    scope: [user, organisation],
-    isScope: true,
-    fields: {
-        /** The globally unique handle scoping the account's package names. */
-        handle: field.string(AccountHandle),
-        /** The display name. */
-        name: field.string(DisplayName),
-        /** The jurisdiction the account's spaces keep data in. */
-        residency: field.reference(residency, { delete: "restrict" }),
-        /** Whether the account is its user's personal account or a shared one. */
-        kind: field.enum(["personal", "shared"]).default("shared"),
-    },
-    attributes: { kind: "string" },
-    indexes: { handle: { on: ["handle"], across: () => universe } },
-    recoverable: { within: { days: 30 }, by: "delete" },
-    relations: {
-        resident: { subjects: [residency.members("server")], grantedBy: "place" },
-        claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
-        home: { subjects: [principal.space] },
-    },
-    permissions: {
-        // inherit from the organisation: its members view and its administrators manage
-        member: through("organisation", "view"),
-        read: union(
-            through("user", "self"),
-            contained(principal.space, principal.machine),
-            through("organisation", "view"),
-        ),
-        comment: through("organisation", "manage"),
-        edit: through("organisation", "manage"),
-        manage: through("organisation", "manage"),
-        bill: union(permission("manage"), through("organisation", "bill")),
-        list: union(permission("read"), permission("serve")),
-        replicate: union(contained(principal.space), relation("resident")),
-        // let the residency's servers, the account's home and the account's own machines serve it
-        serve: union(relation("resident"), relation("home"), contained(principal.machine)),
-        // let the residency's platform installations claim names in the account
-        claim: relation("claimant"),
-        // let the person or the organisation's managers found accounts in their scope
-        create: union(through("user", "self"), through("organisation", "manage")),
-        update: permission("manage"),
-        delete: permission("manage"),
-        own: permission("manage"),
-        impersonate: permission("manage"),
-        verify: permission("manage"),
-        place: none(),
-    },
-    shareable: {},
-    reserved: ["own", "replicate", "serve", "claim", "place"],
-    elevated: { delete: sudo, own: sudo, impersonate: sudo },
-    constraints: {
-        handle: { kind: "index", on: ["handle"] },
-        scope: { kind: "index", on: ["scope"] },
-        personal: { kind: "index", on: ["scope"], unique: true, where: { kind: "personal" } },
-        kind: {
-            kind: "check",
-            condition: { OR: [{ kind: "shared" }, { scope: { startsWith: "user-" } }] },
+export const account = defineObject(
+    {
+        name: "account",
+        plural: "accounts",
+        scope: [user, organisation],
+        isScope: true,
+        fields: {
+            /** The globally unique handle scoping the account's package names. */
+            handle: field.string(AccountHandle),
+            /** The display name. */
+            name: field.string(DisplayName),
+            /** The jurisdiction the account's spaces keep data in. */
+            residency: field.reference(residency, { delete: "restrict" }),
+            /** Whether the account is its user's personal account or a shared one. */
+            kind: field.enum(["personal", "shared"]).default("shared"),
         },
-        handleForm: { kind: "check", condition: { handle: Label.condition(HANDLE_LENGTH) } },
+        attributes: { kind: "string" },
+        indexes: { handle: { on: ["handle"], across: () => universe } },
+        recoverable: { within: { days: 30 }, by: "delete" },
+        relations: {
+            resident: { subjects: [residency.members("server")], grantedBy: "place" },
+            claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
+            home: { subjects: [principal.space] },
+        },
+        permissions: {
+            // inherit from the organisation: its members view and its administrators manage
+            member: through("organisation", "view"),
+            read: union(
+                through("user", "self"),
+                contained(principal.space, principal.machine),
+                through("organisation", "view"),
+            ),
+            comment: through("organisation", "manage"),
+            edit: through("organisation", "manage"),
+            manage: through("organisation", "manage"),
+            bill: union(permission("manage"), through("organisation", "bill")),
+            list: union(permission("read"), permission("serve")),
+            replicate: union(contained(principal.space), relation("resident")),
+            // let the residency's servers, the account's home and the account's own machines serve it
+            serve: union(relation("resident"), relation("home"), contained(principal.machine)),
+            // let the residency's platform installations claim names in the account
+            claim: relation("claimant"),
+            // let the person or the organisation's managers found accounts in their scope
+            create: union(through("user", "self"), through("organisation", "manage")),
+            update: permission("manage"),
+            delete: permission("manage"),
+            own: permission("manage"),
+            impersonate: permission("manage"),
+            verify: permission("manage"),
+            place: none(),
+        },
+        shareable: {},
+        reserved: ["own", "replicate", "serve", "claim", "place"],
+        elevated: { delete: sudo, own: sudo, impersonate: sudo },
+        constraints: {
+            handle: { kind: "index", on: ["handle"] },
+            scope: { kind: "index", on: ["scope"] },
+            personal: { kind: "index", on: ["scope"], unique: true, where: { kind: "personal" } },
+            kind: {
+                kind: "check",
+                condition: { OR: [{ kind: "shared" }, { scope: { startsWith: "user-" } }] },
+            },
+            handleForm: { kind: "check", condition: { handle: Label.condition(HANDLE_LENGTH) } },
+        },
     },
-}).methods((method) => ({
-    list: method.list("list"),
-    create: method.create("create", {
-        fields: ["handle", "name", "kind"],
-        input: schema.object({
-            /** The jurisdiction the account keeps data in, its owner's when absent. */
-            residencyId: ResidencyCode.exactOptional(),
-            /** The stack of the account's home. */
-            stack: SpaceStack.exactOptional(),
+    (method) => ({
+        list: method.list("list"),
+        create: method.create("create", {
+            fields: ["handle", "name", "kind"],
+            input: schema.object({
+                /** The jurisdiction the account keeps data in, its owner's when absent. */
+                residencyId: ResidencyCode.exactOptional(),
+                /** The stack of the account's home. */
+                stack: SpaceStack.exactOptional(),
+            }),
+            isPredicted: false,
         }),
-        isPredicted: false,
+        update: method.update("update", { fields: ["handle", "name"] }),
     }),
-    update: method.update("update", { fields: ["handle", "name"] }),
-}));
+);
 /** A persisted account record. */
 export type Account = Select<typeof account.table>;
 

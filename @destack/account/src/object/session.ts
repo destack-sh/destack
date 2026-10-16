@@ -16,78 +16,82 @@ export const AUTHENTICATION_METHODS = [
 ] as const;
 
 /** A user's signed-in session. */
-export const session = defineObject({
-    name: "session",
-    plural: "sessions",
-    scope: user,
-    fields: {
-        /** The authenticated user. */
-        user: field.reference(user, { delete: "cascade" }),
-        /** The client the person signed in through; revoking it ends the session. */
-        client: field.reference(() => client).optional(),
-        /** The session credential stored by Better Auth. */
-        token: field.string().sensitive("deterministic"),
-        /** The client IP observed through trusted ingress. */
-        ipAddress: field.string().optional(),
-        /** The reported client user agent. */
-        userAgent: field.string().optional(),
-        /** The approximate country inferred from the observed address. */
-        country: field.string().optional(),
-        /** The approximate city inferred from the observed address. */
-        city: field.string().optional(),
-        /** The last completed authentication ceremony. */
-        authenticatedAt: field.time().optional(),
-        /** The verified method used in the last authentication ceremony. */
-        authenticationMethod: field.enum(AUTHENTICATION_METHODS).optional(),
-        /** The session expiry time. */
-        expiresAt: field.time(),
-        /** The time access was revoked. */
-        revokedAt: field.time().optional(),
-    },
-    permissions: ["read", "revoke", "attach"],
-    constraints: {
-        token: { kind: "unique", on: ["token"] },
-        user: { kind: "index", on: ["userId"] },
-        client: { kind: "index", on: ["clientId"] },
-        expiry: { kind: "index", on: ["expiresAt"] },
-        expiryOrder: { kind: "check", condition: { expiresAt: { gt: { field: "createdAt" } } } },
-        authenticationTime: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { authenticationMethod: { isNull: true } },
-                    { authenticatedAt: { isNotNull: true } },
-                ],
+export const session = defineObject(
+    {
+        name: "session",
+        plural: "sessions",
+        scope: user,
+        fields: {
+            /** The authenticated user. */
+            user: field.reference(user, { delete: "cascade" }),
+            /** The client the person signed in through; revoking it ends the session. */
+            client: field.reference(() => client).optional(),
+            /** The session credential stored by Better Auth. */
+            token: field.string().sensitive("deterministic"),
+            /** The client IP observed through trusted ingress. */
+            ipAddress: field.string().optional(),
+            /** The reported client user agent. */
+            userAgent: field.string().optional(),
+            /** The approximate country inferred from the observed address. */
+            country: field.string().optional(),
+            /** The approximate city inferred from the observed address. */
+            city: field.string().optional(),
+            /** The last completed authentication ceremony. */
+            authenticatedAt: field.time().optional(),
+            /** The verified method used in the last authentication ceremony. */
+            authenticationMethod: field.enum(AUTHENTICATION_METHODS).optional(),
+            /** The session expiry time. */
+            expiresAt: field.time(),
+            /** The time access was revoked. */
+            revokedAt: field.time().optional(),
+        },
+        permissions: ["read", "revoke", "attach"],
+        constraints: {
+            token: { kind: "unique", on: ["token"] },
+            user: { kind: "index", on: ["userId"] },
+            client: { kind: "index", on: ["clientId"] },
+            expiry: { kind: "index", on: ["expiresAt"] },
+            expiryOrder: {
+                kind: "check",
+                condition: { expiresAt: { gt: { field: "createdAt" } } },
+            },
+            authenticationTime: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { authenticationMethod: { isNull: true } },
+                        { authenticatedAt: { isNotNull: true } },
+                    ],
+                },
             },
         },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         revoke: method.mutation({ permission: "revoke" }),
         revokeOthers: method.mutation({ permission: "revoke" }),
         attach: method.update("attach", { isInternal: true, fields: ["clientId"] }),
-    }))
-    .implement({
-        methods: {
-            revoke: (call) => {
-                // withdraw the target now, refusing one withdrawn before
-                Revocation.requireUnrevoked(call.target, call.object.name);
+    }),
+).implement({
+    methods: {
+        revoke: (call) => {
+            // withdraw the target now, refusing one withdrawn before
+            Revocation.requireUnrevoked(call.target, call.object.name);
 
-                return call.update({ revokedAt: call.now });
-            },
-            revokeOthers: async (call) => {
-                await revokeOthers(call, call.target.id);
-
-                return call.target;
-            },
-            attach: async (call, next) => {
-                // refuse attaching a revoked session
-                Revocation.requireUnrevoked(call.target, call.object.name);
-
-                return next();
-            },
+            return call.update({ revokedAt: call.now });
         },
-    });
+        revokeOthers: async (call) => {
+            await revokeOthers(call, call.target.id);
+
+            return call.target;
+        },
+        attach: async (call, next) => {
+            // refuse attaching a revoked session
+            Revocation.requireUnrevoked(call.target, call.object.name);
+
+            return next();
+        },
+    },
+});
 /** A persisted session record. */
 export type Session = Select<typeof session.table>;
 

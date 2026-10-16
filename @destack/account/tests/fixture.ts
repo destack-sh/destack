@@ -76,7 +76,7 @@ export const place = defineObject({
     fields: { name: field.string() },
     indexes: { name: { on: ["name"], across: () => account } },
     permissions: ["read"],
-}).methods();
+});
 
 /** Read who a caller is from its authentication: its subject, credential and profile. */
 export function identity(current: {

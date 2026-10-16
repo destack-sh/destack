@@ -136,113 +136,119 @@ const Worker = Serving.extend({
 });
 
 /** Where a space runs. */
-export const placement = defineObject({
-    name: "placement",
-    plural: "placements",
-    scope: account,
-    key: schema.identifier("space"),
-    fields: {
-        /** The machine serving the space. */
-        machine: field.reference(principal.machine),
-        /** The epoch the machine serves the space at. */
-        epoch: field.integer(),
-        /** The machine a pending move takes the space to. */
-        target: field.reference(principal.machine).optional(),
-        /** The transfer moving the space to the target machine. */
-        transferId: field.string(schema.identifier("transfer")).optional(),
-    },
-    relations: {
-        // the placed space itself, under the placement's own identifier
-        self: { subjects: [principal.space], grantedBy: null },
-    },
-    permissions: {
-        read: union(
-            relation("self"),
-            relation("machine"),
-            relation("target"),
-            through("account", "read"),
-            through("account", "serve"),
-            contained(principal.installation),
-        ),
-        create: none(),
-        place: union(relation("machine"), relation("target")),
-        move: relation("machine"),
-        // the machine serving the space alone, which owners' roles leave out
-        serve: relation("machine"),
-    },
-    reserved: ["serve"],
-    constraints: {
-        epoch: { kind: "check", condition: { epoch: { gt: 0 } } },
-        target: {
-            kind: "check",
-            condition: {
-                targetId: { OR: [{ isNull: true }, { ne: { field: "machineId" } }] },
-            },
+export const placement = defineObject(
+    {
+        name: "placement",
+        plural: "placements",
+        scope: account,
+        key: schema.identifier("space"),
+        fields: {
+            /** The machine serving the space. */
+            machine: field.reference(principal.machine),
+            /** The epoch the machine serves the space at. */
+            epoch: field.integer(),
+            /** The machine a pending move takes the space to. */
+            target: field.reference(principal.machine).optional(),
+            /** The transfer moving the space to the target machine. */
+            transferId: field.string(schema.identifier("transfer")).optional(),
         },
-        transfer: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { targetId: { isNull: true }, transferId: { isNull: true } },
-                    { targetId: { isNotNull: true }, transferId: { isNotNull: true } },
-                ],
-            },
+        relations: {
+            // the placed space itself, under the placement's own identifier
+            self: { subjects: [principal.space], grantedBy: null },
         },
-        targeted: { kind: "index", on: ["targetId"] },
+        permissions: {
+            read: union(
+                relation("self"),
+                relation("machine"),
+                relation("target"),
+                through("account", "read"),
+                through("account", "serve"),
+                contained(principal.installation),
+            ),
+            create: none(),
+            place: union(relation("machine"), relation("target")),
+            move: relation("machine"),
+            // the machine serving the space alone, which owners' roles leave out
+            serve: relation("machine"),
+        },
+        reserved: ["serve"],
+        constraints: {
+            epoch: { kind: "check", condition: { epoch: { gt: 0 } } },
+            target: {
+                kind: "check",
+                condition: {
+                    targetId: { OR: [{ isNull: true }, { ne: { field: "machineId" } }] },
+                },
+            },
+            transfer: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { targetId: { isNull: true }, transferId: { isNull: true } },
+                        { targetId: { isNotNull: true }, transferId: { isNotNull: true } },
+                    ],
+                },
+            },
+            targeted: { kind: "index", on: ["targetId"] },
+        },
     },
-}).methods((method) => ({
-    create: method.create("create", { isInternal: true, fields: ["machineId", "epoch"] }),
+    (method) => ({
+        create: method.create("create", { isInternal: true, fields: ["machineId", "epoch"] }),
 
-    /** Serve a space at an epoch. */
-    place: method.mutation({ permission: "place", input: Serving }),
+        /** Serve a space at an epoch. */
+        place: method.mutation({ permission: "place", input: Serving }),
 
-    /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
-    move: method.mutation({
-        permission: "move",
-        input: Serving.extend({
-            /** The machine the space moves to. */
-            target: schema.identifier("machine"),
-            /** The transfer moving it, which hands the target its identifier. */
-            transferId: schema.identifier("transfer"),
+        /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
+        move: method.mutation({
+            permission: "move",
+            input: Serving.extend({
+                /** The machine the space moves to. */
+                target: schema.identifier("machine"),
+                /** The transfer moving it, which hands the target its identifier. */
+                transferId: schema.identifier("transfer"),
+            }),
         }),
+
+        /** End a space's placement, as the machine serving it at its epoch. */
+        withdraw: method.mutation({ permission: "move", input: Serving }),
+
+        /** Give a machine work in the space, as the machine serving it at its epoch. */
+        assign: method.mutation({ permission: "move", input: Worker }),
+
+        /** Withdraw a machine's work in the space, as the machine serving it at its epoch. */
+        unassign: method.mutation({ permission: "move", input: Worker }),
     }),
-
-    /** End a space's placement, as the machine serving it at its epoch. */
-    withdraw: method.mutation({ permission: "move", input: Serving }),
-
-    /** Give a machine work in the space, as the machine serving it at its epoch. */
-    assign: method.mutation({ permission: "move", input: Worker }),
-
-    /** Withdraw a machine's work in the space, as the machine serving it at its epoch. */
-    unassign: method.mutation({ permission: "move", input: Worker }),
-}));
+);
 
 /** Work a space gives a machine beside its serving machine, such as a checkout build. */
-export const assignment = defineObject({
-    name: "assignment",
-    plural: "assignments",
-    scope: "universe",
-    fields: {
-        /** The placement of the space with the work, whose removal ends the work. */
-        placement: field.reference(placement, { delete: "cascade" }),
-        /** The machine the work is for. */
-        machine: field.reference(principal.machine),
+export const assignment = defineObject(
+    {
+        name: "assignment",
+        plural: "assignments",
+        scope: "universe",
+        fields: {
+            /** The placement of the space with the work, whose removal ends the work. */
+            placement: field.reference(placement, { delete: "cascade" }),
+            /** The machine the work is for. */
+            machine: field.reference(principal.machine),
+        },
+        // let the machine with the work and the machine serving the space read it
+        permissions: {
+            read: union(relation("machine"), through("placement", "move")),
+            give: none(),
+        },
+        constraints: {
+            work: { kind: "unique", on: ["placementId", "machineId"] },
+            machine: { kind: "index", on: ["machineId"] },
+        },
     },
-    // let the machine with the work and the machine serving the space read it
-    permissions: {
-        read: union(relation("machine"), through("placement", "move")),
-        give: none(),
-    },
-    constraints: {
-        work: { kind: "unique", on: ["placementId", "machineId"] },
-        machine: { kind: "index", on: ["machineId"] },
-    },
-}).methods((method) => ({
-    /** Give a machine work in a space, as the machine serving it. */
-    create: method.create("give", { fields: ["placementId", "machineId"], isInternal: true }),
-    /** End a machine's work in a space, as the machine serving it. */
-    delete: method.delete("give", { isInternal: true }),
-}));
+    (method) => ({
+        /** Give a machine work in a space, as the machine serving it. */
+        create: method.create("give", { fields: ["placementId", "machineId"], isInternal: true }),
+        /** End a machine's work in a space, as the machine serving it. */
+        delete: method.delete("give", { isInternal: true }),
+    }),
+);
 
 /** One machine's own row, endpoint, placements and assignments, replicated to it. */
 export const placementShape = defineShape({

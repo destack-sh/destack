@@ -27,46 +27,47 @@ export const KeyRegistration = defineSchema(
 export type KeyRegistration = schema.Infer<typeof KeyRegistration>;
 
 /** A revocable authentication key of a client or machine. */
-export const key = defineObject({
-    name: "key",
-    plural: "keys",
-    scope: [user, account, "universe"],
-    nested: { in: "any", receive: "rotate" },
-    fields: {
-        /** The public key. */
-        publicKey: field.json(PublicKey),
-        /** The RFC 7638 JWK thumbprint identifying the key in its holder's proofs and tokens. */
-        thumbprint: field.string(schema.string().min(1)),
-        /** The time the holder proved possession of the private key. */
-        verifiedAt: field.time(),
-        /** The time the key stops authenticating. */
-        expiresAt: field.time(),
-        /** The time the key was withdrawn. */
-        revokedAt: field.time().optional(),
-        /** The time the key was suspended because its machine was disabled. */
-        suspendedAt: field.time().optional(),
-    },
-    permissions: {
-        read: through("parent", "verify"),
-        list: union(permission("read"), through("parent", "list")),
-        rotate: through("parent", "rotate"),
-        revoke: through("parent", "revoke"),
-        enroll: none(),
-        suspend: none(),
-    },
-    reserved: ["rotate"],
-    constraints: {
-        thumbprint: { kind: "unique", on: ["thumbprint"] },
-        expiry: { kind: "check", condition: { expiresAt: { gt: { field: "createdAt" } } } },
-        verification: {
-            kind: "check",
-            condition: {
-                verifiedAt: { gte: { field: "createdAt" }, lt: { field: "expiresAt" } },
+export const key = defineObject(
+    {
+        name: "key",
+        plural: "keys",
+        scope: [user, account, "universe"],
+        nested: { in: "any", receive: "rotate" },
+        fields: {
+            /** The public key. */
+            publicKey: field.json(PublicKey),
+            /** The RFC 7638 JWK thumbprint naming the key in its holder's proofs and tokens. */
+            thumbprint: field.string(schema.string().min(1)),
+            /** The time the holder proved possession of the private key. */
+            verifiedAt: field.time(),
+            /** The time the key stops authenticating. */
+            expiresAt: field.time(),
+            /** The time the key was withdrawn. */
+            revokedAt: field.time().optional(),
+            /** The time the key was suspended because its machine was disabled. */
+            suspendedAt: field.time().optional(),
+        },
+        permissions: {
+            read: through("parent", "verify"),
+            list: union(permission("read"), through("parent", "list")),
+            rotate: through("parent", "rotate"),
+            revoke: through("parent", "revoke"),
+            enroll: none(),
+            suspend: none(),
+        },
+        reserved: ["rotate"],
+        constraints: {
+            thumbprint: { kind: "unique", on: ["thumbprint"] },
+            expiry: { kind: "check", condition: { expiresAt: { gt: { field: "createdAt" } } } },
+            verification: {
+                kind: "check",
+                condition: {
+                    verifiedAt: { gte: { field: "createdAt" }, lt: { field: "expiresAt" } },
+                },
             },
         },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         list: method.list("list"),
         create: method.create("rotate", {
             fields: ["publicKey"],
@@ -77,19 +78,19 @@ export const key = defineObject({
         suspend: method.mutation({ permission: "suspend", isInternal: true }),
         resume: method.mutation({ permission: "suspend", isInternal: true }),
         revoke: method.mutation({ permission: "revoke" }),
-    }))
-    .implement({
-        methods: {
-            suspend: (call) => call.update({ suspendedAt: call.now }),
-            resume: (call) => call.update({ suspendedAt: null }),
-            revoke: (call) => {
-                // withdraw the target now, refusing one withdrawn before
-                Revocation.requireUnrevoked(call.target, call.object.name);
+    }),
+).implement({
+    methods: {
+        suspend: (call) => call.update({ suspendedAt: call.now }),
+        resume: (call) => call.update({ suspendedAt: null }),
+        revoke: (call) => {
+            // withdraw the target now, refusing one withdrawn before
+            Revocation.requireUnrevoked(call.target, call.object.name);
 
-                return call.update({ revokedAt: call.now });
-            },
+            return call.update({ revokedAt: call.now });
         },
-    });
+    },
+});
 /** A persisted key record. */
 export type Key = Select<typeof key.table>;
 

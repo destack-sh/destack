@@ -72,12 +72,12 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
         page: [answered?.status, await answered?.text()],
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
-        isKept: refreshToken !== undefined,
+        isRetained: refreshToken !== undefined,
     }).toEqual({
         page: [200, "Signed in. You can close this window."],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.registrationId, isRevoked: false }],
-        isKept: true,
+        isRetained: true,
     });
 
     // refuse a second use of the redirect, whose listener closed with the sign-in

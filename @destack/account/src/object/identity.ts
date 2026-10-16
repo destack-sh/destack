@@ -16,73 +16,79 @@ const OPERATION_LENGTH = 16_384;
 const SignedOperation = schema.string().min(1).max(OPERATION_LENGTH);
 
 /** A space's or the universe's identity, the registry entry its signed operations change. */
-export const identity = defineObject({
-    name: "identity",
-    plural: "identities",
-    scope: "universe",
-    key: schema.string().min(1),
-    fields: {},
-    // let the universe's roles grant reading and extending identities, signatures deciding each change
-    permissions: { read: none(), list: none(), start: none(), extend: none() },
-}).methods((method) => ({
-    /** Start an identity with its first signed operation. */
-    create: method.create("start", {
-        fields: [],
-        input: schema.object({ operation: SignedOperation }),
-        isPredicted: false,
-    }),
+export const identity = defineObject(
+    {
+        name: "identity",
+        plural: "identities",
+        scope: "universe",
+        key: schema.string().min(1),
+        fields: {},
+        // let the universe's roles grant reading and extending identities, signatures deciding each change
+        permissions: { read: none(), list: none(), start: none(), extend: none() },
+    },
+    (method) => ({
+        /** Start an identity with its first signed operation. */
+        create: method.create("start", {
+            fields: [],
+            input: schema.object({ operation: SignedOperation }),
+            isPredicted: false,
+        }),
 
-    /** Read the keys that verify what the identity signs, as a JSON Web Key Set. */
-    keys: method.query({ permission: "read", output: KeySet }),
-}));
+        /** Read the keys that verify what the identity signs, as a JSON Web Key Set. */
+        keys: method.query({ permission: "read", output: KeySet }),
+    }),
+);
 /** An identity as its table stores it. */
 export type IdentityRow = Select<typeof identity.table>;
 
 /** A signed change of an identity's keys, in the identity's log. */
-export const operation = defineObject({
-    name: "operation",
-    identity: "identity-operation",
-    plural: "operations",
-    scope: "universe",
-    nested: { in: identity, delete: "restrict", receive: "extend" },
-    fields: {
-        /** The position in the identity's log, from zero. */
-        sequence: field.integer(),
-        /** The digest of the signed operation, which the next operation refers to. */
-        digest: field.string(Digest),
-        /** The signed operation. */
-        operation: field.string(SignedOperation),
-        /** The priority of the signing rotation key among the keys of the operation it follows. */
-        priority: field.integer(),
-        /** When the registry applied it, in UTC epoch milliseconds. */
-        appliedAt: field.time(),
-        /** Whether a higher-priority rotation key nullified it. */
-        isNullified: field.boolean().default(false),
+export const operation = defineObject(
+    {
+        name: "operation",
+        identity: "identity-operation",
+        plural: "operations",
+        scope: "universe",
+        nested: { in: identity, delete: "restrict", receive: "extend" },
+        fields: {
+            /** The position in the identity's log, from zero. */
+            sequence: field.integer(),
+            /** The digest of the signed operation, which the next operation refers to. */
+            digest: field.string(Digest),
+            /** The signed operation. */
+            operation: field.string(SignedOperation),
+            /** The signing rotation key's priority among the keys of the operation it follows. */
+            priority: field.integer(),
+            /** When the registry applied it, in UTC epoch milliseconds. */
+            appliedAt: field.time(),
+            /** Whether a higher-priority rotation key nullified it. */
+            isNullified: field.boolean().default(false),
+        },
+        permissions: {
+            read: through("parent", "read"),
+            list: through("parent", "read"),
+            extend: through("parent", "extend"),
+        },
+        constraints: {
+            sequence: { kind: "unique", on: ["parentId", "sequence"] },
+            digest: { kind: "index", on: ["digest"] },
+        },
     },
-    permissions: {
-        read: through("parent", "read"),
-        list: through("parent", "read"),
-        extend: through("parent", "extend"),
-    },
-    constraints: {
-        sequence: { kind: "unique", on: ["parentId", "sequence"] },
-        digest: { kind: "index", on: ["digest"] },
-    },
-}).methods((method) => ({
-    /** Append a signed operation to its identity's log, nullifying later ones it recovers from. */
-    create: method.create("extend", {
-        fields: [],
-        input: schema.object({ operation: SignedOperation }),
-        isPredicted: false,
-    }),
+    (method) => ({
+        /** Append a signed operation to its identity's log, nullifying later ones it recovers. */
+        create: method.create("extend", {
+            fields: [],
+            input: schema.object({ operation: SignedOperation }),
+            isPredicted: false,
+        }),
 
-    /** Mark an operation nullified by a later one a higher-priority rotation key signed. */
-    nullify: method.update("extend", {
-        fields: ["isNullified"],
-        isInternal: true,
-        isPredicted: false,
+        /** Mark an operation nullified by a later one a higher-priority rotation key signed. */
+        nullify: method.update("extend", {
+            fields: ["isNullified"],
+            isInternal: true,
+            isPredicted: false,
+        }),
     }),
-}));
+);
 /** An identity operation as its table stores it. */
 export type Operation = Select<typeof operation.table>;
 

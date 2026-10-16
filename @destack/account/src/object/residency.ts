@@ -44,74 +44,81 @@ export type ResidencyFound = schema.Infer<typeof ResidencyFound>;
 const SERVERS = ["machine", "home", "installation"] as const;
 
 /** A jurisdiction Destack keeps data in, which the platform's installations in it serve. */
-export const residency = defineObject({
-    name: "residency",
-    plural: "residencies",
-    scope: "universe",
-    key: ResidencyCode,
-    fields: {
-        /** The name people read, such as European Union. */
-        name: field.string(DisplayName),
-        /** The space serving the residency's platform installations. */
-        home: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
-    },
-    relations: {
-        // the residency's cloud machines, its home and the platform installations in its home
-        machine: { subjects: [principal.machine], grantedBy: "operate" },
-        home: { subjects: [principal.space], grantedBy: "operate" },
-        installation: {
-            subjects: [principal.installation, principal.installation.all()],
-            grantedBy: "operate",
+export const residency = defineObject(
+    {
+        name: "residency",
+        plural: "residencies",
+        scope: "universe",
+        key: ResidencyCode,
+        fields: {
+            /** The name people read, such as European Union. */
+            name: field.string(DisplayName),
+            /** The space serving the residency's platform installations. */
+            home: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
         },
-        // everyone choosing a residency while signing up
-        public: { subjects: [anyone.all()] },
+        relations: {
+            // the residency's cloud machines, its home and the platform installations in its home
+            machine: { subjects: [principal.machine], grantedBy: "operate" },
+            home: { subjects: [principal.space], grantedBy: "operate" },
+            installation: {
+                subjects: [principal.installation, principal.installation.all()],
+                grantedBy: "operate",
+            },
+            // everyone choosing a residency while signing up
+            public: { subjects: [anyone.all()] },
+        },
+        permissions: {
+            read: relation("public"),
+            server: union(relation("machine"), relation("home"), relation("installation")),
+            // let its cloud machines and the installations in its home claim names in its accounts
+            claim: union(relation("machine"), relation("installation")),
+            locate: none(),
+            operate: none(),
+        },
+        reserved: ["server", "claim"],
     },
-    permissions: {
-        read: relation("public"),
-        server: union(relation("machine"), relation("home"), relation("installation")),
-        // let its cloud machines and the installations in its home claim names in its accounts
-        claim: union(relation("machine"), relation("installation")),
-        locate: none(),
-        operate: none(),
-    },
-    reserved: ["server", "claim"],
-}).methods((method) => ({
-    /** Keep a residency the universe declares, shown to everyone. */
-    create: method.create("operate", { fields: ["name"], isInternal: true, isPredicted: false }),
-
-    /** Rename a residency, or give it its home. */
-    update: method.update("operate", { fields: ["name", "home"], isInternal: true }),
-
-    /** Find the residency an account keeps its data in. */
-    find: method.query({
-        permission: "locate",
-        target: "scope",
-        input: schema.object({
-            /** The account. */
-            account: schema.identifier("account"),
+    (method) => ({
+        /** Keep a residency the universe declares, shown to everyone. */
+        create: method.create("operate", {
+            fields: ["name"],
+            isInternal: true,
+            isPredicted: false,
         }),
-        output: ResidencyFound.nullable(),
-    }),
 
-    /** List the residency's enabled shared cloud machines with their URLs, in identity order. */
-    machines: method.query({
-        permission: "locate",
-        output: schema.array(ServingMachine),
-    }),
+        /** Rename a residency, or give it its home. */
+        update: method.update("operate", { fields: ["name", "home"], isInternal: true }),
 
-    /** Find the account selling a handle's packages to the buyers of a residency's home. */
-    publisher: method.query({
-        permission: "locate",
-        target: "scope",
-        input: schema.object({
-            /** The handle. */
-            handle: AccountHandle,
-            /** The residency's home. */
-            home: schema.identifier("space"),
+        /** Find the residency an account keeps its data in. */
+        find: method.query({
+            permission: "locate",
+            target: "scope",
+            input: schema.object({
+                /** The account. */
+                account: schema.identifier("account"),
+            }),
+            output: ResidencyFound.nullable(),
         }),
-        output: schema.identifier("account").nullable(),
+
+        /** List the residency's enabled shared cloud machines and URLs, in identity order. */
+        machines: method.query({
+            permission: "locate",
+            output: schema.array(ServingMachine),
+        }),
+
+        /** Find the account selling a handle's packages to the buyers of a residency's home. */
+        publisher: method.query({
+            permission: "locate",
+            target: "scope",
+            input: schema.object({
+                /** The handle. */
+                handle: AccountHandle,
+                /** The residency's home. */
+                home: schema.identifier("space"),
+            }),
+            output: schema.identifier("account").nullable(),
+        }),
     }),
-}));
+);
 /** A jurisdiction Destack keeps data in. */
 export type Residency = Select<typeof residency.table>;
 

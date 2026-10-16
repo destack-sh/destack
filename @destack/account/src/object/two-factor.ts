@@ -25,6 +25,6 @@ export const twoFactor = defineObject({
     constraints: {
         user: { kind: "index", on: ["userId"] },
     },
-}).methods();
+});
 /** A persisted second-factor enrollment. */
 export type TwoFactor = Select<typeof twoFactor.table>;

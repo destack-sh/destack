@@ -19,13 +19,13 @@ async function place(
 
     // keep the placement at its epoch, advance the epoch, or take the space over
     const current = context.target;
-    const isKept = current.epoch === epoch && current.machineId === caller;
+    const isRetained = current.epoch === epoch && current.machineId === caller;
     const isAdvanced =
         current.epoch + 1 === epoch &&
         (current.machineId === caller || current.targetId === caller);
 
     // refuse any other epoch or machine
-    if (!isKept && !isAdvanced) {
+    if (!isRetained && !isAdvanced) {
         throw new CallError("CONFLICT", {
             message: `${current.id} is neither placed on ${caller} at epoch ${epoch} nor moving there`,
         });

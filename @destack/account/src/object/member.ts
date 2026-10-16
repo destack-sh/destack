@@ -11,39 +11,42 @@ import { relationship } from "./relationship.ts";
 const TITLE_LENGTH = 200;
 
 /** A user's membership in an organisation, from an accepted invitation or the universe. */
-export const member = defineObject({
-    name: "member",
-    plural: "members",
-    scope: organisation,
-    fields: {
-        /** The member user. */
-        user: field.reference(principal.user),
-        /** The role the member has while active. */
-        role: field.enum(MEMBER_ROLES).default(DEFAULT_MEMBER_ROLE),
-        /** The member's job title within the organisation. */
-        title: field.string(schema.string().min(1).max(TITLE_LENGTH)).optional(),
-        /** Whether the membership is active or suspended. */
-        status: field.state({
-            initial: "active",
-            transitions: {
-                suspend: { from: ["active"], to: "suspended", permission: "manage" },
-                reactivate: { from: ["suspended"], to: "active", permission: "manage" },
-            },
-        }),
+export const member = defineObject(
+    {
+        name: "member",
+        plural: "members",
+        scope: organisation,
+        fields: {
+            /** The member user. */
+            user: field.reference(principal.user),
+            /** The role the member has while active. */
+            role: field.enum(MEMBER_ROLES).default(DEFAULT_MEMBER_ROLE),
+            /** The member's job title within the organisation. */
+            title: field.string(schema.string().min(1).max(TITLE_LENGTH)).optional(),
+            /** Whether the membership is active or suspended. */
+            status: field.state({
+                initial: "active",
+                transitions: {
+                    suspend: { from: ["active"], to: "suspended", permission: "manage" },
+                    reactivate: { from: ["suspended"], to: "active", permission: "manage" },
+                },
+            }),
+        },
+        permissions: {
+            read: union(relation("user"), through("organisation", "read")),
+            manage: through("organisation", "manage"),
+            join: none(),
+        },
+        constraints: {
+            user: { kind: "unique", on: ["userId", "scope"] },
+        },
     },
-    permissions: {
-        read: union(relation("user"), through("organisation", "read")),
-        manage: through("organisation", "manage"),
-        join: none(),
-    },
-    constraints: {
-        user: { kind: "unique", on: ["userId", "scope"] },
-    },
-}).methods((method) => ({
-    join: method.create("join", { isInternal: true, fields: ["userId", "role", "title"] }),
-    update: method.update("manage", { fields: ["role", "title"] }),
-    delete: method.delete("manage"),
-}));
+    (method) => ({
+        join: method.create("join", { isInternal: true, fields: ["userId", "role", "title"] }),
+        update: method.update("manage", { fields: ["role", "title"] }),
+        delete: method.delete("manage"),
+    }),
+);
 /** A persisted member. */
 export type Member = Select<typeof member.table>;
 

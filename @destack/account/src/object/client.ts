@@ -38,57 +38,58 @@ export const ClientRegistration = defineSchema(
 export type ClientRegistration = schema.Infer<typeof ClientRegistration>;
 
 /** A program a person signs in through, identified by its keys, after OAuth's client instances. */
-export const client = defineObject({
-    name: "client",
-    plural: "clients",
-    scope: user,
-    // replicate a user's clients into the scopes inside the user's scope
-    inherited: {},
-    attachments: [key.attach({ by: "rotate" })],
-    fields: {
-        /** The person's name for the client. */
-        name: field.string(DisplayName),
-        /** What the client is. */
-        kind: field.enum(CLIENT_KINDS),
-        /** The machine the client runs on, absent where none runs Destack. */
-        machine: field.reference(machine, { delete: "null" }).optional(),
-        /** The operating system. */
-        platform: field.enum(PLATFORMS).optional(),
-        /** The operating system's version. */
-        platformVersion: field.string(schema.string().min(1).max(VERSION_LENGTH)).optional(),
-        /** The processor architecture, such as arm64. */
-        architecture: field.string().optional(),
-        /** The hardware model. */
-        model: field.string().optional(),
-        /** The version of the Destack program that registered the client. */
-        version: field.string().optional(),
-        /** The Web Push subscription of a browser client, absent until it subscribes. */
-        push: field.json(PushSubscription).sensitive().optional(),
-        /** The last time the client proved itself. */
-        lastActiveAt: field.time().optional(),
-        /** The time the person withdrew the client. */
-        revokedAt: field.time().optional(),
-    },
-    permissions: [
-        "read",
-        "list",
-        "create",
-        "update",
-        "verify",
-        "rotate",
-        "unsubscribe",
-        "revoke",
-        "report",
-    ],
-    constraints: {
-        scope: { kind: "index", on: ["scope"] },
-        push: {
-            kind: "check",
-            condition: { OR: [{ push: { isNull: true } }, { kind: "browser" }] },
+export const client = defineObject(
+    {
+        name: "client",
+        plural: "clients",
+        scope: user,
+        // replicate a user's clients into the scopes inside the user's scope
+        inherited: {},
+        attachments: [key.attach({ by: "rotate" })],
+        fields: {
+            /** The person's name for the client. */
+            name: field.string(DisplayName),
+            /** What the client is. */
+            kind: field.enum(CLIENT_KINDS),
+            /** The machine the client runs on, absent where none runs Destack. */
+            machine: field.reference(machine, { delete: "null" }).optional(),
+            /** The operating system. */
+            platform: field.enum(PLATFORMS).optional(),
+            /** The operating system's version. */
+            platformVersion: field.string(schema.string().min(1).max(VERSION_LENGTH)).optional(),
+            /** The processor architecture, such as arm64. */
+            architecture: field.string().optional(),
+            /** The hardware model. */
+            model: field.string().optional(),
+            /** The version of the Destack program that registered the client. */
+            version: field.string().optional(),
+            /** The Web Push subscription of a browser client, absent until it subscribes. */
+            push: field.json(PushSubscription).sensitive().optional(),
+            /** The last time the client proved itself. */
+            lastActiveAt: field.time().optional(),
+            /** The time the person withdrew the client. */
+            revokedAt: field.time().optional(),
+        },
+        permissions: [
+            "read",
+            "list",
+            "create",
+            "update",
+            "verify",
+            "rotate",
+            "unsubscribe",
+            "revoke",
+            "report",
+        ],
+        constraints: {
+            scope: { kind: "index", on: ["scope"] },
+            push: {
+                kind: "check",
+                condition: { OR: [{ push: { isNull: true } }, { kind: "browser" }] },
+            },
         },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         list: method.list("list"),
         create: method.create("create", {
             fields: [
@@ -122,13 +123,13 @@ export const client = defineObject({
         revoke: method.mutation({ permission: "revoke" }),
         /** Record the client's proven contact now. */
         report: method.mutation({ permission: "report", isInternal: true }),
-    }))
-    .implement({
-        methods: {
-            unsubscribe: (call) => call.update({ push: null }),
-            report: (call) => call.update({ lastActiveAt: call.now }),
-        },
-    });
+    }),
+).implement({
+    methods: {
+        unsubscribe: (call) => call.update({ push: null }),
+        report: (call) => call.update({ lastActiveAt: call.now }),
+    },
+});
 /** A persisted client record. */
 export type Client = Select<typeof client.table>;
 

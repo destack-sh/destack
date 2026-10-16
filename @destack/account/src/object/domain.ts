@@ -64,37 +64,40 @@ export const DomainChallenge = Object.assign(
 export type DomainChallenge = schema.Infer<typeof DomainChallenge>;
 
 /** A DNS domain an account or an organisation proves it controls once, through a TXT record. */
-export const domain = defineObject({
-    name: "domain",
-    plural: "domains",
-    scope: [account, organisation],
-    fields: {
-        /** The canonical lowercase domain, such as acme.com. */
-        name: field.string(Hostname),
-        /** The time the owner proved its claim through the domain's TXT record. */
-        verifiedAt: field.time().optional(),
-    },
-    permissions: {
-        read: MANAGERS,
-        create: MANAGERS,
-        verify: MANAGERS,
-        delete: MANAGERS,
-    },
-    constraints: {
-        scopeName: { kind: "unique", on: ["scope", "name"] },
-        verifiedName: {
-            kind: "index",
-            on: ["name"],
-            unique: true,
-            where: { verifiedAt: { isNotNull: true } },
+export const domain = defineObject(
+    {
+        name: "domain",
+        plural: "domains",
+        scope: [account, organisation],
+        fields: {
+            /** The canonical lowercase domain, such as acme.com. */
+            name: field.string(Hostname),
+            /** The time the owner proved its claim through the domain's TXT record. */
+            verifiedAt: field.time().optional(),
         },
-        nameForm: { kind: "check", condition: { name: { characters: "a-z0-9.*-" } } },
+        permissions: {
+            read: MANAGERS,
+            create: MANAGERS,
+            verify: MANAGERS,
+            delete: MANAGERS,
+        },
+        constraints: {
+            scopeName: { kind: "unique", on: ["scope", "name"] },
+            verifiedName: {
+                kind: "index",
+                on: ["name"],
+                unique: true,
+                where: { verifiedAt: { isNotNull: true } },
+            },
+            nameForm: { kind: "check", condition: { name: { characters: "a-z0-9.*-" } } },
+        },
     },
-}).methods((method) => ({
-    create: method.create("create", { fields: ["name"] }),
-    verify: method.mutation({ permission: "verify", prepared: DomainChallenge }),
-    delete: method.delete("delete"),
-}));
+    (method) => ({
+        create: method.create("create", { fields: ["name"] }),
+        verify: method.mutation({ permission: "verify", prepared: DomainChallenge }),
+        delete: method.delete("delete"),
+    }),
+);
 /** A persisted domain record. */
 export type Domain = Select<typeof domain.table>;
 

@@ -100,111 +100,112 @@ export const MachineVariant = defineSchema(
 export type MachineVariant = schema.Infer<typeof MachineVariant>;
 
 /** A runner identity spaces are placed on. */
-export const machine = defineObject({
-    name: "machine",
-    plural: "machines",
-    scope: [account, "universe"],
-    represents: principal.machine,
-    attachments: [key.attach({ by: "rotate" })],
-    fields: {
-        /** The name within the account. */
-        name: field.string(MachineName),
-        /** Whether the machine is a person's own computer or a provider's cloud machine. */
-        kind: field.enum(["personal", "cloud"]),
+export const machine = defineObject(
+    {
+        name: "machine",
+        plural: "machines",
+        scope: [account, "universe"],
+        represents: principal.machine,
+        attachments: [key.attach({ by: "rotate" })],
+        fields: {
+            /** The name within the account. */
+            name: field.string(MachineName),
+            /** Whether the machine is a person's own computer or a provider's cloud machine. */
+            kind: field.enum(["personal", "cloud"]),
 
-        // the fields of a personal machine, null for a cloud machine
-        /** The operating system of a personal machine. */
-        platform: field.enum(PLATFORMS).optional(),
-        /** The processor architecture of a personal machine. */
-        architecture: field.string(PersonalMachine.shape.architecture).optional(),
-        /** The hardware model of a personal machine. */
-        model: field.string(PersonalMachine.shape.model).optional(),
+            // the fields of a personal machine, null for a cloud machine
+            /** The operating system of a personal machine. */
+            platform: field.enum(PLATFORMS).optional(),
+            /** The processor architecture of a personal machine. */
+            architecture: field.string(PersonalMachine.shape.architecture).optional(),
+            /** The hardware model of a personal machine. */
+            model: field.string(PersonalMachine.shape.model).optional(),
 
-        // the fields of a cloud machine, null for a personal machine
-        /** The jurisdiction a cloud machine serves. */
-        residency: field.reference(residency, { delete: "restrict" }).optional(),
-        /** The provider running a cloud machine. */
-        providerCode: field.string(ProviderCode).optional(),
-        /** The provider location of a cloud machine. */
-        location: field.string(CloudMachine.shape.location).optional(),
-        /** The size of an account's dedicated cloud machine. */
-        size: field.enum(MACHINE_SIZES).optional(),
+            // the fields of a cloud machine, null for a personal machine
+            /** The jurisdiction a cloud machine serves. */
+            residency: field.reference(residency, { delete: "restrict" }).optional(),
+            /** The provider running a cloud machine. */
+            providerCode: field.string(ProviderCode).optional(),
+            /** The provider location of a cloud machine. */
+            location: field.string(CloudMachine.shape.location).optional(),
+            /** The size of an account's dedicated cloud machine. */
+            size: field.enum(MACHINE_SIZES).optional(),
 
-        // the machine's status and contact
-        /** Whether the machine hosts new work, drains existing work, or neither. */
-        status: field.enum(MACHINE_STATUSES).default("enabled"),
-        /** The Destack version the machine last reported. */
-        version: field.string().optional(),
-        /** The runtimes the machine can execute. */
-        runtimes: field.json(schema.array(ServerRuntime)).default([]),
-        /** The machine's last proven contact, in UTC epoch milliseconds. */
-        lastSeenAt: field.time().optional(),
-        /** The time the account withdrew the machine and its keys. */
-        revokedAt: field.time().optional(),
-    },
-    relations: {
-        tenant: { subjects: [account.members("member")], grantedBy: "share" },
-        self: { subjects: [principal.machine], grantedBy: null },
-    },
-    permissions: {
-        read: union(relation("tenant"), relation("self")),
-        list: union(permission("read"), through("account", "serve")),
-        verify: union(relation("tenant"), relation("self"), through("account", "serve")),
-        enroll: none(),
-        rotate: relation("self"),
-        rename: relation("self"),
-        operate: union(relation("tenant"), relation("self")),
-        publish: relation("self"),
-
-        // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
-        observe: relation("tenant"),
-        analyze: relation("tenant"),
-        unmask: through("account", "manage"),
-        serve: relation("self"),
-        revoke: relation("self"),
-        update: none(),
-        share: none(),
-        keep: none(),
-    },
-    reserved: ["rotate", "publish", "serve"],
-    constraints: {
-        scopeId: { kind: "unique", on: ["scope", "id"] },
-        scopeName: {
-            kind: "index",
-            on: ["scope", "name"],
-            unique: true,
-            where: { revokedAt: { isNull: true } },
+            // the machine's status and contact
+            /** Whether the machine hosts new work, drains existing work, or neither. */
+            status: field.enum(MACHINE_STATUSES).default("enabled"),
+            /** The Destack version the machine last reported. */
+            version: field.string().optional(),
+            /** The runtimes the machine can execute. */
+            runtimes: field.json(schema.array(ServerRuntime)).default([]),
+            /** The machine's last proven contact, in UTC epoch milliseconds. */
+            lastSeenAt: field.time().optional(),
+            /** The time the account withdrew the machine and its keys. */
+            revokedAt: field.time().optional(),
         },
-        name: { kind: "check", condition: { name: Label.condition(MACHINE_NAME_LENGTH) } },
-        kind: {
-            kind: "check",
-            condition: {
-                OR: [
-                    {
-                        kind: "personal",
-                        platform: { isNotNull: true },
-                        architecture: { isNotNull: true },
-                        model: { isNotNull: true },
-                        residencyId: { isNull: true },
-                        providerCode: { isNull: true },
-                        location: { isNull: true },
-                        size: { isNull: true },
-                    },
-                    {
-                        kind: "cloud",
-                        residencyId: { isNotNull: true },
-                        providerCode: { isNotNull: true },
-                        location: { length: { gt: 0 } },
-                        platform: { isNull: true },
-                        architecture: { isNull: true },
-                        model: { isNull: true },
-                    },
-                ],
+        relations: {
+            tenant: { subjects: [account.members("member")], grantedBy: "share" },
+            self: { subjects: [principal.machine], grantedBy: null },
+        },
+        permissions: {
+            read: union(relation("tenant"), relation("self")),
+            list: union(permission("read"), through("account", "serve")),
+            verify: union(relation("tenant"), relation("self"), through("account", "serve")),
+            enroll: none(),
+            rotate: relation("self"),
+            rename: relation("self"),
+            operate: union(relation("tenant"), relation("self")),
+            publish: relation("self"),
+
+            // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
+            observe: relation("tenant"),
+            analyze: relation("tenant"),
+            unmask: through("account", "manage"),
+            serve: relation("self"),
+            revoke: relation("self"),
+            update: none(),
+            share: none(),
+            keep: none(),
+        },
+        reserved: ["rotate", "publish", "serve"],
+        constraints: {
+            scopeId: { kind: "unique", on: ["scope", "id"] },
+            scopeName: {
+                kind: "index",
+                on: ["scope", "name"],
+                unique: true,
+                where: { revokedAt: { isNull: true } },
+            },
+            name: { kind: "check", condition: { name: Label.condition(MACHINE_NAME_LENGTH) } },
+            kind: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            kind: "personal",
+                            platform: { isNotNull: true },
+                            architecture: { isNotNull: true },
+                            model: { isNotNull: true },
+                            residencyId: { isNull: true },
+                            providerCode: { isNull: true },
+                            location: { isNull: true },
+                            size: { isNull: true },
+                        },
+                        {
+                            kind: "cloud",
+                            residencyId: { isNotNull: true },
+                            providerCode: { isNotNull: true },
+                            location: { length: { gt: 0 } },
+                            platform: { isNull: true },
+                            architecture: { isNull: true },
+                            model: { isNull: true },
+                        },
+                    ],
+                },
             },
         },
     },
-})
-    .methods((method) => ({
+    (method) => ({
         list: method.list("list"),
         enroll: method.create("enroll", {
             fields: ["name", "version", "runtimes"],
@@ -248,17 +249,17 @@ export const machine = defineObject({
                 name: MachineName,
             }),
         }),
-    }))
-    .implement({
-        methods: {
-            report: (call) =>
-                call.update({
-                    lastSeenAt: call.now,
-                    version: call.input.version,
-                    runtimes: call.input.runtimes,
-                }),
-        },
-    });
+    }),
+).implement({
+    methods: {
+        report: (call) =>
+            call.update({
+                lastSeenAt: call.now,
+                version: call.input.version,
+                runtimes: call.input.runtimes,
+            }),
+    },
+});
 /** A persisted machine record with the fields of its kind. */
 export type Machine = Omit<
     Select<typeof machine.table>,

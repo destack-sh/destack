@@ -41,102 +41,108 @@ const InvitationInput = schema.object({
 });
 
 /** An organisation that owns accounts and has members in its roles. */
-export const organisation = defineObject({
-    name: "organisation",
-    plural: "organisations",
-    scope: "universe",
-    isScope: true,
-    fields: {
-        /** The display name. */
-        name: field.string(DisplayName),
-        /** The logo image URL. */
-        image: field.string(schema.url()).optional(),
-        /** What the organisation is: a business, a family, a community or a school. */
-        kind: field.enum(["business", "family", "community", "education"]).default("business"),
-        /** The account the charges of the organisation's accounts consolidate to. */
-        payer: field.string(schema.identifier("account")).guardWrite("bill"),
+export const organisation = defineObject(
+    {
+        name: "organisation",
+        plural: "organisations",
+        scope: "universe",
+        isScope: true,
+        fields: {
+            /** The display name. */
+            name: field.string(DisplayName),
+            /** The logo image URL. */
+            image: field.string(schema.url()).optional(),
+            /** What the organisation is: a business, a family, a community or a school. */
+            kind: field.enum(["business", "family", "community", "education"]).default("business"),
+            /** The account the charges of the organisation's accounts consolidate to. */
+            payer: field.string(schema.identifier("account")).guardWrite("bill"),
+        },
+        recoverable: { within: { days: 30 }, by: "delete" },
+        relations: {
+            // relate each active member's user by its role, and the machines publishing as the platform
+            owner: { ...SEATS, grantedBy: "own" },
+            admin: {
+                subjects: [principal.user, residency.members("machine")],
+                grantedBy: "manage",
+            },
+            billing: SEATS,
+            member: SEATS,
+            guest: SEATS,
+            // relate the servers of each residency of its accounts
+            resident: { subjects: [residency.members("server")], grantedBy: "place" },
+        },
+        permissions: {
+            read: union(
+                relation("owner"),
+                relation("admin"),
+                relation("billing"),
+                relation("member"),
+                relation("guest"),
+            ),
+            view: union(relation("owner"), relation("admin"), relation("member")),
+            manage: union(relation("owner"), relation("admin")),
+            bill: union(relation("owner"), relation("billing")),
+            own: relation("owner"),
+            list: union(permission("read"), relation("resident")),
+            replicate: relation("resident"),
+            update: permission("manage"),
+            delete: permission("own"),
+            place: none(),
+        },
+        reserved: ["own", "replicate", "place"],
+        elevated: { delete: sudo, own: sudo },
     },
-    recoverable: { within: { days: 30 }, by: "delete" },
-    relations: {
-        // relate each active member's user by its role, and the machines publishing as the platform
-        owner: { ...SEATS, grantedBy: "own" },
-        admin: { subjects: [principal.user, residency.members("machine")], grantedBy: "manage" },
-        billing: SEATS,
-        member: SEATS,
-        guest: SEATS,
-        // relate the servers of each residency of its accounts
-        resident: { subjects: [residency.members("server")], grantedBy: "place" },
-    },
-    permissions: {
-        read: union(
-            relation("owner"),
-            relation("admin"),
-            relation("billing"),
-            relation("member"),
-            relation("guest"),
-        ),
-        view: union(relation("owner"), relation("admin"), relation("member")),
-        manage: union(relation("owner"), relation("admin")),
-        bill: union(relation("owner"), relation("billing")),
-        own: relation("owner"),
-        list: union(permission("read"), relation("resident")),
-        replicate: relation("resident"),
-        update: permission("manage"),
-        delete: permission("own"),
-        place: none(),
-    },
-    reserved: ["own", "replicate", "place"],
-    elevated: { delete: sudo, own: sudo },
-}).methods((method) => ({
-    list: method.list("list"),
-    create: method.create("update", {
-        fields: ["name", "image", "kind"],
-        input: schema.object({
-            /** The handle the organisation's account claims. */
-            handle: AccountHandle,
-            /** The jurisdiction the organisation's account keeps data in. */
-            residencyId: ResidencyCode,
-            /** The stack the home of the organisation's account carries, none when absent. */
-            stack: SpaceStack.exactOptional(),
+    (method) => ({
+        list: method.list("list"),
+        create: method.create("update", {
+            fields: ["name", "image", "kind"],
+            input: schema.object({
+                /** The handle the organisation's account claims. */
+                handle: AccountHandle,
+                /** The jurisdiction the organisation's account keeps data in. */
+                residencyId: ResidencyCode,
+                /** The stack the home of the organisation's account carries, none when absent. */
+                stack: SpaceStack.exactOptional(),
+            }),
+            isPredicted: false,
         }),
-        isPredicted: false,
-    }),
-    update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
+        update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
 
-    // offer seats through invitations
-    invitations: method.query({
-        permission: "manage",
-        output: schema.object({
-            /** The pending invitations to the organisation, oldest first. */
-            items: schema.array(Invitation.schema),
+        // offer seats through invitations
+        invitations: method.query({
+            permission: "manage",
+            output: schema.object({
+                /** The pending invitations to the organisation, oldest first. */
+                items: schema.array(Invitation.schema),
+            }),
+        }),
+        // change invitations under the invitation's own access
+        invite: method.mutation({
+            permission: "manage",
+            target: "id",
+            input: schema.object({
+                /** The role of the accepted seat. */
+                relation: MemberRole,
+                /** The invited user, or the contact of the invited email. */
+                subject: Subject,
+                /** Why the organisation invites. */
+                purpose: schema.string().min(1).max(PURPOSE_LENGTH).exactOptional(),
+            }),
+            output: Invitation.schema,
+        }),
+        accept: method.mutation({
+            permission: "read",
+            target: "id",
+            input: InvitationInput,
+            output: Relationship.schema,
+        }),
+        withdraw: method.mutation({
+            permission: "manage",
+            target: "id",
+            input: InvitationInput,
+            output: Invitation.schema,
         }),
     }),
-    // change invitations under the invitation's own access
-    invite: method.mutation({
-        permission: "manage",
-        target: "id",
-        input: schema.object({
-            /** The role of the accepted seat. */
-            relation: MemberRole,
-            /** The invited user, or the contact of the invited email. */
-            subject: Subject,
-            /** Why the organisation invites. */
-            purpose: schema.string().min(1).max(PURPOSE_LENGTH).exactOptional(),
-        }),
-        output: Invitation.schema,
-    }),
-    accept: method.mutation({
-        permission: "read",
-        target: "id",
-        input: InvitationInput,
-        output: Relationship.schema,
-    }),
-    withdraw: method.mutation({
-        permission: "manage",
-        target: "id",
-        input: InvitationInput,
-        output: Invitation.schema,
-    }),
-}));
+);
 /** A persisted organisation. */
 export type Organisation = Select<typeof organisation.table>;

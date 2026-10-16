@@ -6,4 +6,5 @@ import { organisation } from "./organisation.ts";
 /** A relation or role binding on an object of an account, an organisation or the universe. */
 export const relationship = defineObject(
     Intrinsic.relationship.definition([account, organisation, Scope.universe.id]),
-).methods(Intrinsic.relationship.methods);
+    Intrinsic.relationship.methods,
+);

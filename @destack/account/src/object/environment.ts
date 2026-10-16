@@ -34,6 +34,6 @@ export const environment = defineObject({
             },
         },
     },
-}).methods();
+});
 /** A persisted account environment. */
 export type Environment = Select<typeof environment.table>;

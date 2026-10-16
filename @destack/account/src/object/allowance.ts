@@ -88,37 +88,40 @@ const ALLOWANCE_SHAPE = "allowance";
 const UNIVERSE_ALLOWANCE_SHAPE = "allowance:universe";
 
 /** An account's allowance on a resource. */
-export const allowance = defineObject({
-    name: "allowance",
-    plural: "allowances",
-    scope: space,
-    owner: "account",
-    fields: {
-        /** The account the allowance limits. */
-        account: field.reference(account).relate("account"),
-        /** The resource allowed. */
-        resource: field.enum(ALLOWANCE_RESOURCES),
-        /** What the plan grants on it. */
-        grant: field.json(AllowanceGrant),
+export const allowance = defineObject(
+    {
+        name: "allowance",
+        plural: "allowances",
+        scope: space,
+        owner: "account",
+        fields: {
+            /** The account the allowance limits. */
+            account: field.reference(account).relate("account"),
+            /** The resource allowed. */
+            resource: field.enum(ALLOWANCE_RESOURCES),
+            /** What the plan grants on it. */
+            grant: field.json(AllowanceGrant),
+        },
+        permissions: {
+            // let the account's readers and its residency's servers read
+            read: union(through("account", "read"), through("account", "serve")),
+            // let its residency's servers keep it from the plan
+            keep: through("account", "serve"),
+        },
+        reserved: ["keep"],
+        constraints: {
+            resource: { kind: "index", on: ["accountId", "resource"], unique: true },
+        },
     },
-    permissions: {
-        // let the account's readers and its residency's servers read
-        read: union(through("account", "read"), through("account", "serve")),
-        // let its residency's servers keep it from the plan
-        keep: through("account", "serve"),
-    },
-    reserved: ["keep"],
-    constraints: {
-        resource: { kind: "index", on: ["accountId", "resource"], unique: true },
-    },
-}).methods((method) => ({
-    /** Keep the allowance a plan grants on a resource. */
-    create: method.create("keep", { isInternal: true }),
-    /** Change an allowance as the plan or its usage changes. */
-    update: method.update("keep", { isInternal: true }),
-    /** Remove an allowance no plan grants any longer. */
-    delete: method.delete("keep", { isInternal: true }),
-}));
+    (method) => ({
+        /** Keep the allowance a plan grants on a resource. */
+        create: method.create("keep", { isInternal: true }),
+        /** Change an allowance as the plan or its usage changes. */
+        update: method.update("keep", { isInternal: true }),
+        /** Remove an allowance no plan grants any longer. */
+        delete: method.delete("keep", { isInternal: true }),
+    }),
+);
 /** An account's allowance on a resource, as its table stores it. */
 export type Allowance = Select<typeof allowance.table>;
 
@@ -180,9 +183,12 @@ export const Allowance = {
         accountId: Identifier<"account">,
         use: AllowanceUse,
     ): Promise<Condition> {
-        // wait for the replica's first complete snapshot of the account's allowances, wherever it is kept
-        const [kept] = await Shape.kept(database, allowanceShape, { account: accountId });
-        if (kept === undefined || !(await Replica.isSynced(database, kept.name, kept.scope))) {
+        // wait for the replica's first complete snapshot of the account's allowances, wherever it is held
+        const [replicated] = await Shape.replicas(database, allowanceShape, { account: accountId });
+        if (
+            replicated === undefined ||
+            !(await Replica.isSynced(database, replicated.name, replicated.scope))
+        ) {
             return PENDING;
         }
 

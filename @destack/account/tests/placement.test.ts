@@ -528,7 +528,7 @@ test("publish a personal machine's URL as the machine alone, and read it as abse
 
 /** Refuse following the replicas kept for a scope as anyone but it and what lives in it. */
 function unfollowed(below: string): string {
-    return `FORBIDDEN: only ${below} and its contents can follow the replicas kept for it`;
+    return `FORBIDDEN: only ${below} and its contents can follow the replicas held for it`;
 }
 
 /** Refuse moving a space to a machine that serves neither its account nor its residency. */
