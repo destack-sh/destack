@@ -1,4 +1,4 @@
-import { Clock } from "@destack/schema";
+import { Clock } from "@destack/environment";
 import { test } from "@destack/test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";

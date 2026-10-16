@@ -40,12 +40,13 @@
         "@destack/error": "workspace:*"
     },
     "devDependencies": {
-        "uuid": "14.0.2",
-        "@types/bun": "1.4.2",
-        "@destack/web": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@destack/vault": "workspace:*"
+        "@destack/vault": "workspace:*",
+        "@destack/web": "workspace:*",
+        "@types/bun": "1.4.2",
+        "uuid": "14.0.2"
     }
 }
