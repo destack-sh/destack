@@ -1,4 +1,4 @@
-import { aligned, Clock, found } from "@destack/schema";
+import { aligned, found } from "@destack/schema";
 import {
     and,
     Key,
@@ -26,6 +26,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
+import { Clock } from "@destack/environment";
 
 /** The default count of recent changes a feed keeps in memory. */
 const FEED_CHANGES = 10_000;

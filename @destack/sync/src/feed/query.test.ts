@@ -1,5 +1,5 @@
 import { expect, refusal, test } from "@destack/test";
-import { aligned, Clock } from "@destack/schema";
+import { aligned } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { eq, sql, type Table, Expression, type Change } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -20,6 +20,7 @@ import {
     until,
 } from "../test/fixture.ts";
 import { AUDIENCE, MEMORY_AUDIENCE } from "./test/query.ts";
+import { Clock } from "@destack/environment";
 
 /** The tables the feed serves. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];

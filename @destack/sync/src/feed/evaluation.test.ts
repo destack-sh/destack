@@ -1,5 +1,4 @@
-import { expect, test, TestClock } from "@destack/test";
-import { Clock } from "@destack/schema";
+import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import type { Change, Row, Table } from "@destack/db";
 import { View } from "../dataflow/view.ts";
@@ -8,6 +7,8 @@ import type { Audience } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Feed } from "./feed.ts";
 import { ConditionAudience } from "./test/audience.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** An audience deciding by some conditions, then by others once it decides again. */
 class SwitchingAudience implements Audience {
@@ -72,7 +73,7 @@ class TimedAudience implements Audience {
     /** The name of the audience. */
     readonly key = "timed";
     /** The clock telling the time. */
-    readonly #clock: TestClock;
+    readonly #clock: VirtualClock;
     /** The moment the audience sees done notes from. */
     readonly #moment: number;
     /** The conditions deciding before the moment. */
@@ -83,7 +84,7 @@ class TimedAudience implements Audience {
     #current: ConditionAudience;
 
     /** Decide by a clock with a moment the decisions change at. */
-    constructor(clock: TestClock, moment: number) {
+    constructor(clock: VirtualClock, moment: number) {
         this.#clock = clock;
         this.#moment = moment;
         this.#current = this.#decided();
@@ -166,7 +167,7 @@ test.for(TEST_DIALECTS)(
     "read shared windows again once the decisions they hold expire, under one key, on %s",
     async (dialect) => {
         const database = await open(dialect);
-        const clock = new TestClock(1000);
+        const clock = new VirtualClock(1000);
         const feed = new Feed(database, [note], { clock });
         await database.insert(note).values([
             { ...first, id: "a", title: "Open" },

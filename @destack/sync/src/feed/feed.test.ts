@@ -1,5 +1,5 @@
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
-import { aligned, schema, Clock } from "@destack/schema";
+import { expect, onTestFinished, test } from "@destack/test";
+import { aligned, schema } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -17,13 +17,15 @@ import {
     until,
 } from "../test/fixture.ts";
 import type { Item, Query } from "../query/query.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 test.for(TEST_DIALECTS)(
     "repeat a caught-up stream's position at each heartbeat as the clock advances on %s",
     async (dialect) => {
         // follow the notes of a scope to their snapshot on a stopped clock
         const database = await open(dialect);
-        const clock = new TestClock(1000);
+        const clock = new VirtualClock(1000);
         const feed = new Feed(database, [note], { clock, heartbeat: 60_000 });
         const signal = AbortSignal.timeout(5000);
         const pages = feed.subscribe(

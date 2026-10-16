@@ -1,9 +1,9 @@
-import { Clock } from "@destack/schema";
 import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
 import { TABLE } from "@destack/db";
 import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";
 import { Stream } from "./stream.ts";
+import { Clock } from "@destack/environment";
 
 /** The interval between published pages, in milliseconds. */
 const EVERY = 1000;

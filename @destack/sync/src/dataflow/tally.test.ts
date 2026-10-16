@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
-import { Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { eq } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import type { Query } from "../query/query.ts";
 import type { RunCost } from "./run.ts";
 import { open, task, until } from "../test/fixture.ts";
+import { Clock } from "@destack/environment";
 
 /** The distinct ranks of the one measured group. */
 const RANKS = 40;

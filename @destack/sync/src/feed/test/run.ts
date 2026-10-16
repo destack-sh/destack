@@ -1,4 +1,3 @@
-import { Clock } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Key, TABLE, type DatabaseConnection, type Dialect, type Table } from "@destack/db";
@@ -21,6 +20,7 @@ import type { ConditionAudience } from "./audience.ts";
 import { AUDIENCE } from "./query.ts";
 import { Random } from "./random.ts";
 import { Workload } from "./workload.ts";
+import { Clock } from "@destack/environment";
 
 /** The tables the workload writes and subscribers replicate. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];

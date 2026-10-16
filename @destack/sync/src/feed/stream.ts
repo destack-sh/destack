@@ -1,11 +1,12 @@
 import { DatabaseError, type LogPosition, TABLE, type Table } from "@destack/db";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";
-import { canonicalize, type Clock } from "@destack/schema";
+import { canonicalize } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Audience } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import type { Feed } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
+import type { Clock } from "@destack/environment";
 
 /** One subscriber's queries over a feed, on their own behind the head and shared at the head. */
 export class Stream {

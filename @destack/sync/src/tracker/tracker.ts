@@ -1,4 +1,4 @@
-import { Clock, schema, type JsonValue } from "@destack/schema";
+import { schema, type JsonValue } from "@destack/schema";
 import {
     Change,
     Key,
@@ -8,6 +8,7 @@ import {
     typedChannel,
     Table,
 } from "@destack/db";
+import { Clock } from "@destack/environment";
 
 /** The heartbeat interval in milliseconds: three missed beats bound a crash to 45 s. */
 const HEARTBEAT_MILLISECONDS = 15_000;

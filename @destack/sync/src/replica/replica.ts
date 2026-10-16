@@ -39,7 +39,7 @@ import {
 } from "@destack/db";
 import type { QuerySelection } from "../query/query.ts";
 import { SyncError } from "../error/error.ts";
-import { schema, canonicalize, Clock, found, zip } from "@destack/schema";
+import { schema, canonicalize, found, zip } from "@destack/schema";
 import { Page, type ResultChange, type RowChange } from "../query/page.ts";
 import { PublicationAudience, Subscription, type Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
@@ -54,6 +54,7 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
+import { Clock } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;

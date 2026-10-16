@@ -1,4 +1,3 @@
-import { Clock } from "@destack/schema";
 import {
     Key,
     TABLE,
@@ -14,6 +13,7 @@ import type { Replica } from "../../replica/replica.ts";
 import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
 import { groupName, type Contents } from "./oracle.ts";
+import { Clock } from "@destack/environment";
 
 /** What a subscriber has after applying its pages. */
 export class MemoryReplica implements Contents {

@@ -1,4 +1,4 @@
-import { expect, test, TestClock } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     asc,
@@ -19,7 +19,7 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { aligned, schema, Clock } from "@destack/schema";
+import { aligned, schema } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
 import { type Resumption, Uplink } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
@@ -42,6 +42,8 @@ import type { AggregateRow } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
 import { SyncError } from "../error/error.ts";
 import { Scope } from "../scope/scope.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The rows of a feed's page in the paging scenarios, a few to cross pages with few rows. */
 const PAGE_SIZE = 4;
@@ -173,7 +175,7 @@ test.for(TEST_DIALECTS)(
     "follow two databases each replicating the other's table, reaching each other's rows and going quiet once neither sends the other bare positions of its own replicated writes, on %s",
     async (dialect) => {
         // keep the notes on one database and the projects on the other, on a clock that stands still
-        const clock = new TestClock(0);
+        const clock = new VirtualClock(0);
         const home = await open(dialect);
         const other = await open(dialect);
         await home.insert(note).values(first);

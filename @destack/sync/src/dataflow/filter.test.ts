@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
-import { Clock } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import type { Row, Table } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import { ConditionAudience } from "../feed/test/audience.ts";
 import { first, note, open, take } from "../test/fixture.ts";
+import { Clock } from "@destack/environment";
 
 /** An audience admitting every row and counting the rows it decides. */
 class CountingAudience extends ConditionAudience {

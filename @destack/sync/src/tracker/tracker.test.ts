@@ -1,8 +1,9 @@
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, eq, integer, text, type DatabaseConnection, type Channel } from "@destack/db";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The heartbeat interval of the test trackers, in milliseconds of their clocks. */
 const HEARTBEAT = 5;
@@ -67,7 +68,7 @@ test("replicate rows between instances, and remove them with their owner", async
 });
 
 test("hand a late instance the rows, and drop those of stopped and silent instances", async () => {
-    const clock = new TestClock(0);
+    const clock = new VirtualClock(0);
     const join = channelHub<TrackerMessage>();
     const east = await open(join(), clock);
     await write(east, "alice", (database) =>
@@ -153,7 +154,7 @@ test("skip the instance's own messages a channel echoes back, as PostgreSQL's do
 });
 
 /** Track the cursors of an in-memory database on a channel, by a stopped clock unless given one. */
-async function open(channel: Channel<unknown>, clock = new TestClock(0)): Promise<Tracker> {
+async function open(channel: Channel<unknown>, clock = new VirtualClock(0)): Promise<Tracker> {
     const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
     const tracker = new Tracker(storage.database, [cursor], channel, {
         clock,

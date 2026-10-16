@@ -20,7 +20,8 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import type { Page } from "../query/page.ts";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
+import { Clock } from "@destack/environment";
 
 /** Test notes. */
 export const note = defineTable(

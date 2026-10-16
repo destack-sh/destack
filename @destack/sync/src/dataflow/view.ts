@@ -1,4 +1,4 @@
-import { Clock, found, zip } from "@destack/schema";
+import { found, zip } from "@destack/schema";
 import {
     and,
     Key,
@@ -23,6 +23,7 @@ import type { Audience } from "../feed/audience.ts";
 import type { RowChange } from "../query/page.ts";
 import type { Run } from "./run.ts";
 import { Tally, type TallyReading } from "./tally.ts";
+import { Clock } from "@destack/environment";
 
 /** The most values in one batched read, bounded by the parameter budget. */
 const BATCH_VALUES = 500;

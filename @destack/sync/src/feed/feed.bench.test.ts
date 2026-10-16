@@ -1,5 +1,5 @@
 import { expect, test, type TestContext } from "@destack/test";
-import { aligned, Clock } from "@destack/schema";
+import { aligned } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     eq,
@@ -36,6 +36,7 @@ import {
 } from "./test/query.ts";
 import { Random } from "./test/random.ts";
 import { Workload } from "./test/workload.ts";
+import { Clock } from "@destack/environment";
 
 /** The warmup writes before measuring. */
 const WARMUP_WRITES = 20;
