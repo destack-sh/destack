@@ -4,6 +4,7 @@ import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { type Secret, type Vault, SecretReading } from "./secret.ts";
 import { createClient, type ClientOf } from "@destack/runtime/client";
 import vaultPackage from "../package.ts";
+import { vault } from "../object/vault.ts";
 
 /** A secret's or vault's binding to the vault package, as its connectors read it. */
 const VaultBinding = {
@@ -64,11 +65,12 @@ export const vaultConnector: Connector<Vault> = {
         // read a version of the bound vault's secret of a name, the current one by default
         const { client, scope } = VaultBinding.connect(binding);
         const id = schema.identifier("vault").parse(binding.resource);
-        const vault: Vault = {
+        const bound: Vault = {
+            reference: vault.reference(scope, id),
             read: async (name, selection = {}) =>
                 SecretReading.parse(await client.vault.read({ scope, id, name, ...selection })),
         };
 
-        return Object.assign(vault, { [Symbol.asyncDispose]: () => Promise.resolve() });
+        return Object.assign(bound, { [Symbol.asyncDispose]: () => Promise.resolve() });
     },
 };

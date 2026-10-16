@@ -1,5 +1,5 @@
 import type { Call } from "@destack/sync";
-import { AccessContext, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal, Relationship } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, isNotNull } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
@@ -9,7 +9,7 @@ import { Duration, Identifier } from "@destack/schema";
 import { CallEvent, call } from "@destack/object";
 import { SecretReading } from "../secret/secret.ts";
 import { binding, installation } from "@destack/stack/object";
-import { Scope } from "@destack/sync";
+import { type ObjectReference, Scope } from "@destack/sync";
 import { SECRET_RECOVERY, secret, secretVersion, vault } from "../object/index.ts";
 import { MACHINE, OTHER_MACHINE, VAULT, VaultFixture } from "../test/index.ts";
 
@@ -513,6 +513,76 @@ test("put a consumer's secret as one live version through its vault, read it as 
         concealed: ["NOT_FOUND", `no secret ${id}`],
         name: "token",
         purged: true,
+    });
+});
+
+test("let software bound to a vault put and rotate its own secrets there, refusing another consumer their replacement and software bound to one secret the vault", async () => {
+    // bind two installations to the vault, and a third to one declared secret alone
+    await using fixture = await VaultFixture.open("sqlite");
+    const objects = fixture.objects();
+    const forge = principal.installation.reference(fixture.spaceId, "installation-forge");
+    const other = principal.installation.reference(fixture.spaceId, "installation-other");
+    const reader = principal.installation.reference(fixture.spaceId, "installation-reader");
+    const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
+    const declared = await fixture.createSecret();
+    const bind = (object: ObjectReference, subject: typeof forge) =>
+        Relationship.insert(
+            fixture.database,
+            {
+                id: Identifier.create("relationship"),
+                object,
+                relation: "consumer",
+                subject,
+                createdAt: 1,
+                expiresAt: null,
+            },
+            fixture.spaceId,
+        );
+    await bind(vault.reference(fixture.spaceId, fixture.vaultId), forge);
+    await bind(vault.reference(fixture.spaceId, fixture.vaultId), other);
+    await bind(secret.reference(fixture.spaceId, declared.first.id), reader);
+
+    // put a secret as each installation through the vault, bound to itself
+    const id = secret.generateId();
+    const as = (caller: typeof forge, mutation: Call) =>
+        objects.mutate(AccessContext.of(Caller.of(caller), Date.now()), {
+            id: RequestId.create(Date.now()),
+            calls: [mutation],
+        });
+    const put = (caller: typeof forge, value: string, secretId = id) =>
+        as(
+            caller,
+            vault.call("put", {
+                ...target,
+                secret: secretId,
+                name: "token",
+                value: { encoding: "text", value },
+                consumer: caller,
+            }),
+        );
+    const read = async () =>
+        SecretReading.parse(
+            await objects.query(
+                AccessContext.of(Caller.of(forge), Date.now()),
+                secret.call("read", secret.target({ scope: fixture.spaceId, id })),
+            ),
+        ).value;
+
+    // put and rotate forge's own secret, and refuse the other consumer replacing or removing it, and the reader writing the vault
+    await put(forge, "first");
+    await put(forge, "second");
+    const rotated = await read();
+    const replaced = await refusal(put(other, "stolen"));
+    const removed = await refusal(
+        as(other, vault.call("remove", { ...target, secret: id, consumer: other })),
+    );
+    const written = await refusal(put(reader, "planted", secret.generateId()));
+    expect({ rotated, replaced, removed, written, after: await read() }).toEqual({
+        rotated: { encoding: "text", value: "second" },
+        replaced: ["FORBIDDEN", "permission denied: update"],
+        removed: ["NOT_FOUND", `no secret ${id}`],
+        written: ["NOT_FOUND", `no vault ${fixture.vaultId}`],
+        after: { encoding: "text", value: "second" },
     });
 });
 

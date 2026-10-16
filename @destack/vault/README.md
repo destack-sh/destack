@@ -50,7 +50,7 @@ const { store } = serveSpace({ servers: [vaultServer], bindables: [secretBindabl
 
 ## Consumers
 
-A package puts its own credential into a vault with `vault.put`, reads it back with `secret.read`, and removes it with `vault.remove`.
+Software bound to a vault reads and writes it: a package puts its own credential into a vault with `vault.put`, becoming the secret's custodian, reads it back with `secret.read`, and removes it with `vault.remove`; software bound to one secret only reads that secret.
 
 ```ts
 await store.mutate(caller, {

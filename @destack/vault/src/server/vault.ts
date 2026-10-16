@@ -42,6 +42,12 @@ export function implementVault(): typeof vault {
                     },
                 });
                 const named = secret.target({ scope: target.scope, id });
+                if (found !== undefined) {
+                    await call.require(
+                        secret.permission("update"),
+                        secret.reference(target.scope, id),
+                    );
+                }
                 const creation =
                     found === undefined
                         ? [

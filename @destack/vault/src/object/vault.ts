@@ -1,4 +1,4 @@
-import { none, relation, through } from "@destack/access";
+import { relation, through } from "@destack/access";
 import { defineObject } from "@destack/object";
 import { account, organisation, space } from "@destack/account/object";
 
@@ -15,9 +15,8 @@ export const vault = defineObject(
         scope: [space, account, organisation],
         provisioned: { kind: VaultKind },
         fields: {},
-        // let the account's servers declare its vaults, and its consumers read its secrets by name
+        // let the account's servers declare its vaults, and its consumers read and write its secrets by name
         permissions: {
-            write: none(),
             declare: through("account", "serve"),
             consume: relation("consumer"),
         },

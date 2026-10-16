@@ -1,5 +1,6 @@
 import { DeclarationName } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 
 /** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
 export const MAX_VALUE_BYTES = 64 * 1024;
@@ -116,6 +117,8 @@ export const Secret = {
 
 /** A vault a workload binds, as its code reads its secrets. */
 export interface Vault {
+    /** The vault object the binding names, which its package's code puts secrets into. */
+    readonly reference: ObjectReference;
     /** Read a version of the vault's secret of a name, refusing a secret of any other vault. */
     readonly read: (name: string, selection?: SecretSelection) => Promise<SecretReading>;
 }

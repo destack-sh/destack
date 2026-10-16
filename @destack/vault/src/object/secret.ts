@@ -76,10 +76,10 @@ export const secret = defineObject(
             custodian: { subjects: [principal.installation], grantedBy: null },
         },
         permissions: {
-            create: none(),
+            create: through("parent", "write"),
             get: relation("custodian"),
             list: none(),
-            update: none(),
+            update: relation("custodian"),
             promote: permission("update"),
             // let people reveal a value, software bound to the secret or its vault consume it, and both read it
             reveal: none(),
@@ -87,7 +87,7 @@ export const secret = defineObject(
             read: union(permission("reveal"), permission("consume")),
             delete: relation("custodian"),
             purge: relation("custodian"),
-            bind: none(),
+            bind: permission("update"),
             provision: none(),
         },
         // let an account's owners reveal a value only after a fresh step-up, every reveal audited
@@ -166,13 +166,13 @@ export const secretVersion = defineObject(
         permissions: {
             get: none(),
             list: none(),
-            write: none(),
+            write: through("parent", "update"),
             read: relation("consumer"),
             disable: none(),
             enable: none(),
-            destroy: none(),
+            destroy: through("parent", "update"),
             erase: through("parent", "purge"),
-            bind: none(),
+            bind: through("parent", "update"),
             delete: none(),
         },
         // let only consumers read a version, so a person reveals values through the secret's step-up
