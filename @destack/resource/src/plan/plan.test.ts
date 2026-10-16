@@ -67,7 +67,7 @@ test("plan schema changes by the readers each must serve", () => {
                 action: "update",
                 risk: "backward-incompatible",
                 target: "value",
-                detail: "wider values: earlier readers keep their release",
+                detail: "wider values: earlier readers stay on their release",
             },
         ],
         [
@@ -75,7 +75,7 @@ test("plan schema changes by the readers each must serve", () => {
                 action: "update",
                 risk: "backward-incompatible",
                 target: "value",
-                detail: "incompatible values: earlier readers keep their release",
+                detail: "incompatible values: earlier readers stay on their release",
             },
         ],
     ]);

@@ -176,7 +176,7 @@ function planValues(change: SchemaChange): Plan {
     }
     // keep earlier releases serving their readers
     else {
-        const detail = `${compared} values: earlier readers keep their release`;
+        const detail = `${compared} values: earlier readers stay on their release`;
 
         return { steps: [{ action: "update", target, risk: "backward-incompatible", detail }] };
     }
