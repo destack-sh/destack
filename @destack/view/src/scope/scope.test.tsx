@@ -2,13 +2,14 @@ import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
 import { useQuery, useSpace } from "./index.ts";
 import { changed } from "../test/dom.ts";
+import { Clock } from "@destack/environment";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {

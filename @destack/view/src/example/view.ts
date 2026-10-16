@@ -1,4 +1,3 @@
-import { Clock } from "@destack/schema";
 import { PermissionScope, principal } from "@destack/access";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
@@ -12,6 +11,7 @@ import { type Component, type JSX, createComponent } from "../solid/component.ts
 import { Loading } from "../solid/flow.ts";
 import { createMemo, onCleanup } from "../solid/reactive.ts";
 import { type ViewMount, ViewMountContext } from "../page/view.ts";
+import { Clock } from "@destack/environment";
 
 /** The sample space a sample view opens in. */
 const SAMPLE_SPACE = "space-01996ab0-0000-7000-8000-00000000e001";

@@ -1,4 +1,3 @@
-import { Clock } from "@destack/schema";
 import "../styles/styles.ts";
 import { Catalog, Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ObjectType } from "@destack/object";
@@ -24,6 +23,7 @@ import type { View } from "../declare/view.ts";
 import { renderView } from "../page/mount.ts";
 import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
+import { Clock } from "@destack/environment";
 
 /** How long to wait before following the display again after its stream drops. */
 const RECONNECT_MILLISECONDS = 1000;
