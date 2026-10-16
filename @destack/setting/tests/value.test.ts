@@ -1,4 +1,4 @@
-import { asc } from "@destack/db";
+import { asc, Snapshot } from "@destack/db";
 import type { JsonObject } from "@destack/schema";
 import { principal } from "@destack/access";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -133,8 +133,10 @@ test.each(TEST_DIALECTS)(
 
         // resolve the set value and the other setting's default
         expect([
-            await SettingValue.resolve(storage.database, editor, { scope: alice }),
-            await SettingValue.resolve(storage.database, lineNumbers, { scope: alice }),
+            await SettingValue.resolve(Snapshot.live(storage.database), editor, { scope: alice }),
+            await SettingValue.resolve(Snapshot.live(storage.database), lineNumbers, {
+                scope: alice,
+            }),
         ]).toEqual(["vim", true]);
     },
 );

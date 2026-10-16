@@ -74,14 +74,13 @@ export type SettingValue = Select<typeof setting.table>;
 export const SettingValue = {
     /** Resolve a setting for a selection from the values placed along its scope's chain. */
     async resolve<Value extends schema.Schema>(
-        database: DatabaseConnection,
+        reader: Pick<Snapshot, "read">,
         declared: Setting<Value>,
         selection: SettingSelection & { readonly scope: string },
     ): Promise<schema.Infer<Value>> {
         // read the values the scope and the scopes above it set
-        const snapshot = Snapshot.live(database);
-        const chain = (await Scope.chain(snapshot, selection.scope)).map((link) => link.object.id);
-        const values = await snapshot.read(setting.table).findMany({
+        const chain = (await Scope.chain(reader, selection.scope)).map((link) => link.object.id);
+        const values = await reader.read(setting.table).findMany({
             where: {
                 AND: [declared.condition(selection), { scope: { in: chain } }],
             },
