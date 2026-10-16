@@ -166,10 +166,10 @@ export class Access {
         if (
             Caller.isDelegated(context) &&
             grant !== undefined &&
-            (await authorizer.keeps(snapshot, grant.scope))
+            (await authorizer.isHome(snapshot, grant.scope))
         ) {
-            const kept = await Grant.read(snapshot, grant.id);
-            Grant.require(kept, grant.id, { delegator: subject, delegate: sender }, context.now);
+            const stored = await Grant.read(snapshot, grant.id);
+            Grant.require(stored, grant.id, { delegator: subject, delegate: sender }, context.now);
         }
 
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
@@ -400,7 +400,7 @@ export class Access {
             );
             const bound = current.filter((relationship) => Relationship.isBinding(relationship));
 
-            // keep the role bindings of the frontier subjects
+            // select the role bindings of the frontier subjects
             for (const binding of bound) {
                 bindings.set(binding.id, binding);
             }
@@ -737,15 +737,15 @@ export class Access {
             }
         }
 
-        // keep the chain's roles and the confined bound roles, with their permissions and relationships
+        // select the chain's roles and the confined bound roles, with their permissions and relationships
         const rows = [...chained.rows, ...held.rows.filter((role) => confined.has(role.id))];
-        const kept = new Set<string>(rows.map((row) => row.id));
+        const selected = new Set<string>(rows.map((row) => row.id));
         const permissions = [...chained.permissions, ...held.permissions].filter((row) =>
-            kept.has(row.roleId),
+            selected.has(row.roleId),
         );
         const relationships = [...chained.relationships, ...held.relationships];
 
-        // keep the current inclusions among those roles
+        // select the current inclusions among those roles
         const byRole = Map.groupBy(permissions, (row) => row.roleId);
         const includes = relationships.filter(
             (row) =>
@@ -753,7 +753,7 @@ export class Access {
                 row.subjectPackageId === ACCESS_PACKAGE_ID &&
                 row.subjectType === principal.role.name &&
                 row.subjectRelation === null &&
-                kept.has(row.objectId) &&
+                selected.has(row.objectId) &&
                 new TupleCondition(row).failure(context) === undefined,
         );
 
@@ -812,7 +812,7 @@ export class Access {
             [...new Set(holders.map((subject) => subject.id))].map((id) => [id]),
         );
 
-        // keep the rows with a subject of their scope, or of any scope the field lists
+        // select the rows with a subject of their scope, or of any scope the field lists
         const definition = mapping.policy.definition;
         const keys = new Set(holders.map((holder) => Subject.key(holder)));
 

@@ -75,11 +75,11 @@ export interface Caller {
     readonly grant?: GrantClaim;
 }
 
-/** The grant a delegated caller acts under: its identifier, the scope keeping it, what it gives. */
+/** The grant a delegated caller acts under: its identifier, the scope storing it, what it gives. */
 export const GrantClaim = schema.object({
     /** The grant's identifier. */
     id: schema.identifier("grant"),
-    /** The scope keeping the grant: its delegator's. */
+    /** The scope storing the grant: its delegator's. */
     scope: schema.string().min(1),
     /** The permissions the grant gives (RFC 9396 authorization details). */
     permissions: schema.array(GrantPermission.schema),

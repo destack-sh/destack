@@ -15,6 +15,7 @@ import {
     type AccessContext,
     Relationship,
     type RelationshipRequest,
+    Invitation,
 } from "../index.ts";
 import {
     account,
@@ -147,6 +148,44 @@ test("bind roles on an ancestor, covering its descendants until the binding expi
     expect(await readable(carol)).toEqual([]);
 });
 
+test("decide a permission of another type on a node from a role bound on or above it, and refuse roles granting it elsewhere or no longer", async () => {
+    const { database, query, defineRole, relate } = await openRoleFixture();
+    const decide = async (target: string, context: AccessContext = carol) => {
+        const snapshot = Snapshot.live(database);
+        const access = await query.resolve(snapshot, "personal", context);
+        const decision = await query.check(
+            snapshot,
+            cell.permission("read"),
+            node.reference("personal", target),
+            access,
+        );
+
+        return decision.isAllowed;
+    };
+
+    // bind a role reading cells on "a" until 2000, and a role reading only nodes on "d"
+    const cells = await defineRole(1, [cell.permission("read")]);
+    const nodes = await defineRole(2, [node.permission("read")]);
+    await relate({
+        object: node.reference("personal", "a"),
+        role: cells,
+        subject: carolMembership,
+        expiresAt: 2000,
+    });
+    await relate({
+        object: node.reference("personal", "d"),
+        role: nodes,
+        subject: carolMembership,
+    });
+
+    // admit the cells' read on "a" and below it while bound, never on "d" or after the expiry
+    expect({
+        bound: [await decide("a"), await decide("b"), await decide("c")],
+        elsewhere: await decide("d"),
+        expired: await decide("b", { ...carol, now: 2000 }),
+    }).toEqual({ bound: [true, true, true], elsewhere: false, expired: false });
+});
+
 test("find a scope's role by name, and read an object's relationships through a relation, a role or one subject", async () => {
     // bind a reader role on note a to carol's membership, and let dave view it
     const { database, defineRole, relate } = await openRoleFixture();
@@ -221,7 +260,7 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
             home,
             database,
             () => carol,
-            (authorization) => authorization.deleteRole(object, reader, 1),
+            (authorization) => Role.delete(object, reader, 1, authorization),
         ),
     ).rejects.toThrow("role is still bound or included");
 });
@@ -266,7 +305,7 @@ test("bind roles to groups, nested groups and verified subject sets", async () =
 test("relate the members of a set in a field", async () => {
     const { database, readable, relate } = await openRoleFixture();
 
-    // relate the members of a team to "c" and keep carol as its member in a column
+    // relate the members of a team to "c" and store carol as its member in a column
     await relate({
         object: node.reference("personal", "c"),
         relation: "viewer",
@@ -287,11 +326,14 @@ test("bind only roles whose permissions the granting caller has", async () => {
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "a"),
-                    role: "role-01996ab0-0000-7000-8000-000000000999",
-                    subject: carolMembership,
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "a"),
+                        role: "role-01996ab0-0000-7000-8000-000000000999",
+                        subject: carolMembership,
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: "role not found" });
 
@@ -302,11 +344,14 @@ test("bind only roles whose permissions the granting caller has", async () => {
         database,
         () => alice,
         (authorization) =>
-            authorization.grant({
-                object: node.reference("personal", "a"),
-                role: reader,
-                subject: carolMembership,
-            }),
+            Relationship.grant(
+                {
+                    object: node.reference("personal", "a"),
+                    role: reader,
+                    subject: carolMembership,
+                },
+                authorization,
+            ),
     );
 
     // reject binding a role granting a permission she does not have there
@@ -317,11 +362,14 @@ test("bind only roles whose permissions the granting caller has", async () => {
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "a"),
-                    role: escalating,
-                    subject: carolMembership,
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "a"),
+                        role: escalating,
+                        subject: carolMembership,
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -335,11 +383,14 @@ test("bind only roles whose permissions the granting caller has", async () => {
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "a"),
-                    role: reader,
-                    subject: { ...node.reference("personal", "b"), relation: "viewer" },
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "a"),
+                        role: reader,
+                        subject: { ...node.reference("personal", "b"), relation: "viewer" },
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -374,11 +425,14 @@ test("let owners have everything in their scope, make owners, and never remove t
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: place,
-                    role: owner.id,
-                    subject: principal.user.reference("universe", "bob"),
-                }),
+                Relationship.grant(
+                    {
+                        object: place,
+                        role: owner.id,
+                        subject: principal.user.reference("universe", "bob"),
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
     const second = await Authorization.run(
@@ -386,11 +440,14 @@ test("let owners have everything in their scope, make owners, and never remove t
         database,
         () => carol,
         (authorization) =>
-            authorization.grant({
-                object: place,
-                role: owner.id,
-                subject: alice.subject,
-            }),
+            Relationship.grant(
+                {
+                    object: place,
+                    role: owner.id,
+                    subject: alice.subject,
+                },
+                authorization,
+            ),
     );
 
     // refuse a sharer who is not an owner binding the role granting everything
@@ -399,11 +456,15 @@ test("let owners have everything in their scope, make owners, and never remove t
         database,
         () => carol,
         (authorization) =>
-            authorization.createRole(place, {
-                name: "sharer",
-                description: "Shares the space",
-                permissions: [space.permission("share")],
-            }),
+            Role.create(
+                place,
+                {
+                    name: "sharer",
+                    description: "Shares the space",
+                    permissions: [space.permission("share")],
+                },
+                authorization,
+            ),
     );
     const dave: AccessContext = {
         subject: principal.user.reference("universe", "dave"),
@@ -419,11 +480,14 @@ test("let owners have everything in their scope, make owners, and never remove t
         database,
         () => carol,
         (authorization) =>
-            authorization.grant({
-                object: place,
-                role: sharer.id,
-                subject: dave.subject,
-            }),
+            Relationship.grant(
+                {
+                    object: place,
+                    role: sharer.id,
+                    subject: dave.subject,
+                },
+                authorization,
+            ),
     );
     await expect(
         Authorization.run(
@@ -431,18 +495,21 @@ test("let owners have everything in their scope, make owners, and never remove t
             database,
             () => dave,
             (authorization) =>
-                authorization.grant({
-                    object: place,
-                    role: owner.id,
-                    subject: principal.user.reference("universe", "bob"),
-                }),
+                Relationship.grant(
+                    {
+                        object: place,
+                        role: owner.id,
+                        subject: principal.user.reference("universe", "bob"),
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "only owners may bind a role granting everything",
     });
 
-    // keep at least one owner
+    // leave at least one owner
     const [first] = await database
         .select({ id: accessRelationship.id })
         .from(accessRelationship)
@@ -453,20 +520,20 @@ test("let owners have everything in their scope, make owners, and never remove t
             ),
         );
     if (first === undefined) {
-        throw new Error("the space keeps no first owner");
+        throw new Error("the space has no first owner");
     }
     await Authorization.run(
         home,
         database,
         () => carol,
-        (authorization) => authorization.revoke(place, second.id),
+        (authorization) => Relationship.revoke(place, second.id, authorization),
     );
     await expect(
         Authorization.run(
             home,
             database,
             () => carol,
-            (authorization) => authorization.revoke(place, first.id),
+            (authorization) => Relationship.revoke(place, first.id, authorization),
         ),
     ).rejects.toMatchObject({ code: "CONFLICT" });
 });
@@ -597,13 +664,16 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
             linkSecrets: [],
         }),
         (authorization) =>
-            authorization.invite({
-                relationship: {
-                    object: node.reference("personal", "a"),
-                    relation: "viewer",
-                    subject: dave.subject,
+            Invitation.create(
+                {
+                    relationship: {
+                        object: node.reference("personal", "a"),
+                        relation: "viewer",
+                        subject: dave.subject,
+                    },
                 },
-            }),
+                authorization,
+            ),
     );
 
     // refuse acceptance once bob no longer has the role
@@ -615,7 +685,8 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
             query,
             database,
             () => dave,
-            (authorization) => authorization.accept(offer.relationship.object, offer.id),
+            (authorization) =>
+                Invitation.accept(offer.relationship.object, offer.id, authorization),
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -646,26 +717,32 @@ async function openOwnedSpace() {
     return { ...fixture, home, place, owner };
 }
 
-test("keep a role by name, replace its purpose and permissions, then keep it identically without a write", async () => {
+test("upsert a role by name, replace its purpose and permissions, then upsert it identically without a write", async () => {
     const { database, place, owner } = await openOwnedSpace();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
 
-    // keep the role, keep it again under the same name with other permissions, and once more alike
+    // upsert the role, again under the same name with other permissions, and once more alike
     const created = await owner(1000, (authorization) =>
-        authorization.upsertRole(place, {
-            name: "editor",
-            description: "Read nodes",
-            permissions: [read],
-        }),
+        Role.upsert(
+            place,
+            {
+                name: "editor",
+                description: "Read nodes",
+                permissions: [read],
+            },
+            authorization,
+        ),
     );
     const changed = { name: "editor", description: "Update nodes", permissions: [update] };
-    await owner(2000, (authorization) => authorization.upsertRole(place, changed));
-    const kept = await owner(3000, (authorization) => authorization.upsertRole(place, changed));
+    await owner(2000, (authorization) => Role.upsert(place, changed, authorization));
+    const upserted = await owner(3000, (authorization) =>
+        Role.upsert(place, changed, authorization),
+    );
 
-    // expect one role at its second revision, last written at the change, granting only the kept permissions
+    // expect one role at its second revision, last written at the change, granting only the changed permissions
     const reading = await Transaction.open(database);
-    const record = await Role.read(reading, "personal", kept.id);
+    const record = await Role.read(reading, "personal", upserted.id);
     const expected = {
         ...created,
         description: "Update nodes",
@@ -673,30 +750,30 @@ test("keep a role by name, replace its purpose and permissions, then keep it ide
         revision: 2,
     };
     expect([
-        kept,
-        Role.describe(record, await Role.permissions(reading, kept.id)),
+        upserted,
+        Role.describe(record, await Role.permissions(reading, upserted.id)),
         record.updatedAt,
     ]).toEqual([expected, expected, 2000]);
 });
 
-test("keep an inherent role's permissions as declared, keeping the rows of the ones it grants already", async () => {
+test("replace an inherent role's permissions with the declared ones, leaving the rows of the ones it grants already", async () => {
     const { database, place } = await openOwnedSpace();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
     const remove = { ...read, name: "delete" };
     const dave = principal.user.reference("universe", "dave");
-    const keep = async (permissions: (typeof read)[], now: number) => {
+    const declare = async (permissions: (typeof read)[], now: number) => {
         const transaction = await Transaction.open(database);
-        const keeper = await Role.upsertInherent(
+        const upserted = await Role.upsertInherent(
             transaction,
             place,
-            { name: "keeper", description: "Keep nodes", permissions },
+            { name: "maintainer", description: "Maintain nodes", permissions },
             dave,
             now,
         );
         await transaction.commit();
 
-        return keeper;
+        return upserted;
     };
     const rows = async (id: string) =>
         database
@@ -705,13 +782,13 @@ test("keep an inherent role's permissions as declared, keeping the rows of the o
             .where(eq(accessRolePermission.roleId, schema.identifier("role").parse(id)))
             .orderBy(asc(accessRolePermission.name));
 
-    // keep the role, then keep it with one permission swapped
-    const keeper = await keep([read, update], 1000);
-    const first = await rows(keeper);
-    await keep([update, remove], 2000);
-    const second = await rows(keeper);
+    // declare the role, then declare it with one permission swapped
+    const declared = await declare([read, update], 1000);
+    const first = await rows(declared);
+    await declare([update, remove], 2000);
+    const second = await rows(declared);
 
-    // keep the update permission's row and replace the read one with a new delete row
+    // leave the update permission's row and replace the read one with a new delete row
     const [readRow, updateRow] = first;
     const [added] = second;
     const ids = [...first, ...second].map((row) => row.id);
@@ -725,23 +802,31 @@ test("keep an inherent role's permissions as declared, keeping the rows of the o
     });
 });
 
-test("assign a role to one subject alone, revoking the previous subject and keeping an identical binding", async () => {
+test("assign a role to one subject alone, revoking the previous subject and leaving an identical binding", async () => {
     const { database, place, owner } = await openOwnedSpace();
     const reader = await owner(1000, (authorization) =>
-        authorization.upsertRole(place, {
-            name: "reader",
-            description: "Read nodes",
-            permissions: [],
-        }),
+        Role.upsert(
+            place,
+            {
+                name: "reader",
+                description: "Read nodes",
+                permissions: [],
+            },
+            authorization,
+        ),
     );
 
     // assign the role to carol, to dave and to dave again
     const dave = principal.user.reference("universe", "dave");
-    await owner(1000, (authorization) => authorization.assign(place, reader.id, carol.subject));
-    const assigned = await owner(2000, (authorization) =>
-        authorization.assign(place, reader.id, dave),
+    await owner(1000, (authorization) =>
+        Role.assign(place, reader.id, carol.subject, authorization),
     );
-    const kept = await owner(3000, (authorization) => authorization.assign(place, reader.id, dave));
+    const assigned = await owner(2000, (authorization) =>
+        Role.assign(place, reader.id, dave, authorization),
+    );
+    const again = await owner(3000, (authorization) =>
+        Role.assign(place, reader.id, dave, authorization),
+    );
 
     // expect only dave's first binding on the scope's object
     const rows = await database
@@ -756,17 +841,21 @@ test("assign a role to one subject alone, revoking the previous subject and keep
         createdAt: 2000,
         expiresAt: null,
     };
-    expect([kept, rows.map((row) => Relationship.decode(row))]).toEqual([binding, [binding]]);
+    expect([again, rows.map((row) => Relationship.decode(row))]).toEqual([binding, [binding]]);
 });
 
-test("refuse keeping and assigning roles to a caller without the permissions", async () => {
+test("refuse upserting and assigning roles to a caller without the permissions", async () => {
     const { place, home, database, alice, owner } = await openOwnedSpace();
     const reader = await owner(1000, (authorization) =>
-        authorization.upsertRole(place, {
-            name: "reader",
-            description: "Read the space",
-            permissions: [space.permission("read")],
-        }),
+        Role.upsert(
+            place,
+            {
+                name: "reader",
+                description: "Read the space",
+                permissions: [space.permission("read")],
+            },
+            authorization,
+        ),
     );
 
     // refuse alice defining, changing and assigning a role in carol's space
@@ -774,23 +863,31 @@ test("refuse keeping and assigning roles to a caller without the permissions", a
         Authorization.run(home, database, () => alice, call);
     await expect(
         outsider((authorization) =>
-            authorization.upsertRole(place, {
-                name: "sharer",
-                description: "Share",
-                permissions: [],
-            }),
+            Role.upsert(
+                place,
+                {
+                    name: "sharer",
+                    description: "Share",
+                    permissions: [],
+                },
+                authorization,
+            ),
         ),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: create" });
     await expect(
         outsider((authorization) =>
-            authorization.upsertRole(place, {
-                name: "reader",
-                description: "Read",
-                permissions: [],
-            }),
+            Role.upsert(
+                place,
+                {
+                    name: "reader",
+                    description: "Read",
+                    permissions: [],
+                },
+                authorization,
+            ),
         ),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: update" });
     await expect(
-        outsider((authorization) => authorization.assign(place, reader.id, alice.subject)),
+        outsider((authorization) => Role.assign(place, reader.id, alice.subject, authorization)),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
 });

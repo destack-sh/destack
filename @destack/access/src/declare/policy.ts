@@ -57,7 +57,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
             PolicyDescription.parse(Policy.#describe(owner, input, relations)),
         );
 
-        // keep the names of the attributes conditions read
+        // collect the names of the attributes conditions read
         this.#attributes = new Set(Object.keys(this.definition.attributes));
         this.#context = new Set(Object.keys(this.definition.context));
     }

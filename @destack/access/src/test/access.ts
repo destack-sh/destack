@@ -7,12 +7,12 @@ import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 
-/** A database keeping replicas of other packages' access, for tests of packages that follow one. */
+/** A database storing replicas of other packages' access, for tests of packages that follow one. */
 export class AccessFixture {
-    /** The database keeping the replicas. */
+    /** The database storing the replicas. */
     readonly database: DatabaseConnection;
 
-    /** Keep replicas of access in a database. */
+    /** Store replicas of access in a database. */
     constructor(database: DatabaseConnection) {
         this.database = database;
     }

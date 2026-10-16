@@ -12,6 +12,7 @@ import {
     principal,
     Role,
     type AccessContext,
+    Relationship,
 } from "../index.ts";
 import {
     account,
@@ -90,18 +91,25 @@ test("relay an account's access through the space's database into an app's, and 
         Authorization.run(accounts, global.database, () => alice, call);
     await owner((authorization) => authorization.create(object, { owner: alice.subject }));
     const reader = await owner((authorization) =>
-        authorization.createRole(object, {
-            name: "reader",
-            description: "Read every note",
-            permissions: [node.permission("read")],
-        }),
+        Role.create(
+            object,
+            {
+                name: "reader",
+                description: "Read every note",
+                permissions: [node.permission("read")],
+            },
+            authorization,
+        ),
     );
     const binding = await owner((authorization) =>
-        authorization.grant({
-            object,
-            role: reader.id,
-            subject: nth(carol.groups, 0),
-        }),
+        Relationship.grant(
+            {
+                object,
+                role: reader.id,
+                subject: nth(carol.groups, 0),
+            },
+            authorization,
+        ),
     );
 
     // create the space in the universe beside its account, and replica both into the space's database
@@ -144,7 +152,7 @@ test("relay an account's access through the space's database into an app's, and 
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
     // revoke the binding in the account's database and refuse deciding on unconfirmed replicas
-    await owner((authorization) => authorization.revoke(object, binding.id));
+    await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
     const late = { ...carol, now: Date.now() + 60 };
@@ -167,11 +175,14 @@ test("relay an account's access through the space's database into an app's, and 
             app.database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object,
-                    relation: "member",
-                    subject: principal.user.reference("universe", "dave"),
-                }),
+                Relationship.grant(
+                    {
+                        object,
+                        relation: "member",
+                        subject: principal.user.reference("universe", "dave"),
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toEqual(
         new AccessError(
@@ -180,7 +191,7 @@ test("relay an account's access through the space's database into an app's, and 
         ),
     );
 
-    // keep the app's own relationships, about its notes, through a fresh snapshot of the space's replica
+    // read the app's own relationships, about its notes, through a fresh snapshot of the space's replica
     await replicate(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
     const own = await app.database
         .select({ type: accessRelationship.objectType, objectId: accessRelationship.objectId })
@@ -189,8 +200,8 @@ test("relay an account's access through the space's database into an app's, and 
     expect(own.filter((row) => row.type === node.name)).toEqual([{ type: "node", objectId: "b" }]);
 });
 
-test("write a home's own access at the home as it is born, beside the chain it replicates, and none where its creator keeps its row", async () => {
-    // create an account and its space owned by alice in the universe, which keeps the space's row alone
+test("write a home's own access at the home as it is born, beside the chain it replicates, and none where its creator stores its row", async () => {
+    // create an account and its space owned by alice in the universe, which stores the space's row alone
     const global = await openFixture();
     const home = await openFixture();
     onTestFinished(async () => {
@@ -210,7 +221,7 @@ test("write a home's own access at the home as it is born, beside the chain it r
     const personal = space.reference("account-1", "personal");
     await owner((authorization) => authorization.create(personal, { owner: alice.subject }));
 
-    // replicate the home's chain before it is born, keep its row, and receive it with its owner
+    // replicate the home's chain before it is born, store its row, and receive it with its owner
     const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
     const born = await spaces.chain(
         home.database,
@@ -237,11 +248,11 @@ test("write a home's own access at the home as it is born, beside the chain it r
     expect({
         home: await bound(home.database),
         universe: await bound(global.database),
-        keeps: await spaces.keeps(Snapshot.live(home.database), "personal"),
+        isHome: await spaces.isHome(Snapshot.live(home.database), "personal"),
     }).toEqual({
         home: [[Role.OWNER, "alice"]],
         universe: [],
-        keeps: true,
+        isHome: true,
     });
 
     // grant on the space at its home, and refuse it at the universe
@@ -251,11 +262,14 @@ test("write a home's own access at the home as it is born, beside the chain it r
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: personal,
-                    role: Role.OWNER,
-                    subject: principal.user.reference("universe", "dave"),
-                }),
+                Relationship.grant(
+                    {
+                        object: personal,
+                        role: Role.OWNER,
+                        subject: principal.user.reference("universe", "dave"),
+                    },
+                    authorization,
+                ),
         );
     await grant(spaces, home.database);
     await expect(grant(accounts, global.database)).rejects.toEqual(

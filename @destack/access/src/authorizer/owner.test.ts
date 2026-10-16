@@ -61,10 +61,10 @@ const holder = space.reference("account-1", "personal");
 /** An account unrelated to the holder. */
 const unrelated = account.reference(Scope.universe.id, "account-2");
 
-/** The scope keeping the assets, inside a third account. */
+/** The scope storing the assets, inside a third account. */
 const home = space.reference("account-3", "home");
 
-/** Open a database keeping assets of a space in another account's home, scopes replicated. */
+/** Open a database storing assets of a space in another account's home, scopes replicated. */
 async function openOwned() {
     // migrate the access tables beside the scopes and the assets
     const storage = await TestDatabase.create(
@@ -75,7 +75,7 @@ async function openOwned() {
     onTestFinished(() => storage.close());
     const { database } = storage;
 
-    // replicate the accounts, the holder and the home, and keep the holder and an asset it holds
+    // replicate the accounts, the holder and the home, and store the holder and an asset it holds
     const replicas = new AccessFixture(database);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
         await replicas.replicateScope(scope);
@@ -189,6 +189,6 @@ test("grant nothing through a role bound on an owner when a scope outside the ow
     const foreign = await reader(space.reference("account-2", "elsewhere"));
     await bind(holder, foreign);
 
-    // keep the asset hidden, since the role binds only within its own scope's chain
+    // hide the asset, since the role binds only within its own scope's chain
     expect(await readable()).toEqual({ selected: [], checked: [] });
 });

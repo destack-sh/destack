@@ -9,6 +9,7 @@ import {
     type AccessContext,
     Authorization,
     type Credential,
+    Relationship,
 } from "../index.ts";
 
 /** How long a test session credential lasts: a minute, longer than any test. */
@@ -46,11 +47,14 @@ export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
         database,
         () => alice,
         (authorization) =>
-            authorization.grant({
-                object: node.reference("personal", "b"),
-                relation: "editor",
-                subject: principal.user.reference("universe", "bob"),
-            }),
+            Relationship.grant(
+                {
+                    object: node.reference("personal", "b"),
+                    relation: "editor",
+                    subject: principal.user.reference("universe", "bob"),
+                },
+                authorization,
+            ),
     );
 
     return { test, database, authorizer, alice, bob, close: () => test.close() };

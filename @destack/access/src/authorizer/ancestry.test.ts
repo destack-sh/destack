@@ -16,7 +16,7 @@ import {
 import { AccessFixture } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 
-/** Clubs kept as scopes elsewhere, joined by their members and visited while open. */
+/** Clubs stored as scopes elsewhere, joined by their members and visited while open. */
 const club = new Policy(module4.package, {
     name: "club",
     attributes: { open: "number" },
@@ -25,14 +25,14 @@ const club = new Policy(module4.package, {
     scope: true,
 });
 
-/** The clubs' table, which a database may have without keeping a given club's row. */
+/** The clubs' table, which a database may have without storing a given club's row. */
 const clubTable = defineTable("example_club", {
     id: text("id").primaryKey(),
     scope: text("scope").notNull(),
     open: integer("open").notNull(),
 });
 
-/** The club kept elsewhere. */
+/** The club stored elsewhere. */
 const chess = club.reference("universe", "chess");
 
 /** Carol, a signed-in user. */
@@ -41,7 +41,7 @@ const carol = principal.user.reference("universe", "carol");
 test.for(TEST_DIALECTS)(
     "decide a scope with no table here on its ancestry row, refusing terms that need its attributes, on %s",
     async (dialect) => {
-        // keep the access tables alone with the club's ancestry row, so clubs map onto the ancestry
+        // store the access tables alone with the club's ancestry row, so clubs map onto the ancestry
         const storage = await TestDatabase.create(dialect, accessTables, { isMigrated: true });
         onTestFinished(() => storage.close());
         const authorizer = new Authorizer([club], []);
@@ -64,7 +64,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "decide a scope whose object row lives elsewhere on its ancestry row, and refuse a scope with neither, on %s",
     async (dialect) => {
-        // keep the clubs' table, empty, beside the access tables
+        // add the clubs' table, empty, beside the access tables
         const storage = await TestDatabase.create(dialect, [...accessTables, clubTable], {
             isMigrated: true,
         });
@@ -79,7 +79,7 @@ test.for(TEST_DIALECTS)(
         };
         const authorizer = new Authorizer([club], [mapping]);
 
-        // refuse even a member while this database keeps no row of the club
+        // refuse even a member while this database stores no row of the club
         const member = [carol, { ...chess, relation: "member" }];
         expect(await decide(authorizer, storage.database, member)).toEqual({
             join: [false, false],
@@ -99,7 +99,7 @@ test.for(TEST_DIALECTS)(
             stranger: { join: [false, false], visit: [false, false] },
         });
 
-        // decide on the club's own row once this database keeps it, open and visited by anyone
+        // decide on the club's own row once this database stores it, open and visited by anyone
         await storage.database
             .insert(clubTable)
             .values({ id: "chess", scope: "universe", open: 1 });

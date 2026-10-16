@@ -211,7 +211,7 @@ export const groupTable = defineTable("example_group", {
     scope: text("scope").notNull(),
 });
 
-/** Teams keeping their member in a column. */
+/** Teams storing their member in a column. */
 export const teamTable = defineTable(
     "example_team",
     {
@@ -288,7 +288,7 @@ export const mappings: TableMapping[] = [
     })),
 ];
 
-/** The mappings of a database that also keeps and writes the scope objects. */
+/** The mappings of a database that also stores and writes the scope objects. */
 export const homeMappings: TableMapping[] = [
     ...mappings,
     {

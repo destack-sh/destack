@@ -60,7 +60,7 @@ const sheetTable = defineTable("example_sheet", {
     owner: text("owner").notNull(),
 });
 
-/** Pieces that keep their parent's type in columns. */
+/** Pieces that store their parent's type in columns. */
 const pieceTable = defineTable("example_piece", {
     id: text("id").primaryKey(),
     scope: text("scope").notNull(),
@@ -228,7 +228,7 @@ async function decided(
     return { listed: listed.map((row) => row.id), permitted, checked };
 }
 
-test("intersect two grants on the narrower object and method, keeping either side alone when the other gives everything", () => {
+test("intersect two grants on the narrower object and method, taking either side alone when the other gives everything", () => {
     const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
     const write = { ...read, name: "write" };
     const one: GrantPermission[] = [{ ...read, objectId: "page-1" }, write];

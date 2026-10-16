@@ -1,3 +1,8 @@
+import { v7 } from "uuid";
+import { Table } from "@destack/db";
+import { Caller } from "../context/context.ts";
+import { isPrincipal } from "../declare/principal.ts";
+import type { Authorization } from "../authorizer/authorization.ts";
 import type { Select, Snapshot } from "@destack/db";
 import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
@@ -56,6 +61,79 @@ export const Grant = {
         ) {
             throw new AccessError("UNAUTHORIZED", `grant ${id} belongs to another delegate`);
         }
+
+        return grant;
+    },
+
+    /** Grant a delegate some of the caller's authority, in the caller's own scope. */
+    async create(
+        scope: ObjectReference,
+        request: GrantRequest,
+        authorization: Authorization,
+    ): Promise<Grant> {
+        // write only the grants of a local scope
+        await authorization.authorizer.requireLocal(authorization.transaction, scope);
+
+        // grant only a principal's own authority, in its own scope
+        const context = authorization.context();
+        const delegator = Caller.principal(context);
+        if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {
+            throw new AccessError("FORBIDDEN", "a principal can grant only its own authority");
+        }
+
+        // grant to one other principal, until a later time
+        const { delegate } = request;
+        if (
+            !isPrincipal(delegate) ||
+            delegate.id === "*" ||
+            delegate.scope === "*" ||
+            Subject.same(delegate, delegator)
+        ) {
+            throw new AccessError("FORBIDDEN", "a grant needs one other principal as delegate");
+        } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
+            throw new AccessError("CONFLICT", "a grant must expire after its creation");
+        }
+
+        // write the grant
+        const grant = Table.complete(accessGrant, {
+            id: schema.identifier("grant").parse(`grant-${v7()}`),
+            createdAt: context.now,
+            scope: scope.id,
+            ...ObjectReference.columns("delegator", delegator),
+            ...ObjectReference.columns("delegate", delegate),
+            permissions: [...request.permissions],
+            expiresAt: request.expiresAt ?? null,
+        });
+        await authorization.transaction.write({ table: accessGrant, before: null, after: grant });
+
+        return grant;
+    },
+
+    /** Revoke a grant, as its delegator. */
+    async revoke(
+        scope: ObjectReference,
+        id: Identifier<"grant">,
+        authorization: Authorization,
+    ): Promise<Grant> {
+        // write only the grants of a local scope
+        await authorization.authorizer.requireLocal(authorization.transaction, scope);
+
+        // require the grant in the scope and its delegator acting as itself
+        const context = authorization.context();
+        const delegator = Caller.principal(context);
+        const grant = await Grant.read(authorization.snapshot, id);
+        if (grant === undefined || grant.scope !== scope.id) {
+            throw new AccessError("NOT_FOUND", `no grant ${id}`);
+        } else if (
+            delegator === undefined ||
+            Caller.isDelegated(context) ||
+            !Subject.same(delegator, ObjectReference.at("delegator", grant))
+        ) {
+            throw new AccessError("FORBIDDEN", "only the delegator can revoke a grant");
+        }
+
+        // delete it
+        await authorization.transaction.write({ table: accessGrant, before: grant, after: null });
 
         return grant;
     },

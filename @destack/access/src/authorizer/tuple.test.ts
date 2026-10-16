@@ -56,7 +56,7 @@ function user(id: string): Subject {
     return principal.user.reference("universe", id);
 }
 
-/** Keep a relationship's expiry after its creation, as the table requires. */
+/** Place a relationship's expiry after its creation, as the table requires. */
 function lifetime(createdAt: number, expiresAt: number | null) {
     return {
         createdAt,
@@ -362,7 +362,7 @@ test.for(TEST_DIALECTS)(
                                         across: Number(permitting.permitted) === 1,
                                     });
 
-                                    // keep each decision until its expiry, as the query decides it just before then
+                                    // hold each decision until its expiry, as the query decides it just before then
                                     if (decision.until !== undefined) {
                                         const before = { ...context, now: decision.until - 1 };
                                         const later = await authorizer.resolve(

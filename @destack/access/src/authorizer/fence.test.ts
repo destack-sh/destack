@@ -47,7 +47,7 @@ test.for(TEST_DIALECTS)(
         await Transaction.run(database, (transaction) => Scope.unfence(transaction, "account-a"));
         expect(await moved()).toEqual([undefined, undefined]);
 
-        // refuse fencing a scope the database does not keep
+        // refuse fencing a scope the database does not store
         await expect(
             Transaction.run(database, (transaction) =>
                 Scope.fence(transaction, "account-z", "machine-b", 2000),

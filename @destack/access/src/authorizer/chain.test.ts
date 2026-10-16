@@ -10,6 +10,7 @@ import {
     Authorization,
     Authorizer,
     CHAIN_PUBLICATION,
+    Relationship,
 } from "../index.ts";
 import {
     account,
@@ -25,7 +26,7 @@ import {
 import { openFixture, userSubject } from "../test/database.ts";
 import { Clock } from "@destack/environment";
 
-/** The replica of the accounts' chains kept for the placement follower. */
+/** The replica of the accounts' chains stored for the placement follower. */
 const PLACEMENT_REPLICA = { name: Authorizer.chainReplica("placement"), below: "placement" };
 
 /** The object types whose universe relationships the tests' decisions read: every test type's. */
@@ -124,7 +125,7 @@ test("replicate a space's chain up to the universe from a relay, with the polici
         ],
     ]);
 
-    // leave out local types and universe principals, and keep the universe rows of the read types
+    // leave out local types and universe principals, and take the universe rows of the read types
     expect(
         authorizer
             .replicateChain(
@@ -181,11 +182,14 @@ test("replicate a space's chain up to the universe from a relay, with the polici
 
     // follow a grant on the account into the replica
     await owner((authorization) =>
-        authorization.grant({
-            object: account.reference("universe", "account-1"),
-            relation: "member",
-            subject: userSubject("carol"),
-        }),
+        Relationship.grant(
+            {
+                object: account.reference("universe", "account-1"),
+                relation: "member",
+                subject: userSubject("carol"),
+            },
+            authorization,
+        ),
     );
     await reach("account-1");
     expect(await replicated(app.database)).toEqual(await replicated(home.database));
@@ -199,7 +203,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
         await Promise.all([home.close(), app.close()]);
     });
 
-    // keep two accounts owned by alice with one member each in the home database
+    // store two accounts owned by alice with one member each in the home database
     const authorizer = new Authorizer(policies, homeMappings);
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(
@@ -221,7 +225,10 @@ test("replicate the chains of the accounts a follower outside them replicates in
             authorization.create(object, { owner: userSubject("alice") }),
         );
         await owner((authorization) =>
-            authorization.grant({ object, relation: "member", subject: userSubject(member) }),
+            Relationship.grant(
+                { object, relation: "member", subject: userSubject(member) },
+                authorization,
+            ),
         );
     }
     const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
@@ -271,7 +278,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
         types: TYPES,
     });
 
-    // replicate both accounts' access rows and the universe's in one stream, kept at each scope by the one record
+    // replicate both accounts' access rows and the universe's in one stream, stored at each scope by the one record
     await followChain(app.database, app.authorizer, both, feed);
     const head = await home.database.log.position();
     const scopes = ["account-1", "account-2", "universe"];
@@ -293,16 +300,16 @@ test("replicate the chains of the accounts a follower outside them replicates in
         "the chain's request",
     );
     await followChain(app.database, app.authorizer, first, feed);
-    const kept = await replicated(home.database);
+    const stored = await replicated(home.database);
     expect([
         await replicated(app.database),
         [...(await Replica.origins(app.database, CHAIN_PUBLICATION, scopes)).keys()].toSorted(),
     ]).toEqual([
         {
-            scopes: kept.scopes.filter(isOutsideSecond),
-            roles: kept.roles.filter(isOutsideSecond),
-            permissions: kept.permissions,
-            relationships: kept.relationships.filter(isOutsideSecond),
+            scopes: stored.scopes.filter(isOutsideSecond),
+            roles: stored.roles.filter(isOutsideSecond),
+            permissions: stored.permissions,
+            relationships: stored.relationships.filter(isOutsideSecond),
         },
         ["account-1", "universe"],
     ]);
@@ -370,7 +377,7 @@ async function replicated(database: DatabaseConnection) {
 }
 
 test("replicate the scope object row of a home's parent before the home is born", async () => {
-    // keep the home's chain in a database replicating accounts and spaces
+    // store the home's chain in a database replicating accounts and spaces
     const home = await openFixture();
     onTestFinished(() => home.close());
     const authorizer = new Authorizer(policies, homeMappings, {

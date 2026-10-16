@@ -10,7 +10,7 @@ export const InvitationStatus = defineSchema(schema.enum(INVITATION_STATUSES));
 /** Where an invitation stands. */
 export type InvitationStatus = schema.Infer<typeof InvitationStatus>;
 
-/** A pending grant, kept apart from relationships until its addressee or a grantor accepts. */
+/** A pending grant, stored apart from relationships until its addressee or a grantor accepts. */
 export const accessInvitation = defineTable(
     "invitation",
     {

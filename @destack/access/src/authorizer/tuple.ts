@@ -119,7 +119,7 @@ export class TupleReader {
         this.#ancestry = new Map<string, Promise<string[]>>();
         this.#loaded = new Map<string, Promise<Row | undefined>>();
 
-        // keep the authorizer, the snapshot and the scope chain
+        // take the authorizer, the snapshot and the scope chain
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
         this.#scopes = scopes;
@@ -624,7 +624,7 @@ export class TupleReader {
         scope: string,
         trail: Trail,
     ): Promise<TupleTree> {
-        // keep the relationships to plain objects in the row's scope
+        // select the relationships to plain objects in the row's scope
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const relationships = (await this.#rowRelationships(mapping, row)).filter(
             (entry) =>
@@ -988,7 +988,7 @@ export class TupleReader {
             }
         }
 
-        // keep the order of the identifiers, nearest ancestors first
+        // preserve the order of the identifiers, nearest ancestors first
         const rows = await Promise.all(ids.map((id) => found(this.#loaded, key(id))));
 
         return rows.flatMap((row) => (row === undefined ? [] : [row]));

@@ -18,7 +18,7 @@ await database
     .select()
     .from(pages)
     .where(authorizer.where(page.permission("read"), access));
-await authorization.grant({ object: page, relation: "editor", subject }); // WriteRelationships
+await Relationship.grant({ object: page, relation: "editor", subject }, authorization); // WriteRelationships
 ```
 
 ## Policies
@@ -73,35 +73,49 @@ await authorizer.explain(snapshot, note.permission("delete"), target, access);
 
 ## Changes
 
-`Authorization` changes access as one caller, requiring the caller's permission for each change.
+An `Authorization` is one caller's session in a transaction: it records scopes, and `Relationship`, `Invitation`, `Role` and `Grant` change access through it, each requiring the caller's permission.
 
 ```ts
-const authorization = new Authorization(authorizer, database, (scope) => caller.context(scope));
-// a scope created here, then born at its home below its account
-await authorization.create(space, { owner: alice });
-await authorization.receive(space, [accountId], { owner: alice });
-await authorization.remove(space);
-await authorization.revoke(page, relationshipId);
-// a share link
-const { id, secret } = await authorization.link({ object: page, relation: "viewer" });
-const offer = await authorization.invite({
-    relationship: { object: page, relation: "editor", subject: contact },
-});
-await authorization.accept(page, offer.id);
+await Authorization.run(
+    authorizer,
+    database,
+    () => context,
+    async (authorization) => {
+        // a scope created here, then born at its home below its account
+        await authorization.create(space, { owner: alice });
+        await authorization.receive(space, [accountId], { owner: alice });
+        await authorization.remove(space);
+        await Relationship.revoke(page, relationshipId, authorization);
+        // a share link
+        const { id, secret } = await Relationship.link(
+            { object: page, relation: "viewer" },
+            authorization,
+        );
+        const offer = await Invitation.create(
+            { relationship: { object: page, relation: "editor", subject: contact } },
+            authorization,
+        );
+        await Invitation.accept(page, offer.id, authorization);
+    },
+);
 ```
 
 ## Roles
 
-`createRole` creates a role granting permissions the caller has, `keepRole` keeps a declared role by name, `assign` binds a role to one subject, and `Role.OWNER` is the one owner role of every scope.
+`Role.create` defines a role granting permissions the caller has, `Role.upsert` creates or updates a declared role by name, `Role.assign` binds a role to one subject, and `Role.OWNER` is the one owner role of every scope.
 
 ```ts
-const role = await authorization.createRole(space, {
-    name: "reviewer",
-    description: "Read and share every note",
-    permissions: [note.permission("read"), note.permission("share")],
-});
-await authorization.assign(space, role.id, carol);
-await authorization.grant({ object: space, role: Role.OWNER, subject: bob });
+const role = await Role.create(
+    space,
+    {
+        name: "reviewer",
+        description: "Read and share every note",
+        permissions: [note.permission("read"), note.permission("share")],
+    },
+    authorization,
+);
+await Role.assign(space, role.id, carol, authorization);
+await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, authorization);
 ```
 
 ## Grants
@@ -109,14 +123,18 @@ await authorization.grant({ object: space, role: Role.OWNER, subject: bob });
 A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, presented on a caller as its RFC 8693 actor chain.
 
 ```ts
-const grant = await authorization.createGrant(aliceScope, {
-    delegate: installation,
-    permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
-});
+const grant = await Grant.create(
+    aliceScope,
+    {
+        delegate: installation,
+        permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
+    },
+    authorization,
+);
 const caller = {
     ...Caller.of(alice),
     actors: [installation],
     grant: Grant.claim(grant),
 };
-await authorization.revokeGrant(aliceScope, grant.id);
+await Grant.revoke(aliceScope, grant.id, authorization);
 ```

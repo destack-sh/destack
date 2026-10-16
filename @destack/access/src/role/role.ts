@@ -1,4 +1,8 @@
-import type { ObjectReference, Subject } from "@destack/sync";
+import * as policies from "../declare/principal.ts";
+import { zip } from "@destack/schema";
+import type { RelationshipCondition } from "../relationship/relationship.ts";
+import type { Authorization } from "../authorizer/authorization.ts";
+import { type ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
 import { defineSchema, schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
@@ -141,7 +145,7 @@ export const Role = {
         );
     },
 
-    /** Replace a role's permissions with a declared set, keeping rows of existing ones. */
+    /** Replace a role's permissions with a declared set, leaving the rows of unchanged ones. */
     async replace(
         transaction: Transaction,
         roleId: Select<typeof accessRole>["id"],
@@ -193,7 +197,7 @@ export const Role = {
         await Role.bindOnce(transaction, scope, Role.OWNER, owner, now);
     },
 
-    /** Keep a creation-defined role with exactly some permissions, bound to one scope subject. */
+    /** Upsert a creation-defined role with exactly some permissions, bound to one scope subject. */
     async upsertInherent(
         transaction: Transaction,
         scope: ObjectReference,
@@ -278,4 +282,328 @@ export const Role = {
     reference(row: Select<typeof accessRolePermission>): PermissionReference {
         return { packageId: row.packageId, type: row.type, name: row.name };
     },
+
+    /** Define a role under a free name, granting only permissions the caller has there. */
+    async create(
+        scope: ObjectReference,
+        request: RoleRequest,
+        authorization: Authorization,
+    ): Promise<Role> {
+        return authorization.transaction.savepoint(async () => {
+            // require permission to define roles and every permission the role grants
+            await authorization.authorizeRole(scope, [
+                policies.role.permission("create"),
+                ...request.permissions,
+            ]);
+
+            // define the role under a name free in the scope
+            const now = authorization.context().now;
+            const id = await Role.define(
+                authorization.transaction,
+                scope.id,
+                request,
+                now,
+                authorization.manager,
+            );
+            if (id === undefined) {
+                throw new AccessError("CONFLICT", "role name is already in use");
+            }
+            const record = await Role.read(authorization.transaction, scope.id, id);
+            authorization.renew();
+
+            return Role.describe(record, request.permissions);
+        });
+    },
+
+    /** Change a role's name, purpose or permissions at a revision, within the caller's rights. */
+    async update(
+        scope: ObjectReference,
+        id: string,
+        changes: Partial<RoleRequest> & { readonly revision: number },
+        authorization: Authorization,
+    ): Promise<Role> {
+        return authorization.transaction.savepoint(async () => {
+            // require an editable role at the revision, permission to change roles, and every permission granted
+            const context = authorization.context();
+            const record = await Role.read(authorization.transaction, scope.id, id);
+            if (record.revision !== changes.revision) {
+                throw new AccessError("CONFLICT", "role revision has changed");
+            }
+            await authorization.authorizeRole(
+                scope,
+                [policies.role.permission("update"), ...(changes.permissions ?? [])],
+                record,
+            );
+
+            // apply the changes at the next revision
+            const updated = {
+                ...record,
+                ...(changes.name === undefined ? {} : { name: changes.name }),
+                ...(changes.description === undefined ? {} : { description: changes.description }),
+                revision: record.revision + 1,
+                updatedAt: context.now,
+            };
+            await authorization.transaction.write({
+                table: accessRole,
+                before: record,
+                after: updated,
+            });
+
+            // replace the permissions when given
+            if (changes.permissions !== undefined) {
+                await Role.replace(
+                    authorization.transaction,
+                    record.id,
+                    scope.id,
+                    changes.permissions,
+                );
+            }
+            authorization.renew();
+
+            return Role.describe(
+                updated,
+                changes.permissions ??
+                    (await Role.permissions(authorization.transaction, record.id)),
+            );
+        });
+    },
+
+    /** Delete an unbound role at a revision, managed roles only through their declaration. */
+    async delete(
+        scope: ObjectReference,
+        id: string,
+        revision: number,
+        authorization: Authorization,
+    ): Promise<Role> {
+        return authorization.transaction.savepoint(async () => {
+            // require an editable role at the revision and permission to delete roles
+            const record = await Role.read(authorization.transaction, scope.id, id);
+            if (record.revision !== revision) {
+                throw new AccessError("CONFLICT", "role revision has changed");
+            }
+            await authorization.authorizeRole(scope, [policies.role.permission("delete")], record);
+
+            // refuse deleting a role that is still bound or included
+            const bindings = await authorization.transaction.read(accessRelationship).findMany({
+                where: {
+                    OR: [
+                        { roleId: record.id },
+                        {
+                            subjectPackageId: policies.role.definition.packageId,
+                            subjectType: policies.role.name,
+                            subjectId: record.id,
+                        },
+                    ],
+                },
+                limit: 1,
+            });
+            if (bindings.length > 0) {
+                throw new AccessError("CONFLICT", "role is still bound or included");
+            }
+
+            // delete the role with its permissions
+            const permissions = await Role.permissions(authorization.transaction, record.id);
+            await Role.replace(authorization.transaction, record.id, scope.id, []);
+            await authorization.transaction.write({
+                table: accessRole,
+                before: record,
+                after: null,
+            });
+            authorization.renew();
+
+            return Role.describe(record, permissions);
+        });
+    },
+
+    /** Upsert a role by name in a scope with exactly the requested purpose and permissions. */
+    async upsert(
+        scope: ObjectReference,
+        request: RoleRequest,
+        authorization: Authorization,
+    ): Promise<Role> {
+        return authorization.transaction.savepoint(async () => {
+            // read the role with the name, and define it when none exists
+            const now = authorization.context().now;
+            const existing = await authorization.transaction.read(accessRole).findFirst({
+                where: {
+                    scope: scope.id,
+                    name: request.name,
+                },
+            });
+            if (existing === undefined) {
+                return Role.create(scope, request, authorization);
+            }
+
+            // accept only a role under the same manager, and leave a matching role as it is
+            await authorization.authorizeRole(
+                scope,
+                [policies.role.permission("update"), ...request.permissions],
+                existing,
+            );
+            if (!isManagedBy(existing, authorization.manager)) {
+                throw new AccessError("CONFLICT", "role name is already in use");
+            }
+            const granted = await Role.permissions(authorization.transaction, existing.id);
+            const isGranted = isSamePermissions(granted, request.permissions);
+            if (existing.description === request.description && isGranted) {
+                return Role.describe(existing, granted);
+            }
+
+            // describe it anew at its next revision, replacing differing permissions
+            const updated = {
+                ...existing,
+                description: request.description,
+                updatedAt: now,
+                revision: existing.revision + 1,
+            };
+            await authorization.transaction.write({
+                table: accessRole,
+                before: existing,
+                after: updated,
+            });
+            if (!isGranted) {
+                await Role.replace(
+                    authorization.transaction,
+                    existing.id,
+                    scope.id,
+                    request.permissions,
+                );
+            }
+            authorization.renew();
+
+            return Role.describe(updated, request.permissions);
+        });
+    },
+
+    /** Bind a role on an object to only one subject, as the caller may. */
+    async assign(
+        object: ObjectReference,
+        role: string,
+        subject: Subject,
+        authorization: Authorization,
+    ): Promise<Relationship> {
+        const relationship = await authorization.transaction.savepoint(async () => {
+            // read the role's bindings
+            const request = { object, role, subject };
+            const id = schema.identifier("role").parse(role);
+            const rows = await authorization.transaction
+                .read(accessRelationship)
+                .findMany({ where: { roleId: id } });
+            const bound = rows.map((row) => Relationship.decode(row));
+
+            // leave a role bound only to the subject as it is
+            const [only] = bound;
+            if (bound.length === 1 && only !== undefined && isBinding(only, request)) {
+                return only;
+            }
+
+            // revoke its other bindings and bind it to the subject, as the caller may
+            await authorization.authorizeGrant(request);
+            for (const [binding, row] of zip(bound, rows)) {
+                await authorization.authorizeRevoke(binding, row);
+            }
+            for (const row of rows) {
+                await authorization.transaction.write({
+                    table: accessRelationship,
+                    before: row,
+                    after: null,
+                });
+            }
+
+            return Relationship.create(request, authorization);
+        });
+        authorization.renew();
+
+        return relationship;
+    },
+
+    /** Upsert a scope's role by name with exactly some permissions, bound to one subject. */
+    async upsertBinding(
+        scope: ObjectReference,
+        binding: Omit<RoleRequest, "permissions"> & {
+            /** The permissions the role grants, none to drop the role and its binding. */
+            readonly permissions: RoleRequest["permissions"];
+            /** The one subject the role is bound to. */
+            readonly subject: Subject;
+            /** The object in the scope the role is bound on, the scope itself when absent. */
+            readonly object?: ObjectReference;
+            /** What a request must meet for the binding to apply. */
+            readonly conditions?: RelationshipCondition;
+        },
+        authorization: Authorization,
+    ): Promise<void> {
+        // drop the binding and the role when it grants nothing
+        const { subject, object, conditions, ...request } = binding;
+        if (request.permissions.length === 0) {
+            await Relationship.replace({ scope: scope.id }, [], authorization);
+            const existing = await authorization.transaction.read(accessRole).findFirst({
+                where: {
+                    scope: scope.id,
+                    name: request.name,
+                },
+            });
+            if (existing !== undefined) {
+                await Role.delete(scope, existing.id, existing.revision, authorization);
+            }
+
+            return;
+        }
+
+        // upsert the role with exactly the permissions, bound only to the subject
+        const role = await Role.upsert(scope, request, authorization);
+        await Relationship.replace(
+            { scope: scope.id },
+            [
+                {
+                    object: object ?? scope,
+                    role: role.id,
+                    subject,
+                    ...(conditions === undefined ? {} : { conditions }),
+                },
+            ],
+            authorization,
+        );
+    },
 };
+
+/** Report whether a relationship binds a role to a subject without condition or expiry. */
+function isBinding(
+    relationship: Relationship,
+    request: {
+        readonly object: ObjectReference;
+        readonly role: string;
+        readonly subject: Subject;
+    },
+): boolean {
+    return (
+        "role" in relationship &&
+        relationship.role === request.role &&
+        Subject.same(relationship.object, request.object) &&
+        Subject.same(relationship.subject, request.subject) &&
+        relationship.expiresAt === null &&
+        relationship.conditions === undefined
+    );
+}
+
+/** Report whether a role is under a manager, or under none for null. */
+function isManagedBy(record: Select<typeof accessRole>, manager: Manager | null): boolean {
+    const columns = Manager.values(manager);
+
+    return (
+        record.managerInstallationId === columns.managerInstallationId &&
+        record.managerPackageId === columns.managerPackageId &&
+        record.managerName === columns.managerName
+    );
+}
+
+/** Report whether two lists of permissions grant the same set. */
+function isSamePermissions(
+    left: readonly PermissionReference[],
+    right: readonly PermissionReference[],
+): boolean {
+    // compare the sets of their keys
+    const lefts = new Set(left.map((permission) => PermissionReference.key(permission)));
+    const rights = new Set(right.map((permission) => PermissionReference.key(permission)));
+
+    return lefts.size === rights.size && [...lefts].every((key) => rights.has(key));
+}

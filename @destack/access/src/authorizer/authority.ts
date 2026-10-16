@@ -32,9 +32,9 @@ export class Authority {
     /** The authority's subject sets as one JSON list of `[package, type, scope, id, relation]`. */
     readonly #sets: string;
 
-    /** Keep an authority's subjects. */
+    /** Create an authority over its subjects. */
     constructor(subjects: readonly Subject[]) {
-        // keep the subjects, and list them once for SQL
+        // take the subjects, and list them once for SQL
         this.subjects = subjects;
         this.#identities = JSON.stringify(
             subjects

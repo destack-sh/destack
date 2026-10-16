@@ -33,7 +33,7 @@ test.for(TEST_DIALECTS)(
         const snapshot = Snapshot.live(database);
         const note = node.reference("personal", "a");
 
-        // keep the personal space below its account, as every scope has its row
+        // store the personal space below its account, as every scope has its row
         const replicas = new AccessFixture(database);
         const personal = space.reference("account-1", "personal");
         await replicas.replicateScope(account.reference("universe", "account-1"));

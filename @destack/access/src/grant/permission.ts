@@ -61,17 +61,17 @@ export const GrantPermission = {
         return selected;
     },
 
-    /** Keep the permissions two grants both give, absent when neither limits. */
+    /** Intersect the permissions two grants give, absent when neither limits. */
     intersect(
         left: readonly GrantPermission[] | undefined,
         right: readonly GrantPermission[] | undefined,
     ): GrantPermission[] | undefined {
-        // keep the other side when one side gives everything
+        // take the other side when one side gives everything
         if (left === undefined || right === undefined) {
             return left === undefined ? right?.slice() : left.slice();
         }
 
-        // keep each permission both give, on the narrower object and method
+        // take each permission both give, on the narrower object and method
         return left.flatMap((entry) =>
             right
                 .filter(

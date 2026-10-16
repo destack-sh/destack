@@ -3,7 +3,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { defineTable, Snapshot, sql, text } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
-import { Authorizer, contained, Policy, principal, through, type TableMapping } from "../index.ts";
+import { Authorizer, contained, Policy, principal, through, TableMapping } from "../index.ts";
 import {
     accountTable,
     fixtureDatabase,
@@ -42,7 +42,7 @@ const parcel = new Policy(module4.package, {
     permissions: { reside: contained(principal.installation) },
 });
 
-/** The homes, global scopes whose rows the universe keeps by identifier alone. */
+/** The homes, global scopes whose rows the universe stores by identifier alone. */
 const homeTable = defineTable("example_home", { id: text("id").primaryKey() });
 
 /** Homes living in a realm, keyed in their scope. */
@@ -121,11 +121,17 @@ test.for(TEST_DIALECTS)(
             const access = await authorizer.resolve(snapshot, holder, caller);
             const permission = { ...target, name };
             const memory = await authorizer.check(snapshot, permission, target, access);
+            const { table, id } = authorizer.requireMapping(target);
             const [row] = await database.execute(
-                sql`SELECT CASE WHEN ${authorizer.permits(permission, target, access)} THEN 1 ELSE 0 END AS permitted`,
+                sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${authorizer.where(permission, access, table)} AND ${TableMapping.column(table, id)} = ${target.id}) AS permitted`,
                 schema.record(
                     schema.string(),
-                    schema.union([schema.number(), schema.string(), schema.bigint()]),
+                    schema.union([
+                        schema.number(),
+                        schema.string(),
+                        schema.bigint(),
+                        schema.boolean(),
+                    ]),
                 ),
             );
 
@@ -226,7 +232,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "contain a space's principals under its global principal reference, on %s",
     async (dialect) => {
-        // keep homes, global scopes in a realm whose rows the universe keeps, and a person relating to one home
+        // store homes, global scopes in a realm whose rows the universe stores, and a person relating to one home
         const home = new Policy(module4.package, {
             name: "home",
             permissions: { reside: contained() },
@@ -292,26 +298,14 @@ test.for(TEST_DIALECTS)(
             const listed = await authorizer.checkRows(snapshot, permission, resolved, [
                 { id: "alice", scope: "universe" },
             ]);
-            const [row] = await database.execute(
-                sql`SELECT CASE WHEN ${authorizer.permits(permission, target, resolved)} THEN 1 ELSE 0 END AS permitted`,
-                schema.record(
-                    schema.string(),
-                    schema.union([schema.number(), schema.string(), schema.bigint()]),
-                ),
-            );
 
-            return [
-                scope,
-                memory.isAllowed,
-                listed.permitted.has(0),
-                Number(row?.["permitted"]) === 1,
-            ];
+            return [scope, memory.isAllowed, listed.permitted.has(0)];
         };
 
         // permit the person's own home's installation, which the relation names by its global reference, and refuse another home's
         expect([await decide("own"), await decide("other")]).toEqual([
-            ["own", true, true, true],
-            ["other", false, false, false],
+            ["own", true, true],
+            ["other", false, false],
         ]);
     },
 );
@@ -319,7 +313,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "contain a global scope's principal in its own scope under its universe reference, on %s",
     async (dialect) => {
-        // keep homes in a realm, each a global scope whose principal callers present at the universe
+        // store homes in a realm, each a global scope whose principal callers present at the universe
         const home = new Policy(module4.package, {
             name: "home",
             permissions: { reside: contained() },

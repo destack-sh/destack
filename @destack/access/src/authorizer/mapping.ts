@@ -35,11 +35,11 @@ export interface TableMapping {
     readonly owner?: string;
     /** Whether the table has several object types, told apart by its packageId and type columns. */
     readonly isShared?: boolean;
-    /** The rows that replicas of the scopes inside each row's scope keep, for inherited objects. */
+    /** The rows the replicas of the scopes inside each row's scope store, for inherited objects. */
     readonly inherited?: Condition;
     /** Application columns supplying declared scalar attributes. */
     readonly attributes: Readonly<Record<string, string>>;
-    /** Relations with the subject in a field, the others kept in relationships. */
+    /** Relations with the subject in a field, the others stored as relationships. */
     readonly relations: Readonly<
         Record<
             string,
@@ -65,7 +65,7 @@ export interface TableMapping {
 
 /** Where a policy's objects live: reading rows and scopes, and validating mappings. */
 export const TableMapping = {
-    /** Map a scope type onto the ancestry every database keeps, its rows standing by reference. */
+    /** Map a scope type onto the ancestry every database stores, its rows standing by reference. */
     ancestry(policy: Policy): TableMapping {
         return {
             policy,
@@ -214,14 +214,14 @@ export const TableMapping = {
 
     /** Require the owning parent to be a field relation of one subject type. */
     validateParent(authorizer: Authorizer, mapping: TableMapping): void {
-        // refuse a parent kept in relationships
+        // refuse a parent stored as relationships
         if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
             throw new AccessError(
                 "INVALID_DECLARATION",
                 `owning parent must be a field relation: ${mapping.parent}`,
             );
         }
-        // require one subject type of a parent kept in a field
+        // require one subject type of a parent stored in a field
         else if (mapping.parent !== undefined) {
             authorizer.onlySubject(mapping.policy, mapping.parent);
         }
@@ -390,7 +390,7 @@ export interface ReferenceColumns {
     readonly id: string;
 }
 
-/** A relation kept in a field and used as a subject set. */
+/** A relation stored in a field and used as a subject set. */
 export interface FieldRelation {
     /** The mapping of the type declaring the relation. */
     readonly mapping: TableMapping;

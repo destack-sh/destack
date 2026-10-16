@@ -70,7 +70,7 @@ const mappings: TableMapping[] = [
 test.for(TEST_DIALECTS)(
     "follow a relation to a global type at the universe, through a plain and a typed field, deciding in memory as in SQL, on %s",
     async (dialect) => {
-        // keep a profile carol views, and a card in a space showing it through both fields
+        // store a profile carol views, and a card in a space showing it through both fields
         const storage = await TestDatabase.create(
             dialect,
             [...accessTables, profileTable, cardTable],

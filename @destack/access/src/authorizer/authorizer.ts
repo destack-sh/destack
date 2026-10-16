@@ -155,11 +155,11 @@ export class Authorizer {
     readonly #inherited: Map<string, readonly ChainStep[]>;
     /** How long an access replica may go without its home before refusal, in milliseconds. */
     readonly lag: number;
-    /** The one partition whose scopes' access this database keeps, every partition when absent. */
+    /** The one partition whose scopes' access this database stores, every partition when absent. */
     readonly partition: string | undefined;
     /** The object types whose access rows live in this database, rather than as replicas. */
     readonly local: readonly ObjectTypeReference[];
-    /** The object types replicated from scopes above: inherited rows and kept scope types. */
+    /** The object types replicated from scopes above: inherited rows and stored scope types. */
     readonly replicated: readonly ObjectTypeReference[];
     /** The replicated object types whose rows live in a scope. */
     readonly scoped: readonly ObjectTypeReference[];
@@ -183,7 +183,7 @@ export class Authorizer {
             readonly lag?: number;
             /** Decide whether the database replicates a table's rows from their home. */
             readonly replicates?: (table: Table) => boolean;
-            /** The one partition whose scopes' access the database keeps, every one when absent. */
+            /** The one partition whose scopes' access the database stores, else every one. */
             readonly partition?: string;
         } = {},
     ) {
@@ -231,7 +231,7 @@ export class Authorizer {
             this.#validateScopeRelations(type);
         }
 
-        // list the types whose access rows this database keeps, and the types it keeps replicas of
+        // list the types whose access rows this database stores, and the types it stores replicas of
         const replicates = options.replicates ?? (() => false);
         this.local = this.#localTypes(replicates);
         this.replicated = this.#replicatedTypes(replicates);
@@ -432,7 +432,7 @@ export class Authorizer {
                 .flatMap((policy) => Object.values(policy.definition.relations))
                 .flatMap((relation) => relation.subjects)
                 .flatMap((subject): [string, PermissionReference][] => {
-                    // keep the subject sets
+                    // collect the subject sets
                     if (subject.relation === undefined) {
                         return [];
                     }
@@ -763,7 +763,7 @@ export class Authorizer {
         return this.policy(target).definition.scope === true ? target.id : target.scope;
     }
 
-    /** Decide whether the transaction's database keeps an object's access rows. */
+    /** Decide whether the transaction's database stores an object's access rows. */
     async isLocal(transaction: Transaction, object: ObjectReference): Promise<boolean> {
         // follow a role to the scope object defining it
         if (this.mapping(object)?.table === accessRole) {
@@ -771,11 +771,11 @@ export class Authorizer {
 
             return this.isLocal(transaction, scope);
         }
-        // keep a scope object's own access at the scope's home, which keeps the scope itself
+        // store a scope object's own access at the scope's home, which stores the scope itself
         else if (this.policy(object).definition.scope === true) {
-            return this.keeps(transaction.view(), object.id);
+            return this.isHome(transaction.view(), object.id);
         }
-        // keep another type's access where its rows are local
+        // store another type's access where its rows are local
         else {
             return this.local.some(
                 (type) => type.packageId === object.packageId && type.type === object.type,
@@ -784,7 +784,7 @@ export class Authorizer {
     }
 
     /** Decide whether a snapshot's database stores a scope's own access rows. */
-    async keeps(snapshot: Snapshot, scope: string): Promise<boolean> {
+    async isHome(snapshot: Snapshot, scope: string): Promise<boolean> {
         const [row] = await Scope.read(snapshot, [scope]);
 
         return (
@@ -801,9 +801,9 @@ export class Authorizer {
         );
     }
 
-    /** Refuse writing the access rows of an object another database keeps. */
+    /** Refuse writing the access rows of an object another database stores. */
     async requireLocal(transaction: Transaction, object: ObjectReference): Promise<void> {
-        // refuse access a scope's own partition keeps at its home, and access this database replicates
+        // refuse access a scope's own partition stores at its home, and access this database replicates
         if (!(await this.isLocal(transaction, object))) {
             const [row] =
                 this.policy(object).definition.scope === true
@@ -864,7 +864,7 @@ export class Authorizer {
         replica: {
             /** The replica's name, one record per follower. */
             readonly name: string;
-            /** The scope the replica is kept for, the follower or the scope it lives in. */
+            /** The scope the replica is stored for, the follower or the scope it lives in. */
             readonly below: string;
         },
         via: readonly { readonly id: string; readonly scope: string | null }[],
@@ -979,7 +979,7 @@ export class Authorizer {
         const { via } = parameters;
         const scopes = [scope, ...parameters.between, ...via];
 
-        // leave out the access rows of the objects the follower keeps, and of global principals living in the universe
+        // leave out the access rows of the objects the follower stores, and of global principals living in the universe
         const remote: Condition = {
             NOT: {
                 OR: [
@@ -995,7 +995,7 @@ export class Authorizer {
                 ],
             },
         };
-        // keep the universe's relationships of the object types the follower's decisions read
+        // select the universe's relationships of the object types the follower's decisions read
         const read: Condition = {
             AND: [
                 remote,
@@ -1017,11 +1017,11 @@ export class Authorizer {
             scopes,
         ]);
 
-        // add the rows of each replicated type this database keeps
-        const kept = parameters.replicated.filter((type) => this.mapping(type) !== undefined);
-        const replicated = kept.flatMap((type) => this.#replicatedRows(type, scopes, via));
+        // add the rows of each replicated type this database stores
+        const stored = parameters.replicated.filter((type) => this.mapping(type) !== undefined);
+        const replicated = stored.flatMap((type) => this.#replicatedRows(type, scopes, via));
         const owned = new Set(
-            kept
+            stored
                 .filter((type) => this.requireMapping(type).policy.definition.scope === true)
                 .map((type) => this.#replicatedTable(type)),
         );
@@ -1123,7 +1123,7 @@ export class Authorizer {
         });
     }
 
-    /** Read the table of a requested object type, refusing a type without a kept table. */
+    /** Read the table of a requested object type, refusing a type without a stored table. */
     #replicatedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
@@ -1320,13 +1320,13 @@ export class Authorizer {
         // read the object, a scope whose object row lives elsewhere by its ancestry row
         const declared = this.requireMapping(target);
         const reading = reader ?? this.reader(snapshot, access.scopes);
-        const kept = await reading.row(declared, target);
+        const found = await reading.row(declared, target);
         const isStanding =
-            kept === undefined &&
+            found === undefined &&
             declared.policy.definition.scope === true &&
             declared.table !== Scope.table;
         const mapping = isStanding ? TableMapping.ancestry(declared.policy) : declared;
-        const row = isStanding ? await reading.row(mapping, target) : kept;
+        const row = isStanding ? await reading.row(mapping, target) : found;
         if (row === undefined) {
             return { isAllowed: false };
         }
@@ -1529,7 +1529,7 @@ export class Authorizer {
             [...wanted.values()],
         );
 
-        // keep a relationship on an object in the scope or on the scope itself, whose subject and conditions pass
+        // select a relationship on an object in the scope or on the scope itself, whose subject and conditions pass
         return rows.some(
             (row) =>
                 (row.objectScope === scope ||
@@ -1795,9 +1795,9 @@ export class Authorizer {
         return only;
     }
 
-    /** Require a relation to each object's scope to accept scope types only, kept by the chain. */
+    /** Require a scope relation to accept plain scope types only, stored outside fields. */
     #validateScopeRelation(type: Policy, name: string, relation: RelationDescription): void {
-        // require scope types stored by the scope chain, or none for the scope of any type
+        // require plain scope types, without relations or wildcards
         const isScopeTypes = relation.subjects.every(
             (scope) =>
                 scope.relation === undefined &&
@@ -1977,7 +1977,7 @@ export class Authorizer {
         return this.#implied.get(PermissionReference.key({ ...reference, name: relation })) ?? [];
     }
 
-    /** Resolve all expressions and keep recursion in explicit ancestor traversal. */
+    /** Resolve all expressions, recursing only in explicit ancestor traversal. */
     #validate(reference: PermissionReference, parents: ReadonlySet<string>): void {
         // detect recursion by the complete permission reference
         const key = PermissionReference.key(reference);
@@ -2289,7 +2289,7 @@ export class Authorizer {
             visited.add(type);
             pending.push(...type.references);
 
-            // keep one policy per type, preferring a representing policy over the intrinsic one
+            // take one policy per type, preferring a representing policy over the intrinsic one
             const existing = byType.get(Authorizer.#policyKey(type));
             if (existing === undefined || INTRINSIC_POLICIES.includes(existing)) {
                 byType.set(Authorizer.#policyKey(type), type);

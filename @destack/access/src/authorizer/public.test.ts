@@ -33,9 +33,9 @@ const publicSpace = new Policy(module4.package, {
 });
 
 test.for(TEST_DIALECTS)(
-    "admit any signed-in user's read of a public space whose home keeps its own row, on %s",
+    "admit any signed-in user's read of a public space whose home stores its own row, on %s",
     async (dialect) => {
-        // keep an account and its public space, its own row and its scope row, in the space's home
+        // store an account and its public space, its own row and its scope row, in the space's home
         const fixture = await openFixture(dialect);
         onTestFinished(() => fixture.close());
         const { database } = fixture;

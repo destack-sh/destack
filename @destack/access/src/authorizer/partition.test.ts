@@ -9,6 +9,8 @@ import {
     Authorization,
     Authorizer,
     Role,
+    Invitation,
+    Relationship,
 } from "../index.ts";
 import {
     account,
@@ -57,8 +59,8 @@ test("record each scope in its own partition where its type partitions, else in 
     ]);
 });
 
-test("keep a space's own access in its partition, its home, refusing it where its row was created, which removes only the space's row", async () => {
-    // keep the universe's partition, with an account and a space created in it
+test("store a space's own access in its partition, its home, refusing it where its row was created, which removes only the space's row", async () => {
+    // open the universe's partition, with an account and a space created in it
     const universe = await openFixture();
     onTestFinished(() => universe.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
@@ -98,7 +100,10 @@ test("keep a space's own access in its partition, its home, refusing it where it
 
     // make bob an owner at the space's home, and refuse the same where its row was created
     const granted = await home((authorization) =>
-        authorization.grant({ object: personal, role: Role.OWNER, subject: userSubject("bob") }),
+        Relationship.grant(
+            { object: personal, role: Role.OWNER, subject: userSubject("bob") },
+            authorization,
+        ),
     );
 
     // record the space in its own partition below the account, its owners bound there alone
@@ -120,11 +125,14 @@ test("keep a space's own access in its partition, its home, refusing it where it
     });
     await expect(
         owner((authorization) =>
-            authorization.grant({
-                object: personal,
-                role: Role.OWNER,
-                subject: userSubject("bob"),
-            }),
+            Relationship.grant(
+                {
+                    object: personal,
+                    role: Role.OWNER,
+                    subject: userSubject("bob"),
+                },
+                authorization,
+            ),
         ),
     ).rejects.toEqual(
         new AccessError(
@@ -142,7 +150,7 @@ test("keep a space's own access in its partition, its home, refusing it where it
 });
 
 test("forget a removed scope's relationships, roles, invitations and row, and reuse its identifier", async () => {
-    // keep an account owned by alice with a role bound to bob and an invitation for carol
+    // store an account owned by alice with a role bound to bob and an invitation for carol
     const universe = await openFixture();
     onTestFinished(() => universe.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
@@ -156,22 +164,29 @@ test("forget a removed scope's relationships, roles, invitations and row, and re
     await universe.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await owner((authorization) => authorization.create(object, { owner: userSubject("alice") }));
     const reader = await owner((authorization) =>
-        authorization.createRole(object, { name: "reader", description: "Reads", permissions: [] }),
+        Role.create(
+            object,
+            { name: "reader", description: "Reads", permissions: [] },
+            authorization,
+        ),
     );
     await owner((authorization) =>
-        authorization.grant({ object, role: reader.id, subject: userSubject("bob") }),
+        Relationship.grant({ object, role: reader.id, subject: userSubject("bob") }, authorization),
     );
     await owner((authorization) =>
-        authorization.invite({
-            relationship: { object, relation: "member", subject: userSubject("carol") },
-        }),
+        Invitation.create(
+            {
+                relationship: { object, relation: "member", subject: userSubject("carol") },
+            },
+            authorization,
+        ),
     );
 
     // remove the account's access, then create it again under the same identifier
     await owner((authorization) => authorization.remove(object));
-    const removed = await kept(universe.database);
+    const removed = await stored(universe.database);
     await owner((authorization) => authorization.create(object, { owner: userSubject("alice") }));
-    expect({ removed, recreated: await kept(universe.database) }).toEqual({
+    expect({ removed, recreated: await stored(universe.database) }).toEqual({
         removed: { relationships: [], roles: [], invitations: [], scopes: [] },
         recreated: {
             relationships: [[Role.OWNER, "alice"]],
@@ -183,7 +198,7 @@ test("forget a removed scope's relationships, roles, invitations and row, and re
 });
 
 /** Read the access rows of account-1: its relationships, roles, invitations and scope row. */
-async function kept(database: DatabaseConnection) {
+async function stored(database: DatabaseConnection) {
     const relationships = await database
         .select({ roleId: accessRelationship.roleId, subjectId: accessRelationship.subjectId })
         .from(accessRelationship)

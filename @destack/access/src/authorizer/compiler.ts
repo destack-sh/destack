@@ -46,7 +46,7 @@ interface Compilation {
 /** The name of the list element a binding's role is read from. */
 const GRANTED = "access_granted";
 
-/** A relation kept in a field of a mapped table. */
+/** A relation stored in a field of a mapped table. */
 type Field = TableMapping["relations"][string];
 
 /** An expression following a relation to a related object's permission. */
@@ -169,20 +169,20 @@ export class Compiler {
             source: Table,
         ) => sql`${TableMapping.column(source, mapping.id)} = ${target.id}
             AND ${TableMapping.scopeColumn(source, mapping)} = ${target.scope}`;
-        const kept = sql`EXISTS (
+        const local = sql`EXISTS (
             SELECT 1 FROM ${from(row)}
             WHERE ${isTarget(row)} AND ${evaluate(mapping, row, compilation)}
         )`;
         if (mapping.policy.definition.scope !== true) {
-            return kept;
+            return local;
         }
 
-        // decide a scope whose object row lives elsewhere on its ancestry row, which its chain keeps
+        // decide a scope whose object row lives elsewhere on its ancestry row, which its chain stores
         const missing = alias(mapping.table, "access_missing");
         const ancestry = TableMapping.ancestry(mapping.policy);
         const standing = alias(Scope.table, "access_ancestry");
 
-        return sql`(${kept} OR (
+        return sql`(${local} OR (
             NOT EXISTS (SELECT 1 FROM ${from(missing)} WHERE ${isTarget(missing)})
             AND EXISTS (
                 SELECT 1 FROM ${from(standing)}
@@ -663,7 +663,7 @@ export class Compiler {
 
     /** Match the subject in a field, or current relationships, for one relation. */
     #relation(name: string, mapping: TableMapping, source: Table, compilation: Compilation): SQL {
-        // read the relation and whether a field keeps it
+        // read the relation and whether a field stores it
         const relation = this.#authorizer.relation(mapping.policy, name);
         const field = mapping.relations[name];
 
@@ -766,13 +766,7 @@ export class Compiler {
         }
 
         // join the indexed ancestors to their protected application rows
-        return Compiler.#followAncestors(
-            expression,
-            mapping,
-            source,
-            nth(related, 0),
-            compilation,
-        );
+        return Compiler.#followAncestors(expression, mapping, source, nth(related, 0), compilation);
     }
 
     /** Compile the target permission against a distinct alias of each type a relation relates. */
@@ -1043,7 +1037,7 @@ export class Compiler {
         const bindings = TupleCondition.bindings(access.context);
         const name = `access_current_${hashName(JSON.stringify([bindings, authority.subjects]))}`;
 
-        // keep the relationships with passing conditions and the authority as subject
+        // select the relationships with passing conditions and the authority as subject
         const relationship = alias(accessRelationship, "access_current");
 
         return sql.common(

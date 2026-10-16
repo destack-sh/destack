@@ -17,6 +17,8 @@ import {
     type AccessContext,
     type RelationshipCondition,
     ANONYMOUS,
+    Invitation,
+    Relationship,
 } from "../index.ts";
 import {
     account,
@@ -84,11 +86,14 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             database,
             () => bob,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "b"),
-                    relation: "editor",
-                    subject: userSubject("alice"),
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "b"),
+                        relation: "editor",
+                        subject: userSubject("alice"),
+                    },
+                    authorization,
+                ),
         ),
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -191,11 +196,14 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "a"),
-                    relation: "viewer",
-                    subject: principal.user.reference("*", "*"),
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "a"),
+                        relation: "viewer",
+                        subject: principal.user.reference("*", "*"),
+                    },
+                    authorization,
+                ),
         );
         const carol = {
             ...alice,
@@ -224,11 +232,14 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.link({
-                    object: node.reference("personal", "b"),
-                    relation: "subtree-editor",
-                    expiresAt: 2000,
-                }),
+                Relationship.link(
+                    {
+                        object: node.reference("personal", "b"),
+                        relation: "subtree-editor",
+                        expiresAt: 2000,
+                    },
+                    authorization,
+                ),
         );
 
         // let anyone presenting the link edit the subtree until it expires
@@ -251,7 +262,8 @@ databaseTest(
             authorizer,
             database,
             () => alice,
-            (authorization) => authorization.revoke(node.reference("personal", "b"), shared.id),
+            (authorization) =>
+                Relationship.revoke(node.reference("personal", "b"), shared.id, authorization),
         );
         await expectEditable(database, authorizer, node, visitor, []);
 
@@ -261,20 +273,26 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.link({
-                    object: node.reference("personal", "a"),
-                    relation: "viewer",
-                }),
+                Relationship.link(
+                    {
+                        object: node.reference("personal", "a"),
+                        relation: "viewer",
+                    },
+                    authorization,
+                ),
         );
         const second = await Authorization.run(
             authorizer,
             database,
             () => alice,
             (authorization) =>
-                authorization.link({
-                    object: node.reference("personal", "a"),
-                    relation: "viewer",
-                }),
+                Relationship.link(
+                    {
+                        object: node.reference("personal", "a"),
+                        relation: "viewer",
+                    },
+                    authorization,
+                ),
         );
         expect(second.id).not.toBe(first.id);
         await expect(
@@ -283,11 +301,14 @@ databaseTest(
                 database,
                 () => alice,
                 (authorization) =>
-                    authorization.grant({
-                        object: node.reference("personal", "b"),
-                        relation: "editor",
-                        subject: userSubject("bob"),
-                    }),
+                    Relationship.grant(
+                        {
+                            object: node.reference("personal", "b"),
+                            relation: "editor",
+                            subject: userSubject("bob"),
+                        },
+                        authorization,
+                    ),
             ),
         ).rejects.toMatchObject({
             code: "CONFLICT",
@@ -318,14 +339,17 @@ databaseTest(
             database,
             () => carol,
             (authorization) =>
-                authorization.invite({
-                    relationship: {
-                        object: node.reference("personal", "c"),
-                        relation: "editor",
-                        subject: userSubject("carol"),
+                Invitation.create(
+                    {
+                        relationship: {
+                            object: node.reference("personal", "c"),
+                            relation: "editor",
+                            subject: userSubject("carol"),
+                        },
+                        purpose: "review the draft",
                     },
-                    purpose: "review the draft",
-                }),
+                    authorization,
+                ),
         );
         await expectEditable(database, authorizer, node, carol, []);
         expect(
@@ -335,11 +359,12 @@ databaseTest(
                     database,
                     () => alice,
                     (authorization) =>
-                        authorization.invitations(
+                        Invitation.list(
                             { object: node.reference("personal", "c") },
                             {
                                 limit: 10,
                             },
+                            authorization,
                         ),
                 )
             ).map((invitation) => [invitation.id, invitation.purpose]),
@@ -355,9 +380,10 @@ databaseTest(
                     now: asked.expiresAt,
                 }),
                 (authorization) =>
-                    authorization.invitations(
+                    Invitation.list(
                         { object: node.reference("personal", "c") },
                         { limit: 10 },
+                        authorization,
                     ),
             ),
         ).toEqual([]);
@@ -367,9 +393,10 @@ databaseTest(
                 database,
                 () => alice,
                 (authorization) =>
-                    authorization.invitations(
+                    Invitation.list(
                         { object: node.reference("personal", "c") },
                         { limit: 101 },
+                        authorization,
                     ),
             ),
         ).rejects.toMatchObject({
@@ -381,7 +408,8 @@ databaseTest(
                 authorizer,
                 database,
                 () => carol,
-                (authorization) => authorization.accept(asked.relationship.object, asked.id),
+                (authorization) =>
+                    Invitation.accept(asked.relationship.object, asked.id, authorization),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -393,9 +421,10 @@ databaseTest(
                 database,
                 () => carol,
                 (authorization) =>
-                    authorization.invitations(
+                    Invitation.list(
                         { object: node.reference("personal", "c") },
                         { limit: 10 },
+                        authorization,
                     ),
             ),
         ).rejects.toMatchObject({
@@ -406,7 +435,8 @@ databaseTest(
             authorizer,
             database,
             () => alice,
-            (authorization) => authorization.accept(asked.relationship.object, asked.id),
+            (authorization) =>
+                Invitation.accept(asked.relationship.object, asked.id, authorization),
         );
         await expectEditable(database, authorizer, node, carol, ["c"]);
 
@@ -416,13 +446,16 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.invite({
-                    relationship: {
-                        object: node.reference("personal", "a"),
-                        relation: "editor",
-                        subject: Contact.subject(Contact.email("carol@example.com")),
+                Invitation.create(
+                    {
+                        relationship: {
+                            object: node.reference("personal", "a"),
+                            relation: "editor",
+                            subject: Contact.subject(Contact.email("carol@example.com")),
+                        },
                     },
-                }),
+                    authorization,
+                ),
         );
         await expect(
             Authorization.run(
@@ -430,13 +463,16 @@ databaseTest(
                 database,
                 () => dave,
                 (authorization) =>
-                    authorization.invite({
-                        relationship: {
-                            object: node.reference("personal", "a"),
-                            relation: "editor",
-                            subject: Contact.subject(Contact.email("dave@example.com")),
+                    Invitation.create(
+                        {
+                            relationship: {
+                                object: node.reference("personal", "a"),
+                                relation: "editor",
+                                subject: Contact.subject(Contact.email("dave@example.com")),
+                            },
                         },
-                    }),
+                        authorization,
+                    ),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -447,7 +483,8 @@ databaseTest(
                 authorizer,
                 database,
                 () => dave,
-                (authorization) => authorization.accept(offered.relationship.object, offered.id),
+                (authorization) =>
+                    Invitation.accept(offered.relationship.object, offered.id, authorization),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -464,7 +501,8 @@ databaseTest(
                     actors: [agent],
                     grant: { id: Identifier.create("grant"), scope: "carol", permissions: [] },
                 }),
-                (authorization) => authorization.accept(offered.relationship.object, offered.id),
+                (authorization) =>
+                    Invitation.accept(offered.relationship.object, offered.id, authorization),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -474,7 +512,8 @@ databaseTest(
             authorizer,
             database,
             () => carol,
-            (authorization) => authorization.accept(offered.relationship.object, offered.id),
+            (authorization) =>
+                Invitation.accept(offered.relationship.object, offered.id, authorization),
         );
         await expectEditable(database, authorizer, node, carol, ["a", "c"]);
 
@@ -484,32 +523,39 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.invite({
-                    relationship: {
-                        object: node.reference("work", "d"),
-                        relation: "editor",
-                        subject: userSubject("bob"),
+                Invitation.create(
+                    {
+                        relationship: {
+                            object: node.reference("work", "d"),
+                            relation: "editor",
+                            subject: userSubject("bob"),
+                        },
                     },
-                }),
+                    authorization,
+                ),
         );
         await Authorization.run(
             authorizer,
             database,
             () => bob,
-            (authorization) => authorization.withdraw(refused.relationship.object, refused.id),
+            (authorization) =>
+                Invitation.withdraw(refused.relationship.object, refused.id, authorization),
         );
         const rejected = await Authorization.run(
             authorizer,
             database,
             () => dave,
             (authorization) =>
-                authorization.invite({
-                    relationship: {
-                        object: node.reference("work", "d"),
-                        relation: "editor",
-                        subject: userSubject("dave"),
+                Invitation.create(
+                    {
+                        relationship: {
+                            object: node.reference("work", "d"),
+                            relation: "editor",
+                            subject: userSubject("dave"),
+                        },
                     },
-                }),
+                    authorization,
+                ),
         );
         await expect(
             Authorization.run(
@@ -517,7 +563,7 @@ databaseTest(
                 database,
                 () => carol,
                 (authorization) =>
-                    authorization.withdraw(rejected.relationship.object, rejected.id),
+                    Invitation.withdraw(rejected.relationship.object, rejected.id, authorization),
             ),
         ).rejects.toMatchObject({
             code: "FORBIDDEN",
@@ -527,7 +573,8 @@ databaseTest(
             authorizer,
             database,
             () => alice,
-            (authorization) => authorization.withdraw(rejected.relationship.object, rejected.id),
+            (authorization) =>
+                Invitation.withdraw(rejected.relationship.object, rejected.id, authorization),
         );
         await expectEditable(database, authorizer, node, dave, []);
         expect(
@@ -536,9 +583,10 @@ databaseTest(
                 database,
                 () => alice,
                 (authorization) =>
-                    authorization.invitations(
+                    Invitation.list(
                         { object: node.reference("work", "d") },
                         { limit: 10 },
+                        authorization,
                     ),
             ),
         ).toEqual([]);
@@ -555,12 +603,15 @@ databaseTest(
                 database,
                 () => alice,
                 (authorization) =>
-                    authorization.grant({
-                        object: node.reference("personal", "c"),
-                        relation: "viewer",
-                        subject: principal.user.reference("universe", "carol"),
-                        conditions,
-                    }),
+                    Relationship.grant(
+                        {
+                            object: node.reference("personal", "c"),
+                            relation: "viewer",
+                            subject: principal.user.reference("universe", "carol"),
+                            conditions,
+                        },
+                        authorization,
+                    ),
             );
         const carol: AccessContext = {
             ...bob,
@@ -587,7 +638,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
-            (authorization) => authorization.revoke(bound.object, bound.id),
+            (authorization) => Relationship.revoke(bound.object, bound.id, authorization),
         );
 
         // require strong and recent authentication
@@ -637,7 +688,7 @@ databaseTest(
         const { database, authorizer, alice, bob } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
 
-        // keep alice's and bob's own scopes, where their grants live
+        // store alice's and bob's own scopes, where their grants live
         await database.insert(Scope.table).values(
             ["alice", "bob"].map((id) =>
                 Table.complete(Scope.table, {
@@ -658,11 +709,15 @@ databaseTest(
                 database,
                 () => context,
                 (authorization) =>
-                    authorization.createGrant(scopeOf(scope), {
-                        delegate,
-                        permissions: [editing("a"), editing("b")],
-                        expiresAt: 2000,
-                    }),
+                    Grant.create(
+                        scopeOf(scope),
+                        {
+                            delegate,
+                            permissions: [editing("a"), editing("b")],
+                            expiresAt: 2000,
+                        },
+                        authorization,
+                    ),
             );
         const [forAlice, forBob] = [await grant(alice, "alice"), await grant(bob, "bob")];
         const refusals = await Promise.all([
@@ -699,7 +754,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
-            (authorization) => authorization.revokeGrant(scopeOf("alice"), forAlice.id),
+            (authorization) => Grant.revoke(scopeOf("alice"), forAlice.id, authorization),
         );
         expect({
             delegateScopes: [forAlice.delegateScope, forBob.delegateScope],
@@ -707,7 +762,7 @@ databaseTest(
             elsewhere,
             lapsed,
             revoked: await resolve(delegated(alice, forAlice)),
-            kept: await resolve(delegated(bob, forBob)),
+            remaining: await resolve(delegated(bob, forBob)),
         }).toEqual({
             delegateScopes: ["personal", "personal"],
             refusals: [
@@ -717,7 +772,7 @@ databaseTest(
             elsewhere: `UNAUTHORIZED: grant ${forBob.id} belongs to another delegate`,
             lapsed: `UNAUTHORIZED: grant ${forAlice.id} expired`,
             revoked: `UNAUTHORIZED: grant ${forAlice.id} is revoked`,
-            kept: "resolved",
+            remaining: "resolved",
         });
     },
 );
@@ -751,7 +806,7 @@ test("follow a scope relation of several scope types to the nearest scope only, 
 databaseTest("remove a space's delegated grants when the space goes", async ({ fixture }) => {
     const { database, authorizer, alice } = fixture;
 
-    // keep alice's own scope, where her grants live
+    // store alice's own scope, where her grants live
     await database.insert(Scope.table).values(
         Table.complete(Scope.table, {
             scope: "alice",
@@ -770,25 +825,29 @@ databaseTest("remove a space's delegated grants when the space goes", async ({ f
             database,
             () => alice,
             (authorization) =>
-                authorization.createGrant(scopeOf("alice"), {
-                    delegate: principal.installation.reference(spaceId, "assistant"),
-                    permissions: [editing("a")],
-                    expiresAt: 2000,
-                }),
+                Grant.create(
+                    scopeOf("alice"),
+                    {
+                        delegate: principal.installation.reference(spaceId, "assistant"),
+                        permissions: [editing("a")],
+                        expiresAt: 2000,
+                    },
+                    authorization,
+                ),
         );
     await grant("space-gone");
-    await grant("space-kept");
+    await grant("space-remaining");
 
     // remove the first space
     await Transaction.run(database, (transaction) =>
         authorizer.cascade(transaction, principal.space.reference(Scope.universe.id, "space-gone")),
     );
 
-    // keep only the grant to the remaining space's installation
-    const kept = await database
+    // leave only the grant to the remaining space's installation
+    const remaining = await database
         .select({ delegateScope: accessGrant.delegateScope })
         .from(accessGrant);
-    expect(kept).toEqual([{ delegateScope: "space-kept" }]);
+    expect(remaining).toEqual([{ delegateScope: "space-remaining" }]);
 });
 
 /** Give editing one node of the personal scope. */
@@ -825,11 +884,14 @@ databaseTest("update inherited permissions when notes move or disappear", async 
         database,
         () => alice,
         (authorization) =>
-            authorization.grant({
-                object: node.reference("personal", "a"),
-                relation: "subtree-editor",
-                subject: userSubject("bob"),
-            }),
+            Relationship.grant(
+                {
+                    object: node.reference("personal", "a"),
+                    relation: "subtree-editor",
+                    subject: userSubject("bob"),
+                },
+                authorization,
+            ),
     );
     await expectEditable(database, authorizer, node, bob, ["a", "b", "c"]);
 
@@ -857,12 +919,15 @@ databaseTest(
             database,
             () => alice,
             (authorization) =>
-                authorization.grant({
-                    object: node.reference("personal", "c"),
-                    relation: "viewer",
-                    subject: userSubject("bob"),
-                    expiresAt: 1500,
-                }),
+                Relationship.grant(
+                    {
+                        object: node.reference("personal", "c"),
+                        relation: "viewer",
+                        subject: userSubject("bob"),
+                        expiresAt: 1500,
+                    },
+                    authorization,
+                ),
         );
 
         // list b and c until the expiry, and only b from then on

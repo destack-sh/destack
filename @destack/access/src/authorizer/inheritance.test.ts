@@ -19,7 +19,7 @@ import {
     Caller,
 } from "../index.ts";
 
-/** Organisations, with editors and viewers that keep their permissions everywhere below them. */
+/** Organisations, with editors and viewers whose permissions hold everywhere below them. */
 const org = new Policy(module1.package, {
     name: "org",
     relations: { editor: { subjects: [principal.user] }, viewer: { subjects: [principal.user] } },
@@ -58,7 +58,7 @@ const document = new Policy(module1.package, {
     },
 });
 
-/** The documents, kept in the fixture's item table. */
+/** The documents, stored in the fixture's item table. */
 const mapping: TableMapping = {
     policy: document,
     table: item,
@@ -115,7 +115,7 @@ function documentRow(id: string) {
 test.for(TEST_DIALECTS)(
     "inherit a scope's relations onto the objects it encloses, through every scope above it, on %s",
     async (dialect) => {
-        // keep a folder in an organisation, and three documents owned by someone else in it
+        // store a folder in an organisation, and three documents owned by someone else in it
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
             isMigrated: true,
         });
@@ -207,7 +207,7 @@ test("refuse a permission read through an enclosing scope that its chain's relat
 test.for(TEST_DIALECTS)(
     "share an object with everyone with a permission on another, as its relations decide it, on %s",
     async (dialect) => {
-        // keep a team with its viewers and editors as readers, and a note shared with its readers
+        // store a team with its viewers and editors as readers, and a note shared with its readers
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
             isMigrated: true,
         });
@@ -290,7 +290,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "share an object with a scope's readers, including those of the scopes enclosing it, on %s",
     async (dialect) => {
-        // keep a document in a folder of an organisation, shared with the folder's readers
+        // store a document in a folder of an organisation, shared with the folder's readers
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
             isMigrated: true,
         });
@@ -372,7 +372,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "read a permission through each object's scope, granting nothing where the scope type lacks the permission, on %s",
     async (dialect) => {
-        // keep notes in a shop serving its workers and in a club declaring no serving
+        // store notes in a shop serving its workers and in a club declaring no serving
         const storage = await TestDatabase.create(dialect, fixtureDatabase, {
             isMigrated: true,
         });
