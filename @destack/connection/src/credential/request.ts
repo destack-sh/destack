@@ -1,3 +1,4 @@
+import type { FetchOptions } from "@destack/environment";
 import { AwsSigner, EMPTY_HASH } from "@destack/identity/aws";
 import type { Credential, Material, Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -8,20 +9,10 @@ import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import type connectionPackage from "../package.ts";
 
-/** A TLS client certificate a machine presents on a lent request (RFC 8705). */
-export interface ClientCertificate {
-    /** The certificate chain in PEM. */
-    readonly certificate: string;
-    /** The private key in PEM. */
-    readonly privateKey: string;
-}
-
-/** A request with a connection's credential applied, and the machine's client certificate. */
-export interface ConnectionRequest {
+/** A request with a connection's credential applied, sent with the machine's client certificate. */
+export interface ConnectionRequest extends FetchOptions {
     /** The authenticated request. */
     readonly request: Request;
-    /** The client certificate, for an mTLS connection. */
-    readonly certificate?: ClientCertificate;
 }
 
 /** Requests authenticated with a connection's credential, as a machine's egress sends them. */
