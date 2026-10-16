@@ -2,7 +2,8 @@ import { Change } from "@destack/db";
 import type { Controller } from "@destack/runtime/control";
 import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
-import { Clock, present } from "@destack/schema";
+import { present } from "@destack/schema";
+import { Clock } from "@destack/environment";
 
 /** How often a quiet scope's segments are compacted and checked for retention: daily. */
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;

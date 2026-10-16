@@ -21,7 +21,7 @@ import {
     TABLE,
     listed,
 } from "@destack/db";
-import { canonicalize, Clock, type JsonValue, schema } from "@destack/schema";
+import { canonicalize, type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { telemetry } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
@@ -32,6 +32,7 @@ import { type Event, type EventKeyShape, EventKind, type EventPolicy } from "../
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
+import { Clock } from "@destack/environment";
 
 /** The instruments capturing the dropped writes of events kept at most once. */
 const instruments = telemetry.scope(import.meta.destack.package);

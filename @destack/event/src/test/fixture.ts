@@ -1,5 +1,4 @@
 import { TestTelemetry } from "@destack/telemetry/test";
-import { TestClock } from "@destack/test";
 import {
     type ColumnBuilder,
     defineTable,
@@ -25,6 +24,7 @@ import {
 } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The test event options beside kinds: a scope's policy. */
 export interface EventFixtureOptions {
@@ -100,7 +100,7 @@ export class EventFixture implements AsyncDisposable {
     /** The test database keeping the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
     /** The clock the controllers and the bucket's locks read, which tests set. */
-    readonly clock = new TestClock(Date.UTC(2026, 9, 1));
+    readonly clock = new VirtualClock(Date.UTC(2026, 9, 1));
     /** The memory bucket keeping the segments, its locks on the fixture's clock. */
     readonly bucket = new MemoryBucket(this.clock);
     /** The telemetry keeping the exceptions the store captures. */
