@@ -23,11 +23,11 @@ const columns: readonly Column[] = [
         caption: "Database",
         unit: "GB",
         note: "Database storage, hot",
-        isWide: true,
+        isQuiet: true,
     },
-    { caption: "Files", unit: "GB", note: "File storage, cold", isWide: true },
-    { caption: "Compute", unit: "GB·h", note: "Memory time", isWide: true },
-    { caption: "Cost", unit: "$/mo", note: "US dollars a month", isWide: false },
+    { caption: "Files", unit: "GB", note: "File storage, cold", isQuiet: true },
+    { caption: "Compute", unit: "GB·h", note: "Memory time", isQuiet: true },
+    { caption: "Cost", unit: "$/mo", note: "US dollars a month", isQuiet: false },
 ];
 
 /** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
