@@ -3,7 +3,7 @@ import { principal, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
-import { type Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { isCallError } from "@destack/runtime/error";
 import { isAPIError } from "better-auth/api";
 import { Scope } from "@destack/sync";
@@ -12,6 +12,7 @@ import { user } from "../object/user.ts";
 import { Issuance } from "./issuance.ts";
 import { PackageResource } from "./resource.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
+import type { Clock } from "@destack/environment";
 
 /** The grant type of a mailed sign-in code exchanged for a person's tokens on a new client. */
 export const EMAIL_CODE = "urn:destack:grant-type:email-code";

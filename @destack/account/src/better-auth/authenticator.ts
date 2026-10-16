@@ -30,8 +30,9 @@ import { oauthExtension } from "../oauth/oauth.ts";
 import { user, User } from "../object/user.ts";
 import { account } from "../object/account.ts";
 import { SignUp } from "./sign-up.ts";
-import { Digest, Identifier, present, schema, type Clock } from "@destack/schema";
+import { Digest, Identifier, present, schema } from "@destack/schema";
 import type { KeySet } from "@destack/identity";
+import type { Clock } from "@destack/environment";
 
 /** The sign-in pages below the issuer's URL. */
 const SIGN_IN_PATHS = {

@@ -4,7 +4,7 @@ import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { PackageId } from "@destack/package";
-import { type Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { type AssertionKey, AssertionVerifier } from "@destack/runtime/authentication";
 import { isCallError } from "@destack/runtime/error";
 import { Identity } from "../object/identity.ts";
@@ -19,6 +19,7 @@ import { PackageResource } from "./resource.ts";
 import { proof } from "../object/proof.ts";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
+import type { Clock } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
 export const JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer";

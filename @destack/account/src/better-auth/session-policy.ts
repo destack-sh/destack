@@ -1,9 +1,9 @@
 import { createAuthMiddleware, getSessionFromCtx, isAPIError } from "better-auth/api";
 import type { DatabaseConnection } from "@destack/db";
-import type { Clock } from "@destack/schema";
 import type { Session } from "../object/session.ts";
 import type { BetterAuthPlugin } from "better-auth";
 import { ActiveSession } from "./active-session.ts";
+import type { Clock } from "@destack/environment";
 
 /** Authentication changes requiring a recent ceremony. */
 const SENSITIVE_PATHS = new Set([

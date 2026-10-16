@@ -1,6 +1,7 @@
 import { type Keychain, KeyPair, Proof } from "@destack/identity";
 import { CallError } from "@destack/runtime/error";
-import { type Clock, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
+import type { Clock } from "@destack/environment";
 
 /** The keychain service keeping the keys of a computer's native clients, by client. */
 export const CLIENT_KEYS = "app.destack.client";

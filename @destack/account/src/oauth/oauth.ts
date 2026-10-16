@@ -8,7 +8,6 @@ import { type Authentication, type Authorizer, principal, Caller } from "@destac
 import type { DatabaseConnection } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
-import type { Clock } from "@destack/schema";
 import type { JWTPayload } from "jose";
 import { Scope } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
@@ -19,6 +18,7 @@ import { bearerGrant, JWT_BEARER } from "./bearer.ts";
 import { type CodeCheck, codeGrant, EMAIL_CODE } from "./code.ts";
 import { exchangeGrant, TOKEN_EXCHANGE } from "./exchange.ts";
 import { Issuance } from "./issuance.ts";
+import type { Clock } from "@destack/environment";
 
 /** A client a discovery source resolves, as the provider reads it. */
 type DiscoveredClient = NonNullable<Awaited<ReturnType<ClientDiscovery["resolve"]>>>;

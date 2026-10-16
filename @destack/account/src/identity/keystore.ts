@@ -28,8 +28,9 @@ import { JWT_BEARER } from "../oauth/bearer.ts";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
 import { CallError } from "@destack/runtime/error";
-import type { Clock, Digest } from "@destack/schema";
+import type { Digest } from "@destack/schema";
 import { SignJWT, type JWTPayload } from "jose";
+import type { Clock } from "@destack/environment";
 
 /** How long a verifier keeps a key set before reading it again: 10 minutes, a JWKS cache's age. */
 export const KEY_SET_MILLISECONDS = 10 * 60_000;

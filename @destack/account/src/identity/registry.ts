@@ -3,10 +3,10 @@ import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
 import type { ClientOf } from "@destack/runtime/client";
-import type { Clock } from "@destack/schema";
 import type accountPackage from "../package.ts";
 import { Scope } from "@destack/sync";
 import { identity, Identity, operation } from "../object/identity.ts";
+import type { Clock } from "@destack/environment";
 
 /** The most operations one read of an identity's log takes: a page, far above a log's length. */
 const LOG_PAGE = 1000;

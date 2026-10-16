@@ -2,7 +2,7 @@ import { Caller, principal, Role, universe } from "@destack/access";
 import { and, type DatabaseConnection, eq, Transaction } from "@destack/db";
 import { type ClaimHome, ObjectStore, RemoteStore } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import { Identifier, Clock, present } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { createClient, type ClientOf } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
@@ -20,6 +20,7 @@ import { Package } from "@destack/package";
 import { endpoint } from "../object/endpoint.ts";
 import accountPackage from "../package.ts";
 import { STACKS } from "./account.ts";
+import { Clock } from "@destack/environment";
 
 /** The header with the machine a test's account package call comes from. */
 const MACHINE_HEADER = "x-machine";

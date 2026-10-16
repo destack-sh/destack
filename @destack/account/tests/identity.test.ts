@@ -4,9 +4,9 @@ import { eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
-import { afterAll, beforeAll, expect, test, TestClock } from "@destack/test";
+import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { decodeJwt } from "jose";
-import { found, Identifier, schema, Clock } from "@destack/schema";
+import { found, Identifier, schema } from "@destack/schema";
 import { MachineIdentity } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
 import { Identity, key, machine } from "../src/object/index.ts";
@@ -15,6 +15,8 @@ import accountPackage from "../src/package.ts";
 import { MemoryKeychain } from "@destack/identity";
 import { AccountFixture, ids, ISSUER, TestDirectory, outcome } from "../src/test/index.ts";
 import { Tokens } from "./fixture.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The refusal of an assertion without a standing key behind it. */
 const NO_STANDING_KEY = "invalid_grant: assertion has no standing key";
@@ -301,7 +303,7 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
 
 test("issue a machine's token at the store clock's time, verifiable after the clock advances to it", async () => {
     // run the account package ten minutes ahead of real time
-    const clock = new TestClock();
+    const clock = new VirtualClock(Date.now()).resume();
     clock.advance(10 * 60_000);
     await using fixture = await AccountFixture.open({ signIn: { clock } });
 

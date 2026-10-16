@@ -14,7 +14,7 @@ import {
     type Permission,
     principal,
 } from "@destack/access";
-import { Clock, schema, Identifier } from "@destack/schema";
+import { schema, Identifier } from "@destack/schema";
 import { ObjectStore } from "@destack/object/server";
 import * as object from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
@@ -24,6 +24,7 @@ import { testEvents, serversOf } from "@destack/object/test";
 import { testCallKey } from "@destack/runtime/test";
 import { SIGN_UP } from "../src/test/index.ts";
 import { AccountFixture } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** Make an account's root its owner, and let members, groups and installations read it. */
 test("decide account access for its root, members, group members and installations", async () => {

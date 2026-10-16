@@ -7,7 +7,7 @@ import { callTables } from "@destack/object/test";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { Package } from "@destack/package";
-import { Clock, Identifier, present } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { reconciliation } from "@destack/runtime/test";
 import { Feed, Replica, Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -23,6 +23,7 @@ import {
 import accountPackage from "../src/package.ts";
 import { Account } from "../src/object/account.ts";
 import { Follow } from "@destack/object";
+import { Clock } from "@destack/environment";
 
 /** How long a replica may take to catch up: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;

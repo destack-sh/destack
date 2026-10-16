@@ -1,7 +1,7 @@
 import { LocalKeyring, MemoryKeychain, Recipient } from "@destack/identity";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { type Clock, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { SPACE_KEY, TokenVerifier } from "@destack/runtime/authentication";
 import { principal, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -12,7 +12,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { Scope } from "@destack/sync";
 import accountPackage from "../src/package.ts";
 import { implementIdentity, implementOperation } from "../src/server/index.ts";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { createLocalJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
 import {
     identityKey,
@@ -22,6 +22,8 @@ import {
 } from "../src/identity/index.ts";
 import { identity, Identity, placement } from "../src/object/index.ts";
 import { AccountFixture, outcome, TestIdentityRegistry } from "../src/test/index.ts";
+import type { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** Read the key of a token. */
 function kid(token: string): string | undefined {
@@ -53,7 +55,7 @@ async function keySet(database: DatabaseConnection, space: string) {
 
 test("sign with the active key until every verifier read the next one, verifying tokens of every published key with a key set a verifier keeps", async () => {
     // start a space's identity on a clock the test moves
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const { database, place, keystore, registry } = await openKeystore(clock);
     const subject = await place();
     await keystore.generate(database, subject);
@@ -83,7 +85,9 @@ test("sign with the active key until every verifier read the next one, verifying
 
 test("rekey an identity once a move completes, so the keys its source kept neither sign for it nor rotate it", async () => {
     // start a space's identity, keeping a replica of its keys as a move's source keeps them
-    const { database, place, keystore, registry } = await openKeystore(new TestClock(Date.now()));
+    const { database, place, keystore, registry } = await openKeystore(
+        new VirtualClock(Date.now()),
+    );
     const source = await AccountFixture.storage(undefined, "sqlite");
     onTestFinished(() => source.close());
     const subject = await place();
@@ -113,7 +117,7 @@ test("rekey an identity once a move completes, so the keys its source kept neith
 
 test("send a request as an installation with a token its space's key signs, which a verifier of the space's keys accepts", async () => {
     // start a space's identity on its machine
-    const { database, place, keystore } = await openKeystore(new TestClock(Date.now()));
+    const { database, place, keystore } = await openKeystore(new VirtualClock(Date.now()));
     const space = await place();
     await keystore.generate(database, space);
 
@@ -160,7 +164,7 @@ async function derive(
 
 test("derive one key per space and label, the same after a move rewraps the space's secret", async () => {
     // keep two spaces' keys under the source machine's keyring
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const opened = await openKeystore(clock);
     const source = opened.database;
     const targetStorage = await AccountFixture.storage(undefined, "sqlite");
@@ -214,7 +218,7 @@ test("send a request as the universe bound to the space it goes to, which a veri
     const storage = await AccountFixture.storage(undefined, "sqlite");
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         await universeRegistry(database, clock),

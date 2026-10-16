@@ -1,11 +1,12 @@
 import { eq, Snapshot, Transaction } from "@destack/db";
-import { aligned, Clock } from "@destack/schema";
+import { aligned } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { MemoryKeychain } from "@destack/identity";
 import { expect, test } from "@destack/test";
 import { MachineIdentity } from "../src/client/index.ts";
 import { account, key, Key, machine } from "../src/object/index.ts";
 import { AccountFixture, type Person, outcome } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** A year and a day, past every key's lifetime, in milliseconds. */
 const PAST_LIFETIME = 366 * 24 * 60 * 60 * 1000;

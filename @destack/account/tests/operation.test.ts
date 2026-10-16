@@ -6,11 +6,11 @@ import { IdentityOperation, KeyPair } from "@destack/identity";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
-import { type Clock, Identifier } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { Scope, type Subject } from "@destack/sync";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { identity, Identity, machine, operation, placement } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import {
@@ -19,11 +19,13 @@ import {
     implementOperation,
 } from "../src/server/index.ts";
 import { AccountFixture, outcome, TestDirectory } from "../src/test/index.ts";
+import type { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 test.each(TEST_DIALECTS)(
     "start a space's identity from its machine, chain operations by rotation keys, and let a higher-priority key nullify within the recovery window on %s",
     async (dialect) => {
-        const clock = new TestClock(Date.now());
+        const clock = new VirtualClock(Date.now());
         const registry = await openRegistry(dialect, clock);
         const { space, start, extend, read, log } = registry;
         const signing = (await KeyPair.generate()).pair;
@@ -147,7 +149,7 @@ test.each(TEST_DIALECTS)(
     "append the first of two operations racing past the same operation, and refuse the second as a later operation on %s",
     async (dialect) => {
         // start a space's identity from its machine
-        const registry = await openRegistry(dialect, new TestClock(Date.now()));
+        const registry = await openRegistry(dialect, new VirtualClock(Date.now()));
         const { space, start, extend, log } = registry;
         const [machineKey, left, right] = [
             (await KeyPair.generate()).pair,

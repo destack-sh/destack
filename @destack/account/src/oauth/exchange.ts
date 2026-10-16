@@ -13,7 +13,7 @@ import {
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
 import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { type Clock, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
 import { CallError, isCallError } from "@destack/runtime/error";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
@@ -25,6 +25,7 @@ import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
 import { Issuance } from "./issuance.ts";
 import { PackageResource } from "./resource.ts";
+import type { Clock } from "@destack/environment";
 
 /** The grant type of a token exchanged for another (RFC 8693 2.1). */
 export const TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";

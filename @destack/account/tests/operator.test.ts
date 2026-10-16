@@ -7,7 +7,7 @@ import { MachineIdentity } from "../src/client/machine-identity.ts";
 import { account, endpoint, key, machine, organisation, space } from "../src/object/index.ts";
 import { Platform, type PlatformDeclaration } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
-import { Clock, Digest, Identifier, present } from "@destack/schema";
+import { Digest, Identifier, present } from "@destack/schema";
 import {
     AccountFixture,
     ids,
@@ -18,6 +18,7 @@ import {
 } from "../src/test/index.ts";
 
 import { AddressResolver } from "../src/address/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The platform organisation of the fixture's universe, declaring no cloud machines. */
 const PLATFORM: PlatformDeclaration = {

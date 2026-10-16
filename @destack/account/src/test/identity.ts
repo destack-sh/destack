@@ -4,7 +4,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
-import { type Clock, Identifier } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
 import { Scope } from "@destack/sync";
 import { IdentityRegistry } from "../identity/registry.ts";
@@ -13,6 +13,7 @@ import accountPackage from "../package.ts";
 import { implementIdentity } from "../server/identity.ts";
 import { implementOperation } from "../server/operation.ts";
 import { TestDirectory } from "./directory.ts";
+import type { Clock } from "@destack/environment";
 
 /** The universe's identity registry as a test's machine serving its spaces calls it. */
 export const TestIdentityRegistry = {

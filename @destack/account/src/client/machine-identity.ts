@@ -2,7 +2,7 @@ import type { Fetch } from "@destack/runtime";
 import { PackageId } from "@destack/package";
 import type { OmitEach } from "@destack/object";
 import { copyRequest, RequestId } from "@destack/runtime/request";
-import { Clock, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import type { ClientOf } from "@destack/runtime/client";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
@@ -20,6 +20,7 @@ import {
 import { Assertion, TokenCache } from "@destack/runtime/authentication";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
+import { Clock } from "@destack/environment";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
 const MACHINE_KEY_LABEL = "destack machine key v1";

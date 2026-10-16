@@ -25,7 +25,7 @@ import {
 } from "@destack/db";
 import { type ObjectStore, Reservation } from "@destack/object/server";
 import { Claimant } from "@destack/object";
-import { type Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { APIError } from "better-auth/api";
 import { Account, account } from "../object/account.ts";
@@ -49,6 +49,7 @@ import { CLIENT_RESOURCE_MODEL, PackageResource, RESOURCE_MODEL } from "../oauth
 import type { PackageId } from "@destack/package";
 import { isCallError, CallError } from "@destack/runtime/error";
 import { BetterAuthWhere } from "./where.ts";
+import type { Clock } from "@destack/environment";
 
 /** The authentication tables the adapter accepts. */
 const TABLES: Readonly<Record<string, Table>> = {

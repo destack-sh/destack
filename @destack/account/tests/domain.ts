@@ -5,7 +5,7 @@ import type { DatabaseConnection, Dialect } from "@destack/db";
 import type { EventStore } from "@destack/event";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, Identifier } from "@destack/schema";
+import { Identifier } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { Health } from "@destack/runtime/health";
@@ -19,6 +19,7 @@ import * as server from "../src/server/index.ts";
 import { testCallKey } from "@destack/runtime/test";
 import accountPackage from "../src/package.ts";
 import { AccountFixture, SIGN_UP } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The time scenarios run at: 2026-10-01 00:00 UTC. */
 export const NOW = Date.UTC(2026, 9, 1);

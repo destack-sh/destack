@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { StepUp } from "@destack/access";
 import type { Select } from "@destack/db";
 import type { ObjectClient } from "@destack/object/client";
-import { type Clock, Identifier, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { until } from "@destack/runtime/timer";
@@ -13,6 +13,7 @@ import { type Login, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionKeychain } from "./session-keychain.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
+import type { Clock } from "@destack/environment";
 
 /** The loopback path a browser sign-in returns to (RFC 8252 7.3). */
 const REDIRECT_PATH = "/callback";

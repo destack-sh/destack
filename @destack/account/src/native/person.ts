@@ -1,6 +1,6 @@
 import { principal, type StepUp } from "@destack/access";
 import type { PackageId } from "@destack/package";
-import { type Clock, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/runtime";
 import { type ClientOptions, createClient } from "@destack/runtime/client";
 import { TokenCache } from "@destack/runtime/authentication";
@@ -12,6 +12,7 @@ import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
 import type { Login } from "./login.ts";
 import type { SessionKeychain } from "./session-keychain.ts";
+import type { Clock } from "@destack/environment";
 
 /** A person at an issuer, with one sign-in on this computer. */
 export const Person = schema.object({

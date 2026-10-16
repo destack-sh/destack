@@ -3,9 +3,9 @@ import { and, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
 import { ObjectClient } from "@destack/object/client";
-import { Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
@@ -16,6 +16,8 @@ import { login } from "./login.ts";
 import { SessionKeychain } from "./session-keychain.ts";
 import { PersonClient } from "./person.ts";
 import { NativeSignIn } from "./sign-in.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The time the native client's clock reads, in UTC epoch milliseconds: 2026-01-01. */
 const NOW = 1_767_225_600_000;
@@ -295,7 +297,7 @@ async function native(accounts: AccountFixture) {
         database,
         objects: { login },
         package: login.package,
-        clock: new TestClock(NOW),
+        clock: new VirtualClock(NOW),
         scope: CLIENT,
         caller: subject,
         client: subject,
