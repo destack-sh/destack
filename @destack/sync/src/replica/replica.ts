@@ -440,12 +440,12 @@ export class Replica {
         );
     }
 
-    /** List the scopes the database's replicas keep, or those a reader sees, with their tables. */
-    static async kept(
+    /** List the tables of the database's replicas by scope, or of those a reader sees. */
+    static async tables(
         database: DatabaseConnection,
         ...reader: [] | [below: string, caller: Subject | undefined]
     ): Promise<readonly { readonly scope: string; readonly tables: readonly string[] }[]> {
-        // keep no replicas in a database without them
+        // list no replicas in a database without them
         if (!database.tables.includes(replica)) {
             return [];
         }
@@ -456,15 +456,15 @@ export class Replica {
             .where(reader.length === 0 ? undefined : Replica.#seen(...reader));
     }
 
-    /** List the scopes whose rows of a table the replicas keep, or those a reader sees. */
+    /** List the scopes whose rows of a table the replicas have, or those a reader sees. */
     static async scopes(
         database: DatabaseConnection,
         table: Table,
         ...reader: [] | [below: string, caller: Subject | undefined]
     ): Promise<string[]> {
-        // keep the scopes of the replicas keeping the table
+        // take the scopes of the replicas with the table
         const sqlName = table[TABLE].sqlName;
-        const records = await Replica.kept(database, ...reader);
+        const records = await Replica.tables(database, ...reader);
 
         return [
             ...new Set(
