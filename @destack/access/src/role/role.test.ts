@@ -653,15 +653,15 @@ test("keep a role by name, replace its purpose and permissions, then keep it ide
 
     // keep the role, keep it again under the same name with other permissions, and once more alike
     const created = await owner(1000, (authorization) =>
-        authorization.keepRole(place, {
+        authorization.upsertRole(place, {
             name: "editor",
             description: "Read nodes",
             permissions: [read],
         }),
     );
     const changed = { name: "editor", description: "Update nodes", permissions: [update] };
-    await owner(2000, (authorization) => authorization.keepRole(place, changed));
-    const kept = await owner(3000, (authorization) => authorization.keepRole(place, changed));
+    await owner(2000, (authorization) => authorization.upsertRole(place, changed));
+    const kept = await owner(3000, (authorization) => authorization.upsertRole(place, changed));
 
     // expect one role at its second revision, last written at the change, granting only the kept permissions
     const reading = await Transaction.open(database);
@@ -687,7 +687,7 @@ test("keep an inherent role's permissions as declared, keeping the rows of the o
     const dave = principal.user.reference("universe", "dave");
     const keep = async (permissions: (typeof read)[], now: number) => {
         const transaction = await Transaction.open(database);
-        const keeper = await Role.keepInherent(
+        const keeper = await Role.upsertInherent(
             transaction,
             place,
             { name: "keeper", description: "Keep nodes", permissions },
@@ -728,7 +728,7 @@ test("keep an inherent role's permissions as declared, keeping the rows of the o
 test("assign a role to one subject alone, revoking the previous subject and keeping an identical binding", async () => {
     const { database, place, owner } = await openOwnedSpace();
     const reader = await owner(1000, (authorization) =>
-        authorization.keepRole(place, {
+        authorization.upsertRole(place, {
             name: "reader",
             description: "Read nodes",
             permissions: [],
@@ -762,7 +762,7 @@ test("assign a role to one subject alone, revoking the previous subject and keep
 test("refuse keeping and assigning roles to a caller without the permissions", async () => {
     const { place, home, database, alice, owner } = await openOwnedSpace();
     const reader = await owner(1000, (authorization) =>
-        authorization.keepRole(place, {
+        authorization.upsertRole(place, {
             name: "reader",
             description: "Read the space",
             permissions: [space.permission("read")],
@@ -774,7 +774,7 @@ test("refuse keeping and assigning roles to a caller without the permissions", a
         Authorization.run(home, database, () => alice, call);
     await expect(
         outsider((authorization) =>
-            authorization.keepRole(place, {
+            authorization.upsertRole(place, {
                 name: "sharer",
                 description: "Share",
                 permissions: [],
@@ -783,7 +783,11 @@ test("refuse keeping and assigning roles to a caller without the permissions", a
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: create" });
     await expect(
         outsider((authorization) =>
-            authorization.keepRole(place, { name: "reader", description: "Read", permissions: [] }),
+            authorization.upsertRole(place, {
+                name: "reader",
+                description: "Read",
+                permissions: [],
+            }),
         ),
     ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: update" });
     await expect(

@@ -194,7 +194,7 @@ export const Role = {
     },
 
     /** Keep a creation-defined role with exactly some permissions, bound to one scope subject. */
-    async keepInherent(
+    async upsertInherent(
         transaction: Transaction,
         scope: ObjectReference,
         request: RoleRequest,

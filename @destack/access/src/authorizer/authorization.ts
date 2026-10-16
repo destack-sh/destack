@@ -782,7 +782,7 @@ export class Authorization {
     }
 
     /** Keep a role by name in a scope with exactly the requested purpose and permissions. */
-    async keepRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
+    async upsertRole(scope: ObjectReference, request: RoleRequest): Promise<Role> {
         return this.transaction.savepoint(async () => {
             // read the role with the name, and define it when none exists
             const now = this.context().now;
@@ -890,7 +890,7 @@ export class Authorization {
     }
 
     /** Keep exactly the wanted relationships among a selection's, as the caller may. */
-    async keepRelationships(
+    async replaceRelationships(
         selection: RelationshipSelection,
         wanted: readonly RelationshipRequest[],
     ): Promise<void> {
@@ -929,7 +929,7 @@ export class Authorization {
     }
 
     /** Keep one role by name in a scope granting exactly some permissions, bound to one subject. */
-    async keepBinding(
+    async upsertBinding(
         scope: ObjectReference,
         binding: Omit<RoleRequest, "permissions"> & {
             /** The permissions the role grants, none to drop the role and its binding. */
@@ -945,7 +945,7 @@ export class Authorization {
         // drop the binding and the role when it grants nothing
         const { subject, object, conditions, ...request } = binding;
         if (request.permissions.length === 0) {
-            await this.keepRelationships({ scope: scope.id }, []);
+            await this.replaceRelationships({ scope: scope.id }, []);
             const kept = await this.transaction.read(accessRole).findFirst({
                 where: {
                     scope: scope.id,
@@ -960,8 +960,8 @@ export class Authorization {
         }
 
         // keep the role with exactly the permissions, bound only to the subject
-        const role = await this.keepRole(scope, request);
-        await this.keepRelationships({ scope: scope.id }, [
+        const role = await this.upsertRole(scope, request);
+        await this.replaceRelationships({ scope: scope.id }, [
             {
                 object: object ?? scope,
                 role: role.id,

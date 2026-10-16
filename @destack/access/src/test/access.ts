@@ -65,7 +65,7 @@ export class AccessFixture {
     ): Promise<string> {
         // define the role with its permissions and bind it in one transaction
         const transaction = await Transaction.open(this.database);
-        const id = await Role.keepInherent(transaction, scope, role, subject, now);
+        const id = await Role.upsertInherent(transaction, scope, role, subject, now);
         await transaction.commit();
 
         return id;

@@ -459,7 +459,7 @@ export const Relationship = {
     },
 };
 
-/** The relationships of a scope that `keepRelationships` covers. */
+/** The relationships of a scope that `replaceRelationships` covers. */
 export type RelationshipSelection = {
     /** The scope the relationships live in. */
     readonly scope: string;

@@ -230,7 +230,7 @@ test.for(TEST_DIALECTS)(
 
         // relate the worker to a and b next to bob's grant
         await owner((authorization) =>
-            authorization.keepRelationships(selection, wanting(first, second)),
+            authorization.replaceRelationships(selection, wanting(first, second)),
         );
         expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
@@ -246,7 +246,7 @@ test.for(TEST_DIALECTS)(
             throw new Error("node b keeps no worker relationship");
         }
         await owner((authorization) =>
-            authorization.keepRelationships(selection, wanting(second, third)),
+            authorization.replaceRelationships(selection, wanting(second, third)),
         );
         const [unchanged] = await fixture.database
             .select({ id: accessRelationship.id })
@@ -255,7 +255,7 @@ test.for(TEST_DIALECTS)(
         expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], kept]);
 
         // remove every relationship of the worker
-        await owner((authorization) => authorization.keepRelationships(selection, wanting()));
+        await owner((authorization) => authorization.replaceRelationships(selection, wanting()));
         expect(await related()).toEqual(["b:bob"]);
 
         // refuse bob, who edits b without sharing it
@@ -264,7 +264,7 @@ test.for(TEST_DIALECTS)(
                 fixture.authorizer,
                 fixture.database,
                 () => fixture.bob,
-                (authorization) => authorization.keepRelationships(selection, wanting(second)),
+                (authorization) => authorization.replaceRelationships(selection, wanting(second)),
             ),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
     },
@@ -296,11 +296,11 @@ test.for(TEST_DIALECTS)(
 
         // keep carol's managed grant on a twice under the same identifier
         await declaring((authorization) =>
-            authorization.keepRelationships(selection, [carolEditing("a")]),
+            authorization.replaceRelationships(selection, [carolEditing("a")]),
         );
         const first = await managed();
         await declaring((authorization) =>
-            authorization.keepRelationships(selection, [carolEditing("a")]),
+            authorization.replaceRelationships(selection, [carolEditing("a")]),
         );
         expect([first.length, aligned(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
@@ -314,7 +314,7 @@ test.for(TEST_DIALECTS)(
             owner((authorization) => authorization.revoke(node.reference("personal", "a"), id)),
         ).rejects.toMatchObject(refusal);
         await declaring((authorization) =>
-            authorization.keepRelationships(selection, [carolEditing("c")]),
+            authorization.replaceRelationships(selection, [carolEditing("c")]),
         );
         expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
     },
