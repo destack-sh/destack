@@ -1,4 +1,4 @@
-import { aligned, Identifier, schema } from "@destack/schema";
+import { nth, Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
@@ -241,7 +241,7 @@ test.for(TEST_DIALECTS)(
         for (let model = 0; model < MODELS; model++) {
             const draw = random(model + 1);
             const pick = <Value>(values: readonly Value[]) =>
-                aligned(values, Math.floor(draw() * values.length));
+                nth(values, Math.floor(draw() * values.length));
             await database.delete(accessRelationship);
 
             // relate random subjects to random nodes, groups and roles in one insert, skipping repeated tuples
@@ -337,7 +337,7 @@ test.for(TEST_DIALECTS)(
                                         access,
                                         reader,
                                     );
-                                    const permitting = aligned(
+                                    const permitting = nth(
                                         await database.execute(
                                             sql`SELECT CASE WHEN ${authorizer.permits(across, target, access)} THEN 1 ELSE 0 END AS permitted`,
                                             schema.object({

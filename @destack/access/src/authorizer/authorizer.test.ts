@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Snapshot, Transaction, eq, type DatabaseConnection, Table } from "@destack/db";
-import { aligned, Identifier, schema } from "@destack/schema";
+import { nth, Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
@@ -891,7 +891,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
 
     // present thousands of copies of alice's notes, beyond one query's parameter limit
     const copies = Array.from({ length: 4000 }, (_, position) => ({
-        ...aligned(rows, position % 3),
+        ...nth(rows, position % 3),
         id: `copy-${position}`,
     }));
     const access = await authorizer.resolve(Snapshot.live(database), "personal", {

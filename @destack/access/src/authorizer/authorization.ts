@@ -8,7 +8,7 @@ import {
     Table,
 } from "@destack/db";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
-import { aligned, type Identifier, schema } from "@destack/schema";
+import { nth, type Identifier, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
@@ -872,7 +872,7 @@ export class Authorization {
             // revoke its other bindings and bind it to the subject, as the caller may
             await this.authorizeGrant(request);
             for (const [index, row] of rows.entries()) {
-                await this.authorizeRevoke(aligned(bound, index), row);
+                await this.authorizeRevoke(nth(bound, index), row);
             }
             for (const row of rows) {
                 await this.transaction.write({
@@ -1163,7 +1163,7 @@ export class Authorization {
         });
 
         // refuse removing the only such binding
-        if (owners.length === 1 && aligned(owners, 0).id === row.id) {
+        if (owners.length === 1 && nth(owners, 0).id === row.id) {
             throw new AccessError("CONFLICT", "the last owner cannot be removed");
         }
     }

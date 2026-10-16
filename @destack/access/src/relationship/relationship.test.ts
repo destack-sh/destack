@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { type ObjectReference, Subject } from "@destack/sync";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
@@ -302,14 +302,14 @@ test.for(TEST_DIALECTS)(
         await declaring((authorization) =>
             authorization.replaceRelationships(selection, [carolEditing("a")]),
         );
-        expect([first.length, aligned(first, 0)[0], await managed()]).toEqual([1, "a", first]);
+        expect([first.length, nth(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
         // refuse alice revoking the managed grant herself, and move it through its declaration
         const refusal = {
             code: "CONFLICT",
             message: "record is managed by its source declaration",
         };
-        const id = aligned(aligned(first, 0), 1);
+        const id = nth(nth(first, 0), 1);
         await expect(
             owner((authorization) => authorization.revoke(node.reference("personal", "a"), id)),
         ).rejects.toMatchObject(refusal);

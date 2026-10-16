@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { Snapshot } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import type { Access } from "./access.ts";
 import { account, item, node, rows, space } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
@@ -40,11 +40,11 @@ test.for(TEST_DIALECTS)(
 
         // let bob read the nodes of two spaces through a role, and suspend one of them
         const reader = { name: "reader", description: "", permissions: [node.permission("read")] };
-        await access.replicateRole(aligned(spaces, 1), reader, userSubject("bob"), 1);
-        await access.replicateRole(aligned(spaces, 2), reader, userSubject("bob"), 1);
+        await access.replicateRole(nth(spaces, 1), reader, userSubject("bob"), 1);
+        await access.replicateRole(nth(spaces, 2), reader, userSubject("bob"), 1);
         await access.suspendReplica("suspended", 1);
         const nodes = ["plain", "shared", "suspended"].map((scope) => ({
-            ...aligned(rows, 0),
+            ...nth(rows, 0),
             id: `in-${scope}`,
             scope,
             parent: null,

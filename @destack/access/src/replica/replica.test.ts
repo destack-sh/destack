@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import {
     AccessError,
     accessTables,
@@ -100,7 +100,7 @@ test("relay an account's access through the space's database into an app's, and 
         authorization.grant({
             object,
             role: reader.id,
-            subject: aligned(carol.groups, 0),
+            subject: nth(carol.groups, 0),
         }),
     );
 

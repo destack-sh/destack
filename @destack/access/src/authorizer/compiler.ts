@@ -14,7 +14,7 @@ import {
     Predicate,
     type Binding,
 } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
 import {
@@ -762,7 +762,7 @@ export class Compiler {
         }
         // correlate the direct parent a field refers to
         else if (!expression.transitive) {
-            return Compiler.#followField(field, mapping, source, aligned(related, 0));
+            return Compiler.#followField(field, mapping, source, nth(related, 0));
         }
 
         // join the indexed ancestors to their protected application rows
@@ -770,7 +770,7 @@ export class Compiler {
             expression,
             mapping,
             source,
-            aligned(related, 0),
+            nth(related, 0),
             compilation,
         );
     }

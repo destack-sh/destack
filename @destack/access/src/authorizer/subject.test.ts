@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { v7 } from "uuid";
 import { accessRelationship, principal, Relationship } from "../index.ts";
 import { group, node } from "../test/fixture.ts";
@@ -74,7 +74,7 @@ test.for(TEST_DIALECTS)(
                 { ...(after === undefined ? {} : { after }), limit: 2 },
             );
         const first = await page();
-        const second = await page(Subject.key(aligned(first, first.length - 1)));
+        const second = await page(Subject.key(nth(first, -1)));
         expect([first.map((subject) => subject.id), second.map((subject) => subject.id)]).toEqual([
             ["alice", "carol"],
             ["dave"],
