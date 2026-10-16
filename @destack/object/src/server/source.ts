@@ -552,12 +552,12 @@ export class ObjectSource {
         options: sync.FeedOptions,
         signal: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // read the replicas held now
+        // read the replicas held now, following them until the stream ends or drains
         const { database } = this.store;
         let held = await sync.Replica.tables(database, scope, caller);
         let reflected = options.previous && ObjectSource.#withReplicas(options.previous, held);
         let position = after;
-        while (!signal.aborted) {
+        while (!signal.aborted && options.drain?.aborted !== true) {
             // watch the replicas until they change, its failure surfacing once the follow ends
             const current = canonicalize(held);
             const compiled = ObjectSource.#withReplicas(queries, held);
