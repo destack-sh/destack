@@ -56,14 +56,14 @@ export class SettlementContext {
     readonly id: string | undefined;
     /** The idempotency key the external work ran under. */
     readonly idempotencyKey: string;
-    /** The database the store keeps the call's rows in. */
+    /** The database with the call's rows. */
     readonly database: DatabaseConnection;
     /** When the settlement runs, in UTC epoch milliseconds. */
     readonly now: number;
     /** The store settling the call, which the work's follow-ups run as its principal through. */
     readonly store: ObjectStore;
 
-    /** Keep the recorded call. */
+    /** Hold the recorded call. */
     constructor(fields: {
         readonly object: ObjectType;
         readonly name: string;
@@ -74,7 +74,7 @@ export class SettlementContext {
         readonly now: number;
         readonly store: ObjectStore;
     }) {
-        // keep the recorded fields
+        // hold the recorded fields
         this.object = fields.object;
         this.name = fields.name;
         this.scope = fields.scope;

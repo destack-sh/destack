@@ -30,49 +30,55 @@ import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
 
 /** Cards their owner remarks on. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(schema.string().min(1)),
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(schema.string().min(1)),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-    remark: method.mutation({
-        permission: "write",
-        input: schema.object({ text: schema.string() }),
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+        remark: method.mutation({
+            permission: "write",
+            input: schema.object({ text: schema.string() }),
+        }),
+        stamp: method.update("write", { fields: ["name"], isInternal: true }),
     }),
-    stamp: method.update("write", { fields: ["name"], isInternal: true }),
-}));
+);
 
 /** Notes of the cards' package, which no hook implements. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller(), text: field.string() },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({ create: method.create("write") }));
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller(), text: field.string() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({ create: method.create("write") }),
+);
 
-/** The bucket the platform's photos keep their images in. */
+/** The bucket the platform's photos store their images in. */
 const images: FileBucket = new ResourceDeclaration(card.package, {
     name: "images",
     kind: "bucket",
     spec: {},
 });
 
-/** Photos of the platform, each image kept as a file. */
+/** Photos of the platform, each image stored as a file. */
 const photo = defineObject({
     name: "photo",
     plural: "photos",
     scope: space,
     fields: { owner: field.reference(principal.user).caller(), image: field.file(images) },
     permissions: { read: relation("owner"), write: relation("owner") },
-}).methods();
+});
 
 /** The package of the installed cards, apart from the platform's. */
 const OTHER_PACKAGE = schema
@@ -89,7 +95,7 @@ function travel(value: unknown): unknown {
 
 /** Serve cards whose hooks run in a sandbox of the package's installation. */
 async function serveCards(cards: PackageHandle, owner: Package = card.package) {
-    // keep the space's cards in memory
+    // store the space's cards in memory
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
@@ -187,7 +193,7 @@ function declared(cards: PackageHandle): InstalledDeclaration[] {
     ];
 }
 
-/** Move the card type of a declaration into another package, its scope kept in the platform's. */
+/** Move the card type of a declaration into another package, its scope left in the platform's. */
 function moved(
     entry: InstalledDeclaration,
     packageId: Identifier<"package">,
@@ -382,7 +388,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
         card.call("get", { spaceId, id: created.id }),
     );
 
-    // read the concurrent name in the second attempt's own session, keeping only its change
+    // read the concurrent name in the second attempt's own session, seeing only its change
     expect({
         attempts,
         stored: stored.name,
@@ -799,7 +805,7 @@ test("describe the platform's and an installed package's types from one store, d
         sandboxes: [sandbox],
     });
 
-    // declare every type the store describes, the photo's image kept in the platform's bucket
+    // declare every type the store describes, the photo's image stored in the platform's bucket
     const types = ObjectType.ofAll(store.describe(), []);
     const described = present(
         types.find((type) => type.name === "photo"),
@@ -820,16 +826,19 @@ test("describe the platform's and an installed package's types from one store, d
 
 test("list the phases a package attaches as hooks, leaving a trait's methods to every store", () => {
     // declare controlled machines handling their creation, and implement the trait's observe
-    const machine = defineObject({
-        name: "machine",
-        plural: "machines",
-        scope: space,
-        controlled: true,
-        fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
-    }).methods((method) => ({
-        create: method.create("write").handle((context, next) => next(context)),
-    }));
+    const machine = defineObject(
+        {
+            name: "machine",
+            plural: "machines",
+            scope: space,
+            controlled: true,
+            fields: { owner: field.reference(principal.user).caller() },
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        (method) => ({
+            create: method.create("write").handle((context, next) => next(context)),
+        }),
+    );
     const implemented = machine.implement({ methods: { observe: { authorize: async () => {} } } });
 
     // list only the package's own phases

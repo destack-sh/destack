@@ -164,7 +164,7 @@ export const apply: Method<{
         );
         if (fixed !== undefined) {
             throw new CallError("BAD_REQUEST", {
-                message: `${object.name} ${fixed} is immutable: declared ${canonicalize(decoded[fixed] ?? null)}, kept ${canonicalize(applied?.[fixed] ?? null)}`,
+                message: `${object.name} ${fixed} is immutable: declared ${canonicalize(decoded[fixed] ?? null)}, applied ${canonicalize(applied?.[fixed] ?? null)}`,
             });
         }
 
@@ -181,7 +181,7 @@ export const apply: Method<{
                 : DeclarableMethod.rewritten(object, applied, decoded, now);
         const change = { table: object.table, before: applied ?? null, after: row };
         await transaction.write(change);
-        object.keepReaders(transaction, change, now);
+        object.updateReaders(transaction, change, now);
 
         return row;
     },
@@ -284,7 +284,7 @@ const DeclarableMethod = {
         row: Row,
         now: number,
     ): Promise<void> {
-        // request deletion where the table keeps it, else remove the row
+        // request deletion where the table records it, else remove the row
         const table = object.table[TABLE];
         const requested = {
             ...row,
@@ -297,6 +297,6 @@ const DeclarableMethod = {
             after: "deletedAt" in table.columns ? Table.values(object.table, requested) : null,
         };
         await transaction.write(change);
-        object.keepReaders(transaction, change, now);
+        object.updateReaders(transaction, change, now);
     },
 };

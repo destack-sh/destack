@@ -17,17 +17,20 @@ import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
 /** A labelled pin of a space, whose label stays editable while the space moves. */
-const pin = defineObject({
-    name: "pin",
-    plural: "pins",
-    scope: space,
-    fields: { label: field.string() },
-    shareable: {},
-    moving: ["edit"],
-}).methods((method) => ({
-    create: method.create("manage"),
-    update: method.update("edit", { fields: ["label"] }),
-}));
+const pin = defineObject(
+    {
+        name: "pin",
+        plural: "pins",
+        scope: space,
+        fields: { label: field.string() },
+        shareable: {},
+        moving: ["write"],
+    },
+    (method) => ({
+        create: method.create("manage"),
+        update: method.update("write", { fields: ["label"] }),
+    }),
+);
 
 test("send a client's writes on to the machine serving a moved scope", async () => {
     // serve the space on its source and on the machine it moves to, and fence the source
@@ -74,7 +77,7 @@ test("send a client's writes on to the machine serving a moved scope", async () 
 });
 
 test("admit the calls of moving permissions in a fenced scope and refuse every other call", async () => {
-    // keep a pin in a space, then fence the space toward another machine
+    // store a pin in a space, then fence the space toward another machine
     const storage = await TestDatabase.create("sqlite", [...pin.tables, ...callTables], {
         isMigrated: true,
     });
@@ -111,7 +114,7 @@ test("admit the calls of moving permissions in a fenced scope and refuse every o
     ]).toEqual([["MISDIRECTED_REQUEST", `${spaceId} moves to ${moved}`], ["final"]]);
 });
 
-/** Read the titles of the notes a database keeps. */
+/** Read the titles of the notes in a database. */
 async function titles(database: DatabaseConnection): Promise<string[]> {
     const rows = await database.select({ title: note.table.title }).from(note.table);
 

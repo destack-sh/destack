@@ -320,7 +320,7 @@ export const ObjectPolicy = {
         else if (typeof subject === "string") {
             return Policy.subjectType(owner.id, subject);
         }
-        // keep any other subject
+        // pass any other subject
         else {
             return subject;
         }
@@ -428,7 +428,7 @@ export const ObjectPolicy = {
         });
     },
 
-    /** Map each declared relation a type's fields keep to its column. */
+    /** Map each declared relation a type's fields have to its column. */
     fieldRelations(type: ObjectType): Record<string, TableMapping["relations"][string]> {
         const relations: Record<string, TableMapping["relations"][string]> = {};
         for (const [property, field] of Object.entries(type.fields)) {
@@ -483,7 +483,7 @@ export const ObjectPolicy = {
         return Object.fromEntries(
             Object.entries(represented?.definition.relations ?? {}).map(([name, relation]) => [
                 name,
-                // keep the whole relation, granted by none without a permission
+                // take the whole relation, granted by none without a permission
                 { ...relation, grantedBy: relation.grantedBy ?? null },
             ]),
         );
@@ -563,7 +563,7 @@ export const role = {
                 return ObjectPolicy.readRow(store, call.target.id);
             },
         ),
-        keep: defineMethod<{
+        upsertBinding: defineMethod<{
             kind: "custom";
             permission: "update";
             input: typeof RoleBinding;
@@ -581,16 +581,16 @@ export const role = {
             result: "value",
             isPredicted: false,
             procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "/keep" },
+                route: { method: "POST", path: "/upsert-binding" },
                 input: shapes.scope.extend({ ...shapes.replay, ...RoleBinding.shape }),
                 output: Empty,
             }),
             handler: async (context, execution) => {
-                // keep the role and its binding under the manager, dropping both without permissions
+                // bind the role under the manager with exactly its permissions, dropping both without any
                 const { manager, ...binding } = RoleBinding.parse(context.input);
                 await Execution.store(execution, context)
                     .authorization.applying(manager)
-                    .keepBinding(await ObjectPolicy.scopeObject(context, execution), binding);
+                    .upsertBinding(await ObjectPolicy.scopeObject(context, execution), binding);
 
                 return {};
             },
@@ -611,7 +611,7 @@ export const role = {
     }),
 };
 
-/** A role kept by name under a manager, granting exactly some permissions to one subject. */
+/** A role upserted by name under a manager, granting exactly some permissions to one subject. */
 const RoleBinding = RoleRequest.extend({
     /** The one subject the role is bound to. */
     subject: Subject,

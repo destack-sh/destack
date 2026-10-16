@@ -19,42 +19,43 @@ import { auditedCalls } from "./fixture/audit.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Reminders the space sends once due, a batch per topic. */
-const reminder = defineObject({
-    name: "reminder",
-    plural: "reminders",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        topic: field.string(),
-        dueAt: field.time(),
-        sentAt: field.time().optional(),
+const reminder = defineObject(
+    {
+        name: "reminder",
+        plural: "reminders",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            topic: field.string(),
+            dueAt: field.time(),
+            sentAt: field.time().optional(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner"), send: none() },
     },
-    permissions: { read: relation("owner"), write: relation("owner"), send: none() },
-})
-    .methods((method) => ({
+    (method) => ({
         create: method.create("write", { fields: ["topic", "dueAt"] }),
         send: method.mutation({ permission: "send", isInternal: true }),
-    }))
-    .implement({
-        methods: { send: (call) => call.update({ sentAt: call.now }) },
-        controller: {
-            pending: { sentAt: { isNull: true } },
-            key: (row) => ({ topic: row.topic }),
-            async reconcile(reconciling) {
-                // send the due reminders of the topic together, and wait for the next one
-                const { rows, now } = reconciling;
-                const due = rows.filter((row) => row.dueAt <= now);
-                if (due.length > 0) {
-                    await reconciling.mutate(
-                        due.map((row) => reminder.call("send", reminder.target(row))),
-                    );
-                }
-                const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
+    }),
+).implement({
+    methods: { send: (call) => call.update({ sentAt: call.now }) },
+    controller: {
+        pending: { sentAt: { isNull: true } },
+        key: (row) => ({ topic: row.topic }),
+        async reconcile(reconciling) {
+            // send the due reminders of the topic together, and wait for the next one
+            const { rows, now } = reconciling;
+            const due = rows.filter((row) => row.dueAt <= now);
+            if (due.length > 0) {
+                await reconciling.mutate(
+                    due.map((row) => reminder.call("send", reminder.target(row))),
+                );
+            }
+            const next = rows.filter((row) => row.dueAt > now).map((row) => row.dueAt - now);
 
-                return next.length === 0 ? undefined : Math.min(...next);
-            },
+            return next.length === 0 ? undefined : Math.min(...next);
         },
-    });
+    },
+});
 
 /** The database with the reminders, their access and the journal. */
 const reminderDatabase = defineDatabase({

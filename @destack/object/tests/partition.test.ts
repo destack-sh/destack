@@ -21,13 +21,16 @@ import { userContext, users } from "./fixture/user.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");
 
 /** Cards their owners pin in a space. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({ create: method.create("write", { fields: [] }) }));
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({ create: method.create("write", { fields: [] }) }),
+);
 
 /** A room inside the space, a partition of its own. */
 const room = defineObject({
@@ -38,7 +41,7 @@ const room = defineObject({
     partition: true,
     fields: {},
     permissions: { read: none() },
-}).methods();
+});
 
 /** The room the scenarios serve a partition of. */
 const ROOM = "room-01996ab0-0000-7000-8000-0000000000a3";
@@ -65,7 +68,7 @@ const cardsDatabase = defineDatabase({ name: "main", tables: [...card.tables, ..
 test.each(TEST_DIALECTS)(
     "serve a call in the store's own partition or in any partition, and point one in another partition to the partition serving it on %s",
     async (dialect) => {
-        // keep the space's cards, served by a store per partition it may serve
+        // store the space's cards, served by a store per partition it may serve
         const storage = await TestDatabase.create(dialect, cardsDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
@@ -103,7 +106,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "follow an installation's root chain from its machine, and a partition's chain below the root from the installation's root through its own package, one replica per link, on %s",
     async (dialect) => {
-        // keep a room partitioning inside the space
+        // create a room partitioning inside the space
         const storage = await TestDatabase.create(dialect, roomsDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
@@ -176,7 +179,7 @@ test("derive the roles of a shared partition without sharing methods on its row,
         fields: {},
         permissions: { read: none() },
         shareable: { isPublic: true },
-    }).methods();
+    });
 
     // derive the roles' relations, and no sharing methods
     expect({
@@ -191,16 +194,19 @@ test("derive the roles of a shared partition without sharing methods on its row,
 
     // refuse a room declaring a sharing method on its row
     expect(() =>
-        defineObject({
-            name: "room",
-            plural: "rooms",
-            scope: space,
-            isScope: true,
-            partition: true,
-            fields: {},
-            permissions: { read: none(), manage: none() },
-        }).methods(() => ({
-            explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
-        })),
+        defineObject(
+            {
+                name: "room",
+                plural: "rooms",
+                scope: space,
+                isScope: true,
+                partition: true,
+                fields: {},
+                permissions: { read: none(), manage: none() },
+            },
+            () => ({
+                explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
+            }),
+        ),
     ).toThrow(new TypeError("object room: share a partitioned scope through its relationships"));
 });

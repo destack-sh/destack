@@ -19,45 +19,48 @@ const review = {
     transitions: { approve: { from: ["pending"], to: "approved", permission: "review" } },
 } as const;
 
-test("change state fields only through their transitions, modifiers keeping the machine", () => {
+test("change state fields only through their transitions, modifiers holding the machine", () => {
     const article = defineObject({
         name: "article",
         plural: "articles",
         scope: space,
         fields: { title: field.string(), review: field.state(review).optional() },
         permissions: ["write", "review"],
-    }).methods((method) => ({ create: method.create("write"), update: method.update("write") }));
+    });
 
-    // leave the state out of what callers write, and keep its transition through the modifier
+    // leave the state out of what callers write, and its transition through the modifier
     expect([article.written, Object.keys(article.methods).toSorted()]).toEqual([
         ["title"],
-        ["approve", "create", "get", "list", "update"],
+        ["approve", "create", "delete", "get", "list", "update"],
     ]);
 });
 
 test("record a transition's declared fields with its state, refusing a call without them", async () => {
     // serve articles whose rejection records its reason, owned by the space's owner
-    const article = defineObject({
-        name: "article",
-        plural: "articles",
-        scope: space,
-        fields: {
-            title: field.string(),
-            reason: field.string().optional(),
-            review: field.state({
-                initial: "pending",
-                transitions: {
-                    reject: {
-                        from: ["pending"],
-                        to: "rejected",
-                        permission: "review",
-                        fields: ["reason"],
+    const article = defineObject(
+        {
+            name: "article",
+            plural: "articles",
+            scope: space,
+            fields: {
+                title: field.string(),
+                reason: field.string().optional(),
+                review: field.state({
+                    initial: "pending",
+                    transitions: {
+                        reject: {
+                            from: ["pending"],
+                            to: "rejected",
+                            permission: "review",
+                            fields: ["reason"],
+                        },
                     },
-                },
-            }),
+                }),
+            },
+            permissions: ["write", "review"],
         },
-        permissions: ["write", "review"],
-    }).methods((method) => ({ create: method.create("write") }));
+        (method) => ({ create: method.create("write") }),
+    );
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({ name: "main", tables: [...article.tables, space.table, ...callTables] }),
@@ -89,11 +92,11 @@ test("record a transition's declared fields with its state, refusing a call with
     const refused = await refusal(mutate({ ...rejection, input: unreasoned }));
     await mutate(rejection);
     const [row] = await database.select().from(article.table);
-    expect({ refused, kept: [row?.review, row?.reason] }).toEqual({
+    expect({ refused, stored: [row?.review, row?.reason] }).toEqual({
         refused: [
             "BAD_REQUEST",
             "invalid input: reason: invalid input: expected string, received undefined",
         ],
-        kept: ["rejected", "off topic"],
+        stored: ["rejected", "off topic"],
     });
 });

@@ -8,7 +8,7 @@ import type { ObjectScope } from "./object.ts";
 
 /** The fields of an activity: one caller's session of changes to an object. */
 const activityFields = {
-    /** The principal whose changes the session keeps. */
+    /** The principal whose changes the session records. */
     caller: field.subject().caller(),
     /** When the session's first change committed, in UTC epoch milliseconds. */
     startedAt: field.time(),
@@ -18,11 +18,11 @@ const activityFields = {
     from: field.json(LogPosition),
     /** The fields the session changed. */
     fields: field.json(schema.array(schema.string())),
-    /** How many changes the session keeps. */
+    /** How many changes the session records. */
     changes: field.integer(),
 };
 
-/** The table of activities, nested under the objects whose changes they keep. */
+/** The table of activities, nested under the objects whose changes they record. */
 export type ActivityTable = ObjectTable<
     "activity",
     ObjectScope,
@@ -32,7 +32,7 @@ export type ActivityTable = ObjectTable<
 
 /** A scope type's activities, one per caller's session of changes. */
 export const activity = {
-    /** Define a scope type's activities, nested under the objects whose changes they keep. */
+    /** Define a scope type's activities, nested under the objects whose changes they record. */
     definition<const Scope extends ObjectScope>(scope: Scope) {
         return {
             name: "activity",

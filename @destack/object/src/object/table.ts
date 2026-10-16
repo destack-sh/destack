@@ -165,11 +165,11 @@ export const ObjectTable = {
             isPrincipal: definition.represents !== undefined,
         };
 
-        // build the columns and gather the dependents, aggregates and tree the traits keep
+        // build the columns and gather the dependents, aggregates and tree the traits add
         const builders = ObjectTable.columns(definition, applied, object);
-        const kept = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
-        const tree = kept.find((traitTable) => traitTable.tree !== undefined)?.tree;
-        const fullText = kept
+        const added = applied.map(({ trait, options }) => trait.table?.(options, object) ?? {});
+        const tree = added.find((traitTable) => traitTable.tree !== undefined)?.tree;
+        const fullText = added
             .flatMap((traitTable) => traitTable.fullText ?? [])
             .filter((property) => Object.hasOwn(builders, property));
 
@@ -187,17 +187,17 @@ export const ObjectTable = {
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
                 ],
-                // keep the aggregates of these objects and of their attachments
+                // maintain the aggregates of these objects and of their attachments
                 aggregates: [
                     ...ObjectTable.declaredAggregates(definition, table),
-                    ...kept.flatMap((traitTable) => traitTable.aggregates ?? []),
+                    ...added.flatMap((traitTable) => traitTable.aggregates ?? []),
                 ],
-                // keep the traits' dependents
-                dependents: kept.flatMap((traitTable) => traitTable.dependents ?? []),
+                // add the traits' dependents
+                dependents: added.flatMap((traitTable) => traitTable.dependents ?? []),
                 // rename moved fields' columns in place and convert stored rows
                 moved: { columns: ObjectTable.movedColumns(definition) },
                 ...(definition.convert === undefined ? {} : { convert: definition.convert }),
-                // keep history for tracked objects, append events, and index a tree
+                // record history for tracked objects, append events, and index a tree
                 log: ObjectTable.readLog(definition, object.storage),
                 ...(tree === undefined ? {} : { tree }),
                 ...(fullText.length === 0 ? {} : { fullText }),
@@ -218,7 +218,7 @@ export const ObjectTable = {
         if (storage === "events") {
             return { appendOnly: true };
         }
-        // keep a tracked object's history
+        // record a tracked object's history
         else if (definition.tracked !== undefined) {
             return { retention: "history" as const };
         }
@@ -238,7 +238,7 @@ export const ObjectTable = {
             throw new TypeError(`object ${definition.name} has no record trait`);
         }
 
-        // build the field columns, keeping text in chunks
+        // build the field columns, with text in chunks
         const fields = Object.fromEntries(
             Object.entries(definition.fields ?? {})
                 .filter(([, field]) => field.type !== "text")

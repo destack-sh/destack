@@ -20,7 +20,7 @@ import { Observation, type ObservationReport, type ObservedRecord } from "./cond
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 
-/** The fields of a pending object's key, as its key name keeps them. */
+/** The fields of a pending object's key, as its key name holds them. */
 const KeyFields = schema.record(schema.string(), Scalar);
 
 /** The fields grouping objects a controller reconciles together, in JSON form. */
@@ -140,7 +140,7 @@ export const ObjectController = {
         };
     },
 
-    /** Read an object row's identifier, which every object table keeps. */
+    /** Read an object row's identifier, which every object table has. */
     readIdentifier(row: Row): string {
         return schema.string().parse(row["id"]);
     },

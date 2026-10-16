@@ -24,10 +24,10 @@ const auditCaller = defineSchema(
         name: schema.string().exactOptional(),
     }),
 );
-/** The caller of a call as the history keeps it. */
+/** The caller of a call as the history records it. */
 export type AuditCaller = schema.Infer<typeof auditCaller>;
 
-/** The caller of a call as the history keeps it, and the actor it derives. */
+/** The caller of a call as the history records it, and the actor it derives. */
 export const AuditCaller = Object.assign(auditCaller, {
     /** Read who acted: the last actor, else the subject. */
     actor(caller: AuditCaller): AuditActor {

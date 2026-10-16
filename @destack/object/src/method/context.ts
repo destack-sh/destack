@@ -35,7 +35,7 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import type { PackageId } from "@destack/package";
-import { isCallError, CallError, TRANSIENT_STATUSES } from "@destack/runtime/error";
+import { isCallError, CallError } from "@destack/runtime/error";
 import type { Address, Destination } from "@destack/runtime/outbox";
 import { RequestId } from "@destack/runtime/request";
 import { RunRequest } from "@destack/runtime/trigger";
@@ -52,18 +52,24 @@ import type { IsSum } from "./record.ts";
 import type { Listing } from "../query/listing.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";
+import type { Follow, FollowKey } from "../replica/shape.ts";
 import { EventView } from "../query/event.ts";
 import { Execution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
+import type { Workflow } from "@destack/runtime/workflow";
+import { StepJournal } from "../workflow/step.ts";
 import { Replay } from "../audit/replay.ts";
+
+/** How long a call waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
+const ACQUIRE_MILLISECONDS = 5000;
 
 /** The values of a draw: the integers a double represents exactly, 2^53. */
 const RANDOM_RANGE = 2 ** 53;
 
-/** The bits a draw drops from a 64-bit word to keep 53. */
+/** The bits a draw drops from a 64-bit word leaving 53. */
 const RANDOM_SHIFT = 11n;
 
-/** A call a method sent, as its outbox keeps it until the machine records its run. */
+/** A call a method sent, as its outbox holds it until the machine records its run. */
 const SENT = schema.object({
     /** The request recording the run once, however often the outbox delivers it. */
     requestId: RequestId.schema,
@@ -113,12 +119,7 @@ export const OutboxMessage = {
 
     /** Report whether a failure is the machine's final refusal: a client error but a timeout. */
     isRefusal(error: Error): boolean {
-        return (
-            isCallError(error) &&
-            error.status >= 400 &&
-            error.status < 500 &&
-            !TRANSIENT_STATUSES.has(error.status)
-        );
+        return isCallError(error) && CallError.isRefusal(error.status);
     },
 
     /** Read a failed send's reason as an error. */
@@ -132,7 +133,7 @@ export const OutboxMessage = {
     readonly isRefusal: object;
     readonly sendFailure: object;
 };
-/** A call a method sent, as the outbox keeps it. */
+/** A call a method sent, as the outbox holds it. */
 export type OutboxMessage = schema.Infer<typeof SENT>;
 
 /** The identifier and revision of a row the record writes change at its revision. */
@@ -154,7 +155,7 @@ export const RecordedRow = Object.assign(
     },
 );
 
-/** A controlled target's generation, which the controlled trait keeps beside the record columns. */
+/** A controlled target's generation, stored by its trait beside the record columns. */
 const GENERATION = schema.number().int();
 
 /** The context of one method call, served or predicted, typed by its method's declaration. */
@@ -201,7 +202,7 @@ export class MethodContext<
     /** The fields the call was made of, which replicates change. */
     readonly #fields: MethodContextOptions<Configuration, Prepared, Id, Target>;
 
-    /** Keep one call's fields. */
+    /** Hold one call's fields. */
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
         // refuse a mutation by a caller proving no identity
         if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
@@ -370,7 +371,7 @@ export class MethodContext<
         });
     }
 
-    /** Copy the call with some fields changed, keeping its types. */
+    /** Copy the call with some fields changed, with its types. */
     with(
         changes: Partial<MethodContextOptions<Configuration, Prepared, Id, Target>>,
     ): MethodContext<Configuration, Prepared, Id, Target> {
@@ -437,7 +438,7 @@ export class MethodContext<
             return location.session.reveal(type.table);
         }
 
-        // refuse a prediction, whose replica keeps no sensitive column
+        // refuse a prediction, whose replica has no sensitive column
         throw new TypeError(`${this.object.name}.${this.name} reveals rows in its store`);
     }
 
@@ -460,7 +461,7 @@ export class MethodContext<
             return new EventView(kind, location.session);
         }
 
-        // refuse a prediction, whose replica keeps no event log
+        // refuse a prediction, whose replica has no event log
         throw new TypeError(`${this.object.name}.${this.name} reads events in its store`);
     }
 
@@ -666,10 +667,67 @@ export class MethodContext<
 
         // record the send once in the call's transaction, asking to run it for the caller's subject
         const exchange = Exchange.of(location.authorization.context());
-        await location.store.send(request.call, location.transaction, {
-            ...(request.at === undefined ? {} : { at: request.at }),
-            ...(exchange === undefined ? {} : { exchange }),
-        });
+        await location.store.send(
+            {
+                call: request.call,
+                ...(request.at === undefined ? {} : { at: request.at }),
+                ...(exchange === undefined ? {} : { exchange }),
+            },
+            location.transaction,
+        );
+    }
+
+    /** Start a run of a workflow of the call's package once this call commits, once per request. */
+    async start<Input>(request: {
+        readonly workflow: Workflow<Input>;
+        readonly input: NoInfer<Input>;
+        readonly at?: number;
+        readonly requestId?: string;
+    }): Promise<void> {
+        // start from the store only, for the caller's subject
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(`${this.object.name}.${this.name} starts runs from its store`);
+        }
+
+        // record the run with its input as its schema reads it
+        const exchange = Exchange.of(location.authorization.context());
+        await location.store.send(
+            {
+                workflow: request.workflow.name,
+                input: StepJournal.json(request.workflow.input.parse(request.input)),
+                ...(request.at === undefined ? {} : { at: request.at }),
+                ...(exchange === undefined ? {} : { exchange }),
+            },
+            location.transaction,
+            request.requestId,
+        );
+    }
+
+    /** Follow a shape's key on demand in a prepare, unavailable until its rows are here. */
+    async acquire<Parameters extends object>(
+        follow: Extract<Follow<Parameters>, { readonly onDemand: unknown }>,
+        at: FollowKey<Parameters>,
+    ): Promise<void> {
+        // acquire through the executing store, refusing a sandbox's hook and a prediction
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(`${this.object.name}.${this.name} acquires replicas in its store`);
+        }
+
+        // wait a bounded time for the replica, which a retry finds synced
+        const signal = AbortSignal.timeout(ACQUIRE_MILLISECONDS);
+        try {
+            await location.store.acquire(follow, at, signal);
+        } catch (error) {
+            if (!signal.aborted) {
+                throw error;
+            }
+
+            throw new CallError("UNAVAILABLE", {
+                message: `the ${follow.shape.name} replica of ${at.key.scope} is still syncing`,
+            });
+        }
     }
 
     /** Update the target's desired state at its revision, advancing a controlled generation. */

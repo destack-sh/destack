@@ -19,15 +19,18 @@ import { request } from "./fixture/request.ts";
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
 /** Cards stacks declare by name, which their owners also write directly. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: space,
-    declarable: { schema: schema.object({ title: schema.string() }) },
-    fields: { owner: field.reference(principal.user).caller(), title: field.string() },
-    permissions: { write: relation("owner") },
-    adoptable: { by: "write" },
-}).methods((method) => ({ create: method.create("write") }));
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: space,
+        declarable: { schema: schema.object({ title: schema.string() }) },
+        fields: { owner: field.reference(principal.user).caller(), title: field.string() },
+        permissions: { write: relation("owner") },
+        adoptable: { by: "write" },
+    },
+    (method) => ({ create: method.create("write") }),
+);
 
 /** Serve the declared objects over a database, applying their records. */
 async function serve(database: DatabaseConnection): Promise<ObjectStore> {
@@ -95,7 +98,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "apply declared objects in dependency order, wait, keep detached and retire in reverse on %s",
+    "apply declared objects in dependency order, wait, leave detached and retire in reverse on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
@@ -170,7 +173,7 @@ test.each(TEST_DIALECTS)(
             apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } }),
         ).rejects.toMatchObject({ code: "INVALID_DECLARATION", message: "unknown note: missing" });
 
-        // stop at a waiting declaration and keep the earlier writes
+        // stop at a waiting declaration and retain the earlier writes
         expect(
             await apply({
                 notes: { one: { title: "renamed" }, two: { title: "second" } },
@@ -189,7 +192,7 @@ test.each(TEST_DIALECTS)(
             deferred: "note later is not declared yet",
         });
 
-        // detach one note and retire labels before notes, keeping it
+        // detach one note and retire labels before notes, leaving it
         await database
             .update(note.table)
             .set({ detachedAt: 1 })
@@ -205,7 +208,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test("refuse aggregates that measure rows some readers of their holder may not list", () => {
-    // keep a count of books on shelves everyone related reads
+    // maintain a count of books on shelves everyone related reads
     const shelf = defineObject({
         name: "shelf",
         plural: "shelves",
@@ -213,7 +216,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
         fields: { bookCount: field.count() },
         relations: { reader: { subjects: [principal.user] } },
         permissions: { read: relation("reader") },
-    }).methods();
+    });
     const book = (read: ReturnType<typeof union>) =>
         defineObject({
             name: "book",
@@ -224,7 +227,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
             aggregates: { bookCount: { function: "count" } },
             relations: { owner: { subjects: [principal.user] } },
             permissions: { read },
-        }).methods();
+        });
 
     // count books every shelf reader lists, and refuse books only their owners list
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
@@ -235,8 +238,8 @@ test("refuse aggregates that measure rows some readers of their holder may not l
     );
 });
 
-test("refuse a containment grant on a type living in the universe alone, and keep it on a scope type there", () => {
-    // keep the scope type, deciding by its own row's containment, and refuse the record
+test("refuse a containment grant on a type living in the universe alone, and allow it on a scope type there", () => {
+    // declare the scope type, deciding by its own row's containment, and refuse the record
     expect(ledger(true).name).toBe("ledger");
     expect(() => ledger(false)).toThrow(
         new TypeError(
@@ -393,33 +396,37 @@ function ledger(isScope: boolean) {
         fields: { title: field.string().default("") },
         permissions: { read: union(relation("owner"), contained(principal.space)) },
         relations: { owner: { subjects: [principal.user] } },
-    }).methods();
+    });
 }
 
 test("refuse two methods answering one route, which a router would send to one of them", () => {
     // declare a second update beside the first, both at the object's path
-    const doubled = defineObject({
-        name: "memo",
-        plural: "memos",
-        scope: space,
-        fields: { title: field.string() },
-        permissions: ["read", "write"],
-    });
-
     expect(() =>
-        doubled.methods((method) => ({
-            update: method.update("write", { fields: ["title"] }),
-            retitle: method.update("write", { fields: ["title"] }),
-        })),
+        defineObject(
+            {
+                name: "memo",
+                plural: "memos",
+                scope: space,
+                fields: { title: field.string() },
+                permissions: ["read", "write"],
+            },
+            (method) => ({
+                update: method.update("write", { fields: ["title"] }),
+                retitle: method.update("write", { fields: ["title"] }),
+            }),
+        ),
     ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
 });
 
 test("manage a declarable type over its own or a foreign table, and leave an undeclared type unmanaged", () => {
     // declare roles over access's role table, as a stack declares its roles
-    const role = defineObject({
-        ...Intrinsic.role.definition(space),
-        declarable: { schema: schema.object({ description: schema.string() }) },
-    }).methods(Intrinsic.role.methods);
+    const role = defineObject(
+        {
+            ...Intrinsic.role.definition(space),
+            declarable: { schema: schema.object({ description: schema.string() }) },
+        },
+        Intrinsic.role.methods,
+    );
 
     expect([card.isManaged(), role.isManaged(), comment.isManaged()]).toEqual([true, true, false]);
 });

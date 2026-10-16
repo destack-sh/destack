@@ -52,7 +52,7 @@ const TABLES = [document, accountRecord, ...storeTables, ...call.tables];
 
 /** The bucket and keyring the call events of every connection share. */
 interface CallFiles {
-    /** The bucket keeping the segments. */
+    /** The bucket with the segments. */
     readonly bucket: MemoryBucket;
     /** The keyring sealing personal values. */
     readonly keyring: LocalKeyring;
@@ -64,18 +64,18 @@ export class AuditStorage {
     readonly test: TestDatabase;
     /** The current connection. */
     database: DatabaseConnection & { readonly close: () => Promise<void> };
-    /** The event log keeping the call events over the current connection. */
+    /** The event log with the call events over the current connection. */
     readonly events: EventStore;
     /** The journal recording calls, each audited one as a call event. */
     journal: Journal;
     /** The recorder writing into the journal. */
     recorder: AuditRecorder;
-    /** The telemetry keeping the exceptions the storage captures, refused at close unless taken. */
+    /** The telemetry with the exceptions the storage captures, refused at close unless taken. */
     readonly telemetry: TestTelemetry;
     /** The bucket and keyring every connection's event log shares. */
     readonly #files: CallFiles;
 
-    /** Bind the storage to a connection, keeping calls for a lifetime. */
+    /** Bind the storage to a connection, journaling calls for a lifetime. */
     constructor(
         test: TestDatabase,
         database: AuditStorage["database"],
@@ -83,7 +83,7 @@ export class AuditStorage {
         telemetry: TestTelemetry,
         lifetime?: Duration,
     ) {
-        // keep the connection's event log and its journal
+        // open the connection's event log and its journal
         this.test = test;
         this.telemetry = telemetry;
         this.database = database;
@@ -106,7 +106,7 @@ export class AuditStorage {
         );
     }
 
-    /** Create migrated storage, keeping calls for a lifetime. */
+    /** Create migrated storage, journaling calls for a lifetime. */
     static async open(lifetime?: Duration): Promise<AuditStorage> {
         const dialect = TEST_DIALECTS.at(-1);
         if (dialect === undefined) {

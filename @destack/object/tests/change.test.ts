@@ -27,7 +27,7 @@ const titled = changeTrigger(
             },
         },
         call: (change) =>
-            note.calls().update({ id: present(change.after, "the changed note").id, pinned: true }),
+            note.call("update", { id: present(change.after, "the changed note").id, pinned: true }),
     }),
 );
 
@@ -66,7 +66,7 @@ test("build a call of an object's method, leaving the scope to the one it is pus
     });
 
     // run a call that leaves out its space in the space it is pushed to
-    const call = notebook.calls().update({ id, name: "Trips" });
+    const call = notebook.call("update", { id, name: "Trips" });
     const { outcomes } = await alice.replica.push({
         scope: spaceId,
         mutations: [{ id: v7(), calls: [call] }],
@@ -87,7 +87,7 @@ test("build a call of an object's method, leaving the scope to the one it is pus
 test.each(TEST_DIALECTS)(
     "record a run for each matching row of a trigger's snapshot and each admitted change after it, once, resuming after its slot on %s",
     async (dialect) => {
-        // keep two notes before the trigger starts, one of them untitled
+        // create two notes before the trigger starts, one of them untitled
         const { connect, database } = await serveNotes(dialect);
         const alice = connect(users.alice);
         const first = await alice.note.create({
@@ -107,7 +107,7 @@ test.each(TEST_DIALECTS)(
                     throw new TypeError("a change controller sends only fired runs");
                 }
 
-                // fail the first send of the snapshot's change, then keep each run
+                // fail the first send of the snapshot's change, then record each run
                 const change = "change" in request.event ? request.event.change : undefined;
                 if (isFailing && change?.key === undefined) {
                     isFailing = false;
@@ -145,8 +145,8 @@ test.each(TEST_DIALECTS)(
                 changes[index]?.key ?? null,
             ]),
         ).toEqual([
-            ["titled", note.calls().update({ id: first.id, pinned: true }), first.id],
-            ["titled", note.calls().update({ id: second.id, pinned: true }), null],
+            ["titled", note.call("update", { id: first.id, pinned: true }), first.id],
+            ["titled", note.call("update", { id: second.id, pinned: true }), null],
         ]);
         const [earlier, later] = changes;
         expect(
@@ -160,7 +160,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "see rows entering a trigger's condition as created, changing within it as updated and leaving it as deleted, in log order on %s",
     async (dialect) => {
-        // follow the titled notes from now on, keeping each change the trigger builds a call of
+        // follow the titled notes from now on, recording each change the trigger builds a call of
         const { connect, database } = await serveNotes(dialect);
         const alice = connect(users.alice);
         const seen: [string, string | null, string | null][] = [];
@@ -181,7 +181,7 @@ test.each(TEST_DIALECTS)(
                         change.after === undefined ? null : change.after.title,
                     ]);
 
-                    return note.calls().update({
+                    return note.call("update", {
                         id: present(change.after ?? change.before, "the changed note").id,
                     });
                 },
@@ -241,7 +241,7 @@ test.each(TEST_DIALECTS)(
                         throw new TypeError("an untitled note has nothing to pin");
                     }
 
-                    return note.calls().update({ id: created.id, pinned: true });
+                    return note.call("update", { id: created.id, pinned: true });
                 },
             }),
         );
@@ -253,7 +253,8 @@ test.each(TEST_DIALECTS)(
             [lagging],
             {
                 send: async (request) => {
-                    recorded.push(schema.string().parse(request.call.input["id"]));
+                    const call = "call" in request ? request.call : undefined;
+                    recorded.push(schema.string().parse(call?.input["id"]));
                 },
             },
             (error) => reports.push(readMessage(error)),
@@ -263,11 +264,11 @@ test.each(TEST_DIALECTS)(
             (await alice.note.create({ spaceId, title, requestId: RequestId.create(Date.now()) }))
                 .id;
 
-        // advance the slot of a quiet trigger before it lapses, so compaction keeps the changes after it
+        // advance the slot of a quiet trigger before it lapses, so compaction retains the changes after it
         const delay = await controller.reconcile(readKey(lagging));
         clock.advance(50_000);
         await controller.reconcile(readKey(lagging));
-        const kept = await create("Kept");
+        const retained = await create("Retained");
         await database.log.compact(Date.now() + 1, clock.now() + 20_000);
         await controller.reconcile(readKey(lagging));
 
@@ -282,7 +283,7 @@ test.each(TEST_DIALECTS)(
         const next = await create("Next");
         await controller.reconcile(readKey(lagging));
 
-        expect([delay, recorded]).toEqual([20_000, [kept, next]]);
+        expect([delay, recorded]).toEqual([20_000, [retained, next]]);
         expect(reports.map((message) => message.replace(/\d+/gu, "N"))).toEqual([
             "trigger lagging cannot build the call of change N",
             "trigger lagging lost the changes after N to compaction",

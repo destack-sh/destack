@@ -77,7 +77,7 @@ test.for(TEST_DIALECTS)(
         const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
         await client.call("note", "create", { parentId: book.id, title: "Tickets" });
 
-        // keep the watched rows in a local database
+        // store the watched rows in a local database
         const local = await TestDatabase.create("sqlite", []);
         onTestFinished(() => local.close());
 

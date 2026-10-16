@@ -97,8 +97,8 @@ export class Authorization extends access.Authorization {
                 scope,
                 Caller.principal(this.context()),
             );
-            const kept = others.filter((entry) => included.has(Key.name(table, entry.row)));
-            replicas = new Set(kept.map((entry) => entry.position));
+            const replicated = others.filter((entry) => included.has(Key.name(table, entry.row)));
+            replicas = new Set(replicated.map((entry) => entry.position));
             const scopes = others
                 .filter((entry) => !replicas.has(entry.position))
                 .map((entry) => entry.scope);
@@ -254,7 +254,7 @@ export class Authorization extends access.Authorization {
 
     /** Hide a refusal in a scope the caller cannot see behind the scope's absence. */
     async concealDenial(error: unknown, objects: readonly ObjectType[]): Promise<unknown> {
-        // keep anything but a missing or hidden object and a raw access denial
+        // pass on anything but a missing or hidden object and a raw access denial
         const isMissing = isCallError(error) && error.code === "NOT_FOUND";
         const isRefused = error instanceof access.AccessError && error.code === "FORBIDDEN";
         if (!(isMissing || isRefused) || (await this.sees(objects))) {
@@ -473,25 +473,25 @@ export class Authorization extends access.Authorization {
         return rows.filter((_, position) => permitted.has(position));
     }
 
-    /** Keep the rows the caller also had a permission on at a snapshot's position. */
-    async keepAt<Kept extends Row>(
-        rows: readonly Kept[],
+    /** Filter the rows the caller also had a permission on at a snapshot's position. */
+    async filterAt<Filtered extends Row>(
+        rows: readonly Filtered[],
         permission: access.PermissionReference,
         snapshot: Snapshot,
         scope: string,
-    ): Promise<Kept[]> {
+    ): Promise<Filtered[]> {
         const then = await this.authorizer.resolve(snapshot, scope, this.context());
         const { permitted } = await this.authorizer.checkRows(snapshot, permission, then, rows);
 
         return rows.filter((_, position) => permitted.has(position));
     }
 
-    /** Keep the rows an access has a permission on, decided in memory. */
-    async keep<Kept extends Row>(
-        rows: readonly Kept[],
+    /** Filter the rows an access has a permission on, decided in memory. */
+    async filter<Filtered extends Row>(
+        rows: readonly Filtered[],
         permission: access.PermissionReference,
         evaluated: Access = this.access,
-    ): Promise<Kept[]> {
+    ): Promise<Filtered[]> {
         const { permitted } = await this.authorizer.checkRows(
             this.snapshot,
             permission,

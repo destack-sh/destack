@@ -24,45 +24,51 @@ import { createRouterClient } from "@destack/runtime/server";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
 
 /** Accounts their owners sign up, each welcomed by a mail sent after the sign-up commits. */
-const member = defineObject({
-    name: "member",
-    plural: "members",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller(), name: field.string() },
-    permissions: { write: relation("owner") },
-})
-    .methods((method) => ({
+const member = defineObject(
+    {
+        name: "member",
+        plural: "members",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller(), name: field.string() },
+        permissions: { write: relation("owner") },
+    },
+    (method) => ({
         create: method.create("write", { fields: ["name"] }),
         welcome: method.update("write", { fields: ["name"] }),
-    }))
-    .implement({
-        methods: {
-            // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
-            create: async (call, next) => {
-                const name = call.input.name;
-                await call.send({ call: member.calls().welcome({ id: "member-1", name }) });
-                if (name === "Refused") {
-                    throw new TypeError("the sign-up is refused");
-                }
+        update: false,
+    }),
+).implement({
+    methods: {
+        // sign up, sending the welcome, and refuse a sign-up of the refused name after sending
+        create: async (call, next) => {
+            const name = call.input.name;
+            await call.send({ call: member.call("welcome", { id: "member-1", name }) });
+            if (name === "Refused") {
+                throw new TypeError("the sign-up is refused");
+            }
 
-                return next();
-            },
+            return next();
         },
-    });
+    },
+});
 
 /** Notes their owners write and rename, which a follower replicates and changes. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller(), title: field.string() },
-    permissions: { write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["title"] }),
-    rename: method.update("write", { fields: ["title"] }),
-}));
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller(), title: field.string() },
+        permissions: { write: relation("owner") },
+    },
+    (method) => ({
+        create: method.create("write", { fields: ["title"] }),
+        rename: method.update("write", { fields: ["title"] }),
+        update: false,
+    }),
+);
 
-/** The database keeping the notes. */
+/** The database with the notes. */
 const noteDatabase = defineDatabase({
     name: "main",
     tables: [...callTables, outbox, ...note.tables],
@@ -110,7 +116,7 @@ test.each(TEST_DIALECTS)(
             runs: {
                 // refuse the welcome of the bounced name for good
                 send: async (request, delivery) => {
-                    if (request.call.input["name"] === "Bounced") {
+                    if ("call" in request && request.call.input["name"] === "Bounced") {
                         throw new CallError("BAD_REQUEST", { message: "invalid call" });
                     }
                     recorded.push([request, delivery]);
@@ -148,7 +154,7 @@ test.each(TEST_DIALECTS)(
             [
                 [
                     {
-                        call: member.calls().welcome({ id: "member-1", name: "Ada" }),
+                        call: member.call("welcome", { id: "member-1", name: "Ada" }),
                         exchange: { subject: principal.user.reference("universe", users.frank) },
                     },
                     "string",
@@ -160,9 +166,9 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "send a follower's calls on replicated rows over its uplink to the server keeping them, run there as the follower, and let go of one it may not make, on %s",
+    "send a follower's calls on replicated rows over its uplink to the server storing them, run there as the follower, and let go of one it may not make, on %s",
     async (dialect) => {
-        // keep the notes in their own database, with ada's note written there
+        // store the notes in their own database, with ada's note written there
         const storage = await TestDatabase.create(dialect, noteDatabase, { isMigrated: true });
         const replicas = await TestDatabase.create(dialect, followerDatabase, { isMigrated: true });
         onTestFinished(async () => {
@@ -214,9 +220,12 @@ test.each(TEST_DIALECTS)(
 
         // send a note and a rename of ada's toward their home, delivering the sends twice to show one delivery
         await Transaction.run(replicas.database, async (transaction) => {
-            await follower.send(note.call("create", { spaceId, title: "Bob's" }), transaction);
             await follower.send(
-                note.call("rename", { spaceId, id: written.id, title: "Bob's now" }),
+                { call: note.call("create", { spaceId, title: "Bob's" }) },
+                transaction,
+            );
+            await follower.send(
+                { call: note.call("rename", { spaceId, id: written.id, title: "Bob's now" }) },
                 transaction,
             );
         });
@@ -228,7 +237,7 @@ test.each(TEST_DIALECTS)(
         await sends.reconcile("sends", reconciliation(signal));
         await sends.reconcile("sends", reconciliation(signal));
 
-        // keep bob's note as his, leave ada's unrenamed, and report the refused rename once
+        // leave bob's note as his, leave ada's unrenamed, and report the refused rename once
         const notes = await storage.database
             .select({ owner: note.table.ownerId, title: note.table.title })
             .from(note.table)
@@ -243,8 +252,8 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("refuse a pushed mutation of replicated rows, alone or beside kept rows, which only their home writes", async () => {
-    // keep the notes at home and replica them in a follower serving members
+test("refuse a pushed mutation of replicated rows, alone or beside local rows, which only their home writes", async () => {
+    // store the notes at home and replicate them in a follower serving members
     const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
     const replicas = await TestDatabase.create(
         "sqlite",
@@ -273,8 +282,8 @@ test("refuse a pushed mutation of replicated rows, alone or beside kept rows, wh
     });
 
     // push a note's creation as bob, then one beside a member's
-    const create = note.calls().create({ title: "Bob's" });
-    const join = member.calls().create({ name: "Bob" });
+    const create = note.call("create", { title: "Bob's" });
+    const join = member.call("create", { name: "Bob" });
     const pushed = await createRouterClient(follower.router(), {
         context: userContext(users.bob, spaceId),
     }).replica.push({
@@ -299,8 +308,8 @@ test("refuse a pushed mutation of replicated rows, alone or beside kept rows, wh
     });
 });
 
-test("send a change of replicated rows to the publisher of the replica keeping them, not the subscriber's uplink", async () => {
-    // keep the notes at home, replicated into a follower whose uplink refuses changes
+test("send a change of replicated rows to the publisher of the replica holding them, not the subscriber's uplink", async () => {
+    // store the notes at home, replicated into a follower whose uplink refuses changes
     const storage = await TestDatabase.create("sqlite", noteDatabase, { isMigrated: true });
     const replicas = await TestDatabase.create("sqlite", followerDatabase, { isMigrated: true });
     onTestFinished(async () => {
@@ -355,7 +364,7 @@ test("send a change of replicated rows to the publisher of the replica keeping t
     });
 
     // receive bob's note through the follower
-    const created = note.calls().create({ title: "Bob's" });
+    const created = note.call("create", { title: "Bob's" });
     await follower.receive(
         {
             id: RequestId.create(Date.now()),
@@ -423,11 +432,9 @@ test("refuse an in-process change of replicated rows, and send it toward their h
         }),
     );
 
-    // send it instead, which the outbox keeps with the exchange for the person
+    // send it instead, which the outbox holds with the exchange for the person
     await Transaction.run(replicas.database, (transaction) =>
-        follower.send(call, transaction, {
-            exchange: { subject: person, grant: grant.id },
-        }),
+        follower.send({ call, exchange: { subject: person, grant: grant.id } }, transaction),
     );
     const sent = await replicas.database
         .select({ id: outbox.id, message: outbox.message })

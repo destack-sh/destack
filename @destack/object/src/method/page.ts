@@ -13,7 +13,7 @@ export class Page<Position extends schema.Schema> {
     readonly limit: number;
     /** The exclusive position after the preceding page. */
     readonly after?: schema.Infer<Position>;
-    /** The collection and parent identifiers every cursor keeps. */
+    /** The collection and parent identifiers every cursor has. */
     readonly scope: readonly string[];
 
     /** Create the page from a request. */

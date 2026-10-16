@@ -131,7 +131,7 @@ export class ExpiringController implements Controller {
         // leave the rows of scopes the database replicates to the deletes their home sends
         const table = object.table;
         const replicated = await Replica.scopes(database, table);
-        const kept =
+        const unreplicated =
             replicated.length === 0
                 ? undefined
                 : notInArray(table[TABLE].column("scope"), replicated);
@@ -143,7 +143,7 @@ export class ExpiringController implements Controller {
                 and(
                     lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
                     ExpiringController.#matching(table, rule),
-                    kept,
+                    unreplicated,
                 ),
             )
             .limit(EXPIRE_ROWS);

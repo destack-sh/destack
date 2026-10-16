@@ -20,7 +20,7 @@ import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
 
-test("read a local object one tab writes in another tab over the shared database, keeping it out of the outbox", async () => {
+test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
     const { endpoint } = await serveNotes("sqlite");
     const alice = Identifier.create("user");
 
@@ -66,7 +66,7 @@ test("read a local object one tab writes in another tab over the shared database
     await first.close();
 });
 
-test("keep a user's local objects from another user on the same client, and the client's own from another client", async () => {
+test("hide a user's local objects from another user on the same client, and the client's own from another client", async () => {
     const { endpoint } = await serveNotes("sqlite");
     const [alice, bob] = [Identifier.create("user"), Identifier.create("user")];
     const [laptop, phone] = [Identifier.create("client"), Identifier.create("client")];
@@ -138,7 +138,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                 name: "shared",
                 plural: "shared",
                 scope: "universe",
-            }).methods(),
+            }),
         ),
         failure(() =>
             defineObject({
@@ -146,27 +146,30 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                 name: "spread",
                 plural: "spreads",
                 scope: [user, notebook],
-            }).methods(),
+            }),
         ),
         failure(() =>
-            defineObject({ ...local, name: "kept", plural: "kept", inherited: {} }).methods(),
+            defineObject({ ...local, name: "sticky", plural: "stickies", inherited: {} }),
         ),
         failure(() =>
-            defineObject({
-                ...local,
-                name: "remote",
-                plural: "remotes",
-                fields: { text: field.string() },
-                permissions: ["edit"],
-            }).methods((method) => ({
-                create: method.create("edit", { isPredicted: false }),
-            })),
+            defineObject(
+                {
+                    ...local,
+                    name: "remote",
+                    plural: "remotes",
+                    fields: { text: field.string() },
+                    permissions: ["edit"],
+                },
+                (method) => ({
+                    create: method.create("edit", { isPredicted: false }),
+                }),
+            ),
         ),
     ]).toEqual([
         "local object draft lives only in its scope's own store",
         "local object shared must live in one scope type",
         "local object spread must live in one scope type",
-        "local object kept cannot have inherited",
+        "local object sticky cannot have inherited",
         "local object remote runs method create off the client",
     ]);
 });
@@ -179,7 +182,7 @@ function newCaller(id: string, inside: readonly Subject[]): AccessContext {
 }
 
 test("serve a client's local objects at its own store to the people signed in on it alone", async () => {
-    // keep a laptop's stickies
+    // store a laptop's stickies
     const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
     const laptop = client.reference(Scope.universe.id, Identifier.create("client"));
     const storage = await TestDatabase.create(

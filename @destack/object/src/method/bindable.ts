@@ -39,10 +39,10 @@ export const bind: Method<{
         output: schema.object({}),
     }),
     handler: async (context: MethodContext, execution: Execution) => {
-        // keep exactly the consumer's relationships on the type's objects in the scope
+        // replace the consumer's relationships with exactly those on the type's objects in the scope
         const { consumer, ids } = BindInput.parse(context.input);
         const { packageId } = context.object.policy.definition;
-        await Execution.store(execution, context).authorization.keepRelationships(
+        await Execution.store(execution, context).authorization.replaceRelationships(
             {
                 scope: context.scope,
                 objects: [{ packageId, type: context.object.name }],

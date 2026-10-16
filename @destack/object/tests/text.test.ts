@@ -24,25 +24,28 @@ import { aligned, Clock, type Identifier } from "@destack/schema";
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
 
 /** Documents their owner and editors write together. */
-const document = defineObject({
-    name: "document",
-    plural: "documents",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string().default(""),
-        body: field.text(),
+const document = defineObject(
+    {
+        name: "document",
+        plural: "documents",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string().default(""),
+            body: field.text(),
+        },
+        relations: { editor: { subjects: [user] } },
+        permissions: {
+            read: union(relation("owner"), relation("editor")),
+            manage: relation("owner"),
+        },
+        shareable: { by: "manage" },
     },
-    relations: { editor: { subjects: [user] } },
-    permissions: {
-        read: union(relation("owner"), relation("editor")),
-        manage: relation("owner"),
-    },
-    shareable: { by: "manage" },
-}).methods((method) => ({
-    create: method.create("read"),
-    update: method.update("read"),
-}));
+    (method) => ({
+        create: method.create("read"),
+        update: method.update("read"),
+    }),
+);
 
 /** The documents package. */
 const documentsPackage = definePackage({ objects: { document } });
@@ -55,7 +58,7 @@ const documentsDatabase = defineDatabase({
 
 /** Serve a space's documents to bearer-identified users. */
 async function serveDocuments(dialect: Dialect) {
-    // keep the space's documents
+    // store the space's documents
     const storage = await TestDatabase.create(dialect, documentsDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -340,15 +343,15 @@ test.for(TEST_DIALECTS)(
         await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
         await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
-        // undo alice's edit exactly and keep bob's
+        // undo alice's edit exactly, leaving bob's
         await alice.client.undo().confirmed;
         await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
         expect(await body(alice.live)).toEqual(["hello world!"]);
 
-        // keep no chunks for a caller without read
+        // store no chunks for a caller without read
         await carol.live.ready;
-        const kept = await carol.client.database.select().from(chunk);
-        expect([await body(carol.live), kept]).toEqual([[], []]);
+        const stored = await carol.client.database.select().from(chunk);
+        expect([await body(carol.live), stored]).toEqual([[], []]);
         expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
     },
 );

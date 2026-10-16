@@ -74,7 +74,7 @@ export const RemoteStore = {
     },
 };
 
-/** The claim type keeping the names of indexed objects, and the store serving it, its home. */
+/** The claim type recording the names of indexed objects, and the store serving it, its home. */
 export interface ClaimHome {
     /** The claim type, whose methods reserve, confirm, release and replace names. */
     readonly object: ClaimType;
@@ -84,7 +84,7 @@ export interface ClaimHome {
 
 /** The names a write reserved, and how its commit and outcome settle them. */
 export interface Reservation {
-    /** Write the names in the committing transaction where the store keeps the claims itself. */
+    /** Write the names in the committing transaction where the store has the claims itself. */
     readonly commit: (committing: DatabaseConnection) => Promise<void>;
 
     /** Settle the reserved names once the write committed. */
@@ -96,7 +96,7 @@ export interface Reservation {
 
 /** A write's claim request: its identifier and its time. */
 interface ClaimRequest {
-    /** The write's request, which keeps its reservations. */
+    /** The write's request, which holds its reservations. */
     readonly id: string;
     /** The write's time, in UTC epoch milliseconds. */
     readonly now: number;

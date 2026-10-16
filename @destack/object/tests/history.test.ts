@@ -27,36 +27,40 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const MINUTE = 60_000;
 
 /** The sessions of changes to pages. */
-const activity = defineObject(Intrinsic.activity.definition(space)).methods();
+const activity = defineObject(Intrinsic.activity.definition(space));
 
 /** The named points in pages' history. */
-const checkpoint = defineObject(Intrinsic.checkpoint.definition(space)).methods(
+const checkpoint = defineObject(
+    Intrinsic.checkpoint.definition(space),
     Intrinsic.checkpoint.methods,
 );
 
 /** Pages with history that their owner and editors write. */
-const page = defineObject({
-    name: "page",
-    plural: "pages",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string(),
-        body: field.string(),
+const page = defineObject(
+    {
+        name: "page",
+        plural: "pages",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string(),
+            body: field.string(),
+        },
+        relations: { editor: { subjects: [user] } },
+        permissions: {
+            read: union(relation("owner"), relation("editor")),
+            edit: union(relation("owner"), relation("editor")),
+            manage: relation("owner"),
+        },
+        shareable: { by: "manage" },
+        attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
+        tracked: { by: "edit", activity },
     },
-    relations: { editor: { subjects: [user] } },
-    permissions: {
-        read: union(relation("owner"), relation("editor")),
-        edit: union(relation("owner"), relation("editor")),
-        manage: relation("owner"),
-    },
-    shareable: { by: "manage" },
-    attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
-    tracked: { by: "edit", activity },
-}).methods((method) => ({
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+    (method) => ({
+        create: method.create("edit"),
+        update: method.update("edit"),
+    }),
+);
 
 test.for(TEST_DIALECTS)(
     "group each caller's changes into activities, and read and revert a page as it was, on %s",
@@ -172,7 +176,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("refuse serving history that reads through an object keeping none", async () => {
+test("refuse serving history that reads through an object recording none", async () => {
     // read pages through an untracked folder
     const folder = defineObject({
         name: "folder",
@@ -180,7 +184,7 @@ test("refuse serving history that reads through an object keeping none", async (
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
         permissions: { read: relation("owner") },
-    }).methods();
+    });
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
@@ -190,7 +194,7 @@ test("refuse serving history that reads through an object keeping none", async (
         permissions: { read: through("parent", "read") },
         attachments: [activity.attach({ by: "read" })],
         tracked: { by: "read", activity },
-    }).methods();
+    });
 
     // refuse the sheet's history, which the folder's lost changes decided
     const storage = await TestDatabase.create(
@@ -212,12 +216,14 @@ test("refuse serving history that reads through an object keeping none", async (
                 events,
                 origin: { package: activity.package },
             }),
-    ).toThrow(new TypeError("object sheet keeps history but reads through folder without history"));
+    ).toThrow(
+        new TypeError("object sheet records history but reads through folder without history"),
+    );
 });
 
 /** Serve pages over a new database to one user at a set time. */
 async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
-    // keep the pages, their activities and checkpoints, and requests in one database
+    // store the pages, their activities and checkpoints, and requests in one database
     const objects = [activity, checkpoint, page];
     const storage = await TestDatabase.create(
         dialect,

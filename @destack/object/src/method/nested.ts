@@ -12,7 +12,7 @@ import { type NestedDefinition, PARENT, ParentReference } from "../trait/nested.
 
 /** The nested methods' handlers: moving an object between parents. */
 export const NestedMethod = {
-    /** Move objects to another parent and keep trees acyclic. */
+    /** Move objects to another parent refusing cycles. */
     move<const Permission extends string>(
         permission: Permission,
         nesting: NestedDefinition,

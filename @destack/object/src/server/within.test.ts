@@ -15,7 +15,7 @@ import { ObjectStore } from "./index.ts";
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
 
-/** The space the replicas are kept for. */
+/** The space the replicas are held for. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** People of the universe the spaces they joined read. */
@@ -27,7 +27,7 @@ const person = defineObject({
     fields: { name: field.string() },
     relations: { joined: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("joined") },
-}).methods();
+});
 
 /** Profiles living in their person's own scope, read by whoever reads the person. */
 const profile = defineObject({
@@ -39,7 +39,7 @@ const profile = defineObject({
         email: field.string().guard({ read: "manage" }),
     },
     permissions: { read: through("person", "read"), manage: none() },
-}).methods();
+});
 
 /** Teams of the universe, with no replicas in the space. */
 const team = defineObject({
@@ -49,7 +49,7 @@ const team = defineObject({
     isScope: true,
     fields: { name: field.string() },
     permissions: { read: none() },
-}).methods();
+});
 
 /** Badges living in a person's or a team's scope, each listed to the spaces it is shown to. */
 const badge = defineObject({
@@ -59,10 +59,10 @@ const badge = defineObject({
     fields: { label: field.string() },
     relations: { shown: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("shown") },
-}).methods();
+});
 
 /** The relationships of people, listed as objects. */
-const relationship = defineObject(Intrinsic.relationship.definition(person)).methods();
+const relationship = defineObject(Intrinsic.relationship.definition(person));
 
 /** Serve people and profiles over a database. */
 async function serve(database: DatabaseConnection, uplink?: Uplink) {
@@ -96,7 +96,7 @@ test.each(TEST_DIALECTS)(
             await Promise.all([home.close(), space.close()]);
         });
 
-        // keep three people at home with a profile each, one of them suspended
+        // create three people at home with a profile each, one of them suspended
         const now = 1;
         const ada = personId(1);
         const bob = personId(2);
@@ -140,7 +140,7 @@ test.each(TEST_DIALECTS)(
         const joined = await join(ada);
         await join(cy);
 
-        // keep the space's replica of the universe in its database, decided at home for the space
+        // store the space's replica of the universe in its database, decided at home for the space
         const replicating: ObjectStore = await serve(space.database, {
             receive: refuseChanges,
             stream: (asked, signal) =>
@@ -213,7 +213,7 @@ test.each(TEST_DIALECTS)(
 test.each(TEST_DIALECTS)(
     "replicate the badges a space is shown from the scopes of teams without replicas here, and withhold the badges it is not shown, on %s",
     async (dialect) => {
-        // keep ada and a team at home, the team's badges and ada's own
+        // create ada and a team at home, the team's badges and ada's own
         const home = await TestDatabase.create(
             dialect,
             [...person.tables, ...team.tables, ...badge.tables, ...call.tables],
@@ -309,7 +309,7 @@ test.each(TEST_DIALECTS)(
         });
         await follow(replicating, home.database, space.database);
 
-        // keep the shown badges of the team and of ada, and withhold the hidden one
+        // list the shown badges of the team and of ada, and withhold the hidden one
         const replicated = await space.database
             .select()
             .from(badge.table)
@@ -336,7 +336,7 @@ test.each(TEST_DIALECTS)(
             await Promise.all([home.close(), space.close()]);
         });
 
-        // keep ada, who joined the space, and bob, who did not yet
+        // create ada, who joined the space, and bob, who did not yet
         const at = { scope: "universe", createdAt: 1, updatedAt: 1 };
         const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
         const [ada, bob, cy] = [personId(1), personId(2), personId(3)];

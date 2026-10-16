@@ -10,7 +10,7 @@ import { journal } from "../src/index.ts";
 import type { JournalEntry } from "../src/index.ts";
 import { RequestId } from "@destack/runtime/request";
 
-test("keep each call in the history of its scope", async () => {
+test("record each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();
     try {
         // record a call of a space
@@ -58,7 +58,7 @@ test("commit and roll back application changes with their recorded calls", async
         expect(await storage.database.select().from(document)).toEqual([]);
         expect(await storage.calls("universe")).toEqual([]);
 
-        // keep committed changes and calls across a restart
+        // retain committed changes and calls across a restart
         const call = await storage.database.transaction(async (transaction) => {
             await transaction.insert(document).values({ name: "renamed" });
 
@@ -146,7 +146,7 @@ test("leave sensitive values out of running and read details", async () => {
             { package: documentRename.package },
         );
 
-        // keep the method in the running call's details
+        // record the method in the running call's details
         const target = rename.target;
         const running = storage.recorder.begin(accountSignIn, {
             target,
@@ -154,7 +154,7 @@ test("leave sensitive values out of running and read details", async () => {
         });
         expect(running.execution.details).toEqual({ method: "code" });
 
-        // keep the account's identifier in the read's details
+        // record the account's identifier in the read's details
         const read = await storage.recorder.read(
             accountSignIn,
             { target, details: { method: "code" } },
@@ -203,7 +203,7 @@ test("replay derived requests of one key at different times as one request, and 
     }
 });
 
-/** Read the calls the journal keeps for replay, running or ended. */
+/** Read the calls the journal holds for replay, running or ended. */
 async function journaled(storage: AuditStorage): Promise<JournalEntry[]> {
     const rows = await storage.database.select({ call: journal.call }).from(journal);
 

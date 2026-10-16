@@ -22,7 +22,7 @@ const ReservedBy = schema.object({
 /** The method declarations of a claim type. */
 const claimMethod = new MethodBuilder<typeof claimTable>();
 
-/** The methods of a claim type, which stores call to keep their indexed objects' names. */
+/** The methods of a claim type, which stores call to settle their indexed objects' names. */
 export const claimMethods = {
     /** Reserve an object's names until its write commits. */
     reserve: Execution.handle(
@@ -50,7 +50,7 @@ export const claimMethods = {
             output: schema.object({}),
         }),
         async (call, execution) => {
-            // settle the names the committed write keeps
+            // settle the names the committed write has
             const { request, ...claimant } = call.input;
             const { database } = Execution.store(execution, call).transaction;
             await Claim.confirm(database, claimant, request);
@@ -116,12 +116,12 @@ export const claimMethods = {
             output: Expiry,
         }),
         async (call, execution) => {
-            // keep the reservations the caller may claim names in
+            // filter the reservations the caller may claim names in
             const { authorization } = Execution.store(execution, call);
-            const keep = (rows: readonly ClaimRow[]) =>
-                authorization.keep(rows, call.object.permission("claim"));
+            const filter = (rows: readonly ClaimRow[]) =>
+                authorization.filter(rows, call.object.permission("claim"));
 
-            return Claim.expired(call.read(claimTable), call.input.indexes, call.now, keep);
+            return Claim.expired(call.read(claimTable), call.input.indexes, call.now, filter);
         },
     ),
 };

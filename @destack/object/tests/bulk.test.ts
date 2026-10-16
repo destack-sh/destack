@@ -23,24 +23,27 @@ import { request, type RequestInput } from "./fixture/request.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
 
 /** Labels with names unique in their space, created and trashed many at a time by their owner. */
-const label = defineObject({
-    name: "label",
-    plural: "labels",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(schema.string().min(1)),
-        color: field.string(),
+const label = defineObject(
+    {
+        name: "label",
+        plural: "labels",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(schema.string().min(1)),
+            color: field.string(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
+        recoverable: { within: { days: 30 }, by: "write" },
+        constraints: { name: { kind: "unique", on: ["scope", "name"] } },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-    recoverable: { within: { days: 30 }, by: "write" },
-    constraints: { name: { kind: "unique", on: ["scope", "name"] } },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["name", "color"] }),
-    createMany: method.createMany("write", { fields: ["name", "color"] }),
-    deleteMany: method.deleteMany("write", { match: ["color"] }),
-    recolor: method.updateItems("write", { fields: ["color"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["name", "color"] }),
+        createMany: method.createMany("write", { fields: ["name", "color"] }),
+        deleteMany: method.deleteMany("write", { match: ["color"] }),
+        recolor: method.updateItems("write", { fields: ["color"] }),
+    }),
+);
 
 /** The database with the labels, their access and the journal. */
 const labelDatabase = defineDatabase({ name: "main", tables: [...callTables, ...label.tables] });
@@ -79,7 +82,7 @@ async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
     const read = async () =>
         (await rows(storage.database)).map(
             (row) =>
-                `${userName(row.ownerId)} ${row.name} ${row.color} ${row.deletedAt === null ? "kept" : "trashed"}`,
+                `${userName(row.ownerId)} ${row.name} ${row.color} ${row.deletedAt === null ? "live" : "trashed"}`,
         );
 
     return { storage, store, call, read };
@@ -161,7 +164,7 @@ test.each(TEST_DIALECTS)(
             ),
         ];
 
-        // keep only the first label
+        // leave only the first label
         expect([refusals, await read()]).toEqual([
             [
                 ["CONFLICT", "items.1: another label has the same scope and name"],
@@ -171,7 +174,7 @@ test.each(TEST_DIALECTS)(
                     "invalid input: items.1.name: too small: expected string to have >=1 characters",
                 ],
             ],
-            ["frank urgent red kept"],
+            ["frank urgent red live"],
         ]);
     },
 );
@@ -199,9 +202,9 @@ test.each(TEST_DIALECTS)(
         expect([deleted, await read()]).toEqual([
             [{ count: 2 }, { count: 0 }],
             [
-                "grace alarm red kept",
+                "grace alarm red live",
                 "frank late red trashed",
-                "frank later blue kept",
+                "frank later blue live",
                 "frank urgent red trashed",
             ],
         ]);
@@ -229,7 +232,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         spaceId,
     );
 
-    // keep the space's labels on a device that pushes and follows
+    // store the space's labels on a device that pushes and follows
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ label }), {
         storage: "file",
     });
@@ -260,32 +263,34 @@ test("undo a bulk creation by deleting each created object on the device and the
     });
     const { ids } = await created.predicted;
     await created.confirmed;
-    const kept = async (database: DatabaseConnection) =>
+    const labelsIn = async (database: DatabaseConnection) =>
         (await rows(database)).map((row) => [row.id, row.deletedAt === null]);
-    const before = [await kept(client.database), await kept(storage.database)];
+    const before = [await labelsIn(client.database), await labelsIn(storage.database)];
 
     // undo the creation into the trash on the device and through the server
     await client.undo().confirmed;
     stopping.abort();
     await Promise.all(loops);
-    expect([before, await kept(client.database), await kept(storage.database), errors]).toEqual([
+    expect([before, await labelsIn(client.database), await labelsIn(storage.database), errors]).toEqual(
         [
             [
-                [ids[1], true],
-                [ids[0], true],
+                [
+                    [ids[1], true],
+                    [ids[0], true],
+                ],
+                [
+                    [ids[1], true],
+                    [ids[0], true],
+                ],
             ],
+            [],
             [
-                [ids[1], true],
-                [ids[0], true],
+                [ids[1], false],
+                [ids[0], false],
             ],
+            [],
         ],
-        [],
-        [
-            [ids[1], false],
-            [ids[0], false],
-        ],
-        [],
-    ]);
+    );
     await client.close();
 });
 
@@ -310,7 +315,7 @@ test.each(TEST_DIALECTS)(
         await store.receive(sent, user);
         await store.receive(sent, user);
 
-        expect(await read()).toEqual(["frank blue blue kept", "frank red red kept"]);
+        expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
     },
 );
 
@@ -397,7 +402,7 @@ test.each(TEST_DIALECTS)(
             ),
         ];
 
-        // keep the first update alone, each label at its next revision
+        // take the first update alone, each label at its next revision
         const revisions = (await rows(storage.database)).map((row) => [row.name, row.revision]);
         expect({ updated, refusals, labels: await read(), revisions }).toEqual({
             updated: { count: 2 },
@@ -405,7 +410,7 @@ test.each(TEST_DIALECTS)(
                 ["CONFLICT", "label revision has changed"],
                 ["NOT_FOUND", "label not found"],
             ],
-            labels: ["grace alarm red kept", "frank later green kept", "frank urgent green kept"],
+            labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],
             revisions: [
                 ["alarm", 1],
                 ["later", 2],

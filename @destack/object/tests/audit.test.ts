@@ -11,24 +11,27 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 
-/** The space keeping the lockers. */
+/** The space with the lockers. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 /** Lockers with audited reads that record the disclosed version. */
-const locker = defineObject({
-    name: "locker",
-    plural: "lockers",
-    scope: space,
-    audited: { reads: true },
-    fields: { owner: field.reference(principal.user).caller(), version: field.integer() },
-    permissions: { read: relation("owner") },
-}).methods((method) => ({
-    open: method.query({
-        permission: "read",
-        output: schema.object({ version: schema.number(), value: schema.string() }),
-        audit: { details: schema.object({ version: schema.number() }) },
+const locker = defineObject(
+    {
+        name: "locker",
+        plural: "lockers",
+        scope: space,
+        audited: { reads: true },
+        fields: { owner: field.reference(principal.user).caller(), version: field.integer() },
+        permissions: { read: relation("owner") },
+    },
+    (method) => ({
+        open: method.query({
+            permission: "read",
+            output: schema.object({ version: schema.number(), value: schema.string() }),
+            audit: { details: schema.object({ version: schema.number() }) },
+        }),
     }),
-}));
+);
 
 test("name the version a read disclosed in its recorded call, apart from its value", async () => {
     const storage = await TestDatabase.create("sqlite", [...locker.tables, ...callTables], {

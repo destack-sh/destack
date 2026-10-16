@@ -160,7 +160,7 @@ export type StateOf<Machine extends StateMachine> =
     | Machine["transitions"][keyof Machine["transitions"]]["from"][number]
     | Machine["transitions"][keyof Machine["transitions"]]["to"];
 
-/** The aggregate function keeping a field current. */
+/** The aggregate function maintaining a field. */
 export type AggregateFunction = "count" | "sum" | "min" | "max";
 
 /** A field's column: not null if required, with any default, sensitive if classified so. */
@@ -176,7 +176,7 @@ export type FieldColumn<
 
 /** A field's signature: its value and its flags. */
 export interface FieldConfiguration {
-    /** The value the field keeps. */
+    /** The value the field stores. */
     readonly value: ColumnValue;
     /** Whether every object must have a value. */
     readonly required: boolean;
@@ -184,8 +184,8 @@ export interface FieldConfiguration {
     readonly default: boolean;
     /** Whether reading the value requires its own permission. */
     readonly guarded: boolean;
-    /** Whether callers write the value. */
-    readonly written: boolean;
+    /** Whether callers write the value: always, only at creation, or never. */
+    readonly written: boolean | "create";
     /** Whether the value is sensitive. */
     readonly sensitive: boolean;
     /** Whether creation fills the value with the calling principal, outside internal creations. */
@@ -196,7 +196,7 @@ export interface FieldConfiguration {
     readonly relation: string;
 }
 
-/** A field's flags as the values it keeps, each typed by its signature's flag. */
+/** A field's flags as the values it stores, each typed by its signature's flag. */
 interface FieldFlags<Configuration extends FieldConfiguration = FieldConfiguration> {
     /** Whether every object must have a value. */
     readonly required: Configuration["required"];
@@ -255,7 +255,7 @@ type Override<
         : Configuration[Key];
 };
 
-/** A field's signature keeping its value and relation, its flags the types of the values kept. */
+/** A field's signature with its value and relation, its flags the types of the stored values. */
 type FlagConfiguration<Configuration extends FieldConfiguration, Flags extends FieldFlags> = {
     readonly value: Configuration["value"];
     readonly relation: Configuration["relation"];
@@ -294,7 +294,6 @@ export type FieldsByColumn<Fields> = {
             {
                 readonly value: Part["part"] extends "PackageId" ? PackageId : string;
                 readonly reference: "none";
-                readonly caller: false;
             }
         >
     >;
@@ -320,7 +319,7 @@ type BuildColumn<Value extends ColumnValue> = (
     storage: ObjectStorage,
 ) => ColumnBuilder<ColumnDefinition<Value>>;
 
-/** What a field keeps beside its flags. */
+/** What a field has beside its flags. */
 interface FieldOptions<Configuration extends FieldConfiguration> {
     /** The builder call the field came from. */
     readonly source: FieldSource;
@@ -421,7 +420,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.#reference?.kind === "principal" ? [this.#reference.target] : undefined;
     }
 
-    /** The aggregate function keeping the value current. */
+    /** The aggregate function maintaining the value. */
     get aggregate(): AggregateFunction | undefined {
         const { builder } = this.source;
 
@@ -435,7 +434,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.source.builder === "state" ? this.source.arguments[0] : undefined;
     }
 
-    /** The bucket a file field keeps its files in, by its declaring package and name. */
+    /** The bucket a file field stores its files in, by its declaring package and name. */
     get bucket(): DeclarationReference | undefined {
         return this.source.builder === "file"
             ? DeclarationReference.of(this.source.arguments[0])
@@ -459,7 +458,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             column = column.default(this.initial.value);
         }
 
-        // require a value, except where replicas keep a guarded value concealed
+        // require a value, except where replicas hold a guarded value concealed
         if (this.required && !this.guarded) {
             column = column.notNull();
         }
@@ -479,7 +478,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.#with({ ...this.#flags, isDefault: true }, { initial: { value } });
     }
 
-    /** Seal the value at rest and keep it out of logs, audit details, sync and fingerprints. */
+    /** Seal the value at rest, out of logs, audit details, sync and fingerprints. */
     sensitive(
         sealing: Sealing = "random",
     ): Field<Override<Configuration, { readonly sensitive: true }>> {
@@ -489,6 +488,11 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     /** Mark the value as personal data, exported and erased with its subject. */
     personal(): Field<Configuration> {
         return new Field<Configuration>({ ...this.#options, ...this.#flags, isPersonal: true });
+    }
+
+    /** Write the value only at creation, leaving it out of updates. */
+    immutable(): Field<Override<Configuration, { readonly written: "create" }>> {
+        return this.#with({ ...this.#flags, written: "create" });
     }
 
     /** Fill the field with the principal creating the object. */
@@ -595,7 +599,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.relation ?? property;
     }
 
-    /** Declare the relation a reference keeps, as its object keys it under `<relation>Id`. */
+    /** Declare the relation a reference has, as its object keys it under `<relation>Id`. */
     relate<const Relation extends string>(
         relation: Relation,
     ): Field<Override<Configuration, { readonly relation: Relation }>> {
@@ -606,13 +610,13 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         });
     }
 
-    /** List the fields an object keeps for this one under a property. */
+    /** List the fields an object has for this one under a property. */
     expand(property: string): Readonly<Record<string, Field>> {
-        // keep an identifier under `<property>Id`
+        // store an identifier under `<property>Id`
         if (this.reference === "identifier") {
             return { [`${property}Id`]: this.relate(property) };
         }
-        // keep an object reference as its package, type, scope and identifier
+        // store an object reference as its package, type, scope and identifier
         else if (this.reference === "object") {
             const { packages, types } = this.#referred();
             const columns = Field.columnsOf(property);
@@ -628,7 +632,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return { [property]: this };
     }
 
-    /** Name the columns an object reference keeps under a property. */
+    /** List the columns of an object reference under a property. */
     static columnsOf(property: string): {
         readonly packageId: string;
         readonly type: string;
@@ -643,7 +647,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         };
     }
 
-    /** List the constraints an object reference keeps under a property: its index and its pairs. */
+    /** List the constraints of an object reference under a property: its index and its pairs. */
     constraints(property: string): Readonly<Record<string, ObjectConstraint>> {
         // constrain only object references
         if (this.reference !== "object") {
@@ -707,7 +711,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return { packages: schema.enum(packages), types: schema.enum(types) };
     }
 
-    /** Derive a column of an object reference beside its identifier, keeping its flags. */
+    /** Derive a column of an object reference beside its identifier, with its flags. */
     #part(validator: schema.Schema<string>): Field {
         return new Field({
             source: { builder: "string", arguments: [validator] },
@@ -715,12 +719,11 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             isPersonal: this.isPersonal,
             ...(this.access === undefined ? {} : { access: this.access }),
             ...this.#flags,
-            isCallerFilled: false,
             reference: "none",
         });
     }
 
-    /** Read what the field keeps beside its flags. */
+    /** Read what the field has beside its flags. */
     get #options(): FieldOptions<Configuration> {
         return {
             source: this.source,
@@ -746,7 +749,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         };
     }
 
-    /** Derive a field keeping the given flags, its signature the types of those flags. */
+    /** Derive a field with the given flags, its signature the types of those flags. */
     #with<const Flags extends FieldFlags>(
         flags: Flags,
         change: Pick<FieldOptions<Configuration>, "initial" | "access" | "sealing"> = {},
@@ -772,7 +775,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<FieldConfigurationOf<{ value: Value }>>({ source, build, ...WRITTEN });
     }
 
-    /** Declare a field an aggregate keeps, starting at a value. */
+    /** Declare a field an aggregate maintains, starting at a value. */
     static aggregated(
         aggregate: "count" | "sum",
         build: (name: string) => ColumnBuilder<ColumnDefinition<number>>,
@@ -788,7 +791,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         });
     }
 
-    /** Declare a field an extreme keeps, absent until a belonging object has a value. */
+    /** Declare a field an extreme maintains, absent until a belonging object has a value. */
     static extreme(
         aggregate: "min" | "max",
         build: (name: string) => ColumnBuilder<ColumnDefinition<number>>,
@@ -874,7 +877,7 @@ export type ReferenceOf<Target extends ObjectType> = Table extends Target["table
       ? Id
       : IdentifierOf<Target>;
 
-/** The value a reference keeps: a principal's identifier, else an object's identifier or key. */
+/** The value a reference stores: a principal's identifier, else an object's identifier or key. */
 type ReferenceValue<Target> =
     Target extends Policy<string, infer Kind>
         ? Identifier<Kind>
@@ -887,7 +890,7 @@ function reference<const Target extends ObjectType | Policy>(
     target: Target | (() => Target),
     options?: ReferenceOptions,
 ): FieldOf<{ value: ReferenceValue<Target>; reference: "identifier" }> {
-    // refuse a principal kind living in scopes, which a subject field keeps
+    // refuse a principal kind living in scopes, which a subject field stores
     if (target instanceof Policy && target.definition.isGlobal !== true) {
         throw new TypeError(
             `principal kind ${target.name} lives in scopes: use field.subject(principal.${target.name})`,
@@ -902,7 +905,7 @@ function reference<const Target extends ObjectType | Policy>(
             arguments: options === undefined ? [target] : [target, options],
         },
         build: (name, _owner, storage) => {
-            // keep a principal's global identifier, else key the object's identifier to its table
+            // store a principal's global identifier, else key the object's identifier to its table
             const given: ObjectType | Policy | (() => ObjectType | Policy) = target;
             if (given instanceof Policy) {
                 return text(name).validate(schema.identifier(given.name));
@@ -981,7 +984,7 @@ function string<Validator extends schema.Schema<string> = schema.Schema<string>>
     });
 }
 
-/** A field following a state machine, keeping the machine it follows. */
+/** A field following a state machine, with the machine it follows. */
 export class StateField<Machine extends StateMachine = StateMachine> extends Field<
     FieldConfigurationOf<{ value: StateOf<Machine>; default: true; written: false }>
 > {
@@ -1017,7 +1020,7 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
     }
 }
 
-/** A text field, kept in chunks and changed only by edits, empty at first. */
+/** A text field, stored in chunks and changed only by edits, empty at first. */
 export class TextField extends Field<
     FieldConfigurationOf<{ value: string; default: true; written: false }>
 > {
@@ -1035,7 +1038,7 @@ export class TextField extends Field<
         });
     }
 
-    /** The field's meaning: a text kept in chunks. */
+    /** The field's meaning: a text stored in chunks. */
     override get type(): "text" {
         return "text";
     }
@@ -1120,7 +1123,7 @@ export const field = {
         return Field.required({ builder: "message", arguments: [] }, (name) => json(name, Message));
     },
 
-    /** A file kept in a bucket the package declares, by its key. */
+    /** A file stored in a bucket the package declares, by its key. */
     file(bucket: FileBucket): FieldOf<{ value: ObjectFile }> {
         return new Field<FieldConfigurationOf<{ value: ObjectFile }>>({
             source: { builder: "file", arguments: [bucket] },
@@ -1129,7 +1132,7 @@ export const field = {
         });
     },
 
-    /** A principal of given kinds, or kinds object types represent, kept as its reference. */
+    /** A principal of given kinds, or kinds object types represent, stored as its reference. */
     subject(
         ...kinds: readonly (Policy | ObjectType)[]
     ): FieldOf<{ value: string; reference: "object" }> {
@@ -1144,7 +1147,7 @@ export const field = {
         });
     },
 
-    /** An object of the given types, or of any type, kept as its reference. */
+    /** An object of the given types, or of any type, stored as its reference. */
     object(
         ...types: readonly (ObjectType | Policy)[]
     ): FieldOf<{ value: string; reference: "object" }> {
@@ -1166,7 +1169,7 @@ export const field = {
         );
     },
 
-    /** A text kept in chunks and changed by edits, empty at first. */
+    /** A text stored in chunks and changed by edits, empty at first. */
     text(): TextField {
         return new TextField();
     },

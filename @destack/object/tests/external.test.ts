@@ -20,7 +20,7 @@ import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 /** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
 
-/** An entry of a notebook's index, identified by its term and kept in files. */
+/** An entry of a notebook's index, identified by its term and stored in files. */
 const entry = defineObject({
     name: "entry",
     plural: "entries",
@@ -30,10 +30,10 @@ const entry = defineObject({
     nested: { in: notebook, receive: "read" },
     fields: { term: field.string() },
     permissions: { read: through("parent", "read") },
-}).methods();
+});
 
 test("read external objects named by their key from the database their files open per scope, admitting callers by the durable database", async () => {
-    // keep a public space's notebook in the durable database
+    // store a public space's notebook in the durable database
     const durable = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
     onTestFinished(() => durable.close());
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
@@ -153,16 +153,19 @@ test("read external objects named by their key from the database their files ope
 
 /** Declare an external type whose one write is internal or public. */
 function declareMark(isInternal: boolean) {
-    return defineObject({
-        name: "mark",
-        plural: "marks",
-        scope: space,
-        storage: "external",
-        fields: { term: field.string() },
-        permissions: { receive: none() },
-    }).methods((method) => ({
-        receive: method.mutation({ permission: "receive", target: "scope", isInternal }),
-    }));
+    return defineObject(
+        {
+            name: "mark",
+            plural: "marks",
+            scope: space,
+            storage: "external",
+            fields: { term: field.string() },
+            permissions: { receive: none() },
+        },
+        (method) => ({
+            receive: method.mutation({ permission: "receive", target: "scope", isInternal }),
+        }),
+    );
 }
 
 test("refuse public writes on external objects, taking internal writes their store code runs", () => {

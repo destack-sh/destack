@@ -24,9 +24,9 @@ import { ObjectReference, type Subject } from "@destack/sync";
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** A space's roles. */
-const role = defineObject(Intrinsic.role.definition(space)).methods(Intrinsic.role.methods);
+const role = defineObject(Intrinsic.role.definition(space), Intrinsic.role.methods);
 /** A space's relationships. */
-const relationship = defineObject(Intrinsic.relationship.definition(space)).methods();
+const relationship = defineObject(Intrinsic.relationship.definition(space));
 
 test.for(TEST_DIALECTS)(
     "follow a space's roles and members as the owner defines and binds them on %s",
@@ -78,7 +78,7 @@ test.for(TEST_DIALECTS)(
             },
         );
 
-        // keep the owner role and its binding from the snapshot
+        // take the owner role and its binding from the snapshot
         const pages = store.source.relayed(
             store.source.queriesPublication.subscription({
                 name: "objects",
@@ -113,7 +113,7 @@ test.for(TEST_DIALECTS)(
         };
         expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
 
-        // keep a new role at once and its binding to a member
+        // upsert a new role at once and its binding to a member
         const reviewer = await store
             .mutate(context.access(), {
                 id: RequestId.create(Date.now()),
@@ -142,14 +142,15 @@ test.for(TEST_DIALECTS)(
 
 test("refuse traits on an object type over a foreign table", () => {
     // declare roles that would be recoverable
-    const recoverable = defineObject({
-        ...Intrinsic.role.definition(space),
-        recoverable: { by: "delete", within: { days: 30 } },
-    });
-
-    expect(() => recoverable.methods(Intrinsic.role.methods)).toThrow(
-        new TypeError("object role over a foreign table cannot have recoverable"),
-    );
+    expect(() =>
+        defineObject(
+            {
+                ...Intrinsic.role.definition(space),
+                recoverable: { by: "delete", within: { days: 30 } },
+            },
+            Intrinsic.role.methods,
+        ),
+    ).toThrow(new TypeError("object role over a foreign table cannot have recoverable"));
 });
 
 test("authorize an object type that the objects and the policies list several times", async () => {
@@ -178,18 +179,21 @@ test("authorize an object type that the objects and the policies list several ti
 });
 
 /** A space's tokens, each a personal access token principal. */
-const token = defineObject({
-    name: "personal-access-token",
-    identity: "token",
-    plural: "tokens",
-    scope: space,
-    represents: principal.personalAccessToken,
-    fields: { name: field.string() },
-    permissions: ["read", "write"],
-}).methods((method) => ({
-    create: method.create("write"),
-    delete: method.delete("write"),
-}));
+const token = defineObject(
+    {
+        name: "personal-access-token",
+        identity: "token",
+        plural: "tokens",
+        scope: space,
+        represents: principal.personalAccessToken,
+        fields: { name: field.string() },
+        permissions: ["read", "write"],
+    },
+    (method) => ({
+        create: method.create("write"),
+        delete: method.delete("write"),
+    }),
+);
 
 test("delete the grants of a token as the token is deleted", async () => {
     // serve a space's tokens to its owner
@@ -257,12 +261,12 @@ test("delete the grants of a token as the token is deleted", async () => {
         calls: [token.call("delete", { spaceId: SPACE_ID, id: delegate.id })],
     });
 
-    // keep only the other delegate's grant
-    const kept = await database.select().from(accessGrant);
-    expect(kept.map((row) => ObjectReference.at("delegate", row))).toEqual([other]);
+    // leave only the other delegate's grant
+    const remaining = await database.select().from(accessGrant);
+    expect(remaining.map((row) => ObjectReference.at("delegate", row))).toEqual([other]);
 });
 
-test("keep a represented policy's relations whole, a concealed one concealed", () => {
+test("leave a represented policy's relations whole, a concealed one concealed", () => {
     // represent a policy whose holders stay concealed
     const badge = new Policy(space.package, {
         name: "badge",
@@ -276,7 +280,7 @@ test("keep a represented policy's relations whole, a concealed one concealed", (
         represents: badge,
         fields: {},
         permissions: [],
-    }).methods();
+    });
 
     expect(represented.policy.definition.relations["holder"]).toEqual(
         badge.definition.relations["holder"],

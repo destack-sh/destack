@@ -65,7 +65,7 @@ export type TextProcedures<Object extends ObjectType> = {
     >;
 };
 
-/** Text fields kept in chunks and changed only by edits. */
+/** Text fields stored in chunks and changed only by edits. */
 export const text: Trait<TextDefinition> & {
     /** Edit one text field of an object. */
     readonly edit: (

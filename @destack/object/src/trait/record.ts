@@ -81,7 +81,7 @@ export type WriterBuilderMap<Storage> = Storage extends "ephemeral"
     ? ReturnType<typeof writerColumns>
     : {};
 
-/** The record trait every object takes, by the storage keeping the objects. */
+/** The record trait every object takes, by the objects' storage. */
 export const record: Trait<ObjectStorage> & {
     /** Report whether an event column is a key an index covers: an event column, no map. */
     readonly isKeyColumn: (name: string, column: Column) => boolean;
@@ -95,7 +95,7 @@ export const record: Trait<ObjectStorage> & {
                   ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
                   ...(object.storage === "ephemeral" ? writerColumns() : {}),
               },
-    // index the event log by time, and by each key that keeps no map
+    // index the event log by time, and by each key without a map
     constraints: (storage, table, columns) =>
         storage !== "events"
             ? []

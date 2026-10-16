@@ -47,7 +47,7 @@ export class BranchType {
         this.change = types.change;
     }
 
-    /** Read a branch row's identifier, state and row tables, as every branch type keeps them. */
+    /** Read a branch row's identifier, state and row tables, as every branch type stores them. */
     static record(row: Row): BranchRecord {
         return BRANCH_RECORD.parse(row);
     }
@@ -61,7 +61,7 @@ export class BranchType {
         return target;
     }
 
-    /** Resolve a call a branch keeps: a durable object's mutating method, in the branch's scope. */
+    /** Resolve a call a branch holds: a durable object's mutating method, in the branch's scope. */
     resolve(
         objects: readonly ObjectType[],
         entry: sync.Call,

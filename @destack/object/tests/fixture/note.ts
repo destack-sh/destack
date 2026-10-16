@@ -6,20 +6,23 @@ import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
 
 /** A collection of notes, shared with everyone who works on them. */
-export const notebook = defineObject({
-    name: "notebook",
-    plural: "notebooks",
-    scope: space,
-    fields: {
-        name: field.string(schema.string().min(1).max(200)),
-        noteCount: field.count(),
+export const notebook = defineObject(
+    {
+        name: "notebook",
+        plural: "notebooks",
+        scope: space,
+        fields: {
+            name: field.string(schema.string().min(1).max(200)),
+            noteCount: field.count(),
+        },
+        shareable: {},
     },
-    shareable: {},
-}).methods((method) => ({
-    create: method.create("manage"),
-    update: method.update("manage"),
-    delete: method.delete("manage"),
-}));
+    (method) => ({
+        create: method.create("manage"),
+        update: method.update("manage"),
+        delete: method.delete("manage"),
+    }),
+);
 
 /** A plain-text note, private to its owner until shared. */
 export const note = defineObject({
@@ -30,7 +33,7 @@ export const note = defineObject({
         in: notebook,
         delete: "cascade",
         optional: true,
-        receive: "edit",
+        receive: "write",
         move: "manage",
     },
     fields: {
@@ -41,10 +44,7 @@ export const note = defineObject({
     recoverable: { within: { days: 30 }, by: "manage" },
     aggregates: { noteCount: { function: "count", where: { deletedAt: null } } },
     shareable: {},
-}).methods((method) => ({
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+});
 
 /** Notebooks and notes, with their sharing, trash and sync. */
 export const notesPackage = definePackage({ objects: { notebook, note } });

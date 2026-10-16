@@ -37,18 +37,18 @@ export const EventLog = {
         const kind = context.object.eventKind();
         const events = rows.map((row) => kind.event(row));
 
-        // keep the type's readers in step with the appended rows
+        // update the type's readers with the appended rows
         const { transaction } = execution;
         for (const row of rows) {
-            context.object.keepReaders(transaction, { before: null, after: row }, context.now);
+            context.object.updateReaders(transaction, { before: null, after: row }, context.now);
         }
 
-        // append events kept exactly once as the call commits
+        // append events recorded exactly once as the call commits
         const store = execution.store.events;
         if (kind.delivery === "exactly-once") {
             transaction.record((committing) => store.append(kind, events, committing));
         }
-        // append events kept at most once alone, outliving a failed call
+        // append events recorded at most once alone, outliving a failed call
         else {
             await store.append(kind, events);
         }
@@ -92,12 +92,12 @@ export const EventLog = {
             },
         );
 
-        // cut the page, then keep the rows the caller may read
+        // cut the page, then filter the rows the caller may read
         const page = listing.result(
             read.events.map((event) => kind.row(event)),
             (row) => EventCursor.parse(row),
         );
-        const items = await execution.authorization.keep(page.items, context.permission());
+        const items = await execution.authorization.filter(page.items, context.permission());
 
         return { items, cursor: page.cursor };
     },
@@ -147,7 +147,7 @@ export const EventLog = {
     },
 };
 
-/** An event of an events object type, keyed and shaped as its kind keeps it. */
+/** An event of an events object type, keyed and shaped as its kind stores it. */
 export type EventOf<Type extends { readonly eventKind: () => EventKind }> =
     ReturnType<Type["eventKind"]> extends EventKind<infer Shape, infer Data>
         ? Event<Shape, Data>

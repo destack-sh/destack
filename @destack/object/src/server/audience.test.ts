@@ -32,7 +32,7 @@ const space = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods();
+});
 
 /** Notebooks of a space, read by their viewers and by people with a role granting it. */
 const notebook = defineObject({
@@ -42,7 +42,7 @@ const notebook = defineObject({
     fields: { name: field.string() },
     relations: { viewer: { subjects: [principal.user] } },
     permissions: { read: relation("viewer") },
-}).methods();
+});
 
 /** Notes in notebooks, read by whoever reads their notebook. */
 const note = defineObject({
@@ -52,7 +52,7 @@ const note = defineObject({
     nested: { in: notebook, delete: "cascade", receive: "read" },
     fields: { title: field.string() },
     permissions: { read: through("parent", "read") },
-}).methods();
+});
 
 /** How long the shared notebook stays shared, in milliseconds. */
 const SHARED_MILLISECONDS = 200;
@@ -64,7 +64,7 @@ const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 const ada = principal.user.reference(Scope.universe.id, "ada");
 
 test("decide again after changes of the caller's own access, and leave other identities' and other roles' changes alone", async () => {
-    // keep two notebooks with a note each, a role ada has on the first and a role she lacks
+    // create two notebooks with a note each, a role ada has on the first and a role she lacks
     const storage = await TestDatabase.create(
         "sqlite",
         [...space.tables, ...notebook.tables, ...note.tables, ...call.tables],
@@ -209,7 +209,7 @@ function newId<Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
 }
 
 test("drop a notebook from a live replica once the relationship sharing it expires, deciding alike with an identical audience", async () => {
-    // keep a notebook shared with ada for a moment
+    // share a notebook with ada for a moment
     const storage = await TestDatabase.create(
         "sqlite",
         [...space.tables, ...notebook.tables, ...note.tables, ...call.tables],
@@ -290,7 +290,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     });
 });
 
-/** Take pages until one satisfies a condition, keeping the stream open. */
+/** Take pages until one satisfies a condition, holding the stream open. */
 async function take(pages: AsyncGenerator<Page>, isLast: (page: Page) => boolean): Promise<Page[]> {
     // read the pages one by one, leaving the stream open for a later take
     const taken: Page[] = [];

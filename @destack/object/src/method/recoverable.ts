@@ -11,15 +11,15 @@ import { Empty, type MethodProcedure, type ObjectSchema } from "./procedure.ts";
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
 import type { TraitTable } from "../object/table.ts";
 import type { Execution } from "./execution.ts";
-/** The method declarations of recoverable objects whose purge keeps the record. */
-const keptMethod = new MethodBuilder<KeptTable>();
+/** The method declarations of recoverable objects whose purge retains the record. */
+const retainedMethod = new MethodBuilder<RetainedTable>();
 
 /** A recoverable object type's table, with its deletion columns. */
 type RecoverableTable = TraitTable<{ readonly recoverable: RecoverableDefinition }>;
 
-/** A recoverable object type's table that keeps purged records, with its purge column. */
-type KeptTable = TraitTable<{
-    readonly recoverable: RecoverableDefinition & { readonly keep: "record" };
+/** A recoverable object type's table that retains purged records, with its purge column. */
+type RetainedTable = TraitTable<{
+    readonly recoverable: RecoverableDefinition & { readonly retain: "record" };
 }>;
 
 /** The signature of a restoration: a restore or a purge, with the purge's prepared work. */
@@ -53,19 +53,19 @@ export const RecoverableMethod = {
                 },
             });
         }
-        // purge a kept record by the type's own handler, which destroys its content
-        else if (options.keep === "record") {
-            return defineMethod<RestorationConfiguration & { table: KeptTable }>({
+        // purge a retained record by the type's own handler, which destroys its content
+        else if (options.retain === "record") {
+            return defineMethod<RestorationConfiguration & { table: RetainedTable }>({
                 ...restorationShape(kind, permission),
                 isPredicted: false,
                 result: "value",
                 ...(options.prepared === undefined ? {} : { prepared: options.prepared }),
-                handler: (context) => RecoverableMethod.purgeKept(context),
+                handler: (context) => RecoverableMethod.purgeRetained(context),
                 async execute(this: Method, context: MethodContext, execution: Execution) {
                     // require a purge handler of the type's own
                     if (this.hooks?.handle === undefined) {
                         throw new TypeError(
-                            `object ${context.object.name} keeps purged records, so a purge handler of its own destroys their content`,
+                            `object ${context.object.name} retains purged records, so a purge handler of its own destroys their content`,
                         );
                     }
 
@@ -87,7 +87,7 @@ export const RecoverableMethod = {
 
     /** Remove a purged record at the loaded revision, by holders of the purge permission. */
     discard<const Permission extends string>(permission: Permission) {
-        return keptMethod
+        return retainedMethod
             .mutation({ permission, isInternal: true, output: Empty })
             .handle(async (context) => {
                 // require a purged record
@@ -104,7 +104,7 @@ export const RecoverableMethod = {
             });
     },
 
-    /** Read the recovery a call's served object type keeps, which its host may set. */
+    /** Read the recovery of a call's served object type, which its host may set. */
     readRecovery(context: MethodContext): RecoverableDefinition {
         return present(
             context.object.lifecycle.recoverable,
@@ -149,9 +149,9 @@ export const RecoverableMethod = {
         return {};
     },
 
-    /** Purge a kept record in the trash, marking its content destroyed. */
-    async purgeKept(
-        context: MethodContext<{ readonly table: KeptTable }, unknown>,
+    /** Purge a retained record in the trash, marking its content destroyed. */
+    async purgeRetained(
+        context: MethodContext<{ readonly table: RetainedTable }, unknown>,
     ): Promise<Record<string, never>> {
         RecoverableMethod.requireTrashed(context);
         await context.update({ purgedAt: context.now });
@@ -170,7 +170,7 @@ export const RecoverableMethod = {
         }
     },
 
-    /** Decide whether a purge already destroyed a kept record's content. */
+    /** Decide whether a purge already destroyed a retained record's content. */
     isPurged(row: Row): boolean {
         return row["purgedAt"] !== undefined && row["purgedAt"] !== null;
     },

@@ -78,7 +78,7 @@ export const Chunk = {
             throw new TypeError("objects with text must live in one kind of scope per database");
         }
 
-        // declare chunks read through their owner, kept in the chunk table text owns
+        // declare chunks read through their owner, stored in the chunk table text owns
         const methods = { list: method.list("read") };
         const definition: ObjectSource = {
             name: "chunk",
@@ -506,7 +506,7 @@ const ChunkLayout = {
         );
         const chunks: ChunkChange = { changed: [], reranged: [], created: [] };
         for (const [index, part] of parts.entries()) {
-            // keep a changed chunk's first group, noting one whose ranges the server reindexes
+            // take a changed chunk's first group, noting one whose ranges the server reindexes
             const current = rows[index];
             const [first, ...rest] = ChunkLayout.fill(part);
             if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
@@ -695,7 +695,7 @@ const ChunkLayout = {
 
     /** Split a section's runs into even groups of at most a chunk's characters. */
     fill(runs: readonly Run[]): [Run[], ...Run[][]] {
-        // keep a text that fits one chunk whole, and split a longer one evenly into partly full chunks
+        // store a text that fits one chunk whole, and split a longer one evenly into partly full chunks
         const total = runs.reduce((sum, piece) => sum + ChunkLayout.characters(piece), 0);
         const count = total <= CHUNK_CHARACTERS ? 1 : Math.ceil(total / FILL_CHARACTERS);
         const capacity = Math.ceil(total / count);

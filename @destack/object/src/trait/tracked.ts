@@ -36,7 +36,7 @@ export type TrackedProcedures<Object extends ObjectType> = {
 /** The input field with the log position an object is read or reverted at. */
 type PositionField = { readonly at: typeof LogPosition };
 
-/** Objects keeping their history, grouped into activities. */
+/** Objects recording their history, grouped into activities. */
 export const tracked: Trait<TrackedDefinition> & {
     /** Revert an object's written fields to a position. */
     readonly revert: (permission: string) => Method;
@@ -57,7 +57,7 @@ export const tracked: Trait<TrackedDefinition> & {
         // require the activity attachment and a valid session
         if (!object.attachments.some((attachment) => attachment.object === options.activity)) {
             throw new TypeError(
-                `object ${object.name} keeps history but has no ${options.activity.plural} attachment`,
+                `object ${object.name} records history but has no ${options.activity.plural} attachment`,
             );
         }
         if (options.session !== undefined) {
@@ -78,7 +78,7 @@ export const tracked: Trait<TrackedDefinition> & {
                 output: shapes.row,
             }),
             handler: async (context, execution) => {
-                // write back the changed fields the history keeps, sensitive ones being unlogged
+                // write back the changed fields the history records, sensitive ones being unlogged
                 const row = await tracked.earlier(
                     context,
                     Execution.store(execution, context),
@@ -88,13 +88,13 @@ export const tracked: Trait<TrackedDefinition> & {
                     ),
                 );
                 const target: Row = context.target;
-                const kept = context.object.table[TABLE].encode(row);
+                const encoded = context.object.table[TABLE].encode(row);
                 const current = context.object.table[TABLE].encode(target);
                 const changes = Object.fromEntries(
                     context.object.written.flatMap((name) => {
                         const value = row[name];
 
-                        return value === undefined || Step.same(kept[name], current[name])
+                        return value === undefined || Step.same(encoded[name], current[name])
                             ? []
                             : [[name, value] as const];
                     }),

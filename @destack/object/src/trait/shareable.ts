@@ -35,14 +35,14 @@ import { ShareableMethod } from "../method/shareable.ts";
 const ROLES = ["viewer", "commenter", "editor", "owner"] as const;
 
 /** The permissions the roles grant. */
-const ROLE_PERMISSIONS = ["member", "read", "comment", "edit", "manage"] as const;
+const ROLE_PERMISSIONS = ["member", "read", "comment", "write", "manage"] as const;
 
 /** The lowest role granting each permission: membership is holding any role. */
 const PERMISSIONS: { readonly [Name in RolePermission]: (typeof ROLES)[number] } = {
     member: "viewer",
     read: "viewer",
     comment: "commenter",
-    edit: "editor",
+    write: "editor",
     manage: "owner",
 };
 
@@ -193,7 +193,7 @@ export const Roles = {
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields" | "relations" | "permissions"> {
-        // keep a definition shared otherwise
+        // leave a definition shared otherwise
         const roles = Roles.of(definition);
         if (roles === undefined) {
             return definition;

@@ -41,7 +41,7 @@ export const specify = Execution.handle(
         }),
     }),
     async (call, execution) => {
-        // require a kept state of each digest
+        // require a stored state of each digest
         const { states, drainingStates } = call.input;
         const needed = [...new Set([...states, ...drainingStates])];
         await DesiredState.read(Execution.snapshot(execution), call.scope, needed);

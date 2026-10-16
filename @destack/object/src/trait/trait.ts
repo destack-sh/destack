@@ -37,7 +37,7 @@ export interface TraitObject {
 
 /** The table options a trait adds. */
 export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" | "tree"> & {
-    /** The text properties the table's full-text index keeps. */
+    /** The text properties the table's full-text index has. */
     readonly fullText?: readonly string[];
 };
 
@@ -45,7 +45,7 @@ export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" |
 export interface TraitPolicy {
     /** The attributes of the trait's columns that policy conditions read. */
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
-    /** The relations the trait's columns keep. */
+    /** The relations the trait's columns hold. */
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** The permissions the trait derives. */
     readonly permissions?: Readonly<Record<string, AccessExpression>>;
@@ -89,14 +89,17 @@ export interface Trait<Options> {
         table: string,
         columns: Readonly<Record<string, Column>>,
     ): TableConstraint[];
-    /** Add the dependents, aggregates and tree the object's table keeps. */
+    /** Add the dependents, aggregates and tree the object's table has. */
     table?(options: Options, object: TraitObject): TraitTable;
     /** Add relations, permissions and contributions to the object's policy. */
     policy?(options: Options, object: TraitObject, permissions: readonly string[]): TraitPolicy;
     /** Locate the relations the trait adds in the object's table. */
     mapping?(options: Options, object: TraitObject): TraitMapping;
-    /** Derive the methods the trait gives the object. */
-    methods(options: Options, declared: Readonly<Record<string, Method>>): Record<string, Method>;
+    /** Derive the methods the trait gives the object beside those declared or removed. */
+    methods(
+        options: Options,
+        declared: Readonly<Record<string, Method | false>>,
+    ): Record<string, Method>;
     /** Refuse an assembled object type the trait cannot serve. */
     validate?(options: Options, object: ObjectType, definition: ObjectDefinition): void;
 }

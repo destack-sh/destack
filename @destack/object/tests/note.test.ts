@@ -17,13 +17,13 @@ import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
 
 test.each(TEST_DIALECTS)(
-    "keep notes private until shared, move them between notebooks and sync them on %s",
+    "hold notes private until shared, move them between notebooks and sync them on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect(users.alice);
         const bob = connect(users.bob);
 
-        // keep a notebook's notes and a loose note private to their owner
+        // hold a notebook's notes and a loose note private to their owner
         const research = await alice.notebook.create({
             spaceId,
             requestId: RequestId.create(Date.now()),
@@ -89,7 +89,7 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
 
-        // keep deleted notes restorable from the trash, and refuse changing them there
+        // hold deleted notes restorable from the trash, and refuse changing them there
         await alice.note.delete({
             spaceId,
             id: loose.id,
@@ -170,7 +170,7 @@ test.each(TEST_DIALECTS)(
         expect(await device.titles()).toEqual(["Packing"]);
         expect((await alice.notebook.list({ spaceId })).items).toEqual([]);
 
-        // keep the queue and the prediction when the device restarts
+        // retain the queue and the prediction when the device restarts
         const queued = await device.client.prediction.pending(device.client.database);
         await device.offline();
         const reconnected = await device.storage.connect(ObjectClient.tables({ notebook, note }));
@@ -234,7 +234,7 @@ test.each(TEST_DIALECTS)(
         };
         await expect.poll(local).toEqual(["Luggage", "passport, charger"]);
 
-        // push the new title and keep the other device's text
+        // push the new title beside the other device's text
         device.push();
         await retitled.confirmed;
         expect(await local()).toEqual(["Luggage", "passport, charger"]);
@@ -259,7 +259,7 @@ test.each(TEST_DIALECTS)(
         await intrusion.predicted;
         await expect(intrusion.confirmed).rejects.toMatchObject({
             code: "FORBIDDEN",
-            message: "permission denied: edit",
+            message: "permission denied: write",
         });
         expect(await bob.titles()).toEqual(["Luggage"]);
         expect(
@@ -292,7 +292,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "keep only the queries a device subscribes to, with their includes, as rows move between them on %s",
+    "replicate only the queries a device subscribes to, with their includes, as rows move between them on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect(users.alice);
@@ -312,7 +312,7 @@ test.each(TEST_DIALECTS)(
         await noteIn(travel.id, "Packing");
         const plan = await noteIn(work.id, "Plan");
 
-        // keep the travel notes and the notebook they belong to, nothing of work
+        // replicate the travel notes and the notebook they belong to, nothing of work
         const device = await Device.open(users.alice, endpoint(users.alice), []);
         const travelNotes = device.client.query.note
             .findMany({ where: { parentId: travel.id }, with: { parent: true } })
@@ -402,7 +402,7 @@ test.each(TEST_DIALECTS)(
             (await alice.notebook.get({ spaceId, id: travel.id })).noteCount,
         ]).toEqual([1, 0]);
 
-        // keep the server's count after it executes the note, excluding trashed notes
+        // take the server's count after it executes the note, excluding trashed notes
         device.push();
         await created.confirmed;
         expect([
@@ -503,7 +503,7 @@ test("share one browser database between tabs, handing it over when the owning t
     );
     expect([before, await isPresent()]).toEqual([true, false]);
 
-    // hand the database over once the owning tab closes, and keep writing through the second
+    // hand the database over once the owning tab closes, and go on writing through the second
     await first.close();
     const packing = second.client.mutate(note).create({ parentId: id, title: "Packing" });
     await packing.confirmed;
@@ -517,7 +517,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
     const { connect, endpoint } = await serveNotes("sqlite");
     const alice = connect(users.alice);
 
-    // keep a notebook alice owns, which bob's device cannot read yet
+    // create a notebook alice owns, which bob's device cannot read yet
     const research = await alice.notebook.create({
         spaceId,
         requestId: RequestId.create(Date.now()),
@@ -527,7 +527,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
     device.online();
     const checks = async () => [
         await device.client.check(notebook, research.id, "read"),
-        await device.client.check(notebook, research.id, "edit"),
+        await device.client.check(notebook, research.id, "write"),
         await device.client.check(notebook, research.id, "manage"),
     ];
     expect(await checks()).toEqual([false, false, false]);

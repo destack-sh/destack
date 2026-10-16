@@ -21,23 +21,26 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const MACHINE = "machine-01996ab0-0000-7000-8000-000000000041";
 
 /** Machines a controller provisions. */
-const machine = defineObject({
-    name: "machine",
-    plural: "machines",
-    scope: space,
-    controlled: true,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        size: field.string(schema.string().min(1)),
-        address: field.string().optional(),
+const machine = defineObject(
+    {
+        name: "machine",
+        plural: "machines",
+        scope: space,
+        controlled: true,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            size: field.string(schema.string().min(1)),
+            address: field.string().optional(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
     },
-    permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["size"] }),
-    provision: method.create("provision", { isInternal: true }),
-    update: method.update("write", { fields: ["size"] }),
-    delete: method.delete("write"),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["size"] }),
+        provision: method.create("provision", { isInternal: true }),
+        update: method.update("write", { fields: ["size"] }),
+        delete: method.delete("write"),
+    }),
+);
 
 /** The database with the machines, their access and the journal. */
 const machineDatabase = defineDatabase({
@@ -88,7 +91,7 @@ test.each(TEST_DIALECTS)(
         });
         const created = present(await read(), "the machine");
 
-        // observe it twice and keep the transition time while the status stays
+        // observe it twice and hold the transition time while the status stays
         const ready = { status: "false", reason: "Provisioning", message: "" } as const;
         await store.mutate(at(2_000), {
             id: RequestId.create(clock.now()),
@@ -160,7 +163,7 @@ test.each(TEST_DIALECTS)(
             message: `${spaceId} moves to host-2`,
         });
 
-        // observations keep the generation and the first transition time, deletion advances it
+        // observations leave the generation and the first transition time, deletion advances it
         expect([
             [created.id, created.generation, created.observedGeneration, created.revision],
             [
@@ -233,7 +236,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const [repeated] = await provision("small");
     const other = await refusal(provision("large"));
 
-    // keep one machine, answer the repeat with the recorded one, and refuse the other input
+    // create one machine, answer the repeat with the recorded one, and refuse the other input
     expect({
         machines: await storage.database.select().from(machine.table),
         repeated,
@@ -246,18 +249,21 @@ test("answer a repeated system request from the journal, provisioning once, and 
 });
 
 /** Installations a controller reconciles, each acting on its own row as the principal it is. */
-const agent = defineObject({
-    name: "installation",
-    plural: "installations",
-    scope: space,
-    represents: principal.installation,
-    controlled: true,
-    fields: { name: field.string() },
-    permissions: { read: none(), write: none() },
-}).methods((method) => ({ create: method.create("write") }));
+const agent = defineObject(
+    {
+        name: "installation",
+        plural: "installations",
+        scope: space,
+        represents: principal.installation,
+        controlled: true,
+        fields: { name: field.string() },
+        permissions: { read: none(), write: none() },
+    },
+    (method) => ({ create: method.create("write") }),
+);
 
 test("let an object representing a principal control its own row, and refuse it another's", async () => {
-    // keep two installations in the space
+    // create two installations in the space
     const storage = await TestDatabase.create("sqlite", [...callTables, ...agent.tables], {
         isMigrated: true,
     });

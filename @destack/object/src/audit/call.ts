@@ -6,7 +6,7 @@ import { defineObject } from "../object/object.ts";
 export const call = defineObject({
     name: "call",
     plural: "calls",
-    // keep every call once, its segments locked for 400 days
+    // record every call once, its segments locked for 400 days
     storage: {
         kind: "events",
         flush: { maxAge: { hours: 1 }, maxRows: 100_000 },
@@ -34,4 +34,4 @@ export const call = defineObject({
         targetType: field.string(),
     },
     permissions: ["read", "unmask"],
-}).methods();
+});

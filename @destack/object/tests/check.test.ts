@@ -16,7 +16,8 @@ import { space, spacePrincipal } from "./fixture/space.ts";
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
 
 /** A space's relationships, which check access. */
-const relationship = defineObject(Intrinsic.relationship.definition(space)).methods(
+const relationship = defineObject(
+    Intrinsic.relationship.definition(space),
     Intrinsic.relationship.methods,
 );
 
@@ -38,7 +39,7 @@ test("check the caller's own access under its grant, and another subject's for g
     );
     onTestFinished(() => storage.close());
 
-    // keep a private space owned by alice and read by bob
+    // create a private space owned by alice and read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
     const fixture = new AccessFixture(storage.database);
     await fixture.replicateScope(object, "own");

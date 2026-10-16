@@ -54,7 +54,7 @@ test.for(TEST_DIALECTS)(
             { group: { parentId: bookId }, values: { notes: 3 } },
         ]);
 
-        // keep the same once the server executed them and the replica has its rows
+        // stay the same once the server executed them and the replica has its rows
         device.online();
         await created.confirmed;
         await Promise.all([books.ready, counts.ready]);
@@ -482,17 +482,19 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "keep following a closed query for a while, receiving the server's changes with no query open, on %s",
+    "go on following a closed query for a while, receiving the server's changes with no query open, on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect(users.alice);
         const device = await Device.open(users.alice, endpoint(users.alice), []);
         device.online();
 
-        // close the query and keep it followed for a minute
-        const kept = device.client.query.notebook.findMany({}).subscribe({ keep: { minutes: 1 } });
-        await kept.ready;
-        await kept.close();
+        // close the query, following it for a minute
+        const followed = device.client.query.notebook
+            .findMany({})
+            .subscribe({ ttl: { minutes: 1 } });
+        await followed.ready;
+        await followed.close();
 
         // receive a notebook the server creates after the close into the local replica
         await alice.notebook.create({
@@ -511,7 +513,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "let go of kept queries beyond the storage budget, keeping queries kept always until released, on %s",
+    "let go of followed queries beyond the storage budget, following forever-followed ones until released, on %s",
     async (dialect) => {
         const { connect, endpoint } = await serveNotes(dialect);
         const alice = connect(users.alice);
@@ -526,12 +528,10 @@ test.for(TEST_DIALECTS)(
         const names = async () =>
             (await database.select().from(notebook.table)).map((row) => row.name).toSorted();
 
-        // keep home always and every notebook for a minute, and close both
+        // follow home forever and every notebook for a minute, and close both
         const home = { where: { name: "Home" } };
-        const always = device.client.query.notebook.findMany(home).subscribe({ keep: "always" });
-        const minute = device.client.query.notebook
-            .findMany({})
-            .subscribe({ keep: { minutes: 1 } });
+        const always = device.client.query.notebook.findMany(home).subscribe({ ttl: "forever" });
+        const minute = device.client.query.notebook.findMany({}).subscribe({ ttl: { minutes: 1 } });
         await Promise.all([always.ready, minute.ready]);
         await Promise.all([always.close(), minute.close()]);
 
@@ -542,13 +542,13 @@ test.for(TEST_DIALECTS)(
             async () => (await names()).length === 1,
             waiting.signal,
         );
-        const kept = await names();
+        const remaining = await names();
         await device.client.release(notebook, home);
         const isReleased = await database.log.until(
             async () => (await names()).length === 0,
             waiting.signal,
         );
-        expect([isEvicted, kept, isReleased]).toEqual([true, ["Home"], true]);
+        expect([isEvicted, remaining, isReleased]).toEqual([true, ["Home"], true]);
     },
 );
 
@@ -567,17 +567,17 @@ test.for(TEST_DIALECTS)(
         });
         device.online();
 
-        // follow the notebooks and keep them always once closed
-        const notebooks = device.client.query.notebook.findMany({}).subscribe({ keep: "always" });
+        // follow the notebooks forever once closed
+        const notebooks = device.client.query.notebook.findMany({}).subscribe({ ttl: "forever" });
         await notebooks.ready;
         await notebooks.close();
 
-        // describe the budgeted replica, the query kept always, and an empty outbox
+        // describe the budgeted replica, the query followed forever, and an empty outbox
         const inspection = await device.client.inspect();
         expect([
             inspection.rows,
             inspection.storage,
-            inspection.subscriptions.map((entry) => entry.keep),
+            inspection.subscriptions.map((entry) => entry.ttl),
             inspection.replica.isLaidOut,
             Object.keys(
                 QueriesParameters.parse(
@@ -589,7 +589,7 @@ test.for(TEST_DIALECTS)(
         ]).toEqual([
             { notebook: 1, note: 0 },
             { rows: 10 },
-            ["always"],
+            ["forever"],
             true,
             1,
             { pending: 0, executed: 0, rejected: 0 },
@@ -597,7 +597,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test("watch a query keeping each unchanged row as the same object after another row changes", async () => {
+test("watch a query reusing each unchanged row as the same object after another row changes", async () => {
     const { endpoint } = await serveNotes("sqlite");
     const device = await Device.open(users.alice, endpoint(users.alice), []);
 
@@ -634,7 +634,7 @@ test("watch a query keeping each unchanged row as the same object after another 
         .update({ id: present(apples, "the apples note"), title: "Dates" }).predicted;
     const renamed = await next();
 
-    // keep the two unchanged notes as the same objects, and present the renamed one anew
+    // reuse the two unchanged notes as the same objects, and present the renamed one anew
     expect([
         renamed.map((row) => row["title"]),
         renamed[0] === initial[1],

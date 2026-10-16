@@ -22,66 +22,70 @@ const START = EventTime.of(1_800_000_000_000);
 const MINUTE = EventTime.of(60_000);
 
 /** Page visits, each readable by its visitor. */
-const visit = defineObject({
-    name: "visit",
-    plural: "visits",
-    scope: space,
-    storage: {
-        kind: "events",
-        flush: { maxAge: { hours: 1 }, maxRows: 1000 },
-        retention: { days: 30 },
-        delivery: "exactly-once",
+const visit = defineObject(
+    {
+        name: "visit",
+        plural: "visits",
+        scope: space,
+        storage: {
+            kind: "events",
+            flush: { maxAge: { hours: 1 }, maxRows: 1000 },
+            retention: { days: 30 },
+            delivery: "exactly-once",
+        },
+        fields: {
+            /** The visitor. */
+            visitor: field.reference(principal.user),
+            /** The page. */
+            page: field.string(),
+            /** The time spent on the page, in milliseconds. */
+            duration: field.number(),
+            /** The page the visitor came from, absent for a direct visit. */
+            data: field.json(schema.object({ referrer: schema.string().nullable() })),
+        },
+        permissions: { read: relation("visitor"), record: none(), visit: relation("visitor") },
     },
-    fields: {
-        /** The visitor. */
-        visitor: field.reference(principal.user),
-        /** The page. */
-        page: field.string(),
-        /** The time spent on the page, in milliseconds. */
-        duration: field.number(),
-        /** The page the visitor came from, absent for a direct visit. */
-        data: field.json(schema.object({ referrer: schema.string().nullable() })),
-    },
-    permissions: { read: relation("visitor"), record: none(), visit: relation("visitor") },
-}).methods((method) => ({
-    list: method.list("read"),
-    get: method.get("read"),
-    record: method.createMany("record", {
-        isInternal: true,
-        fields: ["visitorId", "page", "duration", "data"],
+    (method) => ({
+        list: method.list("read"),
+        get: method.get("read"),
+        record: method.createMany("record", {
+            isInternal: true,
+            fields: ["visitorId", "page", "duration", "data"],
+        }),
+        visit: method.create("visit", { fields: ["visitorId", "page", "duration", "data"] }),
     }),
-    visit: method.create("visit", { fields: ["visitorId", "page", "duration", "data"] }),
-}));
+);
 
 /** Pages of a space, each counting the visits its reader made to it. */
-const page = defineObject({
-    name: "page",
-    plural: "pages",
-    scope: space,
-    fields: { title: field.string() },
-    permissions: { read: through("scope", "read") },
-})
-    .methods((method) => ({
+const page = defineObject(
+    {
+        name: "page",
+        plural: "pages",
+        scope: space,
+        fields: { title: field.string() },
+        permissions: { read: through("scope", "read") },
+    },
+    (method) => ({
         visits: method.query({
             permission: "read",
             target: "scope",
             input: schema.object({ title: schema.string() }),
             output: schema.object({ count: schema.number().int() }),
         }),
-    }))
-    .implement({
-        methods: {
-            visits: async (call) => {
-                // read the caller's visits of the page through the visits' own listing
-                const listed = await call.query(
-                    call.caller,
-                    visit.call("list", { spaceId: call.scope, where: { page: call.input.title } }),
-                );
+    }),
+).implement({
+    methods: {
+        visits: async (call) => {
+            // read the caller's visits of the page through the visits' own listing
+            const listed = await call.query(
+                call.caller,
+                visit.call("list", { spaceId: call.scope, where: { page: call.input.title } }),
+            );
 
-                return { count: listed.items.length };
-            },
+            return { count: listed.items.length };
         },
-    });
+    },
+});
 
 test.for(TEST_DIALECTS)(
     "list, get and fold the %s events a visitor may read, refusing a fold without a visitor filter",
@@ -191,7 +195,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test("append a visitor's own visit publicly, refusing another's, and read visits from a durable method", async () => {
-    // keep the visits beside the space's pages
+    // store the visits beside the space's pages
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({

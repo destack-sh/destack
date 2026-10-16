@@ -20,12 +20,12 @@ import { testEvents } from "../../src/test/index.ts";
 /** The space with the notes. */
 export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
-/** The object types a device keeps, by key. */
+/** The object types a device replicates, by key. */
 const DEVICE_OBJECTS = { notebook, note };
 
 /** Serve a space's notes to bearer-identified users, returning a client per user. */
 export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) {
-    // keep the space's notes in memory
+    // store the space's notes in memory
     const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -83,7 +83,7 @@ export function serveObjects(implementation: PackageImplementation, scope: strin
 export class Device {
     /** The local database file. */
     readonly storage: TestDatabase;
-    /** The objects the device keeps. */
+    /** The objects the device replicates. */
     readonly client: ObjectClient<typeof DEVICE_OBJECTS>;
     /** The failures pushing and following reported. */
     readonly errors: unknown[] = [];
@@ -92,7 +92,7 @@ export class Device {
     /** The running push and follow loops. */
     #loops: Promise<void>[] = [];
 
-    /** Keep a device's storage and objects. */
+    /** Hold a device's storage and objects. */
     private constructor(storage: TestDatabase, client: ObjectClient<typeof DEVICE_OBJECTS>) {
         this.storage = storage;
         this.client = client;
@@ -109,7 +109,7 @@ export class Device {
             readonly clock?: Clock;
         } = {},
     ) {
-        // create the local database and keep the space's notebooks and notes in it
+        // create the local database and replicate the space's notebooks and notes in it
         const tables = ObjectClient.tables({ notebook, note });
         const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
         const client = await ObjectClient.open({
@@ -151,7 +151,7 @@ export class Device {
         );
     }
 
-    /** Stop pushing and following and keep the queue and the replica. */
+    /** Stop pushing and following and retain the queue and the replica. */
     async offline(): Promise<void> {
         this.#controller.abort();
         await Promise.all(this.#loops);

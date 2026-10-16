@@ -13,7 +13,7 @@ export const page = defineObject({
     nested: {
         in: "self",
         optional: true,
-        receive: "edit",
+        receive: "write",
         move: "manage",
     },
     fields: {
@@ -23,10 +23,7 @@ export const page = defineObject({
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     shareable: { isPublic: true },
-}).methods((method) => ({
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+});
 
 /** The package of pages, their trees, sharing, links, trash and sync. */
 export const pagesPackage = definePackage({ objects: { page } });

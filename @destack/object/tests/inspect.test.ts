@@ -79,21 +79,24 @@ test("list a task's methods as symbols, each with its route and input, reading o
 
 test("describe the methods callers call: kind, permission, route, and input without its request", () => {
     // define a gauge measured by a query and reset by a mutation
-    const gauge = defineObject({
-        name: "gauge",
-        plural: "gauges",
-        scope: "universe",
-        fields: { level: field.number() },
-        permissions: ["read", "reset"],
-    }).methods((method) => ({
-        measure: method.query({
-            permission: "read",
-            input: schema.object({ unit: schema.enum(["percent", "ratio"]) }),
-            output: schema.object({ value: schema.number() }),
+    const gauge = defineObject(
+        {
+            name: "gauge",
+            plural: "gauges",
+            scope: "universe",
+            fields: { level: field.number() },
+            permissions: ["read", "reset"],
+        },
+        (method) => ({
+            measure: method.query({
+                permission: "read",
+                input: schema.object({ unit: schema.enum(["percent", "ratio"]) }),
+                output: schema.object({ value: schema.number() }),
+            }),
+            reset: method.mutation({ permission: "reset", output: schema.object({}) }),
+            tidy: method.mutation({ permission: "reset", isInternal: true }),
         }),
-        reset: method.mutation({ permission: "reset", output: schema.object({}) }),
-        tidy: method.mutation({ permission: "reset", isInternal: true }),
-    }));
+    );
     const described = gauge.describeMethods();
     const { $schema: _schema, ...identifier } = toJsonSchema(gauge.idSchema);
 

@@ -19,7 +19,7 @@ export const approvalMethod = new MethodBuilder<
 export const observe = controlledMethod
     .mutation({ permission: "control", input: Observation })
     .handle(async (context) => {
-        // merge the conditions and keep transition times while their status stays
+        // merge the conditions and hold transition times while their status stays
         const { observedGeneration, conditions, fields } = context.input;
         const current = context.target.conditions;
         const merged = Object.fromEntries(

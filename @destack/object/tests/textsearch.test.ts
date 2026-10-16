@@ -11,26 +11,29 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 
-/** The space keeping the documents. */
+/** The space with the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");
 
 /** Documents searched by their title and their text body. */
-const document = defineObject({
-    name: "document",
-    plural: "documents",
-    scope: space,
-    search: { searchable: ["title", "body"] },
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string(),
-        body: field.text(),
+const document = defineObject(
+    {
+        name: "document",
+        plural: "documents",
+        scope: space,
+        search: { searchable: ["title", "body"] },
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string(),
+            body: field.text(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-    list: method.list("read"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+        list: method.list("read"),
+    }),
+);
 
 /** Build a new request identifier. */
 function request(): string {

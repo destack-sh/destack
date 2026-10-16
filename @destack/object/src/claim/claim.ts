@@ -298,16 +298,16 @@ export const Claim = Object.assign(claim, {
         return new Set(rows.map((row) => row.key));
     },
 
-    /** List the expired reservations of some indexes a reader keeps, and the next deadline. */
+    /** List the expired reservations of some indexes a reader holds, and the next deadline. */
     async expired(
         claims: RelationalQueryBuilder<typeof claimTable>,
         indexes: readonly string[],
         now: number,
-        keep: (rows: readonly ClaimRow[]) => Promise<readonly ClaimRow[]> = async (rows) => rows,
+        filter: (rows: readonly ClaimRow[]) => Promise<readonly ClaimRow[]> = async (rows) => rows,
     ): Promise<Expiry> {
-        // read the expired reservations of the indexes a chain's worth at a time, kept for the reader
+        // read the expired reservations of the indexes a chain's worth at a time, filtered for the reader
         const reserved: ClaimCondition = { state: "pending", index: { in: [...indexes] } };
-        const expired = await keep(
+        const expired = await filter(
             await claims.findMany({
                 where: { AND: [reserved, { expiresAt: { lte: now } }] },
                 orderBy: { expiresAt: "asc" },
@@ -359,7 +359,7 @@ export const Claim = Object.assign(claim, {
         return new Map(rows.map((row) => [ClaimKey.of(row), row.objectId]));
     },
 
-    /** Settle an object's names in its state, only those a condition keeps when given. */
+    /** Settle an object's names in its state, only those a condition selects when given. */
     async settle(
         database: DatabaseConnection,
         object: Claimant,
@@ -436,10 +436,10 @@ export const Claim = Object.assign(claim, {
     },
 });
 
-/** A condition over the claims a database keeps. */
+/** A condition over the claims a database has. */
 export type ClaimCondition = Condition<RowImage<typeof claimTable>>;
 
-/** A claim row as a database keeps it. */
+/** A claim row as a database stores it. */
 export type ClaimRow = RowImage<typeof claimTable>;
 
 /** A name an object claims in a unique index across databases. */
@@ -481,7 +481,7 @@ export const Claimant = Object.assign(claimant, {
 
     /** Read the names each object a transaction wrote claims, by its last image. */
     async written(transaction: Transaction, types: readonly ObjectType[]): Promise<Claimant[]> {
-        // keep each written object's last image
+        // take each written object's last image
         const indexed = types.filter((type) => Object.keys(type.indexes).length > 0);
         const byTable = new Map(indexed.map((type) => [type.table[TABLE].sqlName, type]));
         const written = transaction.changes.changes.flatMap((change) => {

@@ -16,9 +16,9 @@ const ObjectSearchSchema = defineSchema(
     schema.object({
         /** The fields the space's full-text index covers, the most significant first. */
         searchable: schema.array(schema.string().min(1)),
-        /** The fields lists filter and count facets by, each kept in an index. */
+        /** The fields lists filter and count facets by, each indexed. */
         filterable: schema.array(schema.string().min(1)),
-        /** The fields lists order by, each kept in an index. */
+        /** The fields lists order by, each indexed. */
         sortable: schema.array(schema.string().min(1)),
     }),
 );
@@ -99,7 +99,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         texts: readonly string[],
         isColumnSearched: boolean,
     ): OpenCondition {
-        // expand the conditions a condition combines and negates, keeping its other entries
+        // expand the conditions a condition combines and negates, with its other entries
         const { SEARCH: searched, AND: all, OR: any, NOT: negated, ...rest } = condition;
         const expand = (nested: OpenCondition) =>
             ObjectSearch.expandSearches(nested, texts, isColumnSearched);
@@ -122,7 +122,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         texts: readonly string[],
         isColumnSearched: boolean,
     ): OpenCondition[] {
-        // keep no words without a search, and refuse a search without text
+        // match no words without a search, and refuse a search without text
         if (searched === undefined) {
             return [];
         } else if (typeof searched !== "string") {

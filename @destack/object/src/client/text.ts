@@ -49,7 +49,7 @@ export const LiveText = {
                 return { predicted, confirmed: editing.confirmed };
             });
 
-            // keep the order after a failed change, whose failure its caller awaits through next
+            // hold the order after a failed change, whose failure its caller awaits through next
             previous = next.catch(() => {});
 
             return next;

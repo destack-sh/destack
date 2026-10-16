@@ -19,7 +19,7 @@ export const attachments: Trait<readonly Attachment[]> = {
         const hosted = { parentPackageId: object.packageId, parentType: object.name };
         const durable = options.filter((attachment) => attachment.object.storage === "durable");
 
-        // keep attachment aggregates and dependents
+        // add attachment aggregates and dependents
         return {
             aggregates: durable.flatMap((attachment) =>
                 Object.entries(attachment.object.aggregates)

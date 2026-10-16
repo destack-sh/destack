@@ -22,28 +22,31 @@ const OUTSIDE = Package.parse({
 });
 
 /** A holder whose token its own package's code reads, which another package's read withholds. */
-const holder = defineObject({
-    name: "holder",
-    plural: "holders",
-    scope: space,
-    fields: { label: field.string(), token: field.string().sensitive() },
-    permissions: { read: through("space", "read") },
-}).methods((method) => ({
-    create: method.create("read", { fields: ["label", "token"] }),
-    /** Read a holder's token as the holders' own package. */
-    token: method
-        .query({
-            permission: "read",
-            output: schema.object({ token: schema.string() }),
-        })
-        .handle(async (context) => {
-            const [row] = await context
-                .reveal(context.object)
-                .findMany({ where: { id: context.target.id } });
+const holder = defineObject(
+    {
+        name: "holder",
+        plural: "holders",
+        scope: space,
+        fields: { label: field.string(), token: field.string().sensitive() },
+        permissions: { read: through("space", "read") },
+    },
+    (method) => ({
+        create: method.create("read", { fields: ["label", "token"] }),
+        /** Read a holder's token as the holders' own package. */
+        token: method
+            .query({
+                permission: "read",
+                output: schema.object({ token: schema.string() }),
+            })
+            .handle(async (context) => {
+                const [row] = await context
+                    .reveal(context.object)
+                    .findMany({ where: { id: context.target.id } });
 
-            return { token: schema.string().parse(row?.["token"]) };
-        }),
-}));
+                return { token: schema.string().parse(row?.["token"]) };
+            }),
+    }),
+);
 
 /** A peeker of another package, reading the holders of its scope. */
 const peeker = defineObject(
@@ -54,31 +57,32 @@ const peeker = defineObject(
         fields: { label: field.string() },
         permissions: { read: through("space", "read") },
     },
-    { package: OUTSIDE },
-).methods((method) => ({
-    /** Read the scope's holders as the outside package, then try to reveal them. */
-    peek: method
-        .query({
-            permission: "read",
-            target: "scope",
-            output: schema.object({
-                hasToken: schema.array(schema.boolean()),
-                revealed: schema.string(),
-            }),
-        })
-        .handle(async (context) => {
-            const scope = schema.identifier("space").parse(context.scope);
-            const read = await context.read(holder).findMany({ where: { scope } });
-            const revealed = await Promise.resolve()
-                .then(() => context.reveal(holder).findMany({ where: { scope } }))
-                .then(
-                    () => "revealed",
-                    (error: unknown) => (error instanceof Error ? error.message : "refused"),
-                );
+    (method) => ({
+        /** Read the scope's holders as the outside package, then try to reveal them. */
+        peek: method
+            .query({
+                permission: "read",
+                target: "scope",
+                output: schema.object({
+                    hasToken: schema.array(schema.boolean()),
+                    revealed: schema.string(),
+                }),
+            })
+            .handle(async (context) => {
+                const scope = schema.identifier("space").parse(context.scope);
+                const read = await context.read(holder).findMany({ where: { scope } });
+                const revealed = await Promise.resolve()
+                    .then(() => context.reveal(holder).findMany({ where: { scope } }))
+                    .then(
+                        () => "revealed",
+                        (error: unknown) => (error instanceof Error ? error.message : "refused"),
+                    );
 
-            return { hasToken: read.map((row) => Object.hasOwn(row, "token")), revealed };
-        }),
-}));
+                return { hasToken: read.map((row) => Object.hasOwn(row, "token")), revealed };
+            }),
+    }),
+    { package: OUTSIDE },
+);
 
 test("reveal a type's sensitive field to its own package's handler, and withhold it from another package's read", async () => {
     // serve the holders and the outside peekers in one space

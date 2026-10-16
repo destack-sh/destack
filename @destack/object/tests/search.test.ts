@@ -11,26 +11,29 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 
-/** The space keeping the notes. */
+/** The space with the notes. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d2");
 
 /** Notes searched by their title and status. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    search: { searchable: ["title", "status"], sortable: ["title"] },
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string(),
-        status: field.enum(["draft", "published"]),
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        search: { searchable: ["title", "status"], sortable: ["title"] },
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string(),
+            status: field.enum(["draft", "published"]),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-    list: method.list("read"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+        list: method.list("read"),
+    }),
+);
 
 test.for(TEST_DIALECTS)(
     "list the %s objects whose searchable fields hold every word of a search, beside other conditions",

@@ -19,7 +19,7 @@ export const StatusCondition = Object.assign(
         }),
     ),
     {
-        /** Record an observed condition, keeping its last transition time while stable. */
+        /** Record an observed condition, its last transition time unchanged while stable. */
         observe(
             previous: StatusCondition | undefined,
             observation: Omit<StatusCondition, "lastTransitionAt">,
@@ -66,7 +66,7 @@ export const Observation = Object.assign(
         schema.object({
             /** The desired generation the controller evaluated. */
             observedGeneration: schema.number().int().min(0),
-            /** The conditions by name, their transition times kept while their status stays. */
+            /** The conditions by name, their transition times fixed while their status stays. */
             conditions: schema.record(schema.string().min(1), Condition),
             /** The observed fields the controller writes. */
             fields: schema.jsonObject().exactOptional(),

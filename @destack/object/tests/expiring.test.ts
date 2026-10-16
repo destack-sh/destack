@@ -22,23 +22,26 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Alerts removed a month after reading, or half a year after arriving unread. */
-const alert = defineObject({
-    name: "alert",
-    plural: "alerts",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string(),
-        readAt: field.time().optional(),
+const alert = defineObject(
+    {
+        name: "alert",
+        plural: "alerts",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string(),
+            readAt: field.time().optional(),
+        },
+        expiring: [
+            { after: { days: 30 }, from: "readAt" },
+            { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
+        ],
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    expiring: [
-        { after: { days: 30 }, from: "readAt" },
-        { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
-    ],
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["title"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["title"] }),
+    }),
+);
 
 /** The database with the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
@@ -85,14 +88,20 @@ test.each(TEST_DIALECTS)(
         const now = Date.now();
         await create("Read long ago", { createdAt: now - 40 * DAY, readAt: now - 31 * DAY });
         await create("Unread long ago", { createdAt: now - 181 * DAY, readAt: null });
-        const kept = await create("Read yesterday", {
+        const recent = await create("Read yesterday", {
             createdAt: now - 200 * DAY,
             readAt: now - DAY,
         });
 
         // remove the two expired alerts and schedule the third
         const controller = new ExpiringController(store);
-        expect(Object.keys(alert.procedures).toSorted()).toEqual(["create", "get", "list"]);
+        expect(Object.keys(alert.procedures).toSorted()).toEqual([
+            "create",
+            "delete",
+            "get",
+            "list",
+            "update",
+        ]);
         const delay = await controller.reconcile(
             "expiry",
             reconciliation(new AbortController().signal),
@@ -102,12 +111,12 @@ test.each(TEST_DIALECTS)(
             left.map((row) => row.id),
             await auditedActions(database, "component"),
             delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
-        ]).toEqual([[kept], ["alert.expire", "alert.expire"], true]);
+        ]).toEqual([[recent], ["alert.expire", "alert.expire"], true]);
     },
 );
 
 test("leave the expired rows a database replicates to the deletes their home sends", async () => {
-    // keep the alerts as replicas, one long expired
+    // store the alerts as replicas, one long expired
     const replicated = defineDatabase({
         name: "main",
         tables: [...callTables, ...alert.tables.filter((table) => table !== alert.table)],

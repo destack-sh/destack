@@ -25,107 +25,131 @@ import { request, type RequestInput } from "./fixture/request.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Remarks on any object that takes them, readable by whoever reads it. */
-const remark = defineObject({
-    name: "remark",
-    plural: "remarks",
-    scope: space,
-    nested: { in: "any", receive: "remark" },
-    fields: { text: field.string(schema.string().min(1)) },
-    permissions: { read: through("parent", "read"), write: through("parent", "remark") },
-    aggregates: { remarkCount: { function: "count" } },
-}).methods((method) => ({
-    create: method.create("write"),
-    delete: method.delete("write"),
-    /** Count the remarks on a parent, checked as on a new remark there. */
-    count: method.query({
-        permission: "read",
-        target: "scope",
-        input: schema.object({ parent: ParentReference }),
-        output: schema.object({ count: schema.int() }),
+const remark = defineObject(
+    {
+        name: "remark",
+        plural: "remarks",
+        scope: space,
+        nested: { in: "any", receive: "remark" },
+        fields: { text: field.string(schema.string().min(1)) },
+        permissions: { read: through("parent", "read"), write: through("parent", "remark") },
+        aggregates: { remarkCount: { function: "count" } },
+    },
+    (method) => ({
+        create: method.create("write"),
+        delete: method.delete("write"),
+        /** Count the remarks on a parent, checked as on a new remark there. */
+        count: method.query({
+            permission: "read",
+            target: "scope",
+            input: schema.object({ parent: ParentReference }),
+            output: schema.object({ count: schema.int() }),
+        }),
     }),
-}));
+);
 
-/** Pins that keep any hosting object from deletion. */
-const pin = defineObject({
-    name: "pin",
-    plural: "pins",
-    scope: space,
-    nested: { in: "any", delete: "restrict", receive: "pin" },
-    fields: {},
-    permissions: { read: through("parent", "read"), write: through("parent", "pin") },
-}).methods((method) => ({ create: method.create("write"), delete: method.delete("write") }));
+/** Pins that protect any hosting object from deletion. */
+const pin = defineObject(
+    {
+        name: "pin",
+        plural: "pins",
+        scope: space,
+        nested: { in: "any", delete: "restrict", receive: "pin" },
+        fields: {},
+        permissions: { read: through("parent", "read"), write: through("parent", "pin") },
+    },
+    (method) => ({ create: method.create("write"), delete: method.delete("write") }),
+);
 
 /** Articles taking remarks. */
-const article = defineObject({
-    name: "article",
-    plural: "articles",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-    permissions: { read: relation("owner"), edit: relation("owner") },
-    attachments: [remark.attach({ by: "edit" })],
-}).methods((method) => ({
-    create: method.create("edit"),
-    delete: method.delete("edit"),
-}));
+const article = defineObject(
+    {
+        name: "article",
+        plural: "articles",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
+        permissions: { read: relation("owner"), edit: relation("owner") },
+        attachments: [remark.attach({ by: "edit" })],
+    },
+    (method) => ({
+        create: method.create("edit"),
+        delete: method.delete("edit"),
+    }),
+);
 
 /** Photos their owner remarks on and pins by reading them. */
-const photo = defineObject({
-    name: "photo",
-    plural: "photos",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-    permissions: { read: relation("owner") },
-    attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
-}).methods((method) => ({
-    create: method.create("read"),
-    delete: method.delete("read"),
-}));
+const photo = defineObject(
+    {
+        name: "photo",
+        plural: "photos",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
+        permissions: { read: relation("owner") },
+        attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
+    },
+    (method) => ({
+        create: method.create("read"),
+        delete: method.delete("read"),
+    }),
+);
 
 /** Tasks taking no remarks. */
-const task = defineObject({
-    name: "task",
-    plural: "tasks",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    permissions: { read: relation("owner") },
-}).methods((method) => ({ create: method.create("read") }));
+const task = defineObject(
+    {
+        name: "task",
+        plural: "tasks",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner") },
+    },
+    (method) => ({ create: method.create("read") }),
+);
 
 /** A reader's private favourite mark, one per object. */
-const favourite = defineObject({
-    name: "favourite",
-    plural: "favourites",
-    scope: space,
-    nested: { in: "any", receive: "favourite" },
-    fields: { reader: field.reference(principal.user).caller() },
-    permissions: {
-        read: intersection(relation("reader"), through("parent", "favourite")),
-        write: intersection(relation("reader"), through("parent", "favourite")),
+const favourite = defineObject(
+    {
+        name: "favourite",
+        plural: "favourites",
+        scope: space,
+        nested: { in: "any", receive: "favourite" },
+        fields: { reader: field.reference(principal.user).caller() },
+        permissions: {
+            read: intersection(relation("reader"), through("parent", "favourite")),
+            write: intersection(relation("reader"), through("parent", "favourite")),
+        },
+        constraints: {
+            reader: {
+                kind: "unique",
+                on: ["parentPackageId", "parentType", "parentId", "readerId"],
+            },
+        },
     },
-    constraints: {
-        reader: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "readerId"] },
-    },
-}).methods((method) => ({
-    create: method.create("write"),
-    delete: method.delete("write"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        delete: method.delete("write"),
+    }),
+);
 
 /** Boards shared with viewers who may mark them as a favourite. */
-const board = defineObject({
-    name: "board",
-    plural: "boards",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    relations: { viewer: { subjects: [user] } },
-    permissions: {
-        read: union(relation("owner"), relation("viewer")),
-        manage: relation("owner"),
+const board = defineObject(
+    {
+        name: "board",
+        plural: "boards",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        relations: { viewer: { subjects: [user] } },
+        permissions: {
+            read: union(relation("owner"), relation("viewer")),
+            manage: relation("owner"),
+        },
+        shareable: { by: "manage" },
+        attachments: [favourite.attach({ by: "read" })],
     },
-    shareable: { by: "manage" },
-    attachments: [favourite.attach({ by: "read" })],
-}).methods((method) => ({ create: method.create("manage"), delete: method.delete("manage") }));
+    (method) => ({ create: method.create("manage"), delete: method.delete("manage") }),
+);
 
-test("map the types attached to served objects, which the database keeps beside them", async () => {
-    // serve photos alone over a database keeping their remarks and pins
+test("map the types attached to served objects, which the database has beside them", async () => {
+    // serve photos alone over a database with their remarks and pins
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
@@ -220,7 +244,7 @@ test.for(TEST_DIALECTS)(
                 .toSorted((left, right) => left.localeCompare(right)),
         ).toEqual(["Cite the source", "Tighten the intro"]);
 
-        // delete the article's remarks with it, and keep the pinned photo with its remark
+        // delete the article's remarks with it, leaving the pinned photo with its remark
         const pinned = await call(pin, "create", host(photo, snapshot.id));
         await call(article, "delete", { id: draft.id });
         expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
@@ -248,7 +272,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "keep each reader's favourite of a shared board private and single on %s",
+    "hold each reader's favourite of a shared board private and single on %s",
     async (dialect) => {
         const { call, host, as } = await serveObjects(dialect, { favourite, board });
 
@@ -317,7 +341,7 @@ test.for(TEST_DIALECTS)(
 
 /** Serve object types over a new database to one user at a time. */
 async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, ObjectType>>) {
-    // keep the objects and their requests in one database
+    // store the objects and their requests in one database
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({

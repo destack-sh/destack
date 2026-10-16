@@ -17,34 +17,37 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const FREE = schema.identifier("tier").parse("tier-00000000-0000-7000-8000-000000000001");
 
 /** Plan tiers, the free one predefined. */
-const tier = defineObject({
-    name: "tier",
-    plural: "tiers",
-    scope: space,
-    fields: { name: field.string() },
-    permissions: { read: none(), manage: none() },
-    predefined: [
-        {
-            id: FREE,
-            createdAt: 0,
-            ...ObjectReference.columns("createdBy", undefined),
-            updatedAt: 0,
-            ...ObjectReference.columns("updatedBy", undefined),
-            revision: 1,
-            tags: {},
-            scope: spaceId,
-            name: "free",
-        },
-    ],
-}).methods((method) => ({
-    list: method.list("read"),
-    create: method.create("manage"),
-    update: method.update("manage", { fields: ["name"] }),
-    updateMany: method.updateMany("manage", { fields: ["name"], match: ["name"] }),
-    delete: method.delete("manage"),
-}));
+const tier = defineObject(
+    {
+        name: "tier",
+        plural: "tiers",
+        scope: space,
+        fields: { name: field.string() },
+        permissions: { read: none(), manage: none() },
+        predefined: [
+            {
+                id: FREE,
+                createdAt: 0,
+                ...ObjectReference.columns("createdBy", undefined),
+                updatedAt: 0,
+                ...ObjectReference.columns("updatedBy", undefined),
+                revision: 1,
+                tags: {},
+                scope: spaceId,
+                name: "free",
+            },
+        ],
+    },
+    (method) => ({
+        list: method.list("read"),
+        create: method.create("manage"),
+        update: method.update("manage", { fields: ["name"] }),
+        updateMany: method.updateMany("manage", { fields: ["name"], match: ["name"] }),
+        delete: method.delete("manage"),
+    }),
+);
 
-test("keep a type's predefined rows in its table, and refuse every call writing them", async () => {
+test("store a type's predefined rows in its table, and refuse every call writing them", async () => {
     // serve the tiers to their space
     const storage = await TestDatabase.create("sqlite", [...callTables, ...tier.tables], {
         isMigrated: true,
@@ -85,11 +88,11 @@ test("keep a type's predefined rows in its table, and refuse every call writing 
     });
 });
 
-test("keep the owner role as the role type's predefined row, refusing other rows over its table", () => {
+test("store the owner role as the role type's predefined row, refusing other rows over its table", () => {
     // read the roles' predefined rows, and declare roles with rows of their own
-    const role = defineObject(Intrinsic.role.definition(space)).methods(Intrinsic.role.methods);
+    const role = defineObject(Intrinsic.role.definition(space), Intrinsic.role.methods);
     expect(role.predefined.map((row) => row["id"])).toEqual([Role.OWNER]);
-    expect(() =>
-        defineObject({ ...Intrinsic.role.definition(space), predefined: [] }).methods(),
-    ).toThrow(new TypeError("object role over a foreign table cannot have predefined"));
+    expect(() => defineObject({ ...Intrinsic.role.definition(space), predefined: [] })).toThrow(
+        new TypeError("object role over a foreign table cannot have predefined"),
+    );
 });

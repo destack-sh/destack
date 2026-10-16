@@ -35,9 +35,9 @@ const person = defineObject({
     partition: true,
     fields: {},
     permissions: { read: none(), write: none() },
-}).methods();
+});
 
-/** Rooms within a person, whose replicas keep the person's preferences. */
+/** Rooms within a person, whose replicas hold the person's preferences. */
 const room = defineObject({
     name: "room",
     plural: "rooms",
@@ -45,20 +45,23 @@ const room = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none(), write: none() },
-}).methods();
+});
 
 /** Preferences a person sets, handed down to their rooms. */
-const preference = defineObject({
-    name: "preference",
-    plural: "preferences",
-    scope: [person, room],
-    inherited: {},
-    fields: { name: field.string(), value: field.string() },
-    permissions: { read: none(), write: none() },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write", { fields: ["value"] }),
-}));
+const preference = defineObject(
+    {
+        name: "preference",
+        plural: "preferences",
+        scope: [person, room],
+        inherited: {},
+        fields: { name: field.string(), value: field.string() },
+        permissions: { read: none(), write: none() },
+    },
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write", { fields: ["value"] }),
+    }),
+);
 
 /** The package serving the preferences. */
 const preferences = definePackage({ objects: { preference } });
@@ -68,7 +71,7 @@ const refuseChanges = () => Promise.reject(new Error("the replica receives no ch
 
 /** Serve alice's preferences at their home and a replica at her room's machine. */
 async function serveHomes() {
-    // keep alice's person and room at home, owned by her
+    // store alice's person and room at home, owned by her
     const homeStorage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
@@ -177,7 +180,7 @@ async function followChain(
     database: TestDatabase["database"],
     home: TestDatabase["database"],
 ): Promise<void> {
-    // reconcile each listed replica, keeping it followed until the test ends
+    // reconcile each listed replica, following it until the test ends
     const follower = present(
         replica.controllers().find((each) => each.name === "replica"),
         "the replica controller",
@@ -205,7 +208,7 @@ async function followChain(
 
 /** Open alice's client of her room, reaching her person's home for its rows. */
 async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
-    // keep the room's preferences on the device
+    // replicate the room's preferences on the device
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ preference }), {
         isMigrated: true,
     });
@@ -284,7 +287,7 @@ async function homeTheme(database: TestDatabase["database"], id: string): Promis
     return present(row, "the theme at home").value;
 }
 
-/** A preference's value as a client's replica keeps it. */
+/** A preference's value as a client's replica holds it. */
 const Valued = schema.looseObject({ value: schema.string() });
 
 test("send a write of an enclosing scope's row to its home, predicted on the room's replica and rebased once the home's commit streams back through it", async () => {

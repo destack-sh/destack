@@ -30,56 +30,65 @@ import { request, type RequestInput } from "./fixture/request.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
 
 /** Who is on a board and where their cursor is. */
-const presence = defineObject({
-    name: "presence",
-    plural: "presences",
-    scope: space,
-    storage: "ephemeral",
-    nested: { in: "any", receive: "present" },
-    fields: {
-        member: field.reference(principal.user).caller(),
-        activity: field.string(schema.string().min(1).max(64)),
-        cursor: field.integer().optional(),
-        profile: field.reference((): ObjectOf<{ identity: "profile" }> => profile).optional(),
+const presence = defineObject(
+    {
+        name: "presence",
+        plural: "presences",
+        scope: space,
+        storage: "ephemeral",
+        nested: { in: "any", receive: "present" },
+        fields: {
+            member: field.reference(principal.user).caller(),
+            activity: field.string(schema.string().min(1).max(64)),
+            cursor: field.integer().optional(),
+            profile: field.reference((): ObjectOf<{ identity: "profile" }> => profile).optional(),
+        },
+        permissions: {
+            read: through("parent", "present"),
+            write: intersection(relation("member"), through("parent", "present")),
+        },
+        constraints: {
+            writer: { kind: "unique", on: ["parentId", "writerId"] },
+        },
     },
-    permissions: {
-        read: through("parent", "present"),
-        write: intersection(relation("member"), through("parent", "present")),
-    },
-    constraints: {
-        writer: { kind: "unique", on: ["parentId", "writerId"] },
-    },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-    delete: method.delete("write"),
-    idle: method.updateMany("write", { fields: ["activity"], match: ["activity"] }),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+        delete: method.delete("write"),
+        idle: method.updateMany("write", { fields: ["activity"], match: ["activity"] }),
+    }),
+);
 
 /** Boards their owner shares with viewers, who are present on them. */
-const board = defineObject({
-    name: "board",
-    plural: "boards",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    relations: { viewer: { subjects: [user] } },
-    permissions: {
-        read: union(relation("owner"), relation("viewer")),
-        manage: relation("owner"),
+const board = defineObject(
+    {
+        name: "board",
+        plural: "boards",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        relations: { viewer: { subjects: [user] } },
+        permissions: {
+            read: union(relation("owner"), relation("viewer")),
+            manage: relation("owner"),
+        },
+        shareable: { by: "manage" },
+        attachments: [presence.attach({ by: "read" })],
     },
-    shareable: { by: "manage" },
-    attachments: [presence.attach({ by: "read" })],
-}).methods((method) => ({ create: method.create("manage") }));
+    (method) => ({ create: method.create("manage") }),
+);
 
 /** The profiles of a board's members. */
-const profile = defineObject({
-    name: "profile",
-    plural: "profiles",
-    scope: space,
-    nested: { in: board, receive: "manage" },
-    fields: { name: field.string() },
-    permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
-}).methods((method) => ({ create: method.create("manage") }));
+const profile = defineObject(
+    {
+        name: "profile",
+        plural: "profiles",
+        scope: space,
+        nested: { in: board, receive: "manage" },
+        fields: { name: field.string() },
+        permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
+    },
+    (method) => ({ create: method.create("manage") }),
+);
 
 /** The package serving the boards, profiles and presence. */
 const boardsPackage = definePackage({ objects: { presence, board, profile } });
@@ -182,7 +191,7 @@ test.for(TEST_DIALECTS)(
         });
         expect(await bob.rows()).toEqual([[users.alice, "viewing", null]]);
 
-        // keep the row past its linger while the writer streams on the other instance
+        // hold the row past its linger while the writer streams on the other instance
         await vi.advanceTimersByTimeAsync(150);
         vi.useRealTimers();
         expect(
@@ -223,7 +232,7 @@ test.for(TEST_DIALECTS)(
             [users.alice, "writer-a"],
             [users.bob, "writer-b"],
         ] as const) {
-            // keep each writer streaming past the linger
+            // stream each writer past the linger
             await east.follow(as, writerId).rows();
             await east.call(as, presence, "create", { writerId, parent, activity: "editing" });
         }
@@ -374,7 +383,7 @@ test.for(TEST_DIALECTS)(
         );
         expect(await shown()).toEqual([[["editing", "Alice"]], []]);
 
-        // keep only the presences the relation's own condition selects
+        // take only the presences the relation's own condition selects
         const filtered = bob.client.query.board
             .findMany({
                 orderBy: { createdAt: "asc" },
@@ -418,7 +427,7 @@ test.for(TEST_DIALECTS)(
 
 /** Serve boards from two instances over one durable database. */
 async function serveBoards(dialect: Dialect) {
-    // keep the boards, their access and requests in one durable database
+    // store the boards, their access and requests in one durable database
     const storage = await TestDatabase.create(
         dialect,
         defineDatabase({
@@ -565,7 +574,7 @@ async function openClient(
     instance: { readonly endpoint: (user: Identifier<"user">) => ClientOptions },
     as: Identifier<"user">,
 ) {
-    // keep the boards and presence in a local database
+    // store the boards and presence in a local database
     const storage = await TestDatabase.create(
         "sqlite",
         ObjectClient.tables({ board, profile, presence }),

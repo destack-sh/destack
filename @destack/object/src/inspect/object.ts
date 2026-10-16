@@ -7,7 +7,7 @@ import { ObjectType } from "../object/object.ts";
 /** The kind of the declarations `defineObject` makes, as manifests list them. */
 export const OBJECT_DECLARATION = "object";
 
-/** A declaration an installation's release makes, as the space keeps it. */
+/** A declaration an installation's release makes, as the space stores it. */
 export interface InstalledDeclaration {
     /** The declaration's kind. */
     readonly kind: string;

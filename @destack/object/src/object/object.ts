@@ -18,7 +18,6 @@ import {
     type Subject,
     Call,
 } from "@destack/sync";
-import type * as sync from "@destack/sync";
 import {
     Expression,
     Condition,
@@ -65,7 +64,6 @@ import {
     scopeRoute,
     type CallInput,
     type MethodOutput,
-    type Calls,
     type MethodName,
     type MethodProcedure,
     type ScopeInput,
@@ -113,6 +111,7 @@ import {
 import { suspendable, type SuspendableMethodMap } from "../trait/suspendable.ts";
 import { fencing, type FencingMethodMap } from "../trait/fencing.ts";
 import { readable, type ReadableMethodMap } from "../trait/readable.ts";
+import { writable, type WritableMethodMap } from "../trait/writable.ts";
 import { bindable, type BindableMethodMap } from "../trait/bindable.ts";
 import {
     Provisioned,
@@ -243,6 +242,7 @@ const readPrototype: (value: object) => object | null = Object.getPrototypeOf;
 const TRAITS: readonly Trait<unknown>[] = [
     record,
     readable,
+    writable,
     nested,
     transitions,
     recoverable,
@@ -388,7 +388,7 @@ export interface ObjectDefinition<
     readonly owner?: string;
     /** Attributes permission expressions read. */
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
-    /** Further relations kept in relationships. */
+    /** Further relations stored in relationships. */
     readonly relations?: Readonly<Record<string, ObjectRelationInput>>;
     /** Permission names roles grant, or named expressions derived from relations. */
     readonly permissions?: ObjectPermissions<Permissions>;
@@ -410,23 +410,23 @@ export interface ObjectDefinition<
     readonly methods?: Methods;
     /** The fields each object has, for objects declared by fields. */
     readonly fields?: Readonly<Record<string, Field>>;
-    /** The aggregates of these objects their holder keeps, by field name. */
+    /** The aggregates of these objects their holder maintains, by field name. */
     readonly aggregates?: Readonly<Record<string, ObjectAggregate>>;
     /** The attachments the objects take. */
     readonly attachments?: readonly Attachment[];
     /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
     readonly constraints?: Readonly<Record<string, ObjectConstraint>>;
-    /** Unique indexes the key index keeps across databases, by name. */
+    /** Unique indexes the key index holds across databases, by name. */
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live: a kind, or the event log with its settings. */
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
-    /** The event log readers the store keeps a slot of per row value, by slot name. */
+    /** The event log readers the store has a slot of per row value, by slot name. */
     readonly readers?: Readonly<Record<string, ReaderDefinition>>;
     /** The previous names of renamed fields, by current field. */
     readonly moved?: { readonly fields?: Readonly<Record<string, string>> };
     /** The fields each release computes from stored rows and earlier inputs, by release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
-    /** The rows every database keeps identical, which no call writes. */
+    /** The rows every database has identical, which no call writes. */
     readonly predefined?: readonly Row[];
 }
 
@@ -436,14 +436,14 @@ export interface ReaderDefinition {
     readonly by: "id" | "scope";
     /** Where a new slot starts: the creating commit's log position, or the log's start. */
     readonly start: "latest" | "earliest";
-    /** How long the log keeps events past a slot's place once it advances. */
+    /** How long the log retains events past a slot's place once it advances. */
     readonly hold: Duration;
 }
 
 /** Where objects live: durable, ephemeral, external, local, or the event log. */
 export type ObjectStorage = "durable" | "ephemeral" | "external" | "local" | "events";
 
-/** The event log keeping a type's objects, with when its events flush and how long they stay. */
+/** The event log with a type's objects, with when its events flush and how long they stay. */
 export interface EventStorage {
     /** The event log. */
     readonly kind: "events";
@@ -451,7 +451,7 @@ export interface EventStorage {
     readonly flush: { readonly maxAge: Duration; readonly maxRows: number };
     /** How long segments stay. */
     readonly retention: Duration;
-    /** Whether each event is kept exactly once, or at most once outside the caller's work. */
+    /** Whether each event is recorded exactly once, or at most once outside the caller's work. */
     readonly delivery: Delivery;
     /** Whether segments are locked and chained for the retention, as audit trails are. */
     readonly isLocked?: boolean;
@@ -474,7 +474,7 @@ export interface ObjectLifecycle<Declared = unknown, Permissions extends string 
     readonly expiring: readonly ExpiryRule[] | undefined;
     /** Whether the objects are numbered versions of their parent. */
     readonly versioned: VersionsDefinition | undefined;
-    /** How tracked objects keep their history. */
+    /** How tracked objects record their history. */
     readonly tracked: TrackedDefinition<Permissions> | undefined;
     /** The previous names of renamed fields, by current field. */
     readonly moved: Readonly<Record<string, string>>;
@@ -495,13 +495,14 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly methods: Configuration["methods"];
     readonly guarded: readonly string[];
     readonly written: readonly string[];
+    readonly updated: readonly string[];
     readonly sensitive: readonly string[];
     readonly text: readonly string[];
     readonly source: ObjectSource;
     readonly events: Configuration["events"];
 };
 
-/** A definition as a type keeps it: expanded by traits, lists present, built members apart. */
+/** A definition as a type holds it: expanded by traits, lists present, built members apart. */
 export type ObjectAssembly<Configuration extends ObjectConfiguration = ObjectConfiguration> =
     ObjectTypeDefinition<Configuration> & {
         readonly scope: ObjectScope | readonly ObjectScope[];
@@ -532,7 +533,7 @@ export interface ObjectImplementation<
     readonly declaration?: DeclarationHandler<Self, Collected, Resolved>;
 }
 
-/** A unique index the key index keeps across databases. */
+/** A unique index the key index holds across databases. */
 export interface ObjectIndex {
     /** The indexed fields, in key order. */
     readonly on: readonly string[];
@@ -663,7 +664,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Retain a definition with its table and methods, and assemble its policy. */
     constructor(owner: Package, definition: ObjectTypeDefinition<Configuration>) {
-        // require a logged table, and keep the definition with its lists present
+        // require a logged table, and hold the definition with its lists present
         ObjectType.#requireLogged(definition.table);
         this.package = owner;
         this.definition = {
@@ -695,7 +696,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.permissions = assembly.permissions;
         this.policy = assembly.policy;
 
-        // keep the event log's kind, list the tables, then require valid members and traits
+        // take the event log's kind, list the tables, then require valid members and traits
         this.events = definition.events;
         this.tables = this.#databaseTables();
         this.#requireValid(definition);
@@ -772,17 +773,22 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.written;
     }
 
+    /** The fields callers write after creation, every written field but the immutable ones. */
+    get updated(): readonly string[] {
+        return this.definition.updated;
+    }
+
     /** The columns with sensitive values. */
     get sensitive(): readonly string[] {
         return this.definition.sensitive;
     }
 
-    /** The text fields, kept in chunks. */
+    /** The text fields, stored in chunks. */
     get text(): readonly string[] {
         return this.definition.text;
     }
 
-    /** The aggregates of these objects their holder keeps, by field name. */
+    /** The aggregates of these objects their holder maintains, by field name. */
     get aggregates(): Readonly<Record<string, ObjectAggregate>> {
         return this.definition.aggregates;
     }
@@ -792,12 +798,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.attachments;
     }
 
-    /** The unique indexes the key index keeps across databases, by name. */
+    /** The unique indexes the key index holds across databases, by name. */
     get indexes(): Readonly<Record<string, ObjectIndex>> {
         return this.definition.indexes;
     }
 
-    /** The rows every database keeps identical, which no call writes. */
+    /** The rows every database has identical, which no call writes. */
     get predefined(): readonly Row[] {
         return this.table[TABLE].predefined;
     }
@@ -884,8 +890,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return new EventReader(name, Duration.milliseconds(declared.hold));
     }
 
-    /** Keep the type's reader slots in step with a row the transaction inserts or removes. */
-    keepReaders(
+    /** Update the type's reader slots with a row the transaction inserts or removes. */
+    updateReaders(
         transaction: Transaction,
         change: { readonly before: Row | null; readonly after: Row | null },
         now: number,
@@ -1010,7 +1016,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.permission(name);
     }
 
-    /** Where the objects' routes keep their scope. */
+    /** Where the objects' routes place their scope. */
     get route(): ScopeRoute {
         return scopeRoute(this);
     }
@@ -1059,7 +1065,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return built;
         }
 
-        // leave out the field a pushed call replays under, kept where a written field of its name replaces it
+        // leave out the field a pushed call replays under, except where a written field of its name replaces it
         const procedure = this.procedure(name).input;
         const replay = this.schema.replay;
         const input = this.method(name).mutates
@@ -1154,10 +1160,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Call one of the type's methods as a value, which a store or a call runs as its caller. */
-    call<Self extends ObjectType, Name extends MethodName<Self>>(
+    call<
+        Self extends ObjectType,
+        Name extends MethodName<Self>,
+        const Input extends CallInput<Self, Name>,
+    >(
         this: Self,
         name: Name,
-        input: NoInfer<CallInput<Self, Name>>,
+        input: Input & ExtraFields<Input, CallInput<Self, Name>>,
     ): Call<MethodOutput<Self, Name>> {
         return ObjectType.#record(this, name, input);
     }
@@ -1172,7 +1182,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             });
         }
 
-        // keep a call of this release as it is
+        // take a call of this release as it is
         const conversions = this.conversions(name);
         if (Version.between(conversions, call.release, served).length === 0) {
             return call.input;
@@ -1230,20 +1240,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return mapValues<Readonly<Record<string, string>>, ScopeInput<Self>>(
             field === undefined ? {} : { [field]: scope },
             (value) => value,
-        );
-    }
-
-    /** Build calls of mutating methods, to run later in their sent scope or input scope. */
-    calls<Self extends ObjectType>(this: Self): Calls<Self> {
-        const mutating = Object.fromEntries(
-            Object.entries(ObjectType.#methodsOf(this)).filter(([, declared]) => declared.mutates),
-        );
-
-        return mapValues<typeof mutating, Calls<Self>>(
-            mutating,
-            (_declared, name) =>
-                (input: JsonObject): sync.Call =>
-                    ObjectType.#record(this, name, input),
         );
     }
 
@@ -1416,7 +1412,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** Read a unique key duplicate as a conflict listing its fields, else keep the failure. */
+    /** Read a unique key duplicate as a conflict listing its fields, else pass on the failure. */
     conflict(error: unknown): unknown {
         // read the violated key of the type's own table
         const definition = this.table[TABLE];
@@ -1442,6 +1438,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         for (const [name, reference] of Object.entries(references)) {
             for (const column of [reference.packageId, reference.type, reference.id]) {
                 named.set(column, name);
+            }
+        }
+        for (const declared of Object.values(this.fields)) {
+            if (declared.reference !== "none" && declared.relation !== undefined) {
+                const { packageId, type, scope, id } = Field.columnsOf(declared.relation);
+                for (const column of [packageId, type, scope, id]) {
+                    named.set(column, declared.relation);
+                }
             }
         }
 
@@ -1606,7 +1610,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.traits.some((applied) => applied.trait === controlled);
     }
 
-    /** Decide whether the type keeps records: its record trait, outside the event log. */
+    /** Decide whether the type stores records: its record trait, outside the event log. */
     isRecord(): this is ObjectOf<{ table: ObjectTable }> {
         return this.storage !== "events" && this.traits.some((applied) => applied.trait === record);
     }
@@ -1618,13 +1622,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.lifecycle.recoverable !== undefined || this.isControlled;
     }
 
-    /** Decide whether the type keeps purged records, as its recoverable trait declares. */
-    isKept(): this is ObjectOf<{
+    /** Decide whether the type retains purged records, as its recoverable trait declares. */
+    isRetained(): this is ObjectOf<{
         table: TraitTable<{
-            readonly recoverable: RecoverableDefinition & { readonly keep: "record" };
+            readonly recoverable: RecoverableDefinition & { readonly retain: "record" };
         }>;
     }> {
-        return this.lifecycle.recoverable?.keep === "record";
+        return this.lifecycle.recoverable?.retain === "record";
     }
 
     /** Decide whether stacks declare the type's records, as its declarable option says. */
@@ -1655,7 +1659,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             }
         }
 
-        // keep ephemeral and external objects off the controllers
+        // leave ephemeral and external objects off the controllers
         const { controller, declaration } = implementation;
         if (controller !== undefined && this.storage !== "durable") {
             throw new TypeError(`${this.storage} object ${this.name} cannot have a controller`);
@@ -1767,7 +1771,26 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     ): ObjectType {
         // list the fields by what callers may do with them
         const fields = Object.entries(definition.fields ?? {});
-        const written = fields.filter(([, declared]) => declared.written).map(([name]) => name);
+        const written = fields
+            .filter(([, declared]) => declared.written !== false)
+            .map(([name]) => name);
+        const updated = fields
+            .filter(([, declared]) => declared.written === true)
+            .map(([name]) => name);
+
+        // refuse an update of a field written only at creation
+        const changing = Object.entries(definition.methods).find(
+            ([, declared]) =>
+                (declared.kind === "update" || declared.kind === "updateMany") &&
+                (declared.fields ?? []).some(
+                    (name) => definition.fields?.[name]?.written === "create",
+                ),
+        );
+        if (changing !== undefined) {
+            throw new TypeError(
+                `object ${definition.name} updates an immutable field in method ${changing[0]}`,
+            );
+        }
         const guarded = fields
             .filter(([, declared]) => declared.access?.read !== undefined)
             .map(([name]) => name);
@@ -1784,6 +1807,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             ...definition,
             identity: definition.identity ?? definition.name,
             written,
+            updated,
             guarded,
             sensitive,
             text: texts,
@@ -1836,7 +1860,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** List the tables the objects need: the store's or the event log's, and their own. */
     #databaseTables(): readonly Table[] {
-        // keep events in the event log's tables, and ephemeral and external rows only in their table
+        // store events in the event log's tables, and ephemeral and external rows only in their table
         if (this.events !== undefined) {
             return eventTables([this.events]);
         } else if (this.storage !== "durable") {
@@ -1904,7 +1928,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Require each scope-keyed reader to start at the log's start, which later rows keep. */
+    /** Require each scope-keyed reader to start at the log's start, which later rows reach. */
     #requireReaders(): void {
         const restarting = Object.entries(this.definition.readers ?? {}).find(
             ([, declared]) => declared.by === "scope" && declared.start === "latest",
@@ -2092,7 +2116,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             readonly table: Table;
         },
     ): EventKind | undefined {
-        // keep no kind for another storage, and require the event columns
+        // derive no kind for another storage, and require the event columns
         const { name, table, fields = {} } = definition;
         const written = definition.storage;
         if (typeof written !== "object") {
@@ -2226,7 +2250,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     static declare(input: ObjectInput, module: ModuleMetadata | undefined): ObjectType {
         // collect the traits, adding what the roles define, and take the built methods
         const owner = ModuleMetadata.require(module, "defineObject").package;
-        const { methods: built, ...written } = input;
+        const { methods: listed, ...written } = input;
+        const built =
+            listed === undefined
+                ? undefined
+                : Object.fromEntries(
+                      Object.entries(listed).filter(
+                          (entry): entry is [string, Method] => entry[1] !== false,
+                      ),
+                  );
         const expanded = Orderable.expand(
             Presentable.expand(
                 Roles.expand(
@@ -2267,13 +2299,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const packageId = (definition.represents?.package ?? owner).id;
         const table = intrinsic?.table ?? ObjectTable.derive(definition, traits, packageId, module);
 
-        // add trait methods
+        // add trait methods, but those the definition declares or removes
         const declared: Readonly<Record<string, Method>> = definition.methods ?? {};
-        const derived = traits.map(({ trait, options }) => trait.methods(options, declared));
-        const clash = derived.flatMap(Object.keys).find((name) => Object.hasOwn(declared, name));
+        const derived = traits.map(({ trait, options }) =>
+            trait.methods(options, { ...listed, ...declared }),
+        );
+        const clash = derived
+            .flatMap(Object.keys)
+            .find((name) => Object.hasOwn(listed ?? {}, name));
         if (clash !== undefined) {
             throw new TypeError(
-                `object ${definition.name} declares method ${clash}, but a trait derives it`,
+                `object ${definition.name} declares or removes method ${clash}, but a trait derives it`,
             );
         }
         const methods = Object.fromEntries([
@@ -2447,7 +2483,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 }
 
-/** An aggregate of objects their holder keeps in one field. */
+/** An aggregate of objects their holder maintains in one field. */
 export type ObjectAggregate = {
     /** The values of the aggregated objects' fields. */
     readonly where?: Readonly<Record<string, string | number | boolean | null>>;
@@ -2480,47 +2516,34 @@ export interface ObjectShape extends Omit<ObjectDefinition, "methods"> {
     readonly [INTRINSIC]?: Intrinsic;
 }
 
-/** An object type declared as data, which takes its methods. */
-export interface ObjectDraft<Definition extends ObjectShape> {
-    /** Declare the operations callers may execute, keyed by method name, completing the type. */
-    methods<const Methods extends Readonly<Record<string, Method>> = {}>(
-        build?: (
-            method: MethodBuilder<
-                DefinedTable<Definition>,
-                WrittenField<DefinedFields<Definition>>,
-                Listed<DefinedPermissions<Definition>>
-            >,
-        ) => Methods,
-    ): DefinedType<Definition, Methods>;
+/** The builder of a definition's declared methods, typed by its table, fields and permissions. */
+export type MethodsOf<Definition extends ObjectShape> = Definition extends {
+    readonly [INTRINSIC]: Intrinsic;
 }
+    ? MethodBuilder<IntrinsicTable<Definition>, string, Listed<DeclaredPermissions<Definition>>>
+    : MethodBuilder<
+          DefinedTable<Definition>,
+          WrittenField<DefinedFields<Definition>>,
+          Listed<DefinedPermissions<Definition>>
+      >;
 
-/** An object type over a table another package owns, declared as data, which takes its methods. */
-export interface IntrinsicDraft<Definition extends ObjectShape> {
-    /** Declare the operations callers may execute, keyed by method name, completing the type. */
-    methods<const Methods extends Readonly<Record<string, Method>> = {}>(
-        build?: (
-            method: MethodBuilder<
-                IntrinsicTable<Definition>,
-                string,
-                Listed<DeclaredPermissions<Definition>>
-            >,
-        ) => Methods,
-    ): ObjectType<{
-        readonly name: Definition["name"];
-        readonly plural: Definition["plural"];
-        readonly identity: Definition["name"];
-        readonly table: IntrinsicTable<Definition>;
-        readonly fields: {};
-        readonly methods: Methods & ReadableMethodMap<Methods, IntrinsicTable<Definition>>;
-        readonly permissions: DeclaredPermissions<Definition>;
-        readonly scope: ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
-        readonly parent: undefined;
-        readonly attachments: never;
-        readonly storage: "durable";
-        readonly events: undefined;
-        readonly declared: StackDeclarationOf<Definition>;
-    }>;
-}
+/** The object type over a table another package owns, with its declared methods. */
+export type IntrinsicType<Definition extends ObjectShape, Methods> = ObjectType<{
+    readonly name: Definition["name"];
+    readonly plural: Definition["plural"];
+    readonly identity: Definition["name"];
+    readonly table: IntrinsicTable<Definition>;
+    readonly fields: {};
+    readonly methods: DeclaredMethods<Methods> &
+        ReadableMethodMap<Methods, IntrinsicTable<Definition>>;
+    readonly permissions: DeclaredPermissions<Definition>;
+    readonly scope: ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
+    readonly parent: undefined;
+    readonly attachments: never;
+    readonly storage: "durable";
+    readonly events: undefined;
+    readonly declared: StackDeclarationOf<Definition>;
+}>;
 
 /** Read a definition's option, or a default where it sets none. */
 type Option<Definition, Key extends PropertyKey, Default = undefined> = Key extends keyof Definition
@@ -2664,6 +2687,20 @@ type EventShapeOf<Definition extends Table> = {
 type EventDataOf<Definition extends Table> =
     Select<Definition> extends { readonly data: infer Data extends JsonValue } ? Data : JsonValue;
 
+/** Refuse the fields of an input beyond those a call takes, which spreads would otherwise pass. */
+type ExtraFields<Input, Taken> =
+    string extends TakenKey<Taken>
+        ? {}
+        : { readonly [Key in Exclude<keyof Input & string, TakenKey<Taken>>]: never };
+
+/** The fields any variant of a call's input takes. */
+type TakenKey<Taken> = Taken extends unknown ? keyof Taken & string : never;
+
+/** The methods a definition declares, without those it removes. */
+type DeclaredMethods<Methods> = {
+    readonly [Name in keyof Methods as Methods[Name] extends false ? never : Name]: Methods[Name];
+};
+
 /** The object type a definition declares with its methods. */
 export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
     readonly name: Definition["name"];
@@ -2671,8 +2708,16 @@ export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
     readonly identity: DefinedIdentity<Definition>;
     readonly table: DefinedTable<Definition>;
     readonly fields: DefinedFields<Definition>;
-    readonly methods: Methods &
+    readonly methods: DeclaredMethods<Methods> &
         ReadableMethodMap<Methods, DefinedTable<Definition>> &
+        WritableMethodMap<
+            Methods & ProvisionedMethodsOf<Option<Definition, "provisioned">>,
+            DefinedPermissions<Definition>,
+            DefinedTable<Definition>,
+            WrittenField<DefinedFields<Definition>>,
+            Option<Definition, "versioned"> extends undefined ? true : false,
+            Option<Definition, "recoverable"> extends undefined ? true : false
+        > &
         ProvisionedMethodsOf<Option<Definition, "provisioned">> &
         SeriesMethodMap<StorageKind<Option<Definition, "storage", "durable">>> &
         TraitMethods<
@@ -2741,49 +2786,42 @@ export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     TrackedMethodMap<TraitOf<Traits, "tracked">> &
     TextMethodMap<Fields>;
 
-/** Declare an object type from its data, its methods following. */
-export function defineObject<const Definition extends ObjectShape & Checked<Definition>>(
+/** Declare an object type from its data, with the methods it declares beside the derived ones. */
+export function defineObject<
+    const Definition extends ObjectShape & Checked<Definition>,
+    const Methods extends Readonly<Record<string, Method | false>> = {},
+>(
     definition: Definition,
+    methods?: (method: MethodsOf<Definition>) => Methods,
     module?: ModuleMetadata,
 ): Definition extends { readonly [INTRINSIC]: Intrinsic }
-    ? IntrinsicDraft<Definition>
-    : ObjectDraft<Definition>;
+    ? IntrinsicType<Definition, Methods>
+    : DefinedType<Definition, Methods>;
 /**
  * Declare an object type, its type computed from its definition by the signature above.
  *
  * NOTE #Architecture: the one stated type of object, as zod's `z.object` and Drizzle's `pgTable`.
  */
-export function defineObject(definition: ObjectInput, module?: ModuleMetadata): unknown {
-    const draft: Draft = {
-        methods: (build) =>
-            ObjectType.declare(
-                build === undefined
-                    ? definition
-                    : { ...definition, methods: build(new MethodBuilder()) },
-                module,
-            ),
-    };
-
-    return draft;
+export function defineObject(
+    definition: ObjectInput,
+    methods?: (method: MethodBuilder) => Readonly<Record<string, Method | false>>,
+    module?: ModuleMetadata,
+): unknown {
+    return ObjectType.declare(
+        methods === undefined
+            ? definition
+            : { ...definition, methods: methods(new MethodBuilder()) },
+        module,
+    );
 }
 
-/** A definition as the chain collects it, with methods built by a builder function. */
+/** A definition with the methods its builder function declared. */
 type ObjectInput = Omit<ObjectDefinition, "methods"> & {
-    /** The operations callers may execute, keyed by method name. */
-    readonly methods?: Readonly<Record<string, Method>>;
+    /** The operations callers may execute, keyed by method name, false removing a derived one. */
+    readonly methods?: Readonly<Record<string, Method | false>>;
     /** The foreign table of an object type over another package's table. */
     readonly [INTRINSIC]?: Intrinsic;
 };
-
-/** An object type declared as data, untyped by its definition. */
-interface Draft {
-    /** Declare the operations callers may execute, completing the type. */
-    readonly methods: <Definition extends Table, Written extends string, Granted extends string>(
-        build?: (
-            method: MethodBuilder<Definition, Written, Granted>,
-        ) => Readonly<Record<string, Method>>,
-    ) => ObjectType;
-}
 
 /** The name of a field whose values need their own read permission. */
 export type GuardedField<Fields extends Readonly<Record<string, Field>>> = {
@@ -2807,6 +2845,11 @@ export type CallerField<Fields extends Readonly<Record<string, Field>>> = {
     [Name in keyof Fields & string]: Fields[Name] extends { readonly isCallerFilled: true }
         ? Name
         : never;
+}[keyof Fields & string];
+
+/** The name of a field callers write after creation. */
+export type UpdatedField<Fields extends Readonly<Record<string, Field>>> = {
+    [Name in keyof Fields & string]: Fields[Name] extends { readonly written: true } ? Name : never;
 }[keyof Fields & string];
 
 /** The name of a field callers write. */

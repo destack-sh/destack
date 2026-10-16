@@ -56,7 +56,7 @@ export type AuditExecution = schema.Infer<typeof AuditExecution>;
 /** A call with its execution, running or ended, as a journal records it. */
 export const JournalEntry = defineSchema(
     schema.object({
-        /** The audit action, such as page.create, of the package the context keeps. */
+        /** The audit action, such as page.create, of the context's package. */
         method: schema.string().min(1),
         /** The method's input, with its scope and target. */
         input: schema.jsonObject(),

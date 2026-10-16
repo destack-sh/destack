@@ -15,22 +15,25 @@ import { space, spacePrincipal } from "./fixture/space.ts";
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Feeds, each read from its creation on, and their space's, read from the log's start. */
-const feed = defineObject({
-    name: "feed",
-    plural: "feeds",
-    scope: space,
-    fields: { name: field.string() },
-    permissions: ["read", "write"],
-    readers: {
-        feed: { by: "id", start: "latest", hold: { minutes: 1 } },
-        space: { by: "scope", start: "earliest", hold: { minutes: 1 } },
+const feed = defineObject(
+    {
+        name: "feed",
+        plural: "feeds",
+        scope: space,
+        fields: { name: field.string() },
+        permissions: ["read", "write"],
+        readers: {
+            feed: { by: "id", start: "latest", hold: { minutes: 1 } },
+            space: { by: "scope", start: "earliest", hold: { minutes: 1 } },
+        },
     },
-}).methods((method) => ({
-    create: method.create("write"),
-    delete: method.delete("write"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        delete: method.delete("write"),
+    }),
+);
 
-test("start a feed's reader at its creating commit and release it at its deletion, keeping its space's reader", async () => {
+test("start a feed's reader at its creating commit and release it at its deletion, leaving its space's reader", async () => {
     // serve the space's feeds to its owner
     const storage = await TestDatabase.create(
         "sqlite",
@@ -91,16 +94,16 @@ test("start a feed's reader at its creating commit and release it at its deletio
 
 test("refuse a reader per scope that starts at the latest commit", () => {
     // declare a space reader that each feed would restart
-    const restarting = defineObject({
-        name: "feed",
-        plural: "feeds",
-        scope: space,
-        fields: { name: field.string() },
-        permissions: ["read", "write"],
-        readers: { space: { by: "scope", start: "latest", hold: { minutes: 1 } } },
-    });
-
-    expect(() => restarting.methods()).toThrow(
+    expect(() =>
+        defineObject({
+            name: "feed",
+            plural: "feeds",
+            scope: space,
+            fields: { name: field.string() },
+            permissions: ["read", "write"],
+            readers: { space: { by: "scope", start: "latest", hold: { minutes: 1 } } },
+        }),
+    ).toThrow(
         new TypeError("reader space of feed starts each scope once: start it at the earliest"),
     );
 });

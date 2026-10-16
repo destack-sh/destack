@@ -13,4 +13,4 @@ export const client = defineObject({
         read: contained(principal.user),
         use: contained(principal.user),
     },
-}).methods();
+});

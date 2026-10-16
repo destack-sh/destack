@@ -15,7 +15,7 @@ import { userContext, users } from "./fixture/user.ts";
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
 
-/** The bucket keeping the boards' covers. */
+/** The bucket storing the boards' covers. */
 const media = new ResourceDeclaration<unknown, { name: string; kind: "bucket"; spec: {} }>(
     space.package,
     {
@@ -26,25 +26,28 @@ const media = new ResourceDeclaration<unknown, { name: string; kind: "bucket"; s
 );
 
 /** Boards presented by name, icon, accent and cover, found by name and ordered by rank. */
-const board = defineObject({
-    name: "board",
-    plural: "boards",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(),
-        summary: field.string().optional(),
-        rank: field.integer().default(0),
+const board = defineObject(
+    {
+        name: "board",
+        plural: "boards",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(),
+            summary: field.string().optional(),
+            rank: field.integer().default(0),
+        },
+        presentable: { subtitle: "summary", cover: media },
+        search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    presentable: { subtitle: "summary", cover: media },
-    search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
+    }),
+);
 
 test("present an object by its name, subtitle, chosen icon, accent and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
-    // keep a board with an icon, an accent and a cover
+    // create a board with an icon, an accent and a cover
     const storage = await TestDatabase.create(
         present(TEST_DIALECTS.at(-1), "the last test dialect"),
         defineDatabase({ name: "board", tables: [...board.tables, ...callTables] }),
@@ -113,7 +116,7 @@ function declare(definition: Record<string, unknown>) {
             scope: space,
             fields: { body: field.json(schema.json()) },
             ...definition,
-        }).methods();
+        });
 }
 
 test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {

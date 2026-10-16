@@ -11,6 +11,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { ObjectReference, Scope } from "@destack/sync";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -22,20 +23,23 @@ const privateId = schema.identifier("space").parse("space-01996ab0-0000-7000-800
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
 /** Names unique within a space, created by their own user after strong authentication. */
-const handle = defineObject({
-    name: "handle",
-    plural: "handles",
-    scope: space,
-    fields: {
-        holder: field.reference(principal.user),
-        name: field.string(schema.string().min(1)),
+const handle = defineObject(
+    {
+        name: "handle",
+        plural: "handles",
+        scope: space,
+        fields: {
+            holder: field.reference(principal.user),
+            name: field.string(schema.string().min(1)),
+        },
+        permissions: { read: relation("holder"), create: relation("holder") },
+        elevated: { create: RECENT },
+        constraints: {
+            name: { kind: "unique", on: ["scope", "name"] },
+        },
     },
-    permissions: { read: relation("holder"), create: relation("holder") },
-    elevated: { create: RECENT },
-    constraints: {
-        name: { kind: "unique", on: ["scope", "name"] },
-    },
-}).methods((method) => ({ create: method.create("create") }));
+    (method) => ({ create: method.create("create") }),
+);
 
 test.each(TEST_DIALECTS)(
     "report a create's conflicts only to callers the create permission admits, inside spaces they read, on %s",
@@ -135,16 +139,19 @@ test.each(TEST_DIALECTS)(
 );
 
 /** Teams any caller creates and owns, updated only by owners. */
-const team = defineObject({
-    name: "team",
-    plural: "teams",
-    scope: space,
-    fields: { name: field.string(schema.string().min(1)) },
-    relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
-    permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
-}).methods((method) => ({
-    create: method.create("update", { fields: ["name"], creator: "owner" }),
-}));
+const team = defineObject(
+    {
+        name: "team",
+        plural: "teams",
+        scope: space,
+        fields: { name: field.string(schema.string().min(1)) },
+        relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
+        permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
+    },
+    (method) => ({
+        create: method.create("update", { fields: ["name"], creator: "owner" }),
+    }),
+);
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
     const storage = await TestDatabase.create("sqlite", [...callTables, ...team.tables], {
@@ -224,47 +231,50 @@ test("run only the one method a one-method grant reaches, refusing every other m
 });
 
 /** Ways to reach a team: an email address, or a phone number with its region. */
-const contact = defineObject({
-    name: "contact",
-    plural: "contacts",
-    scope: space,
-    fields: {
-        label: field.string(schema.string().min(1)),
-        kind: field.enum(["email", "phone"]),
-        address: field.string(schema.email()).optional(),
-        number: field.string(schema.e164()).optional(),
-        region: field.string(schema.string().length(2)).optional(),
-    },
-    relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
-    permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
-    constraints: {
-        kind: {
-            kind: "check",
-            condition: {
-                OR: [
-                    {
-                        kind: "email",
-                        address: { isNotNull: true },
-                        number: { isNull: true },
-                        region: { isNull: true },
-                    },
-                    {
-                        kind: "phone",
-                        address: { isNull: true },
-                        number: { isNotNull: true },
-                        region: { isNotNull: true },
-                    },
-                ],
+const contact = defineObject(
+    {
+        name: "contact",
+        plural: "contacts",
+        scope: space,
+        fields: {
+            label: field.string(schema.string().min(1)),
+            kind: field.enum(["email", "phone"]),
+            address: field.string(schema.email()).optional(),
+            number: field.string(schema.e164()).optional(),
+            region: field.string(schema.string().length(2)).optional(),
+        },
+        relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
+        permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
+        constraints: {
+            kind: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            kind: "email",
+                            address: { isNotNull: true },
+                            number: { isNull: true },
+                            region: { isNull: true },
+                        },
+                        {
+                            kind: "phone",
+                            address: { isNull: true },
+                            number: { isNotNull: true },
+                            region: { isNotNull: true },
+                        },
+                    ],
+                },
             },
         },
     },
-}).methods((method) => ({
-    create: method.create("update", {
-        fields: ["label"],
-        variants: { kind: { email: ["address"], phone: ["number", "region"] } },
-        creator: "owner",
+    (method) => ({
+        create: method.create("update", {
+            fields: ["label"],
+            variants: { kind: { email: ["address"], phone: ["number", "region"] } },
+            creator: "owner",
+        }),
     }),
-}));
+);
 
 test("create each variant of a sum type from its own fields beside the shared ones, refusing another variant's field", async () => {
     const storage = await TestDatabase.create("sqlite", [...callTables, ...contact.tables], {
@@ -338,15 +348,18 @@ test("create each variant of a sum type from its own fields beside the shared on
 });
 
 /** Tickets filed in the queue their caller names, else in triage, as their creation fills it. */
-const ticket = defineObject({
-    name: "ticket",
-    plural: "tickets",
-    scope: space,
-    fields: { title: field.string(), queue: field.string() },
-    permissions: { read: none(), write: none() },
-}).methods((method) => ({ create: method.create("write", { filled: ["queue"] }) }));
+const ticket = defineObject(
+    {
+        name: "ticket",
+        plural: "tickets",
+        scope: space,
+        fields: { title: field.string(), queue: field.string() },
+        permissions: { read: none(), write: none() },
+    },
+    (method) => ({ create: method.create("write", { filled: ["queue"] }) }),
+);
 
-test("create an object without a field its creation fills, keeping the field the caller gives", async () => {
+test("create an object without a field its creation fills, taking the field the caller gives", async () => {
     // serve tickets whose creation fills the queue a caller leaves out
     const storage = await TestDatabase.create("sqlite", [...callTables, ...ticket.tables], {
         isMigrated: true,
@@ -395,14 +408,17 @@ test("create an object without a field its creation fills, keeping the field the
 });
 
 /** Channels keyed by the slug their holder chooses. */
-const channel = defineObject({
-    name: "channel",
-    plural: "channels",
-    scope: space,
-    key: schema.string().regex(/^[a-z]+$/u),
-    fields: { holder: field.reference(principal.user), name: field.string() },
-    permissions: { read: relation("holder"), create: relation("holder") },
-}).methods((method) => ({ create: method.create("create") }));
+const channel = defineObject(
+    {
+        name: "channel",
+        plural: "channels",
+        scope: space,
+        key: schema.string().regex(/^[a-z]+$/u),
+        fields: { holder: field.reference(principal.user), name: field.string() },
+        permissions: { read: relation("holder"), create: relation("holder") },
+    },
+    (method) => ({ create: method.create("create") }),
+);
 
 test("create an object under a natural key the creator chooses, refusing a taken one", async () => {
     const storage = await TestDatabase.create("sqlite", [...callTables, ...channel.tables], {
@@ -431,9 +447,64 @@ test("create an object under a natural key the creator chooses, refusing a taken
             })
             .then(([written]) => written.id);
 
-    // keep the chosen key, and refuse it once taken
+    // take the chosen key, and refuse it once taken
     expect([await create("Core"), await refusal(create("Again"))]).toEqual([
         "core",
         ["CONFLICT", "channel identifier is taken"],
+    ]);
+});
+
+/** Watches of a space's objects, by their watcher, which code adds for others too. */
+const watch = defineObject(
+    {
+        name: "watch",
+        plural: "watches",
+        scope: space,
+        fields: { watcher: field.subject().caller(), topic: field.string() },
+        permissions: { read: relation("watcher"), add: none() },
+    },
+    (method) => ({
+        create: method.create("read"),
+        add: method.create("add", { isInternal: true }),
+    }),
+);
+
+test("fill a subject field from the caller, and write all its columns in an internal creation", async () => {
+    // serve the watches to the space's own work
+    const storage = await TestDatabase.create("sqlite", [...callTables, ...watch.tables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([watch]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: watch.package },
+    });
+    const own = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
+    const ada = principal.user.reference(Scope.universe.id, users.alice);
+
+    // watch a topic as the space, and add a watch of another topic for ada
+    const [watched, added] = await store.mutate(own, {
+        id: RequestId.create(Date.now()),
+        calls: [
+            watch.call("create", { spaceId, topic: "Launch" }),
+            watch.call("add", {
+                spaceId,
+                topic: "Budget",
+                ...ObjectReference.columns("watcher", ada),
+            }),
+        ],
+    });
+
+    // the creation names the caller, and the internal one names ada with every column
+    expect([ObjectReference.at("watcher", watched), ObjectReference.at("watcher", added)]).toEqual([
+        spacePrincipal(spaceId),
+        ada,
     ]);
 });

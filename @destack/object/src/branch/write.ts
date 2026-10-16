@@ -112,7 +112,7 @@ export const BranchWrite = {
         const before = entry.before === null ? undefined : Table.decode(table, entry.before);
         const after = entry.after === null ? undefined : Table.decode(table, entry.after);
 
-        // keep the written fields that differ, skipping changes that are only derived
+        // take the written fields that differ, skipping changes that are only derived
         const fields = object.written.filter(
             (name) => JSON.stringify(before?.[name]) !== JSON.stringify(after?.[name]),
         );

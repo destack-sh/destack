@@ -196,25 +196,25 @@ const QueryDerivation = {
         };
     },
 
-    /** Select a root query's trashed or kept rows of a recoverable type, absent for every row. */
+    /** Select a root query's trashed or live rows of a recoverable type, absent for every row. */
     trashCondition(
         object: ObjectType,
         options: Omit<ObjectQuery, "object">,
     ): Condition | undefined {
-        const kept = { deletedAt: { isNull: true } };
+        const live = { deletedAt: { isNull: true } };
         const deleted = options.deleted ?? "exclude";
 
-        // keep every row of a type without trash, or when asked to
+        // take every row of a type without trash, or when asked to
         if (object.lifecycle.recoverable === undefined || deleted === "include") {
             return undefined;
         }
-        // keep only the trashed rows
+        // take only the trashed rows
         else if (deleted === "only") {
-            return { NOT: kept };
+            return { NOT: live };
         }
         // leave the trashed rows out
         else {
-            return kept;
+            return live;
         }
     },
 
@@ -312,12 +312,16 @@ const QueryDerivation = {
 
     /** Relate one object of a type, leaving its trash out. */
     one(target: ObjectType, on: Relation["on"]): Relation {
-        return QueryDerivation.keep(target, { table: target.table, cardinality: "one", on });
+        return QueryDerivation.excludeTrashed(target, {
+            table: target.table,
+            cardinality: "one",
+            on,
+        });
     },
 
     /** Relate many objects of a type, leaving its trash out. */
     many(target: ObjectType, on: Relation["on"], where: Condition | undefined): Relation {
-        return QueryDerivation.keep(target, {
+        return QueryDerivation.excludeTrashed(target, {
             table: target.table,
             cardinality: "many",
             on,
@@ -326,7 +330,7 @@ const QueryDerivation = {
     },
 
     /** Leave a recoverable type's trashed objects out of a relation. */
-    keep(target: ObjectType, relation: Relation): Relation {
+    excludeTrashed(target: ObjectType, relation: Relation): Relation {
         const where = QueryDerivation.joined([
             ...(relation.where === undefined ? [] : [relation.where]),
             ...(target.lifecycle.recoverable === undefined

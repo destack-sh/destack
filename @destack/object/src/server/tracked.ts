@@ -11,13 +11,13 @@ import { Execution, type StoreExecution } from "../method/execution.ts";
 
 /** The history of tracked objects: its required reads and the activities changes record. */
 export const TrackedHistory = {
-    /** Require the objects a tracked object's read permission reads through to keep history. */
+    /** Require the objects a tracked object's read permission reads through to record history. */
     require(objects: readonly ObjectType[], authorizer: Authorizer): void {
         // follow each tracked object's read permission
         const followed = new Set<string>();
         for (const object of objects.filter((served) => served.lifecycle.tracked !== undefined)) {
             const reading = present(object.reading, `the read permission of ${object.name}`);
-            TrackedHistory.requireKept(object, object, reading.name, {
+            TrackedHistory.requireRetained(object, object, reading.name, {
                 objects,
                 authorizer,
                 followed,
@@ -92,9 +92,9 @@ export const TrackedHistory = {
         }
     },
 
-    /** Require the objects a permission reads through to keep their history. */
-    requireKept(
-        keeper: ObjectType,
+    /** Require the objects a permission reads through to record their history. */
+    requireRetained(
+        recorder: ObjectType,
         object: ObjectType,
         permission: string,
         served: {
@@ -118,9 +118,9 @@ export const TrackedHistory = {
         for (const term of TrackedHistory.terms(object.policy.definition.permissions[permission])) {
             // follow another permission of the same object
             if (term.kind === "permission") {
-                TrackedHistory.requireKept(keeper, object, term.name, served);
+                TrackedHistory.requireRetained(recorder, object, term.name, served);
             }
-            // require each related type to keep history
+            // require each related type to record history
             else if (term.kind === "through") {
                 const subjects = served.authorizer.relation(object.policy, term.relation).subjects;
                 const related = types.filter((candidate) =>
@@ -133,10 +133,10 @@ export const TrackedHistory = {
                 for (const target of new Set(related)) {
                     if (target.table[TABLE].retention !== "history") {
                         throw new TypeError(
-                            `object ${keeper.name} keeps history but reads through ${target.name} without history`,
+                            `object ${recorder.name} records history but reads through ${target.name} without history`,
                         );
                     }
-                    TrackedHistory.requireKept(keeper, target, term.permission, served);
+                    TrackedHistory.requireRetained(recorder, target, term.permission, served);
                 }
             }
         }

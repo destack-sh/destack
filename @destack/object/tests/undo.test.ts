@@ -17,67 +17,67 @@ import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { principal } from "@destack/access";
 
 /** Folders with pages. */
-const folder = defineObject({
-    name: "folder",
-    plural: "folders",
-    scope: space,
-    fields: { name: field.string() },
-    permissions: ["write"],
-}).methods((method) => ({ create: method.create("write") }));
+const folder = defineObject(
+    {
+        name: "folder",
+        plural: "folders",
+        scope: space,
+        fields: { name: field.string() },
+        permissions: ["write"],
+    },
+    (method) => ({ create: method.create("write") }),
+);
 
 /** Pages with every trait that undo inverts. */
-const page = defineObject({
-    name: "page",
-    plural: "pages",
-    scope: space,
-    fields: {
-        title: field.string(),
-        body: field.string().optional(),
-        status: field.state({
-            initial: "draft",
-            transitions: {
-                publish: { from: ["draft"], to: "published", permission: "write" },
-                retract: { from: ["published"], to: "draft", permission: "write" },
-            },
-        }),
+const page = defineObject(
+    {
+        name: "page",
+        plural: "pages",
+        scope: space,
+        fields: {
+            title: field.string(),
+            body: field.string().optional(),
+            status: field.state({
+                initial: "draft",
+                transitions: {
+                    publish: { from: ["draft"], to: "published", permission: "write" },
+                    retract: { from: ["published"], to: "draft", permission: "write" },
+                },
+            }),
+        },
+        nested: { in: folder, receive: "write", move: "write" },
+        recoverable: { within: { days: 30 }, by: "write" },
+        permissions: ["read", "write"],
+        shareable: { by: "write" },
     },
-    nested: { in: folder, receive: "write", move: "write" },
-    recoverable: { within: { days: 30 }, by: "write" },
-    permissions: ["read", "write"],
-    shareable: { by: "write" },
-}).methods((method) => ({
-    create: method.create("write"),
-    createMany: method.createMany("write", { fields: ["title"] }),
-    update: method.update("write"),
-    deleteMany: method.deleteMany("write", { match: ["status"] }),
-    archive: method.mutation({ permission: "write", inverse: "unarchive" }),
-    unarchive: method.mutation({ permission: "write" }),
-    announce: method.mutation({ permission: "write" }),
-}));
+    (method) => ({
+        create: method.create("write"),
+        createMany: method.createMany("write", { fields: ["title"] }),
+        update: method.update("write"),
+        deleteMany: method.deleteMany("write", { match: ["status"] }),
+        archive: method.mutation({ permission: "write", inverse: "unarchive" }),
+        unarchive: method.mutation({ permission: "write" }),
+        announce: method.mutation({ permission: "write" }),
+    }),
+);
 
-/** Tallies with an exact count, kept as an exact integer. */
+/** Tallies with an exact count, stored as an exact integer. */
 const tally = defineObject({
     name: "tally",
     plural: "tallies",
     scope: space,
     fields: { count: field.bigint(), label: field.string() },
     shareable: {},
-}).methods((method) => ({
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+});
 
-/** Stamps with their bytes, kept as binary. */
+/** Stamps with their bytes, stored as binary. */
 const stamp = defineObject({
     name: "stamp",
     plural: "stamps",
     scope: space,
     fields: { bytes: field.binary(), label: field.string() },
     shareable: {},
-}).methods((method) => ({
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+});
 
 test("invert each trait's methods into the calls that undo them, and leave the rest undoable by nothing", () => {
     // invert a call of the page type
@@ -286,7 +286,7 @@ test.each(TEST_DIALECTS)(
         await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
         expect(await trashed()).toEqual([]);
 
-        // keep the party's stack across a restart, and redo the update from it
+        // retain the party's stack across a restart, and redo the update from it
         await device.offline();
         const restarted = await ObjectClient.open({
             clock: Clock.system,
@@ -348,7 +348,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         spaceId,
     );
 
-    // keep the space's tallies on a device that pushes and follows
+    // store the space's tallies on a device that pushes and follows
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ tally }), {
         storage: "file",
     });
@@ -420,7 +420,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         spaceId,
     );
 
-    // keep the space's stamps on a device that pushes and follows
+    // store the space's stamps on a device that pushes and follows
     const local = await TestDatabase.create("sqlite", ObjectClient.tables({ stamp }), {
         storage: "file",
     });

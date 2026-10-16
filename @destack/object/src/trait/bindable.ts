@@ -32,7 +32,7 @@ export type BindableProcedures = {
 
 /** Objects that installations and machines bind to and consume, such as secrets. */
 export const bindable: Trait<true | Gated> & {
-    /** Declare the method binding or releasing one consumer's object, keeping its other objects. */
+    /** Declare the method binding or releasing one consumer's object, leaving its other objects. */
     readonly consumer: <const Permission extends string>(
         permission: Permission,
         action: "bind" | "release",
@@ -87,8 +87,8 @@ export const bindable: Trait<true | Gated> & {
 
                 // bind exactly them with the target added or removed, as the store's own work binds
                 const id = context.id;
-                const kept = rows.map((row) => row.objectId).filter((each) => each !== id);
-                const ids = action === "bind" ? [...kept, id] : kept;
+                const others = rows.map((row) => row.objectId).filter((each) => each !== id);
+                const ids = action === "bind" ? [...others, id] : others;
                 await context.mutate(context.caller, [
                     context.object.call("bind", { consumer, ids }),
                 ]);

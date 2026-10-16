@@ -11,42 +11,48 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 
-/** The space keeping the items and cards. */
+/** The space with the items and cards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");
 
 /** Items in a tree, ordered among the siblings under each parent. */
-const item = defineObject({
-    name: "item",
-    plural: "items",
-    scope: space,
-    nested: { in: "self", optional: true, receive: "write", move: "write" },
-    orderable: true,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(),
+const item = defineObject(
+    {
+        name: "item",
+        plural: "items",
+        scope: space,
+        nested: { in: "self", optional: true, receive: "write", move: "write" },
+        orderable: true,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+    }),
+);
 
 /** Cards ordered within the column their status refers to. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: space,
-    orderable: { within: "status" },
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(),
-        status: field.enum(["todo", "done"]),
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: space,
+        orderable: { within: "status" },
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(),
+            status: field.enum(["todo", "done"]),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+    }),
+);
 
 /** Serve items and cards over a fresh database of each dialect. */
 async function serve(dialect: (typeof TEST_DIALECTS)[number]) {

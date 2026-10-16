@@ -22,7 +22,7 @@ export interface EphemeralStorageOptions extends sync.TrackerOptions {
 export class EphemeralStorage implements AsyncDisposable {
     /** The memory database with the ephemeral objects' tables. */
     readonly database: DatabaseConnection;
-    /** The ephemeral object types kept. */
+    /** The ephemeral object types stored. */
     readonly objects: readonly ObjectType[];
     /** The replication of rows and tracked clients between instances. */
     readonly tracker: sync.Tracker;
@@ -40,10 +40,10 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #unwatch: () => void;
     /** How long an untracked owner's rows stay, in milliseconds. */
     readonly #linger: number;
-    /** The memory database this store opened and closes, absent if its caller keeps one. */
+    /** The memory database this store opened and closes, absent if its caller has one. */
     #owned: { readonly close: () => Promise<void> } | undefined;
 
-    /** Keep ephemeral object types in memory, replicated over a channel. */
+    /** Store ephemeral object types in memory, replicated over a channel. */
     constructor(
         database: DatabaseConnection,
         objects: readonly ObjectType[],
@@ -82,7 +82,7 @@ export class EphemeralStorage implements AsyncDisposable {
         );
     }
 
-    /** Keep ephemeral types in a migrated memory database, replicated over a channel. */
+    /** Store ephemeral types in a migrated memory database, replicated over a channel. */
     static async open(
         objects: readonly ObjectType[],
         channel: Channel<unknown>,
@@ -91,7 +91,7 @@ export class EphemeralStorage implements AsyncDisposable {
         ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>,
         options: EphemeralStorageOptions,
     ): Promise<EphemeralStorage | undefined> {
-        // keep nothing for objects without ephemeral types
+        // store nothing for objects without ephemeral types
         const ephemeral = objects.filter((object) => object.storage === "ephemeral");
         if (ephemeral.length === 0) {
             return undefined;

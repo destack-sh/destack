@@ -188,7 +188,7 @@ export class AuditRecorder {
         else if (known !== undefined) {
             return { kind: "failure", error: Failure.of(known) };
         }
-        // report any other failure as internal, keeping its message out of the history
+        // report any other failure as internal, its message out of the history
         else {
             return {
                 kind: "failure",
@@ -219,7 +219,10 @@ export class AuditRecorder {
     }
 
     /** Record an executed call that only retries read, such as an ephemeral write. */
-    async keep<Target extends schema.Schema<AuditTarget>, Details extends schema.Schema<JsonValue>>(
+    async recordRead<
+        Target extends schema.Schema<AuditTarget>,
+        Details extends schema.Schema<JsonValue>,
+    >(
         transaction: DatabaseConnection | undefined,
         action: AuditAction<Target, Details>,
         values: Ended<Target, Details>,
@@ -417,7 +420,7 @@ export class AuditRecorder {
         return call;
     }
 
-    /** Record an outcome, and keep the call's failure beside a failed recording. */
+    /** Record an outcome, and the call's failure beside a failed recording. */
     async #persist(cause: unknown, write: () => Promise<unknown>): Promise<void> {
         try {
             await write();

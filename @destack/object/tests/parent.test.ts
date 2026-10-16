@@ -12,7 +12,7 @@ import { comment, folder, objectDatabase, task } from "./schema.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 test.each(TEST_DIALECTS)(
-    "keep parents, delete children and every relationship with them, and nest trees under themselves on %s",
+    "hold parents, delete children and every relationship with them, and nest trees under themselves on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());

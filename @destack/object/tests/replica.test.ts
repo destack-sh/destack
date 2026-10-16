@@ -25,19 +25,28 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 
-/** A mention of a person in a space, readable by that person wherever a replica keeps it. */
-const mention = defineObject({
-    name: "mention",
-    plural: "mentions",
-    scope: space,
-    fields: { recipient: field.subject(), text: field.string() },
-    relations: { recipient: { subjects: [principal.user] } },
-    permissions: { read: relation("recipient"), post: none() },
-}).methods((method) => ({
-    create: method.create("post", {
-        fields: ["recipientPackageId", "recipientType", "recipientScope", "recipientId", "text"],
+/** A mention of a person in a space, readable by that person wherever a replica has it. */
+const mention = defineObject(
+    {
+        name: "mention",
+        plural: "mentions",
+        scope: space,
+        fields: { recipient: field.subject(), text: field.string() },
+        relations: { recipient: { subjects: [principal.user] } },
+        permissions: { read: relation("recipient"), post: none() },
+    },
+    (method) => ({
+        create: method.create("post", {
+            fields: [
+                "recipientPackageId",
+                "recipientType",
+                "recipientScope",
+                "recipientId",
+                "text",
+            ],
+        }),
     }),
-}));
+);
 
 /** People, whose home space follows their replicas on their behalf. */
 const person = defineObject({
@@ -48,7 +57,7 @@ const person = defineObject({
     fields: {},
     relations: { home: { subjects: [principal.space] } },
     permissions: { follow: relation("home") },
-}).methods();
+});
 
 /** The mentions of a space a home follows for its person. */
 const mentionShape = defineShape({
@@ -58,8 +67,8 @@ const mentionShape = defineShape({
     queries: () => [mention.query({})],
 });
 
-test("list and follow the mentions a home keeps as replicas of another space, from the moment the replica appears", async () => {
-    // keep a mention of alice in another space beside her home, both readable by anyone
+test("list and follow the mentions a home has as replicas of another space, from the moment the replica appears", async () => {
+    // store a mention of alice in another space beside her home, both readable by anyone
     const storage = await TestDatabase.create(
         "sqlite",
         [...mention.tables, ...callTables, ...replicaTables],
@@ -96,7 +105,7 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
     );
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
 
-    // follow the home's mentions as alice, then keep the mention in a replica decided for her below the home, as a follow on her behalf writes it
+    // follow the home's mentions as alice, then store the mention in a replica decided for her below the home, as a follow on her behalf writes it
     const listed = async () => {
         const { items } = schema
             .looseObject({ items: schema.array(schema.looseObject({ id: schema.string() })) })
@@ -171,7 +180,7 @@ test("list and follow the mentions a home keeps as replicas of another space, fr
 });
 
 test("follow a person's mentions on their behalf as the home they relate, and refuse another space", async () => {
-    // keep mentions of alice and bob in a space, and relate alice's home as her home
+    // store mentions of alice and bob in a space, and relate alice's home as her home
     const storage = await TestDatabase.create(
         "sqlite",
         [...mention.tables, ...person.tables, ...callTables, ...replicaTables],
@@ -239,7 +248,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
 });
 
 test("admit a home's follow on its person's behalf with a token bound to the followed space, and refuse a token without the person's home set", async () => {
-    // keep a mention of alice in a space, and her user row without any relationship
+    // store a mention of alice in a space, and her user row without any relationship
     const storage = await TestDatabase.create(
         "sqlite",
         [...mention.tables, ...person.tables, ...callTables, ...replicaTables],
@@ -401,34 +410,39 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
 });
 
 test("answer a replicated type's query over its replica rows, and refuse its mutations", async () => {
-    // keep a realm's row as a replica of its home, enclosing the notes the store serves
-    const realm = defineObject({
-        name: "realm",
-        plural: "realms",
-        scope: "universe",
-        isScope: true,
-        partition: true,
-        fields: { title: field.string() },
-        permissions: { read: none(), write: none() },
-    })
-        .methods((method) => ({
+    // store a realm's row as a replica of its home, enclosing the notes the store serves
+    const realm = defineObject(
+        {
+            name: "realm",
+            plural: "realms",
+            scope: "universe",
+            isScope: true,
+            partition: true,
+            fields: { title: field.string() },
+            permissions: { read: none(), write: none() },
+        },
+        (method) => ({
             rename: method.update("write", { fields: ["title"] }),
+            update: false,
             /** Read the realm's title. */
             describe: method.query({
                 permission: "read",
                 output: schema.object({ title: schema.string() }),
             }),
-        }))
-        .implement({
-            methods: { describe: async (call) => ({ title: call.target.title }) },
-        });
-    const note = defineObject({
-        name: "note",
-        plural: "notes",
-        scope: realm,
-        fields: { text: field.string() },
-        permissions: { read: none(), write: none() },
-    }).methods((method) => ({ create: method.create("write") }));
+        }),
+    ).implement({
+        methods: { describe: async (call) => ({ title: call.target.title }) },
+    });
+    const note = defineObject(
+        {
+            name: "note",
+            plural: "notes",
+            scope: realm,
+            fields: { text: field.string() },
+            permissions: { read: none(), write: none() },
+        },
+        (method) => ({ create: method.create("write") }),
+    );
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({

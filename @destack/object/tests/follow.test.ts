@@ -70,7 +70,7 @@ const account = defineObject({
         reader: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: union(relation("member"), relation("reader")) },
-}).methods();
+});
 
 /** Spaces within accounts, which installations read and replicate as granted. */
 const space = defineObject({
@@ -84,36 +84,39 @@ const space = defineObject({
         replicator: { subjects: [principal.installation], grantedBy: null },
     },
     permissions: { read: relation("reader"), replicate: relation("replicator") },
-}).methods();
+});
 
-/** Comments an installation keeps in the spaces it follows. */
+/** Comments an installation stores in the spaces it follows. */
 const comment = defineObject({
     name: "comment",
     plural: "comments",
     scope: space,
     fields: { body: field.string() },
     permissions: { read: none() },
-}).methods();
+});
 
-/** Annotations an installation keeps in its space, each readable through its account. */
+/** Annotations an installation stores in its space, each readable through its account. */
 const annotation = defineObject({
     name: "annotation",
     plural: "annotations",
     scope: space,
     fields: { account: field.reference(account).relate("account"), body: field.string() },
     permissions: { read: through("account", "read") },
-}).methods();
+});
 
 /** Documents that only roles grant. */
-const document = defineObject({
-    name: "document",
-    plural: "documents",
-    scope: space,
-    fields: { title: field.string(schema.string().min(1)) },
-    permissions: { read: none(), write: none() },
-}).methods((method) => ({
-    create: method.create("write"),
-}));
+const document = defineObject(
+    {
+        name: "document",
+        plural: "documents",
+        scope: space,
+        fields: { title: field.string(schema.string().min(1)) },
+        permissions: { read: none(), write: none() },
+    },
+    (method) => ({
+        create: method.create("write"),
+    }),
+);
 
 /** The documents of a scope. */
 const documentShape = defineShape({
@@ -272,7 +275,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test("drop a replica once its source refuses its follow and no follow names it any longer, without a change of the rows the follow reads", async () => {
-    // keep an account and its two spaces at home, and a document of the first space on a machine
+    // store an account and its two spaces at home, and a document of the first space on a machine
     const home = await TestDatabase.create("sqlite", [...accessTables, ...document.tables], {
         isMigrated: true,
     });
@@ -303,10 +306,10 @@ test("drop a replica once its source refuses its follow and no follow names it a
     const requested = new Set([otherSpaceId]);
     const refusals = new Map<string, AbortController>();
     const closing = (scope: string) => {
-        const kept = refusals.get(scope) ?? new AbortController();
-        refusals.set(scope, kept);
+        const refused = refusals.get(scope) ?? new AbortController();
+        refusals.set(scope, refused);
 
-        return kept;
+        return refused;
     };
     const store: ObjectStore = new ObjectStore({
         chain: async () => ({ kind: "follower" }),
@@ -369,7 +372,7 @@ test("drop a replica once its source refuses its follow and no follow names it a
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {
-    // keep an account and its space at home, and a database keeping access replicas
+    // store an account and its space at home, and a database holding access replicas
     const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
     const follower = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
     onTestFinished(async () => {
@@ -412,12 +415,12 @@ test("follow replicates as a server without methods, journal or call key", async
     const head = await home.database.log.position();
     await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
 
-    // run only compaction and the replica follow, keeping no event log
+    // run only compaction and the replica follow, with no event log
     expect(store.controllers().map((each) => each.name)).toEqual(["compaction", "replica"]);
 });
 
 test("replicate the chains of an installation's two served spaces in one replica via both, requiring it to replicate each and refusing a scope outside them", async () => {
-    // keep an account with two spaces at home, and another account
+    // store an account with two spaces at home, and another account
     const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
         isMigrated: true,
     });
@@ -531,7 +534,7 @@ test("replicate the chains of an installation's two served spaces in one replica
 });
 
 test("refuse a chain follow with no via to a caller without replicate on the scope", async () => {
-    // keep an account with a space at home
+    // store an account with a space at home
     const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
         isMigrated: true,
     });
@@ -594,7 +597,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
 });
 
 test("decide a via chain for the subject whose follow brought its rows", async () => {
-    // keep a space replicated into an installation's database by a follow on alice's behalf
+    // store a space replicated into an installation's database by a follow on alice's behalf
     const declared = defineDatabase({
         name: "installed",
         tables: [...document.tables, ...callTables],
@@ -661,7 +664,7 @@ test("decide a via chain for the subject whose follow brought its rows", async (
 });
 
 test("serve a store whose on-behalf follow is refused, without gating its readiness", async () => {
-    // keep a space replicated into an installation's database by a best-effort follow on alice's behalf
+    // store a space replicated into an installation's database by a best-effort follow on alice's behalf
     const declared = defineDatabase({
         name: "installed",
         tables: [...document.tables, ...callTables],
@@ -731,7 +734,7 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
 });
 
 test("replicate a scoped table an installation's database declares beside its followed space's chain, and drop its rows once the installation may no longer read the space", async () => {
-    // keep an account with two spaces and a document in each at home
+    // store an account with two spaces and a document in each at home
     const home = await TestDatabase.create(
         "sqlite",
         [...space.tables, ...document.tables, ...callTables],
@@ -863,7 +866,7 @@ function readScope(key: string): string | undefined {
 }
 
 test("replicate the chains of the accounts an installation's rows relate to, beside its own space where those rows live", async () => {
-    // keep two accounts at home, the first readable by the installation
+    // store two accounts at home, the first readable by the installation
     const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
         isMigrated: true,
     });
@@ -944,7 +947,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
 });
 
 test("replicate the chain of an account another replica brought first, once the universe replica includes it", async () => {
-    // keep an account at home that the installation reads
+    // store an account at home that the installation reads
     const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
         isMigrated: true,
     });
@@ -992,7 +995,7 @@ test("replicate the chain of an account another replica brought first, once the 
             if (asked.name !== chain) {
                 yield* source.source.replicate(asked, asked.after, follower, signal);
             }
-            // record a chain request via the account and keep it open
+            // record a chain request via the account and hold it open
             else {
                 const via = asked.parameters["via"];
                 if (Array.isArray(via) && via.includes(accountId)) {

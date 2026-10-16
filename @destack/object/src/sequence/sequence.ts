@@ -4,12 +4,12 @@ import type { Annotation, Span } from "./annotation.ts";
 import type { Element, Run } from "./element.ts";
 import type { SequenceEdit, TextChange } from "./edit.ts";
 
-/** A text as ordered runs of stable elements, deleted ones kept as tombstone lengths. */
+/** A text as ordered runs of stable elements, deleted ones as tombstone lengths. */
 export class Sequence {
     /** The runs in sequence order. */
     readonly runs: readonly Run[];
 
-    /** Keep runs in sequence order. */
+    /** Hold runs in sequence order. */
     constructor(runs: readonly Run[] = []) {
         this.runs = runs;
     }
@@ -330,7 +330,7 @@ export class Sequence {
 
     /** Split a piece before a count of its elements. */
     static split(piece: Run, cut: number): readonly [Run, Run | undefined] {
-        // keep the piece whole when the cut reaches either end
+        // take the piece whole when the cut reaches either end
         const length = Sequence.length(piece);
         if (cut <= 0 || cut >= length) {
             return [piece, undefined];

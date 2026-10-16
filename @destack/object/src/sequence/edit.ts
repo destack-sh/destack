@@ -58,14 +58,14 @@ export interface TextChange {
 export const TextChange = {
     /** Find the one replacement turning a text into another outside their common ends. */
     between(before: string, after: string): TextChange {
-        // keep the common start
+        // skip the common start
         let start = 0;
         const shorter = Math.min(before.length, after.length);
         while (start < shorter && before[start] === after[start]) {
             start += 1;
         }
 
-        // keep the common end after the start
+        // skip the common end after the start
         let end = 0;
         while (
             end < shorter - start &&

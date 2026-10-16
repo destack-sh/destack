@@ -5,9 +5,9 @@ import { field } from "../field/field.ts";
 import type { MethodBuilder } from "../method/record.ts";
 import type { ObjectScope } from "./object.ts";
 
-/** A scope's spent key proofs, which a store verifying proofs declares, kept until they expire. */
+/** A scope's spent key proofs, declared by a store verifying proofs, until they expire. */
 export const proof = {
-    /** Define a scope's spent proofs, each kept by its digest until it expires. */
+    /** Define a scope's spent proofs, each stored by its digest until it expires. */
     definition<const Scope extends ObjectScope>(scope: Scope) {
         return {
             name: "proof",

@@ -26,7 +26,7 @@ import { DesiredState } from "../trait/desired.ts";
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "draining";
 
-/** The parsed desired states a controller keeps: the platform's, its predecessor's and apps'. */
+/** The parsed desired states a controller holds: the platform's, its predecessor's and apps'. */
 const DESIRED_STATES_KEPT = 16;
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
@@ -36,7 +36,7 @@ export interface ResourceControllerOptions {
         Provider<ResourceKind, ObjectType>,
         "kind" | "code" | "object" | "provision" | "reconcile" | "fence" | "snapshot"
     >[];
-    /** The machine keeping the resources its providers provision. */
+    /** The machine running the resources its providers provision. */
     readonly machine: Identifier<"machine">;
 }
 
@@ -73,7 +73,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             );
         }
 
-        // keep the providers of the object's kind
+        // take the providers of the object's kind
         const providers = options.providers.filter((provider) => provider.object.same(object));
         if (providers.length === 0) {
             throw new TypeError(`no provider here serves ${object.name} resources`);
@@ -126,7 +126,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         row: ResourceRow,
         digests: readonly Digest[],
     ): Promise<KindState<ResourceKind>[]> {
-        // read and parse the states not kept
+        // read and parse the states not held
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
             const parsed = this.#kind.states(
@@ -137,7 +137,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             }
         }
 
-        // keep the latest read states
+        // hold the latest read states
         const states = digests.map((digest) => present(this.#states.get(digest), digest));
         for (const [index, digest] of digests.entries()) {
             this.#states.delete(digest);
@@ -506,7 +506,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 },
             );
         } catch (error) {
-            // record the failure and keep the plan
+            // record the failure, leaving the plan
             const message = error instanceof Error ? error.message : String(error);
             const waiting = {
                 steps: plan.steps.map((step) => ResourceController.#planStep(step)),
@@ -532,7 +532,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
     ): Promise<number | undefined> {
-        // keep the record and content of retained resources until owned again or their window ends
+        // retain the record and content of retained resources until owned again or their window ends
         const retention = row.retention;
         const ends =
             typeof retention === "object"
@@ -638,7 +638,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         return { status: "false", reason, message };
     }
 
-    /** Keep the reviewed fields of a plan step. */
+    /** Take the reviewed fields of a plan step. */
     static #planStep(step: Step): Step {
         const { action, target, risk, detail, fields } = step;
 

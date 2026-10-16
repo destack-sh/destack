@@ -86,13 +86,13 @@ export class BrowserTab<
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
         /** The database's name, shared by every tab of the origin. */
         readonly name: string;
-        /** The object types to keep, by key. */
+        /** The object types to replicate, by key. */
         readonly objects: Objects;
-        /** The scope whose objects to keep. */
+        /** The scope whose objects to replicate. */
         readonly scope: string;
         /** The calling principal. */
         readonly caller: Subject;
-        /** The browser's client, whose partition keeps local objects scoped to clients. */
+        /** The browser's client, whose partition stores local objects scoped to clients. */
         readonly client: Subject;
         /** Where and how to reach the server serving the objects. */
         readonly endpoint: ClientOptions;
@@ -100,10 +100,10 @@ export class BrowserTab<
         readonly reconnect: (machine: string) => ClientOptions;
         /** Where and how to reach the home of an enclosing scope whose rows the tab changes. */
         readonly homes?: (scope: string) => ClientOptions;
-        /** The most object rows the shared replica keeps, absent for no limit. */
+        /** The most object rows the shared replica holds, absent for no limit. */
         readonly storage?: { readonly rows: number };
-        /** How long the shared local log keeps changes, a minute by default. */
-        readonly log?: { readonly keep: Duration };
+        /** How long the shared local log retains changes, a minute by default. */
+        readonly log?: { readonly retention: Duration };
         /** The browser capabilities, the page's own by default. */
         readonly host?: BrowserHost;
         /** Report the owning tab's loop failures. */
@@ -140,7 +140,7 @@ export class BrowserTab<
             request: (lock, callback, signal) =>
                 navigator.locks.request(lock, signal === undefined ? {} : { signal }, callback),
             start: async () => {
-                // ask to keep the storage, and start the database worker
+                // ask to persist the storage, and start the database worker
                 await navigator.storage.persist();
                 const worker = new Worker(new URL("./database.worker.ts", import.meta.url), {
                     type: "module",

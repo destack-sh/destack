@@ -121,11 +121,11 @@ export class RecoverableController implements Controller {
         options: RecoverableDefinition,
         now: number,
     ): Promise<Select<TraitTable<{ readonly recoverable: RecoverableDefinition }>>[]> {
-        // read expired rows, unpurged where the type keeps purged records
+        // read expired rows, unpurged where the type retains purged records
         const table = object.table;
         const window = Duration.milliseconds(options.within);
         const unpurged =
-            options.keep === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
+            options.retain === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
 
         return database
             .select()
@@ -143,7 +143,7 @@ export class RecoverableController implements Controller {
         // read the earliest unpurged deletion
         const table = object.table;
         const unpurged =
-            options.keep === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
+            options.retain === "record" ? isNull(table[TABLE].column("purgedAt")) : undefined;
         const [row] = await database
             .select({ requestedAt: min(table.deletedAt) })
             .from(table)
@@ -161,7 +161,7 @@ export class RecoverableController implements Controller {
     /** Select the recoverable object types among the served ones, with their recovery options. */
     static #recoverables(objects: readonly ObjectType[]): RecoverableObject[] {
         return objects.flatMap((object): RecoverableObject[] => {
-            // keep the types deleting to a trash with their recovery options
+            // take the types deleting to a trash with their recovery options
             const options = object.lifecycle.recoverable;
             if (!object.isTrashable() || options === undefined) {
                 return [];

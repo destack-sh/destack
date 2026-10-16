@@ -1,7 +1,7 @@
 import { asc, type DatabaseConnection } from "@destack/db";
 import { CallEvent, call } from "../../src/index.ts";
 
-/** Read the audited calls a database keeps as call events, in start order. */
+/** Read the audited calls a database records as call events, in start order. */
 export async function auditedCalls(database: DatabaseConnection): Promise<CallEvent[]> {
     const table = call.eventKind().table;
     const rows = await database

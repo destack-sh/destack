@@ -50,7 +50,7 @@ export type StoredStep = Omit<Step, "object" | "current"> & {
     readonly release: Version;
 };
 
-/** The steps an entry keeps, as their JSON reads back. */
+/** The steps of an entry, as their JSON reads back. */
 const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
     schema.looseObject({
         object: ObjectTypeReference,
@@ -65,12 +65,12 @@ const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
 
 /** A party's undo and redo stacks of mutations, as steps their inverses undo. */
 export class UndoStack {
-    /** The client whose mutations the stacks keep. */
+    /** The client whose mutations the stacks record. */
     readonly client: ObjectClient;
     /** The latest toggle, which the next one waits for. */
     #toggling: Promise<unknown> = Promise.resolve();
 
-    /** Keep a client's undo and redo stacks. */
+    /** Hold a client's undo and redo stacks. */
     constructor(client: ObjectClient) {
         this.client = client;
     }
@@ -139,7 +139,7 @@ export class UndoStack {
         // chain after the previous toggle
         const mutationId = RequestId.create(this.client.clock.now());
         const predicted = this.#toggling.then(() => this.#invert(from, to, mutationId));
-        // keep toggling after a failed one, and answer its failure in the returned prediction
+        // go on toggling after a failed one, and answer its failure in the returned prediction
         this.#toggling = predicted.catch(() => {});
         const confirmed = predicted.then(async (isApplied) => {
             if (isApplied) {

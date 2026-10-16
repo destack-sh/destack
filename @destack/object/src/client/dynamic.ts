@@ -89,7 +89,7 @@ export class DynamicObjectClient {
 
     /** Call a method by name with input validated by its JSON Schema, in the client's scope. */
     async call(type: string, method: string, input: JsonObject): Promise<JsonValue> {
-        // find the method, refusing one the type does not declare or keeps internal
+        // find the method, refusing one the type does not declare or marks internal
         const object = this.object(type);
         const declared = object.methods[method];
         const procedure = object.procedures[method]?.["~orpc"];
@@ -248,7 +248,7 @@ export class DynamicObjectClient {
         return migrated;
     }
 
-    /** Apply a subscription's pages until aborted, keeping the local log to its window. */
+    /** Apply a subscription's pages until aborted, holding the local log to its window. */
     async #follow(
         database: DatabaseConnection,
         replica: sync.Replica,

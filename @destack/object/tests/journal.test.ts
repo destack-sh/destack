@@ -13,7 +13,7 @@ test("append an ended audited call as one call event, a repeat after a restart a
             outcome: { kind: "success" },
         });
 
-        // record it again after a restart, keeping the one event
+        // record it again after a restart, with the one event
         storage = await storage.reopen();
         await storage.recorder.append(recorded);
         expect(await storage.calls("universe")).toEqual([recorded]);
@@ -39,7 +39,7 @@ test("append a call event once a running call ends, none while it runs", async (
     }
 });
 
-test("refuse a second outcome of a call, its call event keeping the first", async () => {
+test("refuse a second outcome of a call, its call event recording the first", async () => {
     const storage = await AuditStorage.open();
     try {
         // record a call and its outcome, leaving nothing running
@@ -48,7 +48,7 @@ test("refuse a second outcome of a call, its call event keeping the first", asyn
         const finished = storage.recorder.finish(running, { kind: "success" });
         await storage.recorder.append(finished);
 
-        // refuse a second outcome, keeping the first as the call event
+        // refuse a second outcome, with the first as the call event
         const conflicting = storage.recorder.finish(running, {
             kind: "failure",
             error: { code: "FAILED", status: 500, message: "failed" },
@@ -63,7 +63,7 @@ test("refuse a second outcome of a call, its call event keeping the first", asyn
     }
 });
 
-test("remove calls past their lifetime through the journal's controller, ended or running, keeping their call events", async () => {
+test("remove calls past their lifetime through the journal's controller, ended or running, leaving their call events", async () => {
     const storage = await AuditStorage.open({ milliseconds: 50 });
     const stopping = new AbortController();
     const failures: unknown[] = [];
@@ -91,7 +91,7 @@ test("remove calls past their lifetime through the journal's controller, ended o
         stopping.abort();
         await loop;
 
-        // keep the ended call's event past the journal's lifetime
+        // retain the ended call's event past the journal's lifetime
         expect([await remaining(), await storage.calls("universe"), failures]).toEqual([
             [],
             [recorded],

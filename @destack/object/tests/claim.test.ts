@@ -40,7 +40,7 @@ import { callTables, testEvents } from "../src/test/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 
 test.each(TEST_DIALECTS)(
-    "keep handles unique across spaces in separate databases on %s",
+    "hold handles unique across spaces in separate databases on %s",
     async (dialect) => {
         const storage = await universeStorage(dialect);
         const claims = await serveClaims(storage.database, Clock.system);
@@ -95,7 +95,7 @@ test.each(TEST_DIALECTS)(
         });
         expect(await handle("ada")).toBeUndefined();
 
-        // keep no reservation once every owner let go: the failed claim left none behind
+        // leave no reservation once every owner let go: the failed claim left none behind
         const index = Claim.index(profile, "handle");
         expect(await Claim.expired(readClaims(storage.database), [index], Date.now())).toEqual({
             claims: [],
@@ -193,9 +193,11 @@ test.each(TEST_DIALECTS)(
             },
         ]);
 
-        // keep an existing object's claim, release a failed one, and wait for the later one
-        const kept = schema.identifier("profile").parse(`profile-${v7()}`);
-        await east.database.insert(profile.table).values({ ...row, id: kept, handle: "kept" });
+        // confirm an existing object's claim, release a failed one, and wait for the later one
+        const existing = schema.identifier("profile").parse(`profile-${v7()}`);
+        await east.database
+            .insert(profile.table)
+            .values({ ...row, id: existing, handle: "existing" });
         const reserve = (key: string, objectId: string, at: number) => {
             const owner = east.spaceId;
             const index = Claim.index(profile, "handle");
@@ -210,18 +212,18 @@ test.each(TEST_DIALECTS)(
                 at - RESERVATION_MILLISECONDS,
             );
         };
-        await reserve('["universe","kept"]', kept, now);
+        await reserve('["universe","existing"]', existing, now);
         await reserve('["universe","lost"]', `profile-${v7()}`, now);
         await reserve('["universe","later"]', `profile-${v7()}`, now + 1000);
         clock.set(now);
 
         // finish the expired reservations through the controller, looking again at the later one
         const controller = new ClaimController(claims, east.database, [profile], clock);
-        expect([await controller.reconcile(), await handle("kept"), await handle("lost")]).toEqual([
-            1000,
-            kept,
-            undefined,
-        ]);
+        expect([
+            await controller.reconcile(),
+            await handle("existing"),
+            await handle("lost"),
+        ]).toEqual([1000, existing, undefined]);
     },
 );
 
@@ -259,7 +261,7 @@ test.each(TEST_DIALECTS)(
         await Claim.confirm(database, owned("notes", "active"), "request-1");
         const active = await Claim.owner(readClaims(database), { index, key: "notes" });
 
-        // keep the name while its object sits in the trash, still refusing it to another object
+        // hold the name while its object sits in the trash, still refusing it to another object
         await Claim.replace(database, owned("notes", "trashed"));
         const trashed = await Claim.owner(readClaims(database), { index, key: "notes" });
         const taken = await Claim.replace(database, owned("notes", "active", second));
@@ -290,7 +292,7 @@ test.each(TEST_DIALECTS)(
 
 /** Serve one space's profiles in its own database, returning a client per user. */
 async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
-    // keep the space's profiles in a database of its own
+    // store the space's profiles in a database of its own
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     const storage = await TestDatabase.create(dialect, profilesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -347,7 +349,7 @@ test.each(TEST_DIALECTS)(
             isScope: true,
             fields: {},
             permissions: { read: none() },
-        }).methods();
+        });
         const folder = defineObject({
             name: "folder",
             plural: "folders",
@@ -355,7 +357,7 @@ test.each(TEST_DIALECTS)(
             isScope: true,
             fields: {},
             permissions: { read: none() },
-        }).methods();
+        });
         const route = defineObject({
             name: "route",
             plural: "routes",
@@ -363,7 +365,7 @@ test.each(TEST_DIALECTS)(
             fields: { path: field.string() },
             indexes: { path: { on: ["path"], across: () => account } },
             permissions: { read: none() },
-        }).methods();
+        });
 
         // record two folders of one account and one of another
         const storage = await TestDatabase.create(dialect, [...account.tables, ...folder.tables], {
@@ -429,17 +431,17 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("keep a trashed object's names, activate them on restore, and release them on purge", async () => {
-    // declare tags whose names are unique everywhere and whose purge keeps the record
+test("hold a trashed object's names, activate them on restore, and release them on purge", async () => {
+    // declare tags whose names are unique everywhere and whose purge retains the record
     const tag = defineObject({
         name: "tag",
         plural: "tags",
         scope: space,
         fields: { name: field.string() },
         indexes: { name: { on: ["name"], across: () => universe } },
-        recoverable: { within: { days: 30 }, by: "manage", keep: "record" },
+        recoverable: { within: { days: 30 }, by: "manage", retain: "record" },
         permissions: { read: none(), manage: none() },
-    }).methods();
+    });
     const storage = await TestDatabase.create("sqlite", [claimTable], { isMigrated: true });
     onTestFinished(() => storage.close());
     const { database } = storage;
@@ -462,7 +464,7 @@ test("keep a trashed object's names, activate them on restore, and release them 
         states.push([await write(row), await owner()]);
     }
 
-    // resolve the name while it stands, keep it in the trash, and free it once purged
+    // resolve the name while it stands, hold it in the trash, and free it once purged
     const refused = aligned(await Claim.list(tag, other, snapshot), 0);
     expect(states).toEqual([
         [[], first],
@@ -488,7 +490,7 @@ function names(database: DatabaseConnection): ClaimLookup {
     return { owner: (index, key) => Claim.owner(readClaims(database), { index, key }) };
 }
 
-/** Read the claims a database keeps, as store code reads them. */
+/** Read the claims in a database, as store code reads them. */
 function readClaims(database: DatabaseConnection): RelationalQueryBuilder<typeof claimTable> {
     return Snapshot.live(database).read(claimTable);
 }

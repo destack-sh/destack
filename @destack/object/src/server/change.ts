@@ -25,7 +25,7 @@ import { ObjectType } from "../object/object.ts";
 /** The rows one snapshot page reads: a few hundred kilobytes. */
 const SNAPSHOT_PAGE_ROWS = 500;
 
-/** The runs recorded at once: 32 requests of a few ms keep 500 changes under 0.1 seconds. */
+/** The runs recorded at once: 32 requests of a few ms hold 500 changes under 0.1 seconds. */
 const SEND_CONCURRENCY = 32;
 
 /** How often a change trigger looks again in its lag, advancing its slot: three times. */
@@ -39,7 +39,7 @@ export class ChangeController implements Controller {
     readonly watches: readonly Table[];
     /** The triggers followed side by side. */
     readonly concurrency: number;
-    /** The database keeping the followed objects and their log. */
+    /** The database with the followed objects and their log. */
     readonly #database: DatabaseConnection;
     /** The machine recording the runs. */
     readonly #runs: RunClient;
@@ -58,7 +58,7 @@ export class ChangeController implements Controller {
         report: (error: unknown) => void,
         clock: Clock = Clock.system,
     ) {
-        // keep the database, the machine, the report and the clock
+        // hold the database, the machine, the report and the clock
         this.#database = database;
         this.#runs = runs;
         this.#report = report;

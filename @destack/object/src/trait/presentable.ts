@@ -36,7 +36,7 @@ const ChosenIcon = [
     }),
 ] as const;
 
-/** An object's icon: an emoji, an icon set's icon, or an image kept in the bucket its type sets. */
+/** An object's icon: an emoji, an icon set's icon, or an image in the bucket its type sets. */
 export const Icon = defineSchema(
     schema.union([
         ...ChosenIcon,
@@ -71,7 +71,7 @@ export interface PresentableOptions {
     readonly icon?: boolean | string | FileBucket;
     /** Whether each object takes one of the theme's accents, true when absent. */
     readonly color?: boolean;
-    /** The bucket keeping each object's cover image, none when absent. */
+    /** The bucket storing each object's cover image, none when absent. */
     readonly cover?: FileBucket;
 }
 
@@ -100,7 +100,7 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
               : {})
     : {};
 
-/** The presentation of an object type, its pieces resolved to the fields keeping them. */
+/** The presentation of an object type, its pieces resolved to the fields storing them. */
 const PresentationSchema = defineSchema(
     schema.object({
         /** The field titling each object. */
@@ -117,9 +117,9 @@ const PresentationSchema = defineSchema(
                 schema.object({ fixed: IconName }),
             ])
             .exactOptional(),
-        /** The field keeping each object's accent. */
+        /** The field storing each object's accent. */
         color: schema.object({ field: schema.string().min(1) }).exactOptional(),
-        /** The field keeping each object's cover and the bucket keeping it. */
+        /** The field storing each object's cover, and its bucket. */
         cover: schema
             .object({ field: schema.string().min(1), bucket: DeclarationReference })
             .exactOptional(),
@@ -147,7 +147,7 @@ export const Presentable = {
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {
-        // keep a definition presenting nothing
+        // leave a definition presenting nothing
         const options = Presentable.options(definition);
         if (options === undefined) {
             return definition;
@@ -235,29 +235,29 @@ export const Presentable = {
         return { icon: true, color: true, ...options };
     },
 
-    /** Decide whether a field keeps text a title shows. */
+    /** Decide whether a field stores text a title shows. */
     isText(declared: Field | undefined): boolean {
         return (
             declared?.type === "string" || declared?.type === "text" || declared?.type === "enum"
         );
     },
 
-    /** The field keeping an object's icon: an emoji, an icon set's icon or an image. */
+    /** The field storing an object's icon: an emoji, an icon set's icon or an image. */
     iconField() {
         return field.json(Icon).optional();
     },
 
-    /** The field keeping an object's icon chosen from an emoji or an icon set, without images. */
+    /** The field storing an object's icon chosen from an emoji or an icon set, without images. */
     chosenIconField() {
         return field.json<Icon>(schema.union([...ChosenIcon])).optional();
     },
 
-    /** The field keeping an object's accent. */
+    /** The field storing an object's accent. */
     colorField() {
         return field.enum(ACCENTS).optional();
     },
 
-    /** The field keeping an object's cover. */
+    /** The field storing an object's cover. */
     coverField() {
         return field.json(Cover).optional();
     },

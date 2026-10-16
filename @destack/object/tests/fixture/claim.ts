@@ -9,22 +9,25 @@ import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index
 import { claimMethods, claimTable, defineObject, INTRINSIC } from "../../src/index.ts";
 
 /** The universe's claimed names, which only its own principal changes in these tests. */
-export const claim = defineObject({
-    name: "claim",
-    plural: "claims",
-    [INTRINSIC]: {
-        table: claimTable,
-        mapping: {
+export const claim = defineObject(
+    {
+        name: "claim",
+        plural: "claims",
+        [INTRINSIC]: {
             table: claimTable,
-            id: "id",
-            scope: "scope",
-            attributes: {},
-            relations: {},
+            mapping: {
+                table: claimTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: {},
+            },
         },
+        scope: "universe",
+        permissions: { read: none(), claim: none(), resolve: none() },
     },
-    scope: "universe",
-    permissions: { read: none(), claim: none(), resolve: none() },
-}).methods(() => claimMethods);
+    () => claimMethods,
+);
 
 /** Serve the universe's claims over its database, called as the universe's own principal. */
 export async function serveClaims(database: DatabaseConnection, clock: Clock): Promise<ClaimHome> {

@@ -14,20 +14,23 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 
 /** Cards whose `title` became `name`. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: space,
-    moved: { fields: { name: "title" } },
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        name: field.string(schema.string().min(1)),
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: space,
+        moved: { fields: { name: "title" } },
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            name: field.string(schema.string().min(1)),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write"),
-    update: method.update("write"),
-}));
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write"),
+    }),
+);
 
 test.for(TEST_DIALECTS)(
     "execute calls made against an earlier release with the fields they renamed, and refuse calls of a later release, on %s",

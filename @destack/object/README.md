@@ -10,7 +10,7 @@ export const page = defineObject({
     fields,
     permissions,
     constraints: { title: { kind: "index", on: ["title"] } },
-}).methods((method) => ({ get: method.get("read"), create: method.create("edit") }));
+}).methods(); // get and list by read; create, update and delete by write
 // serves its package over one database
 const store = new ObjectStore({
     servers: [defineServer(pages, { objects: [page] })],
@@ -46,17 +46,15 @@ export const page = defineObject({
         title: field.string(schema.string().max(500)).default(""),
         archivedAt: field.time().optional(),
         url: field.string(schema.string()).optional(),
+        template: field.string().immutable(),
     },
-    permissions: { read: relation("viewer"), edit: relation("editor") },
+    permissions: { read: relation("viewer"), write: relation("editor") },
 })
     .methods((method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create("edit"),
-        update: method.update("edit"),
-        archive: method.mutation({ permission: "edit" }),
+        delete: false,
+        archive: method.mutation({ permission: "write" }),
         publish: method.mutation({
-            permission: "edit",
+            permission: "write",
             prepared: schema.object({ url: schema.string() }),
         }),
     }))
@@ -78,9 +76,23 @@ export const servedPage = page.implement({
 const { predicted, confirmed } = client.mutate(page).archive({ id });
 ```
 
+## Methods
+
+Every type derives `get` and `list` under `read`, and a type with a `write` permission derives `create`, `update` and `delete` under it: a declared method replaces its derived one, `false` removes one, and an `immutable` field is written at creation only.
+
+```ts
+export const label = defineObject({
+    name: "label",
+    plural: "labels",
+    scope: space,
+    fields: { name: field.string(), color: field.string().immutable() },
+    permissions: { read: relation("viewer"), write: relation("editor") },
+}).methods(() => ({ delete: false })); // get, list, create, update; update leaves color out
+```
+
 ## References
 
-`field.reference` keeps an object's identifier as `<name>Id`, while `field.object` and `field.subject` keep a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
+`field.reference` stores an object's identifier as `<name>Id`, while `field.object` and `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
 
 ```ts
 fields: {
@@ -104,11 +116,11 @@ Each trait option of `defineObject` adds columns, permissions and methods to the
 ```ts
 defineObject({
     ...definition,
-    recoverable: { within: { days: 30 }, by: "edit" }, // delete, restore and purge
+    recoverable: { within: { days: 30 }, by: "write" }, // delete, restore and purge
     controlled: { approval: true }, // desired generation, conditions and approved plan
     provisioned: { kind }, // a resource kind's specification and provider
     shareable: { isPublic: true }, // owner, editor, commenter and viewer roles
-    tracked: { by: "edit", activity, session: { minutes: 10 } }, // history and revert
+    tracked: { by: "write", activity, session: { minutes: 10 } }, // history and revert
     orderable: true, // a fractional index among the siblings
     search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
 }).methods(build);
@@ -149,7 +161,10 @@ const create = page.call("create", { spaceId, title: "Ideas" });
 A handler gets the `MethodContext` its method's declaration types: `input`, `target`, `caller`, and `read` and `mutate` in the call's transaction.
 
 ```ts
-const rename = method.mutation({ permission: "edit", input: schema.object({ title: schema.string() }) });
+const rename = method.mutation({
+    permission: "write",
+    input: schema.object({ title: schema.string() }),
+});
 page.implement({
     methods: {
         rename: (context) => context.update({ title: context.input.title }), // target: the loaded page
@@ -189,9 +204,52 @@ const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] })
 await store.mutate(store.self, { id: RequestId.create(), calls: [create] });
 ```
 
+## Replicas
+
+A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, where `acquire` follows a key until its lease lapses.
+
+```ts
+import { defineShape, Follow } from "@destack/object";
+
+const cards = defineShape({
+    name: "cards",
+    parameters: schema.object({ title: schema.string() }),
+    objects: [card],
+    queries: ({ title }) => [card.query({ where: { title } })],
+});
+const directory = Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] });
+const activities = Follow.of(activityShape, { rows: () => relationship.query(), key: keyOf });
+const byTitle = Follow.of(cards, { onDemand: { ttl: { minutes: 10 } } });
+
+await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns
+```
+
+## Workflows
+
+`Workflows.implement` gives a `defineWorkflow` its function, whose steps the store records in `workflow_step` by name and answers again on every later advance of the run.
+
+```ts
+import { defineWorkflow } from "@destack/runtime/workflow";
+import { defineServer, Workflows } from "@destack/object/server";
+
+const review = defineWorkflow({ name: "review", input: schema.object({ title: schema.string() }) });
+const reviewed = Workflows.implement(review, async (step, { title }) => {
+    const draft = await step.call("write", note.call("create", { spaceId, title }));
+    const read = await step.query("read", note.call("get", { spaceId, id: draft.id }));
+    await step.sleep("pause", { minutes: 5 });
+    const where = { title: `Approved: ${read.title}` };
+    await step.waitFor("approval", note.call("list", { spaceId, where, limit: 1 }), {
+        timeout: { days: 1 },
+    });
+});
+export default defineServer(notes, { objects: [note], workflows: [reviewed] });
+
+await context.start({ workflow: review, input: { title: "Plan" } }); // from a method, once it commits
+```
+
 ## Events
 
-A type kept in the event log takes `storage: { kind: "events", … }`: `create` and `createMany` append its rows under the caller's `id` and `time`, internally or under a permission, the same `get` and `list` read them hot and flushed alike, also from a durable method's handler, and `series` folds them; a guarded field masks the personal values its schema marks.
+A type stored in the event log takes `storage: { kind: "events", … }`: `create` and `createMany` append its rows under the caller's `id` and `time`, internally or under a permission, the same `get` and `list` read them hot and flushed alike, also from a durable method's handler, and `series` folds them; a guarded field masks the personal values its schema marks.
 
 ```ts
 export const call = defineObject({
@@ -259,7 +317,7 @@ await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "
 
 ## Unique names
 
-An index declared `across` a scope keeps its names unique across databases: a store reserves a write's names before it commits and confirms them after, through the `claimMethods` a claim type declares, and `Claim.lookup` finds the object owning a name.
+An index declared `across` a scope holds its names unique across databases: a store reserves a write's names before it commits and confirms them after, through the `claimMethods` a claim type declares, and `Claim.lookup` finds the object owning a name.
 
 ```ts
 indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
@@ -272,7 +330,7 @@ const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // {
 
 ## Partitions
 
-A scope type declaring `partition: true` keeps each of its objects' contents in a partition of their own, served by one instance; a store serving one partition answers a call in another with a 421 naming the partition.
+A scope type declaring `partition: true` stores each of its objects' contents in a partition of their own, served by one instance; a store serving one partition answers a call in another with a 421 naming the partition.
 
 ```ts
 const room = defineObject({
@@ -323,7 +381,7 @@ const [declared] = ObjectType.ofAll([description], [space, principal.user]);
 
 ## Clients
 
-`ObjectClient` keeps a scope's objects in a local database, follows queries live, and undoes, branches and diffs changes.
+`ObjectClient` replicates a scope's objects in a local database, follows queries live, and undoes, branches and diffs changes.
 
 ```ts
 import { ObjectClient } from "@destack/object/client";
@@ -343,7 +401,7 @@ for await (const rows of client.query.page
     render(rows);
 }
 await client.undo().predicted;
-await client.check(page, id, "edit");
+await client.check(page, id, "write");
 ```
 
 ## Browser tabs

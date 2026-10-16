@@ -14,7 +14,7 @@ export type Execution =
     | {
           /** The store executing the call. */
           readonly kind: "store";
-          /** The store, which runs further calls and keeps the event log. */
+          /** The store, which runs further calls and writes the event log. */
           readonly store: ObjectStore;
           /** The authorization of the call's caller. */
           readonly authorization: Authorization;
@@ -61,13 +61,13 @@ export const Execution = {
         context: Pick<MethodContext, "objects" | "now">,
         ...changes: readonly RowChange[]
     ): Promise<void> {
-        // write through the transaction in a store, keeping the readers of the written types in step
+        // write through the transaction in a store, updating the readers of the written types
         if (execution.kind === "store") {
             const { transaction, authorization } = execution;
             await transaction.write(...changes);
             for (const change of changes) {
                 const type = context.objects.find((object) => object.table === change.table);
-                type?.keepReaders(transaction, change, context.now);
+                type?.updateReaders(transaction, change, context.now);
 
                 // delete a removed scope's access and a removed principal's standing
                 if (type !== undefined && change.before !== null && change.after === null) {

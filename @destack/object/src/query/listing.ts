@@ -93,9 +93,9 @@ export class Listing implements Audience {
             return { items: [], cursor: null, groups: await dataflow.results("list") };
         }
 
-        // keep the items the caller could read and split includes and computed values
-        const kept = await this.#readable(await dataflow.read("list"));
-        const listed = listing.result(kept, (item) =>
+        // filter the items the caller could read and split includes and computed values
+        const readable = await this.#readable(await dataflow.read("list"));
+        const listed = listing.result(readable, (item) =>
             node.table[TABLE].encode(node.position(item.row)),
         );
 
@@ -117,9 +117,9 @@ export class Listing implements Audience {
         );
     }
 
-    /** Keep the items whose rows the caller could read at the snapshot position. */
+    /** Filter the items whose rows the caller could read at the snapshot position. */
     async #readable(read: readonly sync.Item[]): Promise<readonly sync.Item[]> {
-        // keep every item at the latest position
+        // take every item at the latest position
         const call = this.#context;
         const execution = this.#execution;
         const snapshot = this.#requested();
@@ -127,9 +127,9 @@ export class Listing implements Audience {
             return read;
         }
 
-        // keep the items whose rows access permits at the snapshot position
+        // filter the items whose rows access permits at the snapshot position
         const permitted = new Set(
-            await execution.authorization.keepAt(
+            await execution.authorization.filterAt(
                 read.map((item) => item.row),
                 call.permission(),
                 snapshot,

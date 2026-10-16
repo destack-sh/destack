@@ -18,22 +18,25 @@ import { request, type RequestInput } from "./fixture/request.ts";
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
 
 /** Chores on lists, finished a list at a time. */
-const chore = defineObject({
-    name: "chore",
-    plural: "chores",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        list: field.string(schema.string().min(1)),
-        done: field.boolean(),
-        assignee: field.string().optional(),
+const chore = defineObject(
+    {
+        name: "chore",
+        plural: "chores",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            list: field.string(schema.string().min(1)),
+            done: field.boolean(),
+            assignee: field.string().optional(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["list", "done"] }),
-    finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
-    claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["list", "done"] }),
+        finish: method.updateMany("write", { fields: ["done"], match: ["list"] }),
+        claim: method.updateMany("write", { fields: ["assignee"], match: ["list", "assignee"] }),
+    }),
+);
 
 /** The database with the chores, their access and the journal. */
 const choreDatabase = defineDatabase({
@@ -114,18 +117,21 @@ test.each(TEST_DIALECTS)(
 
 test("refuse many updates at once of guarded fields", () => {
     expect(() =>
-        defineObject({
-            name: "secret-chore",
-            plural: "secret-chores",
-            scope: space,
-            fields: {
-                owner: field.reference(principal.user).caller(),
-                done: field.boolean().guardWrite("write"),
+        defineObject(
+            {
+                name: "secret-chore",
+                plural: "secret-chores",
+                scope: space,
+                fields: {
+                    owner: field.reference(principal.user).caller(),
+                    done: field.boolean().guardWrite("write"),
+                },
+                permissions: { read: relation("owner"), write: relation("owner") },
             },
-            permissions: { read: relation("owner"), write: relation("owner") },
-        }).methods((method) => ({
-            finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
-        })),
+            (method) => ({
+                finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
+            }),
+        ),
     ).toThrow(
         new TypeError(
             "object secret-chore guards field done, so it cannot apply many updates at once",

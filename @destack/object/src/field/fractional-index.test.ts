@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { FractionalIndex } from "./fractional-index.ts";
 
-test("generate indexes between others, either end open, keeping appended keys short and refusing a malformed index or a pair out of order", () => {
+test("generate indexes between others, either end open, with appended keys short and refusing a malformed index or a pair out of order", () => {
     // append a thousand keys after each other and prepend a thousand before each other
     let last: string | undefined;
     let first: string | undefined;

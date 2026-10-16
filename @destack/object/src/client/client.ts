@@ -189,13 +189,13 @@ interface ReplayContext extends MutationContext {
     readonly invoke: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>;
 }
 
-/** What a client keeps and follows. */
+/** What a client replicates and follows. */
 export interface ClientInspection {
-    /** The scope whose objects it keeps. */
+    /** The scope whose objects it replicates. */
     readonly scope: string;
-    /** The rows its replica keeps, by object type name. */
+    /** The rows its replica has, by object type name. */
     readonly rows: Readonly<Record<string, number>>;
-    /** The most object rows the replica keeps, absent for no limit. */
+    /** The most object rows the replica holds, absent for no limit. */
     readonly storage?: { readonly rows: number };
     /** Every party's subscriptions, open and closed. */
     readonly subscriptions: readonly {
@@ -205,8 +205,8 @@ export interface ClientInspection {
         readonly origin: string;
         /** The time the query closed, in UTC epoch milliseconds, absent while open. */
         readonly releasedAt?: number;
-        /** How long the closed query stays followed, in milliseconds, or always. */
-        readonly keep?: number | "always";
+        /** How long the closed query stays followed, in milliseconds, or forever. */
+        readonly ttl?: number | "forever";
     }[];
     /** The replica of the scope. */
     readonly replica: sync.ReplicaInspection;
@@ -232,10 +232,10 @@ export type ObjectQueries<Objects extends Readonly<Record<string, ObjectType>>> 
 export interface UnionOptions<Read = Row> {
     /** How the merged rows sort, by fields every member's rows share. */
     readonly orderBy: OrderBy<Read>;
-    /** The most rows the union keeps. */
+    /** The most rows the union holds. */
     readonly limit: number;
     /** How long the closed union stays followed. */
-    readonly keep?: Duration;
+    readonly ttl?: Duration;
 }
 
 /** The items of a union's members, whose shared fields the union orders by. */
@@ -277,25 +277,25 @@ export interface ObjectAccess<Objects extends Readonly<Record<string, ObjectType
     readonly check: ObjectClient["check"];
 }
 
-/** How a client keeps one scope's objects in its local database. */
+/** How a client replicates one scope's objects in its local database. */
 export interface ObjectClientOptions<Objects extends Readonly<Record<string, ObjectType>>> {
     /** The local database. */
     readonly database: DatabaseConnection;
-    /** The object types to keep, by key. */
+    /** The object types to replicate, by key. */
     readonly objects: Objects;
     /** The package serving the objects, required when they span packages. */
     readonly package?: Package;
     /** The scope's branch types, among the objects, to check out and edit branches. */
     readonly branch?: BranchType;
-    /** The scope whose objects to keep. */
+    /** The scope whose objects to replicate. */
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
-    /** The client the database lives on, whose partition keeps local objects scoped to clients. */
+    /** The client the database lives on, whose partition stores local objects scoped to clients. */
     readonly client?: Subject;
     /** Where and how to reach the package serving the objects. */
     readonly endpoint: ClientOptions;
-    /** The client's clock for log compaction, query keep and access decisions. */
+    /** The client's clock for log compaction, query time to live and access decisions. */
     readonly clock: Clock;
     /** Where and how to reach the machine serving a moved scope now. */
     readonly reconnect: (machine: Identifier<"machine">) => ClientOptions;
@@ -305,10 +305,10 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly origin?: string;
     /** How often merged changes arrive, such as for a background tab. */
     readonly refresh?: { readonly every: Duration };
-    /** The most object rows the local replica keeps, absent for no limit. */
+    /** The most object rows the local replica holds, absent for no limit. */
     readonly storage?: { readonly rows: number };
-    /** How long the local log keeps changes, a minute by default. */
-    readonly log?: { readonly keep: Duration };
+    /** How long the local log retains changes, a minute by default. */
+    readonly log?: { readonly retention: Duration };
     /** How transient failures retry, over the defaults. */
     readonly retry?: Partial<RetryPolicy>;
     /** The most mutations one push sends, the server's most by default. */
@@ -321,28 +321,28 @@ export class ObjectClient<
 > {
     /** The local database with the replica and the queued mutations. */
     readonly database: DatabaseConnection;
-    /** The object types the client keeps, with the chunk types serving their texts. */
+    /** The object types the client replicates, with the chunk types serving their texts. */
     readonly objects: readonly ObjectType[];
     /** The relational queries of the object types, by key. */
     readonly query: ObjectQueries<Objects>;
-    /** Keep queries live over the local replica, as the client's relational queries do. */
+    /** Run queries live over the local replica, as the client's relational queries do. */
     readonly #subscriber: Subscriber = {
         rows: (object, query, options) => this.#live(object, query, options),
         results: (object, query, options) => this.#measured(object, query, options),
     };
     /** The presentation of read rows' texts, each row and list presented once. */
     readonly #presenter: TextPresenter;
-    /** The scope whose objects the client keeps. */
+    /** The scope whose objects the client replicates. */
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
-    /** The principals whose partitions keep the client's local objects: caller and client. */
+    /** The principals whose partitions store the client's local objects: caller and client. */
     readonly #owners: readonly Subject[];
     /** The replica of the scope's durable objects. */
     readonly replica: sync.Replica;
-    /** The replica of the scope's ephemeral objects, absent when the client keeps none. */
+    /** The replica of the scope's ephemeral objects, absent when the client has none. */
     readonly ephemeral: sync.Replica | undefined;
-    /** The replica of the scope's external objects, absent when the client keeps none. */
+    /** The replica of the scope's external objects, absent when the client has none. */
     readonly external: sync.Replica | undefined;
     /** The replica of the access rows the caller's own checks read along the scope chain. */
     readonly access: sync.Replica;
@@ -376,9 +376,9 @@ export class ObjectClient<
     readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
     /** How often merged changes arrive, absent for one page per change. */
     readonly #refresh: { readonly every: Duration } | undefined;
-    /** The most object rows the local replica keeps, absent for no limit. */
+    /** The most object rows the local replica holds, absent for no limit. */
     readonly #storage: { readonly rows: number } | undefined;
-    /** How long the local log keeps changes, in milliseconds. */
+    /** How long the local log retains changes, in milliseconds. */
     readonly #logMilliseconds: number;
     /** How transient failures retry. */
     readonly #retry: RetryPolicy;
@@ -386,7 +386,7 @@ export class ObjectClient<
     readonly clock: Clock;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
-    /** The object rows the replica kept at a log sequence, absent before the first count. */
+    /** The object rows the replica held at a log sequence, absent before the first count. */
     #counted: { readonly sequence: number; readonly rows: number } | undefined;
     /** The open followed queries. */
     readonly #subscriptions = new Set<Subscription>();
@@ -413,9 +413,9 @@ export class ObjectClient<
     /** Report the follow loop's failures, absent until it follows. */
     #report: ((error: unknown) => void) | undefined;
 
-    /** Keep one scope's objects in a local database with existing tables. */
+    /** Replicate one scope's objects in a local database with existing tables. */
     private constructor(options: ObjectClientOptions<Objects> & { readonly origin: string }) {
-        // keep the options, refusing a push larger than the server takes
+        // hold the options, refusing a push larger than the server takes
         this.database = options.database;
         this.#presenter = new TextPresenter();
         this.#pushMutations = ObjectClient.#pushMutationsOf(options.push);
@@ -424,14 +424,14 @@ export class ObjectClient<
         this.#logMilliseconds =
             options.log === undefined
                 ? LOCAL_LOG_MILLISECONDS
-                : Duration.milliseconds(options.log.keep);
+                : Duration.milliseconds(options.log.retention);
         this.#retry = { ...RETRY, ...options.retry };
         this.clock = options.clock;
         this.origin = options.origin;
         this.writerId = RequestId.create(options.clock.now());
         this.#undoStack = new UndoStack(this);
 
-        // keep the objects of the scope for the caller, and the principals keeping local objects
+        // replicate the scope's objects for the caller, and the principals storing local objects
         this.objects = ObjectType.served(Object.values(options.objects));
         this.query = ObjectClient.#queries(this, options.objects);
         this.scope = options.scope;
@@ -547,7 +547,7 @@ export class ObjectClient<
         };
     }
 
-    /** Create the local tables and keep one scope's objects in the database. */
+    /** Create the local tables and replicate one scope's objects in the database. */
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(
         options: ObjectClientOptions<Objects> & {
             /** Whether another party created the local tables. */
@@ -654,7 +654,7 @@ export class ObjectClient<
         return createClient({ version: served.version, router }, endpoint).replica;
     }
 
-    /** List the tables a client's local database keeps for some object types. */
+    /** List the tables a client's local database has for some object types. */
     static tables(objects: Readonly<Record<string, ObjectType>>): Table[] {
         return [
             ...new Set([
@@ -714,7 +714,7 @@ export class ObjectClient<
     of<const Selected extends Readonly<Record<string, ObjectType>>>(
         objects: Selected,
     ): ObjectAccess<Selected> {
-        // require kept types
+        // require replicated types
         for (const object of Object.values(objects)) {
             if (!this.objects.some((type) => type.same(object))) {
                 throw new TypeError(`the client has no object ${object.name}`);
@@ -923,7 +923,7 @@ export class ObjectClient<
         return this.prediction.checkedOut(this.database);
     }
 
-    /** Report whether an object type keeps branches, whose calls stay on the main line. */
+    /** Report whether an object type has branches, whose calls stay on the main line. */
     #isBranchType(object: ObjectType): boolean {
         const types = this.branch;
 
@@ -1136,11 +1136,11 @@ export class ObjectClient<
         }
     }
 
-    /** Drop the closed queries whose keep expired. */
+    /** Drop the closed queries whose time to live expired. */
     async #dropExpired(): Promise<void> {
         await this.database
             .delete(subscription)
-            .where(lte(sql`${subscription.releasedAt} + ${subscription.keep}`, this.clock.now()));
+            .where(lte(sql`${subscription.releasedAt} + ${subscription.ttl}`, this.clock.now()));
     }
 
     /** Abort a follow once its parameters change, reporting a failed watch. */
@@ -1260,7 +1260,7 @@ export class ObjectClient<
         return new RelationalQueryBuilder(this.#subscriber, object);
     }
 
-    /** Keep a query's items live over the local replica with predictions until closed. */
+    /** Hold a query's items live over the local replica with predictions until closed. */
     #live(
         object: ObjectType,
         query: Omit<ObjectQuery, "object"> = {},
@@ -1283,7 +1283,7 @@ export class ObjectClient<
         };
     }
 
-    /** Keep an aggregate query's groups live over the local replica until closed. */
+    /** Hold an aggregate query's groups live over the local replica until closed. */
     #measured(
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
@@ -1346,23 +1346,23 @@ export class ObjectClient<
                 await subscribed.done;
                 this.#subscriptions.delete(subscribed);
                 const ids = subscribed.ids();
-                if (options.keep === undefined) {
+                if (options.ttl === undefined) {
                     await this.database.delete(subscription).where(inArray(subscription.id, ids));
                 } else {
                     await this.database
                         .update(subscription)
                         .set({
                             releasedAt: this.clock.now(),
-                            keep:
-                                options.keep === "always"
+                            ttl:
+                                options.ttl === "forever"
                                     ? null
-                                    : Duration.milliseconds(options.keep),
+                                    : Duration.milliseconds(options.ttl),
                         })
                         .where(inArray(subscription.id, ids));
                 }
 
                 // evict after closing an evictable query
-                if (options.keep !== undefined && options.keep !== "always") {
+                if (options.ttl !== undefined && options.ttl !== "forever") {
                     await this.#queueEviction();
                 }
             },
@@ -1384,7 +1384,7 @@ export class ObjectClient<
                 name: subscription.name,
                 origin: subscription.origin,
                 releasedAt: subscription.releasedAt,
-                keep: subscription.keep,
+                ttl: subscription.ttl,
             })
             .from(subscription)
             .orderBy(asc(subscription.id));
@@ -1398,7 +1398,7 @@ export class ObjectClient<
                 origin: entry.origin,
                 ...(entry.releasedAt === null
                     ? {}
-                    : { releasedAt: entry.releasedAt, keep: entry.keep ?? ("always" as const) }),
+                    : { releasedAt: entry.releasedAt, ttl: entry.ttl ?? ("forever" as const) }),
             })),
             replica: await this.replica.inspect(this.database),
             mutations: await this.prediction.inspect(this.database),
@@ -1406,7 +1406,7 @@ export class ObjectClient<
         };
     }
 
-    /** Stop following a closed query, even one kept always. */
+    /** Stop following a closed query, even one followed forever. */
     async release(object: ObjectType, query: Omit<ObjectQuery, "object"> = {}): Promise<void> {
         // find the query's closed subscriptions
         const split = this.#split(object, query);
@@ -1609,13 +1609,13 @@ export class ObjectClient<
             }
         });
 
-        // keep evicting after a failed eviction, and answer its failure in the returned promise
+        // go on evicting after a failed eviction, and answer its failure in the returned promise
         this.#evictions = eviction.catch(() => {});
 
         return eviction;
     }
 
-    /** Drop the oldest closed kept query while the replica exceeds its budget. */
+    /** Drop the oldest closed followed query while the replica exceeds its budget. */
     async #evict(): Promise<sync.SyncError | undefined> {
         // evict only a budgeted replica subscribed to the current queries
         const subscribed = ObjectClient.#queriesOf(await this.replica.subscribed(this.database));
@@ -1640,7 +1640,7 @@ export class ObjectClient<
                 and(
                     isNull(subscription.root),
                     isNotNull(subscription.releasedAt),
-                    isNotNull(subscription.keep),
+                    isNotNull(subscription.ttl),
                 ),
             )
             .orderBy(asc(subscription.releasedAt))
@@ -1648,7 +1648,7 @@ export class ObjectClient<
         if (oldest === undefined) {
             return new sync.SyncError(
                 "OVER_CAPACITY",
-                `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and always kept queries`,
+                `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and forever followed queries`,
             );
         }
         await this.database
@@ -1722,8 +1722,8 @@ export class ObjectClient<
             .where(
                 or(
                     isNull(subscription.releasedAt),
-                    isNull(subscription.keep),
-                    gt(sql`${subscription.releasedAt} + ${subscription.keep}`, this.clock.now()),
+                    isNull(subscription.ttl),
+                    gt(sql`${subscription.releasedAt} + ${subscription.ttl}`, this.clock.now()),
                 ),
             )
             .orderBy(asc(subscription.id));
@@ -1742,7 +1742,7 @@ export class ObjectClient<
         );
     }
 
-    /** Keep a live union of several queries in one order and limit, with each entry's member. */
+    /** Hold a live union of several queries in one order and limit, with each entry's member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
@@ -1761,7 +1761,7 @@ export class ObjectClient<
             live: this.#live(
                 member.object,
                 { ...member.options, orderBy, limit: options.limit },
-                options.keep === undefined ? {} : { keep: options.keep },
+                options.ttl === undefined ? {} : { ttl: options.ttl },
             ),
         }));
         const byName = new Map(followed.map((member) => [member.name, member]));
@@ -1857,7 +1857,7 @@ export class ObjectClient<
 
     /** Widen a durable query to every scope of its type the replica last read. */
     async #read(query: sync.Query): Promise<sync.Query> {
-        // keep a query of no durable type, whose replica reads no chain
+        // run a query of no durable type, whose replica reads no chain
         const object = this.objects.find((type) => type.table === query.table);
         if (object?.storage !== "durable") {
             return query;
@@ -1901,8 +1901,8 @@ export class ObjectClient<
         this.#requireOneStorage(object, own.where ?? {}, extras ?? {});
         const lookups: Lookup[] = [];
 
-        // keep same-storage extras, and follow the rows other-storage extras measure by key
-        const kept: Record<string, Expression> = {};
+        // take same-storage extras, and follow the rows other-storage extras measure by key
+        const sameStorage: Record<string, Expression> = {};
         const measured = new Set<string>();
         for (const [name, expression] of Object.entries(extras ?? {})) {
             const vias = [...Expression.lookups(expression), ...Expression.rollups(expression)].map(
@@ -1912,7 +1912,7 @@ export class ObjectClient<
                 (via) => related(object, via, this.objects).object.storage !== object.storage,
             );
             if (foreign.length === 0) {
-                kept[name] = expression;
+                sameStorage[name] = expression;
             }
             for (const via of foreign.filter((entry) => !measured.has(entry))) {
                 measured.add(via);
@@ -1920,7 +1920,7 @@ export class ObjectClient<
             }
         }
 
-        // keep same-storage relations, and look up other-storage ones by key
+        // take same-storage relations, and look up other-storage ones by key
         const nested: Record<string, FindOptions> = {};
         for (const [name, relation] of FindOptions.includes({ with: included ?? {} })) {
             const joined = related(object, name, this.objects);
@@ -1943,7 +1943,7 @@ export class ObjectClient<
             query: ObjectQuery.parse({
                 object: object.name,
                 ...own,
-                ...(Object.keys(kept).length === 0 ? {} : { extras: kept }),
+                ...(Object.keys(sameStorage).length === 0 ? {} : { extras: sameStorage }),
                 ...(Object.keys(nested).length === 0 ? {} : { with: nested }),
             }),
             lookups,
@@ -2144,7 +2144,7 @@ export class ObjectClient<
                 }
             });
         } catch (error) {
-            // keep a mutation the server would refuse for good pending unpredicted
+            // leave a mutation the server would refuse for good pending unpredicted
             if (Replay.failure(error) === undefined) {
                 throw error;
             }
@@ -2171,7 +2171,7 @@ export class ObjectClient<
         const created = id ?? Method.resultId(result);
         const after = created === undefined ? undefined : await this.row(database, object, created);
 
-        // keep the result and the rows in the JSON form the server answers
+        // store the result and the rows in the JSON form the server answers
         const answered =
             result === undefined || method.result !== "object"
                 ? result
@@ -2334,12 +2334,12 @@ export class ObjectClient<
 
     /** Read an object type's scope here: the client's scope, or a local type's partition. */
     #readScope(object: ObjectType): string {
-        // keep replicated objects in the client's scope
+        // store replicated objects in the client's scope
         if (object.storage !== "local") {
             return this.scope;
         }
 
-        // keep local objects in the partition of the principal their scope type stands for
+        // store local objects in the partition of the principal their scope type stands for
         const type = present(object.scopes[0], `the scope type of local object ${object.name}`);
         const owner = this.#owners.find((subject) => type.policy.is(subject));
         if (owner === undefined) {
@@ -2393,7 +2393,7 @@ export class ObjectClient<
             return named;
         }
 
-        // take the scope of the target the replica keeps, such as an enclosing scope's inherited row
+        // take the scope of the target the replica has, such as an enclosing scope's inherited row
         const id = input["id"];
         const row =
             Method.loads(object.method(name)) && typeof id === "string"
@@ -2509,7 +2509,7 @@ export class ObjectClient<
         return mutations;
     }
 
-    /** List the tables of the object types kept in one storage. */
+    /** List the tables of the object types stored in one storage. */
     static #storedTables(objects: readonly ObjectType[], storage: ObjectStorage): Table[] {
         return objects.filter((object) => object.storage === storage).map((object) => object.table);
     }
@@ -2556,7 +2556,7 @@ export class ObjectClient<
     /** Wait for nothing, until a reader waiting for events replaces it. */
     static #idle(): void {}
 
-    /** Require a lookup key value to be a scalar, as key columns keep them. */
+    /** Require a lookup key value to be a scalar, as key columns store them. */
     static #scalarOf(value: unknown): Exclude<Scalar, null> {
         if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
             return value;
@@ -2636,7 +2636,7 @@ const subscription = defineTable("subscription", {
     /** The time the query closed, in UTC epoch milliseconds, absent while open. */
     releasedAt: integer("released_at"),
     /** How long the closed query stays followed in milliseconds, absent until released. */
-    keep: integer("keep"),
+    ttl: integer("ttl"),
 });
 
 /** A replica the client follows with its publication, parameters and the prediction it rebases. */

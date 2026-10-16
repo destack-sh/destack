@@ -48,10 +48,10 @@ export interface BuilderCall {
 /** A declaration a description may refer to: an object type or a policy. */
 export type KnownDeclaration = ObjectType | Policy;
 
-/** A JSON Schema as a description keeps it. */
+/** A JSON Schema as a description holds it. */
 const DescribedSchema = schema.jsonObject();
 
-/** A resource kind as a description keeps it: its package, name and schemas. */
+/** A resource kind as a description holds it: its package, name and schemas. */
 const DescribedKind = schema.object({
     /** The declaring package. */
     package: Package,
@@ -63,7 +63,7 @@ const DescribedKind = schema.object({
     state: DescribedSchema.nullable(),
 });
 
-/** A bucket as a description keeps it: its package, name and specification. */
+/** A bucket as a description holds it: its package, name and specification. */
 const DescribedBucket = schema.object({
     /** The declaring package. */
     package: Package,
@@ -116,7 +116,7 @@ const DescribedValue = {
 
     /** Tag a value's types, fields, methods, schemas, kinds and buckets, refusing other code. */
     encode(value: unknown, position: Position): JsonValue {
-        // keep plain data
+        // take plain data as it is
         if (
             value === null ||
             typeof value === "string" ||
@@ -238,7 +238,7 @@ const DescribedValue = {
 
     /** Rebuild a description's values, resolving each tag. */
     decode(value: JsonValue, known: DeclarationIndex): unknown {
-        // keep plain values
+        // take plain values as they are
         if (value === null || typeof value !== "object") {
             return value;
         }
@@ -357,7 +357,7 @@ const DescribedValue = {
         } else if (DescribedValue.isList(value)) {
             return value.flatMap((entry) => DescribedValue.missing(entry, known, isLazyFollowed));
         }
-        // keep a type or policy reference the index lacks
+        // pass a type or policy reference the index lacks
         else if ("$object" in value || "$policy" in value) {
             const object = value["$object"];
             const reference = ObjectTypeReference.parse(object ?? value["$policy"]);
@@ -387,7 +387,7 @@ const DescribedValue = {
         };
     },
 
-    /** Rebuild a resource kind a description keeps. */
+    /** Rebuild a resource kind a description holds. */
     decodeKind(described: schema.Infer<typeof DescribedKind>): ResourceKind {
         const { package: owner, name, spec, state } = described;
 
@@ -412,7 +412,7 @@ const DescribedValue = {
         };
     },
 
-    /** Rebuild a bucket a description keeps. */
+    /** Rebuild a bucket a description holds. */
     decodeBucket(described: schema.Infer<typeof DescribedBucket>): FileBucket {
         const { package: owner, ...bucket } = described;
 
@@ -434,7 +434,7 @@ const DescribedValue = {
 export const ObjectDescription = Object.assign(objectDescription, {
     /** Encode an object type as data, refusing an intrinsic type. */
     of(type: ObjectType): ObjectDescription {
-        // refuse an intrinsic type: another package keeps its table
+        // refuse an intrinsic type: another package owns its table
         const { source } = type;
         if (INTRINSIC in source) {
             throw new TypeError(`object type ${type.name} maps a table of another package`);

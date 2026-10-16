@@ -22,17 +22,17 @@ export type RecoverableDefinition<Permissions extends string = string> = {
     readonly by: Permissions;
     /** The object permission whose holders purge the objects, `by` when absent. */
     readonly purge?: Permissions;
-    /** What a purge keeps, the record or nothing. */
-    readonly keep?: "record";
+    /** What a purge retains, the record or nothing. */
+    readonly retain?: "record";
     /** The external work a purge prepares before its transaction, such as releasing storage. */
     readonly prepared?: schema.Schema;
 };
 
-/** The columns recording the deletion and the purge of a kept record's content. */
+/** The columns recording the deletion and the purge of a retained record's content. */
 export type DeletionBuilderMap<Deletion> = Deletion extends RecoverableDefinition
     ? ReturnType<typeof deletionColumns> &
           (Deletion extends {
-              readonly keep: "record";
+              readonly retain: "record";
           }
               ? { purgedAt: ColumnBuilder<FieldColumn<number, false, false>> }
               : {})
@@ -49,7 +49,7 @@ export type RecoverableMethodMap<Deletion> = Deletion extends RecoverableDefinit
               prepared: PurgePrepared<Deletion>;
               mutates: true;
           }>;
-      } & (Deletion extends { readonly keep: "record" }
+      } & (Deletion extends { readonly retain: "record" }
           ? {
                 readonly discard: Method<{
                     kind: "custom";
@@ -98,9 +98,9 @@ export const recoverable: Trait<RecoverableDefinition> = {
     options: (definition) => definition.recoverable,
     columns: (options) => ({
         ...deletionColumns(),
-        ...(options.keep === "record"
+        ...(options.retain === "record"
             ? {
-                  /** The time a purge destroyed the kept record's content, null before. */
+                  /** The time a purge destroyed the retained record's content, null before. */
                   purgedAt: integer("purged_at"),
               }
             : {}),
@@ -110,7 +110,7 @@ export const recoverable: Trait<RecoverableDefinition> = {
         delete: method.delete(options.by),
         restore: RecoverableMethod.restoration("restore", options.by, options),
         purge: RecoverableMethod.restoration("purge", options.purge ?? options.by, options),
-        ...(options.keep === "record"
+        ...(options.retain === "record"
             ? { discard: RecoverableMethod.discard(options.purge ?? options.by) }
             : {}),
     }),
@@ -122,10 +122,10 @@ export const recoverable: Trait<RecoverableDefinition> = {
             );
         }
 
-        // validate the window and keep
+        // validate the window and retention
         Duration.require(options.within, `recovery window of ${object.name}`);
-        if (options.keep !== undefined && options.keep !== "record") {
-            throw new TypeError(`purges of ${object.name} must keep the record or nothing`);
+        if (options.retain !== undefined && options.retain !== "record") {
+            throw new TypeError(`purges of ${object.name} must retain the record or nothing`);
         }
     },
 };

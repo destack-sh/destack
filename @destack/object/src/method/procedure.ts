@@ -1,5 +1,4 @@
 import { type Insert, type JsonOf, jsonShape, type Select, TABLE } from "@destack/db";
-import type * as sync from "@destack/sync";
 import { Scope } from "@destack/sync";
 import { type Identifier, mapValues, schema } from "@destack/schema";
 import { defineProcedure } from "@destack/runtime/procedure";
@@ -12,6 +11,7 @@ import type {
     ObjectType,
     SensitiveField,
     TextFieldName,
+    UpdatedField,
     WrittenField,
 } from "../object/object.ts";
 import type { MethodKind } from "./kind.ts";
@@ -291,11 +291,6 @@ export type MutationName<Object extends ObjectType> = {
         : never;
 }[CallableName<Object>];
 
-/** The calls of an object type's mutating methods, recorded to run later. */
-export type Calls<Object extends ObjectType> = {
-    readonly [Name in MutationName<Object>]: (input: MethodInput<Object, Name>) => sync.Call;
-};
-
 /** The procedure one method derives. */
 type ProcedureOf<
     Object extends ObjectType,
@@ -432,7 +427,9 @@ type OptionalKeys<Record> = {
 /** The columns a creation or update writes. */
 type WrittenName<Object extends ObjectType, Declared extends Method> =
     | (string extends NonNullable<Declared["fields"]>[number]
-          ? WrittenField<Object["fields"]>
+          ? Declared extends { readonly kind: "create" | "createMany" }
+              ? WrittenField<Object["fields"]>
+              : UpdatedField<Object["fields"]>
           : NonNullable<Declared["fields"]>[number])
     | (Declared extends { readonly kind: "create" | "createMany" }
           ? true extends NonNullable<Declared["isInternal"]>
@@ -584,7 +581,7 @@ const ObjectProcedure = {
 
         return (names, isPartial) =>
             Object.fromEntries(
-                (names ?? object.written).map((name) => {
+                (names ?? (isPartial ? object.updated : object.written)).map((name) => {
                     // take each written column's schema
                     const field = object.fields[name];
                     const value = object.table[TABLE].columns[name]?.definition.json;

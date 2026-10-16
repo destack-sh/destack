@@ -69,9 +69,9 @@ async function servePages(dialect: Dialect) {
     return { connect, endpoint };
 }
 
-/** Keep a user's pages on a device. */
+/** Replicate a user's pages on a device. */
 async function openDevice(user: Identifier<"user">, endpoint: ClientOptions) {
-    // create the local database and keep the space's pages in it
+    // create the local database and replicate the space's pages in it
     const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ page }), {
         storage: "file",
     });
@@ -85,7 +85,7 @@ async function openDevice(user: Identifier<"user">, endpoint: ClientOptions) {
         reconnect: unmoved,
     });
 
-    // keep every page of the space, pushing and following until the test finishes
+    // replicate every page of the space, pushing and following until the test finishes
     client.query.page.findMany({ deleted: "include" }).subscribe();
     const controller = new AbortController();
     const errors: unknown[] = [];
@@ -231,11 +231,11 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "missing caller credential" });
 
-        // explain to the owner why a reader may not edit
+        // explain to the owner why a reader may not write
         const why = await alice.page.explain({
             spaceId,
             id: onboarding.id,
-            permission: "edit",
+            permission: "write",
             subject: principal.user.reference("universe", users.carol),
         });
         expect([
@@ -244,24 +244,27 @@ test.each(TEST_DIALECTS)(
         ]).toEqual([
             false,
             [
-                ["page edit / page edit-direct / field ownerId holding relation owner", "subject"],
                 [
-                    `page edit / page edit-direct / role ${Role.OWNER} bound on space ${spaceId}`,
+                    "page write / page write-direct / field ownerId holding relation owner",
                     "subject",
                 ],
                 [
-                    `page edit / through parent to page ${handbook.id} / page edit-direct / field ownerId holding relation owner`,
+                    `page write / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                     "subject",
                 ],
                 [
-                    `page edit / through parent to page ${handbook.id} / page edit-direct / relation editor`,
+                    `page write / through parent to page ${handbook.id} / page write-direct / field ownerId holding relation owner`,
                     "subject",
                 ],
                 [
-                    `page edit / through parent to page ${handbook.id} / page edit-direct / role ${Role.OWNER} bound on space ${spaceId}`,
+                    `page write / through parent to page ${handbook.id} / page write-direct / relation editor`,
                     "subject",
                 ],
-                [`page edit / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
+                [
+                    `page write / through parent to page ${handbook.id} / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
+                    "subject",
+                ],
+                [`page write / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
             ],
         ]);
 
@@ -294,7 +297,7 @@ test.each(TEST_DIALECTS)(
                 await alice.page.explain({
                     spaceId,
                     id: onboarding.id,
-                    permission: "edit",
+                    permission: "write",
                     subject: principal.user.reference("universe", users.carol),
                 })
             ).isAllowed,
@@ -391,7 +394,7 @@ test.each(TEST_DIALECTS)(
             subject: principal.user.reference("universe", users.bob),
         });
 
-        // keep the shared tree on bob's device
+        // replicate the shared tree on bob's device
         const device = await openDevice(
             users.bob,
             endpoint({ authorization: `Bearer ${users.bob}` }),

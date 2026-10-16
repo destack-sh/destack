@@ -88,7 +88,7 @@ export interface DeclarationHandler<
     readonly immutable?: readonly (keyof Insert<Object["table"]> & string)[];
     /** Map a resolved declaration to the columns it determines, itself by default. */
     values?(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
-    /** Report changes kept outside the record's own columns. */
+    /** Report changes stored outside the record's own columns. */
     changed?(
         transaction: Transaction,
         row: Select<Object["table"]>,
@@ -97,8 +97,8 @@ export interface DeclarationHandler<
     /** Write records a created or updated record owns. */
     written?(stack: Stack, row: Select<Object["table"]>, resolved: Resolved): Promise<void>;
     /** Create or change a declared record through its table's owner, instead of the stack. */
-    keep?(stack: Stack, manager: Manager, resolved: Resolved): Promise<void>;
-    /** Retire records through their own deletion, archive them, or keep them as they are. */
+    upsert?(stack: Stack, manager: Manager, resolved: Resolved): Promise<void>;
+    /** Retire records through their own deletion, archive them, or retain them as they are. */
     readonly retire?:
         | "archived"
         | {
@@ -107,7 +107,7 @@ export interface DeclarationHandler<
               /** Begin retiring a record the manager no longer declares. */
               start(stack: Stack, row: Select<Object["table"]>): Promise<void>;
           }
-        | "kept";
+        | "retained";
 }
 
 /** The declaration type an object type accepts from stacks. */
@@ -135,7 +135,7 @@ export interface ApplyOptions {
     readonly document: JsonObject;
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
-    /** The claim type keeping the names of unique indexes, and the store serving it. */
+    /** The claim type recording the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimHome;
     /** The object store running the declarations' calls, applying records where they live. */
     readonly store: Pick<ObjectStore, "mutate" | "admit" | "isReplica">;
@@ -177,7 +177,7 @@ export class Stack {
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
 
-    /** Keep a stack's inputs, its ordered object types and the transaction writing them. */
+    /** Hold a stack's inputs, its ordered object types and the transaction writing them. */
     private constructor(
         options: ApplyOptions,
         declared: Declared,
@@ -185,7 +185,7 @@ export class Stack {
         now: number,
         transaction: Transaction,
     ) {
-        // keep the stack
+        // hold the stack
         this.scope = options.scope;
         this.manager = options.manager;
         this.as = options.as;
@@ -193,7 +193,7 @@ export class Stack {
         this.now = now;
         this.authorizer = authorizer;
 
-        // keep the transaction and what applies it
+        // hold the transaction and what applies it
         this.transaction = transaction;
         this.#options = options;
         this.#ordered = declared.ordered;
@@ -274,7 +274,7 @@ export class Stack {
             );
         }
 
-        // keep collections no declaration collects for the types the stack installs, and reject entries that none or several collect
+        // leave collections no declaration collects for the types the stack installs, and reject entries that none or several collect
         const ordered = Stack.#order(declared);
         const installing: string[] = [];
         for (const [key, value] of Object.entries(options.document)) {
@@ -643,10 +643,10 @@ export class Stack {
         const { transaction, manager } = this;
         const step = Stack.#creation(declaration.object.name, name);
 
-        // keep the record through its table's owner, or apply it under a fresh identifier where its rows live
+        // upsert the record through its table's owner, or apply it under a fresh identifier where its rows live
         const { object } = declaration;
-        if (declaration.keep) {
-            await declaration.keep(this, { ...manager, name }, resolved);
+        if (declaration.upsert) {
+            await declaration.upsert(this, { ...manager, name }, resolved);
 
             return step;
         }
@@ -701,9 +701,9 @@ export class Stack {
             detail: Object.keys(fields).length > 0 ? "change declared fields" : "refresh",
             fields,
         };
-        // keep the record through its table's owner, or apply the declared values as its next revision where its rows live
-        if (declaration.keep) {
-            await declaration.keep(this, { ...this.manager, name }, resolved);
+        // upsert the record through its table's owner, or apply the declared values as its next revision where its rows live
+        if (declaration.upsert) {
+            await declaration.upsert(this, { ...this.manager, name }, resolved);
 
             return [step];
         }
@@ -758,9 +758,9 @@ export class Stack {
         declaration: TypeDeclaration,
         desired: ReadonlyMap<string, unknown>,
     ): Promise<Step[]> {
-        // keep the records of a type whose records stay once undeclared
+        // retain the records of a type whose records stay once undeclared
         const { retire } = declaration;
-        if (retire === "kept") {
+        if (retire === "retained") {
             return [];
         }
         const isArchived = retire === "archived";
@@ -785,7 +785,7 @@ export class Stack {
             const target = Address.join(declaration.object.name, name);
             const manager = { ...this.manager, name };
 
-            // archive the record inactive, kept for what references it
+            // archive the record inactive, retained for what references it
             if (isArchived) {
                 steps.push({ action: "update", target, risk: "safe", detail: "archive" });
                 await this.mutate([
@@ -1026,17 +1026,17 @@ export class StackPlan {
     readonly plan: Plan;
     /** What the machine applies the stack with. */
     readonly #options: ApplyOptions;
-    /** The open transaction keeping the planned writes. */
+    /** The open transaction with the planned writes. */
     readonly #transaction: Transaction;
 
-    /** Keep a plan with the transaction keeping its writes. */
+    /** Hold a plan with the transaction holding its writes. */
     constructor(options: ApplyOptions, transaction: Transaction, plan: Plan) {
         this.plan = plan;
         this.#options = options;
         this.#transaction = transaction;
     }
 
-    /** Reserve the names the written objects claim, kept by the commit, absent without claims. */
+    /** Reserve the names the written objects claim, held by the commit, absent without claims. */
     async reserve(): Promise<Reservation | undefined> {
         // reserve before the commit, and write the reservation in it
         const { claims, objects, now } = this.#options;

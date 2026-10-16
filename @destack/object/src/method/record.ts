@@ -755,7 +755,7 @@ export const RecordMethod = {
 
     /** Prefix a failing item's call error with its index, mapping a conflict to its fields. */
     itemFailure(object: ObjectType, index: number, error: unknown): unknown {
-        // keep other failures as they are
+        // pass other failures as they are
         const failure = object.conflict(error);
         if (!isCallError(failure)) {
             return failure;
@@ -862,7 +862,7 @@ export const RecordMethod = {
         execution: Execution,
         written: readonly string[],
     ): Promise<{ count: number }> {
-        // read the listed objects in the call's scope, keeping the permitted ones on the server
+        // read the listed objects in the call's scope, filtering the permitted ones on the server
         const table = context.object.table;
         const items = BatchItem.array().parse(context.input["items"]);
         const named = items.map((item) => UPDATED_ITEM.parse(item));
@@ -873,7 +873,7 @@ export const RecordMethod = {
         const rows =
             execution.kind === "client"
                 ? await context.read(table).findMany({ where: listed })
-                : await execution.authorization.keep(
+                : await execution.authorization.filter(
                       await execution.transaction.read(table).findMany({ where: listed }),
                       context.permission(),
                   );
@@ -993,11 +993,11 @@ export const RecordMethod = {
             scope: context.scope,
         });
 
-        // read the matches, keeping the permitted ones on the server
+        // read the matches, filtering the permitted ones on the server
         const rows =
             execution.kind === "client"
                 ? await context.read(table).findMany({ where })
-                : await execution.authorization.keep(
+                : await execution.authorization.filter(
                       await execution.transaction.read(table).findMany({ where }),
                       context.permission(),
                   );
@@ -1040,14 +1040,14 @@ export const RecordMethod = {
 
     /** Build the columns a created object is inserted with. */
     async createdValues(context: MethodContext): Promise<InsertValue<Table>> {
-        // fill caller fields with a calling principal of the declared kinds
+        // fill caller fields with a calling principal of the declared kinds, a reference by its identifier column
         const { object } = context;
         const caller = context.caller.subject;
         const isInternal = context.method.isInternal === true;
         const callers: Record<string, string | null> = {};
         for (const [name, declared] of Object.entries(object.fields)) {
             const kinds = declared.principals;
-            if (!declared.isCallerFilled || isInternal) {
+            if (!declared.isCallerFilled || isInternal || declared.reference === "none") {
                 continue;
             } else if (
                 caller === undefined ||

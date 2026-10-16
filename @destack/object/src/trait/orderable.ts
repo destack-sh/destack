@@ -25,11 +25,11 @@ export type OrderedFieldsOf<Declared> = Declared extends OrderableDefinition
 
 /** Objects ordered among their siblings by a fractional index, new ones placed after the last. */
 export const Orderable = {
-    /** Add the position field an ordered definition keeps, refusing a field it declares itself. */
+    /** Add the position field an ordered definition has, refusing a field it declares itself. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {
-        // keep a definition ordering nothing
+        // leave a definition ordering nothing
         if (definition.orderable === undefined) {
             return definition;
         }
@@ -119,7 +119,7 @@ export const Orderable = {
         return index(`${table}_order`).on(present(first, "the first ordered column"), ...rest);
     },
 
-    /** The field keeping an object's place among its siblings. */
+    /** The field storing an object's place among its siblings. */
     positionField() {
         return field.fractionalIndex().default(FractionalIndex.between(undefined, undefined));
     },

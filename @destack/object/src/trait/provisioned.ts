@@ -1,4 +1,4 @@
-import { permission, principal, relation, union } from "@destack/access";
+import { principal, relation } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import {
@@ -61,7 +61,7 @@ const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
 
 /** Objects that are a kind's resources, provisioned by the kind's providers. */
 export interface ProvisionedDefinition<Kind extends ResourceKind = ResourceKind> {
-    /** The resource kind, whose specification the objects keep. */
+    /** The resource kind, whose specification the objects store. */
     readonly kind: Kind;
 }
 
@@ -96,9 +96,9 @@ function resourceFields(kind: ResourceKind) {
         reference: field.string().optional(),
         /** The actual provider location, absent before provisioning. */
         location: field.string().optional(),
-        /** The machine keeping the resource, absent before provisioning. */
+        /** The machine running the resource, absent before provisioning. */
         machine: field.reference(principal.machine).optional(),
-        /** What deletion does to stored content: destroy it, keep it a while, or keep it. */
+        /** What deletion does to stored content: destroy it, retain it a while, or retain it. */
         retention: field.json(ResourceRetention).default("forever"),
         /** The application installation owning it, absent for stack resources and after release. */
         owner: field.subject(principal.installation).optional(),
@@ -184,7 +184,7 @@ export const Provisioned = {
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, ProvisionedKey> {
-        // keep a definition of other objects
+        // leave a definition of other objects
         const provisioned = definition.provisioned;
         if (provisioned === undefined) {
             return definition;
@@ -222,7 +222,7 @@ export const Provisioned = {
             constraints: { ...RESOURCE_CONSTRAINTS, ...definition.constraints },
             permissions: {
                 read: relation(CONSUMER),
-                write: union(relation(CONSUMER), permission("edit")),
+                write: relation(CONSUMER),
                 ...permissions,
             },
             methods: { ...resourceMethods(), ...definition.methods },

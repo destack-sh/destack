@@ -39,7 +39,7 @@ import { RequestId } from "@destack/runtime/request";
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
 
-/** The host keeping the boxes its provider provisions. */
+/** The host running the boxes its provider provisions. */
 const machineId = schema
     .identifier("machine")
     .parse("machine-01996ab0-0000-7000-8000-000000000052");
@@ -60,7 +60,7 @@ const box = defineObject({
     scope: space,
     provisioned: { kind: BoxKind },
     fields: {},
-}).methods();
+});
 
 /** A space's link: a resource of the link kind. */
 const link = defineObject({
@@ -69,7 +69,7 @@ const link = defineObject({
     scope: space,
     provisioned: { kind: LinkKind },
     fields: {},
-}).methods();
+});
 
 /** The boxes and links the scenarios use. */
 const ids = {
@@ -99,7 +99,7 @@ const declared = {
     approval: "backward-incompatible" as const,
 };
 
-/** Boxes a provider keeps in memory, each at the size it applied. */
+/** Boxes a provider holds in memory, each at the size it applied. */
 class Boxes {
     /** The applied size of each provisioned box. */
     readonly sizes = new Map<string, number>();
@@ -175,7 +175,7 @@ async function serve(boxes: Boxes) {
         .insert(space.table)
         .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
 
-    // keep the claims of the resource names in the universe
+    // store the claims of the resource names in the universe
     const universe = await TestDatabase.create(
         "sqlite",
         [...new Set([...callTables, ...claim.tables])],
@@ -218,7 +218,7 @@ async function serve(boxes: Boxes) {
     const read = async (id: typeof ids.first) =>
         (await database.select().from(box.table).where(eq(box.table.id, id)))[0];
 
-    // keep a box's desired states and write their digests and its approval threshold as its space does
+    // store a box's desired states and write their digests and its approval threshold as its space does
     const want = async (
         id: typeof ids.first,
         states: { size: number }[],
@@ -226,7 +226,7 @@ async function serve(boxes: Boxes) {
     ) => {
         const row = present(await read(id), `box ${id}`);
         await Transaction.run(database, async (transaction) => {
-            await DesiredState.keep(transaction, spaceId, [...states, ...drainingStates]);
+            await DesiredState.upsert(transaction, spaceId, [...states, ...drainingStates]);
             await store.mutate(
                 AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
                 {
@@ -292,8 +292,8 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
     await reconcile("box", ids.first);
     const shrunk = present(await read(ids.first), "the shrunk box");
 
-    // keep the one state the box needs, and refuse a digest of a state the space keeps none of
-    const kept = await database.select({ state: desiredState.state }).from(desiredState);
+    // store the one state the box needs, and refuse a digest of a state the space lacks
+    const stored = await database.select({ state: desiredState.state }).from(desiredState);
     const unknown = await refusal(
         store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
@@ -322,7 +322,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         unchanged,
         shrunk: [shrunk.conditions["ready"]?.reason, shrunk.approvedPlan, shrunk.plan],
         sizes: [...boxes.sizes],
-        kept,
+        stored,
         unknown,
     }).toEqual({
         unset: [null, 0, {}],
@@ -342,7 +342,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         unchanged: waiting,
         shrunk: ["Applied", null, null],
         sizes: [[ids.first, 1]],
-        kept: [{ state: { size: 1 } }],
+        stored: [{ state: { size: 1 } }],
         unknown: [
             "BAD_REQUEST",
             `${spaceId} has no desired states ${await Digest.json({ size: 4 })}`,
@@ -400,7 +400,7 @@ test("recreate a box without the states only draining consumers need once approv
     });
 });
 
-test("retain a deleted box for its window, keep it while an installation consumes it, then destroy it", async () => {
+test("retain a deleted box for its window, retain it while an installation consumes it, then destroy it", async () => {
     const boxes = new Boxes();
     const { database, reconcile, read } = await serve(boxes);
     const now = Date.now();
@@ -414,12 +414,12 @@ test("retain a deleted box for its window, keep it while an installation consume
     });
     await reconcile("box", ids.first);
 
-    // keep the box and its content within its day
+    // retain the box and its content within its day
     await database.update(box.table).set({ deletedAt: now }).where(eq(box.table.id, ids.first));
     const wait = present(await reconcile("box", ids.first), "the wait until the window ends");
     const retained = present(await read(ids.first), "the retained box").conditions["ready"];
 
-    // keep it past its day while an installation consumes it
+    // retain it past its day while an installation consumes it
     await database
         .update(box.table)
         .set({ deletedAt: now - 2 * 86_400_000 })

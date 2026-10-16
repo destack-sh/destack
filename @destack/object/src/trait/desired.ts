@@ -6,7 +6,7 @@ import type { MethodContext } from "../method/context.ts";
 import { Provisioned } from "./provisioned.ts";
 import { Execution } from "../method/execution.ts";
 
-/** The desired states of a scope's resources, each kept once under the digest of its JSON. */
+/** The desired states of a scope's resources, each stored once under the digest of its JSON. */
 export const desiredState = defineTable(
     "desired_state",
     {
@@ -22,18 +22,18 @@ export const desiredState = defineTable(
 
 /** The desired states of resources, which their rows list by digest. */
 export const DesiredState = {
-    /** Keep the states a scope's resources need, writing missing ones, answering their digests. */
-    async keep(
+    /** Upsert the states a scope's resources need, answering their digests. */
+    async upsert(
         transaction: Transaction,
         scope: string,
         states: readonly ResourceState[],
     ): Promise<Digest[]> {
-        // digest each state and read the states the scope keeps already
+        // digest each state and read the states the scope has already
         const digests = await Promise.all(states.map((state) => Digest.json(state)));
-        const kept = await transaction
+        const stored = await transaction
             .read(desiredState)
             .findMany({ where: { scope, digest: { in: digests } } });
-        const known = new Set(kept.map((row) => row.digest));
+        const known = new Set(stored.map((row) => row.digest));
 
         // write each other state once
         for (const [digest, state] of zip(digests, states)) {
@@ -56,7 +56,7 @@ export const DesiredState = {
         scope: string,
         digests: readonly Digest[],
     ): Promise<ResourceState[]> {
-        // read the kept states
+        // read the stored states
         const rows = await view.read(desiredState).findMany({
             where: {
                 scope,

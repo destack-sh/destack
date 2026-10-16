@@ -29,9 +29,9 @@ function refused(method: string): readonly [string, string] {
     ];
 }
 
-/** Serve the notes of a space as an installation keeping them, with a client acting as alice. */
+/** Serve the notes of a space as an installation storing them, with a client acting as alice. */
 async function serveInstalledNotes() {
-    // keep the space's notes
+    // store the space's notes
     const storage = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -45,6 +45,7 @@ async function serveInstalledNotes() {
         build: await MemoryBuild.write(new Map(), { package: note.package }),
         resources: new ResourceContext(),
         fetch: (sent) => Promise.reject(new Error(`the notes reach no ${sent.url}`)),
+        url: "https://notes--home.test",
         publisher: {
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
@@ -75,8 +76,8 @@ async function serveInstalledNotes() {
     return { database, alice: createClient(notesPackage, served.endpoint(users.alice)) };
 }
 
-test("refuse an installation's writes in a space whose storage is capped, keeping reads and deletes, until the cap lifts", async () => {
-    // keep a notebook with two notes
+test("refuse an installation's writes in a space whose storage is capped, allowing reads and deletes, until the cap lifts", async () => {
+    // create a notebook with two notes
     const { database, alice } = await serveInstalledNotes();
     const book = await alice.notebook.create({ ...request(), name: "Travel" });
     const packing = await alice.note.create({ ...request(), title: "Packing" });
@@ -105,13 +106,13 @@ test("refuse an installation's writes in a space whose storage is capped, keepin
         listed: listed.items.map((item) => item.title).toSorted(),
         restored,
         hotels: hotels.title,
-        kept: (await alice.note.list({ spaceId })).items.map((item) => item.id).toSorted(),
+        remaining: (await alice.note.list({ spaceId })).items.map((item) => item.id).toSorted(),
     }).toEqual({
         created: refused("note.create"),
         updated: refused("notebook.update"),
         listed: ["Packing", "Tickets"],
         restored: refused("note.restore"),
         hotels: "Hotels",
-        kept: [tickets.id, hotels.id].toSorted(),
+        remaining: [tickets.id, hotels.id].toSorted(),
     });
 });

@@ -16,30 +16,33 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 
-/** An API key a caller hands a method, which nothing derived from the call keeps. */
+/** An API key a caller hands a method, which nothing derived from the call stores. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
 
-/** A key holder taking a sensitive key it keeps nowhere and a token kept in its row. */
-const holder = defineObject({
-    name: "holder",
-    plural: "holders",
-    scope: space,
-    fields: { label: field.string(), token: field.string().sensitive().optional() },
-    permissions: { read: through("space", "read"), provision: none() },
-}).methods((method) => ({
-    create: method.create("read", {
-        fields: ["label", "token"],
-        input: schema.object({ key: ApiKey }),
+/** A key holder taking a sensitive key it stores nowhere and a token stored in its row. */
+const holder = defineObject(
+    {
+        name: "holder",
+        plural: "holders",
+        scope: space,
+        fields: { label: field.string(), token: field.string().sensitive().optional() },
+        permissions: { read: through("space", "read"), provision: none() },
+    },
+    (method) => ({
+        create: method.create("read", {
+            fields: ["label", "token"],
+            input: schema.object({ key: ApiKey }),
+        }),
+        /** Create a holder as the space. */
+        provision: method.create("provision", {
+            isInternal: true,
+            fields: ["label"],
+            input: schema.object({ key: ApiKey }),
+        }),
     }),
-    /** Create a holder as the space. */
-    provision: method.create("provision", {
-        isInternal: true,
-        fields: ["label"],
-        input: schema.object({ key: ApiKey }),
-    }),
-}));
+);
 
-test("keep a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
+test("hold a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
     // serve the holders, recording audit events and exporting telemetry to a list
     const storage = await TestDatabase.create(
         "sqlite",

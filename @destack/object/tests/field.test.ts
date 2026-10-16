@@ -13,45 +13,54 @@ import { request } from "./fixture/request.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 
-/** The space keeping the pins. */
+/** The space with the pins. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
 
 /** Labels a pin may point at. */
-const label = defineObject({
-    name: "label",
-    plural: "labels",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({ create: method.create("write", { fields: [] }) }));
+const label = defineObject(
+    {
+        name: "label",
+        plural: "labels",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({ create: method.create("write", { fields: [] }) }),
+);
 
 /** Notes a pin may not point at. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    fields: { owner: field.reference(principal.user).caller() },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({ create: method.create("write", { fields: [] }) }));
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({ create: method.create("write", { fields: [] }) }),
+);
 
 /** Pins pointing at a label each, by its reference. */
-const pin = defineObject({
-    name: "pin",
-    plural: "pins",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        target: field.object(label),
+const pin = defineObject(
+    {
+        name: "pin",
+        plural: "pins",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            target: field.object(label),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
     },
-    permissions: { read: relation("owner"), write: relation("owner") },
-}).methods((method) => ({
-    create: method.create("write", {
-        fields: ["targetPackageId", "targetType", "targetScope", "targetId"],
+    (method) => ({
+        create: method.create("write", {
+            fields: ["targetPackageId", "targetType", "targetScope", "targetId"],
+        }),
+        list: method.list("read"),
     }),
-    list: method.list("read"),
-}));
+);
 
-test("keep a pin's target as its label's reference columns, refuse a note, and list the pins of one label", async () => {
+test("store a pin's target as its label's reference columns, refuse a note, and list the pins of one label", async () => {
     // open the space's store of labels, notes and pins
     const storage = await TestDatabase.create(
         "sqlite",

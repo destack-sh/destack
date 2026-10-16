@@ -36,7 +36,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** The grant a delegate acts under for the current user. */
 const grantId = schema.identifier("grant").parse("grant-01996ab0-0000-7000-8000-000000000002");
 
-/** The routes derived procedures keep, by method name. */
+/** The routes of derived procedures, by method name. */
 const PROCEDURES = schema.record(
     schema.string(),
     schema.looseObject({
@@ -109,16 +109,19 @@ test("derive routes and describe each method with its permission, input and audi
 
 test("route a creation other than create below its collection by name", () => {
     // declare a type created by create and by import
-    const note = defineObject({
-        name: "note",
-        plural: "notes",
-        scope: "universe",
-        fields: { title: field.string(schema.string().min(1)) },
-        permissions: { write: none() },
-    }).methods((declared) => ({
-        create: declared.create("write", { fields: ["title"] }),
-        import: declared.create("write", { fields: ["title"] }),
-    }));
+    const note = defineObject(
+        {
+            name: "note",
+            plural: "notes",
+            scope: "universe",
+            fields: { title: field.string(schema.string().min(1)) },
+            permissions: { write: none() },
+        },
+        (declared) => ({
+            create: declared.create("write", { fields: ["title"] }),
+            import: declared.create("write", { fields: ["title"] }),
+        }),
+    );
 
     // route create at the collection and import below it
     const routes = PROCEDURES.parse(note.procedures);
@@ -184,7 +187,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "hide an object from strangers, update it at the observed revision, and keep sensitive fields out of rows on %s",
+    "hide an object from strangers, update it at the observed revision, with sensitive fields out of rows on %s",
     async (dialect) => {
         const { database, execute, events, act } = await serveTasks(dialect);
         const created = await execute("create", {
@@ -228,7 +231,7 @@ test.each(TEST_DIALECTS)(
             }),
         ).rejects.toMatchObject({ code: "CONFLICT", message: "task revision has changed" });
 
-        // keep a sensitive field in the database, out of every row a caller reads and its schema
+        // store a sensitive field in the database, out of every row a caller reads and its schema
         await database
             .update(task.table)
             .set({ token: "secret" })
@@ -597,7 +600,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test("page an object's invitations a full hundred at a time", async () => {
-    // keep 101 pending invitations to view a task, in creation order
+    // create 101 pending invitations to view a task, in creation order
     const { database, execute } = await serveTasks("sqlite");
     const created = await execute("create", {
         requestId: RequestId.create(Date.now()),
@@ -952,7 +955,7 @@ test("authorize a creation before its external work, and settle committed work t
     ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
     expect(external).toEqual([]);
 
-    // commit and keep the settlement despite a failed confirmation
+    // commit and retain the settlement despite a failed confirmation
     context = userContext(users.frank, spaceId);
     const drafted = await store
         .mutate(context.access(), {
@@ -960,8 +963,8 @@ test("authorize a creation before its external work, and settle committed work t
             calls: [copies.call("create", { ...version })],
         })
         .then(([written]) => written);
-    const kept = await storage.database.select().from(settlement);
-    expect([external, kept.map((row) => [row.method, row.target]), reported]).toEqual([
+    const settled = await storage.database.select().from(settlement);
+    expect([external, settled.map((row) => [row.method, row.target]), reported]).toEqual([
         ["copy Draft"],
         [["create", drafted.id]],
         [new Error("confirmation failed")],
@@ -970,7 +973,10 @@ test("authorize a creation before its external work, and settle committed work t
     // confirm it through the controller
     const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     expect(
-        await controller.reconcile(aligned(kept, 0).id, reconciliation(AbortSignal.timeout(5000))),
+        await controller.reconcile(
+            aligned(settled, 0).id,
+            reconciliation(AbortSignal.timeout(5000)),
+        ),
     ).toBeUndefined();
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
@@ -1045,7 +1051,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
-    // keep external copies by call key, pausing mid-copy
+    // store external copies by call key, pausing mid-copy
     const external: string[] = [];
     let during: () => Promise<void> = idle;
     const copies = taskCopy.implement({
@@ -1236,7 +1242,7 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "update"],
         suspendable: { by: "update" },
-    }).methods();
+    });
     const card = defineObject({
         name: "card",
         plural: "cards",
@@ -1245,16 +1251,16 @@ test("add suspending and handing over through their traits", () => {
         fields: {},
         permissions: ["read", "write"],
         adoptable: { by: "write" },
-    }).methods();
+    });
     expect([Object.keys(room.methods).toSorted(), Object.keys(card.methods).toSorted()]).toEqual([
         ["get", "list", "resume", "suspend"],
-        ["adopt", "apply", "detach", "get", "list"],
+        ["adopt", "apply", "create", "delete", "detach", "get", "list", "update"],
     ]);
 });
 
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */
 async function serveTasks(dialect: Dialect) {
-    // keep the space's objects in a migrated database
+    // store the space's objects in a migrated database
     const database = await openTaskDatabase(dialect);
 
     // handle archiving
@@ -1446,7 +1452,7 @@ test("settle each call's prepared work once under its own key in its request", a
         })
         .then(([written]) => written);
 
-    // create two copies of one title in one mutation, confirming each under its own key and keeping no settlement
+    // create two copies of one title in one mutation, confirming each under its own key leaving no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
     const requestId = RequestId.create(Date.now());
     await store.mutate(context.access(), {

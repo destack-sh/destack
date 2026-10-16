@@ -86,7 +86,7 @@ test.for([3, 17, 91])(
         const seed = { value };
         const sites = ["a", "b", "c"];
 
-        // keep the server's sequence and each party's pending edits
+        // hold the server's sequence and each party's pending edits
         let server = new Sequence();
         const parties = sites.map((site): Party => ({
             site,
@@ -212,7 +212,7 @@ test("resolve annotations over edits by their boundaries: bold grows at its end,
     ]);
 });
 
-test("cover overlapping annotations in one stretch each, keeping boundaries on deleted elements in place", () => {
+test("cover overlapping annotations in one stretch each, with boundaries on deleted elements in place", () => {
     // annotate overlapping ranges and delete the comment's first element
     const text = new Sequence().apply({ insert: "the quick brown fox", run: "a.1" });
     const comment: Annotation = {
@@ -242,7 +242,7 @@ test("cover overlapping annotations in one stretch each, keeping boundaries on d
 });
 
 test.for([7, 41])(
-    "keep an editor's plain text in step with the sequence through changes both ways (seed %i)",
+    "sync an editor's plain text with the sequence through changes both ways (seed %i)",
     (value) => {
         const seed = { value };
 
@@ -288,8 +288,8 @@ test.for([7, 41])(
     },
 );
 
-test("keep a deletion's length alone, and restore exactly the characters it removed", () => {
-    // delete the middle of a text and keep only its length
+test("record a deletion's length alone, and restore exactly the characters it removed", () => {
+    // delete the middle of a text and record only its length
     const typed = new Sequence().apply({ insert: "abcdef", run: "a.1" });
     const deletion = {
         delete: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 } },
@@ -331,7 +331,7 @@ test("keep a deletion's length alone, and restore exactly the characters it remo
     ).toThrow(new RangeError("sequence cannot restore 2 characters into 3 deleted ones"));
 });
 
-test("find the one replacement between two texts, keeping their common start and end", () => {
+test("find the one replacement between two texts, around their common start and end", () => {
     // typing, deleting, replacing a word, and a repeated letter the end must not overlap
     expect([
         TextChange.between("hello", "hello!"),

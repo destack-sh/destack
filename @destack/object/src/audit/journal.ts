@@ -33,17 +33,17 @@ const LIFETIME: Duration = { milliseconds: REQUEST_LIFETIME_MILLISECONDS };
 
 /** The options of a journal. */
 export interface JournalOptions {
-    /** The event log keeping the audited calls as call events, over the journal's database. */
+    /** The event log with the audited calls as call events, over the journal's database. */
     readonly events: EventStore;
     /** How long calls stay for retries: a request identifier's retry lifetime. */
     readonly lifetime?: Duration;
-    /** The clock of the server keeping the journal. */
+    /** The clock of the journal's server. */
     readonly clock: Clock;
 }
 
 /** How the journal records a call: audited or not, its caller and its place in its request. */
 export interface CallRecording {
-    /** Whether the call is audited, kept as a call event once it ends. */
+    /** Whether the call is audited, recorded as a call event once it ends. */
     readonly isAudited: boolean;
     /** The caller of the request the call belongs to. */
     readonly caller?: string;
@@ -51,24 +51,24 @@ export interface CallRecording {
     readonly position?: number;
 }
 
-/** The recent calls of one database, replayed to retries, each audited one kept as a call event. */
+/** The recent calls of one database, replayed to retries, audited ones recorded as call events. */
 export class Journal {
     /** The journal table. */
     readonly table = journal;
-    /** The database keeping the journal. */
+    /** The journal's database. */
     readonly database: DatabaseConnection;
     /** Read the key sensitive inputs are fingerprinted under, only when a request has them. */
     readonly #key: CallKey;
-    /** The event log keeping the audited calls. */
+    /** The event log with the audited calls. */
     readonly events: EventStore;
     /** How long calls stay, in milliseconds. */
     readonly lifetime: number;
     /** The clock retry periods and lifetimes run on. */
     readonly clock: Clock;
 
-    /** Keep a database's calls, fingerprinting sensitive inputs under the deployment's key. */
+    /** Journal a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
-        // keep the database, the key, the event log and the lifetime
+        // hold the database, the key, the event log and the lifetime
         this.database = database;
         this.#key = key;
         this.events = options.events;
@@ -99,9 +99,9 @@ export class Journal {
         options: CallRecording,
         transaction?: DatabaseConnection,
     ): Promise<void> {
-        // bound what the call event keeps
+        // bound what the call event records
         if (
-            new TextEncoder().encode(canonicalize(Journal.kept(entry))).byteLength >
+            new TextEncoder().encode(canonicalize(Journal.recorded(entry))).byteLength >
             MAX_EXECUTION_BYTES
         ) {
             throw new ObjectError("INVALID_CALL", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
@@ -154,13 +154,13 @@ export class Journal {
                 ? this.events
                       .append(
                           Journal.kind,
-                          [Journal.event(CallEvent.parse(Journal.kept(entry)))],
+                          [Journal.event(CallEvent.parse(Journal.recorded(entry)))],
                           transaction,
                       )
                       .then(
                           () => undefined,
                           (error: unknown) => {
-                              // keep the event's refusal of other contents for the journal to name first
+                              // raise the event's refusal of other contents for the journal to name first
                               if (isCallError(error)) {
                                   return error;
                               }
@@ -184,8 +184,8 @@ export class Journal {
         return call.eventKind();
     }
 
-    /** Replicate a call without its input and a success's value, as its call event keeps it. */
-    static kept<Entry extends JournalEntry>(entry: Entry): Entry {
+    /** Replicate a call without its input and a success's value, as its call event records it. */
+    static recorded<Entry extends JournalEntry>(entry: Entry): Entry {
         const outcome = entry.execution.outcome;
 
         return {

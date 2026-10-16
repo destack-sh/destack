@@ -18,7 +18,7 @@ import { BranchEntry } from "./entry.ts";
 import { type BranchChange, BranchWrite } from "./write.ts";
 import type { BranchType } from "./type.ts";
 
-/** The columns a stored branch entry keeps: the call and its author's reference. */
+/** The columns of a stored branch entry: the call and its author's reference. */
 const STORED_ENTRY = sync.Call.extend({
     authorPackageId: PackageId,
     authorType: schema.string(),
@@ -38,7 +38,7 @@ export interface BranchState {
 export class Branch {
     /** The scope type's branch types. */
     readonly types: BranchType;
-    /** The reads of the branch's rows: a call's, or a snapshot of the database keeping it. */
+    /** The reads of the branch's rows: a call's, or a snapshot of its database. */
     readonly reader: Pick<Snapshot, "read">;
     /** The branch's identifier. */
     readonly id: string;
@@ -247,7 +247,7 @@ export class Branch {
             const method = resolved.object.method(resolved.name);
             reached.add(resolved.object.table[TABLE].sqlName);
 
-            // keep the call as its author's unless it does external work
+            // record the call as its author's unless it does external work
             return method.prepare === undefined
                 ? [
                       {
@@ -258,7 +258,7 @@ export class Branch {
                 : [];
         });
 
-        // rehearse them over the rows, keeping the rows of the branch's tables they leave changed
+        // rehearse them over the rows, taking the rows of the branch's tables they leave changed
         const changed = await context.rehearse(over, replayed);
         const names = new Set(this.types.tables(context.objects).keys());
         const rows = changed.filter((row) => names.has(row.table));

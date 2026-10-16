@@ -16,7 +16,7 @@ import { openSpace, spacePrincipal } from "./fixture/space.ts";
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 
-/** The pages of a title, wherever their scope keeps them. */
+/** The pages of a title, wherever their scope has them. */
 const titled = defineShape({
     name: "titled",
     parameters: schema.object({ title: schema.string() }),
@@ -53,7 +53,7 @@ const icons: Follow<{ icon: string }> = {
               },
 };
 
-test("subscribe to a fixed key and to one key per row the follower keeps, each toward its scope's publisher, and relist once a row changes the keys", async () => {
+test("subscribe to a fixed key and to one key per row the follower has, each toward its scope's publisher, and relist once a row changes the keys", async () => {
     // compose the pages with the follows over the space's database, naming each scope's publisher
     const storage = await TestDatabase.create("sqlite", pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -69,7 +69,7 @@ test("subscribe to a fixed key and to one key per row the follower keeps, each t
         events: await testEvents(storage.database),
         database: storage.database,
         publisher: (scope) => {
-            // keep one publisher per scope
+            // use one publisher per scope
             const publisher = publishers.get(scope) ?? {
                 stream: () => (async function* () {})(),
             };

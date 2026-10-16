@@ -36,12 +36,12 @@ export const versioned: Trait<VersionsDefinition> & {
     ],
     methods: () => ({}),
     validate: (_options, object, definition) => {
-        // keep versions beneath a parent of one type
+        // require versions beneath a parent of one type
         if (!definition.nested || definition.nested.in === "any") {
             throw new TypeError(`versions of ${object.name} need a parent of one type`);
         }
 
-        // keep versions immutable
+        // refuse updates of versions
         if (definition.methods && "update" in definition.methods) {
             throw new TypeError(`versions of ${object.name} are immutable and cannot be updated`);
         }

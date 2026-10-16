@@ -18,25 +18,28 @@ import { request, type RequestInput } from "./fixture/request.ts";
 /** The space containing the credentials. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
-/** Credentials that keep their record after a purge, reserved to their custodian. */
-const credential = defineObject({
-    name: "credential",
-    plural: "credentials",
-    scope: space,
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        custodian: field.reference(principal.user),
-        value: field.string().optional(),
+/** Credentials that retain their record after a purge, reserved to their custodian. */
+const credential = defineObject(
+    {
+        name: "credential",
+        plural: "credentials",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            custodian: field.reference(principal.user),
+            value: field.string().optional(),
+        },
+        recoverable: { within: { minutes: 1 }, by: "write", purge: "purge", retain: "record" },
+        permissions: {
+            read: relation("owner"),
+            write: relation("owner"),
+            purge: relation("custodian"),
+        },
     },
-    recoverable: { within: { minutes: 1 }, by: "write", purge: "purge", keep: "record" },
-    permissions: {
-        read: relation("owner"),
-        write: relation("owner"),
-        purge: relation("custodian"),
-    },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["custodianId", "value"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["custodianId", "value"] }),
+    }),
+);
 
 /** The database with the credentials, their access and the journal. */
 const credentialDatabase = defineDatabase({
@@ -45,7 +48,7 @@ const credentialDatabase = defineDatabase({
 });
 
 test.each(TEST_DIALECTS)(
-    "purge a kept record through its handler under its own permission or as the system, and restore it within its window on %s",
+    "purge a retained record through its handler under its own permission or as the system, and restore it within its window on %s",
     async (dialect) => {
         const storage = await TestDatabase.create(dialect, credentialDatabase, {
             isMigrated: true,
@@ -113,15 +116,15 @@ test.each(TEST_DIALECTS)(
             "permission denied: purge",
         ]);
 
-        // refuse a record-keeping purge without a handler destroying the content
+        // refuse a record-retaining purge without a handler destroying the content
         context = userContext(users.grace, spaceId);
         await expect(execute(credential, "purge", { id: created.id })).rejects.toThrow(
             new TypeError(
-                "object credential keeps purged records, so a purge handler of its own destroys their content",
+                "object credential retains purged records, so a purge handler of its own destroys their content",
             ),
         );
 
-        // destroy the value and keep the record, marked purged
+        // destroy the value and retain the record, marked purged
         await execute(handled, "purge", { id: created.id });
         const [purged] = await database
             .select()
@@ -165,11 +168,11 @@ test.each(TEST_DIALECTS)(
             await RecoverableController.purge(store, later),
         ]).toEqual([1, 0]);
         expect(await auditedActions(database, "component")).toEqual(["credential.purge"]);
-        const [kept] = await database
+        const [record] = await database
             .select({ value: credential.table.value, purgedAt: credential.table.purgedAt })
             .from(credential.table)
             .where(eq(credential.table.id, lapsed.id));
-        expect(kept).toEqual({ value: null, purgedAt: later });
+        expect(record).toEqual({ value: null, purgedAt: later });
         clock.set(Date.now());
 
         // look again and purge after the next window ends

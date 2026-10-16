@@ -11,25 +11,25 @@ import type { LiveQuery } from "./client.ts";
 
 /** How long a closed live query stays followed: for a while, always, or not at all when absent. */
 export interface SubscribeOptions {
-    /** How long the closed query stays followed. */
-    readonly keep?: Duration | "always";
+    /** How long the closed query stays followed, as Zero's time to live. */
+    readonly ttl?: Duration | "forever";
 }
 
-/** A query's items a client keeps live, with the query its open form compiled to. */
+/** A query's items a client holds live, with the query its open form compiled to. */
 export interface LiveItems extends LiveQuery {
     /** The compiled query, whose includes decide how the items nest. */
     readonly query: sync.Query;
 }
 
-/** Keep queries in their open form live over a client's replica. */
+/** Hold queries in their open form live over a client's replica. */
 export interface Subscriber {
-    /** Keep a query's items live. */
+    /** Hold a query's items live. */
     readonly rows: (
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
     ) => LiveItems;
-    /** Keep an aggregate query's groups live. */
+    /** Hold an aggregate query's groups live. */
     readonly results: (
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
@@ -39,7 +39,7 @@ export interface Subscriber {
 
 /** The relational queries of one object type. */
 export class RelationalQueryBuilder<Object extends ObjectType, Objects extends ObjectType> {
-    /** Keep queries live over the client's replica. */
+    /** Hold queries live over the client's replica. */
     readonly #subscriber: Subscriber;
     /** The queried object type. */
     readonly #object: Object;
@@ -57,14 +57,14 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     >(
         options?: Options & { readonly extras?: Computed },
     ): RelationalQuery<readonly FindResult<Object, Objects, Options>[]> {
-        // keep each item selected and nested as the options ask
+        // select and nest each item as the options ask
         const opened: Omit<ObjectQuery, "object"> = options ?? {};
         const select = RelationalQuery.selecting(opened, (item) =>
             mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
         );
 
-        return new RelationalQuery(this.#object, opened, (keep) => {
-            const live = this.#subscriber.rows(this.#object, opened, keep);
+        return new RelationalQuery(this.#object, opened, (ttl) => {
+            const live = this.#subscriber.rows(this.#object, opened, ttl);
 
             return RelationalQuery.presented(live, (items) =>
                 items.map((item) => select(item, live.query)),
@@ -79,15 +79,15 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     >(
         options?: Options & { readonly extras?: Computed },
     ): RelationalQuery<FindResult<Object, Objects, Options> | undefined> {
-        // keep the first item selected and nested as the options ask
+        // select and nest the first item as the options ask
         const opened: Omit<ObjectQuery, "object"> = options ?? {};
         const select = RelationalQuery.selecting(opened, (item) =>
             mapValues<NestedItem, FindResult<Object, Objects, Options>>(item, (value) => value),
         );
         const first = { ...opened, limit: 1 };
 
-        return new RelationalQuery(this.#object, first, (keep) => {
-            const live = this.#subscriber.rows(this.#object, first, keep);
+        return new RelationalQuery(this.#object, first, (ttl) => {
+            const live = this.#subscriber.rows(this.#object, first, ttl);
 
             return RelationalQuery.presented(live, ([item]) =>
                 item === undefined ? undefined : select(item, live.query),
@@ -104,8 +104,8 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         const { where, ...aggregate } = opened;
         const asked = { ...(where === undefined ? {} : { where }), aggregate };
 
-        return new RelationalQuery(this.#object, asked, (keep) =>
-            RelationalQuery.presented(this.#subscriber.results(this.#object, asked, keep), (rows) =>
+        return new RelationalQuery(this.#object, asked, (ttl) =>
+            RelationalQuery.presented(this.#subscriber.results(this.#object, asked, ttl), (rows) =>
                 rows.map((row) =>
                     mapValues<sync.AggregateRow, AggregateRow<Options>>(row, (value) => value),
                 ),
@@ -120,7 +120,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     readonly object: ObjectType;
     /** The query in its open form. */
     readonly options: Omit<ObjectQuery, "object">;
-    /** Keep the query live over the client's replica, its reads shaped into the query's value. */
+    /** Hold the query live over the client's replica, its reads shaped into the query's value. */
     readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
     /** Describe a query of one object type, followed live with its value shaped from its reads. */
@@ -134,7 +134,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         this.#follow = follow;
     }
 
-    /** Select a query's items, keeping each unchanged item's object across reads. */
+    /** Select a query's items, reusing each unchanged item's object across reads. */
     static selecting<Result>(
         options: db.FindOptions,
         shape: (item: NestedItem) => Result,
@@ -156,9 +156,9 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         };
     }
 
-    /** Keep the selected fields and nest each relation's selected items, as the query relates. */
+    /** Select the fields and nest each relation's selected items, as the query relates. */
     static select(item: sync.Item, options: db.FindOptions, query: sync.Query): NestedItem {
-        // keep the selected columns and every extra
+        // take the selected columns and every extra
         const columns = options.columns ?? {};
         const extras = options.extras ?? {};
         const isPicked = Object.values(columns).includes(true);
@@ -183,7 +183,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         return Object.fromEntries([...fields, ...relations]);
     }
 
-    /** Keep the query live over the client's replica until closed. */
+    /** Hold the query live over the client's replica until closed. */
     subscribe(options: SubscribeOptions = {}): LiveQuery<Value> {
         return this.#follow(options);
     }

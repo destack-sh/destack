@@ -61,7 +61,7 @@ export class ObjectAudience implements Audience {
     readonly #storage: ObjectStorage;
     /** The durable log position access was decided at, for ephemeral and external objects. */
     #decided: LogPosition | undefined;
-    /** Whether the subscriber keeps every row by containing the scope, deciding guarded fields. */
+    /** Whether the subscriber has every row by containing the scope, deciding guarded fields. */
     readonly #isContained: boolean;
     /** The scopes below the followed one whose access decided rows. */
     readonly #below = new Set<string>();
@@ -82,7 +82,7 @@ export class ObjectAudience implements Audience {
         isContained: boolean,
         via: readonly Relay[],
     ) {
-        // keep the inputs and watch access
+        // hold the inputs and watch access
         this.#store = store;
         this.#scope = scope;
         this.#caller = caller;
@@ -272,7 +272,7 @@ export class ObjectAudience implements Audience {
         rows: readonly Row[],
         position: LogPosition,
     ): Promise<readonly (readonly string[])[]> {
-        // conceal nothing of the rows left to their query, or of another table's rows a follower keeps by containment
+        // conceal nothing of the rows left to their query, or of another table's rows a follower has by containment
         const listed = this.#isContained ? this.#objects.get(table) : this.#listed(table);
         if (listed === "query" || listed === undefined) {
             return rows.map(() => []);

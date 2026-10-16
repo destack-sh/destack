@@ -31,7 +31,7 @@ interface Session {
     lost?: DatabaseError;
 }
 
-/** The phases a sandbox runs: every phase but settle, which runs where the settlement is kept. */
+/** The phases a sandbox runs: every phase but settle, which runs where the settlement is stored. */
 const SANDBOXED: readonly Phase[] = PHASES.filter((phase) => phase !== "settle");
 
 /** An installation's object hooks, run in its sandbox and answered in their sessions. */
@@ -70,7 +70,7 @@ export class HookSandbox {
 
     /** Serve a type as the installation, its methods' listed phases run in the sandbox. */
     implement(type: ObjectType, hooks: Readonly<Record<string, readonly string[]>>): ObjectType {
-        // let the hooks read the rows of every type the installation serves, and keep a type without hooks
+        // let the hooks read the rows of every type the installation serves, and pass a type without hooks
         this.#types.set(type.table[TABLE].sqlName, type);
         const entries = Object.entries(hooks);
         if (entries.length === 0) {
@@ -94,7 +94,7 @@ export class HookSandbox {
                 throw new CallError("NOT_FOUND", { message: "no hook runs in this session" });
             }
 
-            // keep a lost race, which the mutation runs again once the hook fails with it
+            // pass a lost race, which the mutation runs again once the hook fails with it
             try {
                 return await this.#answer(session, request.request);
             } catch (error) {
@@ -203,7 +203,7 @@ export class HookSandbox {
         view: EventView<EventKeyShape, JsonValue>,
         read: EventRequest,
     ): Promise<JsonValue> {
-        // read a page, keeping its cursor where one follows
+        // read a page, with its cursor where one follows
         if (read.verb === "query") {
             const { events, cursor } = await view.query(read.filter, read.page);
 

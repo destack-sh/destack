@@ -31,7 +31,7 @@ import type { Execution, StoreExecution } from "./execution.ts";
 
 export { METHOD_KINDS, type MethodKind } from "./kind.ts";
 
-/** The brand every declared method keeps, through copies too. */
+/** The brand every declared method has, through copies too. */
 const METHOD: unique symbol = Symbol("method");
 
 /** A list method's page, as a handler's next reads it. */
@@ -180,7 +180,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The result of a custom method. */
     readonly output?: OptionOf<Configuration, "output", never>;
-    /** The external work the method prepares before its transaction, kept until it settles. */
+    /** The external work the method prepares before its transaction, held until it settles. */
     readonly prepared?: OptionOf<Configuration, "prepared", never>;
     /** The state change a transition makes. */
     readonly transition?: {
@@ -297,7 +297,7 @@ export const Method = {
         return hooks === undefined ? [] : PHASES.filter((phase) => hooks[phase] !== undefined);
     },
 
-    /** Keep a trait's method code as declared behaviour, which every store runs itself. */
+    /** Mark a trait's method code as declared behaviour, which every store runs itself. */
     declared<Configuration extends MethodConfiguration>(
         method: Method<Configuration>,
     ): MethodDeclaration<Configuration> {
