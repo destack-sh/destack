@@ -70,7 +70,7 @@ export function html(
 
 /** Write an interpolated value: markup as it is, text escaped, a list of markup joined. */
 function write(value: string | Markup | readonly Markup[]): string {
-    // keep markup
+    // pass markup through
     if (value instanceof Markup) {
         return value.text;
     }
@@ -140,7 +140,7 @@ export async function render(
             </body>
         </html>`;
 
-    // keep the cookies the routes set
+    // forward the cookies the routes set
     const headers = new Headers(await HEADERS);
     for (const cookie of cookies) {
         headers.append("set-cookie", cookie);
@@ -151,7 +151,7 @@ export async function render(
 
 /** Send the browser on after a form with the cookies the routes set. */
 export function redirect(location: string, cookies: readonly string[]): Response {
-    // keep the cookies the routes set
+    // forward the cookies the routes set
     const headers = new Headers({ location });
     for (const cookie of cookies) {
         headers.append("set-cookie", cookie);

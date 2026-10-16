@@ -73,7 +73,7 @@ async function attach(
     return context.update({ lastActiveAt: context.now });
 }
 
-/** Keep a browser client's Web Push subscription. */
+/** Store a browser client's Web Push subscription. */
 async function subscribe(
     context: MethodContextOf<typeof client, "subscribe">,
 ): Promise<ResultOf<typeof client, "subscribe">> {

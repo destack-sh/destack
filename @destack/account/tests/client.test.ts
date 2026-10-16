@@ -161,12 +161,12 @@ test("register clients with proven keys and revoke them with the sessions attach
         `NOT_FOUND: no client ${laptop.id}`,
     );
 
-    // keep the browser's push subscription
+    // store the browser's push subscription
     const push = {
         url: "https://push.example.com/subscription",
         keys: { p256dh: "BNcR", auth: "tBHI" },
     };
-    const kept = async () =>
+    const stored = async () =>
         (
             await fixture.storage.database
                 .select({ push: client.table.push })
@@ -187,13 +187,13 @@ test("register clients with proven keys and revoke them with the sessions attach
             push,
         }),
     );
-    expect(await kept()).toEqual([push]);
+    expect(await stored()).toEqual([push]);
     await owner.client.client.unsubscribe({
         userId: owner.id,
         id: browser.id,
         requestId: RequestId.create(Date.now()),
     });
-    expect([subscribed.revision, refusedPush, await kept()]).toEqual([
+    expect([subscribed.revision, refusedPush, await stored()]).toEqual([
         browser.revision + 1,
         "BAD_REQUEST: only browsers subscribe to push",
         [null],

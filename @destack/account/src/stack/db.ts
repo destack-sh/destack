@@ -11,7 +11,6 @@ import {
     textEnum,
 } from "@destack/db";
 import { call, journal } from "@destack/object";
-import { outbox } from "@destack/runtime/outbox";
 import { schema } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import { identityKey } from "../identity/index.ts";
@@ -262,11 +261,10 @@ export const accountDatabase = defineDatabase({
         oauthRefreshToken,
         oauthAccessToken,
 
-        // the universe's identity keys, settings, journal, calls and outbox
+        // the universe's identity keys, settings, journal and calls
         identityKey,
         ...setting.tables,
         journal,
         ...call.tables,
-        outbox,
     ],
 });

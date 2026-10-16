@@ -72,7 +72,7 @@ const TABLES: Readonly<Record<string, Table>> = {
 const NewUser = schema.looseObject({
     /** The handle the personal account claims. */
     handle: AccountHandle,
-    /** The jurisdiction the personal account keeps data in. */
+    /** The jurisdiction the personal account stores data in. */
     residencyId: ResidencyCode,
 });
 
@@ -238,7 +238,7 @@ function filter(
 
 /** Match the rows Better Auth may read: standing consents and the tokens they still grant. */
 function standing(database: DatabaseConnection, source: Table): SQL | undefined {
-    // keep only the consents the user has not revoked
+    // select only the consents the user has not revoked
     const consent = oauthConsent.table;
     if (source === consent) {
         return isNull(consent.revokedAt);
@@ -530,7 +530,7 @@ function readColumns(source: Table, data: unknown): Row {
     return Table.values(source, Row.parse(data));
 }
 
-/** Match at most one row, and keep the predicate on the atomic mutation. */
+/** Match at most one row, and apply the predicate in the atomic mutation. */
 function one(database: DatabaseConnection, source: Table, where: CleanedWhere[]) {
     // narrow the predicate to the first matching row Better Auth may read
     const condition = filter(database, source, where);

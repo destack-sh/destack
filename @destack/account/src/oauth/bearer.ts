@@ -38,7 +38,7 @@ const BearerRequest = schema.looseObject({
 export interface BearerOptions {
     /** The account database with the machines' keys and the placements. */
     readonly database: DatabaseConnection;
-    /** The account objects, which keep the spent proofs. */
+    /** The account objects, which store the spent proofs. */
     readonly objects: Pick<ObjectStore, "mutate" | "self">;
     /** The token endpoint's URL, every assertion's audience. */
     readonly endpoint: string;
@@ -160,7 +160,7 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
         throw Issuance.refusal("invalid_grant", `the account of space ${subject.id} is unknown`);
     }
 
-    // state the people whose home the space is, as the universe keeps them
+    // state the people whose home the space is, as the universe stores them
     const people = await snapshot
         .read(user.table)
         .findMany({ where: { homeId: space.identifier(subject.id) } });

@@ -67,7 +67,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
         answered = await fetch(callback);
     });
 
-    // expect a login of the new client, keeping its refresh token in the keychain
+    // expect a login of the new client, storing its refresh token in the keychain
     const person = { issuer: ISSUER, subject: owner.id };
     const refreshToken = await sessions.load(person);
     expect({
@@ -161,7 +161,7 @@ test("sign a person in with a device code once they approve it, and replace the 
     const first = await signInWithCode();
     const second = await signInWithCode();
 
-    // keep one login of the second client, the first client revoked
+    // expect one login of the second client, the first client revoked
     const verification = new URL(waiting.url);
     expect({
         page: `${verification.origin}${verification.pathname}`,
@@ -289,7 +289,7 @@ async function nativeClients(accounts: AccountFixture, person: Person) {
 
 /** Sign people in on a native client against the fixture's issuer. */
 async function native(accounts: AccountFixture) {
-    // keep the client's logins in a local database
+    // store the client's logins in a local database
     const database = await connectBunSqlite(":memory:");
     onTestFinished(() => database.close());
     const subject = principal.client.reference(Scope.universe.id, CLIENT);

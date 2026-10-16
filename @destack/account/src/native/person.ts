@@ -24,7 +24,7 @@ export const Person = schema.object({
 /** A person at an issuer, with one sign-in on this computer. */
 export type Person = schema.Infer<typeof Person>;
 
-/** A person signed in on a computer through a client's refresh token, which the keychain keeps. */
+/** A person signed in on a computer through a client's refresh token, which the keychain stores. */
 export class PersonClient {
     /** The signed-in person. */
     readonly subject: Subject;
@@ -32,7 +32,7 @@ export class PersonClient {
     readonly issuer: Issuer;
     /** The client the person signed in through. */
     readonly clientId: Identifier<"client">;
-    /** The keychain keeping the client's refresh token, which each refresh replaces. */
+    /** The keychain storing the client's refresh token, which each refresh replaces. */
     readonly #sessions: SessionKeychain;
     /** The fetch calling the issuer and the machines. */
     readonly #fetch: Fetch;
@@ -41,7 +41,7 @@ export class PersonClient {
     /** The clock the tokens are reused by. */
     readonly #clock: Clock;
 
-    /** Act as a person through a client's refresh token a keychain keeps. */
+    /** Act as a person through a client's refresh token a keychain stores. */
     constructor(
         subject: Subject,
         signIn: { readonly issuer: string; readonly clientId: Identifier<"client"> },
@@ -49,7 +49,7 @@ export class PersonClient {
         fetch: Fetch,
         clock: Clock,
     ) {
-        // keep the person, their client, the keychain, the fetch and the clock
+        // store the person, their client, the keychain, the fetch and the clock
         this.subject = subject;
         this.issuer = new Issuer(signIn.issuer, fetch);
         this.clientId = signIn.clientId;
@@ -58,7 +58,7 @@ export class PersonClient {
         this.#clock = clock;
     }
 
-    /** Act as the person of a login through the refresh token the keychain keeps for them. */
+    /** Act as the person of a login through the refresh token the keychain stores for them. */
     static async open(
         login: Login,
         sessions: SessionKeychain,
@@ -164,16 +164,16 @@ export class PersonClient {
             accountPackage.id,
             this.#clock.now(),
             async () => {
-                // read the refresh token the keychain keeps, refusing a signed-out person
+                // read the refresh token the keychain stores, refusing a signed-out person
                 const person = { issuer: this.issuer.url, subject: this.subject.id };
                 const refreshToken = await this.#sessions.load(person);
                 if (refreshToken === undefined) {
                     throw new CallError("UNAUTHORIZED", { message: "the person signed out" });
                 }
 
-                // refresh, keeping the refresh token the issuer rotates to
+                // refresh, storing the refresh token the issuer rotates to
                 const tokens = await this.issuer.refresh(this.clientId, refreshToken);
-                await this.#sessions.keep(person, tokens.refreshToken);
+                await this.#sessions.replace(person, tokens.refreshToken);
 
                 return tokens;
             },

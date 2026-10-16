@@ -7,10 +7,10 @@ import { account } from "../object/account.ts";
 import { machine } from "../object/machine.ts";
 import { Placement, placement } from "../object/placement.ts";
 import { Space, space } from "../object/space.ts";
-import type { PlatformDeclaration } from "./platform.ts";
+import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 
 /** Implement spaces, born with the platform's space stack unless given one. */
-export function implementSpace(stacks: PlatformDeclaration["stacks"]): typeof space {
+export function implementSpace(stacks: Readonly<Record<SpaceKind, StackSource>>): typeof space {
     return space.implement({
         methods: {
             create: {
@@ -43,7 +43,7 @@ async function address(
 async function create(
     context: MethodContextOf<typeof space, "create">,
     next: NextOf<typeof space, "create">,
-    stacks: PlatformDeclaration["stacks"],
+    stacks: Readonly<Record<SpaceKind, StackSource>>,
 ): Promise<ResultOf<typeof space, "create">> {
     // create the space with its stack, the space stack by default
     const accountId = schema.identifier("account").parse(context.scope);

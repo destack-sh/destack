@@ -33,7 +33,7 @@ export class PasskeyAuthenticator {
     /** The signature counter, advanced by every assertion. */
     #counter = 0;
 
-    /** Keep a generated passkey for an origin. */
+    /** Store a generated passkey for an origin. */
     private constructor(keys: CryptoKeyPair, origin: string) {
         this.keys = keys;
         this.id = crypto.getRandomValues(new Uint8Array(16));

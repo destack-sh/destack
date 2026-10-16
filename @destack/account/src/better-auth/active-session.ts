@@ -56,7 +56,7 @@ export class ActiveSession {
     /** Whether the user verified the email address. */
     readonly emailVerified: boolean;
 
-    /** Keep a read session. */
+    /** Store a read session. */
     private constructor(row: Omit<ActiveSession, "assurance" | "requireAuthentication">) {
         // take the session's and its user's columns
         this.id = row.id;

@@ -15,9 +15,10 @@ import { type Identifier, schema } from "@destack/schema";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { organisation } from "./organisation.ts";
-import { SpaceStack } from "./space-stack.ts";
+import { StackSource } from "./stack-source.ts";
 import { sudo } from "../authentication/sudo.ts";
 import {
+    anyone,
     contained,
     type Creation,
     none,
@@ -50,13 +51,13 @@ export const space = defineObject(
             title: field.string(schema.string().min(1).max(TITLE_LENGTH)).optional(),
             /** The least risk a resource plan waits for approval at. */
             approval: field.enum(RISKS).default("backward-incompatible"),
-            /** The stack the space keeps applied. */
-            stack: field.json(SpaceStack),
+            /** The stack applied to the space. */
+            stack: field.json(StackSource),
         },
         indexes: { name: { on: ["name"], across: () => account } },
         relations: {
-            // the outsiders an object in the space is shared with, who find the space without reading it
-            guest: { subjects: [principal.user], grantedBy: "manage" },
+            // the outsiders who find the space without reading it
+            guest: { subjects: [principal.user, anyone.all()], grantedBy: "manage" },
         },
         permissions: {
             // let the machines serving the account and each space itself read the space's row, which their replicas follow
@@ -69,7 +70,7 @@ export const space = defineObject(
             rotate: permission("manage"),
             // let the platform move a space it declares to another stack
             upgrade: none(),
-            // let the installations in the space keep replicas of its chain
+            // let the installations in the space store replicas of its chain
             replicate: contained(),
 
             // let the space's readers read its operational telemetry and product analytics, its managers unmasked
@@ -202,9 +203,9 @@ export const Space = {
     /** Decide whether a database serves a space, born or not: no replica of it and no fence. */
     async isServed(id: string, view: Snapshot): Promise<boolean> {
         const scope = await view.read(Scope.table).findFirst({ where: { scope: id } });
-        const kept = await view.read(replica).findFirst({ where: { scope: id } });
+        const existing = await view.read(replica).findFirst({ where: { scope: id } });
 
-        return kept === undefined && (scope === undefined || scope.fencedAt === null);
+        return existing === undefined && (scope === undefined || scope.fencedAt === null);
     },
 
     /** Watch the directory's placements, and select the keys of a space whose placement changed. */

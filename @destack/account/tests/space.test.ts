@@ -71,7 +71,7 @@ test("create a space placed in the same transaction on its account's residency c
 });
 
 test("rename a space to a free address in its account, releasing the old one, and refuse a taken or malformed one", async () => {
-    // let a person keep two spaces in their personal account
+    // let a person create two spaces in their personal account
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const create = (name: string) =>
@@ -130,7 +130,7 @@ test("create a space at the universe with its row alone, leaving its access to i
         name: "work",
     });
 
-    // keep the row and its placement, and none of its relationships, at the universe
+    // store the row and its placement, and none of its relationships, at the universe
     const snapshot = Snapshot.live(fixture.database);
     expect({
         row: (await snapshot.read(space.table).findMany({ where: { id: created.id } })).map(

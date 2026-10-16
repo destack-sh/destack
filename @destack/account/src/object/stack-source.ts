@@ -1,8 +1,8 @@
 import { Package } from "@destack/package";
 import { defineSchema, Digest, schema } from "@destack/schema";
 
-/** The stack a space has from its creation, which the machine receiving the space applies. */
-export const SpaceStack = defineSchema(
+/** Where a space's stack comes from: a stack release's export and its setting values. */
+export const StackSource = defineSchema(
     schema.object({
         /** The stack package. */
         package: Package,
@@ -14,5 +14,10 @@ export const SpaceStack = defineSchema(
         settings: schema.record(schema.string().min(1), schema.json()),
     }),
 );
-/** The stack a space has from its creation. */
-export type SpaceStack = schema.Infer<typeof SpaceStack>;
+/** Where a space's stack comes from. */
+export type StackSource = schema.Infer<typeof StackSource>;
+
+/** The kind of a space, which decides its stack: a residency home, a person's home, or other. */
+export const SpaceKind = defineSchema(schema.enum(["residency", "person", "space"]));
+/** The kind of a space. */
+export type SpaceKind = schema.Infer<typeof SpaceKind>;

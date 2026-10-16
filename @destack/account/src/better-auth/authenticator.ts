@@ -171,7 +171,7 @@ export interface BetterAuthAuthenticatorOptions {
     providers: NonNullable<BetterAuthOptions["socialProviders"]>;
     /** The account objects, which create a new person's personal account and decide access. */
     objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer" | "database" | "self">;
-    /** The event log the journal keeps audited calls in. */
+    /** The event log the journal stores audited calls in. */
     events: EventStore;
     /** The lifetimes of the packages' access tokens, in milliseconds, a minute when absent. */
     lifetimes: ReadonlyMap<PackageId, number>;
@@ -186,7 +186,7 @@ type Providers = BetterAuthAuthenticatorOptions["providers"];
 
 /** The universe's sign-in through Better Auth, answering below the issuer's URL. */
 export class BetterAuthAuthenticator {
-    /** The Better Auth instance keeping sessions, codes and provider sign-ins. */
+    /** The Better Auth instance storing sessions, codes and provider sign-ins. */
     readonly auth: Authentication;
     /** The authoritative database for sessions and account permissions. */
     readonly database: DatabaseConnection;
@@ -208,7 +208,7 @@ export class BetterAuthAuthenticator {
         pages: SignInPage,
         protocol: Fetch,
     ) {
-        // keep the deployment's database, clock, keys and issuer
+        // store the deployment's database, clock, keys and issuer
         this.database = options.database;
         this.clock = options.clock;
         this.keystore = options.keystore;
@@ -646,7 +646,7 @@ async function profileClaims(
     person: { readonly id: string; readonly timeZone?: unknown; readonly locale?: unknown },
     database: DatabaseConnection,
 ): Promise<Record<string, string | undefined>> {
-    // read the time zone and locale every user keeps
+    // read the time zone and locale of every user
     const scope = schema.identifier("user").parse(person.id);
     const { timeZone, locale } = SignUp.person.parse({
         timeZone: person.timeZone,

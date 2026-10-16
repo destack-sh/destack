@@ -239,7 +239,7 @@ class SpaceVerification {
         transaction: DatabaseConnection,
         now: number,
     ) {
-        // keep the space, the audience, the transaction and the time
+        // store the space, the audience, the transaction and the time
         this.spaceId = spaceId;
         this.audience = audience;
         this.transaction = transaction;
@@ -280,7 +280,7 @@ class SpaceVerification {
         // bound the returned verification by both the credential and assertion lifetimes
         const verifiedAt = this.now;
 
-        // keep what the acting caller proved and its actors only for itself, not for a person it acts as
+        // store what the acting caller proved and its actors only for itself, not for a person it acts as
         const isOwn = subject === acting;
 
         return {

@@ -86,7 +86,7 @@ export interface Tokens {
     readonly accessToken: string;
     /** When the access token expires, in UTC epoch milliseconds. */
     readonly expiresAt: number;
-    /** The refresh token that keeps the person signed in. */
+    /** The refresh token of the signed-in person. */
     readonly refreshToken: string;
 }
 
@@ -358,7 +358,7 @@ export class Issuer {
         await response.arrayBuffer();
     }
 
-    /** List the residencies a new person's account may keep data in. */
+    /** List the residencies a new person's account may store data in. */
     async residencies(): Promise<Pick<Residency, "id" | "name">[]> {
         const items = await Array.fromAsync(ListPage.all(this.accounts().residency.list, {}));
 

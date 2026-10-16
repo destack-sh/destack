@@ -112,7 +112,7 @@ export const client = defineObject(
             permission: "update",
             input: schema.object({ proof: CompactProof }),
         }),
-        /** Keep a browser client's Web Push subscription. */
+        /** Store a browser client's Web Push subscription. */
         subscribe: method.mutation({
             permission: "update",
             input: schema.object({ push: PushSubscription }),
@@ -158,7 +158,7 @@ export const Client = {
         userId: string,
         now: number,
     ): Promise<void> {
-        // keep a client the person registered before, refusing another person's
+        // reuse a client the person registered before, refusing another person's
         const id = client.identifier(clientId);
         const row = await Snapshot.live(objects.database)
             .read(client.table)

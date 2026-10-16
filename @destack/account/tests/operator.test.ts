@@ -29,7 +29,6 @@ const PLATFORM: PlatformDeclaration = {
     publishers: ["app"],
     handle: "destack",
     machines: [],
-    stacks: STACKS,
 };
 
 /** The email of an operator joining the platform's organisation after the first. */
@@ -38,11 +37,11 @@ const SUCCESSOR_EMAIL = "successor@example.com";
 /** The provider running the declared cloud machines. */
 const PROVIDER = "cloudflare";
 
-test("keep the platform organisation once with its publishers as accounts and its reserved handles as names without accounts, answering a stranger as for any taken handle", async () => {
-    // keep the platform twice
+test("apply the platform organisation once with its publishers as accounts and its reserved handles as names without accounts, answering a stranger as for any taken handle", async () => {
+    // apply the platform twice
     await using fixture = await AccountFixture.open();
-    const first = await Platform.keep(fixture.objects, PLATFORM, Date.now());
-    const second = await Platform.keep(fixture.objects, PLATFORM, Date.now());
+    const first = await Platform.apply(fixture.objects, PLATFORM, STACKS.residency, Date.now());
+    const second = await Platform.apply(fixture.objects, PLATFORM, STACKS.residency, Date.now());
     const accounts = await fixture.storage.database
         .select({ id: account.table.id, handle: account.table.handle, scope: account.table.scope })
         .from(account.table);
@@ -88,13 +87,12 @@ test("keep the platform organisation once with its publishers as accounts and it
 });
 
 test("move the residency homes to a newly declared stack once", async () => {
-    // keep the platform, then declare the residency stack at a new release and keep it twice
+    // apply the platform, then declare the residency stack at a new release and apply it twice
     await using fixture = await AccountFixture.open();
-    await Platform.keep(fixture.objects, PLATFORM, Date.now());
+    await Platform.apply(fixture.objects, PLATFORM, STACKS.residency, Date.now());
     const released = { ...STACKS.residency, manifest: Digest.parse("c".repeat(64)) };
-    const declared = { ...PLATFORM, stacks: { ...STACKS, residency: released } };
-    await Platform.keep(fixture.objects, declared, Date.now());
-    await Platform.keep(fixture.objects, declared, Date.now());
+    await Platform.apply(fixture.objects, PLATFORM, released, Date.now());
+    await Platform.apply(fixture.objects, PLATFORM, released, Date.now());
 
     // read the homes' stacks and revisions
     const homes = await fixture.storage.database
@@ -114,7 +112,7 @@ test("move the residency homes to a newly declared stack once", async () => {
     ]);
 });
 
-test("keep the declared cloud machines with their keys in the universe once, and the platform residency's machines as administrators", async () => {
+test("apply the declared cloud machines with their keys in the universe once, and the platform residency's machines as administrators", async () => {
     // declare a cloud machine for each residency
     await using fixture = await AccountFixture.open();
     const [europe, america] = [await declare(), await declare()];
@@ -142,11 +140,16 @@ test("keep the declared cloud machines with their keys in the universe once, and
         ],
     };
 
-    // keep the platform twice
-    const organisationId = await Platform.keep(fixture.objects, definition, Date.now());
-    await Platform.keep(fixture.objects, definition, Date.now());
+    // apply the platform twice
+    const organisationId = await Platform.apply(
+        fixture.objects,
+        definition,
+        STACKS.residency,
+        Date.now(),
+    );
+    await Platform.apply(fixture.objects, definition, STACKS.residency, Date.now());
 
-    // keep each machine once with one key in the universe, its origin published as its endpoint
+    // create each machine once with one key in the universe, its origin published as its endpoint
     const { database } = fixture.storage;
     const declared = [europe.machineId, america.machineId];
     const machines = await database
@@ -215,10 +218,15 @@ test("keep the declared cloud machines with their keys in the universe once, and
 });
 
 test("invite a new operator as the platform's owner beside the first, and refuse the invitation to anyone else", async () => {
-    // keep the platform for a new operator and sign in a stranger and the new operator
+    // apply the platform for a new operator and sign in a stranger and the new operator
     await using fixture = await AccountFixture.open();
     const successor = { ...PLATFORM, operator: SUCCESSOR_EMAIL };
-    const platformId = await Platform.keep(fixture.objects, successor, Date.now());
+    const platformId = await Platform.apply(
+        fixture.objects,
+        successor,
+        STACKS.residency,
+        Date.now(),
+    );
     const stranger = await fixture.person("stranger@example.com");
     const operator = await fixture.person(SUCCESSOR_EMAIL);
 
@@ -235,7 +243,7 @@ test("invite a new operator as the platform's owner beside the first, and refuse
     await accept(operator);
 
     // seat the new operator as an active owner once, beside the first
-    await Platform.keep(fixture.objects, successor, Date.now());
+    await Platform.apply(fixture.objects, successor, STACKS.residency, Date.now());
     const { items } = await operator.client.member.list({ organisationId: platformId });
     expect([
         invited,

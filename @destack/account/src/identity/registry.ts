@@ -23,7 +23,7 @@ export interface IdentityRegistry {
 
 /** The registries of identities. */
 export const IdentityRegistry = {
-    /** Keep identities in the universe's own store, calling as the store's principal. */
+    /** Store identities in the universe's own store, calling as the store's principal. */
     of(store: Pick<ObjectStore, "mutate" | "database" | "self" | "clock">): IdentityRegistry {
         // call identity methods as the store's principal
         const call = async (calls: Parameters<ObjectStore["mutate"]>[1]["calls"]) => {
@@ -58,7 +58,7 @@ export const IdentityRegistry = {
         };
     },
 
-    /** Keep identities at the universe through a client of the account package. */
+    /** Store identities at the universe through a client of the account package. */
     client(
         accounts: Pick<ClientOf<typeof accountPackage>, "identity" | "operation">,
         clock: Clock,
@@ -79,7 +79,7 @@ export const IdentityRegistry = {
                 });
             },
             find: async (subject) => {
-                // read the identity's whole log, which a few rotations keep short
+                // read the identity's whole log, short after a few rotations
                 const { items } = await accounts.operation.list({
                     where: { parentId: subject },
                     limit: LOG_PAGE,

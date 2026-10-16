@@ -29,7 +29,7 @@ async function create(
     await Key.spend(context, proof);
     await holder.report();
 
-    // revoke the holder's other keys in one mutation and keep the proven key
+    // revoke the holder's other keys in one mutation and store the proven key
     const others = await Key.unrevoked(context, holder.type, parent.id);
     await context.mutate(
         context.caller,

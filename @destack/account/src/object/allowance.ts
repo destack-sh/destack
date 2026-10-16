@@ -61,7 +61,7 @@ export const AllowanceGrant = defineSchema(
             state: schema.enum(USAGE_STATES),
         }),
         schema.object({
-            /** A count its enforcer keeps, such as members. */
+            /** A count its enforcer tracks, such as members. */
             kind: schema.literal("counted"),
             /** The largest count, or null for unlimited. */
             limit: schema.number().nullable(),
@@ -84,7 +84,7 @@ export type AllowanceGrant = schema.Infer<typeof AllowanceGrant>;
 /** The name of the shape replicating one account's allowances. */
 const ALLOWANCE_SHAPE = "allowance";
 
-/** The name of the shape replicating every account's allowances a publisher keeps. */
+/** The name of the shape replicating every account's allowances a publisher stores. */
 const UNIVERSE_ALLOWANCE_SHAPE = "allowance:universe";
 
 /** An account's allowance on a resource. */
@@ -105,21 +105,21 @@ export const allowance = defineObject(
         permissions: {
             // let the account's readers and its residency's servers read
             read: union(through("account", "read"), through("account", "serve")),
-            // let its residency's servers keep it from the plan
-            keep: through("account", "serve"),
+            // let its residency's servers record it from the plan
+            record: through("account", "serve"),
         },
-        reserved: ["keep"],
+        reserved: ["record"],
         constraints: {
             resource: { kind: "index", on: ["accountId", "resource"], unique: true },
         },
     },
     (method) => ({
-        /** Keep the allowance a plan grants on a resource. */
-        create: method.create("keep", { isInternal: true }),
+        /** Record the allowance a plan grants on a resource. */
+        create: method.create("record", { isInternal: true }),
         /** Change an allowance as the plan or its usage changes. */
-        update: method.update("keep", { isInternal: true }),
+        update: method.update("record", { isInternal: true }),
         /** Remove an allowance no plan grants any longer. */
-        delete: method.delete("keep", { isInternal: true }),
+        delete: method.delete("record", { isInternal: true }),
     }),
 );
 /** An account's allowance on a resource, as its table stores it. */
@@ -131,7 +131,7 @@ const AllowanceParameters = schema.object({
     account: schema.identifier("account"),
 });
 
-/** The shape replicating one account's allowances from the home space keeping them. */
+/** The shape replicating one account's allowances from the home space storing them. */
 export const allowanceShape = defineShape({
     name: ALLOWANCE_SHAPE,
     parameters: AllowanceParameters,
@@ -139,7 +139,7 @@ export const allowanceShape = defineShape({
     queries: ({ account: accountId }) => [allowance.query({ where: { account: accountId } })],
 });
 
-/** The shape replicating every account's allowances a residency's home keeps. */
+/** The shape replicating every account's allowances a residency's home stores. */
 export const universeAllowanceShape = defineShape({
     name: UNIVERSE_ALLOWANCE_SHAPE,
     parameters: schema.object({}),
@@ -161,7 +161,7 @@ export type AllowanceUse = SpaceResource | { readonly tenancy: Tenancy };
 export const Allowance = {
     /** Follow every account's allowances from each residency's home, as the universe does. */
     universe: Follow.of(universeAllowanceShape, {
-        rows: () => residency.query(),
+        from: residency.query(),
         key: async (row) =>
             typeof row["home"] === "string" ? { key: { scope: row["home"] } } : undefined,
         // serve while the allowances arrive, deciding uses pending until they do
@@ -183,7 +183,7 @@ export const Allowance = {
         accountId: Identifier<"account">,
         use: AllowanceUse,
     ): Promise<Condition> {
-        // wait for the replica's first complete snapshot of the account's allowances, wherever it is held
+        // wait for the replica's first complete snapshot of the account's allowances, wherever it lives
         const [replicated] = await Shape.replicas(database, allowanceShape, { account: accountId });
         if (
             replicated === undefined ||
@@ -269,7 +269,7 @@ export const SpaceAllowance = {
 
     /** Follow the allowances of the accounts of the spaces a database serves. */
     follow: Follow.of(allowanceShape, {
-        rows: () => space.query(),
+        from: space.query(),
         key: async (row, view) => {
             // follow nothing for a space this database does not serve
             const spaceId = space.identifier(schema.string().parse(row["id"]));

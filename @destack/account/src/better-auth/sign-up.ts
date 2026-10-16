@@ -8,7 +8,7 @@ import { ResidencyCode } from "../object/residency.ts";
 /** The Better Auth route a mailed sign-in link opens, carrying the sign-up in its query. */
 const LINK_PATH = "/magic-link/verify";
 
-/** The schema of the time zone and locale a person keeps. */
+/** The schema of the time zone and locale a person stores. */
 const SignUpPerson = schema.object({
     /** The IANA time zone the person lives in, one this runtime knows. */
     timeZone: TimeZone.refine((zone) => TimeZone.isKnown(zone), "unknown time zone"),
@@ -22,7 +22,7 @@ const SignUpValues = SignUpPerson.extend({
     name: DisplayName,
     /** The handle the person's personal account claims. */
     handle: AccountHandle,
-    /** The jurisdiction the person's personal account keeps data in. */
+    /** The jurisdiction the person's personal account stores data in. */
     residencyId: ResidencyCode,
 });
 
@@ -31,7 +31,7 @@ export type SignUp = schema.Infer<typeof SignUpValues>;
 
 /** What a person signs up with, which creates the user and their personal account together. */
 export const SignUp = Object.assign(SignUpValues, {
-    /** The schema of the time zone and locale the person keeps. */
+    /** The schema of the time zone and locale the person stores. */
     person: SignUpPerson,
 
     /** Read the first well-formed tag a request's Accept-Language asks for. */

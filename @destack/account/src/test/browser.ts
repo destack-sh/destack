@@ -20,7 +20,7 @@ export class Browser {
 
     /** Send a request to a path below the base or to a URL, posting a JSON body or a form. */
     async fetch(path: string, body?: object | URLSearchParams): Promise<Response> {
-        // send the request with the kept cookies, a form as it is and any other body as JSON
+        // send the request with the stored cookies, a form as it is and any other body as JSON
         const isForm = body instanceof URLSearchParams;
         const payload = isForm || body === undefined ? body : JSON.stringify(body);
         const url = URL.canParse(path) ? path : `${this.base}${path}`;
@@ -52,7 +52,7 @@ export class Browser {
             if (/max-age=0(?:;|$)/iu.test(cookie)) {
                 this.cookies.delete(name);
             }
-            // keep any other
+            // set any other
             else {
                 this.cookies.set(name, value);
             }

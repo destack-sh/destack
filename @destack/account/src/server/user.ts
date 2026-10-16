@@ -1,4 +1,4 @@
-import { nth, present, TimeZone } from "@destack/schema";
+import { nth, present, TimeZone, zip } from "@destack/schema";
 import {
     type MethodContextOf,
     type NextOf,
@@ -82,7 +82,7 @@ async function suggestHandle(
             index: Claim.index(account, "handle"),
             keys,
         });
-        const free = candidates.find((_, index) => !claimed.has(nth(keys, index)));
+        const free = zip(candidates, keys).find(([, key]) => !claimed.has(key))?.[0];
         if (free !== undefined) {
             return { handle: free };
         }

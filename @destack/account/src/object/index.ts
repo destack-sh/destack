@@ -28,6 +28,6 @@ export * from "./platform.ts";
 export * from "./proof.ts";
 export * from "./allowance.ts";
 export * from "./space.ts";
-export * from "./space-stack.ts";
+export * from "./stack-source.ts";
 export * from "./identity.ts";
 export * from "./endpoint.ts";

@@ -10,7 +10,7 @@ import { Claimant } from "@destack/object";
 import { isCallError } from "@destack/runtime/error";
 
 test("find and resolve an address over the directory's rows, list an account's placements to those reading it and to machines, and find nothing once the account's deletion was requested", async () => {
-    // keep a place called notes on a machine that publishes its URL
+    // store a place called notes on a machine that publishes its URL
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId, handle, spaceId, machine } = await fixture.createSpace(owner);

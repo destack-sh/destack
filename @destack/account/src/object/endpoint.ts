@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { EndpointRelay, machine } from "./machine.ts";
 
-/** Where a machine answers: its URL and the relay keeping its tunnel. */
+/** Where a machine answers: its URL and the relay serving its tunnel. */
 export const endpoint = defineObject(
     {
         name: "endpoint",
@@ -16,7 +16,7 @@ export const endpoint = defineObject(
         fields: {
             /** The URL the machine's packages answer at. */
             url: field.string(schema.url()),
-            /** The relay keeping its tunnel, null for a machine answering at its URL directly. */
+            /** The relay serving its tunnel, null for a machine answering at its URL directly. */
             relay: field.json(EndpointRelay).optional(),
         },
         // let the universe's signed-in role grant reading endpoints

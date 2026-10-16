@@ -28,7 +28,7 @@ import { placement } from "../object/placement.ts";
 import { Residency, residency, ResidencyCode } from "../object/residency.ts";
 import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
-import { SpaceStack } from "../object/space-stack.ts";
+import { StackSource } from "../object/stack-source.ts";
 import { Claim, type ResultsOf } from "@destack/object";
 
 /** The universe role of the platform organisation's owners. */
@@ -80,7 +80,7 @@ const SIGNED_IN_ROLE = {
 const PLATFORM_ROLE = {
     name: "platform",
     description:
-        "Place accounts and organisations in the residencies keeping their data, seat organisations' owners, enroll the keys of the machines it keeps and keep its homes at their declared stacks",
+        "Place accounts and organisations in residencies, seat organisations' owners, enroll its machines' keys and apply its homes' declared stacks",
     permissions: [
         account.permission("place"),
         organisation.permission("place"),
@@ -96,7 +96,7 @@ const PLATFORM_ROLE = {
 /** The component name of the platform's calls. */
 const PLATFORM_COMPONENT = "platform";
 
-/** The server the platform keeps its records through, as the universe. */
+/** The server the platform stores its records through, as the universe. */
 type PlatformStore = Pick<
     ObjectStore,
     "database" | "principal" | "self" | "mutate" | "authorize" | "clock"
@@ -107,7 +107,7 @@ export const PlatformDeclaration = defineSchema(
     schema.object({
         /** The organisation's display name, such as Destack. */
         name: schema.string().min(1),
-        /** The jurisdiction the organisation keeps its data in. */
+        /** The jurisdiction the organisation stores its data in. */
         residencyId: ResidencyCode,
         /** The email of the operator, invited as the organisation's owner until they accept. */
         operator: schema.email(),
@@ -136,8 +136,6 @@ export const PlatformDeclaration = defineSchema(
                 origin: schema.url(),
             }),
         ),
-        /** The stacks spaces are born with: residency homes, personal homes and the rest. */
-        stacks: schema.object({ residency: SpaceStack, person: SpaceStack, space: SpaceStack }),
     }),
 );
 /** The platform's own organisation as the universe declares it. */
@@ -145,17 +143,26 @@ export type PlatformDeclaration = schema.Infer<typeof PlatformDeclaration>;
 
 /** The platform's own organisation, whose owners operate the universe. */
 export class Platform {
-    /** The store the platform keeps its records through. */
+    /** The store the platform stores its records through. */
     readonly #objects: PlatformStore;
     /** The declared organisation and its machines. */
     readonly #definition: PlatformDeclaration;
-    /** The time the records are kept at, in UTC epoch milliseconds. */
+    /** The stack the organisation's residency homes have. */
+    readonly #stack: StackSource;
+    /** The time the records are stored at, in UTC epoch milliseconds. */
     readonly #now: number;
 
-    /** Keep a declaration through a store at a time. */
-    private constructor(objects: PlatformStore, definition: PlatformDeclaration, now: number) {
+    /** Store a declaration through a store at a time. */
+    private constructor(
+        objects: PlatformStore,
+        definition: PlatformDeclaration,
+        stack: StackSource,
+        now: number,
+    ) {
+        // take the store, the declaration, the residency homes' stack and the time
         this.#objects = objects;
         this.#definition = definition;
+        this.#stack = stack;
         this.#now = now;
     }
 
@@ -197,17 +204,18 @@ export class Platform {
         );
     }
 
-    /** Keep the platform organisation as declared, and return it. */
-    static keep(
+    /** Apply the platform organisation's declaration, and return it. */
+    static apply(
         objects: PlatformStore,
         definition: PlatformDeclaration,
+        stack: StackSource,
         now: number,
     ): Promise<Identifier<"organisation">> {
-        return new Platform(objects, definition, now).#keep();
+        return new Platform(objects, definition, stack, now).#apply();
     }
 
-    /** Keep the universe's owner, the machines, the organisation and everything it declares. */
-    async #keep(): Promise<Identifier<"organisation">> {
+    /** Store the universe's owner, the machines, the organisation and everything it declares. */
+    async #apply(): Promise<Identifier<"organisation">> {
         // own the universe as the universe, with the platform role its own code needs
         const { database, principal: universe } = this.#objects;
         await Transaction.run(database, async (transaction) => {
@@ -221,8 +229,8 @@ export class Platform {
             );
         });
 
-        // keep the cloud machines serving the residencies
-        await this.#keepMachines();
+        // store the cloud machines serving the residencies
+        await this.#applyMachines();
 
         // find or create the organisation
         const organisationId =
@@ -235,43 +243,43 @@ export class Platform {
         };
         await this.#authorize(Scope.universe.id, async (authorization) => {
             // bind the operator role to the owners
-            const operator = await authorization.upsertRole(Scope.universe, OPERATOR_ROLE);
-            await authorization.assign(Scope.universe, operator.id, owners);
+            const operator = await Role.upsert(Scope.universe, OPERATOR_ROLE, authorization);
+            await Role.assign(Scope.universe, operator.id, owners, authorization);
 
             // bind the roles of the residencies' servers, of every machine and of every signed-in caller
-            await Platform.#keepServers(authorization, SERVER_ROLE);
-            await Platform.#keepWildcards(authorization);
-            await Platform.#keepBound(authorization, MACHINE_ROLE, [
+            await Platform.#applyServers(authorization, SERVER_ROLE);
+            await Platform.#applyWildcards(authorization);
+            await Platform.#bindRole(authorization, MACHINE_ROLE, [
                 { ...Scope.universe, relation: "machine" },
             ]);
-            await Platform.#keepBound(authorization, SIGNED_IN_ROLE, [
+            await Platform.#bindRole(authorization, SIGNED_IN_ROLE, [
                 { ...Scope.universe, relation: "signed-in" },
             ]);
         });
 
-        // claim the reserved handles, and keep the publishers, residency accounts, residents and invitation
-        await this.#keepReserved(organisationId);
-        await this.#keepPublishers(organisationId);
-        await this.#keepResidencyHomes(organisationId);
+        // claim the reserved handles, and store the publishers, residency accounts, residents and invitation
+        await this.#applyReserved(organisationId);
+        await this.#applyPublishers(organisationId);
+        await this.#applyResidencyHomes(organisationId);
         await this.#mutate(
             await residentCalls(Snapshot.live(this.#objects.database), organisationId),
         );
-        await this.#keepInvitation(organisationId);
+        await this.#applyInvitation(organisationId);
         await this.#authorize(organisationId, (authorization) =>
-            this.#keepPublishingMachines(authorization, organisationId),
+            this.#applyPublishingMachines(authorization, organisationId),
         );
 
         return organisationId;
     }
 
     /** Create the missing declared cloud machines in the universe. */
-    async #keepMachines(): Promise<void> {
+    async #applyMachines(): Promise<void> {
         // skip an empty declaration
         if (this.#definition.machines.length === 0) {
             return;
         }
 
-        // read the declared machines that exist, refusing one kept at another origin than declared
+        // read the declared machines that exist, refusing one stored at another origin than declared
         const snapshot = Snapshot.live(this.#objects.database);
         const ids = this.#definition.machines.map((entry) => entry.id);
         const existing = await snapshot
@@ -288,7 +296,7 @@ export class Platform {
             const origin = published.find((entry) => entry.id === row.id)?.url;
             if (origin !== declared.origin) {
                 throw new CallError("CONFLICT", {
-                    message: `cloud machine ${row.id} is kept at ${origin ?? "no origin"}, not its declared ${declared.origin}`,
+                    message: `cloud machine ${row.id} is published at ${origin ?? "no origin"}, not its declared ${declared.origin}`,
                 });
             }
         }
@@ -296,10 +304,10 @@ export class Platform {
             (entry) => !existing.some((row) => row.id === entry.id),
         );
 
-        // keep the missing ones in the universe, publishing their declared origins
+        // store the missing ones in the universe, publishing their declared origins
         await this.#mutate(
             missing.flatMap((entry) => [
-                machine.call("keep", {
+                machine.call("declare", {
                     ...machine.target({ scope: Scope.universe.id, id: entry.id }),
                     name: entry.name,
                     kind: "cloud" as const,
@@ -336,7 +344,7 @@ export class Platform {
                 name: this.#definition.name,
                 handle: this.#definition.handle,
                 residencyId: this.#definition.residencyId,
-                stack: this.#definition.stacks.residency,
+                stack: this.#stack,
             }),
         ]);
 
@@ -356,9 +364,9 @@ export class Platform {
     }
 
     /** Bind a role to the machines and the installations serving each residency once. */
-    static async #keepServers(authorization: Authorization, request: RoleRequest): Promise<void> {
+    static async #applyServers(authorization: Authorization, request: RoleRequest): Promise<void> {
         const residencies = await authorization.transaction.read(residency.table).findMany();
-        await Platform.#keepBound(
+        await Platform.#bindRole(
             authorization,
             request,
             residencies.flatMap((entry) =>
@@ -371,13 +379,13 @@ export class Platform {
     }
 
     /** Bind a universe role to some subjects once. */
-    static async #keepBound(
+    static async #bindRole(
         authorization: Authorization,
         request: RoleRequest,
         subjects: readonly Subject[],
     ): Promise<void> {
         // read the subjects the role is bound to
-        const role = await authorization.upsertRole(Scope.universe, request);
+        const role = await Role.upsert(Scope.universe, request, authorization);
         const bindings = await Relationship.readOn(
             authorization.transaction.view(),
             Scope.universe,
@@ -390,13 +398,16 @@ export class Platform {
         // bind it to the others
         for (const subject of subjects) {
             if (!bound.some((existing) => Subject.same(existing, subject))) {
-                await authorization.grant({ object: Scope.universe, role: role.id, subject });
+                await Relationship.grant(
+                    { object: Scope.universe, role: role.id, subject },
+                    authorization,
+                );
             }
         }
     }
 
     /** Relate every machine and every signed-in caller to the universe once, through wildcards. */
-    static async #keepWildcards(authorization: Authorization): Promise<void> {
+    static async #applyWildcards(authorization: Authorization): Promise<void> {
         // list the wildcards of every machine and every signed-in caller
         const wanted = [
             { relation: "machine", subject: principal.machine.reference("*", "*") },
@@ -411,13 +422,16 @@ export class Platform {
                 { relation, subject },
             );
             if (related.length === 0) {
-                await authorization.grant({ object: Scope.universe, relation, subject });
+                await Relationship.grant(
+                    { object: Scope.universe, relation, subject },
+                    authorization,
+                );
             }
         }
     }
 
     /** Claim the reserved handles as the organisation's names in the account handle index. */
-    async #keepReserved(organisationId: Identifier<"organisation">): Promise<void> {
+    async #applyReserved(organisationId: Identifier<"organisation">): Promise<void> {
         // claim each handle for the organisation, which lives in the universe
         const owner = Scope.universe.id;
         const claims = this.#definition.reserved.map((handle) => ({
@@ -445,8 +459,8 @@ export class Platform {
         }
     }
 
-    /** Keep an account of the organisation in its residency for each handle it publishes under. */
-    async #keepPublishers(organisationId: Identifier<"organisation">): Promise<void> {
+    /** Store an account of the organisation in its residency for each handle it publishes under. */
+    async #applyPublishers(organisationId: Identifier<"organisation">): Promise<void> {
         // read the publishers that exist
         const existing = await this.#objects.database
             .select({ handle: account.table.handle })
@@ -473,8 +487,8 @@ export class Platform {
         );
     }
 
-    /** Keep the platform's account and home in each residency as the residency's home. */
-    async #keepResidencyHomes(organisationId: Identifier<"organisation">): Promise<void> {
+    /** Create the platform's account and home in each residency as the residency's home. */
+    async #applyResidencyHomes(organisationId: Identifier<"organisation">): Promise<void> {
         for (const entry of await Residency.list(this.#objects.database)) {
             // read the platform's account in the residency
             const handle = Platform.handle(this.#definition, entry.id);
@@ -493,19 +507,19 @@ export class Platform {
                               name: handle,
                               kind: "shared",
                               residencyId: entry.id,
-                              stack: this.#definition.stacks.residency,
+                              stack: this.#stack,
                           }),
                       ])
                     : [existing];
             const accountId = present(created, `the platform's account in ${entry.id}`).id;
 
-            // keep its home at the declared stack
-            await this.#keepStack(Account.home(accountId), this.#definition.stacks.residency);
+            // apply the declared stack to its home
+            await this.#applyStack(Account.home(accountId), this.#stack);
 
             // make its home the residency's once
-            const kept = await Residency.require(Snapshot.live(this.#objects.database), entry.id);
-            const home = kept.home ?? Account.home(accountId);
-            if (kept.home === null) {
+            const stored = await Residency.require(Snapshot.live(this.#objects.database), entry.id);
+            const home = stored.home ?? Account.home(accountId);
+            if (stored.home === null) {
                 await this.#mutate([
                     residency.call("update", {
                         ...residency.target({ scope: Scope.universe.id, id: entry.id }),
@@ -516,25 +530,25 @@ export class Platform {
 
             // serve the residency with every installation of its home
             await this.#authorize(Scope.universe.id, (authorization) =>
-                Platform.#keepInstallations(authorization, entry.id, home),
+                Platform.#relateInstallations(authorization, entry.id, home),
             );
         }
     }
 
-    /** Move a home to a stack once it keeps another. */
-    async #keepStack(spaceId: Identifier<"space">, stack: SpaceStack): Promise<void> {
-        // read the stack the home keeps
+    /** Move a home to a stack once it has another. */
+    async #applyStack(spaceId: Identifier<"space">, stack: StackSource): Promise<void> {
+        // read the home's stack
         const [home] = await this.#objects.database
             .select({ scope: space.table.scope, stack: space.table.stack })
             .from(space.table)
             .where(eq(space.table.id, spaceId));
-        const kept = present(home, `the home ${spaceId}`);
+        const existing = present(home, `the home ${spaceId}`);
 
         // move it to the declared one
-        if (canonicalize(kept.stack) !== canonicalize(stack)) {
+        if (canonicalize(existing.stack) !== canonicalize(stack)) {
             await this.#mutate([
                 space.call("upgrade", {
-                    ...space.target({ scope: kept.scope, id: spaceId }),
+                    ...space.target({ scope: existing.scope, id: spaceId }),
                     stack,
                 }),
             ]);
@@ -542,7 +556,7 @@ export class Platform {
     }
 
     /** Relate a residency's home and its installations to the residency as its servers. */
-    static async #keepInstallations(
+    static async #relateInstallations(
         authorization: Authorization,
         code: ResidencyCode,
         home: Identifier<"space">,
@@ -559,13 +573,13 @@ export class Platform {
                 subject,
             });
             if (related.length === 0) {
-                await authorization.grant({ object, relation, subject });
+                await Relationship.grant({ object, relation, subject }, authorization);
             }
         }
     }
 
     /** Invite the operator as an owner unless an invitation to them was accepted or still waits. */
-    async #keepInvitation(organisationId: Identifier<"organisation">): Promise<void> {
+    async #applyInvitation(organisationId: Identifier<"organisation">): Promise<void> {
         // read the invitations to the operator's email on the organisation
         const object = organisation.reference(Scope.universe.id, organisationId);
         const contact = Contact.subject(Contact.email(this.#definition.operator));
@@ -575,7 +589,7 @@ export class Platform {
             contact,
         );
 
-        // keep an accepted or pending invitation
+        // store an accepted or pending invitation
         const isInvited = invitations.some(
             (row) =>
                 row.status === "accepted" ||
@@ -587,12 +601,15 @@ export class Platform {
 
         // invite the operator as the universe
         await this.#authorize(organisationId, (authorization) =>
-            authorization.invite({ relationship: { object, relation: "owner", subject: contact } }),
+            Invitation.create(
+                { relationship: { object, relation: "owner", subject: contact } },
+                authorization,
+            ),
         );
     }
 
     /** Relate the platform residency's cloud machines as its publishing administrators. */
-    async #keepPublishingMachines(
+    async #applyPublishingMachines(
         authorization: Authorization,
         organisationId: Identifier<"organisation">,
     ): Promise<void> {
@@ -609,7 +626,7 @@ export class Platform {
 
         // relate them once
         if (related.length === 0) {
-            await authorization.grant({ object, relation: "admin", subject });
+            await Relationship.grant({ object, relation: "admin", subject }, authorization);
         }
     }
 }

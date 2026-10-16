@@ -11,7 +11,7 @@ import {
 } from "../object/allowance.ts";
 import { space } from "../object/space.ts";
 
-/** The home space keeping the allowances a test writes. */
+/** The home space storing the allowances a test writes. */
 const TEST_HOME = space.identifier("space-019f5530-8000-7000-8000-0000000000f8");
 
 /** Accounts' allowances as a test writes them into a follower's replica. */

@@ -43,7 +43,7 @@ export type ResidencyFound = schema.Infer<typeof ResidencyFound>;
 /** The relations of a residency's servers: cloud machines, its home and the installations in it. */
 const SERVERS = ["machine", "home", "installation"] as const;
 
-/** A jurisdiction Destack keeps data in, which the platform's installations in it serve. */
+/** A jurisdiction Destack stores data in, which the platform's installations in it serve. */
 export const residency = defineObject(
     {
         name: "residency",
@@ -78,7 +78,7 @@ export const residency = defineObject(
         reserved: ["server", "claim"],
     },
     (method) => ({
-        /** Keep a residency the universe declares, shown to everyone. */
+        /** Store a residency the universe declares, shown to everyone. */
         create: method.create("operate", {
             fields: ["name"],
             isInternal: true,
@@ -88,7 +88,7 @@ export const residency = defineObject(
         /** Rename a residency, or give it its home. */
         update: method.update("operate", { fields: ["name", "home"], isInternal: true }),
 
-        /** Find the residency an account keeps its data in. */
+        /** Find the residency an account stores its data in. */
         find: method.query({
             permission: "locate",
             target: "scope",
@@ -119,7 +119,7 @@ export const residency = defineObject(
         }),
     }),
 );
-/** A jurisdiction Destack keeps data in. */
+/** A jurisdiction Destack stores data in. */
 export type Residency = Select<typeof residency.table>;
 
 /** A residency as the universe declares it: its code and the name people read. */
@@ -152,8 +152,8 @@ export const Residency = {
 
     /** Read the residency a platform installation or cloud machine serves, if any. */
     async of(database: DatabaseConnection, server: Subject): Promise<ResidencyCode | undefined> {
-        const held = await Relationship.readBySubject(Snapshot.live(database), [server]);
-        const found = held.find(
+        const relationships = await Relationship.readBySubject(Snapshot.live(database), [server]);
+        const found = relationships.find(
             (row) =>
                 row.objectPackageId === residency.typeReference.packageId &&
                 row.objectType === residency.typeReference.type &&
@@ -211,19 +211,19 @@ export const Residency = {
         return row;
     },
 
-    /** Keep the residencies the universe declares: create new ones and rename others. */
-    async keep(
+    /** Apply the residencies the universe declares: create new ones and rename others. */
+    async apply(
         objects: Pick<ObjectStore, "database" | "self" | "mutate">,
         definitions: readonly ResidencyDefinition[],
         now: number,
     ): Promise<void> {
-        // read the kept residencies
-        const kept = await Snapshot.live(objects.database).read(residency.table).findMany();
+        // read the stored residencies
+        const rows = await Snapshot.live(objects.database).read(residency.table).findMany();
 
         // create the missing ones and rename the renamed ones
         const calls = definitions.flatMap((definition) => {
             // find its row
-            const row = kept.find((entry) => entry.id === definition.code);
+            const row = rows.find((entry) => entry.id === definition.code);
             const target = residency.target({ scope: Scope.universe.id, id: definition.code });
 
             // create a missing residency

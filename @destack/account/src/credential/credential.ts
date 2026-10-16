@@ -15,13 +15,13 @@ const SECRET_BYTES = 32;
 /** The kind of secret. */
 export type CredentialKind = (typeof CREDENTIAL_KINDS)[number];
 
-/** A secret and the digest its object keeps. */
+/** A secret and the digest its object stores. */
 export class Credential {
     /** The kind of secret. */
     readonly kind: CredentialKind;
     /** The secret the client shows once and presents. */
     readonly secret: string;
-    /** The digest the object keeps. */
+    /** The digest the object stores. */
     readonly digest: Digest;
 
     /** Pair a secret with its kind and digest. */

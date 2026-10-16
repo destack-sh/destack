@@ -1,6 +1,6 @@
 # @destack/account
 
-`@destack/account` keeps Destack's people, accounts, spaces and machines, and signs them in.
+`@destack/account` has Destack's people, accounts, spaces and machines, and signs them in.
 
 ```ts
 // Better Auth with its magic link, email OTP, two-factor, passkey and OAuth provider plugins
@@ -36,14 +36,14 @@ const server = accountServer({ resolver: new DnsOverHttps(), stacks, signIn });
 
 ## Platform
 
-`Residency.keep` and `Platform.keep` keep the residencies and the platform's organisation the universe declares.
+`Residency.apply` and `Platform.apply` apply the residencies and the platform's organisation the universe declares.
 
 ```ts
 import { Residency } from "@destack/account/object";
 import { Platform } from "@destack/account/server";
 
-await Residency.keep(store, declaration.residencies, now);
-const organisationId = await Platform.keep(store, declaration.platform, now);
+await Residency.apply(store, declaration.residencies, now);
+const organisationId = await Platform.apply(store, declaration.platform, stacks.residency, now);
 ```
 
 ## Sign-in on a computer

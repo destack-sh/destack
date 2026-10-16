@@ -16,8 +16,8 @@ import { claimNames, firstPage, place } from "./fixture.ts";
 import { Claim, Claimant } from "@destack/object";
 import { Shape } from "@destack/object";
 
-test("place spaces where they are created, keep names in them, let exactly a space replicate its own access, and refuse machines exchanging tokens or replicating access", async () => {
-    // keep two machines and a cloud machine of the owner's account, and a machine and a cloud machine of another account
+test("place spaces where they are created, store names in them, let exactly a space replicate its own access, and refuse machines exchanging tokens or replicating access", async () => {
+    // store two machines and a cloud machine of the owner's account, and a machine and a cloud machine of another account
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId, handle } = await fixture.createSpace(owner);
@@ -29,8 +29,8 @@ test("place spaces where they are created, keep names in them, let exactly a spa
         fixture.caller(identity),
         await enroll(accountId),
         await enroll(other.accountId),
-        fixture.caller(await fixture.keepCloudMachine(accountId, "eu")),
-        fixture.caller(await fixture.keepCloudMachine(other.accountId, "eu")),
+        fixture.caller(await fixture.declareCloudMachine(accountId, "eu")),
+        fixture.caller(await fixture.declareCloudMachine(other.accountId, "eu")),
     ];
     const create = async (name: string, machine?: Identifier<"machine">) =>
         (
@@ -102,7 +102,7 @@ test("place spaces where they are created, keep names in them, let exactly a spa
         [unfollowed(accountId), unfollowed(other.accountId)],
     ]);
 
-    // keep the account's row in the chain replica of a space keeping accounts
+    // store the account's row in the chain replica of a space storing accounts
     const following = new AbortController();
     const chain = await laptopSpace.client.store.stream(
         {
@@ -146,7 +146,7 @@ test("place spaces where they are created, keep names in them, let exactly a spa
         ),
     ).toBe("BAD_REQUEST: invalid_grant: a machine asks its tokens with its assertion");
 
-    // keep a disabled and a revoked machine of the account, the revoked one without its published URL
+    // store a disabled and a revoked machine of the account, the revoked one without its published URL
     const [disabled, revoked] = [await enroll(accountId), await enroll(accountId)];
     const target = (machine: Actor) => ({
         scope: accountId,
@@ -243,7 +243,7 @@ test("place spaces where they are created, keep names in them, let exactly a spa
 });
 
 test("replicate the spaces giving a machine work to that machine alone, until the work or the placement ends", async () => {
-    // keep a machine serving a space, a machine running its work and another machine
+    // store a machine serving a space, a machine running its work and another machine
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId } = await fixture.createSpace(owner);
@@ -274,10 +274,12 @@ test("replicate the spaces giving a machine work to that machine alone, until th
         epoch: placed.epoch,
         requestId: RequestId.create(Date.now()),
     });
-    const kept = await fixture.database.select({ id: assignment.table.id }).from(assignment.table);
+    const remaining = await fixture.database
+        .select({ id: assignment.table.id })
+        .from(assignment.table);
 
     // replicate the assignment to the runner alone while the work and the placement last
-    expect([...assigned, unassigned, await assignments(runner), kept]).toEqual([
+    expect([...assigned, unassigned, await assignments(runner), remaining]).toEqual([
         [created.id],
         [],
         [],
@@ -287,7 +289,7 @@ test("replicate the spaces giving a machine work to that machine alone, until th
 });
 
 test("remove a space's delegated grants when the space is finalized", async () => {
-    // keep a space and the owner's space beside it
+    // store a space and the owner's space beside it
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId, spaceId } = await fixture.createSpace(owner);
@@ -342,13 +344,15 @@ test("remove a space's delegated grants when the space is finalized", async () =
         calls: [accountObject.space.call("finalize", accountObject.space.target(deleting))],
     });
 
-    // keep the grants to the other space's installation and the person
-    const kept = (await owner.client.grant.list({ userId: owner.id })).items;
-    expect(kept.map((grant) => ObjectReference.at("delegate", grant))).toEqual(delegates.slice(1));
+    // leave the grants to the other space's installation and the person
+    const grants = (await owner.client.grant.list({ userId: owner.id })).items;
+    expect(grants.map((grant) => ObjectReference.at("delegate", grant))).toEqual(
+        delegates.slice(1),
+    );
 });
 
 test("replicate a machine its own row with its status, and no other machine's", async () => {
-    // keep two machines and drain the first as the owner
+    // store two machines and drain the first as the owner
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId } = await fixture.createSpace(owner);
@@ -491,7 +495,7 @@ async function placementChanges(machine: Actor) {
 }
 
 test("publish a personal machine's URL as the machine alone, and read it as absent once its tunnel lapses", async () => {
-    // keep a personal machine of a person's account and an installation of the residency
+    // store a personal machine of a person's account and an installation of the residency
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const accountId = owner.account;
@@ -526,7 +530,7 @@ test("publish a personal machine's URL as the machine alone, and read it as abse
     ]);
 });
 
-/** Refuse following the replicas kept for a scope as anyone but it and what lives in it. */
+/** Refuse following the replicas stored for a scope as anyone but it and what lives in it. */
 function unfollowed(below: string): string {
     return `FORBIDDEN: only ${below} and its contents can follow the replicas held for it`;
 }
@@ -562,13 +566,14 @@ test("pick each space's machine regardless of the machines' order, and move only
     const remaining = MACHINES.filter((machine) => machine !== leaving);
     const after = await Promise.all(SPACES.map((space) => Placement.pick(space, remaining)));
 
-    // keep every choice under another order, move exactly the spaces the leaving machine had, and use every machine
+    // make every choice again under another order, move exactly the spaces the leaving machine had, and use every machine
     const moved = SPACES.filter((_, index) => picked[index] !== after[index]);
-    const held = SPACES.filter((_, index) => picked[index] === leaving);
+    const leavingSpaces = SPACES.filter((_, index) => picked[index] === leaving);
     expect({
         isOrderless: reversed.every((machine, index) => machine === picked[index]),
         isMovingOnlyHeld:
-            moved.length === held.length && moved.every((space) => held.includes(space)),
+            moved.length === leavingSpaces.length &&
+            moved.every((space) => leavingSpaces.includes(space)),
         used: [...new Set(picked)].toSorted((left, right) => left.localeCompare(right)),
         none: await Placement.pick(nth(SPACES, 0), []),
     }).toEqual({ isOrderless: true, isMovingOnlyHeld: true, used: MACHINES, none: undefined });

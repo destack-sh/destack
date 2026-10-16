@@ -24,7 +24,7 @@ const ACCOUNT_TYPE = {
 };
 
 test("replicate the chains of a residency's accounts as its platform installation, and refuse another residency's", async () => {
-    // keep an eu and a us account and a platform installation serving each residency
+    // store an eu and a us account and a platform installation serving each residency
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId } = await fixture.createSpace(owner);
@@ -60,13 +60,13 @@ test("replicate the chains of a residency's accounts as its platform installatio
 });
 
 test("claim names of objects in its residency's accounts as a platform installation or a cloud machine, refuse another residency's, and list the expired reservation to both", async () => {
-    // keep an eu and a us account, an eu platform installation and an eu cloud machine
+    // store an eu and a us account, an eu platform installation and an eu cloud machine
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const european = await fixture.createSpace(owner);
     const american = await fixture.createSpace(owner, "us");
     const installation = await installed(fixture, "eu");
-    const cloud = fixture.caller(await fixture.keepCloudMachine(fixture.platform, "eu"));
+    const cloud = fixture.caller(await fixture.declareCloudMachine(fixture.platform, "eu"));
 
     // claim a name in each account
     const claim = async (caller: Actor, accountId: string) => {
@@ -110,16 +110,16 @@ test("claim names of objects in its residency's accounts as a platform installat
 });
 
 test("find an account's residency, the residencies' homes and the enabled shared cloud machines serving them with their endpoints", async () => {
-    // keep an eu and a us account, and cloud machines of the platform's account serving each residency
+    // store an eu and a us account, and cloud machines of the platform's account serving each residency
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId } = await fixture.createSpace(owner);
     const american = await fixture.createSpace(owner, "us");
     const { platform } = fixture;
     const [eu, us, unpublished] = [
-        fixture.caller(await fixture.keepCloudMachine(platform, "eu")),
-        fixture.caller(await fixture.keepCloudMachine(platform, "us")),
-        fixture.caller(await fixture.keepCloudMachine(platform, "eu")),
+        fixture.caller(await fixture.declareCloudMachine(platform, "eu")),
+        fixture.caller(await fixture.declareCloudMachine(platform, "us")),
+        fixture.caller(await fixture.declareCloudMachine(platform, "eu")),
     ];
     const homes = [await fixture.home("eu"), await fixture.home("us")];
     const euMachine = schema.identifier("machine").parse(eu.id);
@@ -172,7 +172,7 @@ test("find an account's residency, the residencies' homes and the enabled shared
 });
 
 test("find the residency and the owners of names for another account's objects as a machine", async () => {
-    // keep two accounts and a name claimed in the first
+    // store two accounts and a name claimed in the first
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const named = await fixture.createSpace(owner);
@@ -196,13 +196,13 @@ test("find the residency and the owners of names for another account's objects a
     ]).toEqual(["eu", { objectId: row.id, owner: named.accountId }]);
 });
 
-test("relate a cloud machine as a server of its residency when kept or enrolled, as a resident of the residency's accounts, and release it when revoked", async () => {
-    // keep an eu and enroll a us cloud machine of the platform
+test("relate a cloud machine as a server of its residency when declared or enrolled, as a resident of the residency's accounts, and release it when revoked", async () => {
+    // store an eu and enroll a us cloud machine of the platform
     await using fixture = await AccountFixture.open();
-    const kept = await fixture.keepCloudMachine(fixture.platform, "eu");
+    const declared = await fixture.declareCloudMachine(fixture.platform, "eu");
     const enrolled = await fixture.enroll(fixture.platform, { residencyId: "us" });
     const served = async () => [
-        await Residency.of(fixture.database, fixture.caller(kept).subject),
+        await Residency.of(fixture.database, fixture.caller(declared).subject),
         await Residency.of(fixture.database, fixture.caller(enrolled).subject),
     ];
     const serving = await served();
@@ -210,7 +210,7 @@ test("relate a cloud machine as a server of its residency when kept or enrolled,
     // replicate an eu account's chain as the eu cloud machine, and refuse a us account's
     const owner = await fixture.person("owner@example.com");
     const american = await fixture.createSpace(owner, "us");
-    const cloud = fixture.caller(kept);
+    const cloud = fixture.caller(declared);
     const replicated = [
         await replicas(cloud, cloud.id, ids.account),
         await replicas(cloud, cloud.id, american.accountId),
@@ -218,7 +218,7 @@ test("relate a cloud machine as a server of its residency when kept or enrolled,
 
     // release both once the operator revokes them
     const operator = fixture.user(ids.operator);
-    for (const identity of [kept, enrolled]) {
+    for (const identity of [declared, enrolled]) {
         await operator.machine.revoke({
             scope: fixture.platform,
             id: identity.machineId,
@@ -266,7 +266,7 @@ test("relate an organisation's residents again when one of its accounts lives in
     expect([before, await residents()]).toEqual([["eu"], ["eu", "us"]]);
 });
 
-/** Request the replica of an account's chain a platform installation keeps for its space. */
+/** Request the replica of an account's chain a platform installation stores for its space. */
 function chain(space: string, accountId: string) {
     return {
         name: "chain",
@@ -329,10 +329,10 @@ async function installed(fixture: AccountFixture, residencyId: ResidencyCode): P
 }
 
 test("find the account selling a handle's packages to a residency home's buyers: the handle's own account, the home's platform account for the platform's handles, none otherwise", async () => {
-    // keep the residencies' homes and a cloud machine asking
+    // store the residencies' homes and a cloud machine asking
     await using fixture = await AccountFixture.open();
     const [europe, america] = [await fixture.home("eu"), await fixture.home("us")];
-    const asking = fixture.caller(await fixture.keepCloudMachine(fixture.platform, "eu"));
+    const asking = fixture.caller(await fixture.declareCloudMachine(fixture.platform, "eu"));
     const publisher = (handle: string, home: string) =>
         asking.client.residency.publisher({ handle, home: schema.identifier("space").parse(home) });
 

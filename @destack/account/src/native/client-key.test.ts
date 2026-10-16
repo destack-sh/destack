@@ -4,8 +4,8 @@ import { expect, refusal, test } from "@destack/test";
 import { ClientKey } from "./client-key.ts";
 import { VirtualClock } from "@destack/environment/simulation";
 
-test("prove a native client to its computer's machine by its kept key, refusing a forgotten or stale one", async () => {
-    // keep a key for a registered client and prove it now
+test("prove a native client to its computer's machine by its stored key, refusing a forgotten or stale one", async () => {
+    // store a key for a registered client and prove it now
     const clock = new VirtualClock(Date.UTC(2026, 9, 14));
     const keys = new ClientKey(new MemoryKeychain(), clock);
     const client = Identifier.create("client");

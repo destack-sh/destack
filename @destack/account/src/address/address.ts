@@ -10,7 +10,7 @@ const LABEL_LENGTH = 63;
 /** The longest space or branch name, sized with `HANDLE_LENGTH` to fit one label. */
 export const SPACE_NAME_LENGTH = 20;
 
-/** The hexadecimal characters of a label digest, 40 bits that keep one space's branches apart. */
+/** The hexadecimal characters of a label digest, 40 bits that tell one space's branches apart. */
 const DIGEST_LENGTH = 10;
 
 /** The pattern of a label digest. */
@@ -22,7 +22,7 @@ const FNV_OFFSET_BASIS = 0xcbf29ce484222325n;
 /** The prime of 64-bit FNV-1a. */
 const FNV_PRIME = 0x100000001b3n;
 
-/** The mask keeping a 64-bit FNV-1a hash in 64 bits. */
+/** The mask truncating an FNV-1a hash to 64 bits. */
 const FNV_MASK = 0xffffffffffffffffn;
 
 /** The hexadecimal characters of a 64-bit hash. */
@@ -247,7 +247,7 @@ export const SpaceOrigin = {
 
 /** Write a branch's label. */
 function branchedLabel(before: string, origin: SpaceOrigin): string {
-    // keep the readable label while it fits
+    // use the readable label while it fits
     const after = `${BRANCH_SEPARATOR}${origin.space}${NAME_SEPARATOR}${origin.handle}`;
     const readable = `${before}${after}`;
 

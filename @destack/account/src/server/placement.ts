@@ -17,7 +17,7 @@ async function place(
     const caller = schema.identifier("machine").parse(Caller.sender(context.caller).id);
     const { epoch } = context.input;
 
-    // keep the placement at its epoch, advance the epoch, or take the space over
+    // leave the placement at its epoch, advance the epoch, or take the space over
     const current = context.target;
     const isRetained = current.epoch === epoch && current.machineId === caller;
     const isAdvanced =

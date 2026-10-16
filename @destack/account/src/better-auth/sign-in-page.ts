@@ -119,14 +119,14 @@ export class SignInPage {
             | "register"
         >,
     ) {
-        // keep the routes and the database the pages read
+        // store the routes and the database the pages read
         this.endpoint = options.endpoint;
         this.context = options.context;
         this.send = options.send;
         this.database = options.database;
         this.register = options.register;
 
-        // keep the page URLs
+        // store the page URLs
         this.signIn = options.signIn;
         this.signUp = options.signUp;
         this.consent = options.consent;
@@ -671,7 +671,7 @@ export class SignInPage {
         notice: Markup,
         status: number,
     ): Promise<Response> {
-        // keep the email and the sign-up as hidden fields
+        // store the email and the sign-up as hidden fields
         const { email, signUp } = emailed;
         const hidden = signUp === undefined ? { email } : { email, ...hiddenFields(signUp) };
         const fields = Object.entries(hidden).map(
@@ -721,7 +721,7 @@ export class SignInPage {
         notice: Markup,
         status: number,
     ): Promise<Response> {
-        // offer the residencies, keeping the selection
+        // offer the residencies, preserving the selection
         const residencies = await Residency.list(this.database);
         const options = residencies.map(({ id, name }) =>
             id === choice.residency
@@ -810,7 +810,7 @@ export class SignInPage {
 
     /** Send a browser's form to a Better Auth route as JSON. */
     #forward(request: Request, path: string, body?: object): Promise<Response> {
-        // keep the browser's headers and ask for JSON
+        // store the browser's headers and ask for JSON
         const headers = new Headers(request.headers);
         headers.delete("content-length");
         headers.set("accept", "application/json");

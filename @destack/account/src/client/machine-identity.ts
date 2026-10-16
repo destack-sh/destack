@@ -47,7 +47,7 @@ export interface MachineIssuer {
 export class MachineIdentity {
     /** The machine's identifier. */
     readonly machineId: Identifier<"machine">;
-    /** The keychain keeping the private key. */
+    /** The keychain storing the private key. */
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
     #pair: KeyPair | undefined;
@@ -56,18 +56,18 @@ export class MachineIdentity {
     /** The clock proofs are signed and tokens refreshed at. */
     readonly #clock: Clock;
 
-    /** Prove a machine's identity with the key its store keeps, on a clock. */
+    /** Prove a machine's identity with the key in its keychain, on a clock. */
     constructor(machineId: Identifier<"machine">, keys: Keychain, clock: Clock) {
         this.machineId = machineId;
         this.#keys = keys;
         this.#clock = clock;
     }
 
-    /** Generate and keep a key pair, and return its public half with a proof of possession. */
+    /** Generate and store a key pair, and return its public half with a proof of possession. */
     async generate(): Promise<{ publicKey: PublicKey; proof: string }> {
-        // replace the kept pair and prove possession of the pair kept
-        const kept = await this.#keys.load(this.machineId);
-        const pair = await this.#replace(kept, await KeyPair.generate());
+        // replace the stored pair and prove possession of the pair stored
+        const stored = await this.#keys.load(this.machineId);
+        const pair = await this.#replace(stored, await KeyPair.generate());
 
         return { publicKey: pair.publicKey, proof: await this.prove() };
     }
@@ -79,13 +79,13 @@ export class MachineIdentity {
         clock: Clock,
     ): Promise<MachineIdentity> {
         const keychain = new MemoryKeychain();
-        await MachineIdentity.keep(machineId, keyring, keychain);
+        await MachineIdentity.save(machineId, keyring, keychain);
 
         return new MachineIdentity(machineId, keychain, clock);
     }
 
-    /** Keep the key a keyring derives for a machine in a keychain. */
-    static async keep(
+    /** Save the key a keyring derives for a machine in a keychain. */
+    static async save(
         machineId: Identifier<"machine">,
         keyring: Pick<Keyring, "derivePrivateKey">,
         keys: Keychain,
@@ -106,7 +106,7 @@ export class MachineIdentity {
         return this.register(client, enrollment);
     }
 
-    /** Enroll this machine with the key it keeps through a client the approving user signed in. */
+    /** Enroll this machine with the key it stores through a client the approving user signed in. */
     async register(
         client: ClientOf<typeof accountPackage>,
         enrollment: Enrollment,
@@ -123,7 +123,7 @@ export class MachineIdentity {
 
     /** Register a new key through a client signed with the current key. */
     async rotate(client: ClientOf<typeof accountPackage>, accountId: string): Promise<void> {
-        // rotate under the key's lock while the kept key is still the one seen
+        // rotate under the key's lock while the stored key is still the one seen
         const seen = await this.#keys.load(this.machineId);
         {
             await using _held = await this.#keys.lock(this.machineId);
@@ -132,7 +132,7 @@ export class MachineIdentity {
             }
         }
 
-        // reload the kept key and forget the tokens the replaced key granted
+        // reload the stored key and forget the tokens the replaced key granted
         this.#pair = undefined;
         this.#tokens.clear();
     }
@@ -195,31 +195,31 @@ export class MachineIdentity {
         this.#tokens.clear();
     }
 
-    /** Keep a generated pair in place of the key read before. */
+    /** Store a generated pair in place of the key read before. */
     async #replace(
-        kept: string | undefined,
-        generated: { readonly pair: KeyPair; readonly kept: string },
+        stored: string | undefined,
+        generated: { readonly pair: KeyPair; readonly secret: string },
     ): Promise<KeyPair> {
-        // keep the generated pair or the key another writer kept meanwhile
+        // store the generated pair or the key another writer stored meanwhile
         const current = await Keychain.update(this.#keys, this.machineId, (key) =>
-            key === kept || key === undefined ? generated.kept : key,
+            key === stored || key === undefined ? generated.secret : key,
         );
-        if (current === generated.kept) {
+        if (current === generated.secret) {
             this.#pair = generated.pair;
 
             return generated.pair;
         }
 
-        // adopt the key the other writer kept
+        // adopt the key the other writer stored
         this.#pair = await KeyPair.read(current);
 
         return this.#pair;
     }
 
-    /** Register a new key through a client signed with the current one, then keep it. */
+    /** Register a new key through a client signed with the current one, then store it. */
     async #rotate(client: ClientOf<typeof accountPackage>, accountId: string): Promise<void> {
-        // generate a new pair beside the kept one
-        const kept = await this.#keys.load(this.machineId);
+        // generate a new pair beside the stored one
+        const stored = await this.#keys.load(this.machineId);
         const generated = await KeyPair.generate();
         const { pair } = generated;
 
@@ -237,11 +237,11 @@ export class MachineIdentity {
             ),
         });
 
-        // keep the new pair or the one a racing writer kept
-        await this.#replace(kept, generated);
+        // store the new pair or the one a racing writer stored
+        await this.#replace(stored, generated);
     }
 
-    /** Load the kept key pair and refuse a machine without one. */
+    /** Load the stored key pair and refuse a machine without one. */
     async #load(): Promise<KeyPair> {
         // reuse the pair once loaded
         if (this.#pair !== undefined) {
@@ -249,11 +249,11 @@ export class MachineIdentity {
         }
 
         // read the private half from the store
-        const kept = await this.#keys.load(this.machineId);
-        if (kept === undefined) {
+        const stored = await this.#keys.load(this.machineId);
+        if (stored === undefined) {
             throw new TypeError(`machine ${this.machineId} has no key`);
         }
-        this.#pair = await KeyPair.read(kept);
+        this.#pair = await KeyPair.read(stored);
 
         return this.#pair;
     }

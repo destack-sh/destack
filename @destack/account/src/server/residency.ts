@@ -25,7 +25,7 @@ export function implementResidency(): typeof residency {
     });
 }
 
-/** Find the residency an account keeps its data in, none for an unknown account. */
+/** Find the residency an account stores its data in, none for an unknown account. */
 function find(
     context: MethodContextOf<typeof residency, "find">,
 ): Promise<ResultOf<typeof residency, "find">> {
@@ -50,7 +50,7 @@ async function machines(
         .read(endpoint)
         .findMany({ where: { id: { in: serving.map((row) => row.id) } } });
 
-    // keep the machines that answer at a URL now
+    // list the machines that answer at a URL now
     return serving.flatMap((row) => {
         const found = published.find((entry) => entry.id === row.id);
 

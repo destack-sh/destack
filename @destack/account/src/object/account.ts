@@ -25,7 +25,7 @@ import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organisation } from "./organisation.ts";
 import { Residency, residency, ResidencyCode, type ResidencyFound } from "./residency.ts";
-import { SpaceStack } from "./space-stack.ts";
+import { StackSource } from "./stack-source.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
@@ -45,7 +45,7 @@ export const account = defineObject(
             handle: field.string(AccountHandle),
             /** The display name. */
             name: field.string(DisplayName),
-            /** The jurisdiction the account's spaces keep data in. */
+            /** The jurisdiction the account's spaces store data in. */
             residency: field.reference(residency, { delete: "restrict" }),
             /** Whether the account is its user's personal account or a shared one. */
             kind: field.enum(["personal", "shared"]).default("shared"),
@@ -104,10 +104,10 @@ export const account = defineObject(
         create: method.create("create", {
             fields: ["handle", "name", "kind"],
             input: schema.object({
-                /** The jurisdiction the account keeps data in, its owner's when absent. */
+                /** The jurisdiction the account stores data in, its owner's when absent. */
                 residencyId: ResidencyCode.exactOptional(),
                 /** The stack of the account's home. */
-                stack: SpaceStack.exactOptional(),
+                stack: StackSource.exactOptional(),
             }),
             isPredicted: false,
         }),
@@ -203,7 +203,7 @@ export const Account = {
         );
     },
 
-    /** Read the residency a new account keeps data in. */
+    /** Read the residency a new account stores data in. */
     async residency(
         reader: Pick<Snapshot, "read">,
         scope: string,
@@ -241,16 +241,18 @@ export const Account = {
         return owned.residencyId;
     },
 
-    /** Find the residency an account keeps its data in, none for an unknown account. */
+    /** Find the residency an account stores its data in, none for an unknown account. */
     async findResidency(
         reader: Pick<Snapshot, "read">,
         accountId: Identifier<"account">,
     ): Promise<ResidencyFound | null> {
-        const kept = await reader.read(account.table).findFirst({ where: { id: accountId } });
+        const existing = await reader.read(account.table).findFirst({ where: { id: accountId } });
         const found =
-            kept === undefined
+            existing === undefined
                 ? undefined
-                : await reader.read(residency.table).findFirst({ where: { id: kept.residencyId } });
+                : await reader
+                      .read(residency.table)
+                      .findFirst({ where: { id: existing.residencyId } });
 
         return found === undefined ? null : { id: found.id, name: found.name, home: found.home };
     },

@@ -231,7 +231,7 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
     const { otp } = at(await fixture.codes(), -1);
     await other.fetch("/sign-up", new URLSearchParams({ action: "verify", otp, ...code }));
 
-    // keep each new user's name, time zone and locale
+    // store each new user's name, time zone and locale
     const users = await fixture.storage.database
         .select({
             email: user.table.email,

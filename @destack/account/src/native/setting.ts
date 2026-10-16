@@ -27,5 +27,5 @@ export const currentLogin = defineSetting({
     apply: "immediate",
 });
 
-/** The settings of a computer's native client, which it keeps as local objects. */
+/** The settings of a computer's native client, which it stores as local objects. */
 export const NATIVE_SETTINGS = new SettingCatalog([currentSpace, currentLogin]);

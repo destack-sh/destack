@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import { client, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
-/** A person signed in on a computer's native client, the keychain keeping their refresh token. */
+/** A person signed in on a computer's native client, the keychain storing their refresh token. */
 export const login = defineObject({
     name: "login",
     plural: "logins",

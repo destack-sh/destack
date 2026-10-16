@@ -8,7 +8,7 @@ import { account, allowance, Allowance, allowanceShape, space } from "../src/obj
 /** The account whose allowances a machine checks. */
 const ACCOUNT = account.identifier("account-019f5530-8000-7000-8000-000000000501");
 
-/** The home space keeping the account's allowances. */
+/** The home space storing the account's allowances. */
 const HOME = space.identifier("space-019f5530-8000-7000-8000-000000000502");
 
 test.for(TEST_DIALECTS)(

@@ -19,7 +19,7 @@ import type { Clock } from "@destack/environment";
 export const TestIdentityRegistry = {
     /** Serve identities over an account database to one machine, placing the spaces it serves. */
     async open(database: DatabaseConnection, clock: Clock, machineId: Identifier<"machine">) {
-        // keep the machine, and let machines start and extend identities as the universe's machine role does
+        // store the machine, and let machines start and extend identities as the universe's machine role does
         const serving = principal.machine.reference(Scope.universe.id, machineId);
         await TestDirectory.publish(database, machineId, Scope.universe.id, null);
         const access = new AccessFixture(database);

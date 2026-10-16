@@ -32,7 +32,7 @@ import type { Digest } from "@destack/schema";
 import { SignJWT, type JWTPayload } from "jose";
 import type { Clock } from "@destack/environment";
 
-/** How long a verifier keeps a key set before reading it again: 10 minutes, a JWKS cache's age. */
+/** How long a verifier caches a key set before reading it again: 10 minutes, a JWKS cache's age. */
 export const KEY_SET_MILLISECONDS = 10 * 60_000;
 
 /** The algorithm of identity keys: ECDSA over P-256. */
@@ -56,7 +56,7 @@ const UNIVERSE_KEY = "universe-key";
 /** The uses of an identity's secrets: its private keys and its root. */
 type KeyUse = "signing" | "rotation" | "root";
 
-/** One row of the identity keys a process keeps. */
+/** One row of the identity keys a process stores. */
 type IdentityKey = Select<typeof identityKey>;
 
 /** How a space's tokens are issued. */
@@ -67,7 +67,7 @@ interface SpaceIssuer {
     readonly credential: { readonly kind: string; readonly id: string };
 }
 
-/** The keys of the identities a process keeps: its spaces' or the universe's. */
+/** The keys of the identities a process stores: its spaces' or the universe's. */
 export class IdentityKeystore {
     /** The process's keyring encrypting the identities' secrets. */
     readonly keyring: Keyring;
@@ -82,9 +82,9 @@ export class IdentityKeystore {
     /** The derivations of the identities' decrypted root secrets, non-extractable, by subject. */
     readonly #roots = new Map<string, Promise<Deriver>>();
 
-    /** Keep identities' keys under a keyring, publishing the identities in a registry. */
+    /** Store identities' keys under a keyring, publishing the identities in a registry. */
     constructor(keyring: Keyring, registry: IdentityRegistry, clock: Clock) {
-        // keep the keyring, registry and clock, and seal keys with them
+        // store the keyring, registry and clock, and seal keys with them
         this.keyring = keyring;
         this.registry = registry;
         this.clock = clock;
@@ -118,7 +118,7 @@ export class IdentityKeystore {
         const keystore = new IdentityKeystore(keyring, registry, clock);
 
         // generate the universe's identity on the first start
-        if (!(await keystore.keeps(database, Scope.universe.id))) {
+        if (!(await keystore.hasKeys(database, Scope.universe.id))) {
             await keystore.generate(database, Scope.universe.id);
         }
 
@@ -127,7 +127,7 @@ export class IdentityKeystore {
 
     /** Generate an identity's signing keys, rotation keys and root secret. */
     async generate(database: DatabaseConnection, subject: string): Promise<void> {
-        // generate and keep the keys and the root secret
+        // generate and store the keys and the root secret
         const signing = await this.#generateSigningKey(subject);
         const rotation = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
         const rotationKey = await PublicKey.of(rotation.publicKey);
@@ -231,7 +231,7 @@ export class IdentityKeystore {
         issuer: string,
         send: Fetch,
     ): Fetch {
-        // keep the granted tokens until shortly before they lapse
+        // cache the granted tokens until shortly before they lapse
         const tokens = new TokenCache();
 
         return async (request) => {
@@ -315,7 +315,7 @@ export class IdentityKeystore {
         return this.sign(database, space, claims, { typ: ASSERTION_TYPE });
     }
 
-    /** Issue tokens as a space this machine keeps keys of, signed with its active signing key. */
+    /** Issue tokens as a space this machine stores keys of, signed with its active signing key. */
     issuer(database: DatabaseConnection, space: string): TokenIssuer {
         return new TokenIssuer({
             authority: { kind: "space", space },
@@ -324,7 +324,7 @@ export class IdentityKeystore {
         });
     }
 
-    /** Sign a token's claims with the active signing key of an identity this process keeps. */
+    /** Sign a token's claims with the active signing key of an identity this process stores. */
     async sign(
         database: DatabaseConnection,
         subject: string,
@@ -340,14 +340,14 @@ export class IdentityKeystore {
             .sign(await this.#signer(subject, kid, active.privateKey));
     }
 
-    /** Report whether this process keeps an identity's keys. */
-    async keeps(database: DatabaseConnection, subject: string): Promise<boolean> {
+    /** Report whether this process has an identity's keys. */
+    async hasKeys(database: DatabaseConnection, subject: string): Promise<boolean> {
         return (await this.#find(database, subject)) !== undefined;
     }
 
     /** Derive an identity's secrets and private keys from its root secret under labels. */
     async deriver(database: DatabaseConnection, subject: string): Promise<Deriver | undefined> {
-        // refuse an identity whose keys this process no longer keeps, as after a move
+        // refuse an identity whose keys this process no longer stores, as after a move
         const row = await this.#find(database, subject);
         if (row === undefined) {
             this.#roots.delete(subject);
@@ -369,12 +369,12 @@ export class IdentityKeystore {
 
     /** Key a database's sensitive columns with the column key its scope's identity root derives. */
     async key(database: DatabaseConnection, subject: string): Promise<void> {
-        // keep the key a database opened with, as its identity's root derives it alike
+        // skip a database opened with a key, as its identity's root derives it alike
         if (database.state.cipher !== undefined) {
             return;
         }
 
-        // derive the column key from the root of the identity this process keeps
+        // derive the column key from the root of the identity this process stores
         const root = present(await this.deriver(database, subject), `the keys of ${subject}`);
         database.key(await ColumnCipher.derive(root));
     }
@@ -389,7 +389,7 @@ export class IdentityKeystore {
         const row = await this.#require(database, subject);
         const identity = await this.#identity(subject);
 
-        // publish a next signing key before the kept ones, signed with this process's rotation key
+        // publish a next signing key before the stored ones, signed with this process's rotation key
         const generated = await this.#generateSigningKey(subject);
         const signingKeys = [generated, ...row.signingKeys].slice(0, MAX_SIGNING_KEYS);
         const operation = await IdentityOperation.sign(
@@ -404,7 +404,7 @@ export class IdentityKeystore {
         );
         await this.registry.extend(operation);
 
-        // keep the published keys
+        // store the published keys
         await database
             .update(identityKey)
             .set({ signingKeys })
@@ -413,7 +413,7 @@ export class IdentityKeystore {
         return IdentityOperation.digest(operation);
     }
 
-    /** Replace every key of an identity this process keeps. */
+    /** Replace every key of an identity this process stores. */
     async rekey(database: DatabaseConnection, subject: string): Promise<Digest> {
         // read the identity the operation follows
         const row = await this.#require(database, subject);
@@ -440,7 +440,7 @@ export class IdentityKeystore {
         );
         await this.registry.extend(operation);
 
-        // keep the fresh keys and forget what was decrypted of the replaced ones
+        // store the fresh keys and forget what was decrypted of the replaced ones
         const encrypted = await this.#encryptKey(subject, "rotation", rotation.privateKey);
         await database
             .update(identityKey)
@@ -551,25 +551,25 @@ export class IdentityKeystore {
             signingKeys.find((key) => key.publishedAt + KEY_SET_MILLISECONDS <= now) ??
             signingKeys.at(-1);
         if (active === undefined) {
-            throw new CallError("INTERNAL_SERVER_ERROR", { message: "no signing key is kept" });
+            throw new CallError("INTERNAL_SERVER_ERROR", { message: "no signing key is stored" });
         }
 
         return active;
     }
 
-    /** Read the keys this process keeps for an identity, refusing one it keeps none of. */
+    /** Read the keys this process stores for an identity, refusing one it stores none of. */
     async #require(database: DatabaseConnection, subject: string): Promise<IdentityKey> {
         const row = await this.#find(database, subject);
         if (row === undefined) {
             throw new CallError("NOT_FOUND", {
-                message: `this process keeps no keys of ${subject}`,
+                message: `this process has no keys of ${subject}`,
             });
         }
 
         return row;
     }
 
-    /** Read the keys this process keeps for an identity, absent for one it keeps none of. */
+    /** Read the keys this process stores for an identity, absent for one it stores none of. */
     async #find(database: DatabaseConnection, subject: string): Promise<IdentityKey | undefined> {
         const [row] = await database
             .select()

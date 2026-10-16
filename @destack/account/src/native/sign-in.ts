@@ -227,7 +227,7 @@ export class NativeSignIn {
         return { email, verify };
     }
 
-    /** List the residencies a new person's account may keep data in. */
+    /** List the residencies a new person's account may store data in. */
     residencies(): Promise<Pick<Residency, "id" | "name">[]> {
         return this.#options.issuer.residencies();
     }
@@ -266,9 +266,9 @@ export class NativeSignIn {
         const { name } = await accounts.user.get({ id: sub });
         const person = { issuer: issuer.url, subject: sub };
 
-        // keep the refresh token, or adopt a racing sign-in's and revoke this one
-        const kept = await sessions.keep(person, tokens.refreshToken);
-        if (kept !== tokens.refreshToken) {
+        // store the refresh token, or adopt a racing sign-in's and revoke this one
+        const stored = await sessions.replace(person, tokens.refreshToken);
+        if (stored !== tokens.refreshToken) {
             await issuer.revoke(clientId, tokens.refreshToken);
         }
 
@@ -283,7 +283,7 @@ export class NativeSignIn {
             await this.#options.keys.forget(withdrawn);
         }
 
-        // keep the key of the registered client, which proves it to this computer's machine
+        // store the key of the registered client, which proves it to this computer's machine
         await this.#options.keys.generate(clientId);
 
         return this.#upsert(existing, {
@@ -376,7 +376,7 @@ class LoopbackRedirect implements AsyncDisposable {
     /** Wake a waiting receive once a browser returns. */
     #wake: (() => void) | undefined;
 
-    /** Keep a listening server and its redirect URL. */
+    /** Store a listening server and its redirect URL. */
     private constructor(server: ReturnType<typeof createServer>, port: number) {
         this.#server = server;
         this.url = `http://${LOOPBACK}:${port}${REDIRECT_PATH}`;

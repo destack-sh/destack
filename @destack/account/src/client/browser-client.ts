@@ -7,10 +7,10 @@ import type { ClientRegistration } from "../object/client.ts";
 import { KeyRegistration } from "../object/key.ts";
 import { Platform } from "../object/platform.ts";
 
-/** The IndexedDB database and object store keeping the browser's client. */
+/** The IndexedDB database and object store of the browser's client. */
 const DATABASE = "destack-client";
 
-/** The key under which the store keeps the client. */
+/** The key of the client in the store. */
 const RECORD = "client";
 
 /** The status a host answers a client with once the person removed it, RFC 9110 15.5.11. */
@@ -40,7 +40,7 @@ const USER_AGENT_PLATFORMS: readonly (readonly [RegExp, Platform])[] = [
     [/Linux/u, "Linux"],
 ];
 
-/** The browser's client as its keystore keeps it. */
+/** The browser's client as its keystore stores it. */
 export const ClientRecord = schema.object({
     /** The client's identifier, the principal its local objects partition by. */
     id: schema.identifier("client"),
@@ -56,24 +56,24 @@ export const ClientRecord = schema.object({
     /** Whether a person's sign-in registered the client and its key. */
     isRegistered: schema.boolean(),
 });
-/** The browser's client as its keystore keeps it. */
+/** The browser's client as its keystore stores it. */
 export type ClientRecord = schema.Infer<typeof ClientRecord>;
 
-/** Where a browser keeps its client across visits. */
+/** Where a browser stores its client across visits. */
 export interface ClientStore {
-    /** Read the kept client, absent before the first visit. */
+    /** Read the stored client, absent before the first visit. */
     readonly load: () => Promise<ClientRecord | undefined>;
-    /** Keep a new client unless another tab kept one first, answering the kept one. */
-    readonly keep: (created: ClientRecord) => Promise<ClientRecord>;
-    /** Replace the kept client. */
-    readonly save: (kept: ClientRecord) => Promise<void>;
+    /** Create a client unless another tab created one first, answering the one stored. */
+    readonly createIfAbsent: (created: ClientRecord) => Promise<ClientRecord>;
+    /** Replace the stored client. */
+    readonly save: (record: ClientRecord) => Promise<void>;
     /** Forget the client. */
     readonly clear: () => Promise<void>;
 }
 
 /** The browser profile a page runs in, as a client. */
 export class BrowserClient {
-    /** Where the client is kept. */
+    /** Where the client is stored. */
     readonly #store: ClientStore;
     /** The host path below which the host registers and binds the client. */
     readonly #path: string;
@@ -82,18 +82,18 @@ export class BrowserClient {
     /** The fetch reaching the host. */
     readonly #fetch: Fetch;
 
-    /** Keep a browser's client in a store and reach its host at a path of an origin. */
+    /** Read a browser's client from a store and reach its host at a path of an origin. */
     constructor(options: {
         /** The host path below which the host registers and binds the client. */
         readonly path: string;
-        /** Where the client is kept, IndexedDB by default. */
+        /** Where the client is stored, IndexedDB by default. */
         readonly store?: ClientStore;
         /** The origin whose host registers and binds the client, the page's by default. */
         readonly origin?: string;
         /** The fetch reaching the host, the page's by default. */
         readonly fetch?: Fetch;
     }) {
-        // keep the store, the host's path and origin, and the fetch reaching it
+        // set the store, the host's path and origin, and the fetch reaching it
         this.#path = options.path;
         this.#store = options.store ?? BrowserClient.indexedStore();
         this.#origin = options.origin ?? location.origin;
@@ -121,7 +121,7 @@ export class BrowserClient {
         return { name, ...(platform === undefined ? {} : { platform }) };
     }
 
-    /** Keep the client in the browser's IndexedDB. */
+    /** Store the client in the browser's IndexedDB. */
     static indexedStore(): ClientStore {
         return {
             load: async () => {
@@ -133,9 +133,9 @@ export class BrowserClient {
 
                 return read === undefined ? undefined : ClientRecord.parse(read);
             },
-            keep: async (created) => {
-                // keep the created record unless one exists
-                const kept: unknown = await transact("readwrite", (store, settle) => {
+            createIfAbsent: async (created) => {
+                // store the created record unless one exists
+                const record: unknown = await transact("readwrite", (store, settle) => {
                     const read = store.get(RECORD);
                     read.addEventListener("success", () => {
                         const existing: unknown = read.result;
@@ -146,12 +146,12 @@ export class BrowserClient {
                     });
                 });
 
-                // refuse a kept record of another shape
-                return ClientRecord.parse(kept);
+                // refuse a stored record of another shape
+                return ClientRecord.parse(record);
             },
-            save: async (kept) => {
+            save: async (record) => {
                 await transact("readwrite", (store, settle) => {
-                    store.put(kept, RECORD);
+                    store.put(record, RECORD);
                     settle(undefined);
                 });
             },
@@ -166,9 +166,9 @@ export class BrowserClient {
 
     /** Read this browser's client as the principal its local objects partition by. */
     async subject(): Promise<Subject> {
-        const kept = await this.#kept();
+        const record = await this.#record();
 
-        return principal.client.reference(Scope.universe.id, kept.id);
+        return principal.client.reference(Scope.universe.id, record.id);
     }
 
     /** Bind the page's credential to this browser's client. */
@@ -189,15 +189,15 @@ export class BrowserClient {
         return again;
     }
 
-    /** Read the kept client, generating its identifier and key pair on the first visit. */
-    async #kept(): Promise<ClientRecord> {
-        // read the client an earlier visit kept
-        const kept = await this.#store.load();
-        if (kept !== undefined) {
-            return kept;
+    /** Read the stored client, generating its identifier and key pair on the first visit. */
+    async #record(): Promise<ClientRecord> {
+        // read the client an earlier visit stored
+        const record = await this.#store.load();
+        if (record !== undefined) {
+            return record;
         }
 
-        // generate a key pair whose private half stays in WebCrypto, kept unless another tab kept one
+        // generate a key pair whose private half stays in WebCrypto, stored unless another tab stored one
         const keys = await crypto.subtle.generateKey(
             { name: "ECDSA", namedCurve: "P-256" },
             false,
@@ -205,7 +205,7 @@ export class BrowserClient {
         );
         const publicKey = await PublicKey.of(keys.publicKey);
 
-        return this.#store.keep({
+        return this.#store.createIfAbsent({
             id: Identifier.create("client"),
             keys,
             publicKey,
@@ -213,37 +213,48 @@ export class BrowserClient {
         });
     }
 
-    /** Read the kept client, registering it and its key once. */
+    /** Read the stored client, registering it and its key once. */
     async #registered(registration: Omit<ClientRegistration, "id">): Promise<ClientRecord> {
-        // keep a registered client
-        const kept = await this.#kept();
-        if (kept.isRegistered) {
-            return kept;
+        // save the registered client
+        const record = await this.#record();
+        if (record.isRegistered) {
+            return record;
         }
 
         // register the client under its own identifier, then its key with a proof of possession
         const { client } = KeyRegistration.pick({ client: true }).parse(
-            await this.#post(this.#path, { ...registration, id: kept.id }, CREATED),
+            await this.#post(this.#path, { ...registration, id: record.id }, CREATED),
         );
-        if (client !== kept.id) {
-            throw new TypeError(`the host registered client ${client} for client ${kept.id}`);
+        if (client !== record.id) {
+            throw new TypeError(`the host registered client ${client} for client ${record.id}`);
         }
-        const proof = await Proof.sign(kept.keys.privateKey, kept.publicKey, kept.id, Date.now());
-        await this.#post(`${this.#path}/key`, { client, publicKey: kept.publicKey, proof }, OK);
-        const registered = { ...kept, isRegistered: true };
+        const proof = await Proof.sign(
+            record.keys.privateKey,
+            record.publicKey,
+            record.id,
+            Date.now(),
+        );
+        await this.#post(`${this.#path}/key`, { client, publicKey: record.publicKey, proof }, OK);
+        const registered = { ...record, isRegistered: true };
         await this.#store.save(registered);
 
         return registered;
     }
 
     /** Bind the page's credential to a registered client. */
-    async #bind(kept: ClientRecord): Promise<Identifier<"client"> | undefined> {
+    async #bind(record: ClientRecord): Promise<Identifier<"client"> | undefined> {
         // prove the key signs this very request
         const url = new URL(`${this.#path}/bind`, this.#origin).href;
-        const proof = await Proof.sign(kept.keys.privateKey, kept.publicKey, kept.id, Date.now(), {
-            method: "POST",
-            url,
-        });
+        const proof = await Proof.sign(
+            record.keys.privateKey,
+            record.publicKey,
+            record.id,
+            Date.now(),
+            {
+                method: "POST",
+                url,
+            },
+        );
         const response = await this.#fetch(
             new Request(url, { method: "POST", headers: { [PROOF_HEADER]: proof } }),
         );

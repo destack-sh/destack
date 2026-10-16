@@ -54,7 +54,7 @@ export const MachineSize = defineSchema(schema.enum(MACHINE_SIZES));
 /** The size of an account's dedicated cloud machine. */
 export type MachineSize = schema.Infer<typeof MachineSize>;
 
-/** The relay keeping a machine's tunnel. */
+/** The relay serving a machine's tunnel. */
 export const EndpointRelay = defineSchema(
     schema.object({
         /** The relay's origin, where other relays forward the machine's requests. */
@@ -63,7 +63,7 @@ export const EndpointRelay = defineSchema(
         lapsesAt: schema.number().int(),
     }),
 );
-/** The relay keeping a machine's tunnel. */
+/** The relay serving a machine's tunnel. */
 export type EndpointRelay = schema.Infer<typeof EndpointRelay>;
 
 /** The fields of a person's own computer: its operating system and hardware. */
@@ -165,7 +165,7 @@ export const machine = defineObject(
             revoke: relation("self"),
             update: none(),
             share: none(),
-            keep: none(),
+            declare: none(),
         },
         reserved: ["rotate", "publish", "serve"],
         constraints: {
@@ -212,7 +212,7 @@ export const machine = defineObject(
             variants: { kind: { personal: PERSONAL_COLUMNS, cloud: CLOUD_COLUMNS } },
             input: KeyProof,
         }),
-        keep: method.create("keep", {
+        declare: method.create("declare", {
             isInternal: true,
             fields: ["name", "size"],
             variants: { kind: { cloud: CLOUD_COLUMNS } },
@@ -225,7 +225,7 @@ export const machine = defineObject(
             input: schema.object({
                 /** The URL the machine's packages answer at. */
                 url: schema.url(),
-                /** The relay keeping its tunnel, null for a machine answering at its URL. */
+                /** The relay serving its tunnel, null for a machine answering at its URL. */
                 relay: EndpointRelay.nullable(),
             }),
         }),
@@ -334,7 +334,7 @@ export const Machine = {
         thumbprint: string,
         now: number,
     ): Promise<AssertionKey | undefined> {
-        // read the key while it authenticates, held by a machine
+        // read the machine's key while it authenticates
         const found = await snapshot.read(key.table).findFirst({
             where: {
                 AND: [

@@ -8,7 +8,7 @@ import { account } from "./account.ts";
 import { machine } from "./machine.ts";
 import { placement } from "./placement.ts";
 
-/** A unique name an object claims across databases, kept in the universe. */
+/** A unique name an object claims across databases, stored in the universe. */
 export const claim = defineObject(
     {
         name: "claim",

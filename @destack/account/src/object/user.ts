@@ -56,7 +56,7 @@ export const user = defineObject(
             self: { subjects: [principal.user] },
             // the person's home space, acting for them in their own scope
             home: { subjects: [principal.space] },
-            delegate: { subjects: [principal.user], grantedBy: "lend" },
+            delegate: { subjects: [principal.user], grantedBy: "delegate" },
             public: { subjects: [anyone.all()] },
         },
         permissions: {
@@ -71,12 +71,12 @@ export const user = defineObject(
             // the person's home, reading where the person receives notifications
             recipient: relation("home"),
             update: relation("self"),
-            lend: relation("self"),
+            delegate: relation("self"),
             impersonate: relation("delegate"),
             delete: relation("self"),
         },
-        shareable: { by: "lend" },
-        elevated: { lend: sudo, impersonate: sudo, delete: sudo },
+        shareable: { by: "delegate" },
+        elevated: { delegate: sudo, impersonate: sudo, delete: sudo },
         constraints: {
             email: { kind: "unique", on: ["email"] },
         },

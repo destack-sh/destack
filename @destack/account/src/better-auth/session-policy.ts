@@ -67,7 +67,7 @@ function requireActiveSession(database: DatabaseConnection, clock: Clock) {
             return;
         }
 
-        // keep the resolved session for the endpoint
+        // cache the resolved session for the endpoint
         context.context.session = current;
 
         // check authoritative revocation, and require the enrolled factor for a sensitive change

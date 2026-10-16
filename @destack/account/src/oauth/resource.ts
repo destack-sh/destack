@@ -40,7 +40,7 @@ export interface PackageResource {
 export const PackageResource = {
     /** Read the package of a resource identifier, absent for any other identifier. */
     package(identifier: string): PackageId | undefined {
-        // take the identifier's last segment as the package, kept when its resource is the identifier
+        // take the identifier's last segment as the package when its resource is the identifier
         const id = PackageId.safeParse(identifier.slice(identifier.lastIndexOf(":") + 1));
 
         return id.success && PackageId.resource(id.data) === identifier ? id.data : undefined;

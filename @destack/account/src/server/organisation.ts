@@ -103,7 +103,7 @@ async function accept(
     return relationship;
 }
 
-/** Create an organisation with its account, which pays for it and keeps its home. */
+/** Create an organisation with its account, which pays for it and stores its home. */
 async function create(
     context: MethodContextOf<typeof organisation, "create">,
     next: NextOf<typeof organisation, "create">,

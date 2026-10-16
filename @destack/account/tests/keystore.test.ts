@@ -53,7 +53,7 @@ async function keySet(database: DatabaseConnection, space: string) {
     return createLocalJWKSet(await Identity.keys(Snapshot.live(database), space));
 }
 
-test("sign with the active key until every verifier read the next one, verifying tokens of every published key with a key set a verifier keeps", async () => {
+test("sign with the active key until every verifier read the next one, verifying tokens of every published key with a key set a verifier caches", async () => {
     // start a space's identity on a clock the test moves
     const clock = new VirtualClock(Date.now());
     const { database, place, keystore, registry } = await openKeystore(clock);
@@ -68,7 +68,7 @@ test("sign with the active key until every verifier read the next one, verifying
     await verified(first);
     await keystore.rotate(database, subject);
 
-    // keep signing with the first key until the verifiers' key set age passed, then with the next one
+    // sign with the first key until the verifiers' key set age passed, then with the next one
     const during = await sign();
     clock.advance(KEY_SET_MILLISECONDS);
     const after = await sign();
@@ -83,8 +83,8 @@ test("sign with the active key until every verifier read the next one, verifying
     ]).toEqual([true, false, "user-1", "user-1", 2]);
 });
 
-test("rekey an identity once a move completes, so the keys its source kept neither sign for it nor rotate it", async () => {
-    // start a space's identity, keeping a replica of its keys as a move's source keeps them
+test("rekey an identity once a move completes, so the keys its source stored neither sign for it nor rotate it", async () => {
+    // start a space's identity, storing a replica of its keys as a move's source stores them
     const { database, place, keystore, registry } = await openKeystore(
         new VirtualClock(Date.now()),
     );
@@ -92,8 +92,8 @@ test("rekey an identity once a move completes, so the keys its source kept neith
     onTestFinished(() => source.close());
     const subject = await place();
     await keystore.generate(database, subject);
-    const kept = await database.select().from(identityKey);
-    await source.database.insert(identityKey).values(kept);
+    const keys = await database.select().from(identityKey);
+    await source.database.insert(identityKey).values(keys);
     const moved = new IdentityKeystore(keystore.keyring, registry, keystore.clock);
     const before = await moved.sign(source.database, subject, { sub: "user-1" });
 
@@ -163,7 +163,7 @@ async function derive(
 }
 
 test("derive one key per space and label, the same after a move rewraps the space's secret", async () => {
-    // keep two spaces' keys under the source machine's keyring
+    // store two spaces' keys under the source machine's keyring
     const clock = new VirtualClock(Date.now());
     const opened = await openKeystore(clock);
     const source = opened.database;
@@ -200,7 +200,7 @@ test("derive one key per space and label, the same after a move rewraps the spac
         await derive(targetKeystore, target, spaces[0], "first"),
     ];
 
-    // keep one key per space and label across derivations and the move
+    // expect one key per space and label across derivations and the move
     const [first, , second, other] = derived;
     expect({
         derived,

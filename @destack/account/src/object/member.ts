@@ -50,7 +50,7 @@ export const member = defineObject(
 /** A persisted member. */
 export type Member = Select<typeof member.table>;
 
-/** Members, kept as relationships of their organisations to their users. */
+/** Members, stored as relationships of their organisations to their users. */
 export const Member = {
     /** Require ownership of the call's organisation when any of some roles is an owner's. */
     async requireOwner(
@@ -90,7 +90,7 @@ export const Member = {
         });
         if (others.length === 0) {
             throw new CallError("PRECONDITION_FAILED", {
-                message: `${row.scope} keeps at least one owner`,
+                message: `${row.scope} needs at least one owner`,
             });
         }
     },

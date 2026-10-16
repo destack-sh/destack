@@ -35,7 +35,7 @@ const CHAIN_TYPES = [user, organisation, residency, account, space];
 const PUBLISHED = [...accessTables, ...CHAIN_TYPES.map((type) => type.table), placement.table];
 
 test("decide a space's access in the space from its row and the relationships on it, homed at the universe and replicated down live", async () => {
-    // keep alice's account with a space at the universe, and serve the space's replica of its chain
+    // store alice's account with a space at the universe, and serve the space's replica of its chain
     const { universe, spaceId, accountId, people, replica, follow } = await openSpace();
     const reference = space.reference(accountId, spaceId);
     const access = new AccessFixture(universe);
@@ -68,9 +68,9 @@ test("decide a space's access in the space from its row and the relationships on
     expect(await decide(people.dave, "read")).toBe(true);
 });
 
-/** Keep an account of alice with one space at the universe, and its space's store following it. */
+/** Store an account of alice with one space at the universe, and its space's store following it. */
 async function openSpace() {
-    // keep the universe's people, account and space
+    // store the universe's people, account and space
     const universeStorage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
@@ -92,7 +92,7 @@ async function openSpace() {
         await Promise.all([universeStorage.close(), spaceStorage.close()]);
     });
     const universe = universeStorage.database;
-    const ids = await keepAccount(universe);
+    const ids = await insertAccount(universe);
 
     // serve the space's store, replicating the chain above the space from the universe
     const feed = new Feed(universe, PUBLISHED, { clock: Clock.system });
@@ -134,13 +134,13 @@ async function openSpace() {
     return { ...ids, universe, replica, follow };
 }
 
-/** Keep alice, bob, carol and dave, and an account alice owns with one space, at the universe. */
-async function keepAccount(universe: DatabaseConnection) {
-    // keep the residency and the people
+/** Insert alice, bob, carol and dave, and an account alice owns with one space, at the universe. */
+async function insertAccount(universe: DatabaseConnection) {
+    // insert the residency and the people
     const now = Date.now();
     const times = { createdAt: now, updatedAt: now };
     await universe.insert(residency.table).values({ id: "eu", name: "European Union", ...times });
-    const keep = async (name: string) => {
+    const createUser = async (name: string) => {
         const id = Identifier.create("user");
         await universe.insert(user.table).values({
             id,
@@ -155,10 +155,10 @@ async function keepAccount(universe: DatabaseConnection) {
         return id;
     };
     const userIds = {
-        alice: await keep("alice"),
-        bob: await keep("bob"),
-        carol: await keep("carol"),
-        dave: await keep("dave"),
+        alice: await createUser("alice"),
+        bob: await createUser("bob"),
+        carol: await createUser("carol"),
+        dave: await createUser("dave"),
     };
     const people = {
         alice: person(userIds.alice),
@@ -167,7 +167,7 @@ async function keepAccount(universe: DatabaseConnection) {
         dave: person(userIds.dave),
     };
 
-    // keep alice's account and its space, alice owning the account
+    // store alice's account and its space, alice owning the account
     const accountId = Identifier.create("account");
     const spaceId = Identifier.create("space");
     const owner = userIds.alice;
@@ -204,7 +204,7 @@ async function following(
     database: DatabaseConnection,
     universe: DatabaseConnection,
 ): Promise<() => Promise<void>> {
-    // keep each scope's replica followed until the test ends
+    // follow each scope's replica until the test ends
     const follower = present(
         replica.controllers().find((each) => each.name === "replica"),
         "the replica controller",

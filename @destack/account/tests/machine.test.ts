@@ -42,7 +42,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
                         AND: [{ parentId: enrolled.machineId }, Key.authenticates(now)],
                     },
                 })
-        ).map((held) => held.id);
+        ).map((row) => row.id);
     const now = Date.now();
     const selected = [await active(now), await active(now + PAST_LIFETIME)];
     await owner.client.machine.revoke({
@@ -175,7 +175,7 @@ test("record a machine's contact with the version and runtimes it reports", asyn
     const after = Date.now();
     const seen = await machines.machine.get({ scope: accountId, id: enrolled.machineId });
 
-    // keep what the machine reported
+    // store what the machine reported
     expect({
         version: seen.version,
         runtimes: seen.runtimes,

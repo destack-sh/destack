@@ -1,7 +1,7 @@
 import { AuditCaller, defineAuditAction } from "@destack/object";
 import { AuditRecorder, type Journal } from "@destack/object/server";
 import { Scope } from "@destack/sync";
-import { present, schema } from "@destack/schema";
+import { present, schema, zip } from "@destack/schema";
 import {
     SpanKind,
     SpanStatusCode,
@@ -139,8 +139,8 @@ export class BetterAuthAudit {
 
             return (
                 segments.length === path.length &&
-                segments.every(
-                    (segment, index) => segment.startsWith(":") || segment === path[index],
+                zip(segments, path).every(
+                    ([segment, part]) => segment.startsWith(":") || segment === part,
                 )
             );
         });

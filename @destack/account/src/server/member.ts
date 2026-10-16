@@ -8,7 +8,7 @@ export function implementMember(): typeof member {
             join,
             update,
             suspend: async (call, next) => {
-                // keep another active owner beside a suspended owner
+                // require another active owner beside a suspended owner
                 await Member.requireOtherOwner(call, call.target);
 
                 return transition(call, next);

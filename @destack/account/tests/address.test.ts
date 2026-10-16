@@ -144,7 +144,7 @@ test("write a branch's label readable while it fits 63 characters, else by the d
         SpaceOrigin.format(longest, DOMAINS.space),
     ];
 
-    // keep the fitting branch readable, and digest the name and branch, or the branch alone, at the longest names
+    // leave the fitting branch readable, and digest the name and branch, or the branch alone, at the longest names
     const tail = `---${longest.space}--${longest.handle}.destack.space`;
     expect(labels).toEqual([
         "notes--feature-x---personal--florian.destack.space",

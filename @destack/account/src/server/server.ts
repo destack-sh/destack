@@ -2,7 +2,7 @@ import { proof } from "../object/proof.ts";
 import { defineServer, type PackageServer } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
-import type { PlatformDeclaration } from "./platform.ts";
+import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 import { Allowance } from "../object/allowance.ts";
 import { claim } from "../object/claim.ts";
 import accountPackage from "../package.ts";
@@ -30,7 +30,7 @@ export interface AccountOptions {
     /** The resolver reading domains' challenge records. */
     readonly resolver: DnsResolver;
     /** The stacks spaces are born with. */
-    readonly stacks: PlatformDeclaration["stacks"];
+    readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
     /** The universe's sign-in, which answers the oauth adapter once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
 }

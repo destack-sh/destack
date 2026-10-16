@@ -152,9 +152,9 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-/** Serve hostnames below a verified domain of the account, keeping the domain while one serves. */
+/** Serve hostnames below a verified domain of the account, refusing to remove the domain while one serves. */
 test.for(TEST_DIALECTS)(
-    "serve hostnames below a verified domain alone, and keep the domain while one serves on %s",
+    "serve hostnames below a verified domain alone, and refuse to remove the domain while one serves on %s",
     async (dialect) => {
         await using fixture = await DomainFixture.open(found(databases, dialect).database);
         const { accountId, otherId, name } = fixture;
@@ -239,7 +239,7 @@ test.for(TEST_DIALECTS)("refuse domain methods to a non-member on %s", async (di
         ),
     ).toBe(hidden);
 
-    // keep the claim unverified and ask the resolver nothing
+    // leave the claim unverified and ask the resolver nothing
     expect(await owner.domain.get({ scope, id })).toEqual(claimed);
     expect(fixture.lookups).toEqual([]);
 });

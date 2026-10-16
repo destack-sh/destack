@@ -34,7 +34,7 @@ import { testEvents } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
-import { aligned, canonicalize, Digest, found, Identifier, present, schema } from "@destack/schema";
+import { nth, canonicalize, Digest, found, Identifier, present, schema } from "@destack/schema";
 import { PackageMount } from "@destack/runtime";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import { CallError } from "@destack/runtime/error";
@@ -64,6 +64,8 @@ import {
     type ResidencyCode,
     type ResidencyDefinition,
     session,
+    type SpaceKind,
+    type StackSource,
     user,
     User,
 } from "../object/index.ts";
@@ -102,7 +104,7 @@ export const PLATFORM_HANDLE = "destack";
 /** The person owning the fixture's accounts. */
 const OWNER = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a");
 
-/** The identities the account package keeps from its start. */
+/** The identities the account package stores from its start. */
 export const ids = {
     owner: OWNER,
     stranger: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
@@ -117,7 +119,7 @@ export const ids = {
 export type HomeServer = "fixture" | "machine";
 
 /** The stand-in stacks spaces are born with. */
-export const STACKS: PlatformDeclaration["stacks"] = {
+export const STACKS: Readonly<Record<SpaceKind, StackSource>> = {
     residency: {
         package: Package.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000b1",
@@ -176,7 +178,7 @@ const PERSONAL_MACHINE = {
     model: "Mac14,2",
 } as const;
 
-/** The creation and update times of the rows the fixture keeps. */
+/** The creation and update times of the rows the fixture stores. */
 const RECORD_TIMES = { createdAt: 1, updatedAt: 1 };
 
 /** The residencies of the universe, as the platform's bootstrap declares them. */
@@ -185,14 +187,14 @@ const RESIDENCIES: readonly ResidencyDefinition[] = [
     { code: "us", name: "United States" },
 ];
 
-/** The people the account package keeps from its start, with their names and emails. */
+/** The people the account package stores from its start, with their names and emails. */
 const PEOPLE = [
     { id: ids.owner, name: "Owner", email: `${ids.owner}@example.test` },
     { id: ids.stranger, name: "Stranger", email: `${ids.stranger}@example.test` },
     { id: ids.operator, name: "Operator", email: OPERATOR_EMAIL },
 ] as const;
 
-/** The owner's accounts the account package keeps from its start, with their handles and kinds. */
+/** The owner's accounts the account package stores from its start, with their handles and kinds. */
 const ACCOUNTS = [
     { id: ids.account, handle: "acme", kind: "personal" },
     { id: ids.other, handle: "rival", kind: "shared" },
@@ -219,7 +221,7 @@ export interface AccountFixtureOptions {
     /** The sign-in options the test changes. */
     readonly signIn?: Partial<BetterAuthAuthenticatorOptions>;
     /** The stacks spaces are born with. */
-    readonly stacks?: PlatformDeclaration["stacks"];
+    readonly stacks?: Readonly<Record<SpaceKind, StackSource>>;
     /** Who serves the residencies' homes. */
     readonly homes?: HomeServer;
 }
@@ -269,7 +271,7 @@ export class AccountFixture implements AsyncDisposable {
     readonly homes: HomeServer;
     /** The email sign-in mailed. */
     readonly #inbox: Inbox;
-    /** The keychains keeping the keys of the declared cloud machines, by machine. */
+    /** The keychains storing the keys of the declared cloud machines, by machine. */
     readonly #cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
     /** The keychain of the universe's keyring. */
     readonly #keychain: MemoryKeychain;
@@ -278,7 +280,7 @@ export class AccountFixture implements AsyncDisposable {
     /** The access tokens exchanged for sessions, by session token, audience and space. */
     readonly #tokens = new Map<string, Promise<{ accessToken: string; expiresAt: number }>>();
 
-    /** Keep a served account package. */
+    /** Store a served account package. */
     private constructor(
         storage: TestDatabase,
         served: Served,
@@ -287,13 +289,13 @@ export class AccountFixture implements AsyncDisposable {
             readonly platform: Identifier<"account">;
             /** Who serves the residencies' homes. */
             readonly homes: HomeServer;
-            /** The keychains keeping the keys of the declared cloud machines, by machine. */
+            /** The keychains storing the keys of the declared cloud machines, by machine. */
             readonly cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
             /** The keychain of the universe's keyring. */
             readonly keychain: MemoryKeychain;
         },
     ) {
-        // keep the served store, sign-in and servers over the database
+        // store the served store, sign-in and servers over the database
         this.storage = storage;
         this.database = storage.database;
         this.objects = served.objects;
@@ -301,7 +303,7 @@ export class AccountFixture implements AsyncDisposable {
         this.servers = served.servers;
         this.keystore = served.authenticator.keystore;
 
-        // keep what tests read and change
+        // store what tests read and change
         this.callers = served.callers;
         this.releases = served.releases;
         this.platform = state.platform;
@@ -314,7 +316,7 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Serve the account package with the owner's accounts and the platform's organisation. */
     static async open(options: AccountFixtureOptions = {}): Promise<AccountFixture> {
-        // replicate the database the seed of the stacks and homes keeps, written once per process
+        // replicate the database the seed of the stacks and homes stores, written once per process
         const stacks = options.stacks ?? STACKS;
         const homes = options.homes ?? "fixture";
         const { storage, value } = await TestDatabase.seeded(
@@ -323,7 +325,7 @@ export class AccountFixture implements AsyncDisposable {
             AccountFixture.#seed(stacks, homes),
         );
 
-        // serve it with the seed's keys, reading the platform's account it keeps
+        // serve it with the seed's keys, reading the platform's account it stores
         const keys = value.copy();
         const served = await AccountFixture.#serve(storage, keys, { ...options, stacks, homes });
 
@@ -341,7 +343,7 @@ export class AccountFixture implements AsyncDisposable {
         dialect: Dialect = present(TEST_DIALECTS.at(-1), "the last test dialect"),
     ): Promise<TestDatabase> {
         const storage = await TestDatabase.create(dialect, definition, { isMigrated: true });
-        await AccountFixture.#keepResidencies(storage.database);
+        await AccountFixture.#insertResidencies(storage.database);
 
         return storage;
     }
@@ -369,9 +371,9 @@ export class AccountFixture implements AsyncDisposable {
         return server.fetch(mount.request);
     }
 
-    /** Keep a verified person with their eu personal account, a session and a client. */
+    /** Store a verified person with their eu personal account, a session and a client. */
     async person(email: string, handle: string = freshHandle()): Promise<Person> {
-        // keep the user and their personal account as the sign-up creates them
+        // store the user and their personal account as the sign-up creates them
         const context = await this.authenticator.auth.$context;
         const created = await context.internalAdapter.createUser(
             { email, name: email, emailVerified: true, ...SIGN_UP, handle, residencyId: "eu" },
@@ -389,7 +391,7 @@ export class AccountFixture implements AsyncDisposable {
         };
     }
 
-    /** Sign a kept user in on a new client as an email sign-in does, returning the session. */
+    /** Sign a stored user in on a new client as an email sign-in does, returning the session. */
     async signIn(userId: Identifier<"user">): Promise<string> {
         // create the session and record the email sign-in as its ceremony
         const context = await this.authenticator.auth.$context;
@@ -418,7 +420,7 @@ export class AccountFixture implements AsyncDisposable {
         return created.token;
     }
 
-    /** Connect a typed client acting as a kept user through a new session's access tokens. */
+    /** Connect a typed client acting as a stored user through a new session's access tokens. */
     async session(userId: Identifier<"user">): Promise<ClientOf<typeof accountPackage>> {
         return this.sessionClient(await this.signIn(userId));
     }
@@ -595,7 +597,7 @@ export class AccountFixture implements AsyncDisposable {
         return this.#authenticate(await LocalKeyring.rotate(this.#keychain, "account"));
     }
 
-    /** Sign a kept user's access token for a package in a space through a new session. */
+    /** Sign a stored user's access token for a package in a space through a new session. */
     async token(userId: Identifier<"user">, audience: PackageId, spaceId: string): Promise<string> {
         return (await this.exchange(await this.signIn(userId), audience, spaceId)).accessToken;
     }
@@ -689,12 +691,12 @@ export class AccountFixture implements AsyncDisposable {
         return identity;
     }
 
-    /** Keep a cloud machine of an account serving a residency, and return its identity. */
-    async keepCloudMachine(
+    /** Declare a cloud machine of an account serving a residency, and answer its identity. */
+    async declareCloudMachine(
         accountId: Identifier<"account">,
         residencyId: ResidencyCode,
     ): Promise<MachineIdentity> {
-        // keep a new identity's machine as the universe with its key
+        // store a new identity's machine as the universe with its key
         const identity = new MachineIdentity(
             Identifier.create("machine"),
             new MemoryKeychain(),
@@ -704,7 +706,7 @@ export class AccountFixture implements AsyncDisposable {
         await this.objects.mutate(this.objects.self, {
             id: RequestId.create(this.objects.clock.now()),
             calls: [
-                machine.call("keep", {
+                machine.call("declare", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
                     name: `cloud-${identity.machineId.slice(-12)}`,
                     kind: "cloud",
@@ -738,7 +740,7 @@ export class AccountFixture implements AsyncDisposable {
         };
     }
 
-    /** Connect to the account package as a kept user, verified by the fixture. */
+    /** Connect to the account package as a stored user, verified by the fixture. */
     user(userId: string): ClientOf<typeof accountPackage> {
         const subject = principal.user.reference(Scope.universe.id, userId);
         this.callers.set(userId, { kind: "fixture", id: userId, subject });
@@ -817,7 +819,7 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Wait until an installation's replicas from the account package catch up, or fail. */
     async settle(objects: ObjectStore, failure?: AbortSignal): Promise<void> {
-        // wait for each replica the installation requests from the account package, as long as it keeps requesting new ones
+        // wait for each replica the installation requests from the account package, while it requests new ones
         const timeout = AbortSignal.timeout(SETTLE_MILLISECONDS);
         const signal = failure === undefined ? timeout : AbortSignal.any([timeout, failure]);
         const head = await this.database.log.position(await objects.database.log.epoch());
@@ -871,7 +873,7 @@ export class AccountFixture implements AsyncDisposable {
         await Relationship.insert(database, relationship, scope);
     }
 
-    /** Read the keychain keeping a declared cloud machine's key. */
+    /** Read the keychain storing a declared cloud machine's key. */
     cloudKeychain(machineId: Identifier<"machine">): Keychain {
         return found(this.#cloudKeychains, machineId);
     }
@@ -918,7 +920,10 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Find or start the seed of the platform, the people and the owner's accounts. */
-    static #seed(stacks: PlatformDeclaration["stacks"], homes: HomeServer): TestSeed<AccountKeys> {
+    static #seed(
+        stacks: Readonly<Record<SpaceKind, StackSource>>,
+        homes: HomeServer,
+    ): TestSeed<AccountKeys> {
         // reuse the seed of the same stacks and homes
         const key = JSON.stringify([stacks, homes]);
         const known = AccountFixture.#seeds.get(key);
@@ -933,19 +938,19 @@ export class AccountFixture implements AsyncDisposable {
         return seed;
     }
 
-    /** Keep the residencies, the people, the platform, its homes and the owner's accounts. */
+    /** Store the residencies, the people, the platform, its homes and the owner's accounts. */
     static async #write(
         storage: TestDatabase,
-        stacks: PlatformDeclaration["stacks"],
+        stacks: Readonly<Record<SpaceKind, StackSource>>,
         homes: HomeServer,
     ): Promise<AccountKeys> {
-        // keep the residencies and the people
-        await AccountFixture.#keepResidencies(storage.database);
-        await AccountFixture.#keepPeople(storage.database);
+        // store the residencies and the people
+        await AccountFixture.#insertResidencies(storage.database);
+        await AccountFixture.#insertPeople(storage.database);
 
-        // serve the account package with new keys, keeping the platform before the universe's identity
+        // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
-        const definition = await AccountFixture.#platformDeclaration(stacks, keys.cloud);
+        const definition = await AccountFixture.#platformDeclaration(keys.cloud);
         const served = await AccountFixture.#serve(storage, keys, { stacks, homes }, definition);
         const fixture = new AccountFixture(storage, served, {
             platform: await AccountFixture.#platform(storage.database),
@@ -954,19 +959,19 @@ export class AccountFixture implements AsyncDisposable {
             keychain: keys.universe,
         });
 
-        // seat the operator, start the homes' identities and keep the owner's accounts, then stop serving
+        // seat the operator, start the homes' identities and store the owner's accounts, then stop serving
         await fixture.#seatOperator();
         if (homes === "fixture") {
             await fixture.#serveHomes();
         }
-        await fixture.#keepAccounts();
+        await fixture.#createAccounts();
         await fixture.close();
 
         return keys;
     }
 
-    /** Keep each residency of the universe, shown to anyone. */
-    static async #keepResidencies(database: DatabaseConnection): Promise<void> {
+    /** Store each residency of the universe, shown to anyone. */
+    static async #insertResidencies(database: DatabaseConnection): Promise<void> {
         const access = new AccessFixture(database);
         for (const declared of RESIDENCIES) {
             await database
@@ -981,10 +986,10 @@ export class AccountFixture implements AsyncDisposable {
         }
     }
 
-    /** Keep the owner of the accounts, a stranger and the operator, each shown to anyone. */
-    static async #keepPeople(database: DatabaseConnection): Promise<void> {
+    /** Store the owner of the accounts, a stranger and the operator, each shown to anyone. */
+    static async #insertPeople(database: DatabaseConnection): Promise<void> {
         for (const person of PEOPLE) {
-            // keep the user
+            // store the user
             await database.insert(user.table).values({
                 ...RECORD_TIMES,
                 ...person,
@@ -1011,7 +1016,6 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Declare the platform with a cloud machine per residency. */
     static async #platformDeclaration(
-        stacks: PlatformDeclaration["stacks"],
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
     ): Promise<PlatformDeclaration> {
         return {
@@ -1025,7 +1029,6 @@ export class AccountFixture implements AsyncDisposable {
                 await cloudMachine(cloudKeychains, ids.machine, "eu-central", "eu"),
                 await cloudMachine(cloudKeychains, ids.usMachine, "us-east", "us"),
             ],
-            stacks,
         };
     }
 
@@ -1077,9 +1080,9 @@ export class AccountFixture implements AsyncDisposable {
         });
         const { packages } = store;
 
-        // keep the platform before the universe's identity, which its role starts
+        // store the platform before the universe's identity, which its role starts
         if (platform !== undefined) {
-            await Platform.keep(store, platform, clock.now());
+            await Platform.apply(store, platform, options.stacks.residency, clock.now());
         }
 
         // sign in with the universe's identity, mailing links and codes into an inbox
@@ -1110,8 +1113,8 @@ export class AccountFixture implements AsyncDisposable {
 
         // serve each package to the callers the fixture verifies and to access tokens
         const callers = new Map<string, Verification>();
-        const accounts = aligned(packages, 0);
-        const settings = aligned(packages, 1);
+        const accounts = nth(packages, 0);
+        const settings = nth(packages, 1);
         const servers = new Map([
             [accountPackage.id, AccountFixture.serve(accounts, database, callers, clock)],
             [settingPackage.id, AccountFixture.serve(settings, database, callers, clock)],
@@ -1148,7 +1151,7 @@ export class AccountFixture implements AsyncDisposable {
         }
     }
 
-    /** Read the platform's account, which the seed keeps. */
+    /** Read the platform's account, which the seed stores. */
     static async #platform(database: DatabaseConnection): Promise<Identifier<"account">> {
         const [row] = await database
             .select({ id: account.table.id })
@@ -1199,7 +1202,7 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Create the owner's eu accounts as the owner. */
-    async #keepAccounts(): Promise<void> {
+    async #createAccounts(): Promise<void> {
         const owner = principal.user.reference(Scope.universe.id, ids.owner);
         await this.objects.mutate(AccessContext.of(Caller.of(owner), this.objects.clock.now()), {
             id: RequestId.create(this.objects.clock.now()),
@@ -1215,7 +1218,7 @@ export class AccountFixture implements AsyncDisposable {
         });
     }
 
-    /** Seat the operator as the platform organisation's owner through the invitation it keeps. */
+    /** Seat the operator as the platform organisation's owner through the invitation it stores. */
     async #seatOperator(): Promise<void> {
         // sign the operator in and find the platform organisation
         const operator = await this.session(ids.operator);
@@ -1224,7 +1227,7 @@ export class AccountFixture implements AsyncDisposable {
             "the platform organisation",
         );
 
-        // accept the invitation the platform keeps for the operator
+        // accept the invitation the platform stores for the operator
         const [invited] = (await operator.user.invited({ id: ids.operator })).items;
         await operator.organisation.accept({
             id: organisationId,
@@ -1301,12 +1304,12 @@ export interface Actor {
     readonly client: ClientOf<typeof accountPackage>;
 }
 
-/** The email sign-in mailed, kept as the platform's account would send it. */
+/** The email sign-in mailed, stored as the platform's account would send it. */
 export class Inbox implements MailTransport {
     /** The mailed emails, oldest first. */
     readonly #mail: { readonly email: string; readonly text: string }[] = [];
 
-    /** Keep an email sign-in mails to an address. */
+    /** Store an email sign-in mails to an address. */
     async send(mail: Mail): Promise<MailOutcome> {
         this.#mail.push({ email: mail.to, text: mail.text });
 
@@ -1355,14 +1358,14 @@ function verified(verification: Verification, audience: PackageId, now: number):
     };
 }
 
-/** Declare a cloud machine of the universe serving a residency, keeping its keychain. */
+/** Declare a cloud machine of the universe serving a residency, storing its keychain. */
 async function cloudMachine(
     keychains: Map<Identifier<"machine">, MemoryKeychain>,
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
 ): Promise<PlatformDeclaration["machines"][number]> {
-    // generate its key, keeping its keychain for tests to act as it and run it
+    // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
     const { publicKey } = await new MachineIdentity(id, keychain, Clock.system).generate();
     keychains.set(id, keychain);
@@ -1385,7 +1388,7 @@ class AccountKeys {
     /** The keychains of the declared cloud machines, by machine. */
     readonly cloud: Map<Identifier<"machine">, MemoryKeychain>;
 
-    /** Keep the keychains. */
+    /** Store the keychains. */
     constructor(universe: MemoryKeychain, cloud: Map<Identifier<"machine">, MemoryKeychain>) {
         this.universe = universe;
         this.cloud = cloud;

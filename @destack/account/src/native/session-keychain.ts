@@ -1,15 +1,15 @@
 import { Keychain } from "@destack/identity";
 import type { Person } from "./person.ts";
 
-/** The keychain service keeping the refresh tokens of people signed in on a native client. */
+/** The keychain service storing the refresh tokens of people signed in on a native client. */
 export const SESSIONS = "app.destack.login";
 
 /** The refresh tokens of the people signed in on this computer, one keychain entry each. */
 export class SessionKeychain {
-    /** The keychain keeping the sessions. */
+    /** The keychain storing the sessions. */
     readonly keychain: Keychain;
 
-    /** Keep sessions in a keychain. */
+    /** Store sessions in a keychain. */
     constructor(keychain: Keychain) {
         this.keychain = keychain;
     }
@@ -19,8 +19,8 @@ export class SessionKeychain {
         return this.keychain.load(SessionKeychain.#entry(person));
     }
 
-    /** Keep a person's session in place of the one read before. */
-    async keep(person: Person, token: string): Promise<string> {
+    /** Replace a person's session read before with a new one, or adopt a racing sign-in's. */
+    async replace(person: Person, token: string): Promise<string> {
         // replace the session read before or adopt the racing sign-in's session
         const entry = SessionKeychain.#entry(person);
         const current = await this.keychain.load(entry);
@@ -30,7 +30,7 @@ export class SessionKeychain {
         );
     }
 
-    /** Forget a person's session, whichever one the keychain keeps. */
+    /** Forget a person's session, whichever one the keychain stores. */
     forget(person: Person): Promise<void> {
         return this.keychain.remove(SessionKeychain.#entry(person));
     }

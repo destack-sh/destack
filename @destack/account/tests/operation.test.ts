@@ -104,7 +104,7 @@ test.each(TEST_DIALECTS)(
             ),
         ).toBe(unrecoverable);
 
-        // keep the whole log, the stolen operation nullified
+        // expect the whole log, the stolen operation nullified
         expect([await read(), await log()]).toEqual([
             {
                 signingKeys: [signing.publicKey],

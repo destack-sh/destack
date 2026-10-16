@@ -9,10 +9,10 @@ import { organisation } from "../object/organisation.ts";
 import { relationship } from "../object/relationship.ts";
 import { Residency } from "../object/residency.ts";
 import { space } from "../object/space.ts";
-import type { PlatformDeclaration } from "./platform.ts";
+import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 
 /** Implement accounts. */
-export function implementAccount(stacks: PlatformDeclaration["stacks"]): typeof account {
+export function implementAccount(stacks: Readonly<Record<SpaceKind, StackSource>>): typeof account {
     return account.implement({
         methods: {
             create: {
@@ -27,7 +27,7 @@ export function implementAccount(stacks: PlatformDeclaration["stacks"]): typeof 
 async function create(
     context: MethodContextOf<typeof account, "create">,
     next: NextOf<typeof account, "create">,
-    stacks: PlatformDeclaration["stacks"],
+    stacks: Readonly<Record<SpaceKind, StackSource>>,
 ): Promise<ResultOf<typeof account, "create">> {
     // read the owner
     const owner = await Scope.object(context, context.scope);

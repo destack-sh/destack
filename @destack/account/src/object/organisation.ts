@@ -11,7 +11,7 @@ import {
 import { defineObject, field } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { SpaceStack } from "./space-stack.ts";
+import { StackSource } from "./stack-source.ts";
 import { AccountHandle } from "../address/handle.ts";
 import { residency, ResidencyCode } from "./residency.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -99,10 +99,10 @@ export const organisation = defineObject(
             input: schema.object({
                 /** The handle the organisation's account claims. */
                 handle: AccountHandle,
-                /** The jurisdiction the organisation's account keeps data in. */
+                /** The jurisdiction the organisation's account stores data in. */
                 residencyId: ResidencyCode,
                 /** The stack the home of the organisation's account carries, none when absent. */
-                stack: SpaceStack.exactOptional(),
+                stack: StackSource.exactOptional(),
             }),
             isPredicted: false,
         }),

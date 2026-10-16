@@ -3,26 +3,26 @@ import { CallError } from "@destack/runtime/error";
 import { type Identifier, schema } from "@destack/schema";
 import type { Clock } from "@destack/environment";
 
-/** The keychain service keeping the keys of a computer's native clients, by client. */
+/** The keychain service storing the keys of a computer's native clients, by client. */
 export const CLIENT_KEYS = "app.destack.client";
 
 /** The keys a computer's native clients prove themselves to its machine with, in its keychain. */
 export class ClientKey {
-    /** The keychain keeping the private keys, by client. */
+    /** The keychain storing the private keys, by client. */
     readonly #keys: Keychain;
     /** The clock proofs are signed and verified at. */
     readonly #clock: Clock;
 
-    /** Keep native client keys in a keychain. */
+    /** Store native client keys in a keychain. */
     constructor(keys: Keychain, clock: Clock) {
         this.#keys = keys;
         this.#clock = clock;
     }
 
-    /** Generate and keep a key for a client a sign-in registered. */
+    /** Generate and store a key for a client a sign-in registered. */
     async generate(client: Identifier<"client">): Promise<void> {
-        const { kept } = await KeyPair.generate();
-        await this.#keys.save(client, kept);
+        const { secret } = await KeyPair.generate();
+        await this.#keys.save(client, secret);
     }
 
     /** Sign a proof of a client now, which the machine on this computer verifies. */
@@ -32,9 +32,9 @@ export class ClientKey {
         return Proof.sign(privateKey, publicKey, client, this.#clock.now());
     }
 
-    /** Verify a client's proof with the key this keychain keeps, answering the client. */
+    /** Verify a client's proof with the key this keychain stores, answering the client. */
     async verify(proof: string): Promise<Identifier<"client">> {
-        // read the client the proof speaks for, refusing one this computer keeps no key of
+        // read the client the proof speaks for, refusing one this computer stores no key of
         const read = Proof.read(proof);
         const client = schema.identifier("client").safeParse(read.subject);
         if (!client.success || (await this.#keys.load(client.data)) === undefined) {
@@ -55,13 +55,13 @@ export class ClientKey {
         await this.#keys.remove(client);
     }
 
-    /** Read a client's kept key pair, refusing a client without one. */
+    /** Read a client's stored key pair, refusing a client without one. */
     async #load(client: Identifier<"client">): Promise<KeyPair> {
-        const kept = await this.#keys.load(client);
-        if (kept === undefined) {
+        const secret = await this.#keys.load(client);
+        if (secret === undefined) {
             throw new TypeError(`client ${client} has no key on this computer`);
         }
 
-        return KeyPair.read(kept);
+        return KeyPair.read(secret);
     }
 }

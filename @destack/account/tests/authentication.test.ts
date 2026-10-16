@@ -267,13 +267,13 @@ test("sign in and revoke a session", async () => {
     ]);
 });
 
-/** Sign a person kept with an unproven email in with a mailed code, proving the email. */
+/** Sign a person stored with an unproven email in with a mailed code, proving the email. */
 test("sign a person with an unproven email in with a mailed code, proving the email", async () => {
     await using fixture = await AccountFixture.open();
     const database = fixture.storage.database;
     const browser = fixture.browser();
 
-    // keep a person whose email nobody proved yet
+    // store a person whose email nobody proved yet
     const id = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e1");
     const email = "ada@example.com";
     await database.insert(user.table).values({
@@ -331,7 +331,7 @@ test("require the second factor after passwordless sign-in", async () => {
     const database = fixture.storage.database;
     let browser = fixture.browser();
 
-    // keep the person, then sign in using a mailed code and enroll a real authenticator
+    // store the person, then sign in using a mailed code and enroll a real authenticator
     const person = await fixture.person("florian@example.com");
     const sent = await browser.fetch("/email-otp/send-verification-otp", {
         email: "florian@example.com",
@@ -658,7 +658,7 @@ test("sign in with github and google", async () => {
         },
     ]);
 
-    // keep each provider identity without its signed ID token
+    // store each provider identity without its signed ID token
     expect(
         await fixture.storage.database
             .select({

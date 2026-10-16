@@ -30,8 +30,8 @@ const Refusal = schema.looseObject({ error: schema.string(), error_description: 
 /** The package receiving the machines' requests. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e002");
 
-/** A kept private key's public coordinates, beside its private scalar. */
-const KeptKey = schema.looseObject({
+/** A stored private key's public coordinates, beside its private scalar. */
+const StoredKey = schema.looseObject({
     kty: schema.string(),
     crv: schema.string(),
     x: schema.string(),
@@ -203,7 +203,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
 });
 
 test("grant a cloud machine tokens for a minute as itself alone, spending each assertion once, until the machine rotates its key, is disabled or is revoked", async () => {
-    // enroll a cloud machine of the residency and keep its first key apart
+    // enroll a cloud machine of the residency and store its first key apart
     const accountId = accounts.platform;
     const keys = new MemoryKeychain();
     const identity = new MachineIdentity(Identifier.create("machine"), keys, Clock.system);
@@ -216,9 +216,9 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
         providerCode: "cloudflare",
         location: "eu",
     });
-    const kept = new MemoryKeychain();
-    kept.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
-    const first = new MachineIdentity(identity.machineId, kept, Clock.system);
+    const keychain = new MemoryKeychain();
+    keychain.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
+    const first = new MachineIdentity(identity.machineId, keychain, Clock.system);
     const [enrolled] = await accounts.database
         .select()
         .from(key.table)
@@ -473,7 +473,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
     ]);
 });
 
-test("keep one key when two processes generate a machine's first key at once, both adopting the one kept first", async () => {
+test("store one key when two processes generate a machine's first key at once, both adopting the one stored first", async () => {
     // generate the first key from two identities sharing one keychain
     const keys = new MemoryKeychain();
     const machineId = Identifier.create("machine");
@@ -482,15 +482,15 @@ test("keep one key when two processes generate a machine's first key at once, bo
         new MachineIdentity(machineId, keys, Clock.system).generate(),
     ]);
 
-    // answer the kept key's public half to both
-    const { kty, crv, x, y } = KeptKey.parse(JSON.parse(found(keys.secrets, machineId)));
+    // answer the stored key's public half to both
+    const { kty, crv, x, y } = StoredKey.parse(JSON.parse(found(keys.secrets, machineId)));
     expect(generated.map((entry) => entry.publicKey)).toEqual([
         { kty, crv, x, y },
         { kty, crv, x, y },
     ]);
 });
 
-test("rotate once for two identities of one machine rotating at once, keeping the key the universe keeps as current", async () => {
+test("rotate once for two identities of one machine rotating at once, ending on the key the universe has as current", async () => {
     // enroll a machine and rotate its key from two of its identities
     const accountId = ids.account;
     const keys = new MemoryKeychain();
@@ -512,14 +512,14 @@ test("rotate once for two identities of one machine rotating at once, keeping th
         rotations.map((rotation) => rotation.rotate(accounts.machine(rotation), accountId)),
     );
 
-    // register one new key and keep the key the universe has not revoked
+    // register one new key and end on the key the universe has not revoked
     const registered = await accounts.database
         .select()
         .from(key.table)
         .where(eq(key.table.parentId, identity.machineId));
-    const { kty, crv, x, y } = KeptKey.parse(JSON.parse(found(keys.secrets, identity.machineId)));
+    const { kty, crv, x, y } = StoredKey.parse(JSON.parse(found(keys.secrets, identity.machineId)));
     expect({
         registered: registered.length,
-        active: registered.filter((held) => held.revokedAt === null).map((held) => held.publicKey),
+        active: registered.filter((key) => key.revokedAt === null).map((key) => key.publicKey),
     }).toEqual({ registered: 2, active: [{ kty, crv, x, y }] });
 });

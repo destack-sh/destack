@@ -168,14 +168,14 @@ export const TestDirectory = {
             .onConflictDoUpdate({ target: placement.table.id, set: fields });
     },
 
-    /** Keep a machine answering at a URL, or answering nowhere. */
+    /** Store a machine answering at a URL, or answering nowhere. */
     async publish(
         database: DatabaseConnection,
         id: Identifier<"machine">,
         scope: string,
         url: string | null,
     ): Promise<void> {
-        // keep a personal machine
+        // store a personal machine
         const now = Date.now();
         const times = { createdAt: now, updatedAt: now };
         await database

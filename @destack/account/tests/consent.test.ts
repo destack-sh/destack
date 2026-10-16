@@ -10,7 +10,7 @@ import accountPackage from "../src/package.ts";
 import { AccountFixture, outcome } from "../src/test/index.ts";
 
 test("let an installation act for a person exactly as the grant the person's own client created allows, until they revoke it", async () => {
-    // keep the owner's browser with a push subscription, and an installation of their space with an identity
+    // store the owner's browser with a push subscription, and an installation of their space with an identity
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { spaceId, machine } = await fixture.createSpace(owner);

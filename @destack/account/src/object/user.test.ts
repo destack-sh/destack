@@ -2,7 +2,7 @@ import { Expression } from "@destack/db";
 import { expect, test } from "@destack/test";
 import { user } from "./user.ts";
 
-test("fill an empty name from the email's local part, keeping a given name and a replica's without the email", () => {
+test("fill an empty name from the email's local part, leaving a given name and a replica's without the email", () => {
     // upgrade rows an earlier release wrote
     const rows = [
         { name: "", email: "ada@example.com" },

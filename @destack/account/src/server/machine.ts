@@ -17,7 +17,7 @@ export function implementMachine(): typeof machine {
     return machine.implement({
         methods: {
             enroll,
-            keep,
+            declare,
             revoke,
             publish,
             enable: (call) => transition(call, "enabled"),
@@ -58,11 +58,11 @@ async function enroll(
     return row;
 }
 
-/** Keep a machine the universe declares with its key, as the universe trusting the declaration. */
-async function keep(
-    context: MethodContextOf<typeof machine, "keep">,
-    next: NextOf<typeof machine, "keep">,
-): Promise<ResultOf<typeof machine, "keep">> {
+/** Store a machine the universe declares with its key, as the universe trusting the declaration. */
+async function declare(
+    context: MethodContextOf<typeof machine, "declare">,
+    next: NextOf<typeof machine, "declare">,
+): Promise<ResultOf<typeof machine, "declare">> {
     // create the machine with its key
     const row = await next();
     await provision(context, row, context.input.publicKey);

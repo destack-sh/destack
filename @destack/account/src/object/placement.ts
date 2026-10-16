@@ -28,7 +28,7 @@ export const Placement = Object.assign(PlacementSchema, {
         spaceId: Identifier<"space">,
         machines: readonly Identifier<"machine">[],
     ): Promise<Identifier<"machine"> | undefined> {
-        // keep the machine whose digest with the space scores highest
+        // choose the machine whose digest with the space scores highest
         let best: { readonly machine: Identifier<"machine">; readonly score: string } | undefined;
         for (const candidate of machines) {
             const score = await Digest.of(`${spaceId}:${candidate}`);

@@ -202,7 +202,7 @@ test("decide account access for its root, members, group members and installatio
             ["allowed", "denied", "denied"],
         ]);
 
-        // keep the member reading once the group's role binding is gone
+        // let the member read once the group's role binding is gone
         await database
             .delete(accessRelationship)
             .where(eq(accessRelationship.id, schema.identifier("relationship").parse(binding.id)));
@@ -218,7 +218,7 @@ test("decide account access for its root, members, group members and installatio
 });
 
 test("let a person's home follow on their behalf and read their contact from the user row alone, and no other space", async () => {
-    // keep a person whose row names their home, without any relationship to it
+    // store a person whose row names their home, without any relationship to it
     const opened = await AccountFixture.storage();
     const database = opened.database;
     const time = Date.now();

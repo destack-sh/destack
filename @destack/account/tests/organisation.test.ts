@@ -45,7 +45,7 @@ test("grant an organisation's active members the access of their roles", async (
     ]);
 });
 
-test("change an organisation's owners only as an owner, keeping at least one", async () => {
+test("change an organisation's owners only as an owner, leaving at least one", async () => {
     // seat an administrator and a member
     await using fixture = await AccountFixture.open();
     const founder = await fixture.person("founder@example.com");
@@ -103,7 +103,7 @@ test("change an organisation's owners only as an owner, keeping at least one", a
             "FORBIDDEN: permission denied: own",
             "FORBIDDEN: permission denied: delete",
         ],
-        `PRECONDITION_FAILED: ${organisationId} keeps at least one owner`,
+        `PRECONDITION_FAILED: ${organisationId} needs at least one owner`,
         "executed",
         "executed",
         "executed",
