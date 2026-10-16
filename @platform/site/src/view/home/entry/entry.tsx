@@ -2,7 +2,8 @@ import { frame } from "../../layout/frame.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
-import type { JSX } from "@destack/view";
+import { type JSX, onSettled } from "@destack/view";
+import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
@@ -81,8 +82,24 @@ export function FigureLabel(properties: {
     destacked: string;
     children?: JSX.Element;
 }) {
+    // put the figure's section to sleep while it is off screen, so a switch applies there without motion
+    let label: HTMLDivElement | undefined;
+    const sight = makeIntersectionObserver([], (entries) => {
+        for (const entry of entries) {
+            entry.target.toggleAttribute("data-asleep", !entry.isIntersecting);
+        }
+    });
+    onSettled(() => {
+        // require the rendered label inside its section
+        const section = label?.parentElement;
+        if (!section) {
+            throw new TypeError("the figure label rendered outside a section");
+        }
+        sight.add(section);
+    });
+
     return (
-        <div data-figure-label {...style.attrs(lattice.cell, styles.label)}>
+        <div ref={label} data-figure-label {...style.attrs(lattice.cell, styles.label)}>
             <span {...style.attrs(styles.caption)}>
                 <span {...style.attrs(styles.figure)}>Fig. {properties.number}</span>
                 <span {...style.attrs(styles.title)}>

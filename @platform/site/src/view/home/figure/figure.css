@@ -7,12 +7,13 @@
         opacity 500ms ease;
 }
 
-/* hold every animation of a figure that has scrolled off screen */
+/* hold every animation of a figure that has scrolled off screen, and change it without transitions */
 [data-asleep],
 [data-asleep] *,
 [data-asleep] *::before,
 [data-asleep] *::after {
     animation-play-state: paused !important;
+    transition: none !important;
 }
 
 /* flip each small rebuilt part of a figure in once the stack has switched */
