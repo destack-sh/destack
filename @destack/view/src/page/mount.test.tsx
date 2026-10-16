@@ -77,19 +77,22 @@ test("render in the person's locale from the view's context with the launch's ca
 });
 
 /** Counts of a person's notes, answered by a package's query. */
-const tally = defineObject({
-    name: "tally",
-    plural: "tallies",
-    scope: Scope.universe.id,
-    fields: {},
-    permissions: { read: none() },
-}).methods(() => ({
-    count: method.query({
-        permission: "read",
-        target: "scope",
-        output: schema.object({ notes: schema.number() }),
+const tally = defineObject(
+    {
+        name: "tally",
+        plural: "tallies",
+        scope: Scope.universe.id,
+        fields: {},
+        permissions: { read: none() },
+    },
+    () => ({
+        count: method.query({
+            permission: "read",
+            target: "scope",
+            output: schema.object({ notes: schema.number() }),
+        }),
     }),
-}));
+);
 
 /** A package answering how many notes a person keeps. */
 const counter = definePackage(

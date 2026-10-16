@@ -26,20 +26,23 @@ const board = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods();
+});
 
 /** A card on a board. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    scope: board,
-    fields: { owner: field.reference(principal.user).caller(), title: field.string() },
-    permissions: { read: relation("owner"), edit: relation("owner") },
-}).methods((method) => ({
-    list: method.list("read"),
-    create: method.create("edit"),
-    update: method.update("edit"),
-}));
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: board,
+        fields: { owner: field.reference(principal.user).caller(), title: field.string() },
+        permissions: { read: relation("owner"), edit: relation("owner") },
+    },
+    (method) => ({
+        list: method.list("read"),
+        create: method.create("edit"),
+        update: method.update("edit"),
+    }),
+);
 
 /** The board the view opens. */
 const BOARD_ID = schema.identifier("board").parse("board-01996ab0-0000-7000-8000-000000000001");

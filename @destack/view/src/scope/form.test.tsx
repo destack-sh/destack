@@ -15,13 +15,16 @@ const OPEN = String.fromCodePoint(0x2068);
 const CLOSE = String.fromCodePoint(0x2069);
 
 /** A note whose title is between one and twenty characters. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: Scope.universe.id,
-    fields: { title: field.string(schema.string().min(1).max(20)) },
-    permissions: { write: none() },
-}).methods((method) => ({ update: method.update("write") }));
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: Scope.universe.id,
+        fields: { title: field.string(schema.string().min(1).max(20)) },
+        permissions: { write: none() },
+    },
+    (method) => ({ update: method.update("write") }),
+);
 
 /** The input of a note's update the tests edit. */
 type Rename = MethodInput<typeof note, "update">;

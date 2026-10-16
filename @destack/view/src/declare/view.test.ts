@@ -23,7 +23,7 @@ const note = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods();
+});
 
 /** The reminders a view opens in the person's home. */
 const reminder = defineObject({
@@ -33,7 +33,7 @@ const reminder = defineObject({
     isScope: true,
     fields: {},
     permissions: { read: none() },
-}).methods();
+});
 
 test("describe a declared view by its name, permissions, presented types and packages without loading its component", () => {
     // declare a view of notes calling a package, whose component never loads
@@ -126,7 +126,7 @@ test("accept a view requesting a permission of an opened object representing ano
         represents: devices,
         fields: {},
         permissions: devices.definition.permissions,
-    }).methods();
+    });
     const view = defineView(
         {
             name: "devices",

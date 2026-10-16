@@ -13,18 +13,21 @@ import { changed } from "../test/dom.ts";
 const RENDER_MILLISECONDS = 2000;
 
 /** A card in a space. */
-const card = defineObject({
-    name: "card",
-    plural: "cards",
-    fields: {
-        owner: field.reference(principal.user).caller(),
-        title: field.string(schema.string().min(1)),
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            title: field.string(schema.string().min(1)),
+        },
+        permissions: { read: relation("owner"), edit: relation("owner") },
     },
-    permissions: { read: relation("owner"), edit: relation("owner") },
-}).methods((method) => ({
-    list: method.list("read"),
-    create: method.create("edit"),
-}));
+    (method) => ({
+        list: method.list("read"),
+        create: method.create("edit"),
+    }),
+);
 
 /** List the space's cards by title. */
 function Cards() {
