@@ -82,7 +82,7 @@ export interface OtlpEmitter {
 /** A receiver of OTLP/JSON exports, recording each under the emitter its caller verified. */
 export interface OtlpReceiver {
     /** Take an export of a signal from a verified emitter. */
-    receive(emitter: OtlpEmitter, signal: OtlpSignal, body: unknown): Promise<void>;
+    readonly receive: (emitter: OtlpEmitter, signal: OtlpSignal, body: unknown) => Promise<void>;
 }
 
 /** Where an exporter posts OTLP/HTTP requests, as OpenTelemetry's endpoint and headers. */

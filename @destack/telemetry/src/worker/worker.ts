@@ -8,8 +8,8 @@ export function startTelemetry(options: TelemetryOptions): Promise<Telemetry> {
 
 /** Extend an invocation until its exports finish. */
 export interface ExecutionContext {
-    /** Keep the invocation alive and report a rejected background operation. */
-    waitUntil(operation: Promise<unknown>): void;
+    /** Hold the invocation open until an operation settles, and report its rejection. */
+    readonly waitUntil: (operation: Promise<unknown>) => void;
 }
 
 /** Run an invocation with isolated providers and export before releasing them. */

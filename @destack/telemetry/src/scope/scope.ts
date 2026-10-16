@@ -134,7 +134,7 @@ export interface SpanRunner {
         run: (span: Span) => Result | Promise<Result>,
     ): Promise<Result>;
     /** Read the active span, such as the call the platform traces. */
-    current(): Span | undefined;
+    readonly current: () => Span | undefined;
 }
 
 /** Structured log records of one package, each named by a literal event name. */

@@ -1,7 +1,7 @@
 import { metrics } from "@opentelemetry/api";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { OtlpExporter } from "../otlp/index.ts";
 import { startTelemetry } from "../bun/index.ts";
 import { Telemetry } from "./telemetry.ts";
@@ -17,7 +17,7 @@ const source = {
 function options(reported: string[] = []) {
     return new OtlpExporter(
         async () => {},
-        (error) => reported.push(aligned(error.message.split("\n"), 0)),
+        (error) => reported.push(nth(error.message.split("\n"), 0)),
     ).options(source);
 }
 
