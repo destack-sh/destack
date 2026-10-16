@@ -1,5 +1,5 @@
 import { PackageId } from "@destack/package";
-import { aligned, present, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
 import { PushEncryption } from "./encryption.ts";
@@ -172,7 +172,7 @@ test("answer the application server key, and post a push signed by it and encryp
     expect(await provider.applicationServerKey()).toBe(await vapid.publicKey());
 
     // check the coding, lifetime, topic and urgency of the post, signed by the sender and decrypted by the browser
-    const first = aligned(service.posted, 0);
+    const first = nth(service.posted, 0);
     const { authorization, ...headers } = first.headers;
     expect({
         url: first.url,
@@ -233,12 +233,12 @@ async function readVapid(authorization: string) {
     if (match === null) {
         throw new TypeError(`authorization ${authorization} is not a vapid header`);
     }
-    const key = aligned(match, 2);
-    const segments = aligned(match, 1).split(".");
+    const key = nth(match, 2);
+    const segments = nth(match, 1).split(".");
     const [header, claims, signature] = [
-        aligned(segments, 0),
-        aligned(segments, 1),
-        aligned(segments, 2),
+        nth(segments, 0),
+        nth(segments, 1),
+        nth(segments, 2),
     ];
 
     // verify the signature with the key

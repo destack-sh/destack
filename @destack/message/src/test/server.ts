@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import net, { type Server, type Socket } from "node:net";
 import tls from "node:tls";
 import type { BearerCredentials, PlainCredentials, Security } from "../smtp/index.ts";
@@ -194,7 +194,7 @@ class Session {
     /** Answer one command line, or the empty line after an XOAUTH2 challenge. */
     #command(line: string): void {
         // split the verb from its argument
-        const verb = aligned(line.split(" "), 0).toUpperCase();
+        const verb = nth(line.split(" "), 0).toUpperCase();
         const argument = line.slice(verb.length + 1);
 
         // fail the XOAUTH2 exchange after the client's empty answer

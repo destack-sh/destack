@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { MimeError, MimeMessage, type Draft } from "./index.ts";
 
@@ -305,7 +305,7 @@ test("roundtrip random subjects and bodies within the line limits", async () => 
     for (let round = 0; round < 200; round += 1) {
         const pick = () =>
             Array.from({ length: Math.floor(random() * 120) }, () =>
-                aligned(alphabet, Math.floor(random() * alphabet.length)),
+                nth(alphabet, Math.floor(random() * alphabet.length)),
             ).join("");
         const subject = pick().replaceAll(/[\r\n]/gu, "");
         const text = pick();
@@ -335,7 +335,7 @@ function decodeSubject(content: string): string {
     if (field === null) {
         throw new TypeError("message has no subject");
     }
-    const value = aligned(field, 1).slice(1);
+    const value = nth(field, 1).slice(1);
     if (!value.startsWith("=?UTF-8?B?")) {
         return value;
     }
@@ -347,7 +347,7 @@ function decodeSubject(content: string): string {
             throw new TypeError(`subject word ${word} is not an encoded-word`);
         }
 
-        return aligned(encoded, 1);
+        return nth(encoded, 1);
     });
 
     return words.map((word) => new TextDecoder().decode(Uint8Array.fromBase64(word))).join("");

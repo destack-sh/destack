@@ -1,4 +1,4 @@
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import type { Mail, MailTransport } from "../email/index.ts";
 import { Mailbox, MimeError, MimeMessage } from "../mime/index.ts";
 import type { Outcome } from "../provider/index.ts";
@@ -53,7 +53,7 @@ export class SmtpTransport implements MailTransport {
 /** Read the replies to one recipient and its data: sent once both complete, else the refusal. */
 function readSubmission(submission: Submission): Outcome {
     // read the recipient's refusal, else the reply ending its data
-    const recipient = aligned(submission.recipients, 0).reply;
+    const recipient = nth(submission.recipients, 0).reply;
     const reply =
         recipient.class === 2
             ? present(submission.data, "an accepted recipient's data")

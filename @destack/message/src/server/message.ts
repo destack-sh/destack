@@ -3,7 +3,7 @@ import { count, eq } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { endpoint } from "../object/endpoint.ts";
 import { RetryPolicy } from "@destack/runtime/timer";
@@ -99,8 +99,8 @@ async function reconcile(
 ): Promise<number | undefined> {
     // read the key's one message whole at its current revision
     const { now } = reconciliation;
-    const row = aligned(reconciliation.rows, 0);
-    const whole = aligned(
+    const row = nth(reconciliation.rows, 0);
+    const whole = nth(
         await reconciliation.database
             .select()
             .from(message.table)

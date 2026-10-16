@@ -10,7 +10,7 @@ import {
     ObjectWatch,
 } from "@destack/object";
 import { secret } from "@destack/vault/object";
-import { aligned, Identifier, type JsonValue, present } from "@destack/schema";
+import { nth, Identifier, type JsonValue, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import {
     type Endpoint,
@@ -100,7 +100,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                 }),
             ],
             reconcile: (reconciliation) =>
-                deliver(reconciliation, aligned(reconciliation.rows, 0), keys),
+                deliver(reconciliation, nth(reconciliation.rows, 0), keys),
         },
     });
 }

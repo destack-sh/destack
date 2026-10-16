@@ -15,7 +15,7 @@ import { vaultDatabase } from "@destack/vault/test";
 import messagePackage from "../package.ts";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
-import { aligned, present, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import type { MessageProvider } from "../provider/index.ts";
 import { WebhookSignature, webhookProvider } from "./webhook.ts";
@@ -170,7 +170,7 @@ test("post an event to its endpoint signed over its identifier, time and body, w
     await send();
 
     // post the event with a signature over its identifier, time and body
-    const first = aligned(requests, 0);
+    const first = nth(requests, 0);
     expect({
         url: first.url,
         id: first.headers.get("webhook-id"),

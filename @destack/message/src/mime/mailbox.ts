@@ -1,4 +1,4 @@
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { MimeError } from "./error.ts";
 import { Header } from "./header.ts";
 
@@ -58,11 +58,11 @@ export class Mailbox {
         }
 
         // unquote a quoted display name
-        const name = aligned(named, 1).trim();
+        const name = nth(named, 1).trim();
         const isQuoted = name.length >= 2 && name.startsWith('"') && name.endsWith('"');
         const unquoted = isQuoted ? name.slice(1, -1).replaceAll(/\\(.)/gu, "$1") : name;
 
-        return new Mailbox(aligned(named, 2), unquoted === "" ? undefined : unquoted);
+        return new Mailbox(nth(named, 2), unquoted === "" ? undefined : unquoted);
     }
 
     /** Report whether text is a dot-atom addr-spec within the RFC 5321 length limits. */
