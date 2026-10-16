@@ -5,19 +5,25 @@
     "type": "module",
     "sideEffects": false,
     "description": "Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.",
+    "imports": {
+        "#git": {
+            "bun": "./src/local/connector.ts",
+            "default": "./src/storage/connector.ts"
+        }
+    },
     "exports": {
         "./object": "./src/object/index.ts",
-        "./service": "./src/service/index.ts",
         "./client": "./src/client/index.ts",
-        "./server": "./src/server/index.ts",
+        "./server": "./src/server.ts",
+        "./test": "./src/test/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./workload": "./src/workload/index.ts",
         "./pack": "./src/pack/index.ts",
         "./storage": "./src/storage/index.ts",
         "./local": "./src/local/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
         "./github": "./src/github/index.ts",
-        "./package": "./src/package.ts"
+        "./package": "./src/package.ts",
+        "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -26,25 +32,28 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/audit": "workspace:*",
+        "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
+        "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
         "semver": "7.8.5"
     },
     "devDependencies": {
-        "@destack/bucket": "workspace:*",
-        "@destack/directory": "workspace:*",
-        "@destack/host": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/semver": "7.8.0",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.2",
+        "@types/semver": "7.8.0"
     }
 }

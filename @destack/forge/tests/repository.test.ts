@@ -1,24 +1,17 @@
-import { expect, refusal, test } from "@destack/test";
-import { Scope, Subject, type Subscription } from "@destack/sync";
-import { reconciliation } from "@destack/service/test";
-import { TEST_DIALECTS } from "@destack/db/test";
-import { principal } from "@destack/access";
-import { eq } from "@destack/db";
-import { zoneTable } from "@destack/directory";
-import { RequestId } from "@destack/service/request";
-import { readdir } from "node:fs/promises";
+import { expect, refusal } from "@destack/test";
+import { Shape } from "@destack/object";
+import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
+import { secret } from "@destack/vault/object";
+import { RequestId } from "@destack/runtime/request";
+import { access, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { QUERIES_SHAPE, settlement } from "@destack/object";
-import { aligned, Identifier } from "@destack/schema";
+import { Claim, ClaimLookup, claimTable, QUERIES_PUBLICATION, settlement } from "@destack/object";
+import { nth, Identifier } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import {
-    reference,
-    type ReferenceSelection,
-    referenceShape,
-    repository,
-} from "../src/object/index.ts";
+import { reference, referenceShape, repository } from "../src/object/index.ts";
 import { History } from "./fixture/git.ts";
-import { ids, RepositoryFixture } from "./fixture/repository.ts";
+import { ids, type RepositoryFixture, repositoryTest } from "./fixture/repository.ts";
 
 /** Report a call's outcome as its failure code, or as accepted. */
 async function outcome(call: Promise<unknown>): Promise<string> {
@@ -27,19 +20,47 @@ async function outcome(call: Promise<unknown>): Promise<string> {
     return refused === "done" ? "accepted" : refused[0];
 }
 
-test.each(TEST_DIALECTS)(
-    "create, rename and refresh a platform repository as its account's owner, and refuse readers and strangers on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const reader = region.connect(ids.reader);
-        const stranger = region.connect(ids.stranger);
-        const accountId = ids.account;
+/** Watch the forge's storage, which the file's tests share, listing what it gains from now on. */
+async function storageGains(forge: RepositoryFixture): Promise<() => Promise<string[]>> {
+    const before = new Set(await readdir(forge.storage.directory));
 
-        // create a platform repository with its name in the directory and its storage in the region
+    return async () => (await readdir(forge.storage.directory)).filter((name) => !before.has(name));
+}
+
+repositoryTest(
+    "create a repository in an account its owner created after the forge was installed",
+    async ({ forge }) => {
+        // create the account and its repository once the forge replicates the account
+        const tenant = await forge.tenant();
+        const created = await forge.connect(tenant.owner).repository.create({
+            spaceId: forge.space,
+            accountId: tenant.accountId,
+            requestId: RequestId.create(Date.now()),
+            name: "site",
+            hosting: "platform",
+        });
+        expect([created.accountId, created.name, created.hosting]).toEqual([
+            tenant.accountId,
+            "site",
+            "platform",
+        ]);
+    },
+);
+
+repositoryTest(
+    "create, rename and refresh a platform repository as its account's owner, and refuse readers and strangers",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const reader = forge.connect(tenant.reader);
+        const stranger = forge.connect(tenant.stranger);
+        const accountId = tenant.accountId;
+
+        // create a platform repository with its name in the directory and its storage on the platform
         const created = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "site",
             hosting: "platform",
         });
@@ -47,47 +68,47 @@ test.each(TEST_DIALECTS)(
             created.scope,
             created.name,
             created.hosting,
-            created.machine,
+            created.machineId,
             created.provider,
             created.providerRepositoryId,
             created.remote,
             created.defaultReference,
             created.authentication,
-            created.connectedAccountId,
-            created.secret,
+            created.connectionId,
             created.revision,
         ]).toEqual([
-            accountId,
+            forge.space,
             "site",
             "platform",
             null,
             "local",
             created.id,
-            `file://${region.storage.directory}/${created.id}.git`,
-            null,
+            `file://${forge.storage.directory}/${created.id}.git`,
             null,
             null,
             null,
             1,
         ]);
-        const named = () => claimed(region, accountId, ["site", "mixed", "web"]);
+        const named = () => claimed(forge, accountId, ["site", "mixed", "web"]);
         const site = { site: created.id };
         expect(await named()).toEqual(site);
 
-        // refuse a taken name and an origin mixing platform and remote fields and keep neither
+        // refuse a taken name and an origin mixing platform and remote fields and store neither
         const refused = [
             await outcome(
                 owner.repository.create({
+                    spaceId: forge.space,
                     accountId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     name: "site",
                     hosting: "platform",
                 }),
             ),
             await outcome(
                 owner.repository.create({
+                    spaceId: forge.space,
                     accountId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     name: "mixed",
                     hosting: "platform",
                     remote: "https://example.test/mixed.git",
@@ -96,30 +117,38 @@ test.each(TEST_DIALECTS)(
         ];
         expect(refused).toEqual(["CONFLICT", "BAD_REQUEST"]);
         expect(await named()).toEqual(site);
-        expect(await readdir(region.storage.directory)).toEqual([`${created.id}.git`]);
+        expect(await stored(forge, [created.id])).toEqual([created.id]);
 
-        // let the reader read, forbid its writes, and keep strangers out
+        // let the reader read, forbid its writes, and show strangers nothing in the public home
         expect([
-            (await reader.repository.list({ accountId })).items.map((item) => item.name),
-            await outcome(reader.repository.get({ accountId, id: created.id })),
+            (
+                await reader.repository.list({
+                    spaceId: forge.space,
+                    where: { accountId },
+                })
+            ).items.map((item) => item.name),
+            await outcome(reader.repository.get({ spaceId: forge.space, id: created.id })),
             await outcome(
                 reader.repository.create({
+                    spaceId: forge.space,
                     accountId,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     name: "other",
                     hosting: "platform",
                 }),
             ),
             await outcome(
                 reader.repository.refresh({
-                    accountId,
+                    spaceId: forge.space,
                     id: created.id,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                 }),
             ),
-            await outcome(stranger.repository.list({ accountId })),
-            await outcome(stranger.repository.get({ accountId, id: created.id })),
-        ]).toEqual([["site"], "accepted", "FORBIDDEN", "FORBIDDEN", "NOT_FOUND", "NOT_FOUND"]);
+            (
+                await stranger.repository.list({ spaceId: forge.space, where: { accountId } })
+            ).items.map((item) => item.name),
+            await outcome(stranger.repository.get({ spaceId: forge.space, id: created.id })),
+        ]).toEqual([["site"], "accepted", "FORBIDDEN", "FORBIDDEN", [], "NOT_FOUND"]);
 
         // push a commit and an annotated tag and observe them and the default branch on refresh
         const origin = remotePath(created.remote);
@@ -127,15 +156,15 @@ test.each(TEST_DIALECTS)(
         history.tag("v1", history.commit("main", "README.md", "# Site\n"));
         const [commit, tag] = await history.write(origin);
         const refreshed = await owner.repository.refresh({
-            accountId,
+            spaceId: forge.space,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         expect([refreshed.defaultReference, refreshed.revision]).toEqual(["refs/heads/main", 2]);
         const references = async () =>
             (
                 await reader.reference.list({
-                    accountId,
+                    spaceId: forge.space,
                     where: { parentId: created.id },
                     orderBy: { name: "asc" },
                 })
@@ -147,9 +176,9 @@ test.each(TEST_DIALECTS)(
 
         // rename the repository, moving its name in the directory
         const renamed = await owner.repository.update({
-            accountId,
+            spaceId: forge.space,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             revision: 2,
             name: "web",
         });
@@ -158,30 +187,30 @@ test.each(TEST_DIALECTS)(
         expect(
             await outcome(
                 owner.repository.update({
-                    accountId,
+                    spaceId: forge.space,
                     id: created.id,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     remote: "https://example.test/web.git",
                 }),
             ),
         ).toBe("BAD_REQUEST");
 
-        // record a moved branch and a deleted tag on the next refresh and keep unchanged rows
+        // record a moved branch and a deleted tag on the next refresh and leave unchanged rows
         history.commit("main", "README.md", "# Web\n");
         history.delete("refs/tags/v1");
         const [moved] = await history.write(origin);
         await owner.repository.refresh({
-            accountId,
+            spaceId: forge.space,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
         const { items } = await reader.reference.list({
-            accountId,
+            spaceId: forge.space,
             where: { parentId: created.id },
             orderBy: { name: "asc" },
         });
-        const main = aligned(items, 0);
-        const v1 = aligned(items, 1);
+        const main = nth(items, 0);
+        const v1 = nth(items, 1);
         expect([
             [main.object, main.commit, main.deletedAt, main.revision],
             [v1.object, v1.commit, v1.deletedAt === null, v1.revision],
@@ -192,17 +221,18 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "sync a repository's references to its readers and none to strangers on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const accountId = ids.account;
+repositoryTest(
+    "sync a repository's references to its readers and none to strangers",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const accountId = tenant.accountId;
 
         // observe one branch
         const created = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "notes",
             hosting: "platform",
         });
@@ -210,20 +240,20 @@ test.each(TEST_DIALECTS)(
         history.commit("main", "notes.md", "first\n");
         const [commit] = await history.write(remotePath(created.remote));
         await owner.repository.refresh({
-            accountId,
+            spaceId: forge.space,
             id: created.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
         });
 
         // follow the account's references as the reader and as a stranger
         const follow = async (user: string) => {
             const controller = new AbortController();
-            const pages = await region.connect(user).replica.stream(
+            const pages = await forge.connect(user).store.stream(
                 {
                     name: "objects",
-                    shape: QUERIES_SHAPE,
-                    scope: accountId,
-                    below: accountId,
+                    publication: QUERIES_PUBLICATION,
+                    scope: forge.space,
+                    below: forge.space,
                     parameters: { queries: { references: { object: "reference" } } },
                 },
                 { signal: controller.signal },
@@ -236,62 +266,55 @@ test.each(TEST_DIALECTS)(
 
             return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
         };
-        expect(await follow(ids.reader)).toEqual([["refs/heads/main", commit]]);
-        expect(await refusal(follow(ids.stranger))).toEqual(["NOT_FOUND", `no scope ${accountId}`]);
+        expect(await follow(tenant.reader)).toEqual([["refs/heads/main", commit]]);
+        // follow the public home as a stranger, seeing none of the account's references
+        expect(await follow(tenant.stranger)).toEqual([]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "stream the references a space selects to the cell serving it as the space inside the account, and none to another space or cell on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const accountId = ids.account;
+repositoryTest(
+    "stream the references a space inside the account selects to the space, and none to another account's space however it follows",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const other = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const accountId = tenant.accountId;
 
         // observe one branch of a platform repository
         const site = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "site",
             hosting: "platform",
         });
         const history = new History();
         history.commit("main", "index.ts", "export {};\n");
         const [commit] = await history.write(remotePath(site.remote));
-        await owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
+        await owner.repository.refresh({
+            spaceId: forge.space,
+            id: site.id,
+            requestId: RequestId.create(Date.now()),
+        });
 
-        // place a space of the account and one of another account on the machine's cell, as the directory's zones
-        const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
-        await region.accounts.database.insert(zoneTable).values([
-            {
-                id: inside,
-                scope: Scope.universe.id,
-                parent: accountId,
-                cell: ids.machine,
-                epoch: 1,
-            },
-            {
-                id: outside,
-                scope: Scope.universe.id,
-                parent: ids.other,
-                cell: ids.machine,
-                epoch: 1,
-            },
-        ]);
-        await region.settle();
+        // create a space of the account and one of another account, as their owner does
+        const inside = await forge.createSpace(accountId);
+        const outside = await forge.createSpace(other.accountId);
+        await forge.settle();
 
-        // follow the selected branch as a cell for a space below
-        const follow = async (machine: string, below: string) => {
+        // follow the selected branch as a space for a space below
+        const follow = async (space: Identifier<"space">, below: string) => {
             const controller = new AbortController();
-            const pages = await region.connectMachine(machine).replica.stream(
-                referenceShape.subscription({
-                    name: referenceShape.copy(below),
-                    scope: accountId,
-                    below,
-                    parameters: { references: [[site.id, "refs/heads/main"]] },
-                }),
-                { signal: controller.signal },
-            );
+            const pages = await forge
+                .connectSpace(space)
+                .store.stream(
+                    Shape.subscription(
+                        referenceShape,
+                        { scope: forge.space, repository: site.id, name: "refs/heads/main" },
+                        below,
+                    ),
+                    { signal: controller.signal },
+                );
             const page = await pages[Symbol.asyncIterator]().next();
             controller.abort();
             if (page.done === true) {
@@ -301,210 +324,79 @@ test.each(TEST_DIALECTS)(
             return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
         };
 
-        // copy the branch for the space inside the account, nothing for the other account's space, and refuse a cell not serving the space
+        // replicate the branch for the space inside the account, and nothing for the other account's space even where it follows for the inside one
         expect([
-            await follow(ids.machine, inside),
-            await follow(ids.machine, outside),
-            await refusal(follow(ids.otherMachine, inside)),
-        ]).toEqual([
-            [["refs/heads/main", commit]],
-            [],
-            ["FORBIDDEN", "permission denied: represent"],
-        ]);
+            await follow(inside, inside),
+            await follow(outside, outside),
+            await follow(outside, inside),
+        ]).toEqual([[["refs/heads/main", commit]], [], []]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "let a space inside the account read its private packages through the cell serving it, and no other account's space on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const accountId = ids.account;
+repositoryTest(
+    "let a space inside the account read its private packages, and no other account's space",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const other = await forge.tenant();
+        const accountId = tenant.accountId;
 
         // create a private package as the owner
         const id = PackageId.parse(`package-${Identifier.create("space").slice("space-".length)}`);
-        await region.connect(ids.owner).package.create({
+        await forge.connect(tenant.owner).package.create({
+            spaceId: forge.space,
             accountId,
             id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "notes",
             visibility: "private",
         });
 
-        // place a space of the account and one of another account on the machine's cell, as the directory's zones
-        const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
-        await region.accounts.database.insert(zoneTable).values([
-            {
-                id: inside,
-                scope: Scope.universe.id,
-                parent: accountId,
-                cell: ids.machine,
-                epoch: 1,
-            },
-            {
-                id: outside,
-                scope: Scope.universe.id,
-                parent: ids.other,
-                cell: ids.machine,
-                epoch: 1,
-            },
-        ]);
-        await region.settle();
+        // create a space of the account and one of another account, as their owner does
+        const inside = await forge.createSpace(accountId);
+        const outside = await forge.createSpace(other.accountId);
+        await forge.settle();
 
-        // read the package as each space through the machine's cell
-        const read = async (space: string) => {
-            const found = await region
-                .connectSpace(ids.machine, space)
-                .package.get({ accountId, id });
+        // read the package as each space
+        const read = async (space: Identifier<"space">) => {
+            const found = await forge.connectSpace(space).package.get({ spaceId: forge.space, id });
 
             return found.name;
         };
         expect([await read(inside), await refusal(read(outside))]).toEqual([
             "notes",
-            ["NOT_FOUND", `no scope ${accountId}`],
+            ["NOT_FOUND", `no package ${id}`],
         ]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "copy the zones of the accounts in the service's residency, and none of an account in another residency on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
+repositoryTest(
+    "delete and restore a repository through the trash, and purge its storage and name with it",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const reader = forge.connect(tenant.reader);
+        const accountId = tenant.accountId;
 
-        // create an account in the us residency as the owner
-        const abroad = await region.accounts.user(ids.owner).account.create({
-            scope: ids.owner,
-            requestId: RequestId.create(),
-            handle: "abroad",
-            name: "Abroad",
-            kind: "shared",
-            residencyId: "us",
-        });
-
-        // place a space of each account on the machine's cell, as the directory's zones
-        const [inside, outside] = [Identifier.create("space"), Identifier.create("space")];
-        await region.accounts.database.insert(zoneTable).values([
-            {
-                id: inside,
-                scope: Scope.universe.id,
-                parent: ids.account,
-                cell: ids.machine,
-                epoch: 1,
-            },
-            {
-                id: outside,
-                scope: Scope.universe.id,
-                parent: abroad.id,
-                cell: ids.machine,
-                epoch: 1,
-            },
-        ]);
-        await region.settle();
-
-        // copy the eu account's zone alone
-        const copied = await region.database.select({ id: zoneTable.id }).from(zoneTable);
-        expect(copied.map((row) => row.id)).toEqual([inside]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "reshape a space's copy of its selected references from its position, adding a newly selected branch and keeping the rest on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const machine = region.connectMachine(ids.machine);
-        const accountId = ids.account;
-
-        // observe two branches of a platform repository, and place a space of the account on the machine's cell
+        // store a platform repository with one observed branch, and an anonymous Git remote
         const site = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
-            name: "site",
-            hosting: "platform",
-        });
-        const history = new History();
-        history.commit("main", "index.ts", "export {};\n");
-        history.commit("next", "index.ts", "export const next = true;\n");
-        await history.write(remotePath(site.remote));
-        await owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
-        const space = Identifier.create("space");
-        await region.accounts.database.insert(zoneTable).values({
-            id: space,
-            scope: Scope.universe.id,
-            parent: accountId,
-            cell: ids.machine,
-            epoch: 1,
-        });
-        await region.settle();
-
-        // read the first page of the space's copy of some branches, from a position and the branches it reflects
-        const main: ReferenceSelection["references"][number] = [site.id, "refs/heads/main"];
-        const next: ReferenceSelection["references"][number] = [site.id, "refs/heads/next"];
-        const first = async (
-            references: ReferenceSelection["references"],
-            from: Pick<Subscription, "after" | "previous"> = {},
-        ) => {
-            const controller = new AbortController();
-            const pages = await machine.replica.stream(
-                {
-                    ...referenceShape.subscription({
-                        name: referenceShape.copy(space),
-                        scope: accountId,
-                        below: space,
-                        parameters: { references },
-                    }),
-                    ...from,
-                },
-                { signal: controller.signal },
-            );
-            const page = await pages[Symbol.asyncIterator]().next();
-            controller.abort();
-            if (page.done === true) {
-                throw new Error("the sync ended before its first page");
-            }
-
-            return page.value;
-        };
-
-        // follow main and select next as well from main's position
-        const snapshot = await first([main]);
-        const reshaped = await first([main, next], {
-            after: snapshot.position,
-            previous: { references: [main] },
-        });
-
-        // add next without a snapshot, keeping main
-        expect([
-            snapshot.changes.map((change) => [change.operation, change.row["name"]]),
-            [
-                reshaped.reset,
-                reshaped.changes.map((change) => [change.operation, change.row["name"]]),
-            ],
-        ]).toEqual([[["insert", "refs/heads/main"]], [false, [["insert", "refs/heads/next"]]]]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "delete and restore a repository through the trash, and purge its storage and name with it on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const reader = region.connect(ids.reader);
-        const accountId = ids.account;
-
-        // keep a platform repository with one observed branch, and an anonymous Git remote
-        const site = await owner.repository.create({
-            accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "site",
             hosting: "platform",
         });
         const history = new History();
         history.commit("main", "README.md", "# Site\n");
         await history.write(remotePath(site.remote));
-        await owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() });
+        await owner.repository.refresh({
+            spaceId: forge.space,
+            id: site.id,
+            requestId: RequestId.create(Date.now()),
+        });
         const mirror = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "mirror",
             hosting: "git",
             remote: "https://git.example.test/mirror.git",
@@ -513,102 +405,138 @@ test.each(TEST_DIALECTS)(
         const state = async () => [
             (
                 await owner.repository.list({
-                    accountId,
+                    spaceId: forge.space,
+                    where: { accountId },
                     orderBy: { name: "asc" },
                 })
             ).items.map((item) => item.name),
-            Object.keys(await claimed(region, accountId, ["mirror", "site"])),
-            await readdir(region.storage.directory),
-            (await region.database.select().from(reference.table)).map((row) => row.name),
+            await held(forge, accountId, ["mirror", "site"]),
+            await stored(forge, [site.id, mirror.id]),
+            (
+                await forge.database
+                    .select()
+                    .from(reference.table)
+                    .where(inArray(reference.table.parentId, [site.id, mirror.id]))
+            ).map((row) => row.name),
         ];
 
         // forbid the reader and move both repositories with their content to the trash
         expect(
             await outcome(
-                reader.repository.delete({ accountId, id: site.id, requestId: RequestId.create() }),
+                reader.repository.delete({
+                    spaceId: forge.space,
+                    id: site.id,
+                    requestId: RequestId.create(Date.now()),
+                }),
             ),
         ).toBe("FORBIDDEN");
         for (const id of [site.id, mirror.id]) {
-            await owner.repository.delete({ accountId, id, requestId: RequestId.create() });
+            await owner.repository.delete({
+                spaceId: forge.space,
+                id,
+                requestId: RequestId.create(Date.now()),
+            });
         }
-        expect(await state()).toEqual([
-            [],
-            ["mirror", "site"],
-            [`${site.id}.git`],
-            ["refs/heads/main"],
-        ]);
+        expect(await state()).toEqual([[], ["mirror", "site"], [site.id], ["refs/heads/main"]]);
 
         // refuse checkouts and refreshes of a repository in the trash
         expect([
-            await outcome(owner.repository.open({ accountId, id: site.id, mode: "read" })),
             await outcome(
-                owner.repository.refresh({ accountId, id: site.id, requestId: RequestId.create() }),
+                owner.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
+            ),
+            await outcome(
+                owner.repository.refresh({
+                    spaceId: forge.space,
+                    id: site.id,
+                    requestId: RequestId.create(Date.now()),
+                }),
             ),
         ]).toEqual(["CONFLICT", "CONFLICT"]);
 
         // restore the platform repository unchanged
-        await owner.repository.restore({ accountId, id: site.id, requestId: RequestId.create() });
+        await owner.repository.restore({
+            spaceId: forge.space,
+            id: site.id,
+            requestId: RequestId.create(Date.now()),
+        });
         expect(await state()).toEqual([
             ["site"],
             ["mirror", "site"],
-            [`${site.id}.git`],
+            [site.id],
             ["refs/heads/main"],
         ]);
 
         // purge both, removing the platform repository's storage and references and both names
-        await owner.repository.delete({ accountId, id: site.id, requestId: RequestId.create() });
+        await owner.repository.delete({
+            spaceId: forge.space,
+            id: site.id,
+            requestId: RequestId.create(Date.now()),
+        });
         for (const id of [site.id, mirror.id]) {
-            await owner.repository.purge({ accountId, id, requestId: RequestId.create() });
+            await owner.repository.purge({
+                spaceId: forge.space,
+                id,
+                requestId: RequestId.create(Date.now()),
+            });
         }
         expect(await state()).toEqual([[], [], [], []]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "issue checkout access to pull and push, requiring the push permission and refusing origins the platform has no credential for on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const reader = region.connect(ids.reader);
-        const stranger = region.connect(ids.stranger);
-        const accountId = ids.account;
+repositoryTest(
+    "issue checkout access to pull and push, requiring the push permission and refusing origins the platform has no credential for",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const reader = forge.connect(tenant.reader);
+        const stranger = forge.connect(tenant.stranger);
+        const accountId = tenant.accountId;
         const [site, mirror, laptop] = [
             await owner.repository.create({
+                spaceId: forge.space,
                 accountId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name: "site",
                 hosting: "platform",
             }),
             await owner.repository.create({
+                spaceId: forge.space,
                 accountId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name: "mirror",
                 hosting: "git",
                 remote: "https://git.example.test/mirror.git",
                 authentication: "anonymous",
             }),
             await owner.repository.create({
+                spaceId: forge.space,
                 accountId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name: "laptop",
                 hosting: "machine",
-                machine: Subject.key(principal.machine.reference(ids.account, ids.machine)),
+                machineId: ids.machine,
             }),
         ];
 
         // open the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
         const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
         expect([
-            await reader.repository.open({ accountId, id: site.id, mode: "read" }),
-            await outcome(reader.repository.open({ accountId, id: site.id, mode: "write" })),
-            await owner.repository.open({ accountId, id: site.id, mode: "write" }),
-            await outcome(stranger.repository.open({ accountId, id: site.id, mode: "read" })),
+            await reader.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
+            await outcome(
+                reader.repository.open({ spaceId: forge.space, id: site.id, mode: "write" }),
+            ),
+            await owner.repository.open({ spaceId: forge.space, id: site.id, mode: "write" }),
+            await outcome(
+                stranger.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
+            ),
         ]).toEqual([local("read"), "FORBIDDEN", local("write"), "NOT_FOUND"]);
 
         // pull an anonymous remote unchanged and push to it without a platform credential
         expect([
-            await owner.repository.open({ accountId, id: mirror.id, mode: "read" }),
-            await outcome(owner.repository.open({ accountId, id: mirror.id, mode: "write" })),
+            await owner.repository.open({ spaceId: forge.space, id: mirror.id, mode: "read" }),
+            await outcome(
+                owner.repository.open({ spaceId: forge.space, id: mirror.id, mode: "write" }),
+            ),
         ]).toEqual([
             { url: "https://git.example.test/mirror.git", mode: "read", headers: {} },
             "BAD_REQUEST",
@@ -618,110 +546,88 @@ test.each(TEST_DIALECTS)(
         expect([
             await outcome(
                 owner.repository.refresh({
-                    accountId,
+                    spaceId: forge.space,
                     id: laptop.id,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                 }),
             ),
-            await outcome(owner.repository.open({ accountId, id: laptop.id, mode: "read" })),
+            await outcome(
+                owner.repository.open({ spaceId: forge.space, id: laptop.id, mode: "read" }),
+            ),
         ]).toEqual(["BAD_REQUEST", "BAD_REQUEST"]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "create a committed platform repository's storage through the settlement controller once creating it failed on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const accountId = ids.account;
+repositoryTest(
+    "refuse a platform repository its storage fails to create, leaving no record, storage or settlement",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const gained = await storageGains(forge);
+        const owner = forge.connect(tenant.owner);
+        const create = () =>
+            owner.repository.create({
+                spaceId: forge.space,
+                accountId: tenant.accountId,
+                requestId: RequestId.create(Date.now()),
+                name: "site",
+                hosting: "platform",
+            });
 
-        // commit the repository though its storage fails to create it once
-        const create = region.storage.create.bind(region.storage);
-        region.storage.create = async () => {
-            region.storage.create = create;
+        // fail the storage's creation once, refusing the repository before its record commits
+        const created = forge.storage.create.bind(forge.storage);
+        forge.storage.create = async () => {
+            forge.storage.create = created;
             throw new Error("storage unavailable");
         };
-        const site = await owner.repository.create({
-            accountId,
-            requestId: RequestId.create(),
-            name: "site",
-            hosting: "platform",
-        });
-        const kept = await region.database.select().from(settlement);
-        const first = aligned(kept, 0);
-        expect([
-            await readdir(region.storage.directory),
-            kept.map((row) => [row.object, row.method, row.target]),
-            region.reported,
-        ]).toEqual([[], [["repository", "create", site.id]], [new Error("storage unavailable")]]);
+        const refused = await outcome(create());
 
-        // create it through the machine's settlement controller after the grace and the failed settle's claim pass
-        await region.database
-            .update(settlement)
-            .set({ createdAt: first.createdAt - 61_000, claimedAt: first.createdAt - 61_000 })
-            .where(eq(settlement.id, first.id));
-        const controller = settlementController(region);
-        expect(
-            await controller.reconcile(first.id, reconciliation(AbortSignal.timeout(5000))),
-        ).toBeUndefined();
-        expect([
-            await readdir(region.storage.directory),
-            await region.database.select().from(settlement),
-        ]).toEqual([[`${site.id}.git`], []]);
+        // create the name again once the storage answers
+        const site = await create();
+        expect([refused, await gained(), await settlements(forge, site.id)]).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            [`${site.id}.git`],
+            [],
+        ]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "remove the storage a creation settles after its repository was purged on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const accountId = ids.account;
+repositoryTest(
+    "delete the storage a creation made when its record rolls back on a taken name",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const create = () =>
+            owner.repository.create({
+                spaceId: forge.space,
+                accountId: tenant.accountId,
+                requestId: RequestId.create(Date.now()),
+                name: "site",
+                hosting: "platform",
+            });
 
-        // commit the repository though its storage fails to create it once, and purge it
-        const create = region.storage.create.bind(region.storage);
-        region.storage.create = async () => {
-            region.storage.create = create;
-            throw new Error("storage unavailable");
-        };
-        const site = await owner.repository.create({
-            accountId,
-            requestId: RequestId.create(),
-            name: "site",
-            hosting: "platform",
-        });
-        const row = aligned(await region.database.select().from(settlement), 0);
-        await owner.repository.delete({ accountId, id: site.id, requestId: RequestId.create() });
-        await owner.repository.purge({ accountId, id: site.id, requestId: RequestId.create() });
-
-        // settle the creation after its grace and the failed settle's claim pass, and leave no storage
-        await region.database
-            .update(settlement)
-            .set({ createdAt: row.createdAt - 61_000, claimedAt: row.createdAt - 61_000 })
-            .where(eq(settlement.id, row.id));
-        const controller = settlementController(region);
-        await controller.reconcile(row.id, reconciliation(AbortSignal.timeout(5000)));
-        expect([
-            await readdir(region.storage.directory),
-            await region.database.select().from(settlement),
-        ]).toEqual([[], []]);
+        // create the name twice: the second creation makes storage, then its record conflicts
+        const gained = await storageGains(forge);
+        const site = await create();
+        const refused = await outcome(create());
+        expect([refused, await gained()]).toEqual(["CONFLICT", [`${site.id}.git`]]);
     },
 );
 
-test.each(TEST_DIALECTS)(
-    "record the references a machine reports of the repository it keeps, and refuse other machines and its owner on %s",
-    async (dialect) => {
-        const region = await RepositoryFixture.open(dialect);
-        const owner = region.connect(ids.owner);
-        const reader = region.connect(ids.reader);
-        const machine = region.connectMachine(ids.machine);
-        const accountId = ids.account;
+repositoryTest(
+    "record the references a machine reports of the repository it hosts, and refuse other machines and its owner",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const reader = forge.connect(tenant.reader);
+        const machine = forge.connectMachine(ids.machine);
+        const accountId = tenant.accountId;
         const laptop = await owner.repository.create({
+            spaceId: forge.space,
             accountId,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             name: "laptop",
             hosting: "machine",
-            machine: Subject.key(principal.machine.reference(ids.account, ids.machine)),
+            machineId: ids.machine,
         });
 
         // report a branch and an annotated tag as the repository's machine for readers to see
@@ -734,21 +640,26 @@ test.each(TEST_DIALECTS)(
             ],
         };
         const report = await machine.repository.report({
-            accountId,
+            spaceId: forge.space,
             id: laptop.id,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             ...listing,
         });
         expect([
             [report.defaultReference, report.revision],
             (
                 await reader.reference.list({
-                    accountId,
+                    spaceId: forge.space,
                     where: { parentId: laptop.id },
                     orderBy: { name: "asc" },
                 })
             ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt]),
-            (await machine.repository.list({ accountId })).items.map((item) => item.name),
+            (
+                await machine.repository.list({
+                    spaceId: forge.space,
+                    where: { accountId },
+                })
+            ).items.map((item) => item.name),
         ]).toEqual([
             ["refs/heads/main", 2],
             [
@@ -762,16 +673,15 @@ test.each(TEST_DIALECTS)(
         const hiding = (client: ReturnType<RepositoryFixture["connect"]>) =>
             outcome(
                 client.repository.report({
-                    accountId,
+                    spaceId: forge.space,
                     id: laptop.id,
-                    requestId: RequestId.create(),
+                    requestId: RequestId.create(Date.now()),
                     ...listing,
                 }),
             );
-        expect([
-            await hiding(region.connectMachine(ids.otherMachine)),
-            await hiding(owner),
-        ]).toEqual(["NOT_FOUND", "FORBIDDEN"]);
+        expect([await hiding(forge.connectMachine(ids.otherMachine)), await hiding(owner)]).toEqual(
+            ["NOT_FOUND", "FORBIDDEN"],
+        );
     },
 );
 
@@ -784,27 +694,32 @@ function remotePath(remote: string | null): string {
     return fileURLToPath(remote);
 }
 
-/** Find the settlement controller a region's object server runs. */
-function settlementController(region: RepositoryFixture) {
-    const controller = region.forge.objects
-        .controllers()
-        .find((entry) => entry.name === "settlement");
-    if (controller === undefined) {
-        throw new TypeError("the object server runs a settlement controller");
-    }
+/** List which of some names the repositories of an account claim, in the trash too. */
+async function held(
+    forge: RepositoryFixture,
+    accountId: string,
+    names: readonly string[],
+): Promise<string[]> {
+    const keys = names.map((name) => Claim.key(repository, "name", [accountId, name]).key);
+    const claims = Snapshot.live(forge.accounts.database).read(claimTable);
+    const taken = await Claim.claimed(claims, {
+        index: Claim.index(repository, "name"),
+        keys,
+    });
 
-    return controller;
+    return names.filter((_name, index) => taken.has(nth(keys, index)));
 }
 
 /** Read which of some names the directory gives a repository of an account, by name. */
 async function claimed(
-    region: RepositoryFixture,
+    forge: RepositoryFixture,
     accountId: string,
     names: readonly string[],
 ): Promise<Record<string, string>> {
+    const claims = ClaimLookup.of(Snapshot.live(forge.accounts.database).read(claimTable));
     const owners = await Promise.all(
         names.map(async (name) => {
-            const owner = await repository.lookup(region.directory, "name", [name], accountId);
+            const owner = await Claim.lookup(repository, claims, "name", [accountId, name]);
 
             return owner === undefined ? [] : [[name, owner.id] as const];
         }),
@@ -812,3 +727,105 @@ async function claimed(
 
     return Object.fromEntries(owners.flat());
 }
+
+/** List which of some repositories store a directory in the forge's storage. */
+async function stored(
+    forge: RepositoryFixture,
+    repositories: readonly string[],
+): Promise<string[]> {
+    const present = await Promise.all(
+        repositories.map((id) =>
+            access(join(forge.storage.directory, `${id}.git`)).then(
+                () => true,
+                () => false,
+            ),
+        ),
+    );
+
+    return repositories.filter((_id, index) => nth(present, index));
+}
+
+/** Read the settlements recorded for a repository's calls. */
+function settlements(forge: RepositoryFixture, id: string) {
+    return forge.database.select().from(settlement).where(eq(settlement.target, id));
+}
+
+/** Encode ada's password as a Git remote's Basic authorization. */
+function basic(password: string): string {
+    return `Basic ${new TextEncoder().encode(`ada:${password}`).toBase64()}`;
+}
+
+repositoryTest(
+    "store a Git remote's credential in the forge's vault, lease it to pushers alone, rotate it, refuse a missing or stray credential, and remove it once the remote goes anonymous",
+    async ({ forge }) => {
+        const tenant = await forge.tenant();
+        const owner = forge.connect(tenant.owner);
+        const reader = forge.connect(tenant.reader);
+        const remote = "https://git.example.test/mirror.git";
+        const create = (
+            name: string,
+            authentication: "anonymous" | "credential",
+            credential?: { readonly user: string; readonly password: string },
+        ) =>
+            owner.repository.create({
+                spaceId: forge.space,
+                accountId: tenant.accountId,
+                requestId: RequestId.create(Date.now()),
+                name,
+                hosting: "git",
+                remote,
+                authentication,
+                ...(credential === undefined ? {} : { credential }),
+            });
+        const mirror = await create("mirror", "credential", { user: "ada", password: "token-1" });
+
+        // lease the remote to pull and push with the credential as Basic authentication, refusing a reader the credential
+        const open = (mode: "read" | "write") =>
+            owner.repository.open({ spaceId: forge.space, id: mirror.id, mode });
+        const leased = [
+            await open("read"),
+            await open("write"),
+            await refusal(
+                reader.repository.open({ spaceId: forge.space, id: mirror.id, mode: "read" }),
+            ),
+        ];
+
+        // rotate the credential, then move the remote to anonymous, which purges it from the vault
+        const update = (input: object) =>
+            owner.repository.update({
+                spaceId: forge.space,
+                requestId: RequestId.create(Date.now()),
+                id: mirror.id,
+                ...input,
+            });
+        await update({ credential: { user: "ada", password: "token-2" } });
+        const rotated = await open("read");
+        await update({ authentication: "anonymous" });
+        const live = await forge.database
+            .select({ name: secret.table.name })
+            .from(secret.table)
+            .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
+
+        // refuse a credential remote without its credential, and a credential for any other origin
+        const refused = [
+            await refusal(create("bare", "credential")),
+            await refusal(create("stray", "anonymous", { user: "ada", password: "token-3" })),
+        ];
+        expect({ leased, rotated, live, refused }).toEqual({
+            leased: [
+                { url: remote, mode: "read", headers: { authorization: basic("token-1") } },
+                { url: remote, mode: "write", headers: { authorization: basic("token-1") } },
+                ["FORBIDDEN", "permission denied: push"],
+            ],
+            rotated: { url: remote, mode: "read", headers: { authorization: basic("token-2") } },
+            live: [],
+            refused: [
+                ["BAD_REQUEST", "a git remote authenticating by credential needs its credential"],
+                [
+                    "BAD_REQUEST",
+                    "only a git remote authenticating by credential takes a credential",
+                ],
+            ],
+        });
+    },
+);

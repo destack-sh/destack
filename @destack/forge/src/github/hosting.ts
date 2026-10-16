@@ -1,122 +1,150 @@
-import { ProviderInstallation } from "@destack/account/server";
-import { and, eq, isNull, type DatabaseConnection, type Select } from "@destack/db";
+import { Secret } from "@destack/vault";
+import { Connection, connection, integration } from "@destack/connection/object";
+import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
-import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { GitHubSignature } from "@destack/service/github";
-import { repository, type RepositoryOrigin } from "../object/index.ts";
+import { CallError } from "@destack/runtime/error";
+import { GitHubSignature } from "./signature.ts";
+import { type Repository, repository } from "../object/index.ts";
 import { GitHubApp } from "./app.ts";
 import { GitHubEvent } from "./event.ts";
 
-/** The live repositories one webhook delivery changed, and when it arrived. */
-export interface GitHubChange {
-    /** The repositories connected through the delivering installation. */
-    readonly repositories: Select<typeof repository.table>[];
-    /** The receiving time, in UTC epoch milliseconds. */
-    readonly receivedAt: number;
-}
-
-/** The repositories the forge keeps at GitHub through the installations of its GitHub App. */
+/** The repositories the forge hosts at GitHub through the installations of its GitHub App. */
 export class GitHubHosting {
     /** The GitHub App the installations belong to. */
     readonly app: GitHubApp;
     /** The signature of the App's webhook deliveries. */
     readonly signature: GitHubSignature;
-    /** The forge's database with its repositories and copies of its residency's connections. */
-    readonly #database: DatabaseConnection;
 
-    /** Keep the repositories of an App's installations in the forge's database. */
-    constructor(app: GitHubApp, database: DatabaseConnection) {
+    /** Host the repositories of an App's installations. */
+    constructor(app: GitHubApp) {
         this.app = app;
         this.signature = new GitHubSignature();
-        this.#database = database;
     }
 
-    /** Verify a delivery signed with the App's webhook secret, and read the repositories it changes, null for a ping. */
-    async receive(request: Request, secret: string): Promise<GitHubChange | null> {
-        // verify the delivery and read the changed repository, ignoring the ping
-        const delivery = await this.signature.verify(request, secret, {}, Date.now());
-        const event = GitHubEvent.read(delivery);
+    /** Verify a delivery of the App and list the live repositories it changed. */
+    async receive(request: Request, runner: Runner): Promise<Repository[]> {
+        // verify the delivery and read the changed repository, none for a ping
+        const secret = await Secret.text(this.app.secret);
+        const event = GitHubEvent.read(
+            await this.signature.verify(request, secret, {}, runner.now),
+        );
         if (event === null) {
-            return null;
+            return [];
         }
 
-        // find the live repositories of the GitHub repository and the connections to the delivering installation
-        const table = repository.table;
-        const [candidates, connections] = await Promise.all([
-            this.#database
-                .select()
-                .from(table)
-                .where(
-                    and(
-                        eq(table.hosting, "github"),
-                        eq(table.providerRepositoryId, event.repositoryId),
-                        isNull(table.deletionRequestedAt),
-                    ),
-                ),
-            this.#installations({ installationId: event.installationId }),
-        ]);
+        // find the live repositories of the GitHub repository
+        const candidates = await runner.read(repository.table).findMany({
+            where: {
+                hosting: "github",
+                providerRepositoryId: event.repositoryId,
+                deletedAt: { isNull: true },
+            },
+        });
 
-        // keep the repositories connected through that installation only
-        const installations = new Set(connections.map((row) => `${row.scope} ${row.id}`));
-        const repositories = candidates.filter((candidate) =>
-            installations.has(`${candidate.scope} ${candidate.connectedAccountId}`),
-        );
+        // select those whose account's connection is the delivering installation
+        const delivered: Repository[] = [];
+        for (const candidate of candidates) {
+            const { connectionId } = candidate;
+            const installation =
+                connectionId === null
+                    ? undefined
+                    : await this.installation(runner, candidate.accountId, connectionId);
+            if (installation === event.installationId) {
+                delivered.push(candidate);
+            }
+        }
 
-        return { repositories, receivedAt: delivery.receivedAt };
+        return delivered;
     }
 
-    /** Identify a GitHub repository through the installation an account's connection names. */
+    /** Identify a GitHub repository through the installation of its connection's replica. */
     async identify(
-        scope: string,
-        origin: Extract<RepositoryOrigin, { hosting: "github" }>,
+        target: Repository,
+        runner: Pick<Runner, "query" | "self" | "read">,
     ): Promise<string> {
-        const installation = await this.#installation(scope, origin.connectedAccountId);
-        const found = await this.app.repository(installation, GitHubApp.fullName(origin.remote));
+        // require a GitHub origin with the replica of its connection
+        const { connectionId, remote } = target;
+        if (target.hosting !== "github" || connectionId === null || remote === null) {
+            throw new TypeError(`repository ${target.id} lacks a github origin`);
+        }
+        const installation = await this.#requireInstallation(
+            runner,
+            target.accountId,
+            connectionId,
+        );
+
+        // read the repository by its full name
+        const found = await this.app.repository(installation, GitHubApp.fullName(remote));
 
         return found.id;
     }
 
-    /** Lease a GitHub repository through an installation token limited to it and the mode. */
-    async open(target: Select<typeof repository.table>, mode: LeaseMode): Promise<Lease> {
-        // require a complete origin
-        const { connectedAccountId, providerRepositoryId, remote } = target;
-        if (connectedAccountId === null || providerRepositoryId === null || remote === null) {
-            throw new TypeError(`github repository ${target.id} has no complete origin`);
+    /** Lease an identified GitHub repository through an installation token. */
+    async open(
+        target: Repository,
+        mode: LeaseMode,
+        runner: Pick<Runner, "query" | "self" | "read">,
+    ): Promise<Lease> {
+        // refuse an incomplete origin
+        const { connectionId, providerRepositoryId, remote } = target;
+        if (connectionId === null || remote === null) {
+            throw new TypeError(`github repository ${target.id} lacks a complete origin`);
+        }
+        // refuse a repository its controller has not identified yet
+        else if (providerRepositoryId === null) {
+            throw new CallError("PRECONDITION_FAILED", {
+                message: `github repository ${target.id} awaits its github identifier`,
+            });
         }
 
-        // mint the token through the account's installation
-        const installation = await this.#installation(target.scope, connectedAccountId);
+        // issue the token through the account's installation
+        const installation = await this.#requireInstallation(
+            runner,
+            target.accountId,
+            connectionId,
+        );
 
         return this.app.open(installation, providerRepositoryId, remote, mode);
     }
 
-    /** Read the installation of the App an account's connection names. */
-    async #installation(scope: string, connectedAccountId: string): Promise<string> {
-        const [row] = await this.#installations({
-            scope: schema.identifier("account").parse(scope),
-            id: schema.identifier("connected-account").parse(connectedAccountId),
-        });
-        if (row === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `connection ${connectedAccountId} is no installation of the github app`,
+    /** Read the App installation of an account's connection, as the connection package lists it. */
+    async installation(
+        runner: Pick<Runner, "read">,
+        accountId: string,
+        connectionId: string,
+    ): Promise<string | undefined> {
+        // read the connection lent to the forge from its replica, and its integration
+        const lent = await runner
+            .read(connection.table)
+            .findFirst({ where: { scope: accountId, id: connection.identifier(connectionId) } });
+        const integrated =
+            lent?.integration === null || lent === undefined
+                ? undefined
+                : await runner.read(integration.table).findFirst({
+                      where: {
+                          scope: lent.integration.scope,
+                          id: integration.identifier(lent.integration.id),
+                      },
+                  });
+
+        return lent === undefined
+            ? undefined
+            : (Connection.installation(lent, integrated, this.app.id) ?? undefined);
+    }
+
+    /** Require the App installation of an account's connection. */
+    async #requireInstallation(
+        runner: Pick<Runner, "query" | "self" | "read">,
+        accountId: string,
+        connectionId: string,
+    ): Promise<string> {
+        const installation = await this.installation(runner, accountId, connectionId);
+        if (installation === undefined) {
+            throw new CallError("PRECONDITION_FAILED", {
+                message: `the forge has no replica of connection ${connectionId}`,
             });
         }
 
-        return row.installationId;
-    }
-
-    /** Read the live installations of the App a selection names. */
-    #installations(
-        selection: Omit<
-            Parameters<typeof ProviderInstallation.list>[1],
-            "provider" | "applicationId"
-        >,
-    ) {
-        return ProviderInstallation.list(this.#database, {
-            ...selection,
-            provider: "github",
-            applicationId: this.app.id,
-        });
+        return installation;
     }
 }

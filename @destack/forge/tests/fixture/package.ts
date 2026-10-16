@@ -1,72 +1,83 @@
-import type { WorkloadIdentity } from "@destack/account/client";
-import { AccountFixture, ids } from "@destack/host/test";
+import { AccountFixture, ids } from "@destack/account/test";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inject } from "vitest";
 import {
     type BuildOptions,
     PackageBuild,
-    PackageBuilder,
+    Compiler,
     readDependencies,
     readOutputs,
 } from "@destack/build";
-import { PackageStore } from "@destack/build/store";
-import { principal } from "@destack/access";
-import { Journal } from "@destack/audit/server";
-import { LocalBucket } from "@destack/bucket/local";
-import type { Dialect } from "@destack/db";
+import { PackageClient, PackageStore } from "@destack/build/store";
+import { Authentication, Caller, principal } from "@destack/access";
+import { ClaimLookup, claimTable } from "@destack/object";
+import { testEvents } from "@destack/object/test";
+import type { EventStore } from "@destack/event";
+import { LocalBucket } from "@destack/bucket/bun";
+import { type ObjectReference, Scope, type Subject, Uplink } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import type { PackageId } from "@destack/package";
+import { Package, PackageName, type PackageId } from "@destack/package";
+import { type Select, Snapshot } from "@destack/db";
 import { History, Vocabulary } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
-import { Commit, found, type Identifier, schema } from "@destack/schema";
-import { Authentication } from "@destack/service/authentication";
-import { Health } from "@destack/service/health";
-import { RequestId } from "@destack/service/request";
-import { Server } from "@destack/service/server";
-
-import { type PackageDistribution } from "@destack/package/manifest";
-import { connect } from "../../src/client/index.ts";
+import { defineServer, ObjectStore, RemoteStore } from "@destack/object/server";
+import { claim } from "@destack/account/object";
+import { nth, Commit, found, type Identifier, present, schema, Version } from "@destack/schema";
+import { Health } from "@destack/runtime/health";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
+import { createClient } from "@destack/runtime/client";
+import { reconciliation, testCallKey } from "@destack/runtime/test";
+import type { Controller } from "@destack/runtime/control";
 import { LocalGitStorage } from "../../src/local/index.ts";
 import { packageObject, type Release } from "../../src/object/index.ts";
-import { type Forge, implementForge } from "../../src/server/index.ts";
-import { BUILDS_PATH, forgeService } from "../../src/service/index.ts";
-import { forgeDatabase } from "../../src/stack/index.ts";
-import { testCallKey } from "@destack/service/test";
+import { Forge } from "../../src/server/index.ts";
+import forgePackage from "../../src/package.ts";
+import {
+    bearHome,
+    homeReplicas,
+    homeDatabase,
+    provisionVault,
+    readHome,
+    RESIDENCY,
+    type ResidencyHome,
+} from "./home.ts";
+import { auditedCalls } from "./audit.ts";
+import { Clock } from "@destack/environment";
 
 /** The account that publishes the fixture packages and scopes their npm names. */
 export const ACCOUNT_ID = schema
     .identifier("account")
     .parse("account-00000000-0000-7000-8000-000000000001");
 
-/** The account's owner, by the bearer token naming them. */
+/** The bearer token of the account's owner. */
 const OWNER = "owner";
 
-/** The users bearer tokens name: the account's owner and a stranger to it. */
+/** The users of the bearer tokens: the account's owner and a stranger to it. */
 const USERS: ReadonlyMap<string, string> = new Map([
     [OWNER, ids.owner],
     ["stranger", ids.stranger],
 ]);
 
 /** The version the fixture sources declare. */
-const FIXTURE_VERSION = "2026.9.0";
+export const FIXTURE_VERSION = "2026.9.0";
 
-/** The fixture releases the run builds once, in an order that publishes each dependency before its dependents. */
+/** The fixture releases, each dependency before its dependents. */
 export const FIXTURE_RELEASES = [
     ["answer", [FIXTURE_VERSION, "2026.9.1"]],
     ["greeting", [FIXTURE_VERSION]],
 ] as const satisfies readonly (readonly [FixturePackage, readonly string[]])[];
+
+/** The dev prerelease of the answer package after its releases, built without a commit. */
+export const PRERELEASE_VERSION = "2026.9.2-dev.1";
 
 /** The commit every fixture release is built from. */
 export const COMMIT = "a".repeat(40);
 
 /** The fixture packages: real package sources under tests/fixture called `@example/<name>`. */
 export type FixturePackage = "answer" | "greeting";
-
-/** Who may read a package, and whether it is listed to them. */
-export type Visibility = "public" | "unlisted" | "private";
 
 /** A package the forge published: its build and release. */
 export interface Published {
@@ -80,159 +91,205 @@ export interface Published {
     readonly release: Release;
 }
 
-/** A forge over its database, an account service and a local bucket, serving its endpoints over HTTP. */
+/** A forge over its database, the account package and a local bucket, served over HTTP. */
 export class PackageFixture implements AsyncDisposable {
     /** The temporary directory with the bucket, sources and installations. */
     readonly directory: string;
     /** The forge's database with packages, releases and tags. */
-    readonly regional: TestDatabase;
-    /** The account service with the account and the directory. */
+    readonly storage: TestDatabase;
+    /** The account package with the account and the directory. */
     readonly accounts: AccountFixture;
     /** The bucket with immutable package files and archives. */
     readonly bucket: LocalBucket;
-    /** The publisher's store of the builds it pushes. */
-    readonly published: PackageStore;
-    /** The bucket with the publisher's builds. */
-    readonly publisher: LocalBucket;
-    /** The forge served. */
-    readonly forge: Forge;
-    /** The forge's placement in the platform's region. */
-    readonly placement: Identifier<"placement">;
-    /** The journal of the forge database's calls. */
-    readonly journal: Journal;
+    /** The store of builds and npm archives the forge serves. */
+    readonly store: PackageStore;
+    /** The directory's names the forge resolves packages through. */
+    readonly claims: ClaimLookup;
+    /** The residency home's store the forge extends. */
+    readonly objects: ObjectStore;
+    /** The forge's installation in the residency home. */
+    readonly installation: Identifier<"installation">;
+    /** The forge installation's space, below which it stores its replicas. */
+    readonly space: string;
     /** The forge's origin, with no trailing slash. */
     readonly origin: string;
+    /** Aborted with the controllers' first failure, such as a refused replica, failing settles. */
+    readonly #failure = new AbortController();
     /** The packages created so far. */
     readonly #created = new Set<string>();
-    /** The service serving the forge. */
-    readonly #service: Server;
-    /** The HTTP server passing requests to the service. */
+    /** The controller sweeping the store, which each test runs by hand. */
+    readonly #sweep: Controller;
+    /** The time the forge's clock reads during a sweep, absent while it reads the system's. */
+    #sweptAt: number | undefined;
+    /** The server serving the forge. */
+    readonly #server: Server;
+    /** The HTTP server passing requests to the server. */
     readonly #http: Bun.Server<undefined>;
 
     /** Serve the opened databases and bucket. */
     private constructor(
         directory: string,
-        regional: TestDatabase,
+        storage: TestDatabase,
         accounts: AccountFixture,
         bucket: LocalBucket,
-        publisher: LocalBucket,
-        identity: WorkloadIdentity,
+        installation: Subject,
+        home: ResidencyHome,
+        events: EventStore,
+        credentials: ObjectReference,
     ) {
-        // keep releases in the forge's database and names in the account service's directory
+        // store releases in the forge's database and names in the account package's directory
         this.directory = directory;
-        this.regional = regional;
+        this.storage = storage;
         this.accounts = accounts;
         this.bucket = bucket;
-        this.publisher = publisher;
-        this.published = new PackageStore(publisher);
+        this.installation = schema.identifier("installation").parse(installation.id);
 
-        // listen before serving, since the npm endpoints name their URL
+        // listen before serving, for the npm endpoints to know their URL
         this.#http = Bun.serve({
             hostname: "127.0.0.1",
             port: 0,
-            fetch: (request) => this.#service.fetch(request),
+            fetch: (request) => this.#server.fetch(request),
         });
         this.origin = `http://127.0.0.1:${this.#http.port}`;
 
-        // serve the forge to the user a bearer token names, and to anonymous callers
-        const implementation = implementForge({
-            identity,
-            callKey: testCallKey,
-            database: regional.database,
-            store: new PackageStore(bucket),
+        // extend the residency home's store with the forge, with no repository connected through an account's connection
+        const client = accounts.installation(installation);
+        const uplink = Uplink.of(() => client.store);
+        this.store = new PackageStore(bucket);
+        const universe = Snapshot.live(accounts.database);
+        this.claims = ClaimLookup.of(universe.read(claimTable));
+        const forge = new Forge({
+            home: home.id,
+            store: this.store,
             endpoint: new URL(this.origin),
             storage: new LocalGitStorage(join(directory, "repository")),
+            vault: credentials,
+            consumer: installation,
         });
-        this.forge = implementation.forge;
-        this.placement = identity.placementId;
-        this.journal = implementation.objects.journal;
-        this.#service = Server.start({
+
+        // follow and call the account package as the installation, beside the home's own replicas
+        const { follows, ...placed } = homeReplicas(home, RESIDENCY, uplink);
+        const definition = forge.definition();
+        const composed = new ObjectStore({
+            servers: [
+                defineServer(forgePackage, {
+                    ...definition,
+                    follows: [...(definition.follows ?? []), ...follows],
+                }),
+            ],
+            clock: { ...Clock.system, now: () => this.#sweptAt ?? Date.now() },
+            principal: installation,
+            database: storage.database,
+            callKey: testCallKey,
+            events,
+            origin: { package: Package.of(forgePackage) },
+            claims: {
+                object: claim,
+                home: RemoteStore.of(client.store, Scope.universe.id),
+            },
+            uplink,
+            ...placed,
+        });
+        this.objects = composed;
+        this.space = home.id;
+
+        // run every controller but the sweep, which each test runs at its time
+        const implementation = composed.package(forgePackage);
+        const controllers = implementation.controllers ?? [];
+        this.#sweep = present(
+            controllers.find((controller) => controller.name === "forge-sweep"),
+            "the forge's sweep",
+        );
+
+        // serve the forge to the user of a bearer token, and to anonymous callers
+        this.#server = Server.start({
+            clock: composed.clock,
             ...implementation,
-            audience: packageObject.policy.definition.packageId,
+            controllers: controllers.filter((controller) => controller !== this.#sweep),
             resources: new ResourceContext(),
             health: new Health("forge"),
             authenticate: async (request) => PackageFixture.#authenticate(request),
             authorizeMachine: async () => {},
             drainTimeout: 1000,
+            report: (error) => this.#failure.abort(error),
         });
     }
 
-    /** Open an empty forge of a dialect, following the account service as its placement, with the owner's account. */
-    static async open(dialect: Dialect): Promise<PackageFixture> {
+    /** Open an empty forge on sqlite with the owner's account. */
+    static async open(): Promise<PackageFixture> {
         // open the databases and bucket in a fresh directory
         const directory = await mkdtemp(join(tmpdir(), "destack-forge-"));
-        const regional = await TestDatabase.create(dialect, forgeDatabase, {
+        const storage = await TestDatabase.create("sqlite", homeDatabase, {
             isMigrated: true,
         });
-        const accounts = await AccountFixture.open({ policies: [packageObject.policy] });
+        const accounts = await AccountFixture.open({
+            dialect: "sqlite",
+            policies: [packageObject.policy],
+        });
         const bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
-        const publisher = await LocalBucket.open(join(directory, "publisher"), "space-test");
 
-        // create the owner's account through the account service, and place the forge in the platform's region
+        // create the owner's account through the account package
         await accounts.user(ids.owner).account.create({
             scope: ids.owner,
             id: ACCOUNT_ID,
-            requestId: RequestId.create(),
+            requestId: RequestId.create(Date.now()),
             handle: "example",
             name: "Example",
             kind: "shared",
         });
-        const placement = await accounts.place(forgeService.package.id);
 
-        // follow and reach the account service as the forge's workload through a machine of the platform's region, once copied
-        const region = await accounts.enroll(ids.platform);
+        // install the forge in the residency's home, following and calling the account package as the installation
+        const installation = await accounts.install([], RESIDENCY);
+        const home = await readHome(accounts, installation.scope);
         const fixture = new PackageFixture(
             directory,
-            regional,
+            storage,
             accounts,
             bucket,
-            publisher,
-            accounts.identity(region, placement),
+            installation,
+            home,
+            await testEvents(storage.database),
+            await provisionVault(storage.database, home.id, installation),
         );
+
+        // replicate the home's account chain, then give birth to the home below it, as its machine does
+        await fixture.settle();
+        await bearHome(fixture.objects, home);
         await fixture.settle();
 
         return fixture;
     }
 
-    /** Read each change the journal recorded, with how it ended. */
+    /** Read each change the call events recorded, with how it ended. */
     async audited(): Promise<[string, string][]> {
-        return (await this.journal.read())
-            .filter((call) => call.execution.category === "activity")
-            .map((call) => [call.method, call.execution.outcome?.kind ?? "running"]);
+        return (await auditedCalls(this.storage.database))
+            .filter((ended) => ended.execution.category === "activity")
+            .map((ended) => [ended.method, ended.execution.outcome.kind]);
     }
 
-    /** Connect to the service as a user, or anonymously. */
+    /** Connect to the forge as a user, or anonymously. */
     client(user?: string) {
-        return connect({
+        return createClient(forgePackage, {
             url: this.origin,
             headers: user === undefined ? {} : { authorization: `Bearer ${user}` },
         });
     }
 
-    /** Publish a fixture package at a version from the run's build of it, creating it as the owner the first time. */
-    async publish(
-        name: FixturePackage,
-        options: { readonly visibility?: Visibility; readonly version?: string } = {},
-    ): Promise<Published> {
-        const build = await fixtureBuild(name, options.version);
-
-        return this.release(name, build, options.visibility);
-    }
-
     /** Publish a build of a fixture package as the owner, creating the package the first time. */
-    async release(
-        name: FixturePackage,
+    async publish(
         build: PackageBuild,
-        visibility: Visibility = "private",
+        visibility: Select<typeof packageObject.table>["visibility"] = "private",
     ): Promise<Published> {
-        // create the package under the build's identity once
+        // create the package under the build's identity and name once
         const owner = this.client(OWNER);
         const packageId = build.manifest.package.id;
+        const { local: name } = PackageName.split(build.manifest.package.name);
         if (!this.#created.has(packageId)) {
             await owner.package.create({
+                spaceId: this.space,
                 accountId: ACCOUNT_ID,
                 id: packageId,
-                requestId: RequestId.create(),
+                requestId: RequestId.create(Date.now()),
                 name,
                 visibility,
             });
@@ -242,8 +299,8 @@ export class PackageFixture implements AsyncDisposable {
         // push the build and release it
         const manifest = await this.push(build);
         const release = await owner.release.create({
-            accountId: ACCOUNT_ID,
-            requestId: RequestId.create(),
+            spaceId: this.space,
+            requestId: RequestId.create(Date.now()),
             parentId: packageId,
             manifest,
         });
@@ -252,21 +309,26 @@ export class PackageFixture implements AsyncDisposable {
     }
 
     /** Push a build to the forge as the owner, returning its manifest's digest. */
-    async push(build: PackageDistribution): Promise<string> {
-        const manifest = await this.published.put(build);
-        await this.published.push(manifest, `${this.origin}${BUILDS_PATH}`, (request) => {
-            const headers = new Headers(request.headers);
-            headers.set("authorization", `Bearer ${OWNER}`);
-
-            return fetch(new Request(request, { headers }));
-        });
-
-        return manifest;
+    push(build: PackageBuild): Promise<string> {
+        return this.builds(OWNER, build.reader.manifest.package.id).push(build.reader);
     }
 
-    /** Write the npm configuration selecting this registry for the fixture scope with the owner's token. */
+    /** Connect to the forge's uploads below a package as a user. */
+    builds(user: string, packageId: string): PackageClient {
+        return new PackageClient(
+            `${this.origin}${forgePackage.adapters.builds.path}/${packageId}/`,
+            (request) => {
+                const headers = new Headers(request.headers);
+                headers.set("authorization", `Bearer ${user}`);
+
+                return fetch(new Request(request, { headers }));
+            },
+        );
+    }
+
+    /** Write the npm configuration selecting this registry with the owner's token. */
     npmrc(): string {
-        const url = this.forge.npm.url;
+        const url = new URL(`${this.origin}${forgePackage.adapters.npm.path}/`);
 
         return `@example:registry=${url.href}\n//${url.host}${url.pathname}:_authToken=${OWNER}\n`;
     }
@@ -274,80 +336,79 @@ export class PackageFixture implements AsyncDisposable {
     /** Stop serving and remove every database and file. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#http.stop(true);
-        await this.#service.close();
+        await this.#server.close();
         await this.bucket[Symbol.asyncDispose]();
-        await this.publisher[Symbol.asyncDispose]();
-        await this.regional.close();
+        await this.storage.close();
         await this.accounts[Symbol.asyncDispose]();
         await rm(this.directory, { recursive: true });
     }
 
-    /** Wait until the forge's copies reflect the account service as of now. */
-    async settle(): Promise<void> {
-        await this.accounts.settle(this.forge.objects, this.placement);
+    /** Sweep the forge's store through its controller at a time, in UTC epoch milliseconds. */
+    async sweep(now: number): Promise<void> {
+        // read the time on the forge's clock for the sweep alone
+        this.#sweptAt = now;
+        try {
+            await this.#sweep.reconcile("store", reconciliation(AbortSignal.timeout(5000)));
+        } finally {
+            this.#sweptAt = undefined;
+        }
     }
 
-    /** Verify a request's bearer token as the user it names, for a minute. */
-    static #authenticate(request: Request): Authentication | null {
+    /** Wait until the forge's replicas reflect the account package as of now. */
+    async settle(): Promise<void> {
+        await this.accounts.settle(this.objects, this.#failure.signal);
+    }
+
+    /** Verify a request's bearer token as its user, for a minute. */
+    static #authenticate(request: Request): Authentication | undefined {
         const token = /^Bearer (.+)$/u.exec(request.headers.get("authorization") ?? "")?.[1];
         if (token === undefined) {
-            return null;
+            return undefined;
         }
         const subject = principal.user.reference("universe", found(USERS, token));
 
-        return new Authentication({
-            credential: { kind: "fixture", id: "fixture-1" },
-            audience: packageObject.policy.definition.packageId,
-            subject,
-            subjects: [subject],
-            verifiedAt: Date.now(),
-            expiresAt: Date.now() + 60_000,
-        });
+        return {
+            caller: Caller.of(subject),
+            credential: {
+                kind: "fixture",
+                id: "fixture-1",
+                audience: packageObject.policy.definition.packageId,
+                verifiedAt: Date.now(),
+                expiresAt: Date.now() + 60_000,
+            },
+        };
     }
-}
-
-/** Read the global setup's build of the answer package's last version compiled without a commit. */
-export function uncommittedBuild(): Promise<PackageBuild> {
-    return PackageBuild.read(join(inject("builds"), "answer", "uncommitted"));
-}
-
-/** Read the global setup's build of a fixture package at a version. */
-export function fixtureBuild(
-    name: FixturePackage,
-    version = FIXTURE_VERSION,
-): Promise<PackageBuild> {
-    return PackageBuild.read(join(inject("builds"), name, version));
 }
 
 /** A copy of a fixture package's source with a started builder. */
 export class FixtureSource implements AsyncDisposable {
     /** The fixture package. */
     readonly name: FixturePackage;
-    /** The directory with the copy. */
+    /** The directory with the replica. */
     readonly directory: string;
     /** The builder retained across the package's versions. */
-    readonly #builder: PackageBuilder;
-    /** The outputs and dependencies the last build compiled. */
-    #compiled: Pick<BuildOptions, "outputs" | "dependencies"> | undefined;
+    readonly #builder: Compiler;
+    /** The outputs and dependencies the last build compiled, and what it published. */
+    #compiled: (Pick<BuildOptions, "outputs" | "dependencies"> & { history: History }) | undefined;
 
-    /** Keep a copy and its started builder. */
-    private constructor(name: FixturePackage, directory: string, builder: PackageBuilder) {
+    /** Take a replica and its started builder. */
+    private constructor(name: FixturePackage, directory: string, builder: Compiler) {
         this.name = name;
         this.directory = directory;
         this.#builder = builder;
     }
 
-    /** Copy a fixture package's source into a directory and start its builder. */
+    /** Replicate a fixture package's source into a directory and start its builder. */
     static async open(name: FixturePackage, parent: string): Promise<FixtureSource> {
         const directory = join(parent, name);
         await cp(fileURLToPath(new URL(`./${name}/`, import.meta.url)), directory, {
             recursive: true,
         });
 
-        return new FixtureSource(name, directory, await PackageBuilder.start(directory));
+        return new FixtureSource(name, directory, await Compiler.start(directory));
     }
 
-    /** Install the dependencies through an npm configuration and build each version's published outputs, rebuilding only what the version changes. */
+    /** Install the dependencies and build each version's published outputs. */
     async build(npmrc: string, versions: readonly string[]): Promise<PackageBuild[]> {
         // install the dependencies
         await writeFile(join(this.directory, ".npmrc"), npmrc);
@@ -361,7 +422,7 @@ export class FixtureSource implements AsyncDisposable {
             this.directory,
         );
         const declaration = schema
-            .record(schema.string(), schema.json())
+            .jsonObject()
             .parse(await readJson(join(this.directory, "package.json")));
         const dependencies = await readDependencies(this.directory);
 
@@ -394,18 +455,41 @@ export class FixtureSource implements AsyncDisposable {
             builds.push(build);
         }
 
-        this.#compiled = { outputs, dependencies };
+        const latest = nth(builds, -1);
+        this.#compiled = {
+            outputs,
+            dependencies,
+            history: await History.read(latest.reader, vocabulary),
+        };
 
         return builds;
     }
 
-    /** Build the last version again without a commit, as a working tree with uncommitted changes compiles. */
-    uncommitted(): Promise<PackageBuild> {
+    /** Build a working tree without a commit: the last version, or a prerelease of the next. */
+    async uncommitted(prerelease?: Version): Promise<PackageBuild> {
         if (this.#compiled === undefined) {
             throw new TypeError(`fixture ${this.name} has not been built`);
         }
 
-        return this.#builder.build(this.#compiled);
+        // build the last version again
+        const { outputs, dependencies, history } = this.#compiled;
+        if (prerelease === undefined) {
+            return await this.#builder.build({ outputs, dependencies });
+        }
+
+        // author the next version, and build its prerelease planned from the last version
+        const path = join(this.directory, "package.json");
+        const declaration = schema.jsonObject().parse(await readJson(path));
+        const version = Version.next(Version.parse(declaration["version"]));
+        await writeFile(path, JSON.stringify({ ...declaration, version }));
+        const name = schema.string().parse(declaration["name"]);
+
+        return await this.#builder.build({
+            outputs,
+            dependencies,
+            history,
+            versions: { [name]: prerelease },
+        });
     }
 
     /** Stop the builder. */

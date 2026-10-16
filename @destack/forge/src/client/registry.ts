@@ -1,74 +1,101 @@
-import type { DirectoryClient } from "@destack/account/client";
+import { AddressResolver } from "@destack/account/address";
+import { PackageClient } from "@destack/build/store";
+import type { Snapshot } from "@destack/db";
+import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { BuildReader, type PackageLocation } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
-import { ServiceMount } from "@destack/service";
-import { ServiceError } from "@destack/service/error";
+import { type Identifier, schema } from "@destack/schema";
+import { type Fetch, InstallationMount, PackageMount } from "@destack/runtime";
+import { createClient } from "@destack/runtime/client";
+import { CallError } from "@destack/runtime/error";
 import { packageObject } from "../object/index.ts";
-import { BUILDS_PATH, forgeService } from "../service/index.ts";
-import { connect } from "./client.ts";
+import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
+import type { Clock } from "@destack/environment";
 
-/** The forge a caller reaches for a package: its service's URL and the fetch authenticating the caller. */
-type Endpoint = {
-    /** The forge service's URL. */
+/** The forge a caller calls for a package. */
+type ForgeEndpoint = {
+    /** The forge's URL, its package's mount. */
     readonly url: string;
+    /** The space storing the forge's packages, its residency home. */
+    readonly space: string;
     /** Fetch from it as the caller. */
-    readonly fetch: (request: Request) => Promise<Response>;
+    readonly fetch: Fetch;
 };
 
-/** The registry of published releases, each package's read from the forge of the account publishing it. */
+/** The registry of published releases. */
 export class Registry {
-    /** Reach the forge of the account publishing a package. */
-    readonly #reach: (packageId: PackageId) => Promise<Endpoint>;
+    /** Find the forge of the account publishing a package. */
+    readonly #find: (packageId: PackageId) => Promise<ForgeEndpoint>;
 
-    /** Read releases from the forge each package's publisher keeps them in. */
-    constructor(reach: (packageId: PackageId) => Promise<Endpoint>) {
-        this.#reach = reach;
+    /** Read releases from the forge each package's publisher stores them in. */
+    constructor(find: (packageId: PackageId) => Promise<ForgeEndpoint>) {
+        this.#find = find;
     }
 
-    /** Read releases through the directory: the account claiming a package's identifier, and the forge of its residency. */
-    static of(directory: DirectoryClient, fetch: Endpoint["fetch"]): Registry {
-        return new Registry(Registry.reach(directory, fetch));
-    }
+    /** Read releases through the universe directory's replica: claims, placements, endpoints. */
+    static of(
+        directory: Snapshot,
+        home: (account: Identifier<"account">) => Promise<Identifier<"space">>,
+        fetch: Fetch,
+        clock: Clock,
+    ): Registry {
+        const claims = ClaimLookup.of(directory.read(claimTable));
+        const resolver = new AddressResolver(directory);
 
-    /** Reach the forge of the account publishing a package through the directory, as a caller fetching. */
-    static reach(
-        directory: DirectoryClient,
-        fetch: Endpoint["fetch"],
-    ): (packageId: PackageId) => Promise<Endpoint> {
-        return async (packageId) => {
+        return new Registry(async (packageId) => {
             // find the account claiming the package's identifier
-            const found = await packageObject.lookup(directory, "id", [packageId]);
+            const found = await Claim.lookup(packageObject, claims, "id", [packageId]);
             if (found === undefined) {
-                throw new ServiceError("NOT_FOUND", {
+                throw new CallError("NOT_FOUND", {
                     message: `no account publishes ${packageId}`,
                 });
             }
 
-            // find the region running the forge for the account's residency
+            // find the machine serving the home of the account's residency
             const accountId = schema.identifier("account").parse(found.scope);
-            const cell = await directory.region(accountId, forgeService.package.id);
-            if (cell === undefined) {
-                throw new ServiceError("NOT_FOUND", {
-                    message: `no region runs the forge for ${accountId}`,
-                });
-            }
+            const spaceId = await home(accountId);
+            const located = await resolver.locate(spaceId, clock.now());
 
-            return { url: ServiceMount.url(cell.endpoint, forgeService.package.id), fetch };
-        };
+            // call the forge's package below its installation in the home
+            const installation = InstallationMount.url(located.url, spaceId, FORGE_INSTALLATION);
+
+            return {
+                url: `${installation}${PackageMount.path(forgePackage.id)}`,
+                space: spaceId,
+                fetch,
+            };
+        });
     }
 
-    /** Find the digest of the manifest of a package's published release, by its version or a distribution tag. */
-    async find(packageId: PackageId, release: string): Promise<string> {
-        const { manifest } = await connect(await this.#reach(packageId)).manifests.find({
-            packageId,
+    /** Resolve a package's published release of a version, or of the version a tag points at. */
+    async resolve(packageId: PackageId, release: string) {
+        const forge = await this.#find(packageId);
+
+        return createClient(forgePackage, forge).release.resolve({
+            spaceId: forge.space,
+            parentId: packageId,
             release,
         });
+    }
+
+    /** Find the digest of the manifest of a package's published release. */
+    async find(packageId: PackageId, release: string): Promise<string> {
+        const { manifest } = await this.resolve(packageId, release);
 
         return manifest;
     }
 
-    /** Locate the files of a package's published build by its manifest's digest, with the fetch reading them. */
+    /** Push a build's files to its package's forge, answering its manifest's digest. */
+    async push(build: BuildReader, signal?: AbortSignal): Promise<string> {
+        // upload below the package, which its forge authorizes to the package's publishers
+        const packageId = build.manifest.package.id;
+        const forge = await this.#find(packageId);
+        const uploads = `${forge.url}${forgePackage.adapters.builds.path}/${packageId}/`;
+
+        return new PackageClient(uploads, forge.fetch).push(build, signal);
+    }
+
+    /** Locate the files of a package's published build by its manifest's digest. */
     async locate(
         packageId: PackageId,
         manifest: string,
@@ -76,10 +103,13 @@ export class Registry {
         readonly location: PackageLocation;
         readonly fetch: (input: URL, init: RequestInit) => Promise<Response>;
     }> {
-        const forge = await this.#reach(packageId);
+        const forge = await this.#find(packageId);
 
         return {
-            location: { manifest, url: `${forge.url}${BUILDS_PATH}${manifest}/` },
+            location: {
+                manifest,
+                url: `${forge.url}${forgePackage.adapters.builds.path}/${manifest}/`,
+            },
             fetch: (input, request) => forge.fetch(new Request(input.href, request)),
         };
     }
@@ -92,7 +122,7 @@ export class Registry {
 
         // require a build of the package
         if (reader.manifest.package.id !== packageId) {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `build ${manifest} is no build of ${packageId}`,
             });
         }

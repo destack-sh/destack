@@ -1,12 +1,13 @@
 import { expect, test } from "@destack/test";
 import { PackageArchive } from "../src/pack/index.ts";
-import { COMMIT, fixtureBuild } from "./fixture/package.ts";
+import { fixtureBuild } from "./fixture/build.ts";
+import { COMMIT } from "./fixture/package.ts";
 
 test("pack a build into identical archives declaring its compiled exports and exact dependencies", async () => {
     // pack one build twice
     const build = await fixtureBuild("greeting");
-    const first = await PackageArchive.pack(build, COMMIT);
-    const second = await PackageArchive.pack(build, COMMIT);
+    const first = await PackageArchive.pack(build.reader, COMMIT);
+    const second = await PackageArchive.pack(build.reader, COMMIT);
     const list = await build.reader.distributed();
     const { bun, workerd } = build.manifest.outputs;
     if (bun === undefined || workerd === undefined) {

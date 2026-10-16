@@ -10,9 +10,9 @@ const ALGORITHMS: ReadonlyMap<string, AlgorithmIdentifier | EcdsaParams> = new M
 const Header = schema.looseObject({ alg: schema.string() });
 
 /** The claims of a JWT. */
-const Claims = schema.record(schema.string(), schema.json());
+const Claims = schema.jsonObject();
 
-/** Verify a compact JWT's signature with a public key, returning its header algorithm and claims. */
+/** Verify a compact JWT's signature, returning its header algorithm and claims. */
 export async function verifyToken(
     token: string,
     key: CryptoKey,

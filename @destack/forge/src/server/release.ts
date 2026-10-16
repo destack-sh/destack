@@ -1,222 +1,286 @@
-import { and, eq, isNull, ne, type DatabaseConnection, type Select } from "@destack/db";
-import {
-    Call,
-    type CallOf,
-    type NextOf,
-    type PreparedCallOf,
-    type ResultOf,
-} from "@destack/object";
-import { Vocabulary } from "@destack/resource";
-import { Version } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { dependency, LATEST_TAG, packageObject, release, tag, type Pack } from "../object/index.ts";
+import { type PackageStore } from "@destack/build/store";
+import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
+import { Upgrade, Vocabulary } from "@destack/resource";
+import { type Identifier, present, Version } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/runtime/error";
+import { Scope } from "@destack/sync";
+import { LATEST_TAG, packageObject, release, tag, TagName } from "../object/index.ts";
+import type { Pack } from "../pack/index.ts";
+import { PackageArchive } from "../pack/index.ts";
+import { claimFollow, Forge } from "./forge.ts";
 
-/** How long after publication a release may be unpublished, in milliseconds: npm's 72 hours. */
-const UNPUBLISH_WINDOW_MILLISECONDS = 72 * 60 * 60 * 1000;
-
-/** A release's publication and unpublication on the server. */
-export const Release = { tagName, publish, unpublish };
-
-/** A release's row. */
-type Row = Select<typeof release.table>;
-
-/** Read the tag a release's creation names, latest when it names none. */
-function tagName(call: CallOf<typeof release, "create">): string {
-    return call.input.tag ?? LATEST_TAG;
+/** What releases pack with: the store of pushed builds and the forge's space. */
+export interface ReleaseOptions {
+    /** The store of pushed builds and npm archives. */
+    readonly store: PackageStore;
+    /** The forge's space, which stores every package of its residency. */
+    readonly home: Identifier<"space">;
 }
 
-/** Insert a release of an unused version, record its dependencies, and point its tag at it. */
-async function publish(
-    call: PreparedCallOf<typeof release, "create">,
-    next: NextOf<typeof release, "create">,
-): Promise<ResultOf<typeof release, "create">> {
-    // require the next version before planning and advancing the vocabulary
-    const pack = call.prepared;
-    await requireNextVersion(call, pack);
-    await advance(call, pack);
+/** The release methods' handlers: packing, publishing, resolving, deprecating and yanking. */
+export const ReleaseMethod = {
+    /** Pack a pushed build under the package's global name, before the transaction. */
+    async pack(
+        context: MethodContextOf<typeof release, "create", Pack | undefined>,
+        options: ReleaseOptions,
+    ): Promise<Pack> {
+        // refuse a tag a range reads, and lease the build against sweeps while its request may still retry
+        const store = options.store;
+        TagName.require(context.input.tag ?? LATEST_TAG);
+        const { parentId, manifest } = context.input;
+        const request = present(context.requestId, "the release's request");
+        const until = new Date(RequestId.expiry(request, context.now));
+        await store.lease(manifest, until);
 
-    // insert the release
-    const { manifest, commit, version, distribution, metadata, upgrade } = pack;
-    const created = await next(
-        call.with({
-            input: {
-                ...call.input,
-                manifest,
-                commit,
-                version,
-                distribution,
-                metadata,
-                ...(upgrade === undefined ? {} : { upgrade }),
+        // require a pushed build, of a commit unless it is a prerelease
+        if (!(await store.contains(manifest))) {
+            throw new CallError("NOT_FOUND", {
+                message: `build ${manifest} was not pushed to the forge`,
+            });
+        }
+        const contents = await store.contents(manifest);
+        const { commit, package: built } = contents.manifest;
+        if (commit === undefined && !Version.isPrerelease(built.version)) {
+            throw new CallError("CONFLICT", {
+                message: `build ${manifest} compiled a working tree with uncommitted changes`,
+            });
+        }
+
+        // pack the build, refusing an archive of another manifest
+        const archive = await PackageArchive.pack(contents, commit);
+        if (archive.manifest !== manifest) {
+            throw new CallError("BAD_REQUEST", {
+                message: "archived manifest differs from the build",
+            });
+        }
+
+        // require the build to be the package's, under the package's global name
+        if (archive.packageId !== parentId) {
+            throw new CallError("CONFLICT", { message: "the build is another package's" });
+        }
+        const named = await Forge.named(
+            archive.metadata.name,
+            options.home,
+            (claim) =>
+                context.acquire(claimFollow, { key: { scope: Scope.universe.id, ...claim } }),
+            context,
+        );
+        if (named.id !== parentId) {
+            throw new CallError("CONFLICT", {
+                message: "the npm name belongs to another package",
+            });
+        }
+
+        // lease and store the archive under its digest before any release refers to it
+        await store.lease(archive.file.digest, until);
+        await store.putFile(archive.file, async () => archive.open());
+
+        // read the build's declarations and the upgrade it planned
+        const upgrade = contents.manifest.upgrade;
+
+        return {
+            manifest,
+            ...(commit === undefined ? {} : { commit }),
+            version: archive.metadata.version,
+            distribution: archive.distribution,
+            metadata: archive.metadata,
+            dependencies: archive.dependencies,
+            ...(upgrade === undefined
+                ? {}
+                : { upgrade: await contents.read(upgrade.file, Upgrade) }),
+            declarations: await contents.declarations(),
+        };
+    },
+
+    /** Insert a release of an unused version, record its dependencies, and point its tag at it. */
+    async publish(
+        context: MethodContextOf<typeof release, "create">,
+        next: NextOf<typeof release, "create">,
+    ): Promise<ResultOf<typeof release, "create">> {
+        // require the next version before planning and advancing the vocabulary
+        const packed = context.prepared;
+        await ReleaseMethod.requireNextVersion(context, packed);
+        await ReleaseMethod.advance(context, packed);
+
+        // insert the release
+        const { manifest, commit, version, distribution, metadata, upgrade, declarations } = packed;
+        const created = await next(
+            context.with({
+                input: {
+                    ...context.input,
+                    manifest,
+                    ...(commit === undefined ? {} : { commit }),
+                    version,
+                    distribution,
+                    metadata,
+                    declarations,
+                    ...(upgrade === undefined ? {} : { upgrade }),
+                },
+            }),
+        );
+
+        // point its tag at it, latest by default
+        await context.mutate(context.caller, [
+            packageObject.call("point", {
+                id: context.input.parentId,
+                name: context.input.tag ?? LATEST_TAG,
+                version: packed.version,
+            }),
+        ]);
+
+        return created;
+    },
+
+    /** Find a package's published release of a version, or of the version a tag points at. */
+    async resolve(
+        context: MethodContextOf<typeof release, "resolve">,
+    ): Promise<ResultOf<typeof release, "resolve">> {
+        // read the version a distribution tag points at, else the version given
+        const { parentId, release: named } = context.input;
+        const [tagged] = TagName.safeParse(named).success
+            ? await context.read(tag).findMany({ where: { parentId, name: named } })
+            : [];
+        const version = tagged?.version ?? named;
+
+        // find the published release of the version
+        const [published] = await context
+            .read(release)
+            .findMany({ where: { parentId, version, yankedAt: { isNull: true } } });
+        if (published === undefined) {
+            throw new CallError("NOT_FOUND", { message: `${parentId} lacks release ${named}` });
+        }
+
+        return published;
+    },
+
+    /** Deprecate a release with the warning installers show, or withdraw its deprecation. */
+    async deprecate(
+        context: MethodContextOf<typeof release, "deprecate">,
+    ): Promise<ResultOf<typeof release, "deprecate">> {
+        return context.update({ deprecation: context.input.message });
+    },
+
+    /** Yank a release from new installs, moving its tags off it, or restore it. */
+    async yank(
+        context: MethodContextOf<typeof release, "yank">,
+    ): Promise<ResultOf<typeof release, "yank">> {
+        // restore a yanked release, its tags left where they moved
+        const yanked = context.target;
+        if (!context.input.isYanked) {
+            return context.update({ yankedAt: null });
+        }
+
+        // delete the tags pointing at it
+        const pointing = await context
+            .read(tag)
+            .findMany({ where: { parentId: yanked.parentId, version: yanked.version } });
+        await context.mutate(
+            context.caller,
+            pointing.map((each) => tag.call("delete", { id: each.id })),
+        );
+
+        // point latest at the highest version not yanked, the newest since releases publish in version order
+        const [newest] = await context.read(release).findMany({
+            where: {
+                parentId: yanked.parentId,
+                version: { ne: yanked.version },
+                yankedAt: { isNull: true },
             },
-        }),
-    );
+            orderBy: { createdAt: "desc" },
+            limit: 1,
+        });
+        const highest = newest?.version;
+        if (pointing.some((each) => each.name === LATEST_TAG) && highest !== undefined) {
+            await context.mutate(context.caller, [
+                packageObject.call("point", {
+                    id: yanked.parentId,
+                    name: LATEST_TAG,
+                    version: highest,
+                }),
+            ]);
+        }
 
-    // record each exact release it requires
-    const releaseId = Call.resultId(created);
-    if (releaseId === undefined) {
-        throw new TypeError("release creation returned no id");
-    }
-    for (const required of pack.dependencies) {
-        await call.invoke(dependency).create({ parentId: releaseId, ...required });
-    }
+        return context.update({ yankedAt: yanked.yankedAt ?? context.now });
+    },
 
-    // point its tag at it, latest unless the call names another
-    await call.invoke(tag).point({
-        parentId: call.input.parentId,
-        name: tagName(call),
-        version: pack.version,
+    /** Refuse a version the package took before, and an older one. */
+    async requireNextVersion(
+        context: MethodContextOf<typeof release, "create">,
+        packed: Pack,
+    ): Promise<void> {
+        // refuse a version the package took before, yanked or not
+        const [taken] = await context.read(release).findMany({
+            where: { parentId: context.input.parentId, version: packed.version },
+            limit: 1,
+        });
+        if (taken !== undefined) {
+            throw new CallError("CONFLICT", {
+                message: "package version was already published",
+            });
+        }
+
+        // require releases in version order, the newest release being the highest version
+        const [newest] = await context.read(release).findMany({
+            where: { parentId: context.input.parentId },
+            orderBy: { createdAt: "desc" },
+            limit: 1,
+        });
+        const latest = newest?.version;
+        if (latest !== undefined && Version.compare(packed.version, latest) < 0) {
+            throw new CallError("CONFLICT", {
+                message: `publish releases in version order: ${packed.version} precedes ${latest}`,
+            });
+        }
+        // refuse an upgrade on the first release
+        else if (latest === undefined && packed.upgrade !== undefined) {
+            throw new CallError("CONFLICT", { message: "the first release plans no upgrade" });
+        }
+        // require an upgrade planned from the latest release
+        else if (latest !== undefined && packed.upgrade?.from !== latest) {
+            throw new CallError("CONFLICT", {
+                message: `build the release against ${latest}, the latest release`,
+            });
+        }
+    },
+
+    /** Plan the package's vocabulary through a release's declarations and advance it. */
+    async advance(context: MethodContextOf<typeof release, "create">, packed: Pack): Promise<void> {
+        // read the package's vocabulary
+        const parentId = context.input.parentId;
+        const owner = await context.read(packageObject).findFirst({ where: { id: parentId } });
+        if (owner === undefined) {
+            throw new TypeError(`release package is missing: ${parentId}`);
+        }
+
+        // plan the declarations, refusing a plan that breaks the terms
+        Vocabulary.plan(owner.vocabulary, packed.declarations);
+
+        // advance the vocabulary to the release
+        await context.mutate(context.caller, [
+            packageObject.call("advance", {
+                id: parentId,
+                vocabulary: Vocabulary.advance(
+                    owner.vocabulary,
+                    packed.declarations,
+                    packed.version,
+                ),
+            }),
+        ]);
+    },
+};
+
+/** Implement releases. */
+export function implementRelease(options: ReleaseOptions): typeof release {
+    return release.implement({
+        methods: {
+            create: {
+                prepare: (context) => ReleaseMethod.pack(context, options),
+                handle: (context, next) => ReleaseMethod.publish(context, next),
+            },
+            resolve: (call) => ReleaseMethod.resolve(call),
+            deprecate: (call) => ReleaseMethod.deprecate(call),
+            yank: (call) => ReleaseMethod.yank(call),
+        },
     });
-
-    return created;
-}
-
-/** Unpublish a release as npm allows, dropping its tags, and keep it as a tombstone. */
-async function unpublish(
-    call: CallOf<typeof release, "unpublish">,
-): Promise<ResultOf<typeof release, "unpublish">> {
-    // refuse a release already unpublished
-    const unpublished = call.target;
-    if (unpublished.unpublishedAt !== null) {
-        throw new ServiceError("CONFLICT", { message: "release is already unpublished" });
-    }
-    // refuse a release past the window
-    else if (call.now - unpublished.createdAt >= UNPUBLISH_WINDOW_MILLISECONDS) {
-        throw new ServiceError("CONFLICT", {
-            message: "releases older than 72 hours stay published: deprecate them instead",
-        });
-    }
-
-    // refuse while another package's published release requires it, else delete its tags
-    await requireNoDependents(call.database, unpublished);
-    const pointing = await untag(call, unpublished);
-
-    // point latest at the highest version still published, when it pointed at this one
-    const remaining = await call.database
-        .select({ version: release.table.version })
-        .from(release.table)
-        .where(
-            and(
-                eq(release.table.parentId, unpublished.parentId),
-                ne(release.table.version, unpublished.version),
-                isNull(release.table.unpublishedAt),
-            ),
-        );
-    const [highest] = remaining
-        .map((entry) => entry.version)
-        .toSorted((left, right) => Version.compare(right, left));
-    if (pointing.includes(LATEST_TAG) && highest !== undefined) {
-        await call.invoke(tag).point({
-            parentId: unpublished.parentId,
-            name: LATEST_TAG,
-            version: highest,
-        });
-    }
-
-    return call.update({ unpublishedAt: call.now });
-}
-
-/** Refuse a version the package took before, an older one, and one planned from another release than the latest. */
-async function requireNextVersion(
-    call: PreparedCallOf<typeof release, "create">,
-    pack: Pack,
-): Promise<void> {
-    // refuse a version the package took before, published or unpublished
-    const versions = (
-        await call.database
-            .select({ version: release.table.version })
-            .from(release.table)
-            .where(eq(release.table.parentId, call.input.parentId))
-    ).map((row) => row.version);
-    if (versions.includes(pack.version)) {
-        throw new ServiceError("CONFLICT", {
-            message: "package version was already published",
-        });
-    }
-
-    // require releases in version order
-    const latest = versions.toSorted((left, right) => Version.compare(left, right)).at(-1);
-    if (latest !== undefined && Version.compare(pack.version, latest) < 0) {
-        throw new ServiceError("CONFLICT", {
-            message: `publish releases in version order: ${pack.version} precedes ${latest}`,
-        });
-    }
-    // refuse an upgrade on the first release
-    else if (latest === undefined && pack.upgrade !== undefined) {
-        throw new ServiceError("CONFLICT", { message: "the first release plans no upgrade" });
-    }
-    // require an upgrade planned from the latest release
-    else if (latest !== undefined && pack.upgrade?.from !== latest) {
-        throw new ServiceError("CONFLICT", {
-            message: `build the release against ${latest}, the latest release`,
-        });
-    }
-}
-
-/** Plan the package's vocabulary through a release's declarations and advance it to the release. */
-async function advance(call: PreparedCallOf<typeof release, "create">, pack: Pack): Promise<void> {
-    // read the package's vocabulary
-    const parentId = call.input.parentId;
-    const [owner] = await call.database
-        .select({ vocabulary: packageObject.table.vocabulary })
-        .from(packageObject.table)
-        .where(eq(packageObject.table.id, parentId));
-    if (owner === undefined) {
-        throw new TypeError(`release package is missing: ${parentId}`);
-    }
-
-    // plan the declarations, refusing a plan that breaks the terms
-    Vocabulary.plan(owner.vocabulary, pack.declarations);
-
-    // advance the vocabulary to the release
-    await call.invoke(packageObject).advance({
-        id: parentId,
-        vocabulary: Vocabulary.advance(owner.vocabulary, pack.declarations, pack.version),
-    });
-}
-
-/** Refuse unpublishing a release another package's published release requires. */
-async function requireNoDependents(database: DatabaseConnection, required: Row): Promise<void> {
-    // NOTE #Incomplete: releases in other regions' databases may require it unseen
-    const [dependent] = await database
-        .select({ metadata: release.table.metadata })
-        .from(dependency.table)
-        .innerJoin(release.table, eq(release.table.id, dependency.table.parentId))
-        .where(
-            and(
-                eq(dependency.table.name, required.metadata.name),
-                eq(dependency.table.version, required.version),
-                ne(release.table.parentId, required.parentId),
-                isNull(release.table.unpublishedAt),
-            ),
-        )
-        .limit(1);
-    if (dependent !== undefined) {
-        throw new ServiceError("CONFLICT", {
-            message: `${dependent.metadata.name}@${dependent.metadata.version} depends on this release`,
-        });
-    }
-}
-
-/** Delete the tags pointing at a release, returning their names. */
-async function untag(
-    call: CallOf<typeof release, "unpublish">,
-    unpublished: Row,
-): Promise<string[]> {
-    // find the tags pointing at it
-    const pointing = await call.database
-        .select({ id: tag.table.id, name: tag.table.name })
-        .from(tag.table)
-        .where(
-            and(
-                eq(tag.table.parentId, unpublished.parentId),
-                eq(tag.table.version, unpublished.version),
-            ),
-        );
-
-    // delete each
-    for (const each of pointing) {
-        await call.invoke(tag).delete({ id: each.id });
-    }
-
-    return pointing.map((each) => each.name);
 }

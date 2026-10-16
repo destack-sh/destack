@@ -1,11 +1,11 @@
 import { schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import type { WebhookDelivery } from "@destack/service/trigger";
+import { CallError } from "@destack/runtime/error";
+import type { WebhookDelivery } from "@destack/runtime/trigger";
 
 /** The events that the forge's GitHub App subscribes to and that change references. */
 const REFERENCE_EVENTS: ReadonlySet<string> = new Set(["push", "create", "delete"]);
 
-/** The repository and installation a repository event names. */
+/** The repository and installation of a repository event. */
 const Source = schema.looseObject({
     repository: schema.looseObject({ id: schema.number().int() }),
     installation: schema.looseObject({ id: schema.number().int() }),
@@ -21,7 +21,7 @@ export interface GitHubEvent {
 
 /** The events of GitHub's push, create and delete webhooks. */
 export const GitHubEvent = {
-    /** Read which repository a delivery says changed, null for the ping GitHub sends when a webhook is created. */
+    /** Read which repository a delivery says changed. */
     read(delivery: WebhookDelivery): GitHubEvent | null {
         // acknowledge the ping without a change
         if (delivery.event === "ping") {
@@ -36,9 +36,9 @@ export const GitHubEvent = {
                 installationId: String(source.installation.id),
             };
         }
-        // refuse events the app does not subscribe to
+        // refuse unsubscribed events
         else {
-            throw new ServiceError("BAD_REQUEST", {
+            throw new CallError("BAD_REQUEST", {
                 message: `unsubscribed github event: ${delivery.event}`,
             });
         }

@@ -4,9 +4,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PackageBuild } from "@destack/build";
 import { schema } from "@destack/schema";
+import { fixtureBuild } from "./fixture/build.ts";
 import { readJson, PackageFixture, run } from "./fixture/package.ts";
 
-/** Each package manager with how it installs a project and runs the installed code, deno accepting the versions just published. */
+/** Each package manager with how it installs a project and runs the installed code. */
 const MANAGERS = {
     npm: {
         install: (cache: string) => [
@@ -41,9 +42,9 @@ test.for(MANAGER_NAMES)(
     { timeout: 120_000 },
     async (manager) => {
         // publish a package and one built against it from the registry
-        await using forge = await PackageFixture.open("sqlite");
-        const answer = await forge.publish("answer");
-        const greeting = await forge.publish("greeting");
+        await using forge = await PackageFixture.open();
+        const answer = await forge.publish(await fixtureBuild("answer"));
+        const greeting = await forge.publish(await fixtureBuild("greeting"));
 
         // install the dependent package into a consumer project through the registry
         const consumer = join(forge.directory, "consumer");
@@ -73,7 +74,7 @@ test.for(MANAGER_NAMES)(
     },
 );
 
-/** Find the directory of an installed package as Node resolves it from a directory: through each enclosing node_modules. */
+/** Find an installed package's directory through each enclosing node_modules. */
 async function installed(from: string, name: string): Promise<string> {
     for (let directory = await realpath(from); ; directory = dirname(directory)) {
         // take the package from this directory's node_modules, else look in the enclosing one

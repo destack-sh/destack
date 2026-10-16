@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-/** The environment every fixture git command runs in: no user configuration, a fixed identity and time. */
+/** The environment of fixture git commands: no configuration, a fixed identity and time. */
 const ENVIRONMENT = {
     ...process.env,
     GIT_CONFIG_NOSYSTEM: "1",
@@ -64,7 +64,7 @@ export class Worktree {
     /** The working tree's directory. */
     readonly directory: string;
 
-    /** Keep a working tree. */
+    /** Take a working tree. */
     private constructor(directory: string) {
         this.directory = directory;
     }
@@ -99,14 +99,14 @@ export class Worktree {
     }
 }
 
-/** History written straight into a bare repository in one git fast-import run, as a push leaves it. */
+/** History written into a bare repository in one git fast-import run. */
 export class History {
     /** The fast-import commands. */
     #commands = "";
     /** The marks named so far. */
     #marks = 0;
 
-    /** Commit one file's text onto a branch, after its current tip when it has one, returning the commit's mark. */
+    /** Commit one file's text onto a branch's tip, returning the commit's mark. */
     commit(branch: string, file: string, text: string): string {
         const mark = `:${++this.#marks}`;
         this.#commands += `commit refs/heads/${branch}\nmark ${mark}\ncommitter Ada <ada@example.test> ${TIME}\n${data(`write ${file}`)}M 100644 inline ${file}\n${data(text)}\n`;
@@ -127,7 +127,7 @@ export class History {
         this.#commands += `reset ${name}\nfrom ${ZERO}\n\n`;
     }
 
-    /** Write the history into a bare repository and return the objects of the new marks in order. */
+    /** Write the history into a bare repository and return the new marks' objects. */
     async write(repository: string): Promise<string[]> {
         const marks = Array.from({ length: this.#marks }, (_, index) => `get-mark :${index + 1}\n`);
         const output = await run(

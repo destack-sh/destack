@@ -1,11 +1,4 @@
-import type {
-    ConnectionCallback,
-    ConnectionGrant,
-    ConnectionProvider,
-    ConnectionRequest,
-    ConnectionRevocation,
-} from "@destack/account/server";
-import { aligned, found, present, schema } from "@destack/schema";
+import { nth, found, schema } from "@destack/schema";
 import { githubPublicKey } from "./key.ts";
 import { verifyToken } from "./token.ts";
 
@@ -15,13 +8,22 @@ export const APP_ID = "Iv23liFixtureApp";
 /** The REST API base the stand-in serves. */
 export const GITHUB_API = new URL("https://api.github.test");
 
+/** The secret the fixture GitHub App signs webhook deliveries with. */
+export const WEBHOOK_SECRET = "It's a Secret to Everybody";
+
+/** The longest lifetime GitHub accepts for an app's JWT: ten minutes. */
+const APP_TOKEN_SECONDS = 600;
+
 /** The host serving the stand-in's Git remotes. */
 const GITHUB_HOST = "github.com";
 
 /** The lifetime claims of an app JWT, in epoch seconds. */
 const JwtLifetime = schema.looseObject({ iat: schema.number(), exp: schema.number() });
 
-/** A Git object as GitHub's REST API names it. */
+/** The permissions an installation token request grants. */
+const Grant = schema.looseObject({ permissions: schema.record(schema.string(), schema.string()) });
+
+/** A Git object as GitHub's REST API describes it. */
 interface GitObject {
     /** The object type: commit or tag. */
     readonly type: "commit" | "tag";
@@ -29,7 +31,7 @@ interface GitObject {
     readonly sha: string;
 }
 
-/** One repository the stand-in keeps. */
+/** One repository the stand-in hosts. */
 export interface StandInRepository {
     /** GitHub's numeric repository identifier. */
     readonly id: number;
@@ -45,7 +47,7 @@ export interface StandInRepository {
     readonly tags: Map<string, GitObject>;
 }
 
-/** An in-process stand-in for exactly the GitHub endpoints the platform calls, REST and Git's advertisement, recording each request. */
+/** A stand-in for the GitHub endpoints the platform calls, recording each request. */
 export class GitHubStandIn {
     /** The repositories by owner and name. */
     readonly repositories = new Map<string, StandInRepository>();
@@ -54,7 +56,7 @@ export class GitHubStandIn {
     /** The installation each issued token belongs to. */
     readonly #tokens = new Map<string, number>();
 
-    /** Keep a repository. */
+    /** Take a repository. */
     add(repository: StandInRepository): void {
         this.repositories.set(repository.fullName, repository);
     }
@@ -71,65 +73,103 @@ export class GitHubStandIn {
             `${request.method} ${url.host}${url.pathname}${url.search} ${credential}`,
         );
 
-        // advertise a repository's references to its installation's tokens over Git's smart HTTP
+        // match a Git advertisement or an installation token request
         const advertised = /^\/([^/]+\/[^/]+)\.git\/info\/refs$/u.exec(url.pathname);
-        if (url.host === GITHUB_HOST && advertised !== null) {
-            const hosted = this.repositories.get(aligned(advertised, 1));
-            if (hosted === undefined || hosted.installation !== installation) {
-                return new Response("Repository not found.", { status: 404 });
-            }
+        const token = /^\/app\/installations\/(\d+)\/access_tokens$/u.exec(url.pathname);
+        const installed = /^\/app\/installations\/(\d+)$/u.exec(url.pathname);
 
-            return new Response(advertise(hosted), {
-                headers: { "content-type": "application/x-git-upload-pack-advertisement" },
-            });
+        // advertise a repository's references to its installation's tokens over Git's smart HTTP
+        if (url.host === GITHUB_HOST && advertised !== null) {
+            return this.#advertise(nth(advertised, 1), installation);
         }
-        if (
+        // refuse API requests without GitHub's API version and a user agent
+        else if (
             request.headers.get("x-github-api-version") !== "2022-11-28" ||
             request.headers.get("user-agent") === null
         ) {
             return Response.json({ message: "missing version or user agent" }, { status: 400 });
         }
-
         // create an installation token for an app JWT
-        const token = /^\/app\/installations\/(\d+)\/access_tokens$/u.exec(url.pathname);
-        if (request.method === "POST" && token !== null) {
-            if (secret === undefined) {
-                throw new TypeError("an installation token request presents no app jwt");
-            }
-            const { claims } = await verifyToken(secret, await githubPublicKey());
-            const lifetime = JwtLifetime.safeParse(claims);
-            if (
-                claims["iss"] !== APP_ID ||
-                !lifetime.success ||
-                lifetime.data.exp - lifetime.data.iat > 600
-            ) {
-                return Response.json({ message: "bad jwt" }, { status: 401 });
-            }
-            const issued = `ghs_${token[1]}_${this.#tokens.size + 1}`;
-            this.#tokens.set(issued, Number(token[1]));
-            this.requests.push(`  body ${JSON.stringify(await request.json())}`);
+        else if (request.method === "POST" && token !== null) {
+            return this.#issue(request, secret, Number(token[1]));
+        }
+        // uninstall the app for an app JWT
+        else if (request.method === "DELETE" && installed !== null) {
+            return this.#uninstall(secret);
+        }
+        // read a repository its installation opens
+        else {
+            return this.#read(url, installation);
+        }
+    };
 
-            return Response.json(
-                {
-                    token: issued,
-                    expires_at: "2026-09-27T13:00:00Z",
-                    permissions: { contents: "read", metadata: "read" },
-                    repository_selection: "selected",
-                },
-                { status: 201 },
-            );
+    /** Advertise a repository's references to its installation's tokens. */
+    #advertise(fullName: string, installation: number | undefined): Response {
+        // hide repositories of other installations
+        const hosted = this.repositories.get(fullName);
+        if (hosted === undefined || hosted.installation !== installation) {
+            return new Response("Repository not found.", { status: 404 });
         }
 
-        // serve the repository the path names to its installation's tokens
+        return new Response(advertise(hosted), {
+            headers: { "content-type": "application/x-git-upload-pack-advertisement" },
+        });
+    }
+
+    /** Uninstall the app for a verified app JWT. */
+    async #uninstall(secret: string | undefined): Promise<Response> {
+        if (secret === undefined || !(await isAppToken(secret))) {
+            return Response.json({ message: "bad jwt" }, { status: 401 });
+        }
+
+        return new Response(null, { status: 204 });
+    }
+
+    /** Create an installation token for a verified app JWT. */
+    async #issue(
+        request: Request,
+        secret: string | undefined,
+        installation: number,
+    ): Promise<Response> {
+        // verify the app's JWT and its lifetime
+        if (secret === undefined) {
+            throw new TypeError("an installation token request presents no app jwt");
+        }
+        if (!(await isAppToken(secret))) {
+            return Response.json({ message: "bad jwt" }, { status: 401 });
+        }
+
+        // issue a token of the installation named by the permissions it grants, recording the request's body
+        const body: unknown = await request.json();
+        const granted = Object.entries(Grant.parse(body).permissions).map(
+            ([name, level]) => `${name}_${level}`,
+        );
+        const issued = `ghs_${installation}_${granted.join("_")}`;
+        this.#tokens.set(issued, installation);
+        this.requests.push(`  body ${JSON.stringify(body)}`);
+
+        return Response.json(
+            {
+                token: issued,
+                expires_at: "2026-09-27T13:00:00Z",
+                permissions: { contents: "read", metadata: "read" },
+                repository_selection: "selected",
+            },
+            { status: 201 },
+        );
+    }
+
+    /** Read the repository of a path for its installation's tokens. */
+    #read(url: URL, installation: number | undefined): Response {
+        // find the repository the installation opens
         const path = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/u.exec(url.pathname);
-        const repository = path === null ? undefined : this.repositories.get(aligned(path, 1));
+        const repository = path === null ? undefined : this.repositories.get(nth(path, 1));
         if (path === null || repository === undefined || repository.installation !== installation) {
             return Response.json({ message: "Not Found" }, { status: 404 });
         }
-        const rest = path[2] ?? "";
 
-        // read the repository
-        if (rest === "") {
+        // read the repository itself
+        if (path[2] === undefined) {
             return Response.json({
                 id: repository.id,
                 node_id: `R_${repository.id}`,
@@ -139,54 +179,10 @@ export class GitHubStandIn {
                 default_branch: repository.defaultBranch,
             });
         }
-
-        return Response.json({ message: "Not Found" }, { status: 404 });
-    };
-}
-
-/** The fixture GitHub App's installations as the account service connects them: each installation in its GitHub organisation. */
-export class GitHubInstallations implements ConnectionProvider {
-    /** The provider's name connections record. */
-    readonly name = "github";
-    /** The provider instance. */
-    readonly issuer = `https://${GITHUB_HOST}`;
-    /** The installed application. */
-    readonly applicationId = APP_ID;
-    /** The provider installs the application. */
-    readonly kind = "installation";
-    /** The installations withdrawn so far. */
-    readonly revoked: ConnectionRevocation[] = [];
-    /** The GitHub organisation of each installation. */
-    readonly #organisations: ReadonlyMap<string, string>;
-
-    /** Install the application in organisations, by installation. */
-    constructor(organisations: ReadonlyMap<string, string>) {
-        this.#organisations = organisations;
-    }
-
-    /** Build the installation page carrying the state. */
-    authorize(request: ConnectionRequest): URL {
-        const page = new URL("/apps/fixture/installations/new", this.issuer);
-        page.searchParams.set("state", request.state);
-
-        return page;
-    }
-
-    /** Read the installation the callback names, with the permissions the application holds. */
-    async complete(callback: ConnectionCallback): Promise<ConnectionGrant> {
-        const installationId = present(callback.parameters["installation_id"], "the installation");
-
-        return {
-            subject: found(this.#organisations, installationId),
-            scopes: [],
-            permissions: { contents: "read", metadata: "read" },
-            installationId,
-        };
-    }
-
-    /** Record a withdrawn installation. */
-    async revoke(grant: ConnectionRevocation): Promise<void> {
-        this.revoked.push(grant);
+        // hide the paths below it
+        else {
+            return Response.json({ message: "Not Found" }, { status: 404 });
+        }
     }
 }
 
@@ -236,5 +232,17 @@ function presentedSecret(authorization: string | null): string | undefined {
     const password =
         scheme === "Basic" ? new TextDecoder().decode(Uint8Array.fromBase64(presented)) : undefined;
 
-    return password === undefined ? presented : aligned(password.split(":"), 1);
+    return password === undefined ? presented : nth(password.split(":"), 1);
+}
+
+/** Report whether a bearer is the app's JWT, issued by the app for at most ten minutes. */
+async function isAppToken(secret: string): Promise<boolean> {
+    const { claims } = await verifyToken(secret, await githubPublicKey());
+    const lifetime = JwtLifetime.safeParse(claims);
+
+    return (
+        claims["iss"] === APP_ID &&
+        lifetime.success &&
+        lifetime.data.exp - lifetime.data.iat <= APP_TOKEN_SECONDS
+    );
 }

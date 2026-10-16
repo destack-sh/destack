@@ -1,168 +1,166 @@
-import type { Lease, LeaseMode } from "@destack/resource";
-import { type JsonObject, schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import {
-    GitAdvertisement,
-    GitCredential,
-    type Fetch,
-    type GitListing,
-    type GitStorage,
-} from "../storage/index.ts";
+import type { Connector, Lease, LeaseMode } from "@destack/resource";
+import { schema } from "@destack/schema";
+import type { Fetch } from "@destack/runtime";
+import { CallError } from "@destack/runtime/error";
+import { GitAdvertisement } from "../storage/advertisement.ts";
+import type { GitStorageDeclaration } from "../storage/kind.ts";
+import type { GitListing, GitStorage } from "../storage/storage.ts";
 
-/** How long a Git token lives, in seconds: an hour. */
-const ACCESS_TTL_SECONDS = 3600;
+/** The provider code of Git storages in Cloudflare Artifacts. */
+export const ARTIFACTS_PROVIDER = "cloudflare-artifacts";
 
-/** The user name beside a token in Git basic authentication, which Artifacts accepts and ignores. */
-const TOKEN_USER = "x";
+/** How long a Git token lives, in seconds: an hour, as GitHub installation tokens do. */
+const TOKEN_TTL_SECONDS = 3600;
 
-/** The Cloudflare API base Artifacts answers under. */
-const API = new URL("https://api.cloudflare.com/client/v4/");
+/** The separator between a storage's prefix and a repository's identifier in an Artifacts name. */
+const NAME_SEPARATOR = ".";
 
-/** A Cloudflare API answer: its result, or the errors refusing the request. */
-const Envelope = schema.looseObject({
-    success: schema.boolean(),
-    errors: schema
-        .array(schema.looseObject({ code: schema.number(), message: schema.string() }))
-        .exactOptional(),
-    result: schema.unknown().exactOptional(),
+/** The most repositories one list page answers, the binding's maximum. */
+const LIST_LIMIT = 200;
+
+/** A repository as Artifacts describes it: its name and its credential-free Git remote. */
+const ArtifactsRepository = schema.looseObject({
+    name: schema.string().min(1),
+    remote: schema.url(),
 });
 
-/** A repository token Artifacts issued: the secret and when it expires. */
-const IssuedToken = schema.looseObject({
+/** A Git token as Artifacts issues it: the token and its ISO 8601 expiry. */
+const ArtifactsToken = schema.looseObject({
     plaintext: schema.string().min(1),
-    expires_at: schema.string().min(1),
+    expiresAt: schema.string().min(1),
 });
 
-/** Where a Cloudflare account keeps its Artifacts repositories, and the API token managing them. */
-export interface ArtifactsStorageOptions {
-    /** The Cloudflare account identifier. */
-    readonly account: string;
-    /** The Artifacts namespace holding the repositories. */
-    readonly namespace: string;
-    /** The API token with Artifacts edit permission. */
-    readonly token: string;
-    /** The fetch calling Cloudflare. */
-    readonly fetch?: Fetch;
+// TODO #Incomplete: verify on the live service once access exists: handle disposal, name length limits, get right after create, Bearer leases for push and fetch
+/** An Artifacts namespace binding, with the methods of the Workers binding the storage calls. */
+export interface ArtifactsNamespace {
+    /** Create a repository, refusing a name in use with ALREADY_EXISTS. */
+    readonly create: (name: string) => Promise<{ readonly name: string; readonly remote: string }>;
+    /** Open a repository's handle, refusing a missing one with NOT_FOUND. */
+    readonly get: (name: string) => Promise<ArtifactsRepositoryHandle>;
+    /** List a page of repositories, with the cursor of the next page while one follows. */
+    readonly list: (options: { readonly limit: number; readonly cursor?: string }) => Promise<{
+        readonly repos: readonly { readonly name: string }[];
+        readonly cursor?: string;
+    }>;
+    /** Delete a repository and its tokens, answering false for a missing one. */
+    readonly delete: (name: string) => Promise<boolean>;
 }
 
-/** Repositories stored in Cloudflare Artifacts through its REST API, read and written over Git's smart HTTP protocol. */
+/** A handle of one Artifacts repository. */
+export interface ArtifactsRepositoryHandle extends Disposable {
+    /** The credential-free Git remote. */
+    readonly remote: string;
+    /** Issue a Git token with a scope that lives for some seconds. */
+    readonly createToken: (
+        scope: "read" | "write",
+        ttl: number,
+    ) => Promise<{ readonly plaintext: string; readonly expiresAt: string }>;
+}
+
+/** Repositories stored in an Artifacts namespace binding, named below a prefix. */
 export class ArtifactsStorage implements GitStorage {
     /** The provider name repositories stored here record. */
-    readonly provider = "cloudflare-artifacts";
-    /** Where the account keeps the repositories, and its token. */
-    readonly #options: ArtifactsStorageOptions;
-    /** The fetch calling Cloudflare. */
+    readonly provider = ARTIFACTS_PROVIDER;
+    /** The namespace binding. */
+    readonly #namespace: ArtifactsNamespace;
+    /** The prefix of the storage's repository names, its resource's reference. */
+    readonly #prefix: string;
+    /** The fetch reading Git's advertisement. */
     readonly #fetch: Fetch;
 
-    /** Use an account's namespace and API token. */
-    constructor(options: ArtifactsStorageOptions) {
-        this.#options = options;
-        this.#fetch = options.fetch ?? globalThis.fetch;
+    /** Store repositories in a namespace below a name prefix. */
+    constructor(namespace: ArtifactsNamespace, prefix: string, fetch: Fetch) {
+        this.#namespace = namespace;
+        this.#prefix = prefix;
+        this.#fetch = fetch;
     }
 
-    /** Build the Git remote of a repository without a credential. */
-    remote(id: string): string {
-        const { account, namespace } = this.#options;
-
-        return `https://${account}.artifacts.cloudflare.net/git/${namespace}/${id}.git`;
+    /** Build the connector opening the storages a host binds to a namespace. */
+    static connector(
+        namespace: ArtifactsNamespace,
+        fetch: Fetch,
+    ): Connector<GitStorage, GitStorageDeclaration> {
+        return {
+            code: ARTIFACTS_PROVIDER,
+            connect: async (binding) =>
+                Object.assign(new ArtifactsStorage(namespace, binding.reference, fetch), {
+                    [Symbol.asyncDispose]: async () => {},
+                }),
+        };
     }
 
-    /** Create an empty repository, accepting one that exists: POST /repos. */
-    async create(id: string): Promise<void> {
-        const response = await this.#request("POST", "repos", { name: id });
-        if (response.status === 409 && (await this.#request("GET", `repos/${id}`)).ok) {
-            return;
+    /** Build the Artifacts name of a repository below a prefix. */
+    static name(prefix: string, id: string): string {
+        return `${prefix}${NAME_SEPARATOR}${id}`;
+    }
+
+    /** Create an empty repository and answer the remote Artifacts gives it. */
+    async create(id: string): Promise<string> {
+        // create the repository under its name
+        const name = ArtifactsStorage.name(this.#prefix, id);
+        const created = ArtifactsRepository.parse(await this.#namespace.create(name));
+
+        // refuse a repository created under another name
+        if (created.name !== name) {
+            throw new CallError("BAD_GATEWAY", {
+                message: `cloudflare artifacts created ${created.name} for ${name}`,
+            });
         }
-        await this.#require(response, `create ${id}`);
+
+        return created.remote;
     }
 
-    /** Delete a repository and its history, accepting one already gone: DELETE /repos/{name}. */
+    /** Delete a repository and its tokens, accepting one already gone. */
     async delete(id: string): Promise<void> {
-        const response = await this.#request("DELETE", `repos/${id}`);
-        if (response.status === 404) {
-            return;
-        }
-        await this.#require(response, `delete ${id}`);
+        await this.#namespace.delete(ArtifactsStorage.name(this.#prefix, id));
     }
 
-    /** List the branches and tags Git's advertisement names, with annotated tags' objects and commits. */
+    /** Delete every repository below the prefix, listing them all before deleting any. */
+    async deleteAll(): Promise<void> {
+        // list the names below the prefix across every page, as the binding lists by no prefix
+        const prefix = ArtifactsStorage.name(this.#prefix, "");
+        const names: string[] = [];
+        let cursor: string | undefined;
+        do {
+            const page = await this.#namespace.list({
+                limit: LIST_LIMIT,
+                ...(cursor === undefined ? {} : { cursor }),
+            });
+            names.push(
+                ...page.repos.map((repo) => repo.name).filter((name) => name.startsWith(prefix)),
+            );
+            cursor = page.cursor;
+        } while (cursor !== undefined);
+
+        // delete them in parallel once listed, so no deletion moves a page
+        await Promise.all(names.map((name) => this.#namespace.delete(name)));
+    }
+
+    /** List the branches and tags of Git's advertisement. */
     async references(id: string): Promise<GitListing> {
         return GitAdvertisement.read(await this.open(id, "read"), this.#fetch);
     }
 
-    /** Lease a Git client a token scoped to the repository and mode for an hour: POST /tokens. */
+    /** Lease a Git client a Bearer token scoped to the repository and mode for an hour. */
     async open(id: string, mode: LeaseMode): Promise<Lease> {
-        // issue a token for the repository and mode
-        const response = await this.#request("POST", "tokens", {
-            repo: id,
-            scope: mode,
-            ttl: ACCESS_TTL_SECONDS,
-        });
-        const issued = IssuedToken.parse(await this.#require(response, `issue a token for ${id}`));
+        // issue a token for the repository and mode at its remote
+        using repository = await this.#namespace.get(ArtifactsStorage.name(this.#prefix, id));
+        const remote = schema.url().parse(repository.remote);
+        const issued = ArtifactsToken.parse(await repository.createToken(mode, TOKEN_TTL_SECONDS));
 
-        // lease it to Git as basic authentication, refusing an unreadable expiry
-        const expiresAt = Date.parse(issued.expires_at);
+        // refuse an unreadable expiry
+        const expiresAt = Date.parse(issued.expiresAt);
         if (Number.isNaN(expiresAt)) {
-            throw new ServiceError("BAD_GATEWAY", {
-                message: `cloudflare artifacts issued a token with an invalid expiry: ${issued.expires_at}`,
+            throw new CallError("BAD_GATEWAY", {
+                message: `cloudflare artifacts issued a token with an invalid expiry: ${issued.expiresAt}`,
             });
         }
-        const granted = { username: TOKEN_USER, password: issued.plaintext, expiresAt };
 
-        return GitCredential.lease(granted, this.remote(id), mode);
-    }
-
-    /** Send an API request for the namespace under the account's token. */
-    #request(
-        method: "GET" | "POST" | "DELETE",
-        path: string,
-        body?: JsonObject,
-    ): Promise<Response> {
-        // address the namespace under the account's token
-        const { account, namespace, token } = this.#options;
-        const url = new URL(`accounts/${account}/artifacts/namespaces/${namespace}/${path}`, API);
-        const headers = new Headers({ Authorization: `Bearer ${token}` });
-        if (body !== undefined) {
-            headers.set("Content-Type", "application/json");
-        }
-
-        return this.#fetch(url.href, {
-            method,
-            headers,
-            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        });
-    }
-
-    /** Read a successful answer's result, failing with Cloudflare's errors otherwise. */
-    async #require(response: Response, action: string): Promise<unknown> {
-        // answer the result of a successful envelope
-        const text = await response.text();
-        const envelope = Envelope.safeParse(parseJson(text));
-        if (response.ok && envelope.success && envelope.data.success) {
-            return envelope.data.result;
-        }
-
-        // refuse with Cloudflare's errors, or the raw body
-        const errors = envelope.success
-            ? (envelope.data.errors ?? [])
-                  .map((error) => `${error.code} ${error.message}`)
-                  .join(", ")
-            : text;
-        throw new ServiceError("BAD_GATEWAY", {
-            message: `cloudflare artifacts refused to ${action} with HTTP ${response.status}: ${errors}`,
-        });
-    }
-}
-
-/** Read a body as JSON, absent when it is not JSON. */
-function parseJson(text: string): unknown {
-    try {
-        return JSON.parse(text);
-    } catch (error) {
-        if (!(error instanceof SyntaxError)) {
-            throw error;
-        }
-
-        return undefined;
+        return {
+            url: remote,
+            mode,
+            headers: { authorization: `Bearer ${issued.plaintext}` },
+            expiresAt,
+        };
     }
 }

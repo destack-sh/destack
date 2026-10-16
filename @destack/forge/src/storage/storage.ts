@@ -8,7 +8,7 @@ const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 export const GitReference = schema.object({
     /** The complete name, such as refs/heads/main or refs/tags/v1. */
     name: schema.string().regex(/^refs\/(?:heads|tags)\/./u),
-    /** The object the reference names directly: a commit, or a tag object for annotated tags. */
+    /** The object the reference points at directly: a commit, or an annotated tag's object. */
     object: ObjectName,
     /** The commit the reference resolves to, null when it resolves to no commit. */
     commit: ObjectName.nullable(),
@@ -16,9 +16,9 @@ export const GitReference = schema.object({
 /** A branch or tag as its origin lists it. */
 export type GitReference = schema.Infer<typeof GitReference>;
 
-/** Every branch and tag of a repository, and the existing branch its HEAD names. */
+/** Every branch and tag of a repository, and the existing branch of its HEAD. */
 export const GitListing = schema.object({
-    /** The branch HEAD names, including refs/heads/, null when HEAD names no existing branch. */
+    /** The branch of HEAD, including refs/heads/, null when HEAD points at no existing branch. */
     defaultReference: schema
         .string()
         .regex(/^refs\/heads\/./u)
@@ -26,7 +26,7 @@ export const GitListing = schema.object({
     /** The branches and tags. */
     references: schema.array(GitReference),
 });
-/** Every branch and tag of a repository, and the existing branch its HEAD names. */
+/** Every branch and tag of a repository, and the existing branch of its HEAD. */
 export type GitListing = schema.Infer<typeof GitListing>;
 
 /** A short-lived HTTP basic credential for Git over HTTPS. */
@@ -45,32 +45,32 @@ export type GitCredential = schema.Infer<typeof credential>;
 export const GitCredential = Object.assign(credential, {
     /** Lease a remote with the credential in an Authorization header, as Git sends it. */
     lease(granted: GitCredential, remote: string, mode: LeaseMode): Lease {
-        const basic = new TextEncoder().encode(`${granted.username}:${granted.password}`);
-
         return {
             url: remote,
             mode,
-            headers: { authorization: `Basic ${basic.toBase64()}` },
+            headers: GitCredential.basic(granted.username, granted.password),
             expiresAt: granted.expiresAt,
         };
     },
-});
 
-/** The fetch a host supplies for calling Git hosts and their APIs. */
-export type Fetch = (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
+    /** Build the Authorization header of a user and password, as Git sends Basic authentication. */
+    basic(username: string, password: string): Readonly<Record<string, string>> {
+        const encoded = new TextEncoder().encode(`${username}:${password}`);
+
+        return { authorization: `Basic ${encoded.toBase64()}` };
+    },
+});
 
 /** Storage for the repositories the platform hosts, supplied by the host like a bucket. */
 export interface GitStorage {
     /** The provider name repositories stored here record. */
     readonly provider: string;
-    /** Build the credential-free remote of a repository. */
-    remote(id: string): string;
-    /** Create an empty repository, accepting one that exists. */
-    create(id: string): Promise<void>;
+    /** Create an empty repository and answer its credential-free remote. */
+    readonly create: (id: string) => Promise<string>;
     /** Delete a repository and its history, accepting one already gone. */
-    delete(id: string): Promise<void>;
+    readonly delete: (id: string) => Promise<void>;
     /** List a repository's branches and tags, and its default branch. */
-    references(id: string): Promise<GitListing>;
+    readonly references: (id: string) => Promise<GitListing>;
     /** Lease a Git client access to a repository for a checkout. */
-    open(id: string, mode: LeaseMode): Promise<Lease>;
+    readonly open: (id: string, mode: LeaseMode) => Promise<Lease>;
 }

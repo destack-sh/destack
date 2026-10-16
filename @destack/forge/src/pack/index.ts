@@ -1,1 +1,1 @@
-export * from "./package.ts";
+export * from "./archive.ts";

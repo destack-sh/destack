@@ -4,13 +4,13 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./client": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
         "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
-        "./workload": {
             "runtimes": ["bun", "workerd"]
         },
         "./pack": {
@@ -27,6 +27,24 @@
         },
         "./package": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./inspect": {
+            "runtimes": ["bun"]
+        }
+    },
+    "declarations": {
+        "defineGitStorage": {
+            "describes": [
+                {
+                    "kind": "resource",
+                    "function": "./inspect#describeGitStorage"
+                }
+            ]
+        }
+    },
+    "stamps": {
+        "defineGitStorage": {
+            "module": 1
         }
     },
     "check": {

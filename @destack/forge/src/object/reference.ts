@@ -1,106 +1,81 @@
-import { schema } from "@destack/schema";
 import { through } from "@destack/access";
-import { check, dialectSQL, sql, unique } from "@destack/db";
-import { defineObject, field } from "@destack/object";
-import { defineShape, Replica } from "@destack/sync";
+import { space } from "@destack/account/object";
+import { defineObject, defineShape, field } from "@destack/object";
+import { schema } from "@destack/schema";
 import { repository } from "./repository.ts";
-import { account } from "@destack/account/object";
 
 /** A branch or tag of a repository's origin as last observed. */
-export const reference = defineObject({
-    name: "reference",
-    plural: "references",
-    scope: account,
-    nested: { in: repository, delete: "cascade", receive: "refresh" },
-    fields: {
-        /** The complete name, such as refs/heads/main or refs/tags/v1. */
-        name: field.string(schema.string().min(1)),
-        /** The object the reference names directly: a commit, or a tag object for annotated tags. */
-        object: field.string(),
-        /** The commit the reference resolves to, absent when it resolves to no commit. */
-        commit: field.string().optional(),
-        /** When the reference was last observed at its object. */
-        observedAt: field.time(),
-        /** When the origin was observed without the reference, absent while it exists. */
-        deletedAt: field.time().optional(),
+export const reference = defineObject(
+    {
+        name: "reference",
+        plural: "references",
+        scope: space,
+        nested: { in: repository, delete: "cascade", receive: "record" },
+        fields: {
+            /** The complete name, such as refs/heads/main or refs/tags/v1. */
+            name: field.string(schema.string().min(1)),
+            /** The object the reference points at directly. */
+            object: field.string(),
+            /** The commit the reference resolves to, absent when it resolves to no commit. */
+            commit: field.string().optional(),
+            /** When the reference was last observed at its object. */
+            observedAt: field.time(),
+            /** When the origin was observed without the reference, absent while it exists. */
+            deletedAt: field.time().optional(),
+        },
+        // the repository's refreshers and reporters record its references
+        permissions: { read: through("parent", "read"), record: through("parent", "record") },
+        constraints: {
+            parentName: { kind: "unique", on: ["parentId", "name"] },
+            name: {
+                kind: "check",
+                condition: {
+                    name: { OR: [{ startsWith: "refs/heads/" }, { startsWith: "refs/tags/" }] },
+                },
+            },
+            object: {
+                kind: "check",
+                condition: { object: { length: { in: [40, 64] }, characters: "0-9a-f" } },
+            },
+            commit: {
+                kind: "check",
+                condition: {
+                    commit: {
+                        OR: [{ isNull: true }, { length: { in: [40, 64] }, characters: "0-9a-f" }],
+                    },
+                },
+            },
+        },
     },
-    permissions: { read: through("parent", "read") },
-    methods: (method) => ({
-        get: method.get("read"),
-        list: method.list("read"),
-        create: method.create(null, {
-            isSystem: true,
+    (method) => ({
+        create: method.create("record", {
+            isInternal: true,
             fields: ["name", "object", "commit", "observedAt"],
         }),
-        update: method.update(null, {
-            isSystem: true,
+        createMany: method.createMany("record", {
+            isInternal: true,
+            fields: ["name", "object", "commit", "observedAt"],
+        }),
+        update: method.update("record", {
+            isInternal: true,
+            fields: ["object", "commit", "observedAt", "deletedAt"],
+        }),
+        updateMany: method.updateItems("record", {
+            isInternal: true,
             fields: ["object", "commit", "observedAt", "deletedAt"],
         }),
     }),
-    constraints: (columns) => [
-        unique("reference_parent_name").on(columns.parentId, columns.name),
-        check(
-            "reference_name",
-            sql`${columns.name} LIKE 'refs/heads/%' OR ${columns.name} LIKE 'refs/tags/%'`,
-        ),
-        check(
-            "reference_object",
-            dialectSQL({
-                sqlite: sql`length(${columns.object}) IN (40, 64) AND ${columns.object} NOT GLOB '*[^0-9a-f]*'`,
-                postgresql: sql`length(${columns.object}) IN (40, 64) AND ${columns.object} !~ '[^0-9a-f]'`,
-            }),
-        ),
-        check(
-            "reference_commit",
-            dialectSQL({
-                sqlite: sql`${columns.commit} IS NULL OR (length(${columns.commit}) IN (40, 64) AND ${columns.commit} NOT GLOB '*[^0-9a-f]*')`,
-                postgresql: sql`${columns.commit} IS NULL OR (length(${columns.commit}) IN (40, 64) AND ${columns.commit} !~ '[^0-9a-f]')`,
-            }),
-        ),
-    ],
-});
-
-/** The name of the shape of the references a follower selects. */
-const REFERENCE_SHAPE = "reference";
-
-/** The references a follower selects from an account's repositories. */
-export const ReferenceSelection = schema.object({
-    /** The selected references as repository and complete name. */
-    references: schema
-        .array(schema.tuple([schema.identifier("repository"), schema.string().min(1)]))
-        .min(1),
-});
-/** The references a follower selects from an account's repositories. */
-export type ReferenceSelection = schema.Infer<typeof ReferenceSelection>;
-
-/** The shape of the references a follower selects from an account's repositories, decided for the follower where they live. */
-export const referenceShape = Object.assign(
-    defineShape({
-        name: REFERENCE_SHAPE,
-        parameters: ReferenceSelection,
-        audience: "reader",
-        replica: ({ name, scope, parameters }) =>
-            new Replica({
-                name,
-                scope,
-                tables: [reference.table],
-                where: new Map([
-                    [
-                        reference.table,
-                        {
-                            OR: parameters.references.map(([parentId, selected]) => ({
-                                parentId,
-                                name: selected,
-                            })),
-                        },
-                    ],
-                ]),
-            }),
-    }),
-    {
-        /** Name the copy of the references a follower selects, one per follower. */
-        copy(below: string): string {
-            return `${REFERENCE_SHAPE}:${below}`;
-        },
-    },
 );
+
+/** The shape replicating one reference of a repository, stored in the forge's residency home. */
+export const referenceShape = defineShape({
+    name: "reference",
+    parameters: schema.object({
+        /** The repository. */
+        repository: schema.identifier("repository"),
+        /** The reference's complete name, such as `refs/heads/main`. */
+        name: schema.string().min(1),
+    }),
+    objects: [reference],
+    queries: ({ repository: parentId, name }) => [reference.query({ where: { parentId, name } })],
+});
