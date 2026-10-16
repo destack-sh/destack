@@ -1,4 +1,4 @@
-import { aligned, defineSchema, Digest, schema, Version } from "@destack/schema";
+import { nth, defineSchema, Digest, schema, Version } from "@destack/schema";
 
 /** The pattern of a package-local name: lowercase words and hyphens, such as role-permission. */
 export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
@@ -37,7 +37,7 @@ export const PackageName = Object.assign(
         split(name: string): { readonly handle: string; readonly local: string } {
             const parts = PackageName.parse(name).slice(1).split("/");
 
-            return { handle: aligned(parts, 0), local: aligned(parts, 1) };
+            return { handle: nth(parts, 0), local: nth(parts, 1) };
         },
     },
 );
