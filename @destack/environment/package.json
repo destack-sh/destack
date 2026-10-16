@@ -1,0 +1,24 @@
+{
+    "name": "@destack/environment",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Take every effect through one environment: time, randomness and the network, real or simulated.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./simulation": "./src/simulation/index.ts",
+        "./destack.json": "./destack.json"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*"
+    }
+}
