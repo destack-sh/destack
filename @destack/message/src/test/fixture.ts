@@ -2,7 +2,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import type { Outcome } from "../provider/index.ts";
 import type { Mail, MailTransport } from "../email/index.ts";
 import type { ObjectStore } from "@destack/object/server";
-import { Clock } from "@destack/schema";
+import { Clock } from "@destack/environment";
 
 /** A mail transport storing the emails it sends in memory. */
 export class MailFixture implements MailTransport {

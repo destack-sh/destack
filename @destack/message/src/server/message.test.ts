@@ -8,7 +8,7 @@ import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db"
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
 import type {} from "@destack/package/import-meta";
-import { type Identifier, present, schema, Clock } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -22,6 +22,7 @@ import messagePackage from "../package.ts";
 import { implementEndpoint } from "./endpoint.ts";
 import { implementMessage } from "./message.ts";
 import { RequestId } from "@destack/runtime/request";
+import { Clock } from "@destack/environment";
 
 /** The scope type the messages live in, as a space runs on a machine. */
 const place = new Policy(import.meta.destack.package, {

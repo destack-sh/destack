@@ -8,7 +8,6 @@ import { defineServer, ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { testCallKey } from "@destack/runtime/test";
-import { Clock } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { onTestFinished, refusal } from "@destack/test";
 import vaultServer from "@destack/vault/server";
@@ -23,6 +22,7 @@ import { WebhookSignature, webhookProvider } from "./webhook.ts";
 import { principal } from "@destack/access";
 import { type Endpoint, endpoint } from "../object/endpoint.ts";
 import { mail } from "../object/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The machine serving the space and its vaults. */
 const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");

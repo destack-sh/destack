@@ -1,10 +1,11 @@
 import { PackageId } from "@destack/package";
 import { aligned, present, schema } from "@destack/schema";
-import { expect, test, TestClock } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
 import { PushEncryption } from "./encryption.ts";
 import { pushProvider } from "./push.ts";
 import { Vapid } from "./vapid.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The time every push is signed at. */
 const NOW = 1_790_000_000_000;
@@ -130,7 +131,7 @@ async function pushTo(responses: Response[]) {
             topic: "019f55308000700080000000000000aa",
         },
     };
-    const send = () => provider.send(message, { ...UNQUERIED, clock: new TestClock(NOW) });
+    const send = () => provider.send(message, { ...UNQUERIED, clock: new VirtualClock(NOW) });
 
     return { provider, vapid, browser, message, service, send };
 }

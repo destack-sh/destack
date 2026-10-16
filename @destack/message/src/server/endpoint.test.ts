@@ -10,7 +10,7 @@ import { Derivation } from "@destack/identity";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { Package, PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
-import { Clock, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { type Controller, ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -28,6 +28,7 @@ import { vaultDatabase } from "@destack/vault/test";
 import { implementEndpoint } from "./endpoint.ts";
 import { implementMessage } from "./message.ts";
 import { RequestId } from "@destack/runtime/request";
+import { Clock } from "@destack/environment";
 
 /** The scope type of the endpoints and their messages, as an organisation is in the universe. */
 const place = new Policy(import.meta.destack.package, {
