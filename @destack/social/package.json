@@ -31,6 +31,7 @@
         "uuid": "14.0.2"
     },
     "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/test": "workspace:*",

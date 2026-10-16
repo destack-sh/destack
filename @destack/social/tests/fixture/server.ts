@@ -25,7 +25,7 @@ import { user } from "@destack/account/object";
 import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { callTables, TestRunClient, testEvents } from "@destack/object/test";
-import { aligned, type Identifier, present, schema, Clock } from "@destack/schema";
+import { aligned, type Identifier, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { reconciliation, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
@@ -36,6 +36,7 @@ import { comment, Mention, mention, presence, reply, thread } from "../../src/in
 import socialServer from "../../src/server.ts";
 import { article } from "./article.ts";
 import { ResourceContext } from "@destack/resource/context";
+import { Clock } from "@destack/environment";
 
 /** The principals the scenarios act as: people, and an agent installation. */
 export const actors = {
