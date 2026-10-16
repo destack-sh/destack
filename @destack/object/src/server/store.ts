@@ -2383,7 +2383,7 @@ export class ObjectStore {
         name: string,
         input: JsonObject,
         caller: AccessContext,
-        options: Pick<CallOptions, "as" | "expansion"> = {},
+        options: Pick<CallOptions, "as" | "expansion" | "requestId"> = {},
     ): Promise<{
         context: MethodContext;
         execution: StoreExecution;
@@ -2430,6 +2430,7 @@ export class ObjectStore {
                     ? { ...caller, now }
                     : AccessContext.of(Caller.of(options.as), now),
             ...(options.expansion === undefined ? {} : { expansion: options.expansion }),
+            ...(options.requestId === undefined ? {} : { requestId: options.requestId }),
             location: execution,
             objects: this.objects,
         });
@@ -2604,6 +2605,7 @@ export class ObjectStore {
                         entry.name,
                         entry.input,
                         caller,
+                        { requestId },
                     ).catch(async (error: unknown) => {
                         throw await this.#conceal(authorization, caller, undefined, error);
                     });
@@ -2789,7 +2791,6 @@ export class ObjectStore {
         const called = context.with({
             ...ObjectStore.#preparedFields(prepared),
             ...(writerId === undefined ? {} : { writerId }),
-            ...(requestId === undefined ? {} : { requestId }),
             run: this.#invoker(transaction, authorization, context, options),
         });
 
