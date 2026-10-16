@@ -4,4 +4,3 @@ export * from "./deployment/index.ts";
 export * from "./host/index.ts";
 export * from "./installation/index.ts";
 export * from "./resource/index.ts";
-export * from "./run/index.ts";

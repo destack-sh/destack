@@ -1,5 +1,5 @@
 import { AccessContext, Authorization, Caller } from "@destack/access";
-import { account, Space, space, type SpaceStack } from "@destack/account/object";
+import { account, Space, space, type StackSource } from "@destack/account/object";
 import {
     and,
     Change,
@@ -62,7 +62,7 @@ export class PlacementController implements Controller {
 
     /** Give birth to the spaces placed on a machine through its store. */
     constructor(store: ObjectStore, machine: Identifier<"machine">, options: PlacementOptions) {
-        // keep the store, its database, the machine and its options
+        // set the store, its database, the machine and its options
         this.#store = store;
         this.#database = store.database;
         this.#machine = machine;
@@ -125,7 +125,7 @@ export class PlacementController implements Controller {
             )
             .where(eq(placement.table.machineId, this.#machine));
 
-        // keep the unborn ones, those without a main database, and those whose stack changed since its last submission
+        // select the unborn ones, those without a main database, and those whose stack changed since its last submission
         const listed = await Promise.all(
             rows.map(async (row) =>
                 row.born === null ||
@@ -185,13 +185,13 @@ export class PlacementController implements Controller {
             await this.#open(spaceId, [placed.parent, ...parent.ancestors]);
         }
 
-        // keep its main database as the space
+        // create its main database as the space
         const [main] = await this.#database
             .select({ id: database.table.id })
             .from(database.table)
             .where(and(eq(database.table.scope, spaceId), eq(database.table.name, MAIN_DATABASE)));
         if (main === undefined) {
-            await this.#keep(spaceId);
+            await this.#createMain(spaceId);
         }
 
         // submit the stack the space carries once it changed since its last submission
@@ -237,9 +237,9 @@ export class PlacementController implements Controller {
         });
     }
 
-    /** Keep a space's main database where its stack places it. */
-    async #keep(spaceId: Identifier<"space">): Promise<void> {
-        // describe the main database every space keeps in its own storage
+    /** Create a space's main database where its stack places it. */
+    async #createMain(spaceId: Identifier<"space">): Promise<void> {
+        // describe the main database every space has in its own storage
         const main = {
             declaration: this.#options.main.toJSON(),
             placement: { provider: SPACE_PROVIDER },
@@ -248,7 +248,7 @@ export class PlacementController implements Controller {
         };
         const now = this.#store.clock.now();
         await Transaction.run(this.#database, async (transaction) => {
-            // keep the main database as the space
+            // create the main database as the space
             await this.#store.mutate(
                 this.#store.self,
                 {
@@ -266,8 +266,8 @@ export class PlacementController implements Controller {
         });
     }
 
-    /** Keep a stack's pinned build in the build store and read the space its export declares. */
-    async #declared(stack: SpaceStack): Promise<JsonObject> {
+    /** Copy a stack's pinned build into the build store and read the space its export declares. */
+    async #declared(stack: StackSource): Promise<JsonObject> {
         // copy the stack's build and its dependencies' builds from the registry and evaluate the export
         const { builds, registry } = this.#options;
         const open = (packageId: PackageId, manifest: string) =>
@@ -280,7 +280,7 @@ export class PlacementController implements Controller {
     /** Install a space's stack at its pinned build, and submit the space its export declares. */
     async #install(
         spaceId: Identifier<"space">,
-        stack: SpaceStack,
+        stack: StackSource,
         digest: Digest,
         installed: Installation | null,
     ): Promise<void> {

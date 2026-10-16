@@ -28,7 +28,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { defineObject, desiredState, field } from "@destack/object";
 import { Plan, ResourceId } from "@destack/resource";
 import { reconciliation } from "@destack/runtime/test";
-import { aligned, Clock, Digest, Identifier, schema, present } from "@destack/schema";
+import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { ControlLoop } from "@destack/runtime/control";
 import { RequestId } from "@destack/runtime/request";
@@ -52,7 +52,7 @@ import {
     openUniverse,
     reconcile,
     TestRuntime,
-    RunFixture,
+    runNotes,
     StackFixture,
 } from "../src/test/index.ts";
 import { Scope, type Uplink } from "@destack/sync";
@@ -61,6 +61,7 @@ import { machine } from "@destack/account/object";
 import { createClient } from "@destack/runtime/client";
 import stackPackage from "../src/package.ts";
 import type { StackClient } from "../src/client/index.ts";
+import { Clock } from "@destack/environment";
 
 /** How long one move between two machines waits for its next step: twenty times a move. */
 const MOVE_MILLISECONDS = 20_000;
@@ -94,7 +95,7 @@ const noteObject = defineObject({
     scope: accountObject.space,
     fields: { body: field.string() },
     permissions: ["read"],
-}).methods();
+});
 
 /** A space's database keeping shared notes beside the space's tables. */
 const sharedNotesDatabase = defineDatabase({
@@ -370,7 +371,7 @@ test.each(TEST_DIALECTS)(
             replicated.id,
             present(replicated.reference, "the replica's reference"),
         );
-        const record = aligned(await target.database.select().from(object.transfer.table), 0);
+        const record = nth(await target.database.select().from(object.transfer.table), 0);
         const [recorded] = await target.database
             .select({ manifest: object.build.table.manifest })
             .from(object.build.table)
@@ -521,15 +522,16 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__stack__deployment",
         "destack__stack__capture",
         "destack__stack__instance",
-        "destack__stack__run",
-        "destack__stack__run_outcome",
-        "destack__event__segment",
         "destack__stack__build",
-        "destack__stack__trigger",
         "destack__stack__route",
         "destack__stack__branch",
         "destack__stack__branch_entry",
         "destack__stack__branch_change",
+        "destack__workflow__approval",
+        "destack__workflow__change_request",
+        "destack__workflow__change_run",
+        "destack__workflow__change_step",
+        "destack__workflow__change_trigger",
         "destack__stack__database",
         "destack__object__desired_state",
         "destack__stack__bucket",
@@ -537,6 +539,7 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__stack__https",
         "destack__setting__setting",
         "destack__object__call",
+        "destack__event__segment",
         "destack__account__identity_key",
         "destack__stack__shared_note",
     ]);
@@ -544,19 +547,18 @@ test("move every table of the space database keeping rows in spaces, leaving out
 
 test("stop the instances of a moving space running on its machine once its fence starts", async () => {
     // keep a running instance of the notes installation in the space
-    await using runs = await RunFixture.open("sqlite");
-    const [running] = await runs.database
-        .select({ id: object.instance.table.id })
-        .from(object.instance.table);
-    const runtime = new TestRuntime("bun", [present(running, "the running instance").id]);
+    await using space = await StackFixture.open({ dialect: "sqlite" });
+    const release = await space.release(ids.package, "2026.9.0");
+    const running = await runNotes(space.database, release, Date.now());
+    const runtime = new TestRuntime("bun", [running]);
 
     // fence the moving space on the machine running it
     const moving = { id: ids.space, scope: ids.account, machine: ids.cloud, epoch: 1 };
-    await SpaceTransfer.of(runs.database, moving, TARGET).fence(
+    await SpaceTransfer.of(space.database, moving, TARGET).fence(
         { providers: new ProviderIndex(ids.cloud, []), runtimes: [runtime] },
         Date.now(),
     );
-    expect(runtime.stopped).toEqual([present(running, "the running instance").id]);
+    expect(runtime.stopped).toEqual([running]);
 });
 
 test.each(TEST_DIALECTS)(

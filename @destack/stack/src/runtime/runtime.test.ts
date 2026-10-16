@@ -150,7 +150,12 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         installations: [],
         resources: [database, dependency],
     };
-    const options = { egress: EGRESS, sampling: 1, identity: await testKeys() };
+    const options = {
+        egress: EGRESS,
+        url: "https://notes--home.test",
+        sampling: 1,
+        identity: await testKeys(),
+    };
 
     // start it, then refuse a spec binding a resource of another package
     const started = await InstanceSpec.start(bound, options);

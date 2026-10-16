@@ -1,11 +1,10 @@
 import type { ResourceDeclaration } from "@destack/resource";
 import type { RunnerOptions, Workload } from "@destack/runtime/workload";
-import { RequestId } from "@destack/runtime/request";
 import { createClient } from "@destack/runtime/client";
-import type { Clock } from "@destack/schema";
 import { Uplink } from "@destack/sync";
 import stackPackage from "../package.ts";
 import type { StackClient } from "./client.ts";
+import type { Clock } from "@destack/environment";
 
 /** Run a workload in a space with its package's resources at a clock. */
 export function spaceRunner(
@@ -37,28 +36,6 @@ export function spaceRunner(
         workload,
         resources,
         clock,
-        publisher: (url, secret) => Uplink.of(() => connect(url, secret).replica),
-        runs: (url, start) => runs(connect(url, start.secret), start, clock),
-    };
-}
-
-/** Record each request as a run of the installation, under its delivered request or a new one. */
-function runs(
-    client: StackClient,
-    start: Parameters<RunnerOptions["runs"]>[1],
-    clock: Clock,
-): ReturnType<RunnerOptions["runs"]> {
-    return {
-        send: async (request, delivery = {}) => {
-            await client.run.send(
-                {
-                    spaceId: start.space,
-                    installationId: start.installation,
-                    requestId: delivery.requestId ?? RequestId.create(clock.now()),
-                    ...request,
-                },
-                delivery.signal === undefined ? {} : { signal: delivery.signal },
-            );
-        },
+        publisher: (url, secret) => Uplink.of(() => connect(url, secret).store),
     };
 }

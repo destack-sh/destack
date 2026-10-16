@@ -64,7 +64,6 @@ import { spaceReplicated, stackTables } from "../stack/index.ts";
 import stackPackage from "../package.ts";
 import type { EventStore } from "@destack/event";
 import { testEvents, serversOf } from "@destack/object/test";
-import { outbox } from "@destack/runtime/outbox";
 import { allowance } from "@destack/account/object";
 import { TestRegistry } from "./build.ts";
 import { TestRuntime } from "./runtime.ts";
@@ -73,7 +72,7 @@ import { Clock } from "@destack/environment";
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({
     name: "main",
-    tables: [...stackTables, outbox, identityKey],
+    tables: [...stackTables, identityKey],
     replicated: [...spaceReplicated, allowance.table],
 });
 
@@ -119,9 +118,9 @@ export class TestSpaceDatabaseHost extends BunSqliteDatabaseHost {
     override readonly provider: string = SPACE_PROVIDER;
 }
 
-/** Keep a test space's call and run events in its database, their segments in memory. */
+/** Record a test space's call events in its database, their segments in memory. */
 export function openEvents(database: DatabaseConnection): Promise<EventStore> {
-    return testEvents(database, [object.runOutcome.eventKind()]);
+    return testEvents(database);
 }
 
 /** The origin a test reaches its served space at. */

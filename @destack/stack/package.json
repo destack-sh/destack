@@ -47,6 +47,7 @@
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
+        "@destack/workflow": "workspace:*",
         "jose": "6.2.12"
     },
     "devDependencies": {

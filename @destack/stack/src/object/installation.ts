@@ -411,7 +411,9 @@ export const Installation = {
         const resolved = await Promise.all(
             placed.map(async (declared): Promise<[string, JsonValue]> => [
                 SettingReference.key(declared.reference),
-                schema.json().parse(await SettingValue.resolve(database, declared, target)),
+                schema
+                    .json()
+                    .parse(await SettingValue.resolve(Snapshot.live(database), declared, target)),
             ]),
         );
 

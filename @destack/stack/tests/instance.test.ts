@@ -39,12 +39,14 @@ import {
     workload,
     reconcileResources,
     StackFixture,
-    T0,
     TestSpaceDatabaseHost,
 } from "../src/test/index.ts";
 import { InstallationBindingSpec } from "@destack/runtime/declare";
 import { RequestId } from "@destack/runtime/request";
 import { VirtualClock } from "@destack/environment/simulation";
+
+/** The time the backoff scenario starts at, 09:00 UTC on 27 September 2026. */
+const START = Date.UTC(2026, 8, 27, 9);
 
 /** The notes package the scenarios install. */
 const notesPackage = Package.parse({
@@ -498,7 +500,7 @@ test("restart a failing instance in place after a doubling backoff, keeping one 
     const { database } = fixture;
     const notes = await installNotes(fixture);
     const failing = new FailingRuntime();
-    const clock = new VirtualClock(T0);
+    const clock = new VirtualClock(START);
     const { deployments, instances, resources } = await serveControllers(fixture, {
         runtime: failing,
         clock,
@@ -512,7 +514,7 @@ test("restart a failing instance in place after a doubling backoff, keeping one 
     const early = await instances.reconcile(deployed.id);
     await database
         .update(object.instance.table)
-        .set({ stoppedAt: T0 - 1000 })
+        .set({ stoppedAt: START - 1000 })
         .where(eq(object.instance.table.deploymentId, deployed.id));
     const second = await instances.reconcile(deployed.id);
     const recorded = await database.select().from(object.instance.table);
@@ -1298,110 +1300,6 @@ test("keep a release serving while a caller pins it, and retire it once the call
         whilePinned: "draining",
         released: "retired",
     });
-});
-
-/** A daily schedule trigger the notes build declares, pinning the first note at an hour. */
-function daily(hour: number): Declared {
-    return {
-        kind: "trigger",
-        definer: runtimePackage,
-        name: "daily",
-        description: {
-            name: "daily",
-            on: {
-                schedule: {
-                    timing: { timing: "cron", cron: `0 ${hour} * * *`, timezone: "UTC" },
-                    concurrency: "forbid",
-                    deadline: 60_000,
-                    call: {
-                        type: { packageId: notesPackage.id, type: "note" },
-                        method: "update",
-                        input: { id: "note-1", pinned: true },
-                        release: "2026.9.0",
-                    },
-                },
-            },
-        },
-    };
-}
-
-test("keep exactly the triggers each applied revision's build declares, leaving the ones the installation created", async () => {
-    // declare a daily schedule trigger at nine, at ten and none in one revision each
-    const builds = new Map<string, readonly Declared[]>([
-        ["e", [main, daily(9)]],
-        ["f", [main, daily(10)]],
-        ["a", [main]],
-    ]);
-    const fixture = await StackFixture.open();
-    const { database } = fixture;
-    const notes = await installNotes(fixture, ids.notes, await notesBuild(found(builds, "e")));
-    const { deployments } = await serveControllers(fixture);
-
-    // keep a schedule trigger the installation created beside the declared ones
-    const now = Date.now();
-    await database.insert(object.trigger.table).values({
-        id: Identifier.create("trigger"),
-        scope: ids.space,
-        createdAt: now,
-        updatedAt: now,
-        installationId: notes.id,
-        name: "reminder",
-        on: {
-            schedule: {
-                timing: { timing: "once", startsAt: now + 60_000 },
-                concurrency: "allow",
-                deadline: 60_000,
-                call: {
-                    type: { packageId: notesPackage.id, type: "note" },
-                    method: "update",
-                    input: { id: "note-2", pinned: true },
-                    release: "2026.9.0",
-                },
-            },
-        },
-    });
-
-    // apply each revision and read the triggers after each
-    const schedules = async () =>
-        (await database.select().from(object.trigger.table).orderBy(object.trigger.table.name)).map(
-            (entry) => {
-                if (!("schedule" in entry.on)) {
-                    throw new TypeError(`trigger ${entry.name} fires on no schedule`);
-                }
-                const { timing } = entry.on.schedule;
-
-                return [
-                    entry.name,
-                    entry.origin,
-                    timing.timing === "cron" ? timing.cron : timing.timing,
-                ];
-            },
-        );
-    const applied = [];
-    for (const character of ["e", "f", "a"]) {
-        if (character !== "e") {
-            await submitRevision(
-                fixture,
-                notes.id,
-                character,
-                await notesBuild(found(builds, character)),
-            );
-        }
-        await deployments.reconcile(notes.id);
-        applied.push(await schedules());
-    }
-
-    expect(applied).toEqual([
-        [
-            ["daily", "declared", "0 9 * * *"],
-            ["reminder", "created", "once"],
-        ],
-        [
-            ["daily", "declared", "0 10 * * *"],
-            ["reminder", "created", "once"],
-        ],
-        [["reminder", "created", "once"]],
-    ]);
 });
 
 test("grant an applied application exactly the space permissions its workloads request, and drop the grant once it is uninstalled", async () => {

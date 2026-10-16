@@ -1,4 +1,5 @@
 import { Identifier, schema } from "@destack/schema";
+import { Snapshot } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
 import { expect, test } from "@destack/test";
 import { buildRetention } from "../setting/index.ts";
@@ -80,7 +81,7 @@ test("retain each source's latest builds and every build a revision applies", as
     });
 
     const retention = (space: string) =>
-        SettingValue.resolve(database, buildRetention, { scope: space });
+        SettingValue.resolve(Snapshot.live(database), buildRetention, { scope: space });
     const { retained, expired } = await Build.retention(database, retention);
     expect([[...retained].toSorted(), expired]).toEqual([
         ["a".repeat(64), "c".repeat(64), "d".repeat(64), "e".repeat(64)],

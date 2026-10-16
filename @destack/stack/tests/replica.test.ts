@@ -12,7 +12,7 @@ import { AccessFixture } from "@destack/access/test";
 import { Account, account, user, space } from "@destack/account/object";
 import { type DatabaseConnection, TABLE } from "@destack/db";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { CallError } from "@destack/runtime/error";
@@ -29,6 +29,7 @@ import * as accountObject from "@destack/account/object";
 import { installation } from "../src/object/index.ts";
 import { serveSpace } from "../src/server/index.ts";
 import { ids, StackFixture } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The space's notes installation. */
 const notes = principal.installation.reference(ids.space, ids.notes);
@@ -139,7 +140,7 @@ async function serveInstallation() {
         scope: string,
         replicated: readonly ObjectTypeReference[] = [],
     ) => {
-        const pages = await client(as).replica.stream({
+        const pages = await client(as).store.stream({
             name: Authorizer.chainReplica(ids.space),
             scope,
             below: ids.space,

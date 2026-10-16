@@ -25,6 +25,7 @@ import {
     type ServerDefinition,
 } from "@destack/object/server";
 import { type PackageImplementation } from "@destack/runtime/server";
+import workflowServer from "@destack/workflow/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
@@ -50,7 +51,6 @@ import { Scheduler } from "./host/scheduler.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
-import { implementRun } from "./run/run.ts";
 import { BuildStore, type Registry, implementBuild } from "./installation/build.ts";
 import type { RepositoryOwner } from "./installation/selection.ts";
 import { AssignmentController } from "./deployment/assignment.ts";
@@ -58,7 +58,6 @@ import { PlacementController } from "./host/placement.ts";
 import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
 import { RetentionController, type SweepCache } from "./resource/retention.ts";
-import { implementTrigger } from "./run/trigger.ts";
 import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
@@ -86,7 +85,7 @@ export interface SpaceOptions {
     readonly callKey: CallKey;
     /** The account package, called as the machine. */
     readonly accounts: SpaceAccounts;
-    /** The claim type keeping unique index names, and the home serving it. */
+    /** The claim type of unique index names, and the home serving it. */
     readonly claims: ClaimHome;
     /** The account package's uplink, signed as the space or its installations. */
     readonly publisher: Uplink;
@@ -105,7 +104,7 @@ export interface SpaceOptions {
     readonly publisherAt: ((scope: string) => Publisher) | null;
     /** The providers with the spaces' resources. */
     readonly providers: readonly SpaceProvider[];
-    /** The machine's content-addressed store, keeping its resources' snapshots. */
+    /** The machine's content-addressed store, storing its resources' snapshots. */
     readonly store: ContentStore;
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
@@ -119,7 +118,7 @@ export interface SpaceOptions {
     readonly main: Database;
     /** Delete what build retention drops from the machine's pull cache. */
     readonly sweepCache: SweepCache | null;
-    /** The host keeping the spaces' buckets. */
+    /** The host of the spaces' buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The machine's store of every build. */
     readonly builds: BuildStore;
@@ -127,7 +126,7 @@ export interface SpaceOptions {
     readonly bindables: readonly ServedBindable[];
     /** The runtimes the machine runs its instances on, in preference order. */
     readonly runtimes: readonly Runtime[];
-    /** The events of the spaces, keeping their finished runs. */
+    /** The events of the spaces, recording their finished runs. */
     readonly events: EventStore;
     /** Read the account owning a repository an installation selects. */
     readonly repositories: RepositoryOwner | null;
@@ -232,6 +231,7 @@ export function serveSpace(options: SpaceOptions): {
                 others.map((each) => each.served),
             ),
             installedSettingsServer(options),
+            workflowServer,
             ...others.map((each) => each.server),
         ],
         principal: options.principal,
@@ -243,7 +243,7 @@ export function serveSpace(options: SpaceOptions): {
         ephemeral: options.sockets.storage,
         origin: { package: stackPackage, machineId: options.machine },
         uplink: options.publisher,
-        // follow no chain until the space is placed, then keep it above the space where placed, else follow it
+        // follow no chain until the space is placed, then root it above the space where placed, else follow it
         chain: async (view) => {
             const served = schema.identifier("space").parse(options.principal.id);
             const row = await view.read(placement.table).findFirst({ where: { id: served } });
@@ -316,9 +316,7 @@ function ownObjects(
             builds,
         }),
         implementInstance(),
-        implementRun(),
         implementBuild(options),
-        implementTrigger(),
         implementTransfer(transfers),
         implementRoute(),
         implementRole(),
@@ -393,7 +391,7 @@ function spaceFollows(options: Pick<SpaceOptions, "principal">): readonly Follow
     return [
         Follow.of(spaceShape, { keys: [{ key: { scope: Scope.universe.id, space: served } }] }),
         Follow.of(residentShape, {
-            rows: () => residency.query(),
+            from: residency.query(),
             key: async (row) =>
                 row["home"] === served
                     ? {

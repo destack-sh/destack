@@ -20,12 +20,9 @@ import {
     restore,
     role,
     route,
-    run,
-    runOutcome,
     snapshot,
     socket,
     transfer,
-    trigger,
 } from "./object/index.ts";
 
 /** The path of the space-move data plane below the stack package's mount. */
@@ -49,10 +46,7 @@ export default definePackage({
         transfer,
         snapshot,
         restore,
-        run,
-        runOutcome,
         build,
-        trigger,
         route,
         socket,
         branch,

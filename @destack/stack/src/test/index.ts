@@ -1,7 +1,6 @@
 export * from "./fixture.ts";
 export * from "./build.ts";
 export * from "./runtime.ts";
-export * from "./run.ts";
 export * from "./route.ts";
 export * from "./local.ts";
 export * from "./bucket.ts";

@@ -92,7 +92,9 @@ export const InstanceSpec = {
         options: {
             /** The machine's egress, below which the instance calls addresses. */
             readonly egress: string;
-            /** The share of traces the installation keeps. */
+            /** The URL callers reach the installation at, its packages mounted below. */
+            readonly url: string;
+            /** The share of traces the installation samples. */
             readonly sampling: number;
             /** The identity of the instance's space, which the installation's root derives from. */
             readonly identity: Pick<Deriver, "derive">;
@@ -109,6 +111,7 @@ export const InstanceSpec = {
             settings: spec.settings,
             secret,
             egress: options.egress,
+            url: options.url,
             sampling: options.sampling,
             root: (await InstallationRoot.derive(options.identity, spec.installationId)).toHex(),
         };
@@ -152,7 +155,7 @@ export const WorkloadRequest = {
             Caller.forward(authentication, headers);
         }
 
-        // keep the query and leave redirects to the caller
+        // pass the query on and leave redirects to the caller
         const url = `${origin}${path}${new URL(request.url).search}`;
 
         return new Request(url, new Request(request, { headers, redirect: "manual" }));
@@ -185,7 +188,7 @@ export class InstanceRegistry<
             return Promise.resolve();
         }
 
-        // launch once, keeping the secret while it starts and dropping it when the start fails
+        // launch once, caching the secret while it starts and dropping it when the start fails
         const secrets = new Set<string>();
         const identify = (secret: string) => {
             secrets.add(secret);
@@ -306,7 +309,7 @@ export interface WorkloadInstallation {
     readonly package: PackageId;
     /** The bound installation's name in its space, its identity and address there. */
     readonly installation: string;
-    /** The space keeping the installation. */
+    /** The space of the installation. */
     readonly scope: Identifier<"space">;
 }
 
@@ -323,7 +326,7 @@ function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadS
             });
         }
 
-        // bind a bucket over S3 at the egress, keeping the host's reference on the machine
+        // bind a bucket over S3 at the egress, storing the host's reference on the machine
         if (resource.kind === BucketKind.name) {
             bound[resource.name] = {
                 resource: resource.id,

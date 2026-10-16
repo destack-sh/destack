@@ -29,7 +29,6 @@ import {
     InstallationKind,
 } from "@destack/runtime/declare";
 import { PackageDescription } from "@destack/runtime";
-import { TriggerDescription } from "@destack/runtime/trigger";
 import { StackError } from "../../error/index.ts";
 import {
     binding,
@@ -43,7 +42,6 @@ import {
     installationRevision,
     instance,
     MAIN_DATABASE,
-    trigger,
 } from "../../object/index.ts";
 import type { InstallationBuild } from "../../declare/installation.ts";
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
@@ -290,8 +288,7 @@ export class Application {
             await this.#activate(revision, workload, releases);
         }
 
-        // keep the triggers the build declares and observe the revision applied
-        await this.#declareTriggers(build);
+        // observe the revision applied
         await call.observe(installation, target, {
             conditions: {
                 ready: {
@@ -513,53 +510,6 @@ export class Application {
 
             return !isSame;
         });
-    }
-
-    /** Keep exactly the triggers the build declares, leaving those the installation created. */
-    async #declareTriggers(build: BuildReader): Promise<void> {
-        // read the package's own triggers
-        const call = this.#context;
-        const target = this.#context.target;
-        const declared = (await ownDeclarations(build, "trigger", TriggerDescription)).map(
-            (declaration) => declaration.description,
-        );
-        const triggers = await call.read(trigger).findMany({
-            where: {
-                installationId: target.id,
-                origin: "declared",
-            },
-        });
-
-        // declare the new triggers and redeclare the changed ones
-        const declarations = declared.flatMap(({ name, on }) => {
-            const fields = { on };
-            const existing = triggers.find((entry) => entry.name === name);
-            // declare a new trigger
-            if (existing === undefined) {
-                return [
-                    trigger.call("declare", {
-                        installationId: target.id,
-                        origin: "declared",
-                        name,
-                        ...fields,
-                    }),
-                ];
-            }
-            // redeclare a changed trigger
-            else if (canonicalize(fields) !== canonicalize({ on: existing.on })) {
-                return [trigger.call("redeclare", { id: existing.id, ...fields })];
-            }
-            // keep an unchanged trigger
-            else {
-                return [];
-            }
-        });
-
-        // retire the triggers the build no longer declares
-        const retirements = triggers
-            .filter((entry) => !declared.some((next) => next.name === entry.name))
-            .map((retired) => trigger.call("retire", { id: retired.id }));
-        await call.mutate(call.self, [...declarations, ...retirements]);
     }
 
     /** Open a build the build store keeps by its manifest's digest. */

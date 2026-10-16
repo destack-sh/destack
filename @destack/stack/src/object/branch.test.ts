@@ -4,26 +4,43 @@ import { space } from "@destack/account/object";
 import { defineDatabase, eq, TABLE } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
-import { Identifier, present, schema, Clock } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { expect, test } from "@destack/test";
+import type { Call } from "@destack/sync";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { ids, spaceDatabase, StackFixture } from "../test/index.ts";
+import { approval, changeRequest } from "@destack/workflow";
+import { ControlLoop } from "@destack/runtime/control";
+import { setting } from "@destack/setting/object";
+import { branchApprovals } from "../setting/index.ts";
+import workflowPackage from "@destack/workflow/package";
+import workflowServer from "@destack/workflow/server";
 import { branch, branchEntry, branchChange, branchType } from "./branch.ts";
+import { Clock } from "@destack/environment";
 
 /** Notes a branch drafts before the main line has them. */
-const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    fields: {
-        author: field.reference(principal.user).caller(),
-        title: field.string(schema.string().min(1)),
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: {
+            author: field.reference(principal.user).caller(),
+            title: field.string(schema.string().min(1)),
+        },
+        permissions: { read: relation("author"), write: relation("author") },
     },
-    permissions: { read: relation("author"), write: relation("author") },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["title"] }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["title"] }),
+    }),
+);
+
+/** The person the owner asks to review a branch. */
+const REVIEWER = principal.user.reference(
+    "universe",
+    schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000b9"),
+);
 
 /** A created object's identifier. */
 const Created = schema.looseObject({ id: schema.string() });
@@ -34,6 +51,7 @@ const database = defineDatabase({
     tables: [
         ...spaceDatabase.tables.filter((table) => !spaceDatabase.replicates(table)),
         ...note.tables,
+        ...Object.values(workflowPackage.objects).flatMap((type) => type.tables),
     ],
     replicated: spaceDatabase.tables.filter((table) => spaceDatabase.replicates(table)),
 });
@@ -45,16 +63,19 @@ async function serveBranches() {
         chain: async () => undefined,
         clock: Clock.system,
         principal: principal.space.reference("universe", ids.space),
-        servers: serversOf([note, branch, branchEntry, branchChange]),
+        servers: [...serversOf([note, branch, branchEntry, branchChange]), workflowServer],
         database: fixture.database,
         callKey: testCallKey,
         events: await testEvents(fixture.database),
         origin: { package: note.package },
         branch: branchType,
     });
-    const context = subjectContext(principal.user.reference("universe", ids.owner), ids.space);
-    const call = async (calls: readonly ReturnType<typeof branch.call>[]) =>
-        store.mutate(context.access(), { id: RequestId.create(Date.now()), calls: [...calls] });
+    const owner = subjectContext(principal.user.reference("universe", ids.owner), ids.space);
+    const reviewer = subjectContext(REVIEWER, ids.space);
+    const call = async <const Calls extends readonly Call[]>(calls: Calls) =>
+        store.mutate(owner.access(), { id: RequestId.create(Date.now()), calls });
+    const review = async <const Calls extends readonly Call[]>(calls: Calls) =>
+        store.mutate(reviewer.access(), { id: RequestId.create(Date.now()), calls });
     const read = async (id: Identifier<"branch">) => {
         const [opened] = await fixture.database
             .select({ state: branch.table.state, tables: branch.table.tables })
@@ -75,7 +96,7 @@ async function serveBranches() {
         return schema.identifier("branch").parse(Created.parse(opened).id);
     };
 
-    return { call, read, open };
+    return { store, call, review, read, open };
 }
 
 /** Drop a row's identifier and times, which a replay writes anew. */
@@ -128,4 +149,76 @@ test("discard a branch, dropping its changes and leaving the main line as it was
         changes: [],
         notes: [],
     });
+});
+
+test("merge a branch into a space requiring an approval only through its change request once approved", async () => {
+    // require one approval of the space's branches, and push a note onto a branch shared with a reviewer
+    const { store, call, review, read, open } = await serveBranches();
+    const now = Date.now();
+    await store.database.insert(setting.table).values({
+        id: Identifier.create("setting"),
+        scope: ids.space,
+        packageId: branchApprovals.package.id,
+        name: branchApprovals.name,
+        mode: "set",
+        value: 1,
+        release: branchApprovals.package.version,
+        createdAt: now,
+        updatedAt: now,
+    });
+    const id = await open("reviewed");
+    await call([
+        branch.call("push", {
+            spaceId: ids.space,
+            id,
+            calls: [note.call("create", { spaceId: ids.space, title: "draft" })],
+        }),
+        branch.call("grant", {
+            spaceId: ids.space,
+            id,
+            relation: "collaborator",
+            subject: REVIEWER,
+        }),
+    ]);
+
+    // refuse merging it directly
+    const merge = branch.call("merge", { spaceId: ids.space, id });
+    const direct = await refusal(call([merge]));
+
+    // run the change requests, and open one holding the merge, which asks the reviewer
+    const stopping = new AbortController();
+    const loop = new ControlLoop(
+        store.database,
+        store.controllers().filter((controller) => controller.name.startsWith("change")),
+        { clock: Clock.system, report: (_controller, _key, error) => stopping.abort(error) },
+    );
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    const [requested] = await call([
+        changeRequest.call("create", {
+            spaceId: ids.space,
+            parent: { packageId: branch.package.id, type: branch.name, id },
+            call: merge,
+            approvers: [REVIEWER],
+        }),
+    ]);
+    await expect
+        .poll(async () => (await store.database.select().from(approval.table)).length)
+        .toBe(1);
+
+    // approve as the reviewer, and expect the change run to merge the branch as the requester
+    const [asked] = await store.database.select().from(approval.table);
+    await review([approval.call("approve", approval.target(present(asked, "the approval")))]);
+    await expect.poll(async () => (await read(id)).branch?.state).toBe("merged");
+    const [applied] = await store.database
+        .select({ state: changeRequest.table.state })
+        .from(changeRequest.table)
+        .where(eq(changeRequest.table.id, requested.id));
+    expect([direct, applied?.state]).toEqual([
+        ["CONFLICT", `branch ${id} merges only through an approved change request`],
+        "applied",
+    ]);
 });

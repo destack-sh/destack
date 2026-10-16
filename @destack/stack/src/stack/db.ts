@@ -16,6 +16,7 @@ import { bucket } from "../object/bucket.ts";
 import { dependency } from "../object/dependency.ts";
 import { database } from "../object/database.ts";
 import { https } from "../object/https.ts";
+import workflowPackage from "@destack/workflow/package";
 import stackPackage from "../package.ts";
 
 /** The account package's rows every space's database replicates. */
@@ -32,13 +33,12 @@ export const spaceReplicated: readonly Table[] = [
     residency.table,
 ];
 
-/** The tables of a space's database, with its settings and the installation assertions it spent. */
+/** The tables of a space's database: the stack's, its settings, approvals and change requests. */
 export const stackTables: readonly Table[] = [
     ...new Set([
         ...[
-            ...Object.values(stackPackage.objects).filter(
-                (object) => object.storage === "durable" || object.storage === "events",
-            ),
+            ...Object.values(stackPackage.objects).filter((object) => object.storage === "durable"),
+            ...Object.values(workflowPackage.objects),
             database,
             bucket,
             dependency,

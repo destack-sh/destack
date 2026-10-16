@@ -1,6 +1,6 @@
 import type { Authentication } from "@destack/access";
 import type { Identifier } from "@destack/schema";
-import { Egress } from "@destack/runtime";
+import { Egress, InstallationMount } from "@destack/runtime";
 import { CallError } from "@destack/runtime/error";
 import type { Deriver } from "@destack/identity";
 import { VERSION_HEADER } from "@destack/runtime/request";
@@ -47,7 +47,7 @@ export class LocalRuntime implements Runtime {
         /** Select the runner options of an instance's workload. */
         readonly runner: (spec: InstanceSpec) => Omit<RunnerOptions, "ephemeral">;
     }) {
-        // keep the egress, the space identities and the workloads
+        // set the egress, the space identities and the workloads
         this.#egress = options.egress;
         this.#identity = options.identity;
         this.#runner = options.runner;
@@ -141,6 +141,7 @@ export class LocalRuntime implements Runtime {
         // describe the start with a fresh secret
         const start = await InstanceSpec.start(spec, {
             egress: this.#egress(spec.scope),
+            url: InstallationMount.url(RUNNER_ORIGIN, spec.scope, spec.installationId),
             sampling: 1,
             identity: await this.#identity(spec.scope),
         });

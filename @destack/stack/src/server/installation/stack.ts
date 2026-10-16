@@ -277,7 +277,7 @@ export interface StackApplicationOptions {
     /** The object store running the handlers' calls as its principal. */
     readonly store: Pick<
         ObjectStore,
-        "principal" | "mutate" | "admit" | "clock" | "claims" | "isReplica"
+        "principal" | "mutate" | "authorizeHere" | "clock" | "claims" | "isReplica"
     >;
     /** Open the build of a package's release in the stack's space, through a step's database. */
     readonly release: NonNullable<ApplyOptions["release"]>;

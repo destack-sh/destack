@@ -1,4 +1,5 @@
 import type { ObjectStore } from "@destack/object/server";
+import { Snapshot } from "@destack/db";
 import type { ContentStore } from "@destack/resource";
 import { SWEEP_GRACE_MILLISECONDS, sweepSnapshots } from "./snapshot.ts";
 import { SettingValue } from "@destack/setting/object";
@@ -52,7 +53,8 @@ export class RetentionController implements Controller {
         const retained = await BuildStore.sweep(
             this.#builds,
             this.#objects,
-            (space) => SettingValue.resolve(database, buildRetention, { scope: space }),
+            (space) =>
+                SettingValue.resolve(Snapshot.live(database), buildRetention, { scope: space }),
             now,
             new Date(now - SWEEP_GRACE_MILLISECONDS),
         );
