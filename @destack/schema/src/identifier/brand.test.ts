@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { z } from "zod";
 import { brand } from "./brand.ts";
 
-test("brand a validator in types alone, keeping what it accepts and refuses", () => {
+test("brand a validator in types alone, accepting and refusing as it did", () => {
     // validate the same values as the unbranded validator does
     const validator = z.string().regex(/^note-\d+$/u);
     const branded = brand<"note">(validator);

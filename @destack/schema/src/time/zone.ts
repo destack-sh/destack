@@ -2,7 +2,7 @@ import * as schema from "../validate/index.ts";
 import { defineSchema } from "../declare/schema.ts";
 import { PlainDate, PlainTime } from "./plain.ts";
 
-/** The longest IANA time zone name kept, beyond the longest in the database. */
+/** The longest IANA time zone name accepted, beyond the longest in the database. */
 const TIME_ZONE_LENGTH = 64;
 
 /** The milliseconds in a minute. */

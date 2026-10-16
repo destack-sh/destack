@@ -29,7 +29,7 @@ compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().m
 
 ## Sensitivity
 
-`schema.sensitive` marks a secret that log entries, journals and events leave out, or with `"personal"` personal data that events keep sealed under its person's key.
+`schema.sensitive` marks a secret that log entries, journals and events leave out, or with `"personal"` personal data that events store sealed under its person's key.
 
 ```ts
 const Call = schema.object({

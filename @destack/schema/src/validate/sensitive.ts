@@ -38,8 +38,8 @@ export function redact(
     value: JsonValue | undefined,
     found?: (sensitive: unknown) => void,
 ): JsonValue | undefined {
-    return mapSensitive(definition, value, (held) => {
-        found?.(held);
+    return mapSensitive(definition, value, (marked) => {
+        found?.(marked);
 
         return undefined;
     });
@@ -95,11 +95,11 @@ function contained(definition: z.core.$ZodType): readonly z.core.$ZodType[] {
     return [];
 }
 
-/** Mask each personal value a schema marks, keeping every other value. */
+/** Mask each personal value a schema marks, leaving every other value as it is. */
 export function mask(definition: z.core.$ZodType, value: JsonValue): JsonValue {
-    // mask each personal value, which keeps every value present
-    const masked = mapSensitive(definition, value, (held, sensitivity) =>
-        sensitivity === "personal" ? maskOf(held) : held,
+    // mask each personal value, which leaves every value present
+    const masked = mapSensitive(definition, value, (marked, sensitivity) =>
+        sensitivity === "personal" ? maskOf(marked) : marked,
     );
     if (masked === undefined) {
         throw new TypeError("masking left out a value");
@@ -114,7 +114,7 @@ export function mapSensitive(
     value: JsonValue | undefined,
     map: (value: JsonValue, sensitivity: Sensitivity) => JsonValue | undefined,
 ): JsonValue | undefined {
-    // map a sensitive value, and keep an absent one
+    // map a sensitive value, and answer an absent one as absent
     const sensitivity = sensitivityOf(definition);
     if (value === undefined) {
         return value;
@@ -194,8 +194,8 @@ export function redactFields(
     value: JsonObject,
     found?: (sensitive: unknown) => void,
 ): JsonObject {
-    return mapFields(definition, value, (held) => {
-        found?.(held);
+    return mapFields(definition, value, (marked) => {
+        found?.(marked);
 
         return undefined;
     });
@@ -212,9 +212,9 @@ function mapFields(
     return Object.fromEntries(
         Object.entries(value).flatMap(([name, field]) => {
             const property = shape[name];
-            const kept = property === undefined ? field : mapSensitive(property, field, map);
+            const mapped = property === undefined ? field : mapSensitive(property, field, map);
 
-            return kept === undefined ? [] : [[name, kept]];
+            return mapped === undefined ? [] : [[name, mapped]];
         }),
     );
 }

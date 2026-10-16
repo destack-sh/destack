@@ -20,7 +20,7 @@ test("accept prefixed UUIDv7 identifiers of their own prefix only, and read thei
     expect(Identifier.uuid(space.parse(`space-${UUID}`))).toBe(UUID);
 });
 
-test("filter the identifiers of one prefix from mixed values, keeping their order", () => {
+test("filter the identifiers of one prefix from mixed values in their order", () => {
     const space = `space-${UUID}`;
     const account = `account-${UUID}`;
     expect(Identifier.filter("space", [account, space, "space", undefined, space])).toEqual([
@@ -38,7 +38,7 @@ test("refuse prefixes that would make identifiers ambiguous", () => {
 });
 
 test("derive the same UUIDv7 identifier for every repeat of a created or derived request", () => {
-    // keep the time and bits of each request, marking them version 7
+    // take the time and bits of each request, marking them version 7
     const created = "01996ab0-0000-7000-8000-000000000001";
     const derived = "01996ab0-0000-8abc-9000-000000000002";
     expect([

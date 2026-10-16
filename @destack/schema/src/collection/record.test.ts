@@ -12,7 +12,7 @@ test("map each own value by its key into a record of the same keys", () => {
     expect(mapped).toEqual({ alpha: "alpha=2", beta: "beta=3" });
 });
 
-/** Two own values beside a getter its prototype keeps. */
+/** Two own values beside a getter its prototype has. */
 class Pair {
     /** The first value. */
     readonly alpha = 2;

@@ -34,12 +34,12 @@ export function identifier<const Prefix extends string>(
         return brand<Prefix>(known);
     }
 
-    // keep prefixes literal and unambiguous before appending the UUID
+    // refuse a prefix that is not literal and unambiguous before appending the UUID
     if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(prefix)) {
         throw new TypeError(`invalid identifier prefix: ${prefix}`);
     }
 
-    // match the prefix followed by a UUIDv7, and register and keep the validator
+    // match the prefix followed by a UUIDv7, and register the validator
     const validator = defineSchema(z.string().regex(new RegExp(`^${prefix}-${UUID_V7}$`, "u")));
     VALIDATORS.set(prefix, validator);
 
@@ -90,7 +90,7 @@ export const Identifier = {
         return identifier(prefix).parse(`${prefix}-${positioned}`);
     },
 
-    /** Keep the values that are identifiers of a prefix, in their order. */
+    /** Filter the values that are identifiers of a prefix, in their order. */
     filter<const Prefix extends string>(
         prefix: Prefix,
         values: readonly unknown[],

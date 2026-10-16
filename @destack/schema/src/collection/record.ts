@@ -3,7 +3,7 @@ export function mapValues<Source extends object, Mapped extends object>(
     source: Source,
     map: (value: Source[keyof Source], key: keyof Source & string) => unknown,
 ): Mapped {
-    // map each own entry, keeping its key
+    // map each own entry under its key
     const entries = Object.keys(source).map((key) => {
         const property = key as keyof Source & string;
 

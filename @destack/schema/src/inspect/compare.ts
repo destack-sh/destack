@@ -350,7 +350,7 @@ class Inclusion {
 
 /** Follow a node's local references within its document. */
 function resolve(node: Node, root: JsonSchema): Node {
-    // keep nodes without a reference
+    // answer a node without a reference as it is
     if (typeof node === "boolean" || node.$ref === undefined) {
         return node;
     }
@@ -364,7 +364,7 @@ function resolve(node: Node, root: JsonSchema): Node {
         throw new TypeError(`unresolved schema reference: ${reference}`);
     }
 
-    // keep keywords beside the reference as a conjunction
+    // join keywords beside the reference as a conjunction
     const isBare = Object.keys(rest).every((keyword) => ANNOTATIONS.has(keyword));
 
     return isBare ? resolve(found, root) : { allOf: [found, rest] };

@@ -7,6 +7,9 @@ import { present } from "../presence/presence.ts";
 /** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
 
+/** The descriptions of the schemas described so far, each derived once from its schema. */
+const DESCRIPTIONS = new WeakMap<z.ZodType, JsonSchema>();
+
 /** The prefix of a reference to one of the document's own definitions. */
 const DEFINITION = "#/$defs/";
 
@@ -60,7 +63,7 @@ const FORMATS: ReadonlyMap<string, readonly FormatBuilder[]> = new Map(
     ]),
 );
 
-/** The descriptive keywords any node may have, which the built validator keeps as metadata. */
+/** The descriptive keywords any node may have, which the built validator carries as metadata. */
 const ANNOTATIONS = ["title", "description", "deprecated", "examples"] as const;
 
 /** The description of any JSON value, as `toJsonSchema` describes `schema.json()`. */
@@ -119,12 +122,32 @@ export const LocalReference = {
     },
 };
 
-/** Describe a schema using JSON Schema Draft 2020-12. */
+/** Describe a schema using JSON Schema Draft 2020-12, once per schema, the description frozen. */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
-    // describe a declarable schema
-    requireDeclarable(schema);
+    // answer a schema described before, as a schema never changes
+    const described = DESCRIPTIONS.get(schema);
+    if (described !== undefined) {
+        return described;
+    }
 
-    return describe(schema);
+    // describe a declarable schema, frozen for every caller sharing it
+    requireDeclarable(schema);
+    const description = freeze(describe(schema));
+    DESCRIPTIONS.set(schema, description);
+
+    return description;
+}
+
+/** Freeze a description and every object and array in it. */
+function freeze<Value>(value: Value): Value {
+    if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+        Object.freeze(value);
+        for (const nested of Object.values(value)) {
+            freeze(nested);
+        }
+    }
+
+    return value;
 }
 
 /** Describe a schema as Draft 2020-12, refusing what JSON Schema cannot represent. */
@@ -174,18 +197,18 @@ interface FormatBuilder {
     readonly pattern: string | undefined;
 }
 
-/** Build the validator one node describes, keeping its descriptive keywords as metadata. */
+/** Build the validator one node describes, with its descriptive keywords as metadata. */
 function build(node: JsonSchemaValue, context: ImportContext): z.ZodType<JsonValue> {
     // refuse a boolean schema, which no declarable schema describes
     if (typeof node === "boolean") {
         throw new TypeError(`json schema ${String(node)} is not declarable`);
     }
 
-    // build the node, then keep its title, description and examples
+    // build the node, then annotate it with its title, description and examples
     return annotated(validator(node, context), node);
 }
 
-/** Keep a node's title, description and examples on its validator. */
+/** Annotate a node's validator with its title, description and examples. */
 function annotated<Built extends z.ZodType<JsonValue>>(built: Built, node: JsonSchema): Built {
     const meta = Object.fromEntries(
         ANNOTATIONS.flatMap((key) => (node[key] === undefined ? [] : [[key, node[key]]])),
@@ -287,7 +310,7 @@ function typeList(
     return checked(z.union([first, second, ...rest]), node, ["type"]);
 }
 
-/** Build a string from its format, lengths and patterns, several patterns kept as `allOf`. */
+/** Build a string from its format, lengths and patterns, several patterns joined as `allOf`. */
 function string(node: JsonSchema): z.ZodType<JsonValue> {
     // collect the patterns, one or each of a list
     const { format, pattern, minLength, maxLength, allOf } = node;
@@ -468,7 +491,7 @@ function object(node: JsonSchema, context: ImportContext): z.ZodType<JsonValue> 
             );
         }
 
-        // keep an enumeration's keys optional unless it requires them all
+        // leave an enumeration's keys optional unless it requires them all
         const value = build(additionalProperties, context);
 
         return keys !== undefined && node.required === undefined
@@ -588,7 +611,7 @@ function discriminated(
         throw new TypeError("json schema oneOf without a property of constants is not declarable");
     }
 
-    // build each option as an object refusing other properties, keeping its annotations
+    // build each option as an object refusing other properties, with its annotations
     const built = objects.map((option) => {
         if (option.type !== "object" || option.additionalProperties !== false) {
             throw new TypeError("json schema oneOf options must be objects of their properties");

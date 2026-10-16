@@ -24,12 +24,12 @@ const NodeSchema: schema.Schema<Node> = schema.lazy(() =>
 /** Schema pairs by their expected change, the old schema first. */
 const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaComparison])[] = [
     // strings
-    ["keep a string", schema.string(), schema.string(), "same"],
+    ["leave a string unchanged", schema.string(), schema.string(), "same"],
     ["drop a minimum length", schema.string().min(1), schema.string(), "wider"],
     ["add a maximum length", schema.string(), schema.string().max(5), "narrower"],
     ["drop an email format", schema.email(), schema.string(), "wider"],
     ["swap a pattern", schema.string().regex(/^a/u), schema.string().regex(/^b/u), "incompatible"],
-    ["keep a base64 string", schema.base64(), schema.base64(), "same"],
+    ["leave a base64 string unchanged", schema.base64(), schema.base64(), "same"],
 
     // enums and literals
     ["add an enum value", schema.enum(["a", "b"]), schema.enum(["a", "b", "c"]), "wider"],
@@ -58,7 +58,7 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     ],
     ["drop null", schema.string().nullable(), schema.string(), "narrower"],
     [
-        "keep a nullable discriminated union",
+        "leave a nullable discriminated union unchanged",
         schema
             .discriminatedUnion("kind", [
                 schema.object({ kind: schema.literal("a") }).strict(),
@@ -136,10 +136,10 @@ const CHANGES: readonly (readonly [string, schema.Schema, schema.Schema, SchemaC
     ],
 
     // recursion and JSON
-    ["keep a recursive tree", Node, Node, "same"],
+    ["leave a recursive tree unchanged", Node, Node, "same"],
     ["widen a recursive tree", NodeSchema, Node, "wider"],
     ["narrow JSON to a string", schema.json(), schema.string(), "narrower"],
-    ["keep JSON", schema.json(), schema.json(), "same"],
+    ["leave JSON unchanged", schema.json(), schema.json(), "same"],
 ];
 
 /** Sample values for the soundness sweep. */

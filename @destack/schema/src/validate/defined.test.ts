@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { defined } from "./defined.ts";
 
-test("leave out undefined entries at every depth, keeping nulls, lists and bytes", () => {
+test("leave out undefined entries at every depth, leaving nulls, lists and bytes as they are", () => {
     const bytes = new Uint8Array([1, 2]);
     expect(
         defined({

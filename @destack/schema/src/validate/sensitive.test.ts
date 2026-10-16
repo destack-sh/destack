@@ -10,7 +10,7 @@ test("leave out sensitive values through objects, arrays and wrappers, handing e
         recovery: schema.nullable(schema.sensitive(schema.string())),
     });
 
-    // drop each sensitive value, keeping array positions as null
+    // drop each sensitive value, leaving array positions as null
     const found: unknown[] = [];
     expect(
         schema.redact(
@@ -62,7 +62,7 @@ test("mark a copy of a shared schema, leaving the original and its other uses pl
         schema.isSensitive(attributes),
     ]).toEqual([false, "personal", true, "personal", true, undefined, false]);
 
-    // keep values under the original and drop them under the copy
+    // leave values under the original and drop them under the copy
     const value = { "enduser.email": "ada@example.com" };
     expect([schema.redact(attributes, value), schema.redact(personal, value)]).toEqual([
         value,
@@ -70,7 +70,7 @@ test("mark a copy of a shared schema, leaving the original and its other uses pl
     ]);
 });
 
-test("mask the personal values a schema marks at any depth, keeping the shape, secrets and other values", () => {
+test("mask the personal values a schema marks at any depth, leaving the shape, secrets and other values", () => {
     // mark an address, a list of names and a record of attributes personal, and a token secret
     const call = schema.object({
         method: schema.string(),

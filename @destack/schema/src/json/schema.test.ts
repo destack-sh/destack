@@ -249,3 +249,18 @@ function generate(random: () => number, depth: number): schema.Schema {
 
     return composite();
 }
+
+test("describe a schema once, answering every caller the same frozen description", () => {
+    // describe one schema twice
+    const note = schema.object({ title: schema.string().min(1) });
+    const first = toJsonSchema(note);
+    const second = toJsonSchema(note);
+
+    // answer one description, frozen at every depth, so no caller changes another's
+    expect([second === first, Object.isFrozen(first), Object.isFrozen(first.properties)]).toEqual([
+        true,
+        true,
+        true,
+    ]);
+    expect(() => Object.assign(first, { title: "changed" })).toThrow(TypeError);
+});

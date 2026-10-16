@@ -119,7 +119,7 @@ function markVisited(
 
 /** Require a schema's metadata to be JSON descriptions that cannot override validation. */
 function requireMetadata(schema: z.core.$ZodType): void {
-    // keep metadata from overriding validation in the generated description
+    // refuse metadata that would override validation in the generated description
     const metadata = z.globalRegistry.get(schema);
     for (const key of Object.keys(metadata ?? {})) {
         if (!METADATA_KEYS.has(key)) {

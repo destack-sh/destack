@@ -1,4 +1,4 @@
-/** Read the value a map keeps for a key it must have, refusing a missing one. */
+/** Read the value a map has for a key it must have, refusing a missing one. */
 export function found<Key, Value>(map: ReadonlyMap<Key, Value>, key: Key): Value {
     const value = map.get(key);
     if (value === undefined) {
