@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
-import { present, Clock } from "@destack/schema";
+import { present } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -23,6 +23,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { openFixture, userSubject } from "../test/database.ts";
+import { Clock } from "@destack/environment";
 
 /** The replica of the accounts' chains kept for the placement follower. */
 const PLACEMENT_REPLICA = { name: Authorizer.chainReplica("placement"), below: "placement" };

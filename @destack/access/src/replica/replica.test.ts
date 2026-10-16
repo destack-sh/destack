@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
-import { aligned, Clock } from "@destack/schema";
+import { aligned } from "@destack/schema";
 import {
     AccessError,
     accessTables,
@@ -26,6 +26,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
+import { Clock } from "@destack/environment";
 
 /** The object types whose universe relationships the tests' decisions read: every test type's. */
 const TYPES = policies.map((each) => each.typeReference);
