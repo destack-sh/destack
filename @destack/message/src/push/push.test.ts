@@ -201,7 +201,7 @@ test("answer the application server key, and post a push signed by it and encryp
     });
 });
 
-/** A push service answering each post with the next response, keeping the posts. */
+/** A push service answering each post with the next response, recording the posts. */
 function answerInTurn(responses: Response[]) {
     const posted: {
         url: string;

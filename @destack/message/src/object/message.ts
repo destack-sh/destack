@@ -1,7 +1,7 @@
 import { type Select } from "@destack/db";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
-import { defineSchema, Instant, schema } from "@destack/schema";
+import { defineSchema, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
@@ -13,15 +13,8 @@ export const GONE = "gone";
 /** The label the message key pair derives under from an identity's root secret. */
 const MESSAGE_LABEL = "@destack/message/key";
 
-/** The states of a message: waiting for its time, sending, and settled. */
-export const MESSAGE_STATES = [
-    "scheduled",
-    "skipped",
-    "pending",
-    "sent",
-    "delivered",
-    "failed",
-] as const;
+/** The states of a message: sending, sent, shown on its client, or failed. */
+export const MESSAGE_STATES = ["pending", "sent", "delivered", "failed"] as const;
 
 /** The desktop client a message shows on. */
 export const DesktopDestination = schema.object({
@@ -54,7 +47,7 @@ export class MessageKey {
     /** The key pair, its private half kept only on the home's machine. */
     readonly #recipient: identity.Recipient;
 
-    /** Keep a home's message key. */
+    /** Hold a home's message key. */
     private constructor(recipient: identity.Recipient) {
         this.#recipient = recipient;
     }
@@ -106,7 +99,7 @@ export const MessageError = defineSchema(
 /** Why a provider refused a message. */
 export type MessageError = schema.Infer<typeof MessageError>;
 
-/** One message on one channel to one recipient, which the channel's provider sends when due. */
+/** One message on one channel to one recipient, which the channel's provider sends at once. */
 export const message = defineObject({
     name: "message",
     plural: "messages",
@@ -117,67 +110,46 @@ export const message = defineObject({
         /** The object it is sent for, a notification or an endpoint. */
         source: field.object(),
 
-        // schedule
-        /** When it is due. */
-        dueAt: field.time(),
-        /** Whether it goes out in a scheduled summary. */
-        isSummarized: field.boolean().default(false),
-
         // sending
-        /** Whether it waits, was skipped, is sending, went out, reached its client, or failed. */
-        status: field.enum(MESSAGE_STATES),
-        /** Why it was skipped, or its provider's error code once it failed. */
+        /** Whether it is sending, went out, reached its client, or failed. */
+        status: field.enum(MESSAGE_STATES).default("pending"),
+        /** Its provider's error code once it failed. */
         reason: field.string().optional(),
-        /** The content sealed by its producer to the home's message key, absent until sending. */
+        /** The content sealed by its producer to the home's message key, absent for a desktop. */
         ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
-        /** When it settled, absent while it waits or sends. */
+        /** When it settled, absent while it sends. */
         settledAt: field.time().optional(),
         /** When the next attempt is due after a temporary refusal, absent once settled. */
         retryAt: field.time().optional(),
     },
     permissions: ["read", "send"],
-    // expire a settled message 7 days after it settles, and a scheduled one 7 days past its time
+    // expire a settled message 7 days after it settles
     expiring: [
         {
             after: { days: 7 },
             from: "settledAt",
-            where: { status: { in: ["skipped", "sent", "delivered", "failed"] } },
+            where: { status: { in: ["sent", "delivered", "failed"] } },
         },
-        { after: { days: 7 }, from: "dueAt", where: { status: "scheduled" } },
     ],
     constraints: {
         source: {
             kind: "index",
             on: ["sourcePackageId", "sourceType", "sourceScope", "sourceId", "createdAt"],
         },
-        due: { kind: "index", on: ["scope", "status", "dueAt"] },
-        waiting: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { status: { notIn: ["scheduled", "pending"] } },
-                    { settledAt: { isNull: true } },
-                ],
-            },
-        },
-        scheduled: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { status: { ne: "scheduled" } },
-                    { ciphertext: { isNull: true }, retryAt: { isNull: true } },
-                ],
-            },
-        },
         pending: {
             kind: "check",
-            condition: { OR: [{ status: { ne: "pending" } }, { ciphertext: { isNotNull: true } }] },
+            condition: {
+                OR: [
+                    { status: { ne: "pending" } },
+                    { ciphertext: { isNotNull: true }, settledAt: { isNull: true } },
+                ],
+            },
         },
         settled: {
             kind: "check",
             condition: {
                 OR: [
-                    { status: { in: ["scheduled", "pending"] } },
+                    { status: "pending" },
                     { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
                 ],
             },
@@ -186,15 +158,15 @@ export const message = defineObject({
             kind: "check",
             condition: {
                 OR: [
-                    { status: { in: ["skipped", "failed"] }, reason: { isNotNull: true } },
-                    { status: { notIn: ["skipped", "failed"] }, reason: { isNull: true } },
+                    { status: "failed", reason: { isNotNull: true } },
+                    { status: { ne: "failed" }, reason: { isNull: true } },
                 ],
             },
         },
     },
 })
     .methods((method) => ({
-        /** Create a message waiting for its time, or sending with its sealed content. */
+        /** Send a message through its channel's provider, or show a desktop one at once. */
         create: method.create("send", {
             fields: [
                 "to",
@@ -202,10 +174,8 @@ export const message = defineObject({
                 "sourceType",
                 "sourceScope",
                 "sourceId",
-                "dueAt",
-                "isSummarized",
+                "ciphertext",
             ],
-            variants: { status: { scheduled: [], pending: ["ciphertext"] } },
             isPredicted: false,
         }),
         /** Read the VAPID key a scope's pushes are signed with, which browsers subscribe with. */
@@ -226,44 +196,13 @@ export const message = defineObject({
                 key: schema.string(),
             }),
         }),
-        /** Send a scheduled message with its sealed content, or show a desktop message. */
-        send: method.mutation({
-            permission: "send",
-            isInternal: true,
-            input: schema.object({
-                /** Where it goes now, as the recipient's contact reads at its time. */
-                to: Destination,
-                /** The content sealed to the home's message key, absent for a desktop. */
-                ciphertext: identity.Ciphertext.exactOptional(),
-            }),
-        }),
-        /** Move a scheduled message to a later time, or into a scheduled summary. */
-        defer: method.mutation({
-            permission: "send",
-            isInternal: true,
-            input: schema.object({
-                /** When it is due. */
-                dueAt: Instant,
-                /** Whether it goes out in a scheduled summary. */
-                isSummarized: schema.boolean(),
-            }),
-        }),
-        /** Settle a scheduled message without sending it. */
-        skip: method.mutation({
-            permission: "send",
-            isInternal: true,
-            input: schema.object({
-                /** Why it was skipped. */
-                reason: schema.string().min(1),
-            }),
-        }),
         /** Record a desktop client showing a sent message, as its receipt. */
         receive: method.mutation({ permission: "read" }),
     }))
     .implement({
         methods: {
             receive: async (call) => {
-                // keep a message already delivered
+                // answer a message already delivered as it is
                 const { target } = call;
                 if (target.status === "delivered") {
                     return target;

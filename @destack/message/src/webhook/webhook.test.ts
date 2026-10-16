@@ -1,4 +1,4 @@
-import { keepSecret } from "../test/index.ts";
+import { storeSecret } from "../test/index.ts";
 import { mailProvider } from "../email/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
@@ -24,7 +24,7 @@ import { principal } from "@destack/access";
 import { type Endpoint, endpoint } from "../object/endpoint.ts";
 import { mail } from "../object/index.ts";
 
-/** The machine serving the space, which keeps its vaults. */
+/** The machine serving the space and its vaults. */
 const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");
 
 /** The specification's example signing secret, kept in a vault. */
@@ -85,7 +85,7 @@ test("sign as the Standard Webhooks specification's example does", async () => {
     ).toBe("v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=");
 });
 
-/** The account whose space keeps the endpoint. */
+/** The account whose space has the endpoint. */
 const ACCOUNT = schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000009");
 
 /** The message installation serving the endpoint, as which its messages go out. */
@@ -102,7 +102,7 @@ const WRITER = principal.installation.reference(
 
 /** Post webhooks to the endpoint answering each status in turn, its secret kept for a consumer. */
 async function postTo(statuses: readonly number[], consumer: Subject = INSTALLATION) {
-    // keep the endpoint and its vault in a space's store, owned by the space
+    // serve the endpoint and its vault from a space's store, owned by the space
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
@@ -145,8 +145,8 @@ async function postTo(statuses: readonly number[], consumer: Subject = INSTALLAT
     };
     await access.replicateRole(reference, reading, INSTALLATION);
 
-    // keep the secret for its consumer, and the endpoint pointing at it
-    await keepSecret(store, ENDPOINT.secret, SECRET, consumer);
+    // store the secret for its consumer, and the endpoint pointing at it
+    await storeSecret(store, ENDPOINT.secret, SECRET, consumer);
     await database.insert(endpoint.table).values(ENDPOINT);
 
     // post through the provider, answering each status in turn

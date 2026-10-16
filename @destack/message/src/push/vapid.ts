@@ -30,7 +30,7 @@ export class Vapid {
     /** The contact, a mailto: or https: URL. */
     readonly subject: string;
 
-    /** Keep the sender's keys and contact. */
+    /** Hold the sender's keys and contact. */
     constructor(keys: CryptoKeyPair, subject: string) {
         if (!/^(?:mailto:|https:)/u.test(subject)) {
             throw new TypeError("a push sender's contact must be a mailto: or https: URL");

@@ -11,21 +11,22 @@ await WebhookSignature.sign(secret, id, timestamp, body);
 
 ## Messages
 
-A `message` is created scheduled or pending; its producer sends, defers or skips a scheduled one, and a desktop marks a sent one delivered with `receive`.
+A `message` sends as it is created: sealed content through its channel's provider, or a desktop message shown at once, which its client marks delivered with `receive`.
 
 ```ts
 await client.message.create({
     scope: spaceId,
     requestId,
     to: { channel: "email", address: "dana@example.com" },
-    source: issue.reference(spaceId, issueId),
-    dueAt: now,
-    status: "pending",
+    ...ObjectReference.columns("source", issue.reference(spaceId, issueId)),
     ciphertext: await MessageKey.of(messageKey).seal(content, spaceId),
 });
-message.call("defer", { scope, id, dueAt: evening, isSummarized: true });
-message.call("skip", { scope, id, reason: "read" });
-message.call("send", { scope, id, to: { channel: "desktop", client: laptop } });
+await client.message.create({
+    scope: spaceId,
+    requestId,
+    to: { channel: "desktop", client: laptop },
+    ...source,
+});
 await laptopClient.message.receive({ scope, id });
 const { key } = await client.message.serverKey({ scope: spaceId });
 ```

@@ -166,7 +166,7 @@ function ecdsaSignature(raw: Uint8Array): Uint8Array {
 
 /** Encode unsigned big-endian bytes as a DER integer, as short as its sign allows. */
 function integer(bytes: Uint8Array): Uint8Array {
-    // drop leading zeros, keeping one byte
+    // drop leading zeros down to one byte
     let start = 0;
     while (start < bytes.length - 1 && bytes[start] === 0) {
         start += 1;
@@ -191,7 +191,7 @@ function utcTime(date: Date): Uint8Array {
         );
     }
 
-    // keep the year's last two digits through the seconds
+    // write the year's last two digits through the seconds
     const digits = date.toISOString().replaceAll(/[-:T]/gu, "").slice(2, 14);
 
     return new TextEncoder().encode(`${digits}Z`);

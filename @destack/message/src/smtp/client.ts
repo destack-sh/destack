@@ -203,7 +203,7 @@ export class SmtpClient {
             recipients.push({ address, reply: await connection.command(`RCPT TO:<${address}>`) });
         }
 
-        // send the content after 354, keep a refusal, and fail on any other reply
+        // send the content after 354, record a refusal, and fail on any other reply
         let data: Reply | undefined;
         if (recipients.some((recipient) => recipient.reply.class === 2)) {
             const start = await connection.command("DATA");

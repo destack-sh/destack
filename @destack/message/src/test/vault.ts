@@ -7,17 +7,17 @@ import { type ObjectReference, Scope, type Subject } from "@destack/sync";
 import { VAULT_PROVIDER } from "@destack/vault/declare";
 import { secret, vault } from "@destack/vault/object";
 
-/** The name of the vault a fixture space keeps its secrets in. */
+/** The name of the vault with a fixture space's secrets. */
 const VAULT_NAME = "secrets";
 
-/** Keep a text as the vault secret a reference names, with its consumer. */
-export async function keepSecret(
+/** Store a text as the vault secret a reference points at, with its consumer. */
+export async function storeSecret(
     store: ObjectStore,
     kept: ObjectReference,
     value: string,
     consumer: Subject,
 ): Promise<void> {
-    // keep the space's vault as its stack provisions it, once
+    // create the space's vault as its stack provisions it, once
     const now = Date.now();
     const scope = schema.identifier("space").parse(kept.scope);
     const [existing] = await store.database

@@ -4,12 +4,12 @@ import type { Mail, MailTransport } from "../email/index.ts";
 import type { ObjectStore } from "@destack/object/server";
 import { Clock } from "@destack/schema";
 
-/** A mail transport keeping the emails it sends in memory. */
+/** A mail transport storing the emails it sends in memory. */
 export class MailFixture implements MailTransport {
     /** The emails sent, in order. */
     readonly sent: Mail[] = [];
 
-    /** Keep an email as sent. */
+    /** Store an email as sent. */
     async send(mail: Mail): Promise<Outcome> {
         this.sent.push(mail);
 

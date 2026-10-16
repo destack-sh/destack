@@ -137,7 +137,7 @@ class Session {
         socket: Socket,
         isSecure: boolean,
     ) {
-        // keep the session's state and read its socket
+        // store the session's state and read its socket
         this.#options = options;
         this.#transcript = transcript;
         this.#messages = messages;

@@ -44,7 +44,7 @@ export class SesError extends Error implements DomainError {
         answer?: { readonly awsCode: string | undefined; readonly status: number },
         options?: ErrorOptions,
     ) {
-        // keep the code and SES's answer
+        // store the code and SES's answer
         super(message, options);
         this.name = "SesError";
         this.code = code;

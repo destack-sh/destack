@@ -89,7 +89,7 @@ export class SesClient {
         this.#fetch = options.fetch ?? fetch;
     }
 
-    /** Keep a signer of the current credentials, reusing its daily keys until they change. */
+    /** Hold a signer of the current credentials, reusing its daily keys until they change. */
     async #upsertSigner(credentials: AwsCredentials): Promise<AwsSigner> {
         // reuse the signer of unchanged credentials
         const kept = this.#signer;

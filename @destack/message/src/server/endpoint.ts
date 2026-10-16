@@ -82,7 +82,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                         : [];
                 }),
                 ObjectWatch.of(call.table, async (row, database) => {
-                    // wake the enabled endpoints of the scope keeping a succeeded call
+                    // wake the enabled endpoints of the scope with a succeeded call
                     if (call.eventKind().event(row).keys.outcome !== "success") {
                         return [];
                     }
@@ -146,7 +146,7 @@ async function deliver(
         ),
     );
 
-    // keep the endpoint's place past the page, and the calls after it
+    // move the endpoint's place past the page, and list the calls after it
     if (page.sequence > after) {
         await reader.move(after, page.sequence, reconciliation.now, reconciliation.database);
     }
@@ -262,8 +262,6 @@ async function describeMessage(
         id: Identifier.derive("message", sent.requestId),
         input: {
             to: { channel: "webhook" as const },
-            dueAt: now,
-            status: "pending" as const,
             ciphertext: await MessageKey.of(key).seal(
                 { channel: "webhook", type: sent.type, format: row.format, data: sent.data },
                 row.scope,
@@ -321,7 +319,7 @@ async function consume(mutation: MethodContext, reference: ObjectReference): Pro
 
 /** Release the installation's use of a secret no endpoint of its scope names any longer. */
 async function releaseUnused(mutation: MethodContext, reference: ObjectReference): Promise<void> {
-    // keep a secret another endpoint still names
+    // skip a secret another endpoint still uses
     const key = ObjectReference.key(reference);
     const others = await mutation.read(endpoint).findMany({ where: { scope: mutation.scope } });
     if (others.some((other) => ObjectReference.key(other.secret) === key)) {

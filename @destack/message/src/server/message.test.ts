@@ -30,7 +30,7 @@ const place = new Policy(import.meta.destack.package, {
     scope: true,
 });
 
-/** The space whose server keeps the messages and owns their scope. */
+/** The space whose server has the messages and owns their scope. */
 const SPACE = principal.space.reference(
     Scope.universe.id,
     "space-019f5530-8000-7000-8000-0000000000e4",
@@ -45,7 +45,7 @@ const COMPACT_JWE = /eyJ[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+/u;
 /** The text of the requested email, which only its provider sees. */
 const TEXT = "title is too long";
 
-/** The desktop client showing a scheduled message. */
+/** The desktop client showing a message. */
 const CLIENT = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c1");
 
 /** The machine serving the messages. */
@@ -62,7 +62,7 @@ const RETRY = {
 /** The longest a test waits for a message to settle, far above three retries at 10 ms. */
 const SETTLE_MILLISECONDS = 5000;
 
-/** A database keeping messages, as a machine keeps its spaces'. */
+/** A database with messages, as a machine has its spaces'. */
 const messageDatabase = defineDatabase({
     name: "message",
     tables: [...messageTables, journal, ...call.tables],
@@ -90,7 +90,7 @@ function run(database: DatabaseConnection, controllers: readonly Controller[]): 
 
 /** Serve a scope's messages through an email provider answering in turn. */
 async function startMessages(answers: readonly Outcome[]) {
-    // keep the messages, sending each email through a provider answering in turn
+    // serve the messages, sending each email through a provider answering in turn
     const { provider, sent, texts } = answerInTurn(answers);
     const { messages, storage, scope } = await openMessages({ email: provider });
     run(storage.database, messages.controllers());
@@ -104,8 +104,6 @@ async function startMessages(answers: readonly Outcome[]) {
                 ...message.target({ scope: scope.id, id }),
                 to: { channel: "email", address: "dana@example.com" },
                 ...ObjectReference.columns("source", scope),
-                dueAt: Date.now(),
-                status: "pending",
                 ciphertext: await (
                     await MessageKey.derive(ROOT)
                 ).seal({ channel: "email", subject: "Regressed", text: TEXT }, scope.id),
@@ -132,7 +130,7 @@ async function startMessages(answers: readonly Outcome[]) {
     };
 }
 
-/** Keep a scope the space owns, and serve its messages through the given providers. */
+/** Create a scope the space owns, and serve its messages through the given providers. */
 async function openMessages(providers: MessageOptions["providers"]) {
     // serve the messages over a database of their own
     const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
@@ -157,7 +155,7 @@ async function openMessages(providers: MessageOptions["providers"]) {
         machine: MACHINE,
     });
 
-    // keep the scope, owned by the space
+    // create the scope, owned by the space
     const scope = {
         ...place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000e3"),
     };
@@ -168,7 +166,7 @@ async function openMessages(providers: MessageOptions["providers"]) {
     return { messages, storage, scope };
 }
 
-/** Provide email through answers in turn, keeping the identifier and text of each send. */
+/** Provide email through answers in turn, recording the identifier and text of each send. */
 function answerInTurn(answers: readonly Outcome[]) {
     const sent: string[] = [];
     const texts: string[] = [];
@@ -309,7 +307,7 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
     });
 });
 
-test("open a message's content only for its provider, keeping it out of the journal and the change log, and drop it as the message settles", async () => {
+test("open a message's content only for its provider, out of the journal and the change log, and drop it as the message settles", async () => {
     const { read, until, texts, leaks } = await startMessages([{ kind: "sent" }]);
 
     // send the plaintext while no stored row has it
@@ -327,7 +325,7 @@ test("open a message's content only for its provider, keeping it out of the jour
     });
 });
 
-test("drop a message's sealed content as it settles, leaving no copy in any row or journal entry and keeping its attempts", async () => {
+test("drop a message's sealed content as it settles, leaving no copy in any row or journal entry, with its attempts counted", async () => {
     const sent = await startMessages([{ kind: "sent" }]);
     const failed = await startMessages([
         { kind: "failed", error: { code: "MessageRejected", message: "unverified" } },
@@ -351,11 +349,11 @@ test("drop a message's sealed content as it settles, leaving no copy in any row 
         sent: { status: "false", reason: "MessageRejected" },
     });
 
-    // keep no copy of the content in any row or journal entry
+    // leave no copy of the content in any row or journal entry
     expect([await sent.leaks(), await failed.leaks()]).toEqual([[], []]);
 });
 
-test("schedule messages, then send, defer or skip each while it waits, showing a desktop one at once until its client receives it", async () => {
+test("send a message as it is created: a provider's pending with its content, a desktop one shown at once until its client receives it", async () => {
     const { messages, storage, scope } = await openMessages({});
     const now = Date.now();
     const mutate = (calls: readonly Call[]) =>
@@ -367,109 +365,65 @@ test("schedule messages, then send, defer or skip each while it waits, showing a
         await MessageKey.derive(ROOT)
     ).seal({ channel: "email", subject: "Mentioned", text: TEXT }, scope.id);
 
-    // schedule an email, a push, a second email and a desktop message
+    // send an email with its content and show a desktop message
     const email = { channel: "email" as const, address: "dana@example.com" };
+    const desktop = { channel: "desktop" as const, client: CLIENT };
+    const [first, second] = [newId(), newId()];
+    await mutate([
+        message.call("create", {
+            ...message.target({ scope: scope.id, id: first }),
+            to: email,
+            ...ObjectReference.columns("source", scope),
+            ciphertext: sealed,
+        }),
+        message.call("create", {
+            ...message.target({ scope: scope.id, id: second }),
+            to: desktop,
+            ...ObjectReference.columns("source", scope),
+        }),
+    ]);
+
+    // mark the desktop one delivered once its client receives it, twice alike
+    await mutate([message.call("receive", { scope: scope.id, id: second })]);
+    await mutate([message.call("receive", { scope: scope.id, id: second })]);
+
+    // refuse a receipt off a desktop, and a push without its content
     const push = {
         channel: "push" as const,
         url: "https://push.example/endpoint",
         keys: { p256dh: "key", auth: "secret" },
     };
-    const desktop = { channel: "desktop" as const, client: CLIENT };
-    const [first, second, third, fourth] = [newId(), newId(), newId(), newId()];
-    const destinations = [
-        [first, email],
-        [second, push],
-        [third, email],
-        [fourth, desktop],
-    ] as const;
-    await mutate(
-        destinations.map(([id, to]) =>
-            message.call("create", {
-                ...message.target({ scope: scope.id, id }),
-                to,
-                ...ObjectReference.columns("source", scope),
-                dueAt: now,
-                status: "scheduled",
-            }),
-        ),
-    );
-
-    // send the first email, move the push into a summary, skip the second email and show the desktop one
-    await mutate([
-        message.call("send", { scope: scope.id, id: first, to: email, ciphertext: sealed }),
-        message.call("defer", {
-            scope: scope.id,
-            id: second,
-            dueAt: now + 60_000,
-            isSummarized: true,
-        }),
-        message.call("skip", { scope: scope.id, id: third, reason: "read" }),
-        message.call("send", { scope: scope.id, id: fourth, to: desktop }),
-    ]);
-
-    // mark the desktop one delivered once its client receives it, twice alike
-    await mutate([message.call("receive", { scope: scope.id, id: fourth })]);
-    await mutate([message.call("receive", { scope: scope.id, id: fourth })]);
-
-    // refuse what each state forbids: deciding again, a receipt off a desktop, a send without content
     const refused = await Promise.all([
-        refusal(mutate([message.call("skip", { scope: scope.id, id: first, reason: "read" })])),
         refusal(mutate([message.call("receive", { scope: scope.id, id: first })])),
-        refusal(mutate([message.call("send", { scope: scope.id, id: second, to: push })])),
+        refusal(
+            mutate([
+                message.call("create", {
+                    ...message.target({ scope: scope.id, id: newId() }),
+                    to: push,
+                    ...ObjectReference.columns("source", scope),
+                }),
+            ]),
+        ),
     ]);
     expect(refused).toEqual([
-        ["CONFLICT", `message ${first} is pending and cannot skip`],
         ["CONFLICT", `message ${first} is not a sent desktop message`],
-        ["BAD_REQUEST", `message ${second} on push has no content`],
+        ["BAD_REQUEST", "a message on push needs its sealed content"],
     ]);
 
-    // keep each message's state
+    // the email stays pending with its content, and the desktop message is delivered without content
     const rows = await storage.database
         .select({
             id: message.table.id,
             status: message.table.status,
-            reason: message.table.reason,
-            dueAt: message.table.dueAt,
-            isSummarized: message.table.isSummarized,
             hasContent: message.table.ciphertext,
         })
         .from(message.table);
     const states = new Map(
         rows.map((row) => [row.id, { ...row, hasContent: row.hasContent !== null }]),
     );
-    expect([first, second, third, fourth].map((id) => states.get(id))).toEqual([
-        {
-            id: first,
-            status: "pending",
-            reason: null,
-            dueAt: now,
-            isSummarized: false,
-            hasContent: true,
-        },
-        {
-            id: second,
-            status: "scheduled",
-            reason: null,
-            dueAt: now + 60_000,
-            isSummarized: true,
-            hasContent: false,
-        },
-        {
-            id: third,
-            status: "skipped",
-            reason: "read",
-            dueAt: now,
-            isSummarized: false,
-            hasContent: false,
-        },
-        {
-            id: fourth,
-            status: "delivered",
-            reason: null,
-            dueAt: now,
-            isSummarized: false,
-            hasContent: false,
-        },
+    expect([first, second].map((id) => states.get(id))).toEqual([
+        { id: first, status: "pending", hasContent: true },
+        { id: second, status: "delivered", hasContent: false },
     ]);
 });
 

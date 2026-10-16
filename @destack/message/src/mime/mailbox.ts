@@ -23,7 +23,7 @@ const MAX_LABEL_LENGTH = 63;
 /** A display name of atoms split by spaces, which needs no quoting. */
 const ATOM_PHRASE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?: [A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/u;
 
-/** A display name of printable ASCII, which quoting keeps. */
+/** A display name of printable ASCII, which quoting leaves as it is. */
 const PRINTABLE = /^[\x20-\x7E]*$/u;
 
 /** A mailbox written with a display name: the name, then the address in angle brackets. */

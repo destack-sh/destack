@@ -137,7 +137,7 @@ test("fold long ASCII subjects, display names and address lists at spaces", asyn
     );
 });
 
-test("keep long structured headers valid, folding them at spaces", async () => {
+test("fold long structured headers at spaces, valid", async () => {
     const unsubscribe = `https://destack.app/unsubscribe/${"a1b2c3d4".repeat(12)}`;
     const message = await MimeMessage.compose({
         ...DRAFT,
@@ -210,7 +210,7 @@ test("derive the Message-ID from the sender's address and the key alone", async 
     const sender = await MimeMessage.compose({ ...DRAFT, from: "alerts@destack.app" });
     const relayed = await MimeMessage.compose({ ...DRAFT, from: "notices@mail.destack.app" });
 
-    // keep the Message-ID across resends of one key, and change it with the key or the address
+    // derive the same Message-ID across resends of one key, and another with another key or address
     expect([
         first.messageId,
         resent.messageId,
@@ -311,7 +311,7 @@ test("roundtrip random subjects and bodies within the line limits", async () => 
         const text = pick();
         const message = await MimeMessage.compose({ ...DRAFT, subject, text });
 
-        // keep every line within the limit, and decode the subject and body back
+        // fit every line within the limit, and decode the subject and body back
         const lines = message.content.split("\r\n");
         expect(lines.filter((line) => line.length > LINE_LIMIT)).toEqual([]);
         expect(decodeSubject(message.content)).toBe(subject);

@@ -29,7 +29,7 @@ export const PushContent = schema.object({
     data: schema.json(),
     /** How urgently the push service delivers it. */
     urgency: schema.enum(URGENCIES),
-    /** How long the push service keeps it for an offline browser, in seconds. */
+    /** How long the push service stores it for an offline browser, in seconds. */
     ttl: schema.number().int().nonnegative(),
     /** The topic a later push with the same one replaces, after RFC 8030. */
     topic: schema

@@ -47,9 +47,25 @@ export function implementMessage(options: MessageOptions) {
         methods: {
             create: async (call, next) => {
                 // let only an endpoint's managers post webhooks to it, with its secret
-                if (call.input.to.channel === "webhook") {
+                const { to, ciphertext } = call.input;
+                if (to.channel === "webhook") {
                     const source = ObjectReference.at("source", call.input);
                     await call.require(endpoint.permission("manage"), source);
+                }
+
+                // show a desktop message at once, without content
+                if (to.channel === "desktop") {
+                    return next(
+                        call.with({
+                            input: { ...call.input, status: "sent", settledAt: call.now },
+                        }),
+                    );
+                }
+                // refuse a provider's message without its content
+                else if (ciphertext === undefined) {
+                    throw new CallError("BAD_REQUEST", {
+                        message: `a message on ${to.channel} needs its sealed content`,
+                    });
                 }
 
                 return next();
@@ -66,39 +82,6 @@ export function implementMessage(options: MessageOptions) {
                 return { key: await push.applicationServerKey() };
             },
             contentKey: async () => ({ key: (await MessageKey.derive(options.keys)).key }),
-            send: async (call) => {
-                // show a desktop message at once, without content
-                const { to, ciphertext } = call.input;
-                requireScheduled(call.target, "send");
-                if (to.channel === "desktop") {
-                    return call.update({ to, status: "sent", settledAt: call.now });
-                }
-                // refuse a provider's message without its content
-                else if (ciphertext === undefined) {
-                    throw new CallError("BAD_REQUEST", {
-                        message: `message ${call.target.id} on ${to.channel} has no content`,
-                    });
-                }
-
-                return call.update({ to, status: "pending", ciphertext });
-            },
-            defer: async (call) => {
-                requireScheduled(call.target, "defer");
-
-                return call.update({
-                    dueAt: call.input.dueAt,
-                    isSummarized: call.input.isSummarized,
-                });
-            },
-            skip: async (call) => {
-                requireScheduled(call.target, "skip");
-
-                return call.update({
-                    status: "skipped",
-                    reason: call.input.reason,
-                    settledAt: call.now,
-                });
-            },
         },
         controller: {
             // send pending messages
@@ -244,14 +227,5 @@ function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: num
                 message: outcome.error.message,
             },
         };
-    }
-}
-
-/** Require a scheduled message, the one state waiting for a decision. */
-function requireScheduled(target: { readonly id: string; readonly status: string }, verb: string) {
-    if (target.status !== "scheduled") {
-        throw new CallError("CONFLICT", {
-            message: `message ${target.id} is ${target.status} and cannot ${verb}`,
-        });
     }
 }

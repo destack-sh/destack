@@ -55,7 +55,7 @@ beforeAll(async () => {
     });
 });
 
-test("submit a message with PLAIN, keeping blind copies in the envelope only", async () => {
+test("submit a message with PLAIN, with blind copies in the envelope only", async () => {
     await using server = await SmtpTestServer.listen({ security: "none", plain: PLAIN });
     const submission = await createClient(server).submit(
         { sender: "notices@destack.app", recipients: ["ada@example.com", "audit@destack.app"] },
@@ -199,7 +199,7 @@ test("return each recipient's reply verbatim, sending data once one is accepted"
     expect(server.messages).toEqual([message.content]);
 });
 
-test("keep the text of replies without an enhanced code of their class", async () => {
+test("read the text of replies without an enhanced code of their class", async () => {
     await using server = await SmtpTestServer.listen({
         security: "none",
         plain: PLAIN,
@@ -685,7 +685,7 @@ function accepted(enhancedCode: string, text: string) {
 async function listenRaw(
     serve: (socket: net.Socket) => void,
 ): Promise<{ port: number; close: () => Promise<void> } & AsyncDisposable> {
-    // accept connections, keeping each socket until the server closes
+    // accept connections, holding each socket until the server closes
     const sockets = new Set<net.Socket>();
     const server = net.createServer((socket) => {
         sockets.add(socket);

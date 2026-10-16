@@ -25,7 +25,7 @@ export class SmtpError extends Error implements DomainError {
 
     /** Create an SMTP failure. */
     constructor(code: SmtpErrorCode, message: string, reply?: Reply, options?: ErrorOptions) {
-        // keep the code and the rejecting reply
+        // store the code and the rejecting reply
         super(message, options);
         this.name = "SmtpError";
         this.code = code;

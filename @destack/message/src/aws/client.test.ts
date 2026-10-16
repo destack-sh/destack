@@ -286,7 +286,7 @@ test("refuse a malformed region", () => {
 });
 
 test.each(REFUSALS)(
-    "map %s to its failure, keeping the AWS code",
+    "map %s to its failure with the AWS code",
     async (_, answer, code, awsCode, isRetryable) => {
         const client = new SesClient({
             region: "eu-central-1",

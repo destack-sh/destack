@@ -245,7 +245,7 @@ export class SmtpConnection {
         }
     }
 
-    /** Settle the waiting read with a reply, or keep the reply for the next read. */
+    /** Settle the waiting read with a reply, or store the reply for the next read. */
     #deliver(reply: Reply): void {
         const waiter = this.#waiter;
         this.#waiter = undefined;
@@ -277,7 +277,7 @@ export class SmtpConnection {
 
     /** End the connection with its first failure, settling the waiting step with it. */
     #fail(error: SmtpError): void {
-        // keep the first failure
+        // record the first failure
         if (this.#failure !== undefined) {
             return;
         }
