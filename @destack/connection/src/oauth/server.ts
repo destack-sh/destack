@@ -1,4 +1,4 @@
-import { aligned, defineSchema, Duration, schema } from "@destack/schema";
+import { nth, defineSchema, Duration, schema } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -181,7 +181,7 @@ export class AuthorizationServer implements AuthorizationClient {
         }
 
         // read the first authorization server's metadata and require it as the issuer
-        const issuer = aligned(described.authorization_servers, 0);
+        const issuer = nth(described.authorization_servers, 0);
         const issuerUrl = new URL(issuer);
         const serverUrl = new URL(
             `/.well-known/oauth-authorization-server${trimmed(issuerUrl.pathname)}`,
