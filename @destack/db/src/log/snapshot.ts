@@ -33,8 +33,8 @@ export interface WindowRead<Read = Row> extends QueryOptions<Read> {
     readonly orderBy: OrderBy<Read>;
     /** The most rows of each window. */
     readonly limit: number;
-    /** What the read admits beyond the condition. */
-    readonly admits?: Admission;
+    /** Which rows the read shows beyond the condition. */
+    readonly visible?: Visibility;
     /** The computed values and relations the condition and order read. */
     readonly namespace?: Namespace;
     /** How the read follows the table's relations in memory. */
@@ -69,11 +69,11 @@ export type Rewind = (
 /** Read a layer's rows over a table's rows by key name: a row, or null for a removed one. */
 export type Overlay = (table: Table) => Promise<ReadonlyMap<string, Row | null>>;
 
-/** What an ordered read admits beyond a condition. */
-export interface Admission {
-    /** Match the admitted current rows, absent to decide in memory. */
+/** Which rows an ordered read shows beyond a condition. */
+export interface Visibility {
+    /** Match the visible current rows, absent to decide in memory. */
     readonly current?: SQL;
-    /** Decide whether a row image is admitted. */
+    /** Decide whether a row image is visible. */
     readonly image: (row: Row) => Promise<boolean>;
 }
 
@@ -272,7 +272,7 @@ export class Snapshot {
         return row === undefined || row === null ? null : Table.image(table, row);
     }
 
-    /** Read up to a count of admitted matching rows ordered after a row, with computed values. */
+    /** Read up to a count of visible matching rows ordered after a row, with computed values. */
     async ordered<Definition extends Table, Extra = {}>(
         table: Definition,
         query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & { readonly after?: Row },
@@ -285,7 +285,7 @@ export class Snapshot {
         return rows.map((row) => Table.image(table, row));
     }
 
-    /** Read up to a count of admitted rows per partition of a column's values, in order. */
+    /** Read up to a count of visible rows per partition of a column's values, in order. */
     async windows<Definition extends Table, Extra = {}>(
         table: Definition,
         query: WindowRead<RowImage<NoInfer<Definition>> & Extra> & {
@@ -305,8 +305,8 @@ export class Snapshot {
     ): Promise<Row[][]> {
         // record the scan, then read enough current rows to cover every changed row
         this.#reads?.images(table, query.where ?? {});
-        const admits = query.admits;
-        const isAdmittedInMemory = admits !== undefined && admits.current === undefined;
+        const visible = query.visible;
+        const isVisibleInMemory = visible !== undefined && visible.current === undefined;
         const order = Order.complete(Order.of(query.orderBy), table);
         const namespace = query.namespace ?? { extras: {} };
         const predicate = Condition.resolve(query.where, Namespace.fields(table, namespace));
@@ -319,7 +319,7 @@ export class Snapshot {
         let rows: Row[] = [];
         while (unsettled.size > changed) {
             changed = unsettled.size;
-            const limit = isAdmittedInMemory ? undefined : query.limit + changed;
+            const limit = isVisibleInMemory ? undefined : query.limit + changed;
             const read = await this.#readCurrent(table, query, partition, order, predicate, limit);
             rows = read.rows;
 
@@ -342,7 +342,7 @@ export class Snapshot {
             reached = Math.max(reached, sequence);
         }
 
-        // overlay the matching admitted images
+        // overlay the matching visible images
         const kept = await this.#merge(table, rows, unsettled, query, order, predicate);
 
         // sort each window and keep its first rows
@@ -362,11 +362,11 @@ export class Snapshot {
         predicate: Predicate,
         limit: number | undefined,
     ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
-        // select the matching admitted rows after the read's row
+        // select the matching visible rows after the read's row
         const namespace = query.namespace ?? { extras: {} };
         const selection = and(
             render(predicate, table, namespace),
-            query.admits?.current,
+            query.visible?.current,
             query.after === undefined
                 ? undefined
                 : Order.after(order, table, query.after, namespace),
@@ -408,7 +408,7 @@ export class Snapshot {
         return settling;
     }
 
-    /** Keep admitted current rows without an image, and add admitted images after a read's row. */
+    /** Take visible current rows without an image, and add visible images after a read's row. */
     async #merge<Read>(
         table: Table,
         rows: Row[],
@@ -418,21 +418,21 @@ export class Snapshot {
         predicate: Predicate,
     ): Promise<Row[]> {
         // keep the current rows no image replaces
-        const { admits, relations } = query;
+        const { visible, relations } = query;
         const namespace = query.namespace ?? { extras: {} };
         const match = Predicate.compile(predicate, table);
         const current =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
 
-        // admit them in memory when the read admits no rows in SQL
+        // decide them in memory when the read matches no visible rows in SQL
         const decided =
-            admits !== undefined && admits.current === undefined
-                ? await Promise.all(current.map((row) => admits.image(row)))
+            visible !== undefined && visible.current === undefined
+                ? await Promise.all(current.map((row) => visible.image(row)))
                 : undefined;
         const kept =
             decided === undefined ? current : current.filter((_, index) => decided[index] === true);
 
-        // add the admitted images matching the read after its row
+        // add the visible images matching the read after its row
         for (const image of images.values()) {
             const augmented =
                 image === null
@@ -442,7 +442,7 @@ export class Snapshot {
                 augmented !== null &&
                 (await decides(match, predicate, table, augmented, relations)) &&
                 (query.after === undefined || Order.rows(order, augmented, query.after) > 0) &&
-                (admits === undefined || (await admits.image(augmented)))
+                (visible === undefined || (await visible.image(augmented)))
             ) {
                 kept.push(augmented);
             }
@@ -489,7 +489,7 @@ export class Snapshot {
         return found;
     }
 
-    /** Read the logged columns of admitted rows with the log's head in one statement. */
+    /** Read the logged columns of visible rows with the log's head in one statement. */
     async #read(
         table: Table,
         selection: SQL,
