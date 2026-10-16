@@ -4,7 +4,7 @@ import type { PackageId } from "@destack/package";
 import { createLocalJWKSet } from "jose";
 import { Scope } from "@destack/sync";
 import type { Select, Snapshot } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import { defineObject, defineShape, field } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
 import { Digest, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -91,6 +91,14 @@ export const operation = defineObject(
 );
 /** An identity operation as its table stores it. */
 export type Operation = Select<typeof operation.table>;
+
+/** The identities and their logs, replicated to verify what the universe and spaces sign. */
+export const identityShape = defineShape({
+    name: "identity",
+    parameters: schema.object({}),
+    objects: [identity, operation],
+    queries: () => [identity.query({ scopes: "every" }), operation.query({ scopes: "every" })],
+});
 
 /** The reads of identities from their logs. */
 export const Identity = {

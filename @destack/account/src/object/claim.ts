@@ -2,7 +2,6 @@ import { ANY_SCOPE, none, through, union } from "@destack/access";
 import { claimMethods, claimTable, defineObject, defineShape, INTRINSIC } from "@destack/object";
 import { schema } from "@destack/schema";
 import { endpoint } from "./endpoint.ts";
-import { identity, operation } from "./identity.ts";
 import { key } from "./key.ts";
 import { account } from "./account.ts";
 import { machine } from "./machine.ts";
@@ -60,11 +59,11 @@ export const claimShape = defineShape({
     ],
 });
 
-/** The directory replicated to machines and routers: placements, names, machines and identities. */
+/** The directory replicated to machines and routers: placements, names, machines and endpoints. */
 export const directoryShape = defineShape({
     name: "directory",
     parameters: schema.object({}),
-    objects: [placement, claim, machine, key, endpoint, identity, operation],
+    objects: [placement, claim, machine, key, endpoint],
     queries: () => [
         placement.query({ scopes: "every" }),
         claim.query({ scopes: "every" }),
@@ -75,7 +74,5 @@ export const directoryShape = defineShape({
             where: { parentPackageId: machine.typeReference.packageId, parentType: machine.name },
         }),
         endpoint.query({ scopes: "every" }),
-        identity.query({ scopes: "every" }),
-        operation.query({ scopes: "every" }),
     ],
 });
