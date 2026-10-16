@@ -3,7 +3,6 @@ import { AccessFixture } from "@destack/access/test";
 import { CallEvent, call, defineAuditAction } from "@destack/object";
 import { AuditRecorder, Journal } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
-import { outbox } from "@destack/runtime/outbox";
 import { defineDatabase, type DatabaseConnection, eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
@@ -40,7 +39,7 @@ const place = new Policy(import.meta.destack.package, {
 /** A database with endpoints, their messages and the calls they deliver, as a space has them. */
 const endpointDatabase = defineDatabase({
     name: "endpoint",
-    tables: [...messageTables, outbox, ...vaultDatabase.tables],
+    tables: [...messageTables, ...vaultDatabase.tables],
 });
 
 /** The fields of an endpoint posting each call as a signed event. */
