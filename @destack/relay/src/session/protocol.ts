@@ -45,17 +45,12 @@ export const TunnelProtocol = {
     },
 };
 
-/** The answer to a machine's renewal: its name and the seconds until its new token lapses. */
+/** The answer to a machine's renewal: its name and when its new token lapses. */
 export const Renewal = schema.object({
     /** The name the relay routes to the machine, such as `laptop--florian.destack.computer`. */
     name: schema.string().min(1),
-    /** The seconds until the renewed token lapses. */
-    expiresIn: schema.number().nonnegative(),
+    /** When the renewed token lapses, in UTC epoch milliseconds. */
+    lapsesAt: schema.number().int(),
 });
 /** The answer to a machine's renewal. */
 export type Renewal = schema.Infer<typeof Renewal>;
-
-/** The name the relay sends a machine once it changes. */
-export const MachineName = Renewal.pick({ name: true });
-/** The name the relay sends a machine once it changes. */
-export type MachineName = schema.Infer<typeof MachineName>;

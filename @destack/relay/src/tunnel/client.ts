@@ -1,6 +1,6 @@
-import { RetryPolicy } from "@destack/service/timer";
+import { telemetry } from "@destack/telemetry";
+import { RetryPolicy } from "@destack/runtime/timer";
 import {
-    MachineName,
     PING_MESSAGE,
     PONG_MESSAGE,
     Renewal,
@@ -8,11 +8,15 @@ import {
     type Stream,
     TunnelProtocol,
 } from "../session/index.ts";
+import type { ClientSocket, Environment } from "@destack/environment";
 
-/** How often a machine probes its tunnel's liveness: every 15 s. */
+/** The instruments capturing the failed dials, renewals and forwarded requests. */
+const instruments = telemetry.scope(import.meta.destack.package);
+
+/** How often a machine probes its tunnel: 15 s, under Cloudflare's 100 s idle WebSocket timeout. */
 const HEARTBEAT_MILLISECONDS = 15_000;
 
-/** The share of a token's lifetime a machine waits before renewing it: 80%. */
+/** The share of a token's lifetime a machine waits before renewing it: 80%, as kubelet does. */
 const RENEWAL_SHARE = 0.8;
 
 /** The status a machine answers a forwarded request with when its handler gives no answer. */
@@ -21,10 +25,10 @@ const BAD_GATEWAY = 502;
 /** The WebSocket close code refusing a message's data type, from RFC 6455 section 7.4.1. */
 const UNSUPPORTED_DATA = 1003;
 
-/** How a machine waits before dialing again: half a second, doubling up to 30 seconds, jittered. */
+/** How a machine waits before dialing again: 0.5 s doubling to 30 s, with AWS's full jitter. */
 const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, jitter: "full" });
 
-/** How a machine keeps its tunnel. */
+/** How a machine runs its tunnel. */
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
     readonly url: string;
@@ -32,19 +36,19 @@ export interface TunnelClientOptions {
     readonly token: () => Promise<string>;
     /** Answer a request the relay forwards. */
     readonly fetch: (request: Request) => Promise<Response>;
-    /** Learn the name the relay routes to the machine. */
-    readonly name: (name: string) => void;
+    /** Learn the machine's name and its tunnel's lapse at each renewal. */
+    readonly renewed: (renewal: Renewal) => void;
     /** How often to probe the tunnel's liveness, in milliseconds. */
     readonly heartbeat?: number;
     /** How to wait between attempts, below the policy's interval. */
     readonly retry?: Partial<RetryPolicy>;
-    /** Report a failed attempt, such as an unreachable relay or a refused token. */
-    readonly report: (error: unknown) => void;
+    /** The clock the tunnel waits its heartbeats and retries on, and the network it dials. */
+    readonly environment: Environment;
 }
 
 /** A machine's tunnel to its relay, dialed again with backoff whenever it ends until closed. */
 export class TunnelClient {
-    /** How the tunnel is kept. */
+    /** How the tunnel runs. */
     readonly #options: TunnelClientOptions;
     /** How to wait between attempts. */
     readonly #retry: RetryPolicy;
@@ -59,14 +63,14 @@ export class TunnelClient {
     /** The dialing loop. */
     #running: Promise<void> | undefined;
 
-    /** Keep a tunnel as the options describe. */
+    /** Create a tunnel as the options describe. */
     private constructor(options: TunnelClientOptions) {
         this.#options = options;
         this.#retry = RetryPolicy.of({ ...RETRY, ...options.retry });
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
     }
 
-    /** Dial a relay and keep the tunnel open until closed. */
+    /** Dial a relay, dialing again after each end until closed. */
     static open(options: TunnelClientOptions): TunnelClient {
         const client = new TunnelClient(options);
         client.#running = client.#run();
@@ -110,11 +114,18 @@ export class TunnelClient {
                 failures = 1;
             } else if (!this.#stopping.signal.aborted) {
                 failures += 1;
-                this.#options.report(new Error(`tunnel to ${this.#options.url} did not open`));
+                instruments.captureMessage(`tunnel to ${this.#options.url} did not open`, {
+                    level: "warning",
+                });
             }
 
             // wait out the jittered backoff
-            const isWaited = await RetryPolicy.pause(this.#retry, failures, this.#stopping.signal);
+            const isWaited = await RetryPolicy.pause(
+                this.#retry,
+                failures,
+                this.#options.environment.clock,
+                this.#stopping.signal,
+            );
             if (!isWaited) {
                 return;
             }
@@ -124,11 +135,14 @@ export class TunnelClient {
     /** Dial the relay once and resolve whether the tunnel opened after it ends. */
     async #dial(): Promise<boolean> {
         // connect with the machine's token
-        let socket: WebSocket;
+        let socket: ClientSocket;
         try {
             socket = await this.#connect();
         } catch (error) {
-            this.#options.report(error);
+            // warn of a dial the backoff retries
+            instruments.captureMessage(`dialing ${this.#options.url} failed: ${String(error)}`, {
+                level: "warning",
+            });
 
             return false;
         }
@@ -139,7 +153,6 @@ export class TunnelClient {
             following: new AbortController(),
             ended: Promise.withResolvers<boolean>(),
             session: undefined,
-            heartbeat: undefined,
             renewal: undefined,
             isAlive: true,
         };
@@ -149,17 +162,15 @@ export class TunnelClient {
     }
 
     /** Open a socket to the relay that offers the machine's token as a subprotocol. */
-    async #connect(): Promise<WebSocket> {
+    async #connect(): Promise<ClientSocket> {
         // address the relay's tunnel over WebSocket
         const url = new URL(this.#options.url);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
         // offer the machine's token
         const token = await this.#options.token();
-        const socket = new WebSocket(url, TunnelProtocol.offer(token));
-        socket.binaryType = "arraybuffer";
 
-        return socket;
+        return this.#options.environment.network.connect(url.href, TunnelProtocol.offer(token));
     }
 
     /** Listen to the client's close and the socket's events for one connection. */
@@ -188,12 +199,12 @@ export class TunnelClient {
         const session = new Session(
             { send: (message) => socket.send(message), close: () => socket.close() },
             "client",
-            { accept: (stream) => void this.#answer(stream) },
+            { accept: (stream) => void this.#answer(session, connection, stream) },
         );
         connection.session = session;
 
         // probe liveness each heartbeat
-        connection.heartbeat = this.#beat(connection);
+        void this.#beat(connection);
 
         // open the tunnel once the relay answers its first ping
         session.ping().then(
@@ -210,7 +221,7 @@ export class TunnelClient {
         this.#waiting = undefined;
 
         // learn the machine's name and its token's lifetime
-        this.#schedule(connection, session, 0);
+        void this.#schedule(connection, session, 0);
     }
 
     /** Pass a binary frame to the session, and take a liveness answer. */
@@ -246,19 +257,19 @@ export class TunnelClient {
         const isOpened = this.#session === session && session !== undefined;
         this.#session = undefined;
 
-        // stop following the client's close and stop probing and renewing
+        // stop following the client's close, probing and renewing
         connection.following.abort();
-        clearInterval(connection.heartbeat);
-        clearTimeout(connection.renewal);
+        connection.renewal?.abort();
 
         // end the session's streams
         session?.terminate();
         connection.ended.resolve(isOpened);
     }
 
-    /** Probe the tunnel's liveness each heartbeat. */
-    #beat(connection: Connection): ReturnType<typeof setInterval> {
-        return setInterval(() => {
+    /** Probe the tunnel's liveness each heartbeat until the connection ends. */
+    async #beat(connection: Connection): Promise<void> {
+        const { signal } = connection.following;
+        while (await this.#sleep(this.#heartbeat, signal)) {
             // drop a socket whose last probe the relay did not answer
             if (!connection.isAlive) {
                 this.#drop(connection);
@@ -269,27 +280,39 @@ export class TunnelClient {
             // probe again for the relay to answer without waking
             connection.isAlive = false;
             connection.socket.send(PING_MESSAGE);
-        }, this.#heartbeat);
+        }
     }
 
-    /** Renew the tunnel's token after a delay, then near the renewed token's lapse. */
-    #schedule(connection: Connection, session: Session, delay: number): void {
-        connection.renewal = setTimeout(() => {
-            this.#renew(session).then(
-                // renew again near the renewed token's lapse
-                (renewal) => {
-                    const lifetime = renewal.expiresIn * 1000;
-                    this.#schedule(connection, session, lifetime * RENEWAL_SHARE);
-                },
-                // report a failure while the session lasts and try again
-                (error: unknown) => {
-                    if (!session.isClosed) {
-                        this.#options.report(error);
-                        this.#schedule(connection, session, this.#heartbeat);
-                    }
-                },
-            );
-        }, delay);
+    /** Renew the tunnel's token after a delay, replacing a scheduled renewal. */
+    async #schedule(connection: Connection, session: Session, delay: number): Promise<void> {
+        // replace the scheduled renewal, ending with the connection
+        connection.renewal?.abort();
+        const renewal = new AbortController();
+        connection.renewal = renewal;
+        const signal = AbortSignal.any([renewal.signal, connection.following.signal]);
+        if (!(await this.#sleep(delay, signal))) {
+            return;
+        }
+
+        // renew again near the renewed token's lapse, or after a heartbeat once it fails
+        try {
+            const renewed = await this.#renew(session);
+            const lifetime = renewed.lapsesAt - this.#options.environment.clock.now();
+            void this.#schedule(connection, session, lifetime * RENEWAL_SHARE);
+        } catch (error) {
+            if (!session.isClosed) {
+                instruments.captureException(error);
+                void this.#schedule(connection, session, this.#heartbeat);
+            }
+        }
+    }
+
+    /** Wait some milliseconds of the clock, answering false once the signal aborts. */
+    async #sleep(milliseconds: number, signal: AbortSignal): Promise<boolean> {
+        return this.#options.environment.clock.sleep(milliseconds, signal).then(
+            () => true,
+            () => false,
+        );
     }
 
     /** Renew the tunnel's token through a stream to the relay, learning the machine's name. */
@@ -308,22 +331,22 @@ export class TunnelClient {
             );
         }
 
-        // learn the name the relay routes to the machine
+        // learn the name the relay routes to the machine and the tunnel's lapse
         const renewal = Renewal.parse(await response.json());
-        this.#options.name(renewal.name);
+        this.#options.renewed(renewal);
 
         return renewal;
     }
 
     /** Answer a request the relay forwards. */
-    async #answer(stream: Stream): Promise<void> {
+    async #answer(session: Session, connection: Connection, stream: Stream): Promise<void> {
         // read the relay's request
         const request = stream.request();
         let response: Response;
         try {
-            // take the name the relay sends to its own tunnel URL
+            // renew at once as the relay asks at its own tunnel URL, learning a new name
             if (request.method === "PUT" && request.url === this.#options.url) {
-                this.#options.name(MachineName.parse(await request.json()).name);
+                void this.#schedule(connection, session, 0);
                 response = new Response(null, { status: 204 });
             }
             // answer a forwarded request
@@ -331,14 +354,14 @@ export class TunnelClient {
                 response = await this.#options.fetch(request);
             }
         } catch (error) {
-            this.#options.report(error);
+            instruments.captureException(error);
             response = new Response(null, { status: BAD_GATEWAY });
         }
 
-        // send it, and stop the rest of a body the handler left unread, leaving a stream the relay dropped
-        await stream.respond(response).catch(() => {});
-        if (request.body !== null && !request.bodyUsed) {
-            await request.body.cancel().catch(() => {});
+        // send it, and stop the rest of a body the handler left unread unless the relay dropped the stream
+        await stream.respond(response);
+        if (request.body !== null && !request.bodyUsed && !request.signal.aborted) {
+            await request.body.cancel();
         }
     }
 }
@@ -346,17 +369,15 @@ export class TunnelClient {
 /** One dial's socket and the session over it. */
 interface Connection {
     /** The socket to the relay. */
-    readonly socket: WebSocket;
+    readonly socket: ClientSocket;
     /** Stops following the client's close once the connection ends. */
     readonly following: AbortController;
     /** Resolves whether the tunnel opened once the connection ends. */
     readonly ended: PromiseWithResolvers<boolean>;
     /** The session over the socket, absent until the socket opens. */
     session: Session | undefined;
-    /** The liveness probe timer, absent until the socket opens. */
-    heartbeat: ReturnType<typeof setInterval> | undefined;
-    /** The next token renewal, absent until the tunnel opens. */
-    renewal: ReturnType<typeof setTimeout> | undefined;
+    /** Stops the scheduled token renewal, absent until the tunnel opens. */
+    renewal: AbortController | undefined;
     /** Whether the relay answered the last liveness probe. */
     isAlive: boolean;
 }

@@ -2,18 +2,18 @@ import { Frame, FrameFlag, FrameType, GoAwayCode } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
 import { Stream } from "./stream.ts";
 
-/** The most streams a session keeps open each way: 1,000. */
+/** The most streams a session has open each way: 1,000, ten times RFC 9113's floor of 100. */
 export const MAX_STREAMS = 1000;
 
-/** The bytes a session lets its peer send across all its streams before crediting more. */
+/** The bytes a peer may send across a session's streams before credit: a stream's widest window. */
 export const SESSION_WINDOW_BYTES = 16 * 1024 * 1024;
 
 /** The WebSocket, or any other message channel, a session sends its frames over. */
 export interface Transport {
     /** Send one frame as one binary message. */
-    send(message: Uint8Array<ArrayBuffer>): void;
+    readonly send: (message: Uint8Array<ArrayBuffer>) => void;
     /** Close the channel. */
-    close(): void;
+    readonly close: () => void;
 }
 
 /** Which end of the channel a session is: the dialing side opens odd streams. */
@@ -50,7 +50,7 @@ export class Session {
     /** The writes waiting for the session's window. */
     readonly #waiting = new Set<PromiseWithResolvers<void>>();
 
-    /** Keep a session over a channel, as the side that dialed or accepted it. */
+    /** Open a session over a channel, as the side that dialed or accepted it. */
     constructor(transport: Transport, role: SessionRole, options: SessionOptions) {
         this.#transport = transport;
         this.#options = options;
@@ -253,21 +253,21 @@ export class Session {
         return undefined;
     }
 
-    /** Keep a stream the peer opened with a SYN. */
+    /** Accept a stream the peer opened with a SYN. */
     #open(frame: Frame): Stream | undefined {
         // refuse identifiers the peer may not open
         const isOwn = frame.stream % 2 === this.#next % 2;
         if (frame.stream === 0 || isOwn || this.#streams.has(frame.stream)) {
             throw new TypeError(`peer opened stream ${frame.stream}, which it may not open`);
         }
-        // reset a stream beyond the open streams a session keeps
+        // reset a stream beyond the open streams a session allows
         else if (this.#streams.size >= MAX_STREAMS) {
             this.send(new Frame(FrameType.window, FrameFlag.rst, frame.stream));
 
             return undefined;
         }
 
-        // keep the stream under the request head it carries
+        // add the stream under its request head
         const head = Head.decodeRequest(frame.payload);
         if (head === undefined) {
             throw new TypeError(`peer opened stream ${frame.stream} without a request head`);

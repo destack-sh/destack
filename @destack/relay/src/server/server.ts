@@ -1,209 +1,267 @@
-import type { ServiceClient } from "@destack/service/client";
+import type { ClientOf } from "@destack/runtime/client";
 import {
     FORWARDED_URL_HEADER,
     type Hibernation,
-    type InstallationContext,
+    type ServerContext,
     PARTITION_HEADER,
     ROUTE_PATH,
-} from "@destack/service/workload";
-import type { accountService } from "@destack/account/service";
-import { account, directoryShape, key, machine } from "@destack/account/object";
+} from "@destack/runtime/workload";
+import type accountPackage from "@destack/account/package";
+import { DOMAINS } from "@destack/account/address";
+import { account, directoryShape, identityShape } from "@destack/account/object";
 import { principal } from "@destack/access";
-import { Uplink } from "@destack/sync";
-import type { DatabaseConnection } from "@destack/db";
-import type { AuditDestination } from "@destack/audit/server";
-import { ObjectStore, Subscriber } from "@destack/object/server";
-import { Clock, type Identifier, schema } from "@destack/schema";
-import { Egress } from "@destack/service";
-import { ServiceError } from "@destack/service/error";
-import type { ServiceContext, ServiceImplementation } from "@destack/service/server";
+import { Scope, Uplink } from "@destack/sync";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { EventStore } from "@destack/event";
+import { defineServer, ObjectStore } from "@destack/object/server";
+import { present, schema } from "@destack/schema";
+import type { CallKey } from "@destack/runtime/request";
+import { Egress } from "@destack/runtime";
+import { CallError } from "@destack/runtime/error";
+import type { PackageImplementation } from "@destack/runtime/server";
 import { connection, tunnel } from "../object/index.ts";
-import { relayService } from "../service/index.ts";
-import { MachineName } from "../session/index.ts";
-import { NameController, Relay, RELAY_PACKAGE, type RelayOptions } from "./relay.ts";
-import { ADMISSION_HEADER, TUNNELS_PATH } from "./tunnel.ts";
-import { Admission } from "./tunnel.ts";
-import { Tunnels } from "./tunnels.ts";
+import relayPackage from "../package.ts";
+import { NameController } from "./name-controller.ts";
+import { Relay, type RelayOptions } from "./relay.ts";
+import { HANDSHAKE_HEADER, Handshake, Tunnel, TUNNEL_PATH } from "./tunnel.ts";
+import { LapseController } from "./lapse-controller.ts";
+import { Follow } from "@destack/object";
+import { Clock } from "@destack/environment";
 
-/** What the relay's service runs as. */
-export interface RelayServiceOptions extends Omit<RelayOptions, "publisher" | "store" | "itself"> {
-    /** The relay's database, which its copies follow into. */
+/** What the relay package runs as. */
+export interface RelayPackageOptions extends Omit<RelayOptions, "store" | "itself"> {
+    /** The relay's database, which its replicas follow into. */
     readonly database: DatabaseConnection;
-    /** The audit history the journal delivers tunnel openings and closes to. */
-    readonly history?: AuditDestination;
-    /** The universe's account service, called as the installation. */
-    readonly accounts: ServiceClient<typeof accountService>;
-    /** The relay installation, its partition, and how it reaches itself. */
-    readonly installation: Pick<
-        InstallationContext,
-        "id" | "scope" | "partition" | "at" | "publisherAt"
+    /** The event log recording the relay's calls, tunnel openings and closes among them. */
+    readonly events: EventStore;
+    /** The key the relay's journal fingerprints sensitive values under. */
+    readonly callKey: CallKey;
+    /** The universe's account package, called as the installation. */
+    readonly accounts: ClientOf<typeof accountPackage>;
+    /** The relay installation's server context: its space, partition, and calls to itself. */
+    readonly server: Pick<
+        ServerContext,
+        "installation" | "name" | "space" | "partition" | "at" | "publisherAt"
     >;
-    /** The WebSockets the instance's host keeps open for it, its tunnels' connections. */
+    /** The host of the instance's hibernating WebSockets, its tunnels' connections. */
     readonly hibernation: Hibernation;
     /** The clock the store and its tunnels run at. */
     readonly clock: Clock;
 }
 
-/** The relay's service with its copies, the router of names and the tunnels the instance holds. */
-export interface RelayImplementation extends ServiceImplementation {
-    /** The relay installation's store: its copies, and its tunnels and their connections. */
+/** The relay package as one store serves it: the root's router, or one machine's tunnel. */
+export type RelayImplementation = PackageImplementation & {
+    /** The relay installation's store at the root or in the partition. */
     readonly objects: ObjectStore;
-    /** The router of names to its machines' tunnels. */
-    readonly relay: Relay;
-    /** The tunnels the instance holds. */
-    readonly tunnels: Tunnels;
+} & (
+        | {
+              /** The root, routing names. */
+              readonly kind: "root";
+              /** The router of names to its machines' tunnels. */
+              readonly relay: Relay;
+          }
+        | {
+              /** A machine's partition, running its tunnel. */
+              readonly kind: "partition";
+              /** The partition's tunnel. */
+              readonly tunnel: Tunnel;
+          }
+    );
+
+/** Implement the relay package at the root, routing names, or in a machine's tunnel partition. */
+export function implementRelay(options: RelayPackageOptions): RelayImplementation {
+    // route names at the root, and run a machine's tunnel in its partition
+    const { server } = options;
+    const below = server.space;
+    const isRoot = server.partition === undefined || server.partition === below;
+
+    return isRoot
+        ? implementRoot(options)
+        : implementPartition(options, present(server.partition, "the tunnel's partition"));
 }
 
-/** Implement the relay's service. */
-export function implementRelay(options: RelayServiceOptions): RelayImplementation {
-    // follow the account service's copies at the root, or the partition's chain from the root
-    const { database, accounts, installation } = options;
-    const below = installation.scope;
-    const isRoot = installation.partition === undefined || installation.partition === below;
-    const self = principal.installation.reference(below, installation.id);
-    const uplink = Uplink.of(() => accounts.replica);
+/** Implement the root: the router of names, which reaches each tunnel in its partition. */
+function implementRoot(options: RelayPackageOptions): RelayImplementation {
+    // implement the tunnel rows, whose renames and closes reach the machine's partition
+    const { server } = options;
+    const below = server.space;
+    const tunnels = tunnel.implement({
+        methods: {
+            rename: async (call, next) => {
+                // rename, and tell the machine's tunnel in its partition
+                const renamed = await next();
+                await relay.tunnel(Tunnel.machine(call.target.id), "rename", {
+                    method: "POST",
+                    body: JSON.stringify({ name: renamed.name }),
+                });
+
+                return renamed;
+            },
+            close: async (call) => {
+                // end the tunnel's connections in its partition
+                const ended = await relay.tunnel(Tunnel.machine(call.target.id), "close", {
+                    method: "POST",
+                });
+                const closed = schema
+                    .object({ closed: schema.boolean() })
+                    .parse(await ended.json());
+
+                // remove a revoked machine's tunnel, and leave a keyless one's for its next key
+                if (call.input.reason === "machine-revoked") {
+                    await call.remove();
+                }
+
+                return closed;
+            },
+        },
+    });
     const objects: ObjectStore = new ObjectStore({
-        principal: self,
-        objects: [tunnel, connection],
-        policies: [account, machine, key],
-        shapes: [directoryShape],
-        database,
+        servers: [
+            defineServer(relayPackage, {
+                objects: [tunnels, connection],
+                // refuse the tunnels' calls at the root, which runs no tunnel
+                adapters: {
+                    tunnels: async () => {
+                        throw new CallError("NOT_FOUND", {
+                            message: "the relay's root runs no tunnel",
+                        });
+                    },
+                },
+                follows: [
+                    Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
+                    Follow.of(identityShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
+                ],
+            }),
+        ],
+        // root the chain above the home space where its row lives
+        chain: async (view) => {
+            const [row] = await Scope.read(view, [below]);
+
+            return row === undefined ? undefined : { kind: "home", parent: row.parent };
+        },
+        principal: principal.installation.reference(below, server.installation),
+        policies: [account],
+        database: options.database,
         callKey: options.callKey,
+        events: options.events,
         clock: options.clock,
-        origin: { package: RELAY_PACKAGE, service: relayService.name },
-        ...(installation.partition === undefined ? {} : { partition: installation.partition }),
-        subscriber: isRoot
-            ? Subscriber.of(uplink, async () => [
-                  ...(await objects.source.servedSubscriptions(below)),
-                  Relay.subscription(below),
-              ])
-            : {
-                  subscriptions: async () => {
-                      // follow the partition's chain from the installation's root
-                      const root = installation.publisherAt(
-                          Egress.address(installation.id, below),
-                          RELAY_PACKAGE.id,
-                      );
-                      const partition = schema.string().parse(installation.partition);
-                      const chain = await objects.source.subscriptions(partition, {
-                          kind: "follower",
-                      });
-
-                      return chain.map((subscription) => ({ subscription, publisher: root }));
-                  },
-              },
+        origin: { package: relayPackage },
+        uplink: Uplink.of(() => options.accounts.store),
     });
 
-    // reach the tunnels in their partitions and the router at the root, through the installation itself
-    const itself = installation.at(Egress.address(installation.id, below));
-    const relay = new Relay({ ...options, publisher: uplink, store: objects, itself });
-    const tunnels = new Tunnels({
+    // call the tunnels in their partitions through the installation itself
+    const relay = new Relay({
+        ...options,
         store: objects,
-        hibernation: options.hibernation,
-        url: relay.url,
-        tokens: options.tokens,
-        domains: relay.domains,
-        report: options.report,
-        withdraw: (machineId) => relay.withdrawAtRoot(machineId),
+        itself: server.at(Egress.address(server.name, below)),
     });
 
-    // run the router's controllers at the root and the lapses everywhere
-    const controllers = isRoot
-        ? [
-              ...objects.controllers(),
-              new NameController(relay),
-              relay.directory.controller(),
-              relay.journal.controller(options.history),
-              tunnels.controller,
-          ]
-        : [...objects.controllers(), tunnels.controller];
+    // serve the package, handing a route's requests to the router, running the names' controller
+    const implementation = objects.package(relayPackage);
 
     return {
-        ...objects.implement(relayService, objects.routed, controllers, {}),
-        fetch: (request, context) => serveRelay(request, context, { relay, tunnels, self }),
-        router: {},
+        ...implementation,
+        controllers: [...(implementation.controllers ?? []), new NameController(relay)],
+        fetch: async (request, context) =>
+            new URL(request.url).pathname === ROUTE_PATH
+                ? relay.fetch(restore(request))
+                : implementation.fetch?.(request, context),
         objects,
+        kind: "root",
         relay,
-        tunnels,
     };
 }
 
-/** Serve a request below the relay's mount. */
-async function serveRelay(
-    request: Request,
-    context: ServiceContext,
-    served: {
-        readonly relay: Relay;
-        readonly tunnels: Tunnels;
-        readonly self: { readonly scope: string; readonly id: string };
-    },
-): Promise<Response | undefined> {
-    // route a name's request a route hands the relay, restored to the URL it asked for
-    const path = new URL(request.url).pathname;
-    if (path === ROUTE_PATH) {
-        return served.relay.route(restore(request));
-    }
-    // leave paths outside the tunnels' calls to the service's routes
-    else if (!path.startsWith(`${TUNNELS_PATH}/`)) {
-        return undefined;
-    }
+/** Implement a machine's partition: its tunnel, its connection rows and their lapses. */
+function implementPartition(options: RelayPackageOptions, partition: string): RelayImplementation {
+    // serve the tunnel's connection rows in its partition, answering the root's calls alone
+    const { server } = options;
+    const below = server.space;
+    const self = principal.installation.reference(below, server.installation);
+    const universe = Uplink.of(() => options.accounts.store);
+    const objects: ObjectStore = new ObjectStore({
+        servers: [
+            defineServer(relayPackage, {
+                objects: [connection],
+                // follow the universe's identity, verifying renewals by its keys
+                follows: [
+                    Follow.of(identityShape, { keys: [{ key: { scope: Scope.universe.id } }] }),
+                ],
+                adapters: {
+                    tunnels: (request) => tunnelCall(request, running),
+                },
+            }),
+        ],
+        // follow the tunnel's chain from the installation's root, which opens the tunnel and relates its server
+        chain: async () => ({ kind: "follower" }),
+        principal: self,
+        // decide the connections under the tunnel's access, which the root stores and the partition replicates
+        policies: [account, tunnel],
+        database: options.database,
+        callKey: options.callKey,
+        events: options.events,
+        clock: options.clock,
+        origin: { package: relayPackage },
+        partition,
+        // reach the universe's rows at the account package, and the tunnel's chain at the root
+        publisher: (home) =>
+            home === Scope.universe.id
+                ? universe
+                : server.publisherAt(Egress.address(server.name, below), relayPackage.id),
+    });
 
-    // take the tunnels' calls from the installation itself alone
-    const { subject } = context.requireCaller();
-    if (
-        !principal.installation.is(subject) ||
-        subject.id !== served.self.id ||
-        subject.scope !== served.self.scope
-    ) {
-        throw new ServiceError("FORBIDDEN", { message: "only the relay calls its tunnels" });
-    }
+    // run the machine's tunnel over the partition's sockets
+    const running = new Tunnel(Tunnel.machine(partition), {
+        store: objects,
+        hibernation: options.hibernation,
+        url: new URL(TUNNEL_PATH, options.origin).href,
+        tokens: Tunnel.verifier(options.issuer, Snapshot.live(options.database)),
+        domains: options.domains ?? DOMAINS,
+    });
 
-    // serve one call of a machine's tunnel
-    const [, called, verb] = path.slice(TUNNELS_PATH.length).split("/");
-    const machineId = schema.identifier("machine").parse(called);
+    // serve the package, running the lapses of the tunnel's connections
+    const implementation = objects.package(relayPackage);
 
-    return serveTunnel(request, machineId, verb ?? "", served);
+    return {
+        ...implementation,
+        controllers: [...(implementation.controllers ?? []), new LapseController(running)],
+        objects,
+        kind: "partition",
+        tunnel: running,
+    };
 }
 
-/** Serve the router's call of a machine's tunnel. */
-async function serveTunnel(
-    request: Request,
-    machineId: Identifier<"machine">,
-    verb: string,
-    served: { readonly relay: Relay; readonly tunnels: Tunnels },
-): Promise<Response> {
-    // accept a machine's admitted WebSocket in its partition
+/** Answer one call of the root to a machine's tunnel. */
+async function tunnelCall(request: Request, running: Tunnel): Promise<Response> {
+    // accept a machine's WebSocket after its handshake
+    const [, , verb] = new URL(request.url).pathname.split("/");
     if (verb === "open") {
-        const admission = Admission.parse(
-            JSON.parse(request.headers.get(ADMISSION_HEADER) ?? "null"),
+        const handshake = Handshake.parse(
+            JSON.parse(request.headers.get(HANDSHAKE_HEADER) ?? "null"),
         );
 
-        return served.tunnels.accept(admission);
+        return running.accept(handshake);
     }
     // forward a request through the tunnel under the host it asked for
     else if (verb === "forward") {
-        return served.tunnels.fetch(machineId, restore(request));
+        return running.fetch(restore(request));
     }
-    // tell the machine its name
+    // tell the machine its new name
     else if (verb === "rename") {
-        const { name } = MachineName.parse(await request.json());
-        await served.tunnels.rename(machineId, name);
+        const { name } = schema
+            .object({ name: schema.string().min(1) })
+            .parse(await request.json());
+        await running.rename(name);
 
-        return Response.json({});
+        return new Response(null, { status: 204 });
     }
-    // end the tunnel's connections
+    // end the tunnel's connections and forget their rows
     else if (verb === "close") {
-        return Response.json({ closed: await served.tunnels.end(machineId) });
-    }
-    // withdraw the endpoint of a machine left without a connection, at the root
-    else if (verb === "withdraw") {
-        await served.relay.withdraw(machineId);
-
-        return Response.json({});
+        return Response.json({ closed: await running.end() });
     }
     // refuse any other call
     else {
-        throw new ServiceError("NOT_FOUND", { message: `no tunnel call ${verb}` });
+        throw new CallError("NOT_FOUND", { message: `no tunnel call ${verb ?? ""}` });
     }
 }
 
@@ -212,7 +270,7 @@ function restore(request: Request): Request {
     // read the URL it asked for
     const url = request.headers.get(FORWARDED_URL_HEADER);
     if (url === null) {
-        throw new ServiceError("BAD_REQUEST", { message: "the handed request names no URL" });
+        throw new CallError("BAD_REQUEST", { message: "the handed request names no URL" });
     }
 
     // ask for it as the client did, without the handing headers

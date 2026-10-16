@@ -107,7 +107,7 @@ function entries(headers: Headers): [string, string][] {
     );
     const isEndToEnd = (name: string) => !HOP_BY_HOP.has(name) && !listed.has(name);
 
-    // keep each set-cookie apart
+    // list each set-cookie apart
     const combined = [...headers].filter(([name]) => name !== "set-cookie" && isEndToEnd(name));
     const cookies = headers.getSetCookie().map((value): [string, string] => ["set-cookie", value]);
 

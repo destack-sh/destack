@@ -59,9 +59,9 @@ export class Stream {
     /** Why the stream ended early, once it did. */
     #failure: Error | undefined;
 
-    /** Keep a stream of a session. */
+    /** Create a stream of a session. */
     constructor(session: Session, id: number, head: RequestHead) {
-        // keep the stream's identity
+        // set the stream's identity
         this.id = id;
         this.head = head;
         this.#session = session;
@@ -147,11 +147,17 @@ export class Stream {
         const head = Head.response(response);
         this.#session.send(new Frame(FrameType.data, FrameFlag.ack, this.id, 0, Head.encode(head)));
 
-        // send the body, or end at once without one
-        if (response.body === null || !Head.hasResponseBody(head)) {
-            await this.writable.close();
-        } else {
-            await response.body.pipeTo(this.writable);
+        // send the body, or end at once without one, leaving a stream the peer ended meanwhile
+        try {
+            if (response.body === null || !Head.hasResponseBody(head)) {
+                await this.writable.close();
+            } else {
+                await response.body.pipeTo(this.writable);
+            }
+        } catch (error) {
+            if (!this.signal.aborted) {
+                throw error;
+            }
         }
     }
 
@@ -323,13 +329,13 @@ export class Stream {
         );
     }
 
-    /** Double the window once a round trip carried two thirds of it to readers keeping up. */
+    /** Double the window once a round trip carried two thirds of it to readers that caught up. */
     #grow(): void {
-        // end the probe, and keep a window the round trip did not fill or readers left waiting
+        // end the probe, leaving a window the round trip did not fill or readers left waiting
         this.#isProbing = false;
         const isFilled = this.#sample >= (this.#window * 2) / 3;
-        const isKeptUp = this.#pendingBytes < this.#window / 2;
-        if (this.#failure !== undefined || !isFilled || !isKeptUp) {
+        const isCaughtUp = this.#pendingBytes < this.#window / 2;
+        if (this.#failure !== undefined || !isFilled || !isCaughtUp) {
             return;
         }
 

@@ -1,13 +1,13 @@
 /** The length of a frame header: type, flags, stream and value. */
 const HEADER_BYTES = 10;
 
-/** The most bytes one frame carries, a request head included: 64 KiB. */
+/** The most bytes one frame contains, a request head included: 64 KiB. */
 export const MAX_PAYLOAD_BYTES = 64 * 1024;
 
 /** The most bytes one frame's message takes. */
 export const MAX_FRAME_BYTES = HEADER_BYTES + MAX_PAYLOAD_BYTES;
 
-/** What a frame carries, as yamux calls its frame types. */
+/** What a frame contains, as yamux calls its frame types. */
 export const FrameType = {
     /** Bytes of a stream, which a SYN data frame opens while carrying its header instead. */
     data: 0,
@@ -44,7 +44,7 @@ export const GoAwayCode = {
 
 /** One yamux-shaped frame of a session, sent as one binary WebSocket message. */
 export class Frame {
-    /** What the frame carries. */
+    /** What the frame contains. */
     readonly type: FrameType;
     /** The frame's flags, a bit set of `FrameFlag`. */
     readonly flags: number;
@@ -63,7 +63,7 @@ export class Frame {
         value = 0,
         payload: Uint8Array = new Uint8Array(0),
     ) {
-        // keep the header's fields and the payload
+        // set the header's fields and the payload
         this.type = type;
         this.flags = flags;
         this.stream = stream;
@@ -94,7 +94,7 @@ export class Frame {
         );
     }
 
-    /** Whether the frame carries a flag. */
+    /** Whether the frame has a flag. */
     has(flag: number): boolean {
         return (this.flags & flag) !== 0;
     }

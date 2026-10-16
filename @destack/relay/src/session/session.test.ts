@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { until } from "../test/index.ts";
 import { Frame, FrameFlag, FrameType } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
@@ -53,10 +53,10 @@ test("forward a request with its head and body, and answer with the response's h
 
     // answer each forwarded request with its method, path and body
     const answering = until(() => accepted.length === 1).then(async () => {
-        const request = aligned(accepted, 0).request();
+        const request = nth(accepted, 0).request();
         const body = await request.text();
         const path = new URL(request.url).pathname;
-        await aligned(accepted, 0).respond(
+        await nth(accepted, 0).respond(
             new Response(`${request.method} ${path} ${body}`, {
                 status: 201,
                 headers: [
@@ -76,8 +76,8 @@ test("forward a request with its head and body, and answer with the response's h
     await answering;
 
     expect([
-        aligned(accepted, 0).id,
-        aligned(accepted, 0).head,
+        nth(accepted, 0).id,
+        nth(accepted, 0).head,
         response.status,
         response.headers.getSetCookie(),
         await response.text(),
@@ -88,10 +88,10 @@ test("forward a request with its head and body, and answer with the response's h
 test("abort the machine's request once the relay's caller cancels it while the machine streams its answer", async () => {
     const { relay, machine, accepted } = pair();
 
-    // answer with a stream the machine keeps open until its request aborts
+    // answer with a stream the machine leaves open until its request aborts
     const aborted = Promise.withResolvers<unknown>();
     void until(() => accepted.length === 1).then(async () => {
-        const stream = aligned(accepted, 0);
+        const stream = nth(accepted, 0);
         const request = stream.request();
         request.signal.addEventListener("abort", () => aborted.resolve(request.signal.reason));
         await stream.respond(new Response(new ReadableStream({ start: () => {} })));
@@ -128,7 +128,7 @@ test("stop a writer at the window until a slow reader credits it", async () => {
 
     // read everything slowly, crediting the writer as the reader takes bytes
     let read = 0;
-    const reader = aligned(accepted, 0).readable.getReader();
+    const reader = nth(accepted, 0).readable.getReader();
     for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
         read += chunk.value.length;
         await new Promise((resolve) => {
@@ -166,7 +166,7 @@ test("stop the writers of every stream at the session's window until their reade
     ]);
 });
 
-test("grow a window the writer outpaces while the reader keeps up, up to its limit", async () => {
+test("grow a window the writer outpaces while the reader catches up, up to its limit", async () => {
     const { relay, accepted } = pair(5);
     const opened = relay.open(head);
     const payload = new Uint8Array(4 * MAX_WINDOW_BYTES).fill(7);
@@ -175,11 +175,8 @@ test("grow a window the writer outpaces while the reader keeps up, up to its lim
     await until(() => accepted.length === 1);
 
     // read everything on arrival and find the window grown to its limit
-    const received = await drain(aligned(accepted, 0).readable);
-    expect([received.length, aligned(accepted, 0).window]).toEqual([
-        payload.length,
-        MAX_WINDOW_BYTES,
-    ]);
+    const received = await drain(nth(accepted, 0).readable);
+    expect([received.length, nth(accepted, 0).window]).toEqual([payload.length, MAX_WINDOW_BYTES]);
 });
 
 test("reset a stream cancelled early, and fail the peer's side and its answer", async () => {
@@ -187,7 +184,7 @@ test("reset a stream cancelled early, and fail the peer's side and its answer", 
     const opened = relay.open(head);
     await until(() => accepted.length === 1);
 
-    await aligned(accepted, 0).readable.cancel();
+    await nth(accepted, 0).readable.cancel();
 
     const failed = await Promise.allSettled([opened.answer, drain(opened.readable)]);
     expect(failed.map((result) => result.status === "rejected" && String(result.reason))).toEqual([
@@ -201,10 +198,10 @@ test("end both sides of a stream whose request body the machine answered without
 
     // answer a large request at once and stop its unread body
     const answering = until(() => accepted.length === 1).then(async () => {
-        const request = aligned(accepted, 0).request();
-        await aligned(accepted, 0).respond(new Response("early"));
+        const request = nth(accepted, 0).request();
+        await nth(accepted, 0).respond(new Response("early"));
         if (request.body === null) {
-            throw new TypeError("the forwarded request has no body");
+            throw new TypeError("the forwarded request lacks a body");
         }
         await request.body.cancel();
     });
@@ -216,7 +213,7 @@ test("end both sides of a stream whose request body the machine answered without
     await until(() => relay.size === 0 && machine.size === 0);
 });
 
-test("reset the streams a peer opens beyond the open stream limit, keeping the session", () => {
+test("reset the streams a peer opens beyond the open stream limit, leaving the session open", () => {
     const sent: Frame[] = [];
     const relay = new Session(
         { send: (message) => sent.push(Frame.decode(message)), close: () => {} },

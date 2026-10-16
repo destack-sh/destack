@@ -8,7 +8,6 @@
     "exports": {
         ".": "./src/index.ts",
         "./server": "./src/server/index.ts",
-        "./service": "./src/service/index.ts",
         "./tunnel": "./src/tunnel/index.ts",
         "./test": "./src/test/index.ts",
         "./package": "./src/package.ts"
@@ -16,14 +15,17 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/service": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/resource": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "jose": "6.2.12"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

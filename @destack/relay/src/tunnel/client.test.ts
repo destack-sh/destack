@@ -1,9 +1,12 @@
+import { TestTelemetry } from "@destack/telemetry/test";
 import { expect, test } from "@destack/test";
 import { createHash } from "node:crypto";
 import { createServer, type Socket } from "node:net";
 import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { freePort, until } from "../test/index.ts";
+import { until } from "../test/index.ts";
 import { TunnelClient } from "./client.ts";
+import { Clock, Environment, type Network } from "@destack/environment";
+import { SeededRandom, SimulatedNetwork, VirtualClock } from "@destack/environment/simulation";
 
 /** The GUID a WebSocket server appends to the client's key to accept it (RFC 6455 1.3). */
 const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -16,6 +19,13 @@ const BINARY_OPCODE = 2;
 
 /** The opcode of a WebSocket close, from RFC 6455 section 5.2. */
 const CLOSE_OPCODE = 8;
+
+/** Make a network on which nothing listens, for dials that never connect. */
+function emptyNetwork(): Network {
+    const clock = new VirtualClock(Date.now()).resume();
+
+    return new SimulatedNetwork(clock, new SeededRandom(1), () => {}).of("machine");
+}
 
 /** A connection to a silent relay. */
 interface SilentConnection {
@@ -121,12 +131,12 @@ async function silentRelay() {
 test("refuse callers waiting for a tunnel once the client closes", async () => {
     // dial a relay that never answers, as a machine with a token
     const client = TunnelClient.open({
-        url: `http://127.0.0.1:${await freePort()}/tunnel`,
+        url: "http://relay.test/tunnel",
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
-        name: () => {},
+        renewed: () => {},
+        environment: { clock: Clock.system, network: emptyNetwork() },
         retry: { initialInterval: 10, maximumInterval: 10 },
-        report: () => {},
     });
     const waiting = Promise.allSettled([client.opened()]);
 
@@ -138,42 +148,47 @@ test("refuse callers waiting for a tunnel once the client closes", async () => {
     ]);
 });
 
-test("keep dialing after the issuer grants no token, reporting each failed dial", async () => {
+test("dial again after the issuer grants no token, warning of each failed dial", async () => {
     // dial with a token the issuer refuses
-    const reports: unknown[] = [];
-    const url = `http://127.0.0.1:${await freePort()}/tunnel`;
+    using telemetry = TestTelemetry.register();
+    const url = "http://relay.test/tunnel";
     const client = TunnelClient.open({
         url,
         token: async () => {
             throw new TypeError("the issuer is unreachable");
         },
         fetch: async () => new Response(null, { status: 204 }),
-        name: () => {},
+        renewed: () => {},
+        environment: { clock: Clock.system, network: emptyNetwork() },
         retry: { initialInterval: 10, maximumInterval: 10 },
-        report: (error) => reports.push(error),
     });
 
-    // report every failed dial and stop cleanly
-    await until(() => reports.length >= 4);
+    // warn of every failed dial and stop cleanly
+    await until(() => telemetry.messages().length >= 4);
     await client.close();
-    expect(reports.slice(0, 2).map(String)).toEqual([
-        "TypeError: the issuer is unreachable",
-        `Error: tunnel to ${url} did not open`,
+    const relay = "@destack/relay";
+    expect(telemetry.messages().slice(0, 2)).toEqual([
+        {
+            scope: relay,
+            severity: "WARN",
+            message: `dialing ${url} failed: TypeError: the issuer is unreachable`,
+        },
+        { scope: relay, severity: "WARN", message: `tunnel to ${url} did not open` },
     ]);
 });
 
 test("drop a tunnel whose relay stops answering, dialing again and closing without its close answered", async () => {
     // dial a relay that accepts the upgrade and answers nothing after
     await using relay = await silentRelay();
-    const reports: unknown[] = [];
+    using telemetry = TestTelemetry.register();
     const client = TunnelClient.open({
         url: relay.url,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
-        name: () => {},
+        renewed: () => {},
+        environment: Environment.system,
         heartbeat: 20,
         retry: { initialInterval: 10, maximumInterval: 10 },
-        report: (error) => reports.push(error),
     });
 
     // dial again after the unanswered liveness probe drops the socket and close while connected to a peer that never answers the close
@@ -185,7 +200,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
     expect({
         protocols: first?.protocols,
         frames: clientFrames(first?.chunks ?? []),
-        report: reports.at(0),
+        warned: telemetry.messages().at(0),
     }).toEqual({
         protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
         frames: [
@@ -196,6 +211,10 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
             { opcode: TEXT_OPCODE, payload: new TextEncoder().encode(PING_MESSAGE) },
             { opcode: CLOSE_OPCODE, payload: Uint8Array.of(0x03, 0xe8) },
         ],
-        report: new Error(`tunnel to ${relay.url} did not open`),
+        warned: {
+            scope: "@destack/relay",
+            severity: "WARN",
+            message: `tunnel to ${relay.url} did not open`,
+        },
     });
 });
