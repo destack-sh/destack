@@ -4,20 +4,20 @@ import type { Deriver } from "../derivation/derivation.ts";
 /** The curve of recipient keys and the ephemeral keys sealing to them. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 
-/** A holder of an ECDH P-256 key that others seal bytes to. */
+/** A party with an ECDH P-256 key that others seal bytes to. */
 export class Recipient {
     /** The public key sources seal to, as base64 of its uncompressed P-256 point (SEC 1). */
     readonly key: string;
-    /** The private key, held only by the recipient itself. */
+    /** The private key, present only on the recipient itself. */
     readonly #privateKey: CryptoKey | undefined;
 
-    /** Hold a recipient's public key, and its private key on the recipient itself. */
+    /** Create a recipient from its public key, and its private key on the recipient itself. */
     private constructor(key: string, privateKey: CryptoKey | undefined) {
         this.key = key;
         this.#privateKey = privateKey;
     }
 
-    /** Generate a recipient holding both halves of a fresh key. */
+    /** Generate a recipient with both halves of a fresh key. */
     static async generate(): Promise<Recipient> {
         const pair = await crypto.subtle.generateKey(CURVE, false, ["deriveBits"]);
         const key = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
@@ -69,7 +69,7 @@ export class Recipient {
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Uint8Array<ArrayBuffer>> {
         if (this.#privateKey === undefined) {
-            throw new TypeError("open sealed bytes on the recipient holding its private key");
+            throw new TypeError("open sealed bytes on the recipient with its private key");
         }
 
         return Ciphertext.decrypt(ciphertext, this.#privateKey, context);

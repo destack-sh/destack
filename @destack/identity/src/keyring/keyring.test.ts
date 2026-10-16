@@ -3,7 +3,7 @@ import { IdentityError } from "../error/error.ts";
 import { MemoryKeychain } from "../keychain/index.ts";
 import { LocalKeyring } from "./index.ts";
 
-test("open root keys a keychain keeps, refuse another context, rotate them, and retire the old key once reencrypted, refusing the active and unknown keys", async () => {
+test("open root keys a keychain stores, refuse another context, rotate them, and retire the old key once reencrypted, refusing the active and unknown keys", async () => {
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
     const context = new TextEncoder().encode("context-1");
@@ -32,7 +32,7 @@ test("open root keys a keychain keeps, refuse another context, rotate them, and 
         new IdentityError("INVALID_ROOT_KEY", "cannot retire the active root key"),
     );
     await expect(LocalKeyring.retire(keychain, name, 99)).rejects.toEqual(
-        new IdentityError("INVALID_ROOT_KEY", `no root key 99 is kept as ${name}`),
+        new IdentityError("INVALID_ROOT_KEY", `no root key 99 is stored as ${name}`),
     );
     const retired = await LocalKeyring.retire(keychain, name, first.active);
     await expect(retired.decrypt(encrypted, context)).rejects.toEqual(
@@ -41,7 +41,7 @@ test("open root keys a keychain keeps, refuse another context, rotate them, and 
     expect([...(await retired.decrypt(reencrypted, context))]).toEqual([...plaintext]);
 });
 
-test("open one keyset from concurrent opens of an empty keychain, and keep both of two concurrent rotations", async () => {
+test("open one keyset from concurrent opens of an empty keychain, and store both of two concurrent rotations", async () => {
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
     const context = new TextEncoder().encode("context-1");

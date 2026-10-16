@@ -10,7 +10,7 @@ export const EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca4959
 /** The last element of every credential scope. */
 const TERMINATOR = "aws4_request";
 
-/** The signing keys a signer keeps, one per day it signed on recently. */
+/** The signing keys a signer caches, one per day it signed on recently. */
 const CACHED_DAYS = 2;
 
 /** An AWS identity's credentials: an access key, its secret, and a session token if temporary. */
@@ -215,12 +215,12 @@ export class AwsSigner {
         return `${timestamp.slice(0, 8)}/${this.region}/${this.service}/${TERMINATOR}`;
     }
 
-    /** Derive the signing key of a day once, keeping the keys of the most recent days. */
+    /** Derive the signing key of a day once, caching the keys of the most recent days. */
     #key(day: string): Promise<CryptoKey> {
         // reuse a recent day's key
-        const kept = this.#keys.get(day);
-        if (kept !== undefined) {
-            return kept;
+        const cached = this.#keys.get(day);
+        if (cached !== undefined) {
+            return cached;
         }
 
         // derive it from the secret through the day, region, service and terminator
@@ -238,7 +238,7 @@ export class AwsSigner {
             ]);
         })();
 
-        // forget the oldest day beyond the kept ones
+        // forget the oldest day beyond the cached ones
         this.#keys.set(day, deriving);
         const [oldest] = this.#keys.keys();
         if (this.#keys.size > CACHED_DAYS && oldest !== undefined) {

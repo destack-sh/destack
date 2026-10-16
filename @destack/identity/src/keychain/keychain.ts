@@ -1,10 +1,10 @@
-/** Where a host keeps its secrets by name, such as its machine key and its root keys. */
+/** Where a host stores its secrets by name, such as its machine key and its root keys. */
 export interface Keychain {
-    /** Read a secret, absent before one was kept. */
+    /** Read a secret, absent before one was stored. */
     readonly load: (name: string) => Promise<string | undefined>;
-    /** Keep a secret, replacing the one kept before. */
+    /** Store a secret, replacing the one stored before. */
     readonly save: (name: string, value: string) => Promise<void>;
-    /** Keep a secret if the kept one equals the expected one, and report whether it did. */
+    /** Store a secret if the stored one equals the expected one, and report whether it did. */
     readonly saveIf: (
         name: string,
         expected: string | undefined,
@@ -12,7 +12,7 @@ export interface Keychain {
     ) => Promise<boolean>;
     /** Forget a secret. */
     readonly remove: (name: string) => Promise<void>;
-    /** Forget a secret if the kept one equals the expected one, and report whether it did. */
+    /** Forget a secret if the stored one equals the expected one, and report whether it did. */
     readonly removeIf: (name: string, expected: string) => Promise<boolean>;
     /** Lock a name exclusively until disposed. */
     readonly lock: (name: string) => Promise<AsyncDisposable>;
@@ -23,23 +23,23 @@ export const Keychain = {
     update,
 };
 
-/** Change the secret kept under a name, retrying over a racing writer's secret. */
+/** Change the secret stored under a name, retrying over a racing writer's secret. */
 async function update(
     keychain: Keychain,
     name: string,
-    change: (kept: string | undefined) => string | Promise<string>,
+    change: (secret: string | undefined) => string | Promise<string>,
 ): Promise<string> {
     // retry a change that loses a race over the winner's secret
     while (true) {
         // write nothing for an unchanged secret
-        const kept = await keychain.load(name);
-        const changed = await change(kept);
-        if (changed === kept) {
+        const secret = await keychain.load(name);
+        const changed = await change(secret);
+        if (changed === secret) {
             return changed;
         }
 
-        // keep the change unless another writer changed the secret first
-        if (await keychain.saveIf(name, kept, changed)) {
+        // store the change unless another writer changed the secret first
+        if (await keychain.saveIf(name, secret, changed)) {
             return changed;
         }
     }
@@ -47,26 +47,26 @@ async function update(
 
 /** A keychain in memory, lost with the process. */
 export class MemoryKeychain implements Keychain {
-    /** The kept secrets, by name. */
+    /** The stored secrets, by name. */
     readonly secrets = new Map<string, string>();
-    /** The last hold of each name, which the next one waits for. */
-    readonly #holds = new Map<string, Promise<void>>();
+    /** The last lock of each name, which the next one waits for. */
+    readonly #locks = new Map<string, Promise<void>>();
 
-    /** Hold a name exclusively until disposed, after its earlier holds. */
+    /** Lock a name exclusively until disposed, after its earlier locks. */
     async lock(name: string): Promise<AsyncDisposable> {
-        // queue behind the name's last hold
-        const previous = this.#holds.get(name) ?? Promise.resolve();
+        // queue behind the name's last lock
+        const previous = this.#locks.get(name) ?? Promise.resolve();
         const released = Promise.withResolvers<void>();
-        const held = previous.then(() => released.promise);
-        this.#holds.set(name, held);
+        const locked = previous.then(() => released.promise);
+        this.#locks.set(name, locked);
         await previous;
 
-        // release the hold on disposal, forgetting it once last
+        // release the lock on disposal, forgetting it once last
         return {
             [Symbol.asyncDispose]: async () => {
                 released.resolve();
-                if (this.#holds.get(name) === held) {
-                    this.#holds.delete(name);
+                if (this.#locks.get(name) === locked) {
+                    this.#locks.delete(name);
                 }
             },
         };
@@ -77,14 +77,14 @@ export class MemoryKeychain implements Keychain {
         return this.secrets.get(name);
     }
 
-    /** Keep a secret. */
+    /** Store a secret. */
     async save(name: string, value: string): Promise<void> {
         this.secrets.set(name, value);
     }
 
-    /** Keep a secret if the kept one equals the expected one. */
+    /** Store a secret if the stored one equals the expected one. */
     async saveIf(name: string, expected: string | undefined, value: string): Promise<boolean> {
-        // compare and keep without yielding in between
+        // compare and store without yielding in between
         const isExpected = this.secrets.get(name) === expected;
         if (isExpected) {
             this.secrets.set(name, value);
@@ -98,7 +98,7 @@ export class MemoryKeychain implements Keychain {
         this.secrets.delete(name);
     }
 
-    /** Forget a secret if the kept one equals the expected one. */
+    /** Forget a secret if the stored one equals the expected one. */
     async removeIf(name: string, expected: string): Promise<boolean> {
         // compare and forget without yielding in between
         const isExpected = this.secrets.get(name) === expected;

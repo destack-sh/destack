@@ -16,7 +16,7 @@ test("seal bytes to a recipient, which alone opens them under the same context",
     await expect(recipient.open(sealed, other)).rejects.toEqual(failed);
     await expect((await Recipient.generate()).open(sealed, context)).rejects.toEqual(failed);
     await expect(Recipient.of(recipient.key).open(sealed, context)).rejects.toThrow(
-        new TypeError("open sealed bytes on the recipient holding its private key"),
+        new TypeError("open sealed bytes on the recipient with its private key"),
     );
 });
 

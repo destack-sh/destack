@@ -8,7 +8,7 @@ const COMPACT_JWE = /^[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+$/u;
 /** The content encryption of every ciphertext. */
 const ENCRYPTION = "A256GCM";
 
-/** How a ciphertext's content key reaches its holder (RFC 7518 4.6, 4.7). */
+/** How a ciphertext's content key reaches its recipient (RFC 7518 4.6, 4.7). */
 export type KeyManagement = "A256GCMKW" | "ECDH-ES+A256KW";
 
 /** Bytes encrypted as a compact JWE (RFC 7516), like a KMS ciphertext. */

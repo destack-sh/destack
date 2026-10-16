@@ -18,20 +18,20 @@ export class BunKeychain implements Keychain {
         this.#environment = environment;
     }
 
-    /** Read a secret, absent before one was kept. */
+    /** Read a secret, absent before one was stored. */
     async load(name: string): Promise<string | undefined> {
         return (await Bun.secrets.get({ service: this.service, name })) ?? undefined;
     }
 
-    /** Keep a secret, replacing the one kept before. */
+    /** Store a secret, replacing the one stored before. */
     async save(name: string, value: string): Promise<void> {
         await using _lock = await this.#lock();
         await Bun.secrets.set({ service: this.service, name, value });
     }
 
-    /** Keep a secret if the kept one equals the expected one. */
+    /** Store a secret if the stored one equals the expected one. */
     async saveIf(name: string, expected: string | undefined, value: string): Promise<boolean> {
-        // compare and keep under the service's lock
+        // compare and store under the service's lock
         await using _lock = await this.#lock();
         const isExpected = (await this.load(name)) === expected;
         if (isExpected) {
@@ -47,7 +47,7 @@ export class BunKeychain implements Keychain {
         await Bun.secrets.delete({ service: this.service, name });
     }
 
-    /** Forget a secret if the kept one equals the expected one. */
+    /** Forget a secret if the stored one equals the expected one. */
     async removeIf(name: string, expected: string): Promise<boolean> {
         // compare and forget under the service's lock
         await using _lock = await this.#lock();
@@ -59,7 +59,7 @@ export class BunKeychain implements Keychain {
         return isExpected;
     }
 
-    /** Hold a name exclusively across processes until disposed. */
+    /** Lock a name exclusively across processes until disposed. */
     async lock(name: string): Promise<AsyncDisposable> {
         const directory = await runtimeDirectory({ environment: this.#environment });
 

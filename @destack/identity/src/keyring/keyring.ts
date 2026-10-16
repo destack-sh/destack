@@ -11,14 +11,14 @@ const ROOT_KEY_BYTES = 32;
 /** The label of the key a root key encrypts under, apart from every secret it derives. */
 const ENCRYPTION_LABEL = "destack keyring encryption v1";
 
-/** The root keys a keychain keeps under one name: each version's bytes, and the active version. */
+/** The root keys a keychain stores under one name: each version's bytes, and the active version. */
 const Keyset = schema.object({
     /** The version new ciphertexts are encrypted under. */
     active: schema.number().int().positive(),
     /** The base64 bytes of each version, by its decimal version. */
     keys: schema.record(schema.string().regex(/^[1-9]\d*$/u), schema.base64()),
 });
-/** The root keys a keychain keeps under one name. */
+/** The root keys a keychain stores under one name. */
 type Keyset = schema.Infer<typeof Keyset>;
 
 /** One root key version: the key it encrypts under and the HKDF key its secrets derive from. */
@@ -47,56 +47,56 @@ export interface Keyring extends Deriver {
     ) => Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
 }
 
-/** A keyring over root keys the process holds itself, kept in a keychain or a secret. */
+/** A keyring over root keys in the process itself, stored in a keychain or a secret. */
 export class LocalKeyring implements Keyring {
     /** The version new ciphertexts are encrypted under. */
     readonly active: number;
     /** Each version's keys. */
     readonly #keys: ReadonlyMap<number, RootKey>;
 
-    /** Keep imported keys under their versions with the active one. */
+    /** Store imported keys under their versions with the active one. */
     private constructor(active: number, keys: ReadonlyMap<number, RootKey>) {
         this.active = active;
         this.#keys = keys;
     }
 
-    /** Write a new keyset as a process's secret holds it, its first root key at version 1. */
+    /** Write a new keyset as a process's secret stores it, its first root key at version 1. */
     static generate(): string {
         return JSON.stringify(LocalKeyring.#generate());
     }
 
-    /** Open the keyset a process's secret holds. */
+    /** Open the keyset a process's secret stores. */
     static read(text: string): Promise<LocalKeyring> {
         return LocalKeyring.#from(LocalKeyring.#parse(text));
     }
 
-    /** Open the root keys a keychain keeps under a name. */
+    /** Open the root keys a keychain stores under a name. */
     static open(keychain: Keychain, name: string): Promise<LocalKeyring> {
         return LocalKeyring.#change(keychain, name, (keys) => keys ?? LocalKeyring.#generate());
     }
 
-    /** Keep a new active root key beside the others. */
+    /** Store a new active root key beside the others. */
     static rotate(keychain: Keychain, name: string): Promise<LocalKeyring> {
         return LocalKeyring.#change(keychain, name, (keys) =>
             LocalKeyring.#generate(LocalKeyring.#required(keys, name)),
         );
     }
 
-    /** Forget a root key version, refusing the active one and one the keychain does not keep. */
+    /** Forget a root key version, refusing the active one and one the keychain does not store. */
     static retire(keychain: Keychain, name: string, version: number): Promise<LocalKeyring> {
-        return LocalKeyring.#change(keychain, name, (kept) => {
+        return LocalKeyring.#change(keychain, name, (stored) => {
             // refuse forgetting the active or an unknown key
-            const keys = LocalKeyring.#required(kept, name);
+            const keys = LocalKeyring.#required(stored, name);
             if (keys.active === version) {
                 throw new IdentityError("INVALID_ROOT_KEY", "cannot retire the active root key");
             } else if (!Object.hasOwn(keys.keys, String(version))) {
                 throw new IdentityError(
                     "INVALID_ROOT_KEY",
-                    `no root key ${version} is kept as ${name}`,
+                    `no root key ${version} is stored as ${name}`,
                 );
             }
 
-            // keep the other keys
+            // drop the retired key
             const { [String(version)]: _retired, ...others } = keys.keys;
 
             return { active: keys.active, keys: others };
@@ -182,38 +182,38 @@ export class LocalKeyring implements Keyring {
         return version;
     }
 
-    /** Change the root keys a keychain keeps under a name, and open the keys finally kept. */
+    /** Change the root keys a keychain stores under a name, and open the keys finally stored. */
     static async #change(
         keychain: Keychain,
         name: string,
         change: (keys: Keyset | undefined) => Keyset,
     ): Promise<LocalKeyring> {
-        // keep the kept text when the parsed keys are unchanged
-        const kept = await Keychain.update(keychain, name, (text) => {
+        // leave the text unchanged when the parsed keys are unchanged
+        const secret = await Keychain.update(keychain, name, (text) => {
             const keys = text === undefined ? undefined : LocalKeyring.#parse(text);
             const changed = change(keys);
 
             return changed === keys && text !== undefined ? text : JSON.stringify(changed);
         });
 
-        return LocalKeyring.#from(LocalKeyring.#parse(kept));
+        return LocalKeyring.#from(LocalKeyring.#parse(secret));
     }
 
-    /** Parse a kept keyset. */
+    /** Parse a stored keyset. */
     static #parse(text: string): Keyset {
         return Keyset.parse(JSON.parse(text));
     }
 
-    /** Refuse a name the keychain keeps no root keys under. */
+    /** Refuse a name the keychain stores no root keys under. */
     static #required(keys: Keyset | undefined, name: string): Keyset {
         if (keys === undefined) {
-            throw new IdentityError("KEY_UNAVAILABLE", `no root keys are kept as ${name}`);
+            throw new IdentityError("KEY_UNAVAILABLE", `no root keys are stored as ${name}`);
         }
 
         return keys;
     }
 
-    /** Import a kept keyset. */
+    /** Import a stored keyset. */
     static #from(keys: Keyset): Promise<LocalKeyring> {
         return LocalKeyring.import(
             keys.active,

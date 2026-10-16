@@ -55,7 +55,7 @@ test("refuse reading anything but a key proof", () => {
 });
 
 test("tell a key proof from other tokens by its declared type", async () => {
-    // sign a proof, and keep an unsigned token of another type
+    // sign a proof, and build an unsigned token of another type
     const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",

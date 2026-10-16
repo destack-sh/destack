@@ -104,7 +104,7 @@ export type PublicKey = schema.Infer<typeof publicKey>;
 /** The signing algorithm of key pairs: ECDSA over P-256 (ES256). */
 const SIGNING = { name: "ECDSA", namedCurve: "P-256" } as const;
 
-/** A P-256 private key as a JSON Web Key, as a keychain keeps it. */
+/** A P-256 private key as a JSON Web Key, as a keychain stores it. */
 const privateKey = schema.looseObject({
     /** The key type of elliptic curves. */
     kty: schema.literal("EC"),
@@ -126,20 +126,20 @@ export interface KeyPair {
     readonly privateKey: CryptoKey;
 }
 
-/** Key pairs as keychains keep them: their private half as a JSON Web Key. */
+/** Key pairs as keychains store them: their private half as a JSON Web Key. */
 export const KeyPair = {
-    /** Generate a key pair, with the private half a keychain keeps. */
-    async generate(): Promise<{ readonly pair: KeyPair; readonly kept: string }> {
+    /** Generate a key pair, with the private half a keychain stores. */
+    async generate(): Promise<{ readonly pair: KeyPair; readonly secret: string }> {
         const generated = await crypto.subtle.generateKey(SIGNING, true, ["sign", "verify"]);
-        const kept = JSON.stringify(await crypto.subtle.exportKey("jwk", generated.privateKey));
+        const secret = JSON.stringify(await crypto.subtle.exportKey("jwk", generated.privateKey));
 
-        return { pair: await KeyPair.read(kept), kept };
+        return { pair: await KeyPair.read(secret), secret };
     },
 
-    /** Read the key pair a keychain keeps. */
-    async read(kept: string): Promise<KeyPair> {
+    /** Read the key pair a keychain stores. */
+    async read(secret: string): Promise<KeyPair> {
         // read the private half, and the public half from its coordinates
-        const jwk = privateKey.parse(JSON.parse(kept));
+        const jwk = privateKey.parse(JSON.parse(secret));
         const { kty, crv, x, y } = jwk;
 
         return {

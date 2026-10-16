@@ -40,7 +40,7 @@ await LocalKeyring.rotate(keychain, machineId);
 
 ## Keychains
 
-A `Keychain` keeps a host's secrets by name, `BunKeychain` in the operating system's keychain.
+A `Keychain` stores a host's secrets by name, `BunKeychain` in the operating system's keychain.
 
 ```ts
 import { BunKeychain } from "@destack/identity/bun";
@@ -48,8 +48,8 @@ import { BunKeychain } from "@destack/identity/bun";
 const keychain = new BunKeychain("app.destack.host");
 // retries a racing writer
 await Keychain.update(keychain, "root", (current) => current ?? generated);
-// holds the name across processes while replacing its key elsewhere
-await using _held = await keychain.lock("root");
+// locks the name across processes while replacing its key elsewhere
+await using _lock = await keychain.lock("root");
 ```
 
 ## Recipients

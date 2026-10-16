@@ -65,12 +65,12 @@ export class Proof {
     /** The compact serialization its signature is verified over. */
     readonly #compact: string;
 
-    /** Hold a proof's named key, claims and serialization. */
+    /** Create a proof from its named key, claims and serialization. */
     private constructor(
         parts: Pick<Proof, "thumbprint" | "subject" | "issuedAt" | "id" | "request">,
         compact: string,
     ) {
-        // keep the named key, claims and serialization
+        // set the named key, claims and serialization
         this.thumbprint = parts.thumbprint;
         this.subject = parts.subject;
         this.issuedAt = parts.issuedAt;

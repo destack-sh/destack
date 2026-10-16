@@ -75,7 +75,7 @@ export const IdentityOperation = Object.assign(defineSchema(identityOperation), 
         return undefined;
     },
 
-    /** Digest a signed operation, as the operation after it names it. */
+    /** Digest a signed operation, as the next operation refers to it. */
     digest(signed: string): Promise<Digest> {
         return Digest.of(signed);
     },
@@ -83,7 +83,7 @@ export const IdentityOperation = Object.assign(defineSchema(identityOperation), 
 /** A change of an identity. */
 export type IdentityOperation = schema.Infer<typeof identityOperation>;
 
-/** Decode the payload of an operation whose header names its type, absent for anything else. */
+/** Decode the payload of an operation whose header states its type, absent for anything else. */
 function decode(operation: string): unknown {
     try {
         return decodeProtectedHeader(operation).typ === OPERATION_TYPE

@@ -10,10 +10,10 @@ const CALL_CODES = {
     DECRYPTION_FAILED: "INTERNAL_SERVER_ERROR",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** A failure code of identities and the keys keeping them. */
+/** A failure code of identities and their keys. */
 export type IdentityErrorCode = keyof typeof CALL_CODES;
 
-/** A failure of an identity or the keys keeping it, without their bytes. */
+/** A failure of an identity or its keys, without their bytes. */
 export class IdentityError extends Error implements DomainError {
     /** The stable failure code. */
     readonly code: IdentityErrorCode;
