@@ -1,3 +1,4 @@
+import { Relationship } from "@destack/access";
 import { eq, Snapshot, Transaction } from "@destack/db";
 import { nth } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -98,7 +99,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
     await Transaction.run(fixture.storage.database, async (transaction) => {
         const caller = fixture.objects.self;
         const universe = await fixture.objects.authorize(transaction, accountId, caller);
-        await universe.replaceRelationships(
+        await Relationship.replace(
             {
                 scope: accountId,
                 objects: [machine.typeReference],
@@ -106,6 +107,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
                 subject: tenants,
             },
             [{ object: target, relation: "tenant", subject: tenants }],
+            universe,
         );
     });
     const change = (person: Person, name: "drain" | "enable") =>

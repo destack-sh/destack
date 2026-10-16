@@ -13,6 +13,8 @@ import {
     Credential,
     type Permission,
     principal,
+    Relationship,
+    Role,
 } from "@destack/access";
 import { schema, Identifier } from "@destack/schema";
 import { ObjectStore } from "@destack/object/server";
@@ -127,19 +129,35 @@ test("decide account access for its root, members, group members and installatio
         const readers = object.group.reference(accountId, groupId);
         const asOwner = (): AccessContext => AccessContext.of(Caller.of(owner), time);
         const binding = await Authorization.run(authorizer, database, asOwner, async (granting) => {
-            await granting.grant({ object: onAccount, relation: "editor", subject: member });
-            await granting.grant({ object: readers, relation: "member", subject: reader });
-            const role = await granting.createRole(onAccount, {
-                name: "reader",
-                description: "Reads account metadata",
-                permissions: [read],
-            });
-            const bound = await granting.grant({
-                object: onAccount,
-                role: role.id,
-                subject: { ...readers, relation: "member" },
-            });
-            await granting.grant({ object: onAccount, role: role.id, subject: software });
+            await Relationship.grant(
+                { object: onAccount, relation: "editor", subject: member },
+                granting,
+            );
+            await Relationship.grant(
+                { object: readers, relation: "member", subject: reader },
+                granting,
+            );
+            const role = await Role.create(
+                onAccount,
+                {
+                    name: "reader",
+                    description: "Reads account metadata",
+                    permissions: [read],
+                },
+                granting,
+            );
+            const bound = await Relationship.grant(
+                {
+                    object: onAccount,
+                    role: role.id,
+                    subject: { ...readers, relation: "member" },
+                },
+                granting,
+            );
+            await Relationship.grant(
+                { object: onAccount, role: role.id, subject: software },
+                granting,
+            );
 
             return bound;
         });
