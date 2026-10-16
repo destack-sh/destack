@@ -1,0 +1,39 @@
+{
+    "name": "@destack/workflow",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Run durable functions step by step as objects of the space, and approve changes before they run.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./server": "./src/server.ts",
+        "./package": "./src/package.ts",
+        "./destack.json": "./destack.json",
+        "./inspect": "./src/inspect/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/runtime": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "cron-parser": "5.7.0",
+        "jose": "6.2.12"
+    },
+    "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "uuid": "14.0.2"
+    }
+}
