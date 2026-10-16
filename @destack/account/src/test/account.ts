@@ -34,16 +34,7 @@ import { testEvents } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
-import {
-    aligned,
-    canonicalize,
-    Clock,
-    Digest,
-    found,
-    Identifier,
-    present,
-    schema,
-} from "@destack/schema";
+import { aligned, canonicalize, Digest, found, Identifier, present, schema } from "@destack/schema";
 import { PackageMount } from "@destack/runtime";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import { CallError } from "@destack/runtime/error";
@@ -85,6 +76,7 @@ import { TokenResponse } from "../authentication/token.ts";
 import { Browser } from "./browser.ts";
 import type { Mail, MailOutcome, MailTransport } from "../better-auth/index.ts";
 import { until } from "@destack/runtime/timer";
+import { Clock } from "@destack/environment";
 
 /** The universe's origin. */
 export const ORIGIN = "http://localhost:3210";
@@ -403,13 +395,13 @@ export class AccountFixture implements AsyncDisposable {
         const context = await this.authenticator.auth.$context;
         const created = await context.internalAdapter.createSession(userId);
         await context.internalAdapter.updateSession(created.token, {
-            authenticatedAt: Date.now(),
+            authenticatedAt: this.objects.clock.now(),
             authenticationMethod: "magic-link",
         });
 
         // register the client the person signed in on, and attach the session to it
         const clientId = Identifier.create("client");
-        const now = Date.now();
+        const now = this.objects.clock.now();
         await this.database.insert(client.table).values({
             id: clientId,
             scope: userId,
@@ -460,7 +452,7 @@ export class AccountFixture implements AsyncDisposable {
             const current = await cached;
             if (
                 current !== undefined &&
-                current.expiresAt - TOKEN_REFRESH_MILLISECONDS > Date.now()
+                current.expiresAt - TOKEN_REFRESH_MILLISECONDS > this.objects.clock.now()
             ) {
                 return current;
             }
@@ -593,7 +585,7 @@ export class AccountFixture implements AsyncDisposable {
     async elevate(userId: Identifier<"user">): Promise<void> {
         await this.database
             .update(session.table)
-            .set({ authenticationMethod: "totp", authenticatedAt: Date.now() })
+            .set({ authenticationMethod: "totp", authenticatedAt: this.objects.clock.now() })
             .where(eq(session.table.userId, userId));
         this.#tokens.clear();
     }
@@ -635,7 +627,7 @@ export class AccountFixture implements AsyncDisposable {
         const created = await person.client.account.create({
             kind: "shared",
             scope: person.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(this.objects.clock.now()),
             handle: freshHandle(),
             name: "Account",
             residencyId,
@@ -682,7 +674,7 @@ export class AccountFixture implements AsyncDisposable {
         const enroller = accountId === this.platform ? ids.operator : ids.owner;
         await identity.enroll(options.client ?? this.user(enroller), {
             scope: accountId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(this.objects.clock.now()),
             name: options.name ?? `machine-${identity.machineId.slice(-12)}`,
             ...(options.residencyId === undefined
                 ? PERSONAL_MACHINE
@@ -710,7 +702,7 @@ export class AccountFixture implements AsyncDisposable {
         );
         const { publicKey } = await identity.generate();
         await this.objects.mutate(this.objects.self, {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(this.objects.clock.now()),
             calls: [
                 machine.call("keep", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
@@ -1189,7 +1181,7 @@ export class AccountFixture implements AsyncDisposable {
         await person.client.space.create({
             accountId: target.id,
             id: spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(this.objects.clock.now()),
             name: `space-${spaceId.slice(-12)}`,
             machine: schema.identifier("machine").parse(serving.id),
         });
@@ -1209,8 +1201,8 @@ export class AccountFixture implements AsyncDisposable {
     /** Create the owner's eu accounts as the owner. */
     async #keepAccounts(): Promise<void> {
         const owner = principal.user.reference(Scope.universe.id, ids.owner);
-        await this.objects.mutate(AccessContext.of(Caller.of(owner), Date.now()), {
-            id: RequestId.create(Date.now()),
+        await this.objects.mutate(AccessContext.of(Caller.of(owner), this.objects.clock.now()), {
+            id: RequestId.create(this.objects.clock.now()),
             calls: ACCOUNTS.map((declared) =>
                 account.call("create", {
                     ...account.target({ scope: ids.owner, id: declared.id }),
@@ -1237,7 +1229,7 @@ export class AccountFixture implements AsyncDisposable {
         await operator.organisation.accept({
             id: organisationId,
             invitationId: present(invited, "the invitation to operate").id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(this.objects.clock.now()),
         });
     }
 
