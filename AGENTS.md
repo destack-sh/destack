@@ -224,7 +224,7 @@ Use the idiomatic vocabulary with zero fluff:
 - **WN11** Names SHOULD follow modern prior art terminology where it exists.
 - **WN12** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
 - **WN13** Terminology MUST be established and kept consistent, continously, across nouns, verbs and their families for types, methods, enums, variants and fields.
-- **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), keep.
+- **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), admit, keep.
 
 Keep names symmetric and general:
 - **WN20** Names of related logic SHOULD be symmetric.
