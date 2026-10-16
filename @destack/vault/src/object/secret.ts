@@ -54,155 +54,161 @@ export const BoundValue = schema.object({
 export type BoundValue = schema.Infer<typeof BoundValue>;
 
 /** A secret in a space's vault with its versions as values. */
-export const secret = defineObject({
-    name: "secret",
-    plural: "secrets",
-    scope: [space, account, organisation],
-    declarable: { schema: SecretDefinition },
-    nested: { in: vault, delete: "restrict", receive: "write" },
-    recoverable: { within: SECRET_RECOVERY, by: "delete", purge: "purge", keep: "record" },
-    audited: { reads: true },
-    fields: {
-        /** The vault-local name. */
-        name: field.string(),
-        /** The version reads without a number select, absent before the first version. */
-        currentVersion: field.integer().optional(),
-    },
-    // bind the packages reading a secret on their behalf as its consumers
-    bindable: { by: "bind" },
-    relations: {
-        /** The installation that wrote the secret, which gets, deletes and purges it. */
-        custodian: { subjects: [principal.installation], grantedBy: null },
-    },
-    permissions: {
-        create: none(),
-        get: relation("custodian"),
-        list: none(),
-        update: none(),
-        promote: permission("update"),
-        // let people reveal a value, software bound to the secret or its vault consume it, and both read it
-        reveal: none(),
-        consume: union(relation("consumer"), through("parent", "consume")),
-        read: union(permission("reveal"), permission("consume")),
-        delete: relation("custodian"),
-        purge: relation("custodian"),
-        bind: none(),
-        provision: none(),
-    },
-    // let an account's owners reveal a value only after a fresh step-up, every reveal audited
-    elevated: { reveal: sudo },
-    reserved: ["consume", "read"],
-    administration: ["create", "get", "list", "update", "promote", "delete", "purge"],
-    constraints: {
-        vaultName: {
-            kind: "index",
-            on: ["parentId", "name"],
-            unique: true,
-            where: { purgedAt: { isNull: true } },
+export const secret = defineObject(
+    {
+        name: "secret",
+        plural: "secrets",
+        scope: [space, account, organisation],
+        declarable: { schema: SecretDefinition },
+        nested: { in: vault, delete: "restrict", receive: "write" },
+        recoverable: { within: SECRET_RECOVERY, by: "delete", purge: "purge", retain: "record" },
+        audited: { reads: true },
+        fields: {
+            /** The vault-local name. */
+            name: field.string(),
+            /** The version reads without a number select, absent before the first version. */
+            currentVersion: field.integer().optional(),
         },
-        scopeId: { kind: "unique", on: ["scope", "id"] },
-        vault: {
-            kind: "foreignKey",
-            on: ["scope", "parentId"],
-            references: { object: () => vault, on: ["scope", "id"] },
-            onDelete: "no action",
+        // bind the packages reading a secret on their behalf as its consumers
+        bindable: { by: "bind" },
+        relations: {
+            /** The installation that wrote the secret, which gets, deletes and purges it. */
+            custodian: { subjects: [principal.installation], grantedBy: null },
         },
-        secretVersion: {
-            kind: "foreignKey",
-            on: ["id", "currentVersion"],
-            references: { object: (): ObjectType => secretVersion, on: ["parentId", "number"] },
-            onDelete: "no action",
+        permissions: {
+            create: none(),
+            get: relation("custodian"),
+            list: none(),
+            update: none(),
+            promote: permission("update"),
+            // let people reveal a value, software bound to the secret or its vault consume it, and both read it
+            reveal: none(),
+            consume: union(relation("consumer"), through("parent", "consume")),
+            read: union(permission("reveal"), permission("consume")),
+            delete: relation("custodian"),
+            purge: relation("custodian"),
+            bind: none(),
+            provision: none(),
         },
-        name: { kind: "check", condition: { name: { length: { gt: 0 } } } },
+        // let an account's owners reveal a value only after a fresh step-up, every reveal audited
+        elevated: { reveal: sudo },
+        reserved: ["consume", "read"],
+        administration: ["create", "get", "list", "update", "promote", "delete", "purge"],
+        constraints: {
+            vaultName: {
+                kind: "index",
+                on: ["parentId", "name"],
+                unique: true,
+                where: { purgedAt: { isNull: true } },
+            },
+            scopeId: { kind: "unique", on: ["scope", "id"] },
+            vault: {
+                kind: "foreignKey",
+                on: ["scope", "parentId"],
+                references: { object: () => vault, on: ["scope", "id"] },
+                onDelete: "no action",
+            },
+            secretVersion: {
+                kind: "foreignKey",
+                on: ["id", "currentVersion"],
+                references: { object: (): ObjectType => secretVersion, on: ["parentId", "number"] },
+                onDelete: "no action",
+            },
+            name: { kind: "check", condition: { name: { length: { gt: 0 } } } },
+        },
     },
-}).methods((method) => ({
-    create: method.create("create", { fields: ["name"] }),
-    /** Provision a secret an installation's declaration binds, as its space generates it. */
-    provision: method.create("provision", { isInternal: true, fields: ["name"] }),
-    get: method.get("get"),
-    list: method.list("list"),
-    read: method.query({
-        permission: "read",
-        input: SecretSelection,
-        output: SecretReading,
-        audit: { details: SecretDisclosure },
+    (method) => ({
+        create: method.create("create", { fields: ["name"] }),
+        /** Provision a secret an installation's declaration binds, as its space generates it. */
+        provision: method.create("provision", { isInternal: true, fields: ["name"] }),
+        get: method.get("get"),
+        list: method.list("list"),
+        read: method.query({
+            permission: "read",
+            input: SecretSelection,
+            output: SecretReading,
+            audit: { details: SecretDisclosure },
+        }),
+        /** Write a generated first version of a secret without one. */
+        generate: method.mutation({
+            permission: "provision",
+            isInternal: true,
+            input: SecretGeneration.pick({ algorithm: true }),
+        }),
+        /** Select a readable version as current, as a version's creation does for its writer. */
+        promote: method.mutation({ permission: "promote", input: SecretPromotion }),
+        update: method.update("update", { fields: ["name"] }),
     }),
-    /** Write a generated first version of a secret without one. */
-    generate: method.mutation({
-        permission: "provision",
-        isInternal: true,
-        input: SecretGeneration.pick({ algorithm: true }),
-    }),
-    /** Select a readable version as current, as a version's creation does for its writer. */
-    promote: method.mutation({ permission: "promote", input: SecretPromotion }),
-    update: method.update("update", { fields: ["name"] }),
-}));
+);
 
 /** One numbered, immutable value of a secret, sealed at rest. */
-export const secretVersion = defineObject({
-    name: "version",
-    identity: "secret-version",
-    plural: "versions",
-    scope: [space, account, organisation],
-    nested: { in: secret, delete: "restrict", receive: "update" },
-    versioned: true,
-    audited: { reads: true },
-    fields: {
-        /** The time after which reads are refused, absent for no expiry. */
-        expiresAt: field.time().optional(),
-        /** The time reads were disabled, absent while enabled. */
-        disabledAt: field.time().optional(),
-        /** The time the value was destroyed, absent while intact. */
-        destroyedAt: field.time().optional(),
-        /** The value bound to its secret and version, sealed at rest, absent once destroyed. */
-        content: field.json(BoundValue).sensitive().optional(),
-    },
-    // bind the packages reading a version on their behalf as its consumers
-    bindable: { by: "bind" },
-    permissions: {
-        get: none(),
-        list: none(),
-        write: none(),
-        read: relation("consumer"),
-        disable: none(),
-        enable: none(),
-        destroy: none(),
-        erase: through("parent", "purge"),
-        bind: none(),
-        delete: none(),
-    },
-    // let only consumers read a version, so a person reveals values through the secret's step-up
-    reserved: ["read"],
-    administration: ["get", "list", "disable", "enable", "destroy"],
-    constraints: {
-        positive: { kind: "check", condition: { number: { gt: 0 } } },
-        sealed: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { destroyedAt: { isNull: true }, content: { isNotNull: true } },
-                    { destroyedAt: { isNotNull: true }, content: { isNull: true } },
-                ],
+export const secretVersion = defineObject(
+    {
+        name: "version",
+        identity: "secret-version",
+        plural: "versions",
+        scope: [space, account, organisation],
+        nested: { in: secret, delete: "restrict", receive: "update" },
+        versioned: true,
+        audited: { reads: true },
+        fields: {
+            /** The time after which reads are refused, absent for no expiry. */
+            expiresAt: field.time().optional(),
+            /** The time reads were disabled, absent while enabled. */
+            disabledAt: field.time().optional(),
+            /** The time the value was destroyed, absent while intact. */
+            destroyedAt: field.time().optional(),
+            /** The value bound to its secret and version, sealed at rest, absent once destroyed. */
+            content: field.json(BoundValue).sensitive().optional(),
+        },
+        // bind the packages reading a version on their behalf as its consumers
+        bindable: { by: "bind" },
+        permissions: {
+            get: none(),
+            list: none(),
+            write: none(),
+            read: relation("consumer"),
+            disable: none(),
+            enable: none(),
+            destroy: none(),
+            erase: through("parent", "purge"),
+            bind: none(),
+            delete: none(),
+        },
+        // let only consumers read a version, so a person reveals values through the secret's step-up
+        reserved: ["read"],
+        administration: ["get", "list", "disable", "enable", "destroy"],
+        constraints: {
+            positive: { kind: "check", condition: { number: { gt: 0 } } },
+            sealed: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { destroyedAt: { isNull: true }, content: { isNotNull: true } },
+                        { destroyedAt: { isNotNull: true }, content: { isNull: true } },
+                    ],
+                },
+            },
+            expiry: {
+                kind: "check",
+                condition: {
+                    expiresAt: { OR: [{ isNull: true }, { gt: { field: "createdAt" } }] },
+                },
             },
         },
-        expiry: {
-            kind: "check",
-            condition: {
-                expiresAt: { OR: [{ isNull: true }, { gt: { field: "createdAt" } }] },
-            },
-        },
     },
-}).methods((method) => ({
-    create: method.create("write", { fields: ["expiresAt"], input: SecretVersionInput }),
-    get: method.get("get"),
-    list: method.list("list"),
-    disable: method.mutation({ permission: "disable" }),
-    enable: method.mutation({ permission: "enable" }),
-    destroy: method.mutation({ permission: "destroy" }),
-    /** Destroy a version's value as its secret's purge does. */
-    erase: method.mutation({ permission: "erase", isInternal: true }),
-    delete: method.delete("delete", { isInternal: true }),
-}));
+    (method) => ({
+        create: method.create("write", { fields: ["expiresAt"], input: SecretVersionInput }),
+        get: method.get("get"),
+        list: method.list("list"),
+        disable: method.mutation({ permission: "disable" }),
+        enable: method.mutation({ permission: "enable" }),
+        destroy: method.mutation({ permission: "destroy" }),
+        /** Destroy a version's value as its secret's purge does. */
+        erase: method.mutation({ permission: "erase", isInternal: true }),
+        delete: method.delete("delete", { isInternal: true }),
+    }),
+);
 
 /** A persisted secret version. */
 export type SecretVersion = Select<typeof secretVersion.table>;
