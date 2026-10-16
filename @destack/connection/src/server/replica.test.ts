@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
-import { aligned, present, Identifier } from "@destack/schema";
+import { nth, present, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Replica, type ObjectReference } from "@destack/sync";
@@ -14,7 +14,7 @@ const REDIRECT = "https://app.test/callback";
 
 /** Serve connections with an integration and a space replicating it, both until the test ends. */
 async function open(spaceId: string = Identifier.create("space")) {
-    // keep the integration at its home
+    // store the integration at its home
     const home = await ConnectionFixture.open();
     onTestFinished(() => home.close());
     const registered = await home.staticIntegration();
@@ -136,7 +136,7 @@ async function bindAtHome(
     return connection.reference(home.scope.id, created.id);
 }
 
-test("authorize a connection through an integration another space keeps, which authenticates the client and keeps none of the tokens", async () => {
+test("authorize a connection through an integration another space stores, which authenticates the client and stores none of the tokens", async () => {
     const fixture = await open();
     const { home, space } = fixture;
     const reference = await connect(fixture, space);
@@ -144,16 +144,16 @@ test("authorize a connection through an integration another space keeps, which a
     // authorize at the home's server and complete in the space, the code exchanged through the home
     const { url } = await authorize(space, reference.id);
     await complete(space, reference.id, await home.server.approve(url));
-    const loan = await space.lend(reference, new Request("https://api.test/items"));
+    const leased = await space.bindAndLease(reference, new Request("https://api.test/items"));
 
     // read the space's connection, the home's connections and pending authorizations, and the home's journal of token requests
     const [row] = await space.connections();
     const entries = await home.database.select().from(journal);
     const requested = entries.filter((entry) => entry.method === "integration.requestToken");
 
-    // keep the tokens in the space's vault alone, the client secret at home alone, and no token in the home's rows or journal
+    // store the tokens in the space's vault alone, the client secret at home alone, and no token in the home's rows or journal
     expect({
-        lent: loan.request.headers.get("authorization"),
+        leased: leased.request.headers.get("authorization"),
         token: home.server.requests.map((request) => [request.path, request.body["grant_type"]]),
         spaceVault: (await space.secrets()).map((value) => Credential.read(value)),
         homeVault: await home.secrets(),
@@ -161,7 +161,7 @@ test("authorize a connection through an integration another space keeps, which a
         homeRequests: await home.database.select().from(authorizationRequest.table),
         homeJournal: requested.map((entry) => [entry.call.input, entry.call.execution.outcome]),
     }).toEqual({
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
         token: [["https://auth.test/token", "authorization_code"]],
         spaceVault: [
             {
@@ -242,27 +242,27 @@ test("register the client of a space's connection without an integration at the 
     await Replica.wait(space.database, home.scope.id, head, signal);
     await complete(space, created.id, await home.server.approve(url));
     const [row] = await space.connections();
-    const kept = await home.database.select().from(integration.table);
+    const stored = await home.database.select().from(integration.table);
     const reference = connection.reference(space.scope.id, created.id);
-    const loan = await space.lend(reference, new Request("https://api.test/items"));
+    const leased = await space.bindAndLease(reference, new Request("https://api.test/items"));
 
     expect({
         integration: row?.integration,
-        kept: kept.map((each) => [each.scope, each.registration]),
+        stored: stored.map((each) => [each.scope, each.registration]),
         spaceServer: space.server.requests,
-        lent: loan.request.headers.get("authorization"),
+        leased: leased.request.headers.get("authorization"),
     }).toEqual({
-        integration: integration.reference(home.scope.id, aligned(kept, 1).id),
-        kept: [
+        integration: integration.reference(home.scope.id, nth(stored, 1).id),
+        stored: [
             [home.scope.id, "static"],
             [home.scope.id, "dynamic"],
         ],
         spaceServer: [],
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
     });
 });
 
-test("lend a connection its home keeps to a space's bound installation through the token the home issues, refusing an unbound one, and keep installation connections at the home", async () => {
+test("lease a connection its home stores to a space's bound installation through the token the home issues, refusing an unbound one, and create installation connections at the home", async () => {
     const fixture = await open();
     const { home, space, registered } = fixture;
 
@@ -271,9 +271,9 @@ test("lend a connection its home keeps to a space's bound installation through t
     const other = principal.installation.reference(space.scope.id, "installation-other");
     const reference = await bindAtHome(home, registered, bound);
 
-    // lend it from the space to each installation, and create an installation connection in the space
-    const lend = (consumer: typeof bound) =>
-        refusal(home.borrow(reference, new Request("https://api.test/items"), consumer));
+    // lease it from the space to each installation, and create an installation connection in the space
+    const lease = (consumer: typeof bound) =>
+        refusal(home.lease(reference, new Request("https://api.test/items"), consumer));
     const installed = await refusal(
         space.objects
             .mutate(space.context().access(), {
@@ -290,14 +290,14 @@ test("lend a connection its home keeps to a space's bound installation through t
             .then(([written]) => written),
     );
 
-    const loan = await home.borrow(reference, new Request("https://api.test/items"), bound);
+    const leased = await home.lease(reference, new Request("https://api.test/items"), bound);
 
     expect({
-        lent: loan.request.headers.get("authorization"),
-        unbound: await lend(other),
+        leased: leased.request.headers.get("authorization"),
+        unbound: await lease(other),
         installed,
     }).toEqual({
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
         // hide the home's scope from an installation the connection is not bound to
         unbound: ["NOT_FOUND", `no scope ${home.scope.id}`],
         installed: ["BAD_REQUEST", "installation connections live at their integration's home"],

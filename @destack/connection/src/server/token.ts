@@ -100,7 +100,7 @@ export const Runner = {
     },
 };
 
-/** The tokens of connections: obtained and refreshed by the controller, read by the lender. */
+/** The tokens of connections: obtained and refreshed by the controller, read by leases. */
 export class TokenSource {
     /** The consumer, fetch and home the tokens come through. */
     readonly options: TokenSourceOptions;
@@ -115,7 +115,7 @@ export class TokenSource {
         return schema.identifier("secret").parse(`secret-${id.slice(id.indexOf("-") + 1)}`);
     }
 
-    /** Keep a connection's or integration's secret in a vault, bound to the consumer. */
+    /** Store a connection's or integration's secret in a vault, bound to the consumer. */
     async put(
         runner: Runner,
         reference: ObjectReference,
@@ -164,7 +164,7 @@ export class TokenSource {
     /** Read a connection's credential, refusing one without a token or with a lapsed one. */
     async current(runner: Runner, row: Connection, now: number): Promise<Credential> {
         // refuse a connection whose controller has yet to obtain its first token
-        if (row.keptAt === null) {
+        if (row.storedAt === null) {
             throw new ConnectionError(
                 "UNAVAILABLE",
                 `connection ${row.id} has no token yet, which its controller obtains`,
@@ -184,18 +184,18 @@ export class TokenSource {
         return credential;
     }
 
-    /** Read a connection's credential from its vault, refusing a connection that keeps none. */
+    /** Read a connection's credential from its vault, refusing a connection that has none. */
     async read(
         runner: Runner,
         row: {
             readonly id: string;
             readonly vault: ObjectReference;
-            readonly keptAt: number | null;
+            readonly storedAt: number | null;
         },
     ): Promise<Credential> {
-        // refuse a connection whose vault keeps no credential
-        if (row.keptAt === null) {
-            throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} keeps no credential`);
+        // refuse a connection whose vault has no credential
+        if (row.storedAt === null) {
+            throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} has no credential`);
         }
 
         return Credential.read(await this.readSecret(runner, row.vault, row.id));
@@ -222,7 +222,7 @@ export class TokenSource {
             };
         }
 
-        // request a kept integration's tokens with the secret its vault keeps
+        // request a stored integration's tokens with the secret its vault stores
         return { integration: row, server: await this.local(runner, row) };
     }
 
@@ -291,7 +291,7 @@ export class TokenSource {
         return row;
     }
 
-    /** Address a kept integration's server as its client, with its vault's secret. */
+    /** Address a stored integration's server as its client, with its vault's secret. */
     async local(runner: Runner, row: Integration): Promise<AuthorizationServer> {
         return this.server(row, await this.#secret(runner, row), Runner.clock(runner));
     }
@@ -327,7 +327,7 @@ export class TokenSource {
         return present(registered, `the client registered in ${scope}`);
     }
 
-    /** Keep a credential in a connection's vault. */
+    /** Store a credential in a connection's vault. */
     async write(
         runner: Runner,
         row: { readonly id: string; readonly vault: ObjectReference },
@@ -379,7 +379,7 @@ export class TokenSource {
         });
     }
 
-    /** Decide whether this space keeps the integrations of a scope's account, as its home. */
+    /** Decide whether this space stores the integrations of a scope's account, as its home. */
     isHome(chain: readonly string[]): boolean {
         const [scope, enclosing] = chain;
         const accountId = scope !== undefined && account.identifies(scope) ? scope : enclosing;
@@ -392,7 +392,7 @@ export class TokenSource {
         view: Pick<Snapshot, "read">,
         scope: string,
     ): Promise<ClientOf<typeof connectionPackage> | undefined> {
-        // keep this space's own integrations here
+        // store this space's own integrations here
         const home = await Account.homeOf(view, scope);
         if (home === this.options.consumer.scope) {
             return undefined;
@@ -407,15 +407,15 @@ export class TokenSource {
         });
     }
 
-    /** Read a kept integration's secret from its vault, absent for a public client. */
+    /** Read a stored integration's secret from its vault, absent for a public client. */
     async #secret(runner: Runner, row: Integration): Promise<string | undefined> {
         return row.vault === null ? undefined : this.readSecret(runner, row.vault, row.id);
     }
 
-    /** Obtain and keep a new token, marking the connection authorized or its grant expired. */
+    /** Obtain and store a new token, marking the connection authorized or its grant expired. */
     async refresh(runner: Runner, row: Connection, now: number): Promise<Credential> {
-        // obtain the token from the kept credential, or from none before the first is kept
-        const credential = row.keptAt === null ? {} : await this.read(runner, row);
+        // obtain the token from the stored credential, or from none before the first is stored
+        const credential = row.storedAt === null ? {} : await this.read(runner, row);
         let token: Token;
         try {
             token = await this.#obtain(runner, row, credential, now);
@@ -432,7 +432,7 @@ export class TokenSource {
             throw error;
         }
 
-        // keep the token and the refresh token a server did not rotate
+        // store the token and the refresh token a server did not rotate
         const refreshToken = token.refreshToken ?? credential.token?.refreshToken;
         const next: Credential = {
             ...credential,
@@ -448,7 +448,7 @@ export class TokenSource {
             {
                 expiresAt: token.expiresAt ?? null,
                 scopes: token.scopes ?? row.scopes,
-                keptAt: now,
+                storedAt: now,
             },
         );
 

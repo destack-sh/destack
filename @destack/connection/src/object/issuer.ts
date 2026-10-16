@@ -44,7 +44,7 @@ export const Issuer = {
                 // the connection installations that mint the app's tokens
                 consumer: { subjects: [principal.installation] },
             },
-            // let the scope's own principal keep issuers, and their consumers call them
+            // let the scope's own principal manage issuers, and their consumers call them
             permissions: {
                 read: relation("consumer"),
                 manage: none(),

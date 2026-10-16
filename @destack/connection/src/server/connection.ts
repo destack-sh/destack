@@ -5,7 +5,7 @@ import {
     type ResultOf,
     StatusCondition,
 } from "@destack/object";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { ConnectionError } from "../error/error.ts";
 import { authorizationRequest } from "../object/authorization-request.ts";
@@ -14,10 +14,9 @@ import {
     Connection,
     type ConnectionKind,
     connection,
-    type Loan,
+    type Lease,
     Withdrawal,
 } from "../object/connection.ts";
-import { integration } from "../object/integration.ts";
 import { PERSON_KINDS, REFRESH_MARGIN, SUPPLIED_KINDS, TokenSource, Runner } from "./token.ts";
 import { ConnectionAuthorization } from "./authorization.ts";
 
@@ -36,44 +35,19 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                     Credential.requireVault(context.input.vault, context.scope);
                     await Connection.requireSource(context);
                 },
-                prepare: (context) => keep(context, tokens),
+                prepare: (context) => storeMaterial(context, tokens),
                 handle: (context, next) =>
                     next(
                         context.with({
                             input: {
                                 ...context.input,
-                                keptAt: context.input.material === undefined ? null : context.now,
+                                storedAt: context.input.material === undefined ? null : context.now,
                             },
                         }),
                     ),
             },
-            installations: async (call) => {
-                // read the integrations with the client identifier, then the scope's authorized installations of them
-                const { clientId, id, installation } = call.input;
-                const integrations = await call.read(integration).findMany({ where: { clientId } });
-                const ids = new Set<string>(integrations.map((row) => row.id));
-                const rows = await call.read(connection).findMany({
-                    where: {
-                        scope: call.scope,
-                        subject: installation ?? { isNotNull: true },
-                        ...(id === undefined ? {} : { id }),
-                    },
-                });
-
-                return {
-                    items: rows.flatMap((row) =>
-                        row.protocol.kind === "installation" &&
-                        row.conditions["Authorized"]?.status === "true" &&
-                        row.integration !== null &&
-                        ids.has(row.integration.id) &&
-                        row.subject !== null
-                            ? [{ id: row.id, installation: row.subject }]
-                            : [],
-                    ),
-                };
-            },
-            lend: {
-                prepare: (context) => lend(context.target, tokens, context),
+            lease: {
+                prepare: (context) => lease(context.target, tokens, context),
                 handle: async (context) => context.prepared,
             },
             authorize: {
@@ -104,8 +78,8 @@ export function implementConnection(tokens: TokenSource): typeof connection {
     });
 }
 
-/** Keep the material a connection's kind sends in its vault before the connection is created. */
-async function keep(
+/** Store the material a connection's kind sends in its vault before the connection is created. */
+async function storeMaterial(
     context: MethodContextOf<typeof connection, "create", unknown>,
     tokens: TokenSource,
 ) {
@@ -123,7 +97,7 @@ async function keep(
         });
     }
 
-    // keep the material
+    // store the material
     if (material !== undefined) {
         const id = present(context.id, "a prepared creation's identifier");
         await tokens.write(context, { id, vault }, { material });
@@ -132,8 +106,8 @@ async function keep(
     return {};
 }
 
-/** Lend an authorized connection's protocol and current credential. */
-async function lend(row: Connection, tokens: TokenSource, runner: Runner): Promise<Loan> {
+/** Lease an authorized connection's protocol and current credential. */
+async function lease(row: Connection, tokens: TokenSource, runner: Runner): Promise<Lease> {
     // require an authorized connection
     if (row.conditions["Authorized"]?.status !== "true") {
         throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} is unauthorized`);
@@ -151,7 +125,7 @@ function withdrawal(target: Connection): Withdrawal {
         vault: target.vault,
         integration: target.integration,
         subject: target.subject,
-        keptAt: target.keptAt,
+        storedAt: target.storedAt,
     };
 }
 
@@ -163,7 +137,7 @@ async function revoke(
 
     return context.updateStatus({
         expiresAt: null,
-        keptAt: null,
+        storedAt: null,
         conditions: {
             ...target.conditions,
             Authorized: StatusCondition.observe(
@@ -182,8 +156,8 @@ async function revoke(
 
 /** Revoke a revocation's tokens at their server or uninstall its integration, then destroy it. */
 async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSource): Promise<void> {
-    // read the credential the vault keeps, none before the first was kept
-    const isRetained = withdrawn.keptAt !== null;
+    // read the credential the vault stores, none before the first was stored
+    const isRetained = withdrawn.storedAt !== null;
     const token = isRetained ? (await tokens.read(runner, withdrawn)).token : undefined;
 
     // uninstall an installed integration through its issuer
@@ -199,13 +173,13 @@ async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSour
             : server.revoke(token.refreshToken, "refresh_token"));
     }
 
-    // remove the kept credential
+    // remove the stored credential
     if (isRetained) {
         await tokens.remove(runner, withdrawn.vault, withdrawn.id);
     }
 }
 
-/** Keep a connection's credential current. */
+/** Renew a connection's credential before it lapses. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof connection>,
     tokens: TokenSource,
@@ -216,7 +190,7 @@ async function reconcile(
     const [read] = await reconciliation.database
         .select()
         .from(connection.table)
-        .where(eq(connection.table.id, aligned(reconciliation.rows, 0).id));
+        .where(eq(connection.table.id, nth(reconciliation.rows, 0).id));
     if (read === undefined) {
         return undefined;
     }
@@ -249,7 +223,7 @@ async function reconcile(
     }
     // obtain or refresh a token before it expires
     else if (authorized?.reason !== "Expired") {
-        return keepToken(runner, current, tokens, now);
+        return renewToken(runner, current, tokens, now);
     }
     // leave an expired grant for a person to authorize again
     else {
@@ -299,15 +273,15 @@ async function awaitPerson(
 }
 
 /** Obtain a connection's token, or refresh it before it expires, returning when to look again. */
-async function keepToken(
+async function renewToken(
     runner: Runner,
     current: Connection,
     tokens: TokenSource,
     now: number,
 ): Promise<number | undefined> {
-    // keep a kept token that never expires
+    // leave a stored token that never expires as it is
     const authorized = current.conditions["Authorized"];
-    const isRetained = authorized?.status === "true" && current.keptAt !== null;
+    const isRetained = authorized?.status === "true" && current.storedAt !== null;
     if (isRetained && current.expiresAt === null) {
         return undefined;
     }

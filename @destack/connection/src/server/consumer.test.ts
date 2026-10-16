@@ -36,17 +36,17 @@ async function createKey(
     return created.id;
 }
 
-test("lend a connection to an installation's calls only while it is bound to that installation", async () => {
+test("lease a connection to an installation's calls only while it is bound to that installation", async () => {
     const fixture = await open();
     const id = await createKey(fixture);
     const reference = connection.reference(fixture.scope.id, id);
-    const borrower = principal.installation.reference(fixture.scope.id, "installation-bridge");
+    const bridge = principal.installation.reference(fixture.scope.id, "installation-bridge");
     const other = principal.installation.reference(fixture.scope.id, "installation-other");
-    const lend = (installation: typeof borrower) =>
+    const lease = (installation: typeof bridge) =>
         refusal(
             fixture
-                .borrow(reference, new Request("https://api.test/items"), installation)
-                .then((loan) => loan.request.headers.get("x-api-key")),
+                .lease(reference, new Request("https://api.test/items"), installation)
+                .then((leased) => leased.request.headers.get("x-api-key")),
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
         fixture.objects.mutate(fixture.context().access(), {
@@ -54,21 +54,21 @@ test("lend a connection to an installation's calls only while it is bound to tha
             calls: [
                 connection.call(name, {
                     ...connection.target({ scope: fixture.scope.id, id }),
-                    consumer: borrower,
+                    consumer: bridge,
                 }),
             ],
         });
 
-    // refuse before lending, lend to the borrower alone, and refuse again once reclaimed, hiding the scope from installations not bound
-    const before = await lend(borrower);
+    // refuse before leasing, lease to the bridge alone, and refuse again once reclaimed, hiding the scope from installations not bound
+    const before = await lease(bridge);
     await change("bindConsumer");
-    const loan = [await lend(borrower), await lend(other)];
+    const leased = [await lease(bridge), await lease(other)];
     await change("releaseConsumer");
     const hidden = ["NOT_FOUND", `no scope ${fixture.scope.id}`];
 
-    expect({ before, loan, reclaimed: await lend(borrower) }).toEqual({
+    expect({ before, leased, reclaimed: await lease(bridge) }).toEqual({
         before: hidden,
-        loan: ["done", hidden],
+        leased: ["done", hidden],
         reclaimed: hidden,
     });
 });

@@ -121,7 +121,7 @@ export const placement = defineObject({
     permissions: { read: relation("self") },
 });
 
-/** A database of connections and their vaults, as a space keeps it. */
+/** A database of connections and their vaults, as a space stores it. */
 export const connectionDatabase = defineDatabase({
     name: "connection",
     tables: [...connectionTables, ...integrationTables, ...vaultTables, ...callTables],
@@ -317,7 +317,7 @@ export interface ConnectionFixtureOptions {
 export class ConnectionFixture {
     /** The database. */
     readonly database: DatabaseConnection;
-    /** The object store keeping the connections. */
+    /** The object store with the connections. */
     readonly objects: ObjectStore;
     /** The connections' tokens. */
     readonly tokens: TokenSource;
@@ -332,7 +332,7 @@ export class ConnectionFixture {
     /** Close the database. */
     readonly #close: () => Promise<void>;
 
-    /** Keep the open connections. */
+    /** Take the open connections. */
     private constructor(
         fields: Omit<
             ConnectionFixture,
@@ -343,16 +343,16 @@ export class ConnectionFixture {
             | "dump"
             | "follow"
             | "home"
-            | "keepIssuer"
+            | "createIssuer"
             | "as"
-            | "borrow"
-            | "lend"
+            | "lease"
+            | "bindAndLease"
             | "place"
             | "secrets"
             | "staticIntegration"
         > & { readonly close: () => Promise<void> },
     ) {
-        // keep the store, its vault, server and scope
+        // take the store, its vault, server and scope
         this.database = fields.database;
         this.objects = fields.objects;
         this.tokens = fields.tokens;
@@ -365,7 +365,7 @@ export class ConnectionFixture {
 
     /** Serve connections over a fresh database. */
     static async open(options: ConnectionFixtureOptions = {}): Promise<ConnectionFixture> {
-        // keep the database and the authorization server
+        // take the database and the authorization server
         const storage = await TestDatabase.create("sqlite", ConnectionFixture.#declare(options), {
             isMigrated: true,
         });
@@ -422,7 +422,7 @@ export class ConnectionFixture {
         });
     }
 
-    /** Keep a vault in a scope. */
+    /** Create a vault in a scope. */
     static async #vault(
         database: DatabaseConnection,
         scope: ObjectReference,
@@ -447,7 +447,7 @@ export class ConnectionFixture {
 
     /** Declare the database: connections, and integrations at home or replicated in a space. */
     static #declare(options: ConnectionFixtureOptions) {
-        // keep the integrations at their home, or replicate them as a space
+        // store the integrations at their home, or replicate them as a space
         const isHome = options.home === undefined;
         const replicated = [
             ...(isHome ? [] : integrationTables),
@@ -509,7 +509,7 @@ export class ConnectionFixture {
             callKey: testCallKey,
             events,
             origin: { package: Package.of(connectionPackage) },
-            // keep the chain above the serving space, which lives in the account, as its placed home does
+            // store the chain above the serving space, which lives in the account, as its placed home does
             chain: async () => ({
                 kind: "home",
                 parent: account.is(scope) ? scope.id : scope.scope,
@@ -542,12 +542,12 @@ export class ConnectionFixture {
         return PackageHandle.of(ISSUING, { objects: { issuer } });
     }
 
-    /** Keep the home's account, or a space in an account, with their rows as chains keep them. */
+    /** Store the home's account, or a space in an account, with their rows as chains store them. */
     static async #scope(
         database: DatabaseConnection,
         home: ConnectionFixtureOptions["home"],
     ): Promise<ObjectReference> {
-        // keep the owner's account with its row: the home's own scope, or the one a space lives in
+        // store the owner's account with its row: the home's own scope, or the one a space lives in
         const owner = principal.user.reference(Scope.universe.id, OWNER);
         const access = new AccessFixture(database);
         const enclosing = home?.enclosing;
@@ -565,7 +565,7 @@ export class ConnectionFixture {
             updatedAt: 0,
         });
 
-        // keep the home's account as its scope, or a space in the account, with the serving space's row
+        // store the home's account as its scope, or a space in the account, with the serving space's row
         const isHome = home === undefined;
         const scope = isHome ? holder : space.reference(holder.id, home.space);
         const serving = space.reference(holder.id, ConnectionFixture.#principal(scope).id);
@@ -607,7 +607,7 @@ export class ConnectionFixture {
         );
     }
 
-    /** Refuse calling another space from a home, which keeps its own integrations. */
+    /** Refuse calling another space from a home, which stores its own integrations. */
     static #unreached(address: string): never {
         throw new TypeError(`a home calls no other connections, not ${address}`);
     }
@@ -621,7 +621,7 @@ export class ConnectionFixture {
 
     /** Place a space in the fixture's account, answering the account. */
     async place(spaceId: string): Promise<ObjectReference> {
-        // place the space, and keep its row and scope in the account as the directory replica does
+        // place the space, and store its row and scope in the account as the directory replica does
         const id = schema.identifier("space").parse(spaceId);
         const accountId = schema.identifier("account").parse(this.scope.id);
         await this.database.insert(placementTable).values({ id, scope: accountId });
@@ -720,29 +720,29 @@ export class ConnectionFixture {
         return http.fetch(new Request(mount.request, { headers }));
     }
 
-    /** Lend a connection to an installation of its serving space, bound to it first. */
-    async lend(reference: ObjectReference, request: Request) {
-        // bind the borrowing installation as the owner, then borrow as it
-        const borrower = principal.installation.reference(
+    /** Bind a connection to an installation of its serving space, then lease it to a request. */
+    async bindAndLease(reference: ObjectReference, request: Request) {
+        // bind the consuming installation as the owner, then lease as it
+        const consumer = principal.installation.reference(
             ConnectionFixture.#principal(this.scope).id,
-            "installation-borrower",
+            "installation-consumer",
         );
         await this.objects.mutate(this.context().access(), {
             id: RequestId.create(Date.now()),
             calls: [
                 connection.call("bindConsumer", {
                     ...connection.target({ scope: reference.scope, id: reference.id }),
-                    consumer: borrower,
+                    consumer,
                 }),
             ],
         });
 
-        return this.borrow(reference, request, borrower);
+        return this.lease(reference, request, consumer);
     }
 
-    /** Borrow a connection as a consumer bound to it, applying its credential to a request. */
-    borrow(reference: ObjectReference, request: Request, consumer: Subject) {
-        return ConnectionRequest.borrow(this.as(consumer), reference, request, Date.now());
+    /** Lease a connection as a consumer bound to it, applying its credential to a request. */
+    lease(reference: ObjectReference, request: Request, consumer: Subject) {
+        return ConnectionRequest.lease(this.as(consumer), reference, request, Date.now());
     }
 
     /** Run the connection controller over every connection once, answering its waits. */
@@ -762,7 +762,7 @@ export class ConnectionFixture {
 
     /** Follow the store's replicas in a control loop until the test ends. */
     follow(): void {
-        // run the replica controller, keeping every failure
+        // run the replica controller, collecting every failure
         const controller = new AbortController();
         const failures: unknown[] = [];
         const loop = new ControlLoop(
@@ -790,7 +790,7 @@ export class ConnectionFixture {
 
     /** Read the live secret values of the fixture's vault, as their bound consumer. */
     async secrets(): Promise<string[]> {
-        // read every secret of the vault in the order it was kept
+        // read every secret of the vault in the order it was stored
         const rows = await this.database
             .select({ id: secret.table.id })
             .from(secret.table)
@@ -811,7 +811,7 @@ export class ConnectionFixture {
         return values;
     }
 
-    /** Read the connections as their table keeps them. */
+    /** Read the connections as their table stores them. */
     connections() {
         return this.database.select().from(connection.table);
     }
@@ -848,8 +848,8 @@ export class ConnectionFixture {
         return integration.reference(this.scope.id, created.id);
     }
 
-    /** Keep the served issuer in the serving space, its consumer the connection installation. */
-    async keepIssuer(): Promise<IntegrationIssuer> {
+    /** Create the served issuer in the serving space, its consumer the connection installation. */
+    async createIssuer(): Promise<IntegrationIssuer> {
         // create the issuer as the serving space
         const serving = ConnectionFixture.#principal(this.scope);
         const [created] = await this.objects.mutate(

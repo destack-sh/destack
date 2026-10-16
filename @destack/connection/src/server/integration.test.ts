@@ -32,7 +32,7 @@ async function ask(home: ConnectionFixture, integration: ObjectReference, space:
 }
 
 test("refuse a space outside a private integration's scope its tokens, device authorizations and revocations, and serve every space a public one's", async () => {
-    // keep a private and a public integration at their home
+    // store a private and a public integration at their home
     const home = await ConnectionFixture.open();
     onTestFinished(() => home.close());
     const owned = await home.staticIntegration();

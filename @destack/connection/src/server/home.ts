@@ -23,7 +23,7 @@ export class HomeClient implements AuthorizationClient {
     readonly endpoints: Integration["endpoints"];
     /** The integration. */
     readonly #reference: ObjectReference;
-    /** The connections of the space keeping the integration. */
+    /** The connections of the space storing the integration. */
     readonly #home: ClientOf<typeof connectionPackage>;
     /** The server as the public client writes its pages. */
     readonly #pages: AuthorizationServer;
@@ -36,7 +36,7 @@ export class HomeClient implements AuthorizationClient {
         fetch: Fetch,
         clock: Clock,
     ) {
-        // keep the server, the integration and its home
+        // take the server, the integration and its home
         this.issuer = IntegrationIssuer.url(row.issuer);
         this.endpoints = row.endpoints;
         this.#reference = reference;

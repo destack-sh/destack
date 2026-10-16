@@ -132,7 +132,7 @@ async function register(
         "the resource of a connection without an integration",
     );
 
-    // register with the connection's vault where the scope keeps its integrations, else at their home in the enclosing scope
+    // register with the connection's vault where the scope stores its integrations, else at their home in the enclosing scope
     const placement = tokens.isHome(context.chain)
         ? { scope: context.scope, vault: target.vault }
         : { scope: present(context.chain[1], `the scope enclosing ${context.scope}`), vault: null };
@@ -156,7 +156,7 @@ async function started(
     const caller = requirePerson(context);
     const person = { parentId: target.id, userId: caller.userId, session: caller.session };
 
-    // keep a page's state, redirect and verifier, an installation's state and redirect, or a device's code and interval
+    // store a page's state, redirect and verifier, an installation's state and redirect, or a device's code and interval
     const request =
         prepared.kind === "page"
             ? {
@@ -181,7 +181,7 @@ async function started(
         : { url: prepared.url };
 }
 
-/** Exchange an authorization's redirect for the credential, kept in the vault before commit. */
+/** Exchange an authorization's redirect for the credential, stored in the vault before commit. */
 async function exchange(
     context: MethodContextOf<typeof connection, "complete", unknown>,
     tokens: TokenSource,
@@ -212,7 +212,7 @@ async function exchange(
     requireIssuer(client.integration, parameters["iss"]);
     refuseError(parameters);
 
-    // exchange the code with the verifier and keep the token in the vault
+    // exchange the code with the verifier and store the token in the vault
     const token = await client.server.token({
         grant_type: "authorization_code",
         code: present(parameters["code"], "the authorization code"),
@@ -242,8 +242,8 @@ async function complete(
 
     // record the granted account, scopes and expiry with the Authorized condition
     return context.updateStatus({
-        // keep the time of a token grant's credential, an installation's tokens coming from its issuer
-        ...(grant.subject === undefined ? { keptAt: context.now } : { subject: grant.subject }),
+        // store the time of a token grant's credential, an installation's tokens coming from its issuer
+        ...(grant.subject === undefined ? { storedAt: context.now } : { subject: grant.subject }),
         scopes: grant.scopes,
         expiresAt: grant.expiresAt ?? null,
         conditions: {
@@ -318,7 +318,7 @@ async function settle(
         const denied = { status: "false" as const, reason: "Denied", message: answer.message };
         await tokens.observe(runner, row, denied, {});
     }
-    // keep the token and mark the connection authorized
+    // store the token and mark the connection authorized
     else {
         await tokens.write(runner, row, { token: answer });
         await tokens.observe(
@@ -328,7 +328,7 @@ async function settle(
             {
                 expiresAt: answer.expiresAt ?? null,
                 scopes: answer.scopes ?? row.scopes,
-                keptAt: runner.now,
+                storedAt: runner.now,
             },
         );
     }

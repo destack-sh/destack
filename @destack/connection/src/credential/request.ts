@@ -64,14 +64,14 @@ export const ConnectionRequest = {
         }
     },
 
-    /** Borrow a connection's credential at its home as the consumer, applied to its request. */
-    async borrow(
+    /** Lease a connection's credential at its home as the consumer, applied to its request. */
+    async lease(
         home: ClientOf<typeof connectionPackage>,
         reference: ObjectReference,
         request: Request,
         now: number,
     ): Promise<ConnectionRequest> {
-        const { protocol, credential } = await home.connection.lend({
+        const { protocol, credential } = await home.connection.lease({
             scope: reference.scope,
             id: schema.identifier("connection").parse(reference.id),
         });

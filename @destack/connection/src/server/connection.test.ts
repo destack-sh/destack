@@ -1,5 +1,5 @@
 import type { CallInput } from "@destack/object";
-import { aligned, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { type ObjectReference, Subject } from "@destack/sync";
@@ -55,20 +55,20 @@ async function authorized(fixture: ConnectionFixture, reference: ObjectReference
 
 /** Read a connection's row. */
 async function readConnection(fixture: ConnectionFixture, reference: ObjectReference) {
-    return aligned(
+    return nth(
         (await fixture.connections()).filter((each) => each.id === reference.id),
         0,
     );
 }
 
 /** Lend a connection to a request to the external API, answering its Authorization header. */
-async function lend(
+async function lease(
     fixture: ConnectionFixture,
     reference: ObjectReference,
 ): Promise<string | null> {
-    const loan = await fixture.lend(reference, new Request("https://api.test/items"));
+    const leased = await fixture.bindAndLease(reference, new Request("https://api.test/items"));
 
-    return loan.request.headers.get("authorization");
+    return leased.request.headers.get("authorization");
 }
 
 /** Start authorizing a connection as the owner in a session, redirected to the test URI. */
@@ -108,7 +108,7 @@ function completeAuthorization(
         .then(([written]) => written);
 }
 
-test("authorize a person's account with a code and PKCE in their session, once, checking the issuer, and lend its token", async () => {
+test("authorize a person's account with a code and PKCE in their session, once, checking the issuer, and lease its token", async () => {
     const fixture = await open();
     const registered = await fixture.staticIntegration();
     const reference = await create(fixture, {
@@ -146,7 +146,7 @@ test("authorize a person's account with a code and PKCE in their session, once, 
         completed,
         replayed,
         authorized: await authorized(fixture, reference),
-        lent: await lend(fixture, reference),
+        leased: await lease(fixture, reference),
     }).toEqual({
         page: ["https://auth.test/authorize", "S256", "items:read"],
         refusals: [
@@ -164,11 +164,11 @@ test("authorize a person's account with a code and PKCE in their session, once, 
         completed: "done",
         replayed: ["INVALID_AUTHORIZATION", "no pending authorization has this state"],
         authorized: ["true", "Authorized", true],
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
     });
 });
 
-test("acquire a client credentials token in the controller, refresh it before expiry there, and lend only current tokens", async () => {
+test("acquire a client credentials token in the controller, refresh it before expiry there, and lease only current tokens", async () => {
     const fixture = await open();
     const registered = await fixture.staticIntegration();
     const reference = await create(fixture, {
@@ -176,19 +176,19 @@ test("acquire a client credentials token in the controller, refresh it before ex
         integration: registered,
     });
 
-    // acquire the token and lend it
+    // acquire the token and lease it
     const waits = await fixture.control();
-    const first = await lend(fixture, reference);
+    const first = await lease(fixture, reference);
 
-    // lend a token near its expiry as it is, then refresh it once in the controller
+    // lease a token near its expiry as it is, then refresh it once in the controller
     await moveExpiry(fixture, Date.now() + 1000);
-    const near = await Promise.all([1, 2, 3].map(() => lend(fixture, reference)));
+    const near = await Promise.all([1, 2, 3].map(() => lease(fixture, reference)));
     await fixture.control();
-    const refreshed = await lend(fixture, reference);
+    const refreshed = await lease(fixture, reference);
 
     // refuse a lapsed token the controller has yet to refresh
     await moveExpiry(fixture, Date.now() - 1000);
-    const lapsed = await refusal(lend(fixture, reference));
+    const lapsed = await refusal(lease(fixture, reference));
     const tokenRequests = fixture.server.requests.filter(
         (request) => request.path === "https://auth.test/token",
     );
@@ -263,7 +263,7 @@ test("register a client dynamically at a protected resource's authorization serv
         resource: new URL(url).searchParams.get("resource"),
         isRegistered: row?.integration !== null,
         paths: fixture.server.requests.map((request) => request.path),
-        lent: await lend(fixture, reference),
+        leased: await lease(fixture, reference),
     }).toEqual({
         resource: RESOURCE,
         isRegistered: true,
@@ -273,7 +273,7 @@ test("register a client dynamically at a protected resource's authorization serv
             "https://auth.test/register",
             "https://auth.test/token",
         ],
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
     });
 });
 
@@ -301,13 +301,13 @@ test("poll a device authorization in the controller until the person approves it
         userCode,
         waiting,
         authorized: await authorized(fixture, reference),
-        lent: await lend(fixture, reference),
+        leased: await lease(fixture, reference),
     }).toEqual({
         url: "https://auth.test/activate",
         userCode: "USER-1",
         waiting: [1000],
         authorized: ["true", "Authorized", true],
-        lent: "Bearer access-1",
+        leased: "Bearer access-1",
     });
 });
 
@@ -343,7 +343,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         })
         .then(([written]) => written);
 
-    // revoke it and refuse to lend it
+    // revoke it and refuse to lease it
     await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
@@ -360,16 +360,16 @@ test("revoke a connection's refresh token at its server and destroy its credenti
                 await readConnection(fixture, reference),
             ),
         ),
-        lent: await refusal(lend(fixture, reference)),
+        leased: await refusal(lease(fixture, reference)),
     }).toEqual({
         revoked: ["refresh-1"],
         authorized: ["false", "Revoked", false],
-        credential: ["UNAUTHORIZED", `connection ${reference.id} keeps no credential`],
-        lent: ["PRECONDITION_FAILED", `connection ${reference.id} is unauthorized`],
+        credential: ["UNAUTHORIZED", `connection ${reference.id} has no credential`],
+        leased: ["PRECONDITION_FAILED", `connection ${reference.id} is unauthorized`],
     });
 });
 
-test("install an app through the installation issuing its tokens, lend an installation token, and uninstall it on revocation", async () => {
+test("install an app through the installation issuing its tokens, lease an installation token, and uninstall it on revocation", async () => {
     // serve an issuer that mints a token of each installation it reads from the setup redirect
     const calls: string[] = [];
     const called = (method: string, installation: string, caller: { subject?: Subject }) =>
@@ -407,7 +407,7 @@ test("install an app through the installation issuing its tokens, lend an instal
     // register the app as issued by the installation, refusing a key beside it
     const app = {
         scope: fixture.scope.id,
-        issuer: await fixture.keepIssuer(),
+        issuer: await fixture.createIssuer(),
         endpoints: {
             installation: "https://github.test/apps/destack-test/installations/new",
             isIssuerReturned: false,
@@ -463,9 +463,9 @@ test("install an app through the installation issuing its tokens, lend an instal
         })
         .then(([written]) => written);
 
-    // obtain the installation token in the controller, lend it, then revoke the connection
+    // obtain the installation token in the controller, lease it, then revoke the connection
     await fixture.control();
-    const lent = await lend(fixture, reference);
+    const leased = await lease(fixture, reference);
     await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(Date.now()),
@@ -480,21 +480,21 @@ test("install an app through the installation issuing its tokens, lend an instal
         keyed,
         page: `${new URL(url).origin}${new URL(url).pathname}`,
         subject: row.subject,
-        lent,
+        leased,
         calls,
     }).toEqual({
         keyed: [
             "BAD_REQUEST",
-            "an installed app's issuer keeps its key, so its integration keeps no secret",
+            "an installed app's issuer holds its key, so its integration has no secret",
         ],
         page: "https://github.test/apps/destack-test/installations/new",
         subject: "4242",
-        lent: "token ghs_installation",
+        leased: "token ghs_installation",
         calls: [`issue 4242 by ${installation}`, `uninstall 4242 by ${installation}`],
     });
 });
 
-test("send a key connection's key in its header, keeping the key out of the rows and the journal", async () => {
+test("send a key connection's key in its header, never writing it to the rows or the journal", async () => {
     const fixture = await open();
     const key = "sk-test-0123456789";
     const reference = await create(fixture, {
@@ -502,9 +502,9 @@ test("send a key connection's key in its header, keeping the key out of the rows
         material: { kind: "key", key },
     });
     await fixture.control();
-    const loan = await fixture.lend(reference, new Request("https://api.test/items"));
+    const leased = await fixture.bindAndLease(reference, new Request("https://api.test/items"));
 
-    // list the tables whose rows keep the key
+    // list the tables whose rows contain the key
     const leaking: string[] = [];
     for (const [name, rows] of Object.entries(await fixture.dump())) {
         if (JSON.stringify(rows).includes(key)) {
@@ -513,7 +513,7 @@ test("send a key connection's key in its header, keeping the key out of the rows
     }
 
     expect({
-        header: loan.request.headers.get("x-api-key"),
+        header: leased.request.headers.get("x-api-key"),
         authorized: await authorized(fixture, reference),
         leaking,
     }).toEqual({
@@ -544,7 +544,7 @@ test("refresh a person's token with its rotating refresh token, and mark the con
     };
     await expire("refresh-1");
     await fixture.control();
-    const refreshed = [await lend(fixture, reference), await authorized(fixture, reference)];
+    const refreshed = [await lease(fixture, reference), await authorized(fixture, reference)];
 
     // present the used refresh token again for the server to refuse
     await expire("refresh-1");
@@ -589,7 +589,7 @@ test("answer no credential from any procedure: connections, integrations and aut
     ]);
 
     // list the tokens, client secret, pending verifier and session an answer has
-    const pending = aligned(await fixture.database.select().from(authorizationRequest.table), 0);
+    const pending = nth(await fixture.database.select().from(authorizationRequest.table), 0);
     const credentials = [
         "access-1",
         "refresh-1",

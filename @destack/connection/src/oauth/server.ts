@@ -151,7 +151,7 @@ export class AuthorizationServer implements AuthorizationClient {
         readonly fetch: Fetch;
         readonly clock: Clock;
     }) {
-        // keep the server, the client, the fetch and the clock
+        // take the server, the client, the fetch and the clock
         this.issuer = options.issuer;
         this.endpoints = options.endpoints;
         this.client = options.client;
@@ -235,7 +235,7 @@ export class AuthorizationServer implements AuthorizationClient {
         });
         const registered = RegistrationResponse.parse(await readJson(fetch, request));
 
-        // keep the registered client as confidential where the server issued a secret
+        // record the registered client as confidential where the server issued a secret
         const authentication =
             registered.token_endpoint_auth_method ??
             (registered.client_secret === undefined ? "none" : "client_secret_basic");
@@ -275,7 +275,7 @@ export class AuthorizationServer implements AuthorizationClient {
         const request = await this.#authenticated(endpoint, grant);
         const answered = TokenResponse.parse(await readJson(this.#fetch, request));
 
-        // keep the token with its expiry
+        // take the token with its expiry
         const expiresIn = answered.expires_in;
 
         return {

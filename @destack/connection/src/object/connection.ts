@@ -75,8 +75,8 @@ export const ConnectionProtocol = defineSchema(
 /** How a connection authenticates at its external system. */
 export type ConnectionProtocol = schema.Infer<typeof ConnectionProtocol>;
 
-/** A connection lent to a bound installation: its protocol and current credential. */
-export const Loan = defineSchema(
+/** A connection leased to a consumer's call: its protocol and current credential. */
+export const Lease = defineSchema(
     schema.object({
         /** How requests carry the credential. */
         protocol: ConnectionProtocol,
@@ -84,8 +84,8 @@ export const Loan = defineSchema(
         credential: Credential,
     }),
 );
-/** A connection lent to a bound installation. */
-export type Loan = schema.Infer<typeof Loan>;
+/** A connection leased to a consumer's call. */
+export type Lease = schema.Infer<typeof Lease>;
 
 /** A kind of connection. */
 export type ConnectionKind = ConnectionProtocol["kind"];
@@ -161,22 +161,22 @@ export const Withdrawal = defineSchema(
         integration: ObjectReference.nullable(),
         /** The external account, the installation of an installed integration. */
         subject: schema.string().min(1).nullable(),
-        /** The vault keeping the credential. */
+        /** The vault storing the credential. */
         vault: ObjectReference,
-        /** When the vault last took the credential, null while it keeps none. */
-        keptAt: schema.number().int().nullable(),
+        /** When the vault last stored the credential, null while it stores none. */
+        storedAt: schema.number().int().nullable(),
     }),
 );
 /** A revoked connection's credential. */
 export type Withdrawal = schema.Infer<typeof Withdrawal>;
 
-/** Credentials for one external account, kept in a vault and lent to outbound calls. */
+/** Credentials for one external account, stored in a vault and leased to outbound calls. */
 export const connection = defineObject(
     {
         name: "connection",
         plural: "connections",
         controlled: true,
-        // relate the installations a person lends the connection to as its consumers
+        // relate the installations a person binds the connection to as its consumers
         bindable: { by: "manage" },
         // replicate the connections of accounts and organisations into their scopes
         inherited: {},
@@ -189,7 +189,7 @@ export const connection = defineObject(
             resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
             /** The scopes requested, then the ones granted. */
             scopes: field.json(schema.array(schema.string().min(1))).default([]),
-            /** The vault keeping the credential. */
+            /** The vault storing the credential. */
             vault: field.json(ObjectReference),
 
             // the controller's authorization
@@ -197,19 +197,19 @@ export const connection = defineObject(
             subject: field.string(schema.string().min(1)).optional(),
             /** The current access token's expiry, absent for credentials that do not expire. */
             expiresAt: field.time().optional(),
-            /** When the vault last took the connection's credential, absent while it keeps none. */
-            keptAt: field.time().optional(),
+            /** When the vault last stored the credential, absent while it stores none. */
+            storedAt: field.time().optional(),
         },
-        // let its consumers and the servers of its scope read it, and its consumers borrow it
+        // let its consumers and the servers of its scope read it, and its consumers use it
         permissions: {
             read: union(relation(CONSUMER), through("scope", "serve")),
             manage: none(),
-            lend: relation(CONSUMER),
+            use: relation(CONSUMER),
         },
-        reserved: ["lend"],
+        reserved: ["use"],
     },
     (method) => ({
-        /** Create a connection, keeping the material its kind sends in the vault. */
+        /** Create a connection, storing the material its kind sends in the vault. */
         create: method.create("manage", {
             fields: ["protocol", "integration", "resource", "scopes", "vault"],
             input: schema.object({
@@ -219,36 +219,12 @@ export const connection = defineObject(
             prepared: schema.object({}),
             isPredicted: false,
         }),
-        /** Lend the connection's protocol and current credential to an installation bound to it. */
-        lend: method.query({
-            permission: "lend",
-            output: schema.sensitive(Loan),
-            prepared: schema.sensitive(Loan),
+        /** Lease the connection's protocol and current credential to a consumer's call. */
+        lease: method.query({
+            permission: "use",
+            output: schema.sensitive(Lease),
+            prepared: schema.sensitive(Lease),
             isAudited: true,
-        }),
-        /** List the scope's authorized installations of integrations with a client identifier. */
-        installations: method.query({
-            permission: "lend",
-            target: "scope",
-            input: schema.object({
-                /** The integrations' client identifier, such as a GitHub App's. */
-                clientId: schema.string().min(1),
-                /** The one connection to read, every one when absent. */
-                id: schema.identifier("connection").exactOptional(),
-                /** The issuer's installation to read, every one when absent. */
-                installation: schema.string().min(1).exactOptional(),
-            }),
-            output: schema.object({
-                /** The authorized installations. */
-                items: schema.array(
-                    schema.object({
-                        /** The connection. */
-                        id: schema.identifier("connection"),
-                        /** The issuer's identifier of the installation. */
-                        installation: schema.string(),
-                    }),
-                ),
-            }),
         }),
         /** Start authorizing the external account, answering the page a person approves it on. */
         authorize: method.mutation({
@@ -282,8 +258,22 @@ export const connection = defineObject(
 /** A persisted connection. */
 export type Connection = Select<typeof connection.table>;
 
-/** The checks a connection's creation runs. */
+/** Connections: the checks their creation runs, and the installation an authorized one holds. */
 export const Connection = {
+    /** Read the installation an authorized connection holds of an integration, null otherwise. */
+    installation(
+        row: Pick<Connection, "protocol" | "conditions" | "subject">,
+        integrated: { readonly clientId: string } | undefined,
+        clientId: string,
+    ): string | null {
+        const isAuthorized =
+            row.protocol.kind === "installation" &&
+            row.conditions["Authorized"]?.status === "true" &&
+            integrated?.clientId === clientId;
+
+        return isAuthorized ? row.subject : null;
+    },
+
     /** Require a token exchange's source to be a same-scope connection the caller manages. */
     async requireSource(
         context: MethodContextOf<typeof connection, "create", unknown>,

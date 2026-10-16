@@ -27,7 +27,7 @@ export class ConnectionError extends Error implements DomainError {
         message: string,
         options: { readonly error?: string; readonly cause?: unknown } = {},
     ) {
-        // keep the code, the authorization server's error and the cause
+        // take the code, the authorization server's error and the cause
         super(message, "cause" in options ? { cause: options.cause } : {});
         this.name = "ConnectionError";
         this.code = code;

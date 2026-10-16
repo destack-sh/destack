@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ObjectReference } from "@destack/sync";
 
-/** A token an authorization server issued (RFC 6749 5.1), as a connection keeps it in its vault. */
+/** A token an authorization server issued (RFC 6749 5.1), as its connection's vault stores it. */
 export const Token = defineSchema(
     schema.object({
         /** The access token. */
@@ -64,7 +64,7 @@ export const Material = defineSchema(
 /** The long-lived material a connection's owner supplies. */
 export type Material = schema.Infer<typeof Material>;
 
-/** What a connection keeps in its vault secret. */
+/** What a connection stores in its vault secret. */
 const credential = schema.object({
     /** The supplied material, absent for kinds an authorization server issues tokens to alone. */
     material: Material.exactOptional(),
@@ -72,7 +72,7 @@ const credential = schema.object({
     token: Token.exactOptional(),
 });
 
-/** What a connection keeps in its vault secret, read and written as the secret's JSON value. */
+/** What a connection stores in its vault secret, read and written as the secret's JSON value. */
 export const Credential = Object.assign(defineSchema(credential), {
     /** Read a secret's value as a credential. */
     read(value: string): Credential {
@@ -84,7 +84,7 @@ export const Credential = Object.assign(defineSchema(credential), {
         return JSON.stringify(value);
     },
 
-    /** Require a vault of the scope itself, which the scope keeps. */
+    /** Require a vault of the scope itself. */
     requireVault(vault: ObjectReference, scope: string): void {
         if (vault.scope !== scope) {
             throw new CallError("BAD_REQUEST", {
@@ -93,5 +93,5 @@ export const Credential = Object.assign(defineSchema(credential), {
         }
     },
 });
-/** What a connection keeps in its vault secret. */
+/** What a connection stores in its vault secret. */
 export type Credential = schema.Infer<typeof credential>;

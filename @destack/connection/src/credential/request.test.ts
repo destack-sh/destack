@@ -2,7 +2,7 @@ import { AwsSigner } from "@destack/identity/aws";
 import { expect, test } from "@destack/test";
 import { ConnectionRequest } from "./request.ts";
 
-/** The time requests are lent at: 2026-10-06T12:00:00Z. */
+/** The time requests are leased at: 2026-10-06T12:00:00Z. */
 const NOW = Date.parse("2026-10-06T12:00:00Z");
 
 test("send a key in its header with its scheme, a token as Bearer, and a client certificate beside the request", async () => {
@@ -43,7 +43,7 @@ test("send a key in its header with its scheme, a token as Bearer, and a client 
 test("sign a request's method, target URI and content digest with HMAC-SHA256 (RFC 9421, RFC 9530)", async () => {
     // sign a post with a shared secret
     const secret = crypto.getRandomValues(new Uint8Array(32));
-    const loan = await ConnectionRequest.of(
+    const leased = await ConnectionRequest.of(
         { kind: "signature", algorithm: "hmac-sha256", keyId: "key-1" },
         {
             material: {
@@ -75,14 +75,14 @@ test("sign a request's method, target URI and content digest with HMAC-SHA256 (R
         ["verify"],
     );
     const signature = Uint8Array.fromBase64(
-        String(loan.request.headers.get("signature")).slice("sig1=:".length, -1),
+        String(leased.request.headers.get("signature")).slice("sig1=:".length, -1),
     );
 
     expect({
-        input: loan.request.headers.get("signature-input"),
-        digest: loan.request.headers.get("content-digest"),
+        input: leased.request.headers.get("signature-input"),
+        digest: leased.request.headers.get("content-digest"),
         isValid: await crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(base)),
-        body: await loan.request.text(),
+        body: await leased.request.text(),
     }).toEqual({
         input: `sig1=${parameters}`,
         digest: `sha-256=:${digest}:`,
@@ -93,7 +93,7 @@ test("sign a request's method, target URI and content digest with HMAC-SHA256 (R
 
 test("sign a request with AWS Signature Version 4 over its body, encoding an S3 path once", async () => {
     const credentials = { accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret" };
-    const loan = await ConnectionRequest.of(
+    const leased = await ConnectionRequest.of(
         { kind: "sigv4", region: "eu-central-1", service: "s3" },
         { material: { kind: "sigv4", ...credentials } },
         new Request("https://bucket.s3.test/a b.txt", {
@@ -125,7 +125,7 @@ test("sign a request with AWS Signature Version 4 over its body, encoding an S3 
         new Date(NOW),
     );
 
-    expect([loan.request.headers.get("authorization"), await loan.request.text()]).toEqual([
+    expect([leased.request.headers.get("authorization"), await leased.request.text()]).toEqual([
         expected["authorization"],
         "hello",
     ]);

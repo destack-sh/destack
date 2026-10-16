@@ -32,7 +32,7 @@ export const integrationShape = defineShape({
 
 /** Follow each integration of another scope a live connection refers to, from its home. */
 export const integrationFollow = Follow.of(integrationShape, {
-    rows: () => connection.query({ where: { deletedAt: { isNull: true } } }),
+    from: connection.query({ where: { deletedAt: { isNull: true } } }),
     key: async (row) => {
         // follow nothing for a connection without an integration, or with its own scope's
         const named =
@@ -47,10 +47,13 @@ export const integrationFollow = Follow.of(integrationShape, {
     },
 });
 
-/** The shape replicating a connection and its scope's integrations, decided for the follower. */
+/** The shape replicating a connection the follower may use, and its scope's integrations. */
 export const connectionShape = defineShape({
     name: CONNECTION_SHAPE,
     parameters: ConnectionSelection,
     objects: [connection, integration],
-    queries: ({ id }) => [connection.query({ where: { id } }), integration.query()],
+    queries: ({ id }) => [
+        connection.query({ where: { id }, permission: "use" }),
+        integration.query(),
+    ],
 });

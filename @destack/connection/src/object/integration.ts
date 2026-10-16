@@ -93,7 +93,7 @@ export const Registration = defineSchema(
         authentication: schema.enum(CLIENT_AUTHENTICATIONS),
         /** The redirect URIs the client registered. */
         redirectUris: schema.array(schema.httpUrl()),
-        /** The vault keeping the secret the server issued, absent for a public client. */
+        /** The vault storing the secret the server issued, absent for a public client. */
         vault: ObjectReference.exactOptional(),
     }),
 );
@@ -120,7 +120,7 @@ export const integration = defineObject(
             redirectUris: field.json(schema.array(schema.httpUrl())),
             /** Whether the owner registered the client or a connection did (RFC 7591). */
             registration: field.enum(["static", "dynamic"]).default("static"),
-            /** The vault keeping the client secret or private key, absent for a public client. */
+            /** The vault storing the client secret or private key, absent for a public client. */
             vault: field.json(ObjectReference).optional(),
         },
         relations: {
@@ -136,11 +136,11 @@ export const integration = defineObject(
         reserved: ["request"],
     },
     (method) => ({
-        /** Register an integration, keeping its client secret or private key in the vault. */
+        /** Register an integration, storing its client secret or private key in the vault. */
         create: method.create("manage", {
             fields: ["issuer", "endpoints", "clientId", "authentication", "redirectUris", "vault"],
             input: schema.object({
-                /** The client secret or private key as JWK or PEM text, kept in the vault. */
+                /** The client secret or private key as JWK or PEM text, stored in the vault. */
                 secret: schema.sensitive(schema.string().min(1)).exactOptional(),
                 /** Whether it serves every space beside its owner's and those below them. */
                 isPublic: schema.boolean().exactOptional(),

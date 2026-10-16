@@ -78,17 +78,17 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
 
 /** Require a confidential client's vault in the integration's scope, and a secret with a vault. */
 function requireSecretVault(context: MethodContextOf<typeof integration, "create", unknown>): void {
-    // refuse a secret of an installed app, whose issuer keeps its key
+    // refuse a secret of an installed app, whose issuer holds its key
     const vault = context.input.vault ?? undefined;
     if (context.input.issuer.kind === "installation" && vault !== undefined) {
         throw new CallError("BAD_REQUEST", {
-            message: "an installed app's issuer keeps its key, so its integration keeps no secret",
+            message: "an installed app's issuer holds its key, so its integration has no secret",
         });
     }
     // require a vault exactly with a secret
     else if ((vault === undefined) !== (context.input.secret === undefined)) {
         throw new CallError("BAD_REQUEST", {
-            message: "an integration keeps its secret in a vault, and a vault only with a secret",
+            message: "an integration stores its secret in a vault, and a vault only with a secret",
         });
     }
     // require the vault in the integration's scope
@@ -97,7 +97,7 @@ function requireSecretVault(context: MethodContextOf<typeof integration, "create
     }
 }
 
-/** Keep a created integration's secret in its vault. */
+/** Store a created integration's secret in its vault. */
 async function keepSecret(
     context: MethodContextOf<typeof integration, "create", unknown>,
     tokens: TokenSource,
@@ -113,7 +113,7 @@ async function keepSecret(
     return {};
 }
 
-/** Register a client at a resource's authorization server, keeping an issued secret. */
+/** Register a client at a resource's authorization server, storing an issued secret. */
 async function register(
     scope: string,
     id: string,
@@ -152,12 +152,12 @@ async function register(
         return registration;
     }
 
-    // keep the issued secret in the registration's vault
+    // store the issued secret in the registration's vault
     const vault = request.vault;
     if (vault === null) {
         throw new ConnectionError(
             "INVALID_AUTHORIZATION",
-            `${issuer} issued a client secret, which ${scope} keeps in no vault`,
+            `${issuer} issued a client secret, which ${scope} has no vault for`,
         );
     }
     await tokens.put(runner, vault, id, issued.secret);
