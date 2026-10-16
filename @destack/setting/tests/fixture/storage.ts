@@ -1,5 +1,5 @@
 import { Package } from "@destack/package";
-import { Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { outbox } from "@destack/runtime/outbox";
 import { AccessFixture } from "@destack/access/test";
 import { Call, Scope, type ObjectReference, Subject } from "@destack/sync";
@@ -22,6 +22,7 @@ import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { Clock } from "@destack/environment";
 
 /** Setting values served from a migrated test database. */
 export class Storage {

@@ -5,7 +5,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ACCESS_PUBLICATION } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
-import { canonicalize, Identifier, schema, Clock } from "@destack/schema";
+import { canonicalize, Identifier, schema } from "@destack/schema";
 import { Health } from "@destack/runtime/health";
 import { Observable } from "@destack/runtime/observable";
 import { Server } from "@destack/runtime/server";
@@ -23,6 +23,7 @@ import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import settingPackage from "../src/package.ts";
 import { Storage } from "./fixture/storage.ts";
 import { alice, clientSource, named, source } from "./fixture/value.ts";
+import { Clock } from "@destack/environment";
 
 /** The space Alice acts in. */
 const spaceId = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000030");

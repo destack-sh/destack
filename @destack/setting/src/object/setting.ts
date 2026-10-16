@@ -5,11 +5,12 @@ import type { ClientOptions } from "@destack/runtime/client";
 import type { Setting, SettingReference } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
-import { type Clock, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import { SettingName } from "../setting/setting.ts";
+import type { Clock } from "@destack/environment";
 
 /** A setting value placed in a scope. */
 export const setting = defineObject({
