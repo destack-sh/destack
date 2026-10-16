@@ -100,72 +100,73 @@ export const MessageError = defineSchema(
 export type MessageError = schema.Infer<typeof MessageError>;
 
 /** One message on one channel to one recipient, which the channel's provider sends at once. */
-export const message = defineObject({
-    name: "message",
-    plural: "messages",
-    controlled: true,
-    fields: {
-        /** Where it goes. */
-        to: field.json(Destination),
-        /** The object it is sent for, a notification or an endpoint. */
-        source: field.object(),
+export const message = defineObject(
+    {
+        name: "message",
+        plural: "messages",
+        controlled: true,
+        fields: {
+            /** Where it goes. */
+            to: field.json(Destination),
+            /** The object it is sent for, a notification or an endpoint. */
+            source: field.object(),
 
-        // sending
-        /** Whether it is sending, went out, reached its client, or failed. */
-        status: field.enum(MESSAGE_STATES).default("pending"),
-        /** Its provider's error code once it failed. */
-        reason: field.string().optional(),
-        /** The content sealed by its producer to the home's message key, absent for a desktop. */
-        ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
-        /** When it settled, absent while it sends. */
-        settledAt: field.time().optional(),
-        /** When the next attempt is due after a temporary refusal, absent once settled. */
-        retryAt: field.time().optional(),
+            // sending
+            /** Whether it is sending, went out, reached its client, or failed. */
+            status: field.enum(MESSAGE_STATES).default("pending"),
+            /** Its provider's error code once it failed. */
+            reason: field.string().optional(),
+            /** The content its producer sealed to the home's message key, absent for a desktop. */
+            ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
+            /** When it settled, absent while it sends. */
+            settledAt: field.time().optional(),
+            /** When the next attempt is due after a temporary refusal, absent once settled. */
+            retryAt: field.time().optional(),
+        },
+        permissions: ["read", "send"],
+        // expire a settled message 7 days after it settles
+        expiring: [
+            {
+                after: { days: 7 },
+                from: "settledAt",
+                where: { status: { in: ["sent", "delivered", "failed"] } },
+            },
+        ],
+        constraints: {
+            source: {
+                kind: "index",
+                on: ["sourcePackageId", "sourceType", "sourceScope", "sourceId", "createdAt"],
+            },
+            pending: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { status: { ne: "pending" } },
+                        { ciphertext: { isNotNull: true }, settledAt: { isNull: true } },
+                    ],
+                },
+            },
+            settled: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { status: "pending" },
+                        { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
+                    ],
+                },
+            },
+            reason: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { status: "failed", reason: { isNotNull: true } },
+                        { status: { ne: "failed" }, reason: { isNull: true } },
+                    ],
+                },
+            },
+        },
     },
-    permissions: ["read", "send"],
-    // expire a settled message 7 days after it settles
-    expiring: [
-        {
-            after: { days: 7 },
-            from: "settledAt",
-            where: { status: { in: ["sent", "delivered", "failed"] } },
-        },
-    ],
-    constraints: {
-        source: {
-            kind: "index",
-            on: ["sourcePackageId", "sourceType", "sourceScope", "sourceId", "createdAt"],
-        },
-        pending: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { status: { ne: "pending" } },
-                    { ciphertext: { isNotNull: true }, settledAt: { isNull: true } },
-                ],
-            },
-        },
-        settled: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { status: "pending" },
-                    { settledAt: { isNotNull: true }, retryAt: { isNull: true } },
-                ],
-            },
-        },
-        reason: {
-            kind: "check",
-            condition: {
-                OR: [
-                    { status: "failed", reason: { isNotNull: true } },
-                    { status: { ne: "failed" }, reason: { isNull: true } },
-                ],
-            },
-        },
-    },
-})
-    .methods((method) => ({
+    (method) => ({
         /** Send a message through its channel's provider, or show a desktop one at once. */
         create: method.create("send", {
             fields: [
@@ -198,26 +199,26 @@ export const message = defineObject({
         }),
         /** Record a desktop client showing a sent message, as its receipt. */
         receive: method.mutation({ permission: "read" }),
-    }))
-    .implement({
-        methods: {
-            receive: async (call) => {
-                // answer a message already delivered as it is
-                const { target } = call;
-                if (target.status === "delivered") {
-                    return target;
-                }
-                // refuse a message no desktop shows
-                else if (target.to.channel !== "desktop" || target.status !== "sent") {
-                    throw new CallError("CONFLICT", {
-                        message: `message ${target.id} is not a sent desktop message`,
-                    });
-                }
+    }),
+).implement({
+    methods: {
+        receive: async (call) => {
+            // answer a message already delivered as it is
+            const { target } = call;
+            if (target.status === "delivered") {
+                return target;
+            }
+            // refuse a message no desktop shows
+            else if (target.to.channel !== "desktop" || target.status !== "sent") {
+                throw new CallError("CONFLICT", {
+                    message: `message ${target.id} is not a sent desktop message`,
+                });
+            }
 
-                return call.updateStatus({ status: "delivered" });
-            },
+            return call.updateStatus({ status: "delivered" });
         },
-    });
+    },
+});
 /** A message as its table stores it. */
 export type Message = Select<typeof message.table>;
 

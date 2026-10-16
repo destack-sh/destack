@@ -10,4 +10,4 @@ export const mail = defineObject({
     provisioned: { kind: MailKind },
     fields: {},
     administration: ["read", "manage"],
-}).methods();
+});

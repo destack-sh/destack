@@ -11,44 +11,47 @@ import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
 const MAX_ENDPOINT_EVENTS = 100;
 
 /** A scope's webhook subscription to its audit history and the histories of scopes inside it. */
-export const endpoint = defineObject({
-    name: "endpoint",
-    plural: "endpoints",
-    controlled: true,
-    fields: {
-        /** The URL the messages go to. */
-        url: field.string(schema.url({ protocol: /^https$/u })),
-        /** The audit actions the endpoint receives, such as member.create, or all of them. */
-        events: field.json(
-            schema.union([
-                schema.literal("all"),
-                schema.array(AuditActionName).min(1).max(MAX_ENDPOINT_EVENTS),
-            ]),
-        ),
-        /** How each message encodes the calls: one event per call, or a JSON or NDJSON page. */
-        format: field.enum(WEBHOOK_FORMATS).default("event"),
-        /** How the endpoint authenticates each message with the secret. */
-        authentication: field.json(WebhookAuthentication),
-        /** The vault secret authenticating each message, which the installation consumes. */
-        secret: field.json(ObjectReference),
-        /** Whether the calls go to the endpoint. */
-        status: field.enum(["enabled", "disabled"]).default("enabled"),
+export const endpoint = defineObject(
+    {
+        name: "endpoint",
+        plural: "endpoints",
+        controlled: true,
+        fields: {
+            /** The URL the messages go to. */
+            url: field.string(schema.url({ protocol: /^https$/u })),
+            /** The audit actions the endpoint receives, such as member.create, or all of them. */
+            events: field.json(
+                schema.union([
+                    schema.literal("all"),
+                    schema.array(AuditActionName).min(1).max(MAX_ENDPOINT_EVENTS),
+                ]),
+            ),
+            /** How each message encodes the calls: one event per call, or a JSON or NDJSON page. */
+            format: field.enum(WEBHOOK_FORMATS).default("event"),
+            /** How the endpoint authenticates each message with the secret. */
+            authentication: field.json(WebhookAuthentication),
+            /** The vault secret authenticating each message, which the installation consumes. */
+            secret: field.json(ObjectReference),
+            /** Whether the calls go to the endpoint. */
+            status: field.enum(["enabled", "disabled"]).default("enabled"),
+        },
+        permissions: ["read", "manage"],
+        constraints: {
+            scope: { kind: "index", on: ["scope", "status"] },
+        },
+        // read each endpoint's calls from its creation on, kept a week past its longest retry
+        readers: { endpoint: { by: "id", start: "latest", hold: { days: 7 } } },
     },
-    permissions: ["read", "manage"],
-    constraints: {
-        scope: { kind: "index", on: ["scope", "status"] },
-    },
-    // read each endpoint's calls from its creation on, kept a week past its longest retry
-    readers: { endpoint: { by: "id", start: "latest", hold: { days: 7 } } },
-}).methods((method) => ({
-    create: method.create("manage", {
-        fields: ["url", "events", "format", "authentication", "secret", "status"],
+    (method) => ({
+        create: method.create("manage", {
+            fields: ["url", "events", "format", "authentication", "secret", "status"],
+        }),
+        update: method.update("manage", {
+            fields: ["url", "events", "format", "authentication", "secret", "status"],
+        }),
+        delete: method.delete("manage"),
     }),
-    update: method.update("manage", {
-        fields: ["url", "events", "format", "authentication", "secret", "status"],
-    }),
-    delete: method.delete("manage"),
-}));
+);
 /** A persisted endpoint. */
 export type Endpoint = Select<typeof endpoint.table>;
 
