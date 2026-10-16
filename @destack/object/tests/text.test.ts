@@ -204,9 +204,7 @@ test.for(TEST_DIALECTS)(
         const after = await chunks(database);
         expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
         expect(
-            after.flatMap((row, index) =>
-                row.runs === nth(before, index).runs ? [] : [index],
-            ),
+            after.flatMap((row, index) => (row.runs === nth(before, index).runs ? [] : [index])),
         ).toEqual([7, 8]);
 
         // read the text assembled through get and list

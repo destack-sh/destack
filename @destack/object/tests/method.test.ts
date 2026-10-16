@@ -975,10 +975,7 @@ test("authorize a creation before its external work, and settle committed work t
     // confirm it through the controller
     const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     expect(
-        await controller.reconcile(
-            nth(settled, 0).id,
-            reconciliation(AbortSignal.timeout(5000)),
-        ),
+        await controller.reconcile(nth(settled, 0).id, reconciliation(AbortSignal.timeout(5000))),
     ).toBeUndefined();
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
