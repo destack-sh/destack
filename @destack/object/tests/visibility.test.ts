@@ -10,7 +10,7 @@ import {
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Identifier, schema, Clock } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
@@ -20,6 +20,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** A private space nobody reads. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");

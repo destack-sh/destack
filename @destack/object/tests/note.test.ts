@@ -7,7 +7,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { schema, present, Clock } from "@destack/schema";
+import { schema, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
@@ -15,6 +15,7 @@ import { ObjectReference } from "@destack/sync";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 test.each(TEST_DIALECTS)(
     "hold notes private until shared, move them between notebooks and sync them on %s",

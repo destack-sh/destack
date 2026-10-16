@@ -3,7 +3,7 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
@@ -12,6 +12,7 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the pins. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");

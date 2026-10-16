@@ -6,7 +6,7 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock, aligned, type Identifier } from "@destack/schema";
+import { schema, aligned, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
@@ -16,6 +16,7 @@ import { principal } from "@destack/access";
 import { openSpace, spacePrincipal, unmoved } from "./space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the notes. */
 export const spaceId = schema.identifier("space").parse(`space-${v7()}`);

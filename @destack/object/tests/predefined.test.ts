@@ -2,13 +2,14 @@ import { ObjectReference, type Call } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, Role } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { defineObject, field, Intrinsic } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** The space the tiers live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");

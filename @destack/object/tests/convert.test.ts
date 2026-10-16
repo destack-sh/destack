@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
@@ -12,6 +12,7 @@ import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject(

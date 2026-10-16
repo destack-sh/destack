@@ -1,4 +1,4 @@
-import { present, schema, Clock, type Identifier } from "@destack/schema";
+import { present, schema, type Identifier } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { asc, eq, type Dialect, defineDatabase } from "@destack/db";
@@ -20,6 +20,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");

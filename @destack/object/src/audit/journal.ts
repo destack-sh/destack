@@ -9,7 +9,7 @@ import {
     type TransactionOptions,
 } from "@destack/db";
 import { type EventKind, type EventStore, EventTime } from "@destack/event";
-import { canonicalize, Clock, Digest, Duration } from "@destack/schema";
+import { canonicalize, Digest, Duration } from "@destack/schema";
 import { errorOf, CallError, isCallError } from "@destack/runtime/error";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
@@ -25,6 +25,7 @@ import { AuditCaller } from "./actor.ts";
 import { CallEvent, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.ts";
 import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
+import { Clock } from "@destack/environment";
 
 /** The most calls one prune removes: about a millisecond of deletes. */
 const MAX_PRUNE_CALLS = 1000;

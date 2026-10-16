@@ -2,7 +2,7 @@ import { type Change, eq, defineDatabase } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { expect, refusal, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -14,6 +14,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The space containing the credentials. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -67,7 +68,7 @@ test.each(TEST_DIALECTS)(
                 },
             },
         });
-        const clock = new TestClock(Date.now());
+        const clock = new VirtualClock(Date.now());
         const events = await testEvents(database);
         const serve = (object: ObjectType) =>
             new ObjectStore({
@@ -102,7 +103,7 @@ test.each(TEST_DIALECTS)(
         await execute(handled, "delete", { id: lapsed.id, revision: lapsed.revision });
         await database
             .update(credential.table)
-            .set({ deletedAt: Date.now() - 120_000 })
+            .set({ deletedAt: clock.now() - 120_000 })
             .where(eq(credential.table.id, lapsed.id));
         expect(await refusal(execute(handled, "restore", { id: lapsed.id }))).toEqual([
             "CONFLICT",
@@ -161,7 +162,7 @@ test.each(TEST_DIALECTS)(
 
         // purge the lapsed record as the system, through its handler, once
         const store = serve(handled);
-        const later = Date.now() + 120_000;
+        const later = clock.now() + 120_000;
         clock.set(later);
         expect([
             await RecoverableController.purge(store, later),
@@ -173,7 +174,6 @@ test.each(TEST_DIALECTS)(
             .from(credential.table)
             .where(eq(credential.table.id, lapsed.id));
         expect(record).toEqual({ value: null, purgedAt: later });
-        clock.set(Date.now());
 
         // look again and purge after the next window ends
         const controller = new RecoverableController(store);

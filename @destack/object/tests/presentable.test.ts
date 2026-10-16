@@ -5,12 +5,13 @@ import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");

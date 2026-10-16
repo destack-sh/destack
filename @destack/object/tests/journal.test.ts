@@ -1,8 +1,8 @@
 import { test, expect } from "@destack/test";
 import { ControlLoop } from "@destack/runtime/control";
-import { Clock } from "@destack/schema";
 import { journal } from "../src/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
+import { Clock } from "@destack/environment";
 
 test("append an ended audited call as one call event, a repeat after a restart appending none", async () => {
     let storage = await AuditStorage.open();

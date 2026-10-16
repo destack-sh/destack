@@ -3,12 +3,13 @@ import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
 import { ObjectType } from "../src/index.ts";
 import { space } from "./fixture/space.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook, notesPackage } from "./fixture/note.ts";
+import { Clock } from "@destack/environment";
 
 /** A row's identifier. */
 const Identified = schema.looseObject({ id: schema.string() });

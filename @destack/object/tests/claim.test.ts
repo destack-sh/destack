@@ -20,11 +20,11 @@ import {
     field,
     RESERVATION_MILLISECONDS,
 } from "../src/index.ts";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { aligned, Clock, Identifier, present, schema } from "@destack/schema";
+import { aligned, Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -38,6 +38,8 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 
 import { claim, serveClaims } from "./fixture/claim.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 test.each(TEST_DIALECTS)(
     "hold handles unique across spaces in separate databases on %s",
@@ -146,7 +148,7 @@ test.each(TEST_DIALECTS)(
     "claim the names of writes outside the object store and finish expired reservations on %s",
     async (dialect) => {
         const now = 1_800_000_000_000;
-        const clock = new TestClock(now - RESERVATION_MILLISECONDS);
+        const clock = new VirtualClock(now - RESERVATION_MILLISECONDS);
         const storage = await universeStorage(dialect);
         const claims = await serveClaims(storage.database, clock);
         const east = await serveProfiles(dialect, claims);

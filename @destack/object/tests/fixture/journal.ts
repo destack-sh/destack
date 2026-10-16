@@ -1,6 +1,6 @@
 import { TestTelemetry } from "@destack/telemetry/test";
 import { defineTable, text } from "@destack/db";
-import { Clock, type Duration, schema } from "@destack/schema";
+import { type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/runtime/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -15,6 +15,7 @@ import { LocalKeyring } from "@destack/identity";
 import { Scope } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { principal } from "@destack/access";
+import { Clock } from "@destack/environment";
 
 /** The documents the scenarios change. */
 export const document = defineTable("document", { name: text("name").primaryKey().notNull() });

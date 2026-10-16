@@ -5,7 +5,7 @@ import { Package } from "@destack/package";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
@@ -13,6 +13,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The package of the types reading the holders from outside their package. */
 const OUTSIDE = Package.parse({

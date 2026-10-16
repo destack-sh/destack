@@ -1,9 +1,9 @@
 import { ObjectReference } from "@destack/sync";
-import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
 import { defineDatabase, type LogPosition } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 
 import {
     defineObject,
@@ -19,6 +19,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The space containing the pages. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -238,7 +240,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
 
     // decide every call as the current user at the current time
     let current = users.alice;
-    const clock = new TestClock(0);
+    const clock = new VirtualClock(0);
     const store = new ObjectStore({
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),

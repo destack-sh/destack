@@ -2,7 +2,7 @@ import { AccessContext, Caller, none, principal, relation, through } from "@dest
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
-import { schema, Clock, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -11,6 +11,7 @@ import { defineObject, EventView, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space the visits happen in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e1");

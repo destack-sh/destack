@@ -3,7 +3,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Scope, type Publisher } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
@@ -12,6 +12,7 @@ import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);

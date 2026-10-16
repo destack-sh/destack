@@ -1,12 +1,12 @@
 import { none, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
-import type { Clock } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";
 import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index.ts";
 import { claimMethods, claimTable, defineObject, INTRINSIC } from "../../src/index.ts";
+import type { Clock } from "@destack/environment";
 
 /** The universe's claimed names, which only its own principal changes in these tests. */
 export const claim = defineObject(

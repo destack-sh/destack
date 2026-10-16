@@ -3,7 +3,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { schema, type JsonObject, Clock } from "@destack/schema";
+import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field, Intrinsic } from "../src/index.ts";
 import { contained, Manager, principal, relation, through, union } from "@destack/access";
@@ -14,6 +14,7 @@ import { comment, label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
 
 /** The space the declared objects live in. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);

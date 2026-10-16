@@ -17,7 +17,7 @@ import {
 import { AccessFixture } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq, Key, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Clock, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -29,6 +29,7 @@ import { defineObject, defineShape, field, Follow, Shape } from "../src/index.ts
 import { ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** How long a replica may take to reach its home or relist: 5 s, far above its milliseconds. */
 const REPLICA_MILLISECONDS = 5000;

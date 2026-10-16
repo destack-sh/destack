@@ -1,11 +1,12 @@
 import { broadcastChannel, type Channel } from "@destack/db";
-import type { Clock, Duration } from "@destack/schema";
+import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { connectShared } from "@destack/db/browser";
 import type { ClientOptions } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "../client/client.ts";
+import type { Clock } from "@destack/environment";
 
 /** The browser capabilities tabs share. */
 export interface BrowserHost {

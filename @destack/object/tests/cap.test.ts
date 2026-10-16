@@ -1,6 +1,5 @@
 import { users } from "./fixture/user.ts";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock } from "@destack/schema";
 import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -15,6 +14,7 @@ import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { openSpace } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** Build a call's space and a new request. */
 function request() {

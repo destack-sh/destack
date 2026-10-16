@@ -2,7 +2,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Clock, Identifier, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { type MethodInput, defineObject, field } from "../src/index.ts";
@@ -12,6 +12,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { ObjectReference, Scope } from "@destack/sync";
+import { Clock } from "@destack/environment";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");

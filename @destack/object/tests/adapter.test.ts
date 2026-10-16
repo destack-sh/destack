@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, schema, aligned } from "@destack/schema";
+import { schema, aligned } from "@destack/schema";
 import { defineAdapter, definePackage } from "@destack/runtime";
 import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
@@ -18,6 +18,7 @@ import {
 import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { bearerUser } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);

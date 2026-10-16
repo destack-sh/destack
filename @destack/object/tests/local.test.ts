@@ -6,7 +6,7 @@ import { Scope, type Subject } from "@destack/sync";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
-import { Identifier, Clock, aligned } from "@destack/schema";
+import { Identifier, aligned } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -19,6 +19,7 @@ import { spacePrincipal } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
     const { endpoint } = await serveNotes("sqlite");

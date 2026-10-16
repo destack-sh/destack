@@ -7,7 +7,7 @@ import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { RequestContext } from "@destack/runtime/server";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, Identifier, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import {
     ObjectReference,
     replica,
@@ -24,6 +24,7 @@ import { definePackage } from "@destack/runtime";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** A mention of a person in a space, readable by that person wherever a replica has it. */
 const mention = defineObject(

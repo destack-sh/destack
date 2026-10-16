@@ -3,13 +3,14 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { RequestId } from "@destack/runtime/request";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** The space the feeds live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");

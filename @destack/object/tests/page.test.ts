@@ -6,7 +6,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { present, schema, Clock, aligned, type Identifier } from "@destack/schema";
+import { present, schema, aligned, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -18,6 +18,7 @@ import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);

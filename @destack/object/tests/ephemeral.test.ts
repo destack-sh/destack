@@ -1,6 +1,6 @@
 import { users } from "./fixture/user.ts";
 import type { Page } from "@destack/sync";
-import { present, schema, Clock, type Identifier } from "@destack/schema";
+import { present, schema, type Identifier } from "@destack/schema";
 import { type Dialect, defineDatabase, Expression } from "@destack/db";
 import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
@@ -25,6 +25,7 @@ import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");

@@ -1,5 +1,5 @@
 import { users } from "./fixture/user.ts";
-import { expect, test, onTestFinished, TestClock } from "@destack/test";
+import { expect, test, onTestFinished } from "@destack/test";
 import { Expression } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
@@ -7,6 +7,7 @@ import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
 import { present, schema } from "@destack/schema";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
@@ -314,7 +315,7 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "follow the newest notebooks and notes as one feed on %s",
     async (dialect) => {
-        const clock = new TestClock(Date.now());
+        const clock = new VirtualClock(Date.now());
         const { endpoint } = await serveNotes(dialect, clock);
         const device = await Device.open(users.alice, endpoint(users.alice), [], { clock });
 

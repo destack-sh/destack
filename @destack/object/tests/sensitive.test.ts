@@ -2,7 +2,7 @@ import { AccessContext, Caller, none, through } from "@destack/access";
 import { call, journal } from "../src/index.ts";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -15,6 +15,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
+import { Clock } from "@destack/environment";
 
 /** An API key a caller hands a method, which nothing derived from the call stores. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));

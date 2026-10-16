@@ -5,7 +5,7 @@ import { Scope } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Identifier, Clock, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { ObjectClient } from "../src/client/index.ts";
@@ -15,6 +15,7 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** A labelled pin of a space, whose label stays editable while the space moves. */
 const pin = defineObject(

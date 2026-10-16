@@ -1,5 +1,4 @@
 import { users } from "./fixture/user.ts";
-import { Clock } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
@@ -13,6 +12,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { notebook, note, notesDatabase } from "./fixture/note.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
+import { Clock } from "@destack/environment";
 
 test.for(TEST_DIALECTS)(
     "follow the changes one instance writes through another instance on its own connection on %s",

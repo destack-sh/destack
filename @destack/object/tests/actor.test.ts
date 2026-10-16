@@ -3,12 +3,13 @@ import { expect, test } from "@destack/test";
 import { RequestContext } from "@destack/runtime/server";
 import { ResourceContext } from "@destack/resource/context";
 import { CallError } from "@destack/runtime";
-import { Clock, Identifier, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { AuditCaller } from "../src/index.ts";
 import { ObjectReference } from "@destack/sync";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
 import { AccessContext, ANONYMOUS, Caller, type Credential, principal } from "@destack/access";
+import { Clock } from "@destack/environment";
 
 test("persist verified caller identities with their delegates and grant, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();

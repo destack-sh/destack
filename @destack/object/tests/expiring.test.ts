@@ -5,7 +5,7 @@ import { principal, relation } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { v7 } from "uuid";
 
 import { RequestId } from "@destack/runtime/request";
@@ -14,6 +14,7 @@ import { ExpiringController, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space containing the alerts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");

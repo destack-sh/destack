@@ -10,11 +10,12 @@ import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
-import { found, Clock, aligned } from "@destack/schema";
+import { found, aligned } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { principal } from "@destack/access";
+import { Clock } from "@destack/environment";
 
 /** Folders with pages. */
 const folder = defineObject(

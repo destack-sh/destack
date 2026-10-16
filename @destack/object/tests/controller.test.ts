@@ -6,7 +6,7 @@ import { AccessContext, Caller, none, principal, relation } from "@destack/acces
 import { Scope } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present, Clock, type Identifier } from "@destack/schema";
+import { schema, present, type Identifier } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
@@ -14,6 +14,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the reminders. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");

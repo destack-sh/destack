@@ -2,13 +2,14 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { Call } from "@destack/sync";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** The space the articles live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");

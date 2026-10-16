@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { v7 } from "uuid";
@@ -10,6 +10,7 @@ import { defineObject, field } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the lockers. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");

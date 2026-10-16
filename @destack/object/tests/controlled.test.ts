@@ -1,11 +1,11 @@
 import { users } from "./fixture/user.ts";
 import { Scope } from "@destack/sync";
-import { expect, onTestFinished, refusal, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Clock, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -13,6 +13,8 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The space with the machines. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -54,7 +56,7 @@ test.each(TEST_DIALECTS)(
         const storage = await TestDatabase.create(dialect, machineDatabase, { isMigrated: true });
         onTestFinished(() => storage.close());
         await openSpace(storage.database, spaceId);
-        const clock = new TestClock(0);
+        const clock = new VirtualClock(0);
         const store = new ObjectStore({
             chain: async () => undefined,
             principal: spacePrincipal(spaceId),
@@ -202,7 +204,7 @@ test("answer a repeated system request from the journal, provisioning once, and 
     const storage = await TestDatabase.create("sqlite", machineDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    const clock = new TestClock(0);
+    const clock = new VirtualClock(0);
     const store = new ObjectStore({
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),

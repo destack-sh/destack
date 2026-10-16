@@ -7,11 +7,12 @@ import {
     CHAIN_TERMS,
     TABLE,
 } from "@destack/db";
-import { Clock, found } from "@destack/schema";
+import { found } from "@destack/schema";
 import type { Controller } from "@destack/runtime/control";
 import { ObjectKey, ObjectType } from "../object/object.ts";
 import { type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
+import { Clock } from "@destack/environment";
 
 /** The one key the controller reconciles: every expired reservation. */
 const RESERVATIONS = "reservations";

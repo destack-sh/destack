@@ -3,7 +3,7 @@ import { none, through, union, universe } from "@destack/access";
 
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Clock, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -14,6 +14,7 @@ import { claim } from "./fixture/claim.ts";
 import { outbox } from "@destack/runtime/outbox";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the assets. */
 const homeId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");

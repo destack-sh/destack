@@ -6,11 +6,12 @@ import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, present, type Identifier, Clock } from "@destack/schema";
+import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope, type Uplink } from "@destack/sync";
 import { defineObject, field, Intrinsic } from "../index.ts";
 import { ObjectStore } from "./index.ts";
+import { Clock } from "@destack/environment";
 
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));

@@ -5,7 +5,7 @@ import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { schema, Clock, aligned, type Identifier } from "@destack/schema";
+import { schema, aligned, type Identifier } from "@destack/schema";
 import { createClient } from "@destack/runtime/client";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
@@ -18,6 +18,7 @@ import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../src/test/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the projects. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);

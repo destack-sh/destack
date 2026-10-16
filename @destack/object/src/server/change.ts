@@ -11,7 +11,7 @@ import {
     Predicate,
     type Match,
 } from "@destack/db";
-import { Clock, found, schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import type { Controller } from "@destack/runtime/control";
 import {
     type ChangeOperation,
@@ -21,6 +21,7 @@ import {
     RunEvent,
 } from "@destack/runtime/trigger";
 import { ObjectType } from "../object/object.ts";
+import { Clock } from "@destack/environment";
 
 /** The rows one snapshot page reads: a few hundred kilobytes. */
 const SNAPSHOT_PAGE_ROWS = 500;

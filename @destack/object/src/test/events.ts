@@ -2,9 +2,9 @@ import { MemoryBucket } from "@destack/bucket/test";
 import type { DatabaseConnection, Table } from "@destack/db";
 import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
 import { LocalKeyring } from "@destack/identity";
-import { Clock } from "@destack/schema";
 import { call } from "../audit/call.ts";
 import { journal } from "../stack/db.ts";
+import { Clock } from "@destack/environment";
 
 /** The tables with a test store's calls: the journal and the call events. */
 export const callTables: readonly Table[] = [journal, ...call.tables];

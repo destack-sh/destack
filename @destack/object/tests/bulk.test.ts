@@ -6,7 +6,7 @@ import { principal, relation } from "@destack/access";
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/runtime";
-import { schema, Clock, aligned, type Identifier } from "@destack/schema";
+import { schema, aligned, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectReference } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
@@ -18,6 +18,7 @@ import { serveObjects } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { Clock } from "@destack/environment";
 
 /** The space containing the labels. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
@@ -271,26 +272,29 @@ test("undo a bulk creation by deleting each created object on the device and the
     await client.undo().confirmed;
     stopping.abort();
     await Promise.all(loops);
-    expect([before, await labelsIn(client.database), await labelsIn(storage.database), errors]).toEqual(
+    expect([
+        before,
+        await labelsIn(client.database),
+        await labelsIn(storage.database),
+        errors,
+    ]).toEqual([
         [
             [
-                [
-                    [ids[1], true],
-                    [ids[0], true],
-                ],
-                [
-                    [ids[1], true],
-                    [ids[0], true],
-                ],
+                [ids[1], true],
+                [ids[0], true],
             ],
-            [],
             [
-                [ids[1], false],
-                [ids[0], false],
+                [ids[1], true],
+                [ids[0], true],
             ],
-            [],
         ],
-    );
+        [],
+        [
+            [ids[1], false],
+            [ids[0], false],
+        ],
+        [],
+    ]);
     await client.close();
 });
 

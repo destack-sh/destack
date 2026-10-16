@@ -1,5 +1,5 @@
 import { testCallKey } from "@destack/runtime/test";
-import { expect, onTestFinished, test, TestClock } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import {
     AccessContext,
     accessRelationship,
@@ -17,12 +17,14 @@ import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, schema, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { type Page, Scope } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field } from "../index.ts";
 import { ObjectAudience } from "./audience.ts";
 import { ObjectStore } from "./index.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The spaces the notebooks live in. */
 const space = defineObject({
@@ -225,7 +227,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
     const shared = newId("notebook");
     await database.insert(notebook.table).values({ ...at, id: shared, name: "Shared" });
-    const clock = new TestClock(Date.now());
+    const clock = new VirtualClock(Date.now());
     const expiresAt = clock.now() + SHARED_MILLISECONDS;
     await database.insert(accessRelationship).values(
         Relationship.encode(

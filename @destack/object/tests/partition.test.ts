@@ -4,7 +4,7 @@ import { none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema, Clock } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -16,6 +16,7 @@ import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space whose partition the cards live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");

@@ -1,7 +1,7 @@
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -10,6 +10,7 @@ import { chunk, CHUNK_CHARACTERS, defineObject, field, Sequence } from "../src/i
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
+import { Clock } from "@destack/environment";
 
 /** The space with the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");

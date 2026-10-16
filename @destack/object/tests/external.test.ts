@@ -3,7 +3,7 @@ import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, Clock, aligned, type Identifier } from "@destack/schema";
+import { schema, aligned, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -16,6 +16,7 @@ import { definePackage } from "@destack/runtime";
 import { serveObjects } from "./fixture/device.ts";
 import { notebook, notesDatabase } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { Clock } from "@destack/environment";
 
 /** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
