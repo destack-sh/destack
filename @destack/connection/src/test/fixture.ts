@@ -19,7 +19,7 @@ import { defineObject, INTRINSIC, type ObjectType } from "@destack/object";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { callTables, testEvents } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
-import { Clock, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { secret, vault } from "@destack/vault/object";
 import { implementSecret, implementSecretVersion, implementVault } from "@destack/vault/server";
@@ -56,6 +56,7 @@ import { ConnectionRequest } from "../credential/request.ts";
 import { Egress, PackageHandle, PackageMount } from "@destack/runtime";
 import type { ServerContext } from "@destack/runtime/workload";
 import { integrationTables, connectionTables } from "../stack/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The issuer of the test authorization server. */
 export const ISSUER = "https://auth.test";
@@ -517,7 +518,7 @@ export class ConnectionFixture {
                 ? {}
                 : {
                       publisher: (followed: string) =>
-                          Uplink.of((signer) => home.home(followed, signer).replica),
+                          Uplink.of((signer) => home.home(followed, signer).store),
                   }),
         });
     }
