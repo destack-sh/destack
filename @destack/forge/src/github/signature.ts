@@ -5,7 +5,7 @@ import {
     WebhookSignature,
     type WebhookMessage,
     type WebhookParameters,
-} from "@destack/runtime/trigger";
+} from "@destack/workflow";
 
 /** The prefix of GitHub's HMAC-SHA256 signature header value. */
 const SIGNATURE_PREFIX = "sha256=";

@@ -46,6 +46,7 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
+        "@destack/workflow": "workspace:*",
         "semver": "7.8.5"
     },
     "devDependencies": {

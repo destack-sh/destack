@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { WebhookDelivery } from "@destack/runtime/trigger";
+import type { WebhookDelivery } from "@destack/workflow";
 
 /** The events that the forge's GitHub App subscribes to and that change references. */
 const REFERENCE_EVENTS: ReadonlySet<string> = new Set(["push", "create", "delete"]);
