@@ -1,6 +1,6 @@
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
-import { aligned, Identifier, present, schema } from "@destack/schema";
+import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, test } from "@destack/test";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -558,7 +558,7 @@ test("pick each space's machine regardless of the machines' order, and move only
     const reversed = await Promise.all(
         SPACES.map((space) => Placement.pick(space, MACHINES.toReversed())),
     );
-    const leaving = aligned(MACHINES, 1);
+    const leaving = nth(MACHINES, 1);
     const remaining = MACHINES.filter((machine) => machine !== leaving);
     const after = await Promise.all(SPACES.map((space) => Placement.pick(space, remaining)));
 
@@ -570,6 +570,6 @@ test("pick each space's machine regardless of the machines' order, and move only
         isMovingOnlyHeld:
             moved.length === held.length && moved.every((space) => held.includes(space)),
         used: [...new Set(picked)].toSorted((left, right) => left.localeCompare(right)),
-        none: await Placement.pick(aligned(SPACES, 0), []),
+        none: await Placement.pick(nth(SPACES, 0), []),
     }).toEqual({ isOrderless: true, isMovingOnlyHeld: true, used: MACHINES, none: undefined });
 });

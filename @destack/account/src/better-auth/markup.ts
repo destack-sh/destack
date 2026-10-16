@@ -1,5 +1,5 @@
 import { SOURCE_LOCALE } from "@destack/locale";
-import { aligned, Digest, present } from "@destack/schema";
+import { nth, Digest, present } from "@destack/schema";
 
 /** The HTML escapes of the characters markup gives meaning to. */
 const ESCAPES: Readonly<Record<string, string>> = {
@@ -60,9 +60,9 @@ export function html(
     ...values: readonly (string | Markup | readonly Markup[])[]
 ): Markup {
     // join the strings with the written values
-    let text = aligned(strings, 0);
+    let text = nth(strings, 0);
     for (const [index, value] of values.entries()) {
-        text += write(value) + aligned(strings, index + 1);
+        text += write(value) + nth(strings, index + 1);
     }
 
     return new Markup(text);

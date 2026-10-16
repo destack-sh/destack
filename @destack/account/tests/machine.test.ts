@@ -1,5 +1,5 @@
 import { eq, Snapshot, Transaction } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { MemoryKeychain } from "@destack/identity";
 import { expect, test } from "@destack/test";
@@ -49,7 +49,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
         id: enrolled.machineId,
         requestId: RequestId.create(Date.now()),
     });
-    const second = aligned(keys, 1);
+    const second = nth(keys, 1);
     expect({
         revoked: keys.map((entry) => entry.revokedAt !== null),
         selected: [...selected, await active(now)],

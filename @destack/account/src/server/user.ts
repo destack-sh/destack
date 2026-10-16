@@ -1,4 +1,4 @@
-import { aligned, present, TimeZone } from "@destack/schema";
+import { nth, present, TimeZone } from "@destack/schema";
 import {
     type MethodContextOf,
     type NextOf,
@@ -64,7 +64,7 @@ async function suggestHandle(
     if (target.email === null) {
         throw new TypeError(`user ${target.id} has its email concealed`);
     }
-    const from = target.login ?? aligned(target.email.split("@"), 0);
+    const from = target.login ?? nth(target.email.split("@"), 0);
     const stem =
         from
             .toLowerCase()
@@ -82,7 +82,7 @@ async function suggestHandle(
             index: Claim.index(account, "handle"),
             keys,
         });
-        const free = candidates.find((_, index) => !claimed.has(aligned(keys, index)));
+        const free = candidates.find((_, index) => !claimed.has(nth(keys, index)));
         if (free !== undefined) {
             return { handle: free };
         }

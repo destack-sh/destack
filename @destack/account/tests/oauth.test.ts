@@ -4,7 +4,7 @@ import { expect, test } from "@destack/test";
 import { Credential } from "../src/credential/credential.ts";
 import { user } from "../src/object/user.ts";
 import { client } from "../src/object/client.ts";
-import { aligned, Identifier, present, schema } from "@destack/schema";
+import { nth, Identifier, present, schema } from "@destack/schema";
 import { deviceAuthorization } from "../src/stack/db.ts";
 import { outcome } from "../src/test/index.ts";
 import { AccountFixture, ISSUER, type Person } from "../src/test/index.ts";
@@ -278,7 +278,7 @@ test("sign in to another application through the authorization code flow with PK
     ]);
     await owner.client.oauthConsent.revoke({
         userId: owner.id,
-        id: aligned(consents, 0).id,
+        id: nth(consents, 0).id,
         requestId: RequestId.create(Date.now()),
     });
     const ended = await refresh(present(renewed.refresh_token, "the renewed refresh token"));
@@ -346,7 +346,7 @@ test("refuse a refresh token issued before a revoked consent was granted again",
 
     // revoke the consent, then grant it again
     const { items } = await owner.client.oauthConsent.list({ userId: owner.id });
-    const consent = aligned(items, 0);
+    const consent = nth(items, 0);
     await owner.client.oauthConsent.revoke({
         userId: owner.id,
         id: consent.id,

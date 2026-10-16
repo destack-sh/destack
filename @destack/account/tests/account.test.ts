@@ -9,7 +9,7 @@ import { SESSION_TOKEN_TYPE } from "../src/oauth/index.ts";
 import { placement } from "../src/object/placement.ts";
 import { AccountFixture, ids, type Person, SIGN_UP, outcome } from "../src/test/index.ts";
 import { claims } from "./fixture.ts";
-import { aligned, Identifier, schema } from "@destack/schema";
+import { nth, Identifier, schema } from "@destack/schema";
 import { principal } from "@destack/access";
 
 test("create a person's shared accounts beside their personal one, refuse a second personal one, hide them from others, and refuse exchanging a revoked session", async () => {
@@ -213,7 +213,7 @@ test("exchange a token acting as a member in the account's space, naming the mem
         .select({ id: session.table.id, authenticatedAt: session.table.authenticatedAt })
         .from(session.table)
         .where(eq(session.table.userId, administrator.id));
-    const signedIn = aligned(sessions, 0);
+    const signedIn = nth(sessions, 0);
 
     // name the member, their memberships, the administrator's assurance and the administrator acting
     const claimed = claims(acting.accessToken);
