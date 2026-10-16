@@ -1,5 +1,5 @@
 import { eq, Snapshot } from "@destack/db";
-import { aligned, Digest, Identifier } from "@destack/schema";
+import { nth, Digest, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { ids, StackFixture } from "../test/index.ts";
 import {
@@ -20,7 +20,7 @@ test("serve an installation once the space's main database applied its tables, a
     const { database: connection } = fixture;
     const now = Date.now();
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
-    const main = aligned(await connection.select().from(database.table), 0);
+    const main = nth(await connection.select().from(database.table), 0);
     await connection.insert(installation.table).values({
         ...record,
         id: ids.notes,

@@ -4,7 +4,7 @@ import { type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Manager } from "@destack/access";
 import { type ClaimHome, Stack } from "@destack/object/server";
-import { aligned, Identifier, type JsonObject } from "@destack/schema";
+import { nth, Identifier, type JsonObject } from "@destack/schema";
 import { installation } from "../object/index.ts";
 import { type ObjectType, Claim, Claimant, ClaimLookup, claimTable } from "@destack/object";
 import { STACKS, TestDirectory } from "@destack/account/test";
@@ -136,7 +136,7 @@ export class RouteFixture implements AsyncDisposable {
     ): Promise<void> {
         const accounts = [this.accountId, this.accountId, this.otherId];
         for (const [index, spaceId] of this.spaceIds.entries()) {
-            const accountId = aligned(accounts, index);
+            const accountId = nth(accounts, index);
             const installationId = Identifier.create("installation");
             await this.spaces.insert(space.table).values({
                 ...record,

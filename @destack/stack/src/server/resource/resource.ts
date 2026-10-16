@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { aligned, Digest, type Identifier, present, schema } from "@destack/schema";
+import { nth, Digest, type Identifier, present, schema } from "@destack/schema";
 import {
     type DatabaseConnection,
     type DatabaseHandle,
@@ -155,7 +155,7 @@ export class ProviderIndex {
     /** List the object each kind the machine itself serves is, once each. */
     provided(): readonly ResourceType<typeof space>[] {
         return [
-            ...new Set([...this.byKind.values()].map((providers) => aligned(providers, 0).object)),
+            ...new Set([...this.byKind.values()].map((providers) => nth(providers, 0).object)),
         ].filter((object) => !this.packaged.includes(object));
     }
 
@@ -168,7 +168,7 @@ export class ProviderIndex {
     of(object: ObjectType): readonly SpaceProvider[] {
         return (
             [...this.byKind.values()].find((providers) =>
-                aligned(providers, 0).object.same(object),
+                nth(providers, 0).object.same(object),
             ) ?? []
         );
     }

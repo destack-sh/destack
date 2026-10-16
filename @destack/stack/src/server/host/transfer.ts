@@ -4,7 +4,7 @@ import { placement, Space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
 import type { Runtime } from "../../runtime/index.ts";
-import { aligned, type Identifier, present, schema } from "@destack/schema";
+import { nth, type Identifier, present, schema } from "@destack/schema";
 import {
     and,
     Change,
@@ -217,7 +217,7 @@ export function implementTransfer(options: TransferOptions) {
                 ),
             ],
             reconcile: (reconciliation) =>
-                advance(aligned(reconciliation.rows, 0), reconciliation, options),
+                advance(nth(reconciliation.rows, 0), reconciliation, options),
         },
     });
 }

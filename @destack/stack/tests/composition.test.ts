@@ -5,7 +5,7 @@ import { defineObject, field, ObjectType } from "@destack/object";
 import type { InstalledDeclaration } from "@destack/object/inspect";
 import { HookSandbox } from "@destack/object";
 import { Package } from "@destack/package";
-import { aligned, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
 import { RequestId } from "@destack/runtime/request";
@@ -109,7 +109,7 @@ test("serve two installed packages from one store, writing both in one mutation 
         types.flatMap((type) => type.tables),
         { others: "keep" },
     );
-    const [notebook, task] = [aligned(types, 0), aligned(types, 1)];
+    const [notebook, task] = [nth(types, 0), nth(types, 1)];
     const caller = store.self;
 
     // write a notebook and a task in one mutation

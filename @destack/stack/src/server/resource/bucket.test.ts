@@ -6,7 +6,7 @@ import { procedureInvoke } from "@destack/object/server";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { CallError } from "@destack/runtime/error";
-import { aligned, schema, present } from "@destack/schema";
+import { nth, schema, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import {
     afterAll,
@@ -335,7 +335,7 @@ test.for(TEST_DIALECTS)(
         expect(heads).toEqual(
             keys.map((key, index) => ({
                 key,
-                version: present(aligned(heads, index), "head").version,
+                version: present(nth(heads, index), "head").version,
                 size: 1,
                 etag: createHash("md5").update("x").digest("hex"),
                 uploaded: NOW,
@@ -433,7 +433,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
 
     // audit the refused upload as a denial in the bucket's space
     const audits = await fixture.audits();
-    const denial = aligned(audits, 0);
+    const denial = nth(audits, 0);
     expect(audits).toEqual([
         {
             method: procedureInvoke.name,

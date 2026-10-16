@@ -14,7 +14,7 @@ import { placement } from "@destack/account/object";
 import { DesiredState, type ResourceType, type ResourceRow } from "@destack/object";
 import { DRAINING, type ObjectStore } from "@destack/object/server";
 import type { ResourceState } from "@destack/package/declare";
-import { aligned, Digest, present } from "@destack/schema";
+import { nth, Digest, present } from "@destack/schema";
 import type { ResourceKind } from "@destack/resource";
 import type { Controller } from "@destack/runtime/control";
 import { binding, capture, Deployment, deployment, MAIN_DATABASE } from "../../object/index.ts";
@@ -293,7 +293,7 @@ async function checked(
 ): Promise<Map<Digest, ResourceState>> {
     // key the stored states by digest, then refuse a distinct one its kind does not accept
     const digests = await Promise.all(stored.map((state) => Digest.json(state)));
-    const byDigest = new Map(digests.map((digest, index) => [digest, aligned(stored, index)]));
+    const byDigest = new Map(digests.map((digest, index) => [digest, nth(stored, index)]));
     kind.states([...byDigest.values()]);
 
     return byDigest;

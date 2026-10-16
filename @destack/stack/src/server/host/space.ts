@@ -7,7 +7,7 @@ import {
     ObjectWatch,
     type Observation,
 } from "@destack/object";
-import { aligned, type JsonObject } from "@destack/schema";
+import { nth, type JsonObject } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Scope, type Uplink } from "@destack/sync";
@@ -47,7 +47,7 @@ function control(options: Parameters<typeof implementSpace>[0]): ObjectControlle
         ],
         reconcile: async ({ rows, database, store, now }) => {
             // leave a space another machine serves
-            const row = aligned(rows, 0);
+            const row = nth(rows, 0);
             if (!(await Space.isServing(database, row.id))) {
                 return undefined;
             }

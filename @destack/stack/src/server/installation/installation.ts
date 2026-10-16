@@ -1,5 +1,5 @@
 import { ObjectReference, Subject } from "@destack/sync";
-import { aligned, canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
+import { nth, canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
 import {
@@ -110,7 +110,7 @@ export function implementInstallation(options: InstallationOptions) {
                 row.role === "stack" ? { scope: row.scope, role: "stack" } : { id: row.id },
             watches: installationWatches(options.resources),
             reconcile: (reconciliation) => {
-                const target = aligned(reconciliation.rows, 0);
+                const target = nth(reconciliation.rows, 0);
 
                 return target.role === "stack"
                     ? reconcileStack(target.scope, reconciliation, options)

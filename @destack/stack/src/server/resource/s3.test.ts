@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TestDatabase } from "@destack/db/test";
-import { aligned, found, schema, zip } from "@destack/schema";
+import { nth, found, schema, zip } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { LocalBucketHost } from "@destack/bucket/bun";
 import { bucket } from "../../object/index.ts";
@@ -101,7 +101,7 @@ test("serve each space's buckets over S3 to its own credentials, concealing them
     const outcomes = await Promise.all(
         [
             credentials,
-            aligned(derived, 2),
+            nth(derived, 2),
             { accessKeyId: "AKIDUNKNOWN", secretAccessKey: "secret" },
         ].map(read),
     );

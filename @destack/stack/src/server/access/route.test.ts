@@ -2,7 +2,7 @@ import { ObjectReference } from "@destack/sync";
 import { asc } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ObjectError, Claim } from "@destack/object";
-import { aligned, found, present } from "@destack/schema";
+import { nth, found, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { expect, test } from "@destack/test";
 import type {} from "@destack/package/import-meta";
@@ -75,9 +75,9 @@ test.for(TEST_DIALECTS)(
             .from(route.table)
             .orderBy(asc(route.table.scope), asc(route.table.path));
         const declared = (index: number, scope: string, name: string) => ({
-            id: aligned(rows, index).id,
-            createdAt: aligned(rows, index).createdAt,
-            updatedAt: aligned(rows, index).createdAt,
+            id: nth(rows, index).id,
+            createdAt: nth(rows, index).createdAt,
+            updatedAt: nth(rows, index).createdAt,
             scope,
             hostname: hostname.id,
             conditions: {},
@@ -125,8 +125,8 @@ test.for(TEST_DIALECTS)(
             return await fixture.lookup.owner(index, key);
         };
         expect([await owner(hostname.id), await owner(own.id)]).toEqual([
-            { objectId: aligned(rows, 0).id, owner: first },
-            { objectId: aligned(rows, 2).id, owner: rival },
+            { objectId: nth(rows, 0).id, owner: first },
+            { objectId: nth(rows, 2).id, owner: rival },
         ]);
     },
 );

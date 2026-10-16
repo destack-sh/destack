@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type DatabaseConnection, Snapshot, eq, Expression, DatabaseState } from "@destack/db";
-import { aligned, found, Identifier, present, schema } from "@destack/schema";
+import { nth, found, Identifier, present, schema } from "@destack/schema";
 import { databaseProvider, type LogPosition } from "@destack/db";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import {
@@ -201,7 +201,7 @@ async function installNotes(
 ) {
     const { database } = fixture;
     const now = Date.now();
-    const notes = aligned(
+    const notes = nth(
         await database
             .insert(object.installation.table)
             .values({
@@ -234,7 +234,7 @@ async function submitRevision(
     const reader = build ?? (await notesBuild([main]));
     const built = await fixture.recordBuild(reader);
     const manifest = await PackageStore.digest(reader.manifest);
-    const revision = aligned(
+    const revision = nth(
         await database
             .insert(object.installationRevision.table)
             .values({
@@ -322,7 +322,7 @@ async function approvePlan(
     id: Identifier<"installation">,
 ) {
     // read the plan the installation waits on
-    const target = aligned(
+    const target = nth(
         await database
             .select()
             .from(object.installation.table)
@@ -358,9 +358,9 @@ test("deploy each workload with its bound resources, and drain and retire it onc
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
     const deployed = await database.select().from(object.deployment.table);
-    await instances.reconcile(aligned(deployed, 0).id);
-    const running = aligned(await database.select().from(object.instance.table), 0);
-    const installed = aligned(
+    await instances.reconcile(nth(deployed, 0).id);
+    const running = nth(await database.select().from(object.instance.table), 0);
+    const installed = nth(
         await database
             .select()
             .from(object.installation.table)
@@ -370,7 +370,7 @@ test("deploy each workload with its bound resources, and drain and retire it onc
     const captured = await database
         .select({ name: object.capture.table.name })
         .from(object.capture.table);
-    const run = aligned(runtime.started, 0);
+    const run = nth(runtime.started, 0);
 
     // deploy only the bun output and run it without its main database, which only its deployment captures
     expect({
@@ -389,7 +389,7 @@ test("deploy each workload with its bound resources, and drain and retire it onc
     }).toEqual({
         deployments: [["active", "server", "bun", "main", mainWorkload]],
         instance: ["running", ids.machine],
-        run: [running.id, aligned(deployed, 0).id, ids.space, "server", "main"],
+        run: [running.id, nth(deployed, 0).id, ids.space, "server", "main"],
         resources: [],
         captured: [{ name: "main" }],
         applied: true,
@@ -401,10 +401,10 @@ test("deploy each workload with its bound resources, and drain and retire it onc
         .set({ status: "suspended" })
         .where(eq(object.installation.table.id, notes.id));
     await deployments.reconcile(notes.id);
-    await instances.reconcile(aligned(deployed, 0).id);
-    await instances.reconcile(aligned(deployed, 0).id);
-    const retired = aligned(await database.select().from(object.deployment.table), 0);
-    const stopped = aligned(await database.select().from(object.instance.table), 0);
+    await instances.reconcile(nth(deployed, 0).id);
+    await instances.reconcile(nth(deployed, 0).id);
+    const retired = nth(await database.select().from(object.deployment.table), 0);
+    const stopped = nth(await database.select().from(object.instance.table), 0);
     expect([retired.status, stopped.status, runtime.stopped]).toEqual([
         "retired",
         "stopped",
@@ -421,10 +421,10 @@ test("bind an application's tables to the space's main database, start its insta
     await deployments.reconcile(notes.id);
 
     // wait with the instance while main has not applied the notes' tables
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(deployed.id);
-    const mainDatabase = aligned(await database.select().from(object.database.table), 0);
-    const waiting = aligned(await database.select().from(object.instance.table), 0);
+    const mainDatabase = nth(await database.select().from(object.database.table), 0);
+    const waiting = nth(await database.select().from(object.instance.table), 0);
     expect({
         started: runtime.started.length,
         instance: [waiting.status, waiting.restarts, waiting.conditions["ready"]?.status],
@@ -439,9 +439,9 @@ test("bind an application's tables to the space's main database, start its insta
     const provisioned = await database.log.position();
     await resources.reconcile(ids.space);
     await instances.settle(provisioned);
-    const applied = aligned(await database.select().from(object.database.table), 0);
-    const attached = aligned(await database.select().from(object.binding.table), 0);
-    const running = aligned(await database.select().from(object.instance.table), 0);
+    const applied = nth(await database.select().from(object.database.table), 0);
+    const attached = nth(await database.select().from(object.binding.table), 0);
+    const running = nth(await database.select().from(object.instance.table), 0);
     const bound = DatabaseState.parse(attached.state);
     expect({
         main: [applied.name, applied.ownerId, applied.conditions["ready"]?.reason],
@@ -467,7 +467,7 @@ test("bind an application's tables to the space's main database, start its insta
     await instances.reconcile(deployed.id);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const retained = aligned(await database.select().from(object.database.table), 0);
+    const retained = nth(await database.select().from(object.database.table), 0);
     expect({
         installations: await database.select().from(object.installation.table),
         bindings: await database.select().from(object.binding.table),
@@ -505,7 +505,7 @@ test("restart a failing instance in place after a doubling backoff, keeping one 
     });
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
 
     // fail, wait out the backoff and restart
     const first = await instances.reconcile(deployed.id);
@@ -542,7 +542,7 @@ test("start a running instance again once its machine restarted and no longer ru
     const first = await serveControllers(fixture, { runtime: before });
     await first.deployments.reconcile(notes.id);
     await first.resources.reconcile(ids.space);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await first.instances.reconcile(deployed.id);
 
     // restart the machine with an idle runtime and reconcile again
@@ -555,9 +555,9 @@ test("start a running instance again once its machine restarted and no longer ru
         after: after.started.map((run) => run.instanceId),
         instances: recorded.map((entry) => [entry.id, entry.status]),
     }).toEqual({
-        before: [aligned(recorded, 0).id],
-        after: [aligned(recorded, 0).id],
-        instances: [[aligned(recorded, 0).id, "running"]],
+        before: [nth(recorded, 0).id],
+        after: [nth(recorded, 0).id],
+        instances: [[nth(recorded, 0).id, "running"]],
     });
 });
 
@@ -569,13 +569,13 @@ test("deploy a submitted revision beside the previous one, keep the previous one
     const { deployments, instances, resources } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const first = aligned(await database.select().from(object.deployment.table), 0);
+    const first = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(first.id);
 
     // submit a second revision that deploys beside the first and drains it
     const second = await submitRevision(fixture, notes.id, "f");
     await deployments.reconcile(notes.id);
-    const replacement = aligned(
+    const replacement = nth(
         await database
             .select()
             .from(object.deployment.table)
@@ -583,7 +583,7 @@ test("deploy a submitted revision beside the previous one, keep the previous one
         0,
     );
     await instances.reconcile(first.id);
-    const serving = aligned(
+    const serving = nth(
         await database
             .select({ status: object.instance.table.status })
             .from(object.instance.table)
@@ -604,7 +604,7 @@ test("deploy a submitted revision beside the previous one, keep the previous one
         .select()
         .from(object.instance.table)
         .orderBy(object.instance.table.createdAt, object.instance.table.id);
-    const installed = aligned(
+    const installed = nth(
         await database
             .select()
             .from(object.installation.table)
@@ -666,11 +666,11 @@ test("redeploy an application once a binding its deployment captured targets ano
     const { deployments, resources } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const owned = aligned(await database.select().from(object.database.table), 0);
+    const owned = nth(await database.select().from(object.database.table), 0);
 
     // rebind main to a second database of the same declaration
     const now = Date.now();
-    const second = aligned(
+    const second = nth(
         await database
             .insert(object.database.table)
             .values({
@@ -705,8 +705,8 @@ test("redeploy an application once a binding its deployment captured targets ano
     }).toEqual({
         deployments: ["draining", "active"],
         captures: [
-            [aligned(deployed, 0).id, owned.id],
-            [aligned(deployed, 1).id, second.id],
+            [nth(deployed, 0).id, owned.id],
+            [nth(deployed, 1).id, second.id],
         ],
     });
 });
@@ -726,7 +726,7 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
 
     // deploy it on a workerd machine
     await deployments.reconcile(notes.id);
-    const installed = aligned(
+    const installed = nth(
         await database
             .select()
             .from(object.installation.table)
@@ -764,7 +764,7 @@ test("deploy nothing of a build declaring its own database, and report why", asy
 
     // deploy it
     await deployments.reconcile(notes.id);
-    const installed = aligned(
+    const installed = nth(
         await database
             .select()
             .from(object.installation.table)
@@ -838,7 +838,7 @@ test("run each workload with the capabilities and directories its build declares
     // deploy without allowances with only the required capability and no directory
     await grant([], [notesDirectory]);
     await resources.reconcile(ids.space);
-    const first = aligned(await database.select().from(object.deployment.table), 0);
+    const first = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(first.id);
     const unallowed = await deployed();
 
@@ -892,7 +892,7 @@ test("fail an instance granted fs on a runtime without a filesystem to grant", a
     });
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
 
     // record the refusal on the instance
     await instances.reconcile(deployed.id);
@@ -914,7 +914,7 @@ test("refuse to deploy an installation binding without an address, then run the 
     // refuse to deploy while no stack binds the tasks installation to an address
     await deployments.reconcile(notes.id);
     const readiness = async () =>
-        aligned(
+        nth(
             await database
                 .select({ conditions: object.installation.table.conditions })
                 .from(object.installation.table)
@@ -953,7 +953,7 @@ test("refuse to deploy an installation binding without an address, then run the 
 
     // observe it ready as declared and deploy and run with the database the installation owns
     await resources.reconcile(ids.space);
-    const observed = aligned(
+    const observed = nth(
         await database
             .select({ conditions: object.dependency.table.conditions })
             .from(object.dependency.table)
@@ -962,7 +962,7 @@ test("refuse to deploy an installation binding without an address, then run the 
     );
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(deployed.id);
     const dependency = runtime.started[0]?.resources.find((entry) => entry.kind === "installation");
 
@@ -1007,7 +1007,7 @@ test("bind a workload to an installation another space grants", async () => {
     // deploy it and run its instance
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(deployed.id);
     const captured = await database
         .select({
@@ -1051,7 +1051,7 @@ test("keep the columns a draining release still declares, and drop them for appr
     const { deployments, instances, resources } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const first = aligned(await database.select().from(object.deployment.table), 0);
+    const first = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(first.id);
 
     // deploy a second revision dropping the color beside the first and plan while the first drains
@@ -1060,7 +1060,7 @@ test("keep the columns a draining release still declares, and drop them for appr
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
     const plan = async () => {
-        const row = aligned(await database.select().from(object.database.table), 0);
+        const row = nth(await database.select().from(object.database.table), 0);
         return [
             row.conditions["ready"]?.reason,
             row.plan?.steps.map((step) => [step.action, step.risk, step.detail]) ?? null,
@@ -1069,7 +1069,7 @@ test("keep the columns a draining release still declares, and drop them for appr
     const whileDraining = await plan();
 
     // run the second revision and retire the first
-    const replacement = aligned(
+    const replacement = nth(
         await database
             .select()
             .from(object.deployment.table)
@@ -1113,7 +1113,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     const { deployments, instances, resources, approve } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const original = aligned(await database.select().from(object.deployment.table), 0);
+    const original = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(original.id);
 
     // deploy the narrowing revision beside it and plan a recreation that waits for approval
@@ -1122,7 +1122,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
     const read = async () => {
-        const row = aligned(await database.select().from(object.database.table), 0);
+        const row = nth(await database.select().from(object.database.table), 0);
         return {
             reason: row.conditions["ready"]?.reason,
             plan: row.plan ?? undefined,
@@ -1135,7 +1135,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     const approved = await approve(notes.id);
     await resources.reconcile(ids.space);
     const recreating = await read();
-    const stopping = aligned(
+    const stopping = nth(
         await database
             .select({ status: object.deployment.table.status })
             .from(object.deployment.table)
@@ -1146,7 +1146,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
     await instances.reconcile(original.id);
     await resources.reconcile(ids.space);
     const converted = await read();
-    const replacement = aligned(
+    const replacement = nth(
         await database
             .select()
             .from(object.deployment.table)
@@ -1196,7 +1196,7 @@ test("keep a release serving while a caller pins it, and retire it once the call
     const { deployments, instances, resources } = await serveControllers(fixture);
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const first = aligned(await database.select().from(object.deployment.table), 0);
+    const first = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(first.id);
 
     // bind a caller's active deployment to notes and pin the first release
@@ -1264,7 +1264,7 @@ test("keep a release serving while a caller pins it, and retire it once the call
     const second = await submitRevision(fixture, notes.id, "f", await notesBuild(declared));
     await deployments.reconcile(notes.id);
     await resources.reconcile(ids.space);
-    const replacement = aligned(
+    const replacement = nth(
         await database
             .select()
             .from(object.deployment.table)
@@ -1274,7 +1274,7 @@ test("keep a release serving while a caller pins it, and retire it once the call
     await instances.reconcile(replacement.id);
     await instances.reconcile(first.id);
     const status = async () =>
-        aligned(
+        nth(
             await database
                 .select({ status: object.deployment.table.status })
                 .from(object.deployment.table)
@@ -1440,7 +1440,7 @@ test("grant an applied application exactly the space permissions its workloads r
     const opened = await openUniverse();
     const { authorizer, deployments, instances } = await serveControllers(fixture, { opened });
     await deployments.reconcile(notes.id);
-    const deployed = aligned(await database.select().from(object.deployment.table), 0);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
 
     // decide the installation's reading and managing of its space
     const spaceObject = await Scope.object(Snapshot.live(database), ids.space);

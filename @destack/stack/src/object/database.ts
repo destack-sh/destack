@@ -2,7 +2,7 @@ import { DatabaseKind, type Select, type Snapshot, type Transaction } from "@des
 import { defineObject } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { aligned, Digest, type Identifier, present } from "@destack/schema";
+import { nth, Digest, type Identifier, present } from "@destack/schema";
 import { binding } from "./binding.ts";
 import { type Declaration, declaration } from "./declaration.ts";
 import { type Installation, installation } from "./installation.ts";
@@ -79,7 +79,7 @@ export const Database = {
             },
         });
         const digests = await Promise.all(bindings.map((entry) => Digest.json(entry.state)));
-        const served = bindings.filter((_entry, index) => applied.has(aligned(digests, index)));
+        const served = bindings.filter((_entry, index) => applied.has(nth(digests, index)));
         const installations = await snapshot.read(installation.table).findMany({
             where: {
                 scope: spaceId,

@@ -14,7 +14,7 @@ import {
 } from "@destack/db";
 import { CapabilityError, type PackageId } from "@destack/package";
 import {
-    aligned,
+    nth,
     type JsonValue,
     schema,
     type Identifier,
@@ -160,7 +160,7 @@ export function implementDeployment(options: DeploymentOptions) {
             ],
             reconcile: async (reconciliation) => {
                 // reconcile a deployment of a served space the machine runs
-                const id = aligned(reconciliation.rows, 0).id;
+                const id = nth(reconciliation.rows, 0).id;
                 const rollout = await Rollout.read(id, reconciliation, options);
 
                 return rollout?.reconcile();

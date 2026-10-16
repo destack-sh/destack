@@ -8,7 +8,7 @@ import { account, space } from "@destack/account/object";
 import * as sqlite from "@destack/db/bun";
 import { ObjectStore, Stack } from "@destack/object/server";
 import { testCallKey } from "@destack/runtime/test";
-import { aligned, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { implementRole, implementRelationship } from "../index.ts";
 import { Clock } from "@destack/environment";
@@ -84,8 +84,8 @@ test("keep a stack's declared relationship under its identifier until it changes
     const replaced = await bound();
 
     // expect the same row while unchanged and a new one for the other user
-    const [id, subject] = aligned(replaced, 0);
-    expect([kept, replaced.length, subject, id === aligned(aligned(first, 0), 0)]).toEqual([
+    const [id, subject] = nth(replaced, 0);
+    expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0)]).toEqual([
         first,
         1,
         dave,

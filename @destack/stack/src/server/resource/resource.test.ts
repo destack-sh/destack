@@ -16,7 +16,7 @@ import {
     Transaction,
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
-import { aligned, schema, present } from "@destack/schema";
+import { nth, schema, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { appliedStates, ConsumerController, serveSpace } from "../index.ts";
 import {
@@ -92,7 +92,7 @@ test("provision a space's database under the space's approval threshold, and lea
         }),
     ).store;
     const stored = async () =>
-        aligned(
+        nth(
             await database
                 .select()
                 .from(object.database.table)
@@ -231,7 +231,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
         }),
     ).store;
     const read = async () =>
-        aligned(
+        nth(
             await database
                 .select()
                 .from(object.database.table)
