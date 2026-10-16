@@ -14,6 +14,7 @@ localization.relative(threeDaysAgo, Date.now());
 // CLDR parents, then the source language: ["es-MX", "es-419", "es", "en"]
 Locale.fallback("es-MX", "en");
 Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // an Accept-Language header by weight: ["fr-CH", "de"]
+Country.parse("CH"); // an ISO 3166-1 alpha-2 country code
 ```
 
 ## Messages

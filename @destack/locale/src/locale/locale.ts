@@ -51,6 +51,12 @@ export const LocaleTag = defineSchema(
 /** A BCP 47 language tag. */
 export type LocaleTag = schema.Infer<typeof LocaleTag>;
 
+/** A country by its ISO 3166-1 alpha-2 code, such as CH. */
+export const Country = defineSchema(schema.string().regex(/^[A-Z]{2}$/u));
+
+/** A country by its ISO 3166-1 alpha-2 code. */
+export type Country = schema.Infer<typeof Country>;
+
 /** The direction a script runs in: left to right or right to left. */
 export const Direction = defineSchema(schema.enum(["ltr", "rtl"]));
 
