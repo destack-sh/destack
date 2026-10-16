@@ -28,12 +28,12 @@ import { Server } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { Scope, type Subject } from "@destack/sync";
-import { TestClock } from "@destack/test";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import { implementSecret, implementSecretVersion } from "../server/secret.ts";
 import { implementVault } from "../server/vault.ts";
 import vaultPackage from "../package.ts";
 import { vaultTables } from "../stack/index.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** A machine's database keeping vaults beside its calls, replicating the spaces they live in. */
 export const vaultDatabase = defineDatabase({
@@ -78,8 +78,8 @@ export class VaultFixture implements AsyncDisposable {
     readonly roleId: Identifier<"role">;
     /** The migrated vault database. */
     readonly database: DatabaseConnection;
-    /** The clock the fixture's stores and servers read, which tests set. */
-    readonly clock = new TestClock();
+    /** The clock the fixture's stores and servers read, which tests pause. */
+    readonly clock = new VirtualClock(Date.now()).resume();
     /** The member's vault client, replaced by scenarios connecting to another server. */
     client: ClientOf<typeof vaultPackage>;
     /** The member the servers authenticate. */

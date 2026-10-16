@@ -168,7 +168,8 @@ test.each(TEST_DIALECTS)(
         });
 
         // keep a destroyed version's record and refuse its value
-        const time = fixture.clock.freeze();
+        fixture.clock.pause();
+        const time = fixture.clock.now();
         const destroyed = await client.version.destroy({
             scope: spaceId,
             id: written.id,
@@ -342,7 +343,8 @@ test.each(TEST_DIALECTS)(
             revision: other.revision,
             requestId: RequestId.create(Date.now()),
         });
-        const purgeTime = fixture.clock.freeze();
+        fixture.clock.pause();
+        const purgeTime = fixture.clock.now();
         expect(
             await client.secret.purge({ ...otherKey, requestId: RequestId.create(Date.now()) }),
         ).toEqual({});
