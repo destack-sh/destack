@@ -4,6 +4,7 @@ import {
     WebhookDelivery,
     WebhookSignature,
     type WebhookMessage,
+    type WebhookVerifier,
     type WebhookParameters,
 } from "@destack/workflow";
 
@@ -32,6 +33,11 @@ export class GitHubSignature implements WebhookSignature {
             "x-github-event": message.event,
             "x-hub-signature-256": `${SIGNATURE_PREFIX}${digest.toHex()}`,
         });
+    }
+
+    /** Verify deliveries alike for every installation, keeping nothing across them. */
+    verifier(): WebhookVerifier {
+        return (request, secret, parameters, now) => this.verify(request, secret, parameters, now);
     }
 
     /** Verify the body's signature and read the delivery. */
