@@ -46,11 +46,12 @@ export abstract class Input {
         _dirty: Map<string, Row | null>,
     ): Promise<void> {}
 
-    /** Keep the visible rows of a table in the node's scopes. */
+    /** Filter the visible rows of a table in the node's scopes, under the node's own permission. */
     protected async passable(table: Table, rows: readonly Row[], run: Run): Promise<Row[]> {
         return run.seen(
             table,
             rows.filter((row) => Node.isScoped(row, this.node.scopes)),
+            table === this.node.table ? this.node.permission : undefined,
         );
     }
 

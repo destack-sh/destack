@@ -10,7 +10,7 @@ import {
     DatabaseError,
     type LogPosition,
 } from "@destack/db";
-import { canonicalize, aligned, found, zip } from "@destack/schema";
+import { canonicalize, nth, found, zip } from "@destack/schema";
 import { type Audience, Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";
 import type { Query, Item } from "../query/query.ts";
@@ -610,14 +610,14 @@ export class Dataflow implements Arrangement {
                     node.table,
                     key,
                     row,
-                    aligned(concealed, offset++),
+                    nth(concealed, offset++),
                     included.map(
                         ({ name: include, items }) =>
-                            [include, aligned(aligned(items, position), index)] as const,
+                            [include, nth(nth(items, position), index)] as const,
                     ),
                     measured.map(
                         ({ name: include, groups }) =>
-                            [include, aligned(aligned(groups, position), index)] as const,
+                            [include, nth(nth(groups, position), index)] as const,
                     ),
                 ),
             );

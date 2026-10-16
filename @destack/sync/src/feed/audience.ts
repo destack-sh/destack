@@ -29,15 +29,16 @@ export const EVERYONE: Audience = {
 export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the table rows the subscriber may have as SQL, or "memory" if `admits` decides. */
-    readonly where: (table: Table) => SQL | "memory";
+    /** Match the rows the subscriber may have, under a query's own permission too, or "memory". */
+    readonly where: (table: Table, permission?: string) => SQL | "memory";
     /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
-    /** Decide which rows of a table the subscriber may have, by index. */
+    /** Decide which rows the subscriber may have by index, under a query's own permission too. */
     readonly admits: (
         table: Table,
         rows: readonly Row[],
         position: LogPosition,
+        permission?: string,
     ) => Promise<ReadonlySet<number>>;
     /** List the columns of a table the subscriber may not read on some rows. */
     readonly concealable: (table: Table) => readonly string[];

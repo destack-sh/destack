@@ -1,5 +1,5 @@
 import { TABLE, DatabaseError, type Change, type LogPosition } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Page } from "../query/page.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
@@ -185,7 +185,7 @@ export class Evaluation {
             if (signal.aborted) {
                 break;
             }
-            const position = { epoch, sequence: aligned(changes, changes.length - 1).sequence };
+            const position = { epoch, sequence: nth(changes, -1).sequence };
             await Evaluation.nextTask();
 
             // decide every row again across a change of access, sending the difference

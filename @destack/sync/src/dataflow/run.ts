@@ -27,10 +27,10 @@ export class Run {
     readonly touched: Map<string, Touch>;
     /** The rows the run's pipelines decided. */
     decided: number;
-    /** The pending visibility decision of each row. */
-    readonly #deciding: WeakMap<Row, Promise<void>>;
-    /** Each row's decided visibility. */
-    readonly #visible: WeakMap<Row, boolean>;
+    /** The pending visibility decision of each row, by the permission it is decided under. */
+    readonly #deciding: Map<string | undefined, WeakMap<Row, Promise<void>>>;
+    /** Each row's decided visibility, by the permission it is decided under. */
+    readonly #visible: Map<string | undefined, WeakMap<Row, boolean>>;
     /** The rows each relation-reading filter resolved in this run. */
     readonly #resolved: Map<Filter, WeakMap<Row, Row>>;
 
@@ -50,8 +50,8 @@ export class Run {
         this.decided = 0;
 
         // start the rest of the state empty
-        this.#deciding = new WeakMap<Row, Promise<void>>();
-        this.#visible = new WeakMap<Row, boolean>();
+        this.#deciding = new Map<string | undefined, WeakMap<Row, Promise<void>>>();
+        this.#visible = new Map<string | undefined, WeakMap<Row, boolean>>();
         this.#resolved = new Map<Filter, WeakMap<Row, Row>>();
 
         // keep the view, the audience and the changes
@@ -61,20 +61,22 @@ export class Run {
         this.changes = changes;
     }
 
-    /** Decide the visibility of many rows of a table at once. */
-    async decide(table: Table, rows: readonly Row[]): Promise<void> {
+    /** Decide many rows' visibility at once, under a query's own permission too. */
+    async decide(table: Table, rows: readonly Row[], permission?: string): Promise<void> {
         // ask the audience about the undecided rows in one call
-        const pending = rows.filter((row) => !this.#deciding.has(row));
+        const deciding = Run.#under(this.#deciding, permission);
+        const visible = Run.#under(this.#visible, permission);
+        const pending = rows.filter((row) => !deciding.has(row));
         if (pending.length > 0) {
             const decided = this.#audience
-                .admits(table, pending, this.view.position)
+                .admits(table, pending, this.view.position, permission)
                 .then((admitted) => {
                     for (const [index, row] of pending.entries()) {
-                        this.#visible.set(row, admitted.has(index));
+                        visible.set(row, admitted.has(index));
                     }
                 });
             for (const row of pending) {
-                this.#deciding.set(row, decided);
+                deciding.set(row, decided);
             }
         }
 
@@ -82,7 +84,7 @@ export class Run {
         await Promise.all(
             new Set(
                 rows.map((row) => {
-                    const decision = this.#deciding.get(row);
+                    const decision = deciding.get(row);
                     if (decision === undefined) {
                         throw new TypeError("a row waits for a decision nobody asked for");
                     }
@@ -93,9 +95,9 @@ export class Run {
         );
     }
 
-    /** Read a decided row's visibility. */
-    isVisible(row: Row): boolean {
-        const visible = this.#visible.get(row);
+    /** Read a decided row's visibility under a permission. */
+    isVisible(row: Row, permission?: string): boolean {
+        const visible = Run.#under(this.#visible, permission).get(row);
         if (visible === undefined) {
             throw new TypeError("a row's visibility is read before it is decided");
         }
@@ -103,11 +105,26 @@ export class Run {
         return visible;
     }
 
-    /** Keep the visible rows of a table. */
-    async seen(table: Table, rows: readonly Row[]): Promise<Row[]> {
-        await this.decide(table, rows);
+    /** Filter the visible rows of a table, under a query's own permission too. */
+    async seen(table: Table, rows: readonly Row[], permission?: string): Promise<Row[]> {
+        await this.decide(table, rows, permission);
 
-        return rows.filter((row) => this.isVisible(row));
+        return rows.filter((row) => this.isVisible(row, permission));
+    }
+
+    /** Read the decisions under a permission, the listing alone without one. */
+    static #under<Value>(
+        decisions: Map<string | undefined, WeakMap<Row, Value>>,
+        permission: string | undefined,
+    ): WeakMap<Row, Value> {
+        // add the permission's decisions on first use
+        let under = decisions.get(permission);
+        if (under === undefined) {
+            under = new WeakMap<Row, Value>();
+            decisions.set(permission, under);
+        }
+
+        return under;
     }
 
     /** Read a pipeline's work in this run. */

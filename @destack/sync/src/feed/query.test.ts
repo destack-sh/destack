@@ -1,7 +1,7 @@
 import { expect, refusal, test } from "@destack/test";
-import { aligned } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { eq, sql, type Table, Expression, type Change } from "@destack/db";
+import { eq, sql, type Table, Expression, type Change, type Row } from "@destack/db";
 import { Feed } from "./feed.ts";
 import { EVERYONE, type Audience } from "./audience.ts";
 import type { Page } from "../query/page.ts";
@@ -37,6 +37,11 @@ const TASK = {
     isSecret: false,
 };
 
+/** Decide whether the test audience lets its subscriber edit a task: one ranked below five. */
+function isEditable(row: Row): boolean {
+    return typeof row["rank"] === "number" && row["rank"] < 5;
+}
+
 /** Subscribe and read the first page. */
 async function first(
     feed: Feed,
@@ -48,7 +53,7 @@ async function first(
         (entry) => entry.complete,
     );
 
-    return aligned(pages, 0);
+    return nth(pages, 0);
 }
 
 test.for(TEST_DIALECTS)(
@@ -170,19 +175,77 @@ test.for(TEST_DIALECTS)(
         );
 
         // select the granted task only while the grant lasts
-        const snapshot = aligned(await until(pages, (sent) => sent.complete), 0);
+        const snapshot = nth(await until(pages, (sent) => sent.complete), 0);
         const granted = until(pages, (sent) => sent.changes.length > 0);
         await database.insert(note).values({ ...grant, id: "t1" });
-        const entered = aligned(await granted, 0);
+        const entered = nth(await granted, 0);
         const revoked = until(pages, (sent) => sent.changes.length > 0);
         await database.delete(note).where(eq(note.id, "t1"));
-        const left = aligned(await revoked, 0);
+        const left = nth(await revoked, 0);
         // send each access change as the difference to what the subscriber has, never a reset
         expect([
             snapshot.changes,
             [entered.reset, entered.changes.map((change) => [change.operation, change.row["id"]])],
             [left.reset, left.changes.map((change) => [change.operation, change.row["id"]])],
         ]).toEqual([[], [false, [["insert", "t1"]]], [false, [["delete", "t1"]]]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "send the rows each query selects under its own permission, and a row once its permission comes, on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const feed = new Feed(database, TABLES, { clock: Clock.system });
+        await database
+            .insert(task)
+            .values([
+                TASK,
+                { ...TASK, id: "t2", rank: 9 },
+                { ...TASK, id: "t3", rank: 9, state: "done" },
+            ]);
+
+        // let the subscriber edit the tasks ranked below five, and list every task
+        const audience: Audience = {
+            ...EVERYONE,
+            watches: [{ table: task, scopes: ["inbox"] }],
+            where: (table, permission) =>
+                table === task && permission === "edit" ? sql`${task.rank} < 5` : sql`true`,
+            admits: async (table, rows, _position, permission) =>
+                new Set(
+                    rows.flatMap((row, index) =>
+                        table !== task || permission !== "edit" || isEditable(row) ? [index] : [],
+                    ),
+                ),
+            key: "editor",
+        };
+
+        // select the open tasks the subscriber edits and every done task
+        const pages = feed.subscribe(
+            {
+                open: {
+                    table: task,
+                    scopes: ["inbox"],
+                    where: { state: "open" },
+                    permission: "edit",
+                },
+                done: { table: task, scopes: ["inbox"], where: { state: "done" } },
+            },
+            undefined,
+            AbortSignal.timeout(5000),
+            { audience },
+        );
+        const snapshot = nth(await until(pages, (sent) => sent.complete), 0);
+        const ranked = until(pages, (sent) => sent.changes.length > 0);
+        await database.update(task).set({ rank: 2 }).where(eq(task.id, "t2"));
+        const entered = nth(await ranked, 0);
+
+        // send the editable open task and the done one, then the open task once it becomes editable
+        expect([
+            snapshot.changes
+                .map((change) => schema.string().parse(change.row["id"]))
+                .toSorted((left, right) => left.localeCompare(right)),
+            entered.changes.map((change) => [change.operation, change.row["id"]]),
+        ]).toEqual([["t1", "t3"], [["insert", "t2"]]]);
     },
 );
 

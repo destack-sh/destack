@@ -17,6 +17,8 @@ export interface Query extends QuerySelection {
     readonly scopes: readonly string[] | "every";
     /** The schema's relations, which `with`, `exists`, lookups and rollups reference. */
     readonly relations?: Relations;
+    /** The permission the subscriber also holds on each row, which the audience reads. */
+    readonly permission?: string;
 }
 
 /** One result of a query: its row, and what each include selects for it by the include's name. */

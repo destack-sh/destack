@@ -45,9 +45,9 @@ export class Filter {
         // decide the visibility of the rows meeting the condition
         await this.measure(rows, run);
         const meeting = rows.filter((row) => this.meets(row, run));
-        await run.decide(this.node.table, meeting);
+        await run.decide(this.node.table, meeting, this.node.permission);
 
-        return meeting.filter((row) => run.isVisible(row));
+        return meeting.filter((row) => run.isVisible(row, this.node.permission));
     }
 
     /** Read the relations' measures of some rows or positions, which their computed values need. */

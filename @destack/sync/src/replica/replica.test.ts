@@ -19,7 +19,7 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
-import { aligned, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
 import { type Resumption, Uplink } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
@@ -473,7 +473,7 @@ test.for(TEST_DIALECTS)(
         const small = await capture();
 
         // capture more rows than a page across two tables as two pages, the first staged
-        const head = aligned(tables, 0);
+        const head = nth(tables, 0);
         await source.insert(head).values(rowsOf(head, INSERT_BATCH).slice(6));
         const large = await capture();
 

@@ -276,14 +276,14 @@ export class View {
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
         // admit rows in memory when the audience decides none in SQL
         const admitted = (table: Table) => View.#admittedSQL(audience, table);
-        const current = audience.where(node.table);
+        const current = audience.where(node.table, node.permission);
         const selection = Predicate.render(
             node.resolve({ AND: [node.condition(), within] }),
             node.bind(admitted),
         );
         if (current === "memory") {
             return Tally.measure(this.database, node, selection, reading, admitted, async (rows) =>
-                audience.admits(node.table, rows, this.position),
+                audience.admits(node.table, rows, this.position, node.permission),
             );
         }
 
@@ -469,18 +469,19 @@ export class View {
             namespace: node.namespace((table: Table) => View.#admittedSQL(audience, table)),
             limit: count,
             admits: {
-                ...(audience.where(node.table) === "memory"
+                ...(audience.where(node.table, node.permission) === "memory"
                     ? {}
-                    : { current: View.#admittedSQL(audience, node.table) }),
-                image: async (row: Row) => (await run.seen(node.table, [row])).length > 0,
+                    : { current: View.#admittedSQL(audience, node.table, node.permission) }),
+                image: async (row: Row) =>
+                    (await run.seen(node.table, [row], node.permission)).length > 0,
             },
             ...(relations === undefined ? {} : { relations }),
         };
     }
 
-    /** Match the rows of a related table an audience admits in SQL. */
-    static #admittedSQL(audience: Audience, table: Table): SQL {
-        const where = audience.where(table);
+    /** Match the rows of a table an audience admits in SQL, under a query's own permission too. */
+    static #admittedSQL(audience: Audience, table: Table, permission?: string): SQL {
+        const where = audience.where(table, permission);
         if (where === "memory") {
             throw new DatabaseError(
                 "INVALID_QUERY",

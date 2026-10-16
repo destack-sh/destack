@@ -1,4 +1,4 @@
-import { aligned, found } from "@destack/schema";
+import { nth, found } from "@destack/schema";
 import {
     and,
     Key,
@@ -445,7 +445,7 @@ export class Feed implements Cache {
         // look for a change of another origin, and for one of this origin
         let isFound = false;
         for (let index = this.#after(after); index < this.#changes.length; index += 1) {
-            const change = aligned(this.#changes, index);
+            const change = nth(this.#changes, index);
             if (change.sequence > through) {
                 break;
             } else if (change.origin !== origin) {
@@ -545,7 +545,7 @@ export class Feed implements Cache {
             const images = new Map<string, Row | null>();
             for (let index = this.#after(after); index < this.#changes.length; index += 1) {
                 // keep each row's first change in the range
-                const change = aligned(this.#changes, index);
+                const change = nth(this.#changes, index);
                 if (change.sequence > upto) {
                     break;
                 }
@@ -643,7 +643,7 @@ export class Feed implements Cache {
         let high = this.#changes.length;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (aligned(this.#changes, middle).sequence <= sequence) {
+            if (nth(this.#changes, middle).sequence <= sequence) {
                 low = middle + 1;
             } else {
                 high = middle;
@@ -716,7 +716,7 @@ export class Feed implements Cache {
             this.#sequence = page.sequence;
             if (this.#changes.length > this.#memory) {
                 const dropped = this.#changes.splice(0, this.#changes.length - this.#memory);
-                this.#start = aligned(dropped, dropped.length - 1).sequence;
+                this.#start = nth(dropped, -1).sequence;
             }
             this.#wake();
         }

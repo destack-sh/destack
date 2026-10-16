@@ -1,5 +1,5 @@
 import { Key, TABLE, type Row, type Table, type LogPosition, type Scalar } from "@destack/db";
-import { aligned, zip } from "@destack/schema";
+import { nth, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";
 import type { Audience } from "../feed/audience.ts";
@@ -246,7 +246,7 @@ export class Patch {
                               table,
                               key,
                               decision,
-                              aligned(hidden, index++),
+                              nth(hidden, index++),
                               position,
                               cache,
                           ),

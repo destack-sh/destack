@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { aligned, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -64,7 +64,7 @@ test.for(TEST_DIALECTS)("keep a query of one scope's matching rows on %s", async
     // snapshot the matching rows of the scope
     const signal = AbortSignal.timeout(5000);
     const pages = feed.subscribe({ notes: query }, undefined, signal);
-    const snapshot = aligned(await take(pages, (page) => page.complete), 0);
+    const snapshot = nth(await take(pages, (page) => page.complete), 0);
     expect(snapshot).toEqual({
         reset: true,
         complete: true,
@@ -178,7 +178,7 @@ test.for(TEST_DIALECTS)(
 
         // start over after a restore
         const renewed = await database.log.renew();
-        const snapshot = aligned(
+        const snapshot = nth(
             await take(feed.subscribe(query, before, signal), (page) => page.complete),
             0,
         );
@@ -369,7 +369,7 @@ test.for(TEST_DIALECTS)(
             moved.map((item) => tasksOf(item).map((entry) => entry.row["title"])),
             moved[1] === initial[1],
             moved[0] === initial[0],
-            tasksOf(aligned(moved, 0))[0] === tasksOf(aligned(initial, 0))[1],
+            tasksOf(nth(moved, 0))[0] === tasksOf(nth(initial, 0))[1],
         ]).toEqual([[["laundry", "dishes"], ["report"]], true, false, true]);
     },
 );

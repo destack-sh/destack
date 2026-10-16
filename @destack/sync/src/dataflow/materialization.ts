@@ -1,5 +1,5 @@
 import { type Row, type Table, TABLE } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import type { Item } from "../query/query.ts";
 import type { AggregateRow } from "../query/aggregate.ts";
 import type { Member, Partition } from "./pipeline.ts";
@@ -187,7 +187,7 @@ export class Materialization {
         let high = order.length;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            if (compare(rowOf(aligned(order, middle)), row) <= 0) {
+            if (compare(rowOf(nth(order, middle)), row) <= 0) {
                 low = middle + 1;
             } else {
                 high = middle;

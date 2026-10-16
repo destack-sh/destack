@@ -48,6 +48,8 @@ export class Node {
     readonly table: Table;
     /** The scopes the node's rows live in. */
     readonly scopes: Query["scopes"];
+    /** The permission the subscriber also holds on the rows, a root query's alone. */
+    readonly permission: string | undefined;
     /** The logged columns, by property. */
     readonly columns: Readonly<Record<string, Column>>;
     /** The primary key's properties in key order. */
@@ -127,6 +129,8 @@ export class Node {
         this.kind = kind;
         this.table = table;
         this.scopes = scopes;
+        this.permission =
+            parent === undefined && "permission" in query ? query.permission : undefined;
         this.columns =
             describeLog(table) === undefined ? table[TABLE].columns : table[TABLE].logged;
         this.key = table[TABLE].key;
@@ -205,6 +209,7 @@ export class Node {
             query.orderBy ?? {},
             "on" in query ? Node.#describePath(query.on) : null,
             this.#followed(condition),
+            this.permission ?? null,
         ]);
     }
 

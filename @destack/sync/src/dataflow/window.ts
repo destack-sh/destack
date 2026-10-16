@@ -1,5 +1,5 @@
 import type { ColumnValue, Row } from "@destack/db";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 
 /** The most entries one window chunk has before it splits: an insert moves 512 pointers. */
 const CHUNK_ENTRIES = 512;
@@ -153,7 +153,7 @@ export class Window {
         const wasPresent = this.#isPresentAt(chunk, index);
 
         // take it out, dropping an emptied chunk
-        const entries = aligned(this.#chunks, chunk);
+        const entries = nth(this.#chunks, chunk);
         entries.splice(index, 1);
         if (entries.length === 0) {
             this.#chunks.splice(chunk, 1);
@@ -170,8 +170,8 @@ export class Window {
         let high = this.#chunks.length - 1;
         while (low < high) {
             const middle = (low + high) >>> 1;
-            const chunk = aligned(this.#chunks, middle);
-            if (this.#compare(aligned(chunk, chunk.length - 1).row, row) < 0) {
+            const chunk = nth(this.#chunks, middle);
+            if (this.#compare(nth(chunk, -1).row, row) < 0) {
                 low = middle + 1;
             } else {
                 high = middle;
@@ -184,7 +184,7 @@ export class Window {
         let end = entries.length;
         while (start < end) {
             const middle = (start + end) >>> 1;
-            if (this.#compare(aligned(entries, middle).row, row) < 0) {
+            if (this.#compare(nth(entries, middle).row, row) < 0) {
                 start = middle + 1;
             } else {
                 end = middle;
@@ -216,7 +216,7 @@ export class Window {
     #isPresentAt(chunk: number, index: number): boolean {
         let position = index;
         for (let before = 0; before < chunk && position < this.#limit; before += 1) {
-            position += aligned(this.#chunks, before).length;
+            position += nth(this.#chunks, before).length;
         }
 
         return position < this.#limit;

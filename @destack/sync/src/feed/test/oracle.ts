@@ -20,7 +20,7 @@ import {
 } from "@destack/db";
 import { type Measure } from "../../query/aggregate.ts";
 import type { QuerySelection } from "../../query/query.ts";
-import { canonicalize, aligned } from "@destack/schema";
+import { canonicalize, nth } from "@destack/schema";
 import type { Query } from "../../query/query.ts";
 import type { ConditionAudience } from "./audience.ts";
 
@@ -333,7 +333,7 @@ function chain(
     audience: ConditionAudience,
 ): Row[] {
     // walk up, guarding against cycles
-    const key = aligned(table[TABLE].key, 0);
+    const key = nth(table[TABLE].key, 0);
     const rows: Row[] = [];
     const seen = new Set<unknown>([lower[key]]);
     let current = lower;
@@ -461,7 +461,7 @@ function rolledUp(measure: Rollup, column: string | undefined, rows: readonly Ro
     }
     const sorted = values.toSorted((left, right) => Order.missingFirst(left, right));
 
-    return aligned(sorted, measure === "min" ? 0 : sorted.length - 1);
+    return nth(sorted, measure === "min" ? 0 : sorted.length - 1);
 }
 
 /** Read a level's relation under a condition as an include. */

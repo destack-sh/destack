@@ -1,5 +1,5 @@
 import { expect, test, type TestContext } from "@destack/test";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import {
     eq,
@@ -383,7 +383,7 @@ test.for(TEST_DIALECTS)(
             { length: SPACE_SUBSCRIBERS },
             (_, index) =>
                 new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
-                    audience: aligned(audiences, index % SPACE_AUDIENCES),
+                    audience: nth(audiences, index % SPACE_AUDIENCES),
                 }),
         );
         for (const follower of followers) {
