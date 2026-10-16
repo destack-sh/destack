@@ -10,8 +10,8 @@ import type { ObjectTypeReference } from "@destack/sync";
 export interface AdapterDeclaration extends Declaration {
     /** The path below the package's mount the adapter answers, such as /npm. */
     readonly path: `/${string}`;
-    /** The principal types whose signed callers the adapter answers, anyone's when absent. */
-    readonly callers?: readonly ObjectTypeReference[];
+    /** The principal types whose callers the adapter answers, its installation alone, or anyone. */
+    readonly callers?: readonly ObjectTypeReference[] | "self";
 }
 
 /** An object type's declaration, with its derived procedures. */
@@ -155,7 +155,7 @@ export function defineAdapter(
     name: string,
     declaration: {
         readonly path: `/${string}`;
-        readonly callers?: readonly Pick<Policy, "definition">[];
+        readonly callers?: readonly Pick<Policy, "definition">[] | "self";
     },
     module?: ModuleMetadata,
 ): AdapterDeclaration {
@@ -168,18 +168,20 @@ export function defineAdapter(
         );
     }
 
+    // take the caller types by reference, or the installation itself
+    const callers =
+        declaration.callers === undefined || declaration.callers === "self"
+            ? declaration.callers
+            : declaration.callers.map(({ definition }) => ({
+                  packageId: definition.packageId,
+                  type: definition.name,
+              }));
+
     return Object.freeze({
         package: owner,
         name: DeclarationName.parse(name),
         path: declaration.path,
-        ...(declaration.callers === undefined
-            ? {}
-            : {
-                  callers: declaration.callers.map(({ definition }) => ({
-                      packageId: definition.packageId,
-                      type: definition.name,
-                  })),
-              }),
+        ...(callers === undefined ? {} : { callers }),
     });
 }
 

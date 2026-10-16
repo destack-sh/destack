@@ -25,9 +25,16 @@ const note: ObjectDeclaration = {
 };
 
 test("declare a package handle with its identity, the router its objects derive, and its adapters", () => {
-    // declare notes with an npm adapter
+    // declare notes with an npm adapter for anyone, a hook adapter for users and a sync adapter for itself
     const npm = defineAdapter("npm", { path: "/npm" });
-    const handle = definePackage({ objects: { note }, adapters: { npm }, since: "2026.9.0" });
+    const hook = defineAdapter("hook", { path: "/hook", callers: [principal.user] });
+    const sync = defineAdapter("sync", { path: "/sync", callers: "self" });
+    const handle = definePackage({
+        objects: { note },
+        adapters: { npm, hook, sync },
+        since: "2026.9.0",
+    });
+    const declaring = Package.declaring(handle);
 
     expect({
         identity: [handle.id, handle.name],
@@ -40,7 +47,16 @@ test("declare a package handle with its identity, the router its objects derive,
         declaring: { id: handle.id, name: handle.name, version: handle.version },
         since: "2026.9.0",
         routes: ["note", "replica"],
-        adapters: { npm: { package: Package.declaring(handle), name: "npm", path: "/npm" } },
+        adapters: {
+            npm: { package: declaring, name: "npm", path: "/npm" },
+            hook: {
+                package: declaring,
+                name: "hook",
+                path: "/hook",
+                callers: [{ packageId: principal.user.definition.packageId, type: "user" }],
+            },
+            sync: { package: declaring, name: "sync", path: "/sync", callers: "self" },
+        },
     });
 });
 
