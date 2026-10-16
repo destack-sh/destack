@@ -1,5 +1,5 @@
 import type { ServerContext } from "../workload/workload.ts";
-import { aligned, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
+import { nth, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
 import { CallError } from "../error/index.ts";
 import { RequestBody } from "../request/body.ts";
 
@@ -98,8 +98,8 @@ function match(template: string, path: string): WebhookParameters {
     const parameters: Record<string, string> = {};
     for (const [index, segment] of expected.entries()) {
         const value = segment.startsWith("{")
-            ? decode(aligned(actual, index))
-            : aligned(actual, index);
+            ? decode(nth(actual, index))
+            : nth(actual, index);
         // refuse an empty or undecodable parameter or another literal
         if (
             value === undefined ||

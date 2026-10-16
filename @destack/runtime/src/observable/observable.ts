@@ -1,4 +1,4 @@
-import { aligned, found } from "@destack/schema";
+import { nth, found } from "@destack/schema";
 
 /** A current value with change notifications. */
 export class Observable<Value> {
@@ -30,7 +30,7 @@ export class Observable<Value> {
         // race the streams for their next values
         const values = new Map<number, Value>();
         const next = (index: number) =>
-            aligned(streams, index)
+            nth(streams, index)
                 .next()
                 .then((result) => ({ index, result }));
         const pending = new Map(streams.map((_, index) => [index, next(index)]));
