@@ -62,17 +62,8 @@ const spaceJobs: readonly Job[] = [
     "canvas",
 ];
 
-/** The tally's rows for the services your space works with. */
-const connections: readonly (readonly [label: string, names: readonly string[], app: App])[] = [
-    [
-        "Agents",
-        ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok"],
-        { name: "Agents", icon: "agent" },
-    ],
-];
-
 /** The lines of the bill. */
-export const lineCount = spaceJobs.length + 1 + connections.length;
+export const lineCount = spaceJobs.length + 1;
 
 /** A tool's face on the wall: its icon, its name, and its tint. */
 type Face = { icon: string; name: string; tint: string };
@@ -80,8 +71,7 @@ type Face = { icon: string; name: string; tint: string };
 /** A tool you may use today and what your space does with it. */
 type Tool =
     | (Face & { kind: "replace"; job: Job })
-    | (Face & { kind: "both"; job: Job; status: string })
-    | (Face & { kind: "connect"; status: string });
+    | (Face & { kind: "both"; job: Job; status: string });
 
 /** The tools your space replaces with its own apps. */
 const replaced: readonly Tool[] = [
@@ -204,45 +194,6 @@ const either: readonly Tool[] = [
     },
 ];
 
-/** The agents your space connects to, which work in it as you. */
-const foundations: readonly Tool[] = [
-    {
-        icon: "openai",
-        name: "ChatGPT",
-        tint: "#000000",
-        kind: "connect",
-        status: "your agent",
-    },
-    {
-        icon: "claude",
-        name: "Claude",
-        tint: "#d97757",
-        kind: "connect",
-        status: "your agent",
-    },
-    {
-        icon: "gemini",
-        name: "Gemini",
-        tint: "#8e75b2",
-        kind: "connect",
-        status: "your agent",
-    },
-    {
-        icon: "deepseek",
-        name: "DeepSeek",
-        tint: "#4d6bfe",
-        kind: "connect",
-        status: "your agent",
-    },
-    {
-        icon: "grok",
-        name: "Grok",
-        tint: "#000000",
-        kind: "connect",
-        status: "your agent",
-    },
-];
-
 /** The order the wall sets its tools in, within each row. */
 const order: readonly string[] = [
     "Notion",
@@ -282,30 +233,18 @@ const order: readonly string[] = [
     "Make",
     "n8n",
     "Power Automate",
-    "ChatGPT",
-    "Claude",
-    "Gemini",
-    "DeepSeek",
-    "Grok",
 ];
 
 /** Every tool on the wall, in the wall's order. */
 const tools: readonly Tool[] = order.map((name) =>
     present(
-        [...replaced, ...either, ...foundations].find((tool) => tool.name === name),
+        [...replaced, ...either].find((tool) => tool.name === name),
         `wall tool ${name}`,
     ),
 );
 
 /** The tools picked before the reader picks any. */
-export const firstPicks: readonly string[] = [
-    "Notion",
-    "Calendly",
-    "Linear",
-    "Airtable",
-    "Slack",
-    "Claude",
-];
+export const firstPicks: readonly string[] = ["Notion", "Calendly", "Linear", "Airtable", "Slack"];
 
 /** The subscription each tool bills under when it shares one. */
 const billedUnder: Readonly<Record<string, string>> = {
@@ -331,9 +270,6 @@ const pictures: Record<string, string> = {
 function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
     return [...new Set(picked.map((tool) => billedUnder[tool.name] ?? tool.name))];
 }
-
-/** The price of a service the space works with. */
-const vendorBilled: Price = flat(0, "billed by its vendor");
 
 /** Price one tally row: the subscriptions its tools add to those billed in the rows above it. */
 function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price {
@@ -376,34 +312,20 @@ function ToolMark(properties: { tool: Tool; size: number }) {
     );
 }
 
-/** Return the job of a tool your space can take over, or none when it only connects to it. */
-function jobOf(tool: Tool): Job | undefined {
-    return tool.kind === "connect" ? undefined : tool.job;
-}
-
 /** Return the status line of a tool your space stays connected to, or none when replaced. */
 function statusOf(tool: Tool): string | undefined {
     return tool.kind === "replace" ? undefined : tool.status;
 }
 
 /** One row of the wall and the bill: a job, your space's app for it, and the tools that do it. */
-type Row = { label: string; app: App; tools: readonly Tool[]; isConnection: boolean };
+type Row = { label: string; app: App; tools: readonly Tool[] };
 
-/** The rows of the wall and the bill: your space's jobs, then the services it works with. */
-const rows: readonly Row[] = [
-    ...[...spaceJobs, "workflows" as const].map((job) => ({
-        label: jobLabels[job],
-        app: apps[job],
-        tools: tools.filter((tool) => jobOf(tool) === job),
-        isConnection: false,
-    })),
-    ...connections.map(([label, names, app]) => ({
-        label,
-        app,
-        tools: tools.filter((tool) => names.includes(tool.name)),
-        isConnection: true,
-    })),
-];
+/** The rows of the wall and the bill, one per job your space does. */
+const rows: readonly Row[] = [...spaceJobs, "workflows" as const].map((job) => ({
+    label: jobLabels[job],
+    app: apps[job],
+    tools: tools.filter((tool) => tool.job === job),
+}));
 
 /** The milliseconds a mark takes to move to its new place. */
 const moveTime = 560;
@@ -632,7 +554,7 @@ export function tallyOf(picks: readonly string[]): readonly Line[] {
         doers: row.tools.filter((tool) => picks.includes(tool.name)),
     }));
 
-    // price each row on what the rows above it have not billed yet, and leave the services the space works with to their vendors
+    // price each row on what the rows above it have not billed yet
     const billed = new Set<string>();
 
     return picked.map((row) => {
@@ -642,13 +564,7 @@ export function tallyOf(picks: readonly string[]): readonly Line[] {
         }
 
         return {
-            entry: entryOf(
-                row.label,
-                row.doers,
-                row.app,
-                row.isConnection,
-                row.isConnection ? vendorBilled : price,
-            ),
+            entry: entryOf(row.label, row.doers, row.app, price),
             workload: workloadOfRow(row.doers),
             tint:
                 row.doers[0] === undefined
@@ -659,13 +575,7 @@ export function tallyOf(picks: readonly string[]): readonly Line[] {
 }
 
 /** Set one tally row. */
-function entryOf(
-    label: string,
-    doers: readonly Tool[],
-    app: App,
-    isConnection: boolean,
-    price: Price,
-): Entry {
+function entryOf(label: string, doers: readonly Tool[], app: App, price: Price): Entry {
     // name the picked tools and list them
     const [first] = doers;
 
@@ -693,7 +603,7 @@ function entryOf(
             mark: { app: app.icon },
             name: app.name,
             note: noteOf(doers),
-            price: isConnection ? price : { kind: "included" },
+            price: { kind: "included" },
         },
     };
 }

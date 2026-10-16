@@ -11,6 +11,12 @@ import { rates } from "../../content/generated/rates";
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;
 
+/** The format of every figure: to the hundredth, thousands separated, so decimals line up. */
+const decimals = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+});
+
 /** The ledger's columns, each headed once with its unit. */
 const columns: readonly Column[] = [
     {
@@ -114,11 +120,14 @@ function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
     const usage = usageAt(line.workload, scale);
     const cost = isOwned ? usageCostOf(usage, rates) : costOf(line.entry.stacked, scale);
 
+    // leave the cost blank where nothing does the job or another subscription bills it
+    const isBlank = isEmptyOf(line.entry.stacked.mark) || cost === undefined;
+
     return [
         meterOf(usage.database / GB, false),
         meterOf(usage.files / GB, false),
         meterOf(usage.memory, line.workload.isAtLeast),
-        { value: dollarsOf(cost), isQuiet: false, isFloor: false },
+        { value: isBlank ? "—" : decimalOf(cost), isQuiet: false, isFloor: false },
     ];
 }
 
@@ -137,14 +146,9 @@ function rowOf(index: number | undefined): number | undefined {
     return index === undefined ? undefined : index + 1;
 }
 
-/** Return dollars to the cent with thousands separated, or a dash for nothing billed. */
-function dollarsOf(amount: number): string {
-    return amount > 0 ? decimalOf(amount) : "—";
-}
-
 /** Return an amount to the hundredth with thousands separated, so decimal points line up. */
 function decimalOf(amount: number): string {
-    return amount.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+    return decimals.format(amount);
 }
 
 /** Return the plan a rented item is on, set as the start of a sentence. */
@@ -156,7 +160,7 @@ function planOf(item: Item): string {
     return `${basis.charAt(0).toUpperCase()}${basis.slice(1)}`;
 }
 
-/** Return what a rented item costs a team a month, nothing for what is billed by use or apart. */
-function costOf(item: Item, scale: Scale): number {
-    return item.price.kind === "fee" ? item.price.monthlyAt(scale) : 0;
+/** Return what a rented item costs a team a month, or nothing where it is bundled or included. */
+function costOf(item: Item, scale: Scale): number | undefined {
+    return item.price.kind === "fee" ? item.price.monthlyAt(scale) : undefined;
 }

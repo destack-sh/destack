@@ -133,15 +133,11 @@ export const prices: Readonly<Record<string, Price>> = {
     Asana: seat(10.99, "Starter, annual"),
     Airtable: seat(20, "Team, annual"),
     Miro: seat(8, "Starter, annual"),
-    Claude: seat(17, "Pro, annual"),
-    Gemini: seat(16.67, "Google AI Pro, annual"),
-    Grok: seat(25, "SuperGrok, annual"),
 
     // per seat, with one price however billed
     Confluence: seat(5.78, "Standard"),
     Jira: seat(8.48, "Standard"),
     Doppler: seat(21, "Team"),
-    ChatGPT: seat(20, "Plus, monthly only"),
 
     // flat, billed annually where offered
     Framer: flat(10, "Basic site, annual"),
@@ -150,7 +146,6 @@ export const prices: Readonly<Record<string, Price>> = {
     n8n: flat(20, "Starter, annual, in euros"),
     Discord: flat(0, "Free"),
     Thunderbird: flat(0, "Free"),
-    DeepSeek: flat(0, "Free"),
     WhatsApp: flat(0, "Free"),
 
     // metered, by each vendor's published meters
@@ -306,9 +301,6 @@ const canvas = personal({ hours: 1, requests: 600, database: 30 * MB, files: 30 
 /** Automation: 750 runs a month of 5 steps, and a year of run history at 2 KB a step. */
 const automation = personal({ hours: 0.5, requests: 170, database: 90 * MB, files: 0 });
 
-/** Agents: calling into the space an hour a workday at 120 requests an hour. */
-const agents = personal({ hours: 1, requests: 120, database: 15 * MB, files: 0 });
-
 /** The work each tool's job takes after a year of use, by tool. */
 export const workloads: Readonly<Record<string, Workload>> = {
     // documents
@@ -363,13 +355,6 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Make: automation,
     n8n: automation,
     "Power Automate": automation,
-
-    // agents
-    ChatGPT: agents,
-    Claude: agents,
-    Gemini: agents,
-    DeepSeek: agents,
-    Grok: agents,
 
     // code: a repository, each developer's work, and CI runs
     GitHub: workloadFrom({
