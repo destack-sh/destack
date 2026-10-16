@@ -449,7 +449,7 @@ export interface DurableObjectNamespace {
 }
 
 /** The bindings of a database's object: the partition objects keeping its copies' content. */
-export interface DurableObjectDatabaseEnvironment {
+export interface DurableObjectDatabaseBindings {
     /** The partitions' objects, a space's own keyed by its space. */
     readonly PARTITION: DurableObjectNamespace;
     /** The jurisdiction keeping the partitions' objects. */
@@ -466,12 +466,12 @@ export class DurableObjectDatabase {
     /** Keep databases in the object's storage, with partition objects from Worker bindings. */
     constructor(
         state: { readonly storage: DurableObjectStorage },
-        environment: DurableObjectDatabaseEnvironment,
+        bindings: DurableObjectDatabaseBindings,
     ) {
         this.host = new DurableObjectDatabaseHost(state.storage);
         this.#partitions = Jurisdiction.narrow(
-            environment.PARTITION,
-            environment.DESTACK_JURISDICTION,
+            bindings.PARTITION,
+            bindings.DESTACK_JURISDICTION,
         );
     }
 

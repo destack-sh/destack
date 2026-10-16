@@ -354,7 +354,7 @@ export default {
     /** Forward each request to the one notes object. */
     fetch(
         request: Request,
-        environment: {
+        bindings: {
             readonly NOTES: {
                 readonly idFromName: (name: string) => unknown;
                 readonly get: (id: unknown) => {
@@ -363,6 +363,6 @@ export default {
             };
         },
     ) {
-        return environment.NOTES.get(environment.NOTES.idFromName("notes")).fetch(request);
+        return bindings.NOTES.get(bindings.NOTES.idFromName("notes")).fetch(request);
     },
 };
