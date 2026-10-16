@@ -12,8 +12,8 @@ import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureContext } from "./procedure-context.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
-import { Clock } from "@destack/schema";
 import { CallError } from "../error/index.ts";
+import { Clock } from "@destack/environment";
 
 /** The header with the link secrets a request presents. */
 export const LINK_SECRET_HEADER = "Destack-Link-Secret";
@@ -60,7 +60,7 @@ export class RequestContext {
             throw new TypeError("a failed authentication has no caller");
         }
 
-        // keep the request and caller
+        // set the request and caller
         this.request = request;
         this.audience = audience;
         this.scope = scope;

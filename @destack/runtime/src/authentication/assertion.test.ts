@@ -167,7 +167,7 @@ function spending(): (digest: string) => Promise<void> {
     const spent = new Set<string>();
 
     return async (digest) => {
-        // refuse a digest spent before, and keep this one
+        // refuse a digest spent before, and record this one
         if (spent.has(digest)) {
             throw new CallError("CONFLICT", { message: "proof was used before" });
         }

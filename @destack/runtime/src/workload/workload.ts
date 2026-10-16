@@ -1,5 +1,5 @@
 import type { Channel, DatabaseConnection, Table } from "@destack/db";
-import type { Clock, JsonValue } from "@destack/schema";
+import type { JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
     type CapabilityName,
@@ -12,10 +12,10 @@ import { type BuildReader, WorkloadDefinition } from "@destack/package/manifest"
 import type { Permission, PermissionRequest, PermissionScope } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { PackageImplementation } from "../server/index.ts";
-import type { RunClient, Trigger } from "../trigger/index.ts";
 import type { Deriver } from "@destack/identity";
 import { type CallKey } from "../request/index.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
+import type { Clock } from "@destack/environment";
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
@@ -25,7 +25,7 @@ export interface Workload extends Declaration {
     readonly capabilities?: readonly CapabilityName[];
     /** The kind permissions the workload requests by scope. */
     readonly permissions?: PermissionRequest;
-    /** Start one instance and return its packages and webhooks. */
+    /** Start one instance and return its packages and handlers. */
     readonly start: (
         context: WorkloadContext,
     ) => WorkloadImplementation | Promise<WorkloadImplementation>;
@@ -47,7 +47,7 @@ export function defineWorkload(
     return Object.freeze({ ...WorkloadDefinition.parse(fields), start, package: owner });
 }
 
-/** Where an instance keeps its ephemeral objects. */
+/** Where an instance stores its ephemeral objects. */
 export interface EphemeralHost {
     /** Open the memory database with tables. */
     readonly open: (
@@ -63,15 +63,13 @@ export interface WorkloadContext {
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
     readonly server?: ServerContext;
-    /** The machine that records the installation's runs. */
-    readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** The clock the workload runs at. */
     readonly clock: Clock;
-    /** Where the instance keeps its ephemeral objects, absent outside a runner. */
+    /** Where the instance stores its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;
-    /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
+    /** The WebSockets the host hibernates for the instance, absent where it hibernates none. */
     readonly hibernation?: Hibernation;
     /** The shutdown signal. */
     readonly signal: AbortSignal;
@@ -114,18 +112,26 @@ export interface ServerContext {
     };
     /** Send a request to any other origin, such as a Git remote, through the host. */
     readonly fetch: (request: Request) => Promise<Response>;
+    /** The URL callers reach the installation at, its packages mounted below. */
+    readonly url: string;
 }
 
-/** The packages and triggers of one workload. */
+/** The packages of one workload and what it does with its host's deliveries. */
 export interface WorkloadImplementation {
     /** The packages it serves, each with its procedures and enforcement. */
     readonly packages: readonly PackageImplementation[];
-    /** The triggers of the workload's package, whose signed requests the workload receives. */
-    readonly triggers?: readonly Trigger[];
-    /** What the workload does with its held sockets' messages and closes. */
+    /** What the workload does with the webhook deliveries its host forwards. */
+    readonly webhooks?: WebhookHandler;
+    /** What the workload does with its hibernated sockets' messages and closes. */
     readonly sockets?: SocketHandler;
     /** What the workload does with its space store's requests to run its objects' hooks. */
     readonly hooks?: HookHandler;
+}
+
+/** What a workload does with the webhook deliveries its host forwards, below the webhook path. */
+export interface WebhookHandler {
+    /** Answer a delivery at its path below the webhook path. */
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** What a workload does with its space store's requests to run its objects' hooks. */

@@ -2,7 +2,6 @@ import { Caller } from "@destack/access";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
-import { Clock } from "@destack/schema";
 import { copyRequest } from "../request/request.ts";
 import type { Uplink } from "@destack/sync";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
@@ -19,18 +18,18 @@ import { PackageMount } from "../runtime/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { HOOK_PATH, ROUTE_PATH, WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
 import {
-    HeldSocketDescription,
+    SocketDescription,
     Hibernation,
     SOCKET_HEADER,
     SOCKET_PATH,
     type SocketHost,
 } from "./socket.ts";
 import type { PackageId } from "@destack/package";
-import { RunEvent, WebhookOn, Trigger, type RunClient } from "../trigger/index.ts";
 import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
+import { Clock } from "@destack/environment";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
@@ -49,13 +48,11 @@ export interface RunnerOptions {
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
     /** Connect to a publisher of an installation's replicas. */
     readonly publisher: (url: string, secret: string) => Uplink;
-    /** Connect to the machine that records the installation's runs. */
-    readonly runs: (url: string, start: WorkloadStart) => RunClient;
-    /** Keep a wake-up for the workload's earliest due controller key. */
+    /** Set a wake-up for the workload's earliest due controller key. */
     readonly alarm?: Alarm;
-    /** Where the instance connects to the sockets its host keeps open. */
+    /** Where the instance connects to the sockets its host hibernates. */
     readonly socketHost?: SocketHost;
-    /** Where the runtime keeps the instance's ephemeral objects. */
+    /** Where the runtime stores the instance's ephemeral objects. */
     readonly ephemeral: EphemeralHost;
     /** The connectors the runtime supplies by provider code, ahead of the declarations' own. */
     readonly connectors?: Readonly<Record<string, Connector>>;
@@ -71,44 +68,32 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly instance: WorkloadInstance;
     /** The workload's served packages, by package id. */
     readonly #packages: ReadonlyMap<string, PackageHandle>;
-    /** The running package, whose triggers the webhooks target. */
+    /** The running package, which routed requests reach. */
     readonly #packageId: PackageId;
-    /** The installation's resources and derived secrets, the source of webhook secrets. */
-    readonly #webhooks: Pick<ServerContext, "resources" | "keys">;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
-    /** The machine recording the installation's runs. */
-    readonly #runs: RunClient;
-    /** The WebSockets the host keeps open for the instance. */
+    /** The WebSockets the host hibernates for the instance. */
     readonly #hibernation: Hibernation;
     /** The telemetry that exports to the host, which relays it to observability. */
     readonly #telemetry: Pick<Telemetry, "shutdown">;
-    /** The clock webhook deliveries arrive at. */
-    readonly #clock: Clock;
-    /** Keep a started instance and its telemetry. */
+    /** Create the runner with a started instance and its telemetry. */
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
         packages: ReadonlyMap<string, PackageHandle>,
         running: Pick<Telemetry, "shutdown">,
         packageId: PackageId,
-        webhooks: Pick<ServerContext, "resources" | "keys">,
         connections: AsyncDisposableStack,
-        runs: RunClient,
         hibernation: Hibernation,
-        clock: Clock,
     ) {
-        // keep the instance and what it runs with
+        // set the instance and what it runs with
         this.start = start;
         this.instance = instance;
         this.#packages = packages;
         this.#packageId = packageId;
         this.#telemetry = running;
-        this.#webhooks = webhooks;
         this.#connections = connections;
-        this.#runs = runs;
         this.#hibernation = hibernation;
-        this.#clock = clock;
     }
 
     /** Start a workload of a build as a host's start asks. */
@@ -131,7 +116,6 @@ export class WorkloadRunner implements AsyncDisposable {
             const keys = await InstallationRoot.open(Uint8Array.fromHex(start.root));
             const callKey = CallKey.of(keys);
             const stack = Egress.url(start.egress, STACK_ADDRESS);
-            const runs = runner.runs(stack, start);
             const host = runner.socketHost ?? {
                 url: Egress.beside(start.egress, SOCKET_PATH),
                 fetch: (request: Request) => fetch(request),
@@ -140,7 +124,6 @@ export class WorkloadRunner implements AsyncDisposable {
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
-                runs,
                 callKey: () => callKey,
                 clock: runner.clock,
                 report,
@@ -153,7 +136,7 @@ export class WorkloadRunner implements AsyncDisposable {
             // index the served packages
             const packages = new Map(instance.packages.map((handle) => [handle.id, handle]));
 
-            // keep the instance
+            // set the instance
             log.info("workload.started", {
                 workload: runner.workload.name,
                 instance: start.instance,
@@ -165,11 +148,8 @@ export class WorkloadRunner implements AsyncDisposable {
                 packages,
                 running,
                 runner.workload.package.id,
-                { resources, keys },
                 connections,
-                runs,
                 hibernation,
-                runner.clock,
             );
         } catch (error) {
             await connections.disposeAsync();
@@ -222,6 +202,7 @@ export class WorkloadRunner implements AsyncDisposable {
                     start.secret,
                 ),
             fetch: (request) => fetch(request),
+            url: start.url,
             at: (address) => ({
                 url: Egress.url(start.egress, address),
                 fetch: (request) => {
@@ -248,14 +229,14 @@ export class WorkloadRunner implements AsyncDisposable {
             );
         }
 
-        // verify and record a webhook's delivery
+        // hand a webhook delivery to the workload
         const { pathname } = new URL(request.url);
         const routed = PackageMount.of(request);
         const served = routed === undefined ? undefined : this.#packages.get(routed.packageId);
         if (pathname.startsWith(`${WEBHOOK_PATH}/`) && request.method === "POST") {
-            return this.#receive(request, pathname.slice(WEBHOOK_PATH.length + 1));
+            return this.#receive(request, pathname.slice(WEBHOOK_PATH.length));
         }
-        // hand a held socket's message or close to the workload
+        // hand a hibernated socket's message or close to the workload
         else if (pathname.startsWith(`${SOCKET_PATH}/`)) {
             return this.#socket(request);
         }
@@ -295,12 +276,12 @@ export class WorkloadRunner implements AsyncDisposable {
         return this.instance.fetch(served, request);
     }
 
-    /** Hand the workload a held socket's message or close, as the host describes the socket. */
+    /** Hand the workload a hibernated socket's message or close, as the host describes it. */
     async #socket(request: Request): Promise<Response> {
         try {
             // read the socket the host describes
             const header = request.headers.get(SOCKET_HEADER);
-            const description = HeldSocketDescription.parse(JSON.parse(header ?? "null"));
+            const description = SocketDescription.parse(JSON.parse(header ?? "null"));
             const socket = this.#hibernation.socket(description);
             const handler = this.instance.requireSocketHandler();
 
@@ -336,41 +317,16 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
-    /** Verify a request to one of the package's webhook triggers. */
+    /** Hand the workload a webhook delivery at its path below the webhook path. */
     async #receive(request: Request, below: string): Promise<Response> {
-        // find the webhook trigger the first segment selects
-        const slash = below.indexOf("/");
-        const name = slash === -1 ? below : below.slice(0, slash);
-        const found = this.instance.trigger(this.#packageId, name);
-        const trigger = found && Trigger.of(found, "webhook");
-        if (trigger === undefined) {
-            return refusal(new CallError("NOT_FOUND", { message: `no webhook trigger ${name}` }));
-        }
-
-        // verify the delivery below the trigger's path
         try {
-            const path = slash === -1 ? "/" : below.slice(slash);
-            const receivedAt = this.#clock.now();
-            const delivery = await WebhookOn.receive(
-                trigger.on.webhook,
-                request,
-                path,
-                receivedAt,
-                this.#webhooks,
-            );
+            const url = new URL(request.url);
+            url.pathname = below;
 
-            // record the delivery's run once, under a request derived from the trigger and the delivery
-            const event = { delivery: { id: delivery.id, path } };
-            const requestId = await RunEvent.derive(this.#packageId, name, event, receivedAt);
-            await this.#runs.send(
-                { call: trigger.call(delivery), triggerName: name, event },
-                { requestId },
-            );
-
-            return new Response(null, { status: 202 });
-        }
-        // answer a refusal as it is
-        catch (error) {
+            return await this.instance
+                .requireWebhookHandler()
+                .fetch(new Request(url.href, request));
+        } catch (error) {
             return refusal(error);
         }
     }

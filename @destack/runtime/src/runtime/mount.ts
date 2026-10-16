@@ -43,7 +43,7 @@ export const PackageMount = {
             return undefined;
         }
 
-        // keep the request below the mount
+        // take the request below the mount
         url.pathname = mounted.path;
 
         return { packageId: mounted.packageId, request: copyRequest(request, {}, url.href) };
@@ -110,7 +110,7 @@ export const InstallationMount = {
             return undefined;
         }
 
-        // keep the request below the mount
+        // take the request below the mount
         url.pathname = path ?? "/";
 
         return { spaceId, installation, request: copyRequest(request, {}, url.href) };

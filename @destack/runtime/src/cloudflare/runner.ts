@@ -42,7 +42,7 @@ export const BUILD_PATH = "/.destack/build";
 /** The key of the stored start an instance resumes after an eviction. */
 const START_KEY = "start";
 
-/** The namespace of the database an instance keeps only while it runs. */
+/** The namespace of the database an instance has only while it runs. */
 const EPHEMERAL_NAMESPACE = "ephemeral";
 
 /** The start a partition's object hands its workload. */
@@ -67,11 +67,11 @@ export const DurableObjectAlarm = defineSchema(
 /** A ring of an instance's alarm, or a move of its wake-up. */
 export type DurableObjectAlarm = schema.Infer<typeof DurableObjectAlarm>;
 
-/** The storage of an instance's object: its databases and the start it keeps. */
+/** The storage of an instance's object: its databases and the start it stores. */
 export interface DurableObjectRunnerStorage extends DurableObjectStorage {
-    /** Read a kept value. */
+    /** Read a stored value. */
     readonly get: (key: string) => Promise<unknown>;
-    /** Keep a value. */
+    /** Store a value. */
     readonly put: (key: string, value: unknown) => Promise<void>;
     /** Forget a value. */
     readonly delete: (key: string) => Promise<boolean>;
@@ -86,35 +86,35 @@ export interface DurableObjectRunnerState {
 }
 
 /** The bindings an instance's facet reads. */
-export interface DurableObjectRunnerEnvironment {
+export interface DurableObjectRunnerBindings {
     /** The partition's object. */
     readonly PARTITION: { readonly fetch: (request: Request) => Promise<Response> };
 }
 
-/** A workload instance in its partition's facet, beside the databases it keeps. */
+/** A workload instance in its partition's facet, beside its databases. */
 export class DurableObjectRunner {
     /** The object's storage. */
     readonly #storage: DurableObjectRunnerStorage;
     /** The partition's object. */
-    readonly #partition: DurableObjectRunnerEnvironment["PARTITION"];
+    readonly #partition: DurableObjectRunnerBindings["PARTITION"];
     /** What the workload runs with. */
     readonly #runner: Omit<RunnerOptions, "ephemeral">;
-    /** The databases the object keeps. */
+    /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;
     /** The channel the object's instances replicate their ephemeral writes over, one per object. */
     readonly #channels = channelHub<unknown>();
     /** The running workload, absent before a start and after a stop. */
     #running: Promise<WorkloadRunner | undefined>;
 
-    /** Resume the kept start before the object takes any event. */
+    /** Resume the stored start before the object takes any event. */
     constructor(
         state: DurableObjectRunnerState,
-        environment: DurableObjectRunnerEnvironment,
+        bindings: DurableObjectRunnerBindings,
         runner: Omit<RunnerOptions, "ephemeral">,
     ) {
-        // keep the storage, the partition's object and the databases
+        // set the storage, the partition's object and the databases
         this.#storage = state.storage;
-        this.#partition = environment.PARTITION;
+        this.#partition = bindings.PARTITION;
         this.#runner = runner;
         this.#databases = new DurableObjectDatabaseHost(state.storage);
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
@@ -129,7 +129,7 @@ export class DurableObjectRunner {
             if (pathname === DATABASE_PATH) {
                 return await this.#databases.answer(request, () => this.#partition);
             }
-            // keep a new start and run it
+            // store a new start and run it
             else if (pathname === START_PATH) {
                 const started = DurableObjectStart.parse(await request.json());
                 await this.#stop();
@@ -166,16 +166,16 @@ export class DurableObjectRunner {
         }
     }
 
-    /** Start the kept start, absent before a start. */
+    /** Start the stored start, absent before a start. */
     async #resume(): Promise<WorkloadRunner | undefined> {
-        const kept = await this.#storage.get(START_KEY);
+        const stored = await this.#storage.get(START_KEY);
 
-        return kept === undefined ? undefined : this.#start(DurableObjectStart.parse(kept));
+        return stored === undefined ? undefined : this.#start(DurableObjectStart.parse(stored));
     }
 
     /** Start the workload over the object's databases. */
     #start(started: DurableObjectStart): Promise<WorkloadRunner> {
-        // read the build's files through the partition's object and keep the wake-up on its alarm
+        // read the build's files through the partition's object and set the wake-up on its alarm
         const partition = this.#partition;
         const build = new BuildReader(started.manifest, async (path) => {
             const response = await partition.fetch(

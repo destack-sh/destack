@@ -51,15 +51,6 @@
                 }
             ]
         },
-        "defineTrigger": {
-            "describes": [
-                {
-                    "kind": "trigger",
-                    "function": "./inspect#describeTrigger",
-                    "symbols": "./inspect#triggerSymbols"
-                }
-            ]
-        },
         "defineWorkload": {
             "describes": [
                 {
@@ -84,9 +75,6 @@
         },
         "defineInstallationBinding": {
             "module": 3
-        },
-        "defineTrigger": {
-            "module": 1
         },
         "defineWorkload": {
             "module": 1

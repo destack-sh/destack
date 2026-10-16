@@ -1,6 +1,6 @@
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { accessTables, Authorizer, Policy, principal, relation, Caller } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -11,11 +11,12 @@ import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { RequestContext } from "./context.ts";
 import { fixturePackage, hosting } from "../test/fixture.ts";
+import { Clock } from "@destack/environment";
 
 /** The authentication renaming a vault requires. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
-test("challenge a hand-written procedure's caller for its elevated permission, then admit it once it authenticates again", async () => {
+test("challenge a hand-written procedure's caller for its elevated permission, then allow it once it authenticates again", async () => {
     // declare a vault its owner renames after recent strong authentication
     const module = {
         package: { id: hosting.package.id, name: "@example/vault", version: "2026.9.0" },

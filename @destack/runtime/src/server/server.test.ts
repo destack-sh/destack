@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { expect, onTestFinished, test, vi } from "@destack/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
 import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
@@ -12,8 +12,10 @@ import { Observable } from "../observable/index.ts";
 import { CallError } from "../error/index.ts";
 import type { RequestContext } from "./context.ts";
 import { Bookmark, Watermark } from "../bookmark/index.ts";
+import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
 
-/** The authentication lifetime of the lapsing callers, short enough for a fast test. */
+/** The authentication lifetime of the lapsing callers, which the scenarios' clock moves past. */
 const LAPSE_MILLISECONDS = 200;
 
 /** Settle a call to "accepted" or its failure's code and message. */
@@ -103,6 +105,7 @@ test.for([
     "serve a stream past its caller's lapse to its next consistent point: $name",
     async ({ revoked, outcome }) => {
         // serve a run of two values with the second after the caller's lapse
+        const clock = new VirtualClock(Date.now());
         let isRevoked = false;
         const procedures = {
             watch: defineProcedure({
@@ -117,7 +120,7 @@ test.for([
         };
         const implementation = implement(procedures).$context<RequestContext>();
         const server = Server.start({
-            clock: Clock.system,
+            clock,
             ...hosting,
             health: new Health("lapse"),
             drainTimeout: 1000,
@@ -126,7 +129,10 @@ test.for([
 
                 return {
                     ...alice,
-                    credential: { ...alice.credential, expiresAt: Date.now() + LAPSE_MILLISECONDS },
+                    credential: {
+                        ...alice.credential,
+                        expiresAt: clock.now() + LAPSE_MILLISECONDS,
+                    },
                 };
             },
             authorizeMachine: async () => {
@@ -159,7 +165,9 @@ test.for([
             const values: number[] = [];
             const error = await (async () => {
                 for await (const value of await client.watch()) {
+                    // lapse the caller once the first value arrived
                     values.push(value);
+                    clock.advance(LAPSE_MILLISECONDS);
                 }
             })().then(
                 () => undefined,
@@ -253,7 +261,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         401,
     ]);
 
-    // keep the redirect status and location
+    // record the redirect status and location
     const redirect = await server.fetch(new Request("https://test.local/auth/redirect"));
     expect([
         redirect.status,
@@ -353,7 +361,7 @@ test("end a stream that follows its context signal once the server drains, stopp
 });
 
 test("serialize authentication failures and preserve drain timeout causes", async () => {
-    // keep a request open past the drain deadline
+    // leave a request open past the drain deadline
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const procedures = {
@@ -404,7 +412,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     expect(failure.status).toBe(500);
     await failure.arrayBuffer();
 
-    // admit an authenticated request
+    // accept an authenticated request
     const authorized = createClient(
         { version: fixturePackage.version, router: procedures },
         {
@@ -414,14 +422,14 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         },
     );
 
-    // keep the drain timeout cause
+    // record the drain timeout cause
     const pending = authorized.get();
     const rejected = expect(pending).rejects.toMatchObject({
         message: "Cannot parse response body, please check the response body and content-type.",
         cause: { name: "TimeoutError", message: "server drain deadline exceeded" },
     });
 
-    // keep resources until cancellation is acknowledged
+    // retain resources until cancellation is acknowledged
     await entered.promise;
     try {
         await expect(server.close()).rejects.toMatchObject({ name: "TimeoutError" });
@@ -626,7 +634,7 @@ test("report a handler's invalid output as an internal failure and a caller's in
     ]);
 });
 
-test("hold a request while starting and answer it once ready, and refuse it with a retry pause past the window", async () => {
+test("delay a request while starting and answer it once ready, and refuse it with a retry pause past the window", async () => {
     // serve a procedure behind a readiness the test opens
     const routes = {
         echo: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
@@ -664,7 +672,7 @@ test("hold a request while starting and answer it once ready, and refuse it with
     await vi.advanceTimersByTimeAsync(1000);
     const starting = await refused;
 
-    // hold a call within the window and answer it once the server opens
+    // delay a call within the window and answer it once the server opens
     const answered = client.echo({ text: "hello" });
     await vi.advanceTimersByTimeAsync(100);
     opened.resolve();

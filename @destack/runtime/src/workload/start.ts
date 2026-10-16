@@ -39,7 +39,9 @@ export const WorkloadStart = defineSchema(
         secret: schema.string().min(1),
         /** The host's egress, below which the workload calls addresses as its installation. */
         egress: schema.url(),
-        /** The share of traces the workload keeps beside every failed or slow one, from 0 to 1. */
+        /** The URL callers reach the installation at, its packages mounted below. */
+        url: schema.url(),
+        /** The share of traces sampled beside every failed or slow one, from 0 to 1. */
         sampling: schema.number().min(0).max(1),
         /** The installation's root as 32 hexadecimal bytes, derived from its space's identity. */
         root: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),

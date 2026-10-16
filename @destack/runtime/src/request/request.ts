@@ -45,7 +45,7 @@ export function copyRequest(request: Request, changes: RequestInit, url = reques
     });
 }
 
-/** A timestamped request identifier kept across retries as its idempotency key. */
+/** A timestamped request identifier reused across retries as its idempotency key. */
 export const RequestId = {
     /** The schema of a request identifier: a UUIDv7 a caller created, or a UUIDv8 it derived. */
     schema: schema.uuid().regex(TIME_ORDERED),

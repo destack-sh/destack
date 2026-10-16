@@ -36,12 +36,12 @@ test("mount a native client's local objects under its own path and split paths b
 
     expect({
         path,
-        below: ClientMount.parse(`${path}/replica/call`),
+        below: ClientMount.parse(`${path}/store/call`),
         root: ClientMount.parse(path),
         outside: ClientMount.parse("/spaces/space-01/package-01"),
     }).toEqual({
         path: "/clients/client-01",
-        below: { clientId: "client-01", path: "/replica/call" },
+        below: { clientId: "client-01", path: "/store/call" },
         root: { clientId: "client-01", path: "/" },
         outside: undefined,
     });

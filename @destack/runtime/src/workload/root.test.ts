@@ -13,7 +13,7 @@ test("derive each installation's keys from its space's identity, alike wherever 
         keys("installation-pages"),
     ]);
 
-    // keep one installation's keys alike across hosts and apart from another installation's
+    // derive one installation's keys alike across hosts and apart from another installation's
     const [secret, again, other] = await Promise.all([
         notes.derive("message"),
         notesElsewhere.derive("message"),

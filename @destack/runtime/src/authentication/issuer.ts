@@ -16,7 +16,7 @@ export class TokenIssuer {
 
     /** Sign an access token for a caller until the credential it presented lapses. */
     async issue(authentication: Authentication, now: number) {
-        // require an identified caller, keeping the original verification and lapse
+        // require an identified caller, with the original verification and lapse
         const { caller, credential } = authentication;
         Credential.requireCurrent(credential, credential.audience, now, credential.scope);
         if (Caller.isAnonymous(caller)) {

@@ -69,7 +69,7 @@ function visit(
     }
 }
 
-/** A procedure's definition as oRPC keeps it under `~orpc`, its validators Standard Schemas. */
+/** A procedure's definition as oRPC stores it under `~orpc`, its validators Standard Schemas. */
 const Definition = schema.looseObject({
     /** The route the procedure answers. */
     route: schema.looseObject({

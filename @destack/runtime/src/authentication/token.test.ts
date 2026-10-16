@@ -155,7 +155,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         verifier.authenticate(request, (issuedAt + 60) * 1000, spaceId),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // keep cached public keys during an outage
+    // reuse cached public keys during an outage
     let isAvailable = true;
     let reads = 0;
     const remote = new TokenVerifier({
@@ -191,7 +191,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         disconnected.authenticate(request, issuedAt * 1000, spaceId),
     ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
 
-    // keep workload identity, delegates and their grant through signing and verification
+    // carry workload identity, delegates and their grant through signing and verification
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
     const deploymentId = schema
         .identifier("deployment")
@@ -256,7 +256,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         write: false,
     });
 
-    // keep a deployment for each workload in a delegation chain
+    // record a deployment for each workload in a delegation chain
     const secondActor = { ...actor, id: "second-software" };
     const secondDeployment = schema
         .identifier("deployment")

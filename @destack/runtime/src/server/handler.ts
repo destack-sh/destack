@@ -197,7 +197,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         caller: Version,
         served: Version,
     ): unknown {
-        // keep an input of this release as it is
+        // take an input of this release as it is
         const convert = ProcedureMeta.of(procedure).convert ?? {};
         if (Version.between(convert, caller, served).length === 0) {
             return input;
@@ -212,7 +212,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         }
         const converted = Expression.upgrade(convert, decoded.data, caller, served);
 
-        // keep only the fields this release declares and the earlier ones the conversions read
+        // take only the fields this release declares and the earlier ones the conversions read
         const inputSchema: unknown = procedure["~orpc"].inputSchema;
         const shape =
             typeof inputSchema === "object" &&

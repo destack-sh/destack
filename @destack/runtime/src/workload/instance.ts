@@ -1,10 +1,8 @@
-import { type Clock, present } from "@destack/schema";
+import { present } from "@destack/schema";
 import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import { DeclarationReference } from "@destack/package/declare";
 import { Server, type ServerOptions, type PackageImplementation } from "../server/index.ts";
 import type { PackageHandle } from "../declare/package.ts";
-import type { RunClient, Trigger } from "../trigger/index.ts";
 import { type Alarm, AlarmClock } from "../control/index.ts";
 import { Health } from "../health/index.ts";
 import { CallError } from "../error/index.ts";
@@ -12,11 +10,13 @@ import type {
     EphemeralHost,
     HookHandler,
     ServerContext,
+    WebhookHandler,
     Workload,
     WorkloadContext,
 } from "./workload.ts";
 import { CallKey } from "../request/index.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
+import type { Clock } from "@destack/environment";
 
 /** A running workload instance, serving its current generation. */
 export class WorkloadInstance implements AsyncDisposable {
@@ -26,7 +26,7 @@ export class WorkloadInstance implements AsyncDisposable {
     readonly #options: WorkloadInstanceOptions;
     /** The shutdown controller. */
     readonly #controller: AbortController;
-    /** The clock keeping the servers' alarms on the host's one wake-up, absent without one. */
+    /** The clock placing the servers' alarms on the host's one wake-up, absent without one. */
     readonly #clock: AlarmClock | undefined;
     /** The generation serving requests. */
     #current: Generation;
@@ -35,7 +35,7 @@ export class WorkloadInstance implements AsyncDisposable {
     /** The shutdown. */
     #closing?: Promise<void>;
 
-    /** Keep the workload, its hosting, its shutdown, the clock and the first generation. */
+    /** Create the instance with its workload, hosting, shutdown, clock and first generation. */
     private constructor(
         workload: Workload,
         options: WorkloadInstanceOptions,
@@ -43,7 +43,7 @@ export class WorkloadInstance implements AsyncDisposable {
         clock: AlarmClock | undefined,
         current: Generation,
     ) {
-        // keep what each further start needs, and the start serving now
+        // set what each further start needs, and the start serving now
         this.#workload = workload;
         this.#controller = controller;
         this.#options = options;
@@ -73,7 +73,7 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Start the workload again, serve the new generation once started, then drain the old one. */
     reload(): Promise<void> {
         this.#reloading = this.#reloading.then(async () => {
-            // keep serving the current generation while the next one starts
+            // go on serving the current generation while the next one starts
             this.signal.throwIfAborted();
             const next = await Generation.start(this.#workload, this.#options, this.#clock, {
                 signal: this.signal,
@@ -100,22 +100,12 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.packages;
     }
 
-    /** The triggers of the workload's package, in workload order. */
-    get triggers(): readonly Trigger[] {
-        return this.#current.triggers;
-    }
-
-    /** Find a trigger of the workload by its package and name. */
-    trigger(packageId: string, name: string): Trigger | undefined {
-        return this.#current.trigger(packageId, name);
-    }
-
     /** Report whether the workload serves a package. */
     has(handle: PackageHandle): boolean {
         return this.#current.has(handle);
     }
 
-    /** What the workload does with its held sockets' events, refusing a workload without them. */
+    /** What the workload does with its hibernated sockets' events, refused without them. */
     requireSocketHandler(): SocketHandler {
         return this.#current.requireSocketHandler();
     }
@@ -123,6 +113,11 @@ export class WorkloadInstance implements AsyncDisposable {
     /** What the workload does with its store's hook requests, refusing a workload serving none. */
     requireHookHandler(): HookHandler {
         return this.#current.requireHookHandler();
+    }
+
+    /** What the workload does with its webhook deliveries, refusing a workload receiving none. */
+    requireWebhookHandler(): WebhookHandler {
+        return this.#current.requireWebhookHandler();
     }
 
     /** Request shutdown. */
@@ -159,23 +154,23 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 }
 
-/** One start of a workload: its servers, triggers and sockets, and the resources it releases. */
+/** One start of a workload: its servers and handlers, and the resources it releases. */
 class Generation {
     /** The served packages and their servers by package id. */
     readonly #packages = new Map<
         string,
         { readonly handle: PackageHandle; readonly server: Server }
     >();
-    /** The triggers of the workload's package, by declaration key. */
-    readonly #triggers = new Map<string, Trigger>();
     /** The controller aborting the start's background work at its retirement. */
     readonly #controller = new AbortController();
     /** The resources released after draining. */
     readonly #cleanup = new AsyncDisposableStack();
-    /** What the start does with its held sockets' events, absent for a start without them. */
+    /** What the start does with its hibernated sockets' events, absent for a start without them. */
     #sockets: SocketHandler | undefined;
     /** What the start does with its store's hook requests, absent for a start serving none. */
     #hooks: HookHandler | undefined;
+    /** What the start does with its webhook deliveries, absent for a start receiving none. */
+    #webhooks: WebhookHandler | undefined;
     /** The shutdown. */
     #closing?: Promise<void>;
 
@@ -197,7 +192,6 @@ class Generation {
             const implementation = await workload.start({
                 resources: options.resources,
                 ...(options.server === undefined ? {} : { server: options.server }),
-                ...(options.runs === undefined ? {} : { runs: options.runs }),
                 callKey: options.callKey,
                 clock: options.clock,
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
@@ -209,15 +203,13 @@ class Generation {
                 defer: (dispose) => generation.#cleanup.defer(dispose),
             });
 
-            // start a server per package and register the triggers
+            // start a server per package and take the handlers
             for (const served of implementation.packages) {
                 generation.#serve(served, options, clock);
             }
-            for (const trigger of implementation.triggers ?? []) {
-                generation.#register(trigger);
-            }
             generation.#sockets = implementation.sockets;
             generation.#hooks = implementation.hooks;
+            generation.#webhooks = implementation.webhooks;
 
             // reject a cancelled start
             generation.#controller.signal.throwIfAborted();
@@ -262,28 +254,9 @@ class Generation {
         this.#packages.set(handle.id, { handle, server });
     }
 
-    /** Register one trigger of the workload's package, refusing a duplicate. */
-    #register(trigger: Trigger): void {
-        const key = keyOf(trigger);
-        if (this.#triggers.has(key)) {
-            throw new TypeError(`duplicate workload trigger: ${key}`);
-        }
-        this.#triggers.set(key, trigger);
-    }
-
     /** The served packages, in workload order. */
     get packages(): readonly PackageHandle[] {
         return [...this.#packages.values()].map((served) => served.handle);
-    }
-
-    /** The triggers of the workload's package, in workload order. */
-    get triggers(): readonly Trigger[] {
-        return [...this.#triggers.values()];
-    }
-
-    /** Find a trigger of the workload by its package and name. */
-    trigger(packageId: string, name: string): Trigger | undefined {
-        return this.#triggers.get(`${packageId}/${name}`);
     }
 
     /** Report whether the start serves a package. */
@@ -291,7 +264,7 @@ class Generation {
         return this.#packages.has(handle.id);
     }
 
-    /** What the start does with its held sockets' events, refusing a start without them. */
+    /** What the start does with its hibernated sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
             throw new CallError("NOT_FOUND", { message: "the workload has no socket handler" });
@@ -307,6 +280,15 @@ class Generation {
         }
 
         return this.#hooks;
+    }
+
+    /** What the start does with its webhook deliveries, refusing a start receiving none. */
+    requireWebhookHandler(): WebhookHandler {
+        if (this.#webhooks === undefined) {
+            throw new CallError("NOT_FOUND", { message: "the workload receives no webhooks" });
+        }
+
+        return this.#webhooks;
     }
 
     /** Abort the start's background work. */
@@ -378,15 +360,13 @@ export interface WorkloadInstanceOptions {
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
     readonly server?: ServerContext;
-    /** The machine recording the installation's runs, absent outside a space. */
-    readonly runs?: RunClient;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
-    /** Keep a wake-up for the packages' earliest due controller key. */
+    /** Set a wake-up for the packages' earliest due controller key. */
     readonly alarm?: Alarm;
-    /** Where the instance keeps its ephemeral objects, absent outside a runner. */
+    /** Where the instance stores its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;
-    /** The WebSockets the host keeps open for the instance, absent where the host keeps none. */
+    /** The WebSockets the host hibernates for the instance, absent where it hibernates none. */
     readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */
     readonly report: (error: unknown) => void;
@@ -399,11 +379,4 @@ export interface WorkloadInstanceOptions {
         ServerOptions,
         keyof PackageImplementation | "health" | "resources" | "clock" | "report"
     >;
-}
-
-/** Key a trigger by its package and name. */
-function keyOf(declaration: Trigger): string {
-    const { packageId, name } = DeclarationReference.of(declaration);
-
-    return `${packageId}/${name}`;
 }

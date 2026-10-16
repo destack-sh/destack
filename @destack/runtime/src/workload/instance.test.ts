@@ -1,23 +1,14 @@
 import { ResourceContext } from "@destack/resource/context";
-import { StandardSignature } from "../trigger/index.ts";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { Clock, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { Package } from "@destack/package";
 import { PackageHandle } from "../declare/index.ts";
-import { defineTrigger } from "../trigger/index.ts";
-import type { RunClient } from "../trigger/index.ts";
 import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
-
-/** The package-qualified repository type the calls call. */
-const REPOSITORY = {
-    packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000001"),
-    type: "repository",
-};
+import { Clock } from "@destack/environment";
 
 /** The first fixture package. */
 const first = PackageHandle.of(
@@ -58,6 +49,7 @@ const server: ServerContext = {
         derivePrivateKey: () => Promise.reject(new Error("the fixture derives no private key")),
     },
     fetch: (request) => Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
+    url: "https://notes--home.test",
     publisher,
     publisherAt: () => publisher,
     at: (address) => ({
@@ -65,27 +57,6 @@ const server: ServerContext = {
         fetch: () => Promise.reject(new Error("the fixture installation cannot call an address")),
     }),
 };
-
-/** A machine the fixture workloads record no runs in. */
-const runs: RunClient = {
-    send: async () => {
-        throw new Error("the fixture records no runs");
-    },
-};
-
-/** A declared fixture webhook trigger. */
-const github = defineTrigger({
-    name: "github",
-    on: {
-        webhook: { signature: new StandardSignature(), path: "/", secret: async () => "secret" },
-    },
-    call: (delivery) => ({
-        type: REPOSITORY,
-        method: "push",
-        input: { id: delivery.id },
-        release: "2026.9.0",
-    }),
-});
 
 test("release startup resources when the workload shuts down during startup", async () => {
     const events: string[] = [];
@@ -112,7 +83,6 @@ test("release startup resources when the workload shuts down during startup", as
                 },
                 resources: hosting.resources,
                 server,
-                runs,
                 serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
             },
         ),
@@ -158,7 +128,6 @@ test("start two packages and drain accepted requests before shared cleanup", asy
             },
             resources: hosting.resources,
             server,
-            runs,
             serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
         },
     );
@@ -172,7 +141,7 @@ test("start two packages and drain accepted requests before shared cleanup", asy
     expect(instance.close()).toBe(closing);
     expect(events).toEqual(["shutdown"]);
 
-    // keep resources until the response is consumed
+    // retain resources until the response is consumed
     released.resolve();
     const response = await request;
     expect(await response.text()).toBe("complete");
@@ -219,7 +188,6 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
             resources: hosting.resources,
             server,
-            runs,
             serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 5 }),
         },
     );
@@ -268,7 +236,6 @@ test("reject a package served twice and release startup resources", async () => 
                 },
                 resources: hosting.resources,
                 server,
-                runs,
                 serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
             },
         ),
@@ -276,42 +243,23 @@ test("reject a package served twice and release startup resources", async () => 
     expect(events).toEqual(["resources"]);
 }, 1500);
 
-test("list the triggers a workload receives and find each by its package and name", async () => {
-    await using instance = await WorkloadInstance.start(
-        defineWorkload({ name: "fixture", start: () => ({ packages: [], triggers: [github] }) }),
-        {
-            clock: Clock.system,
-            callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
-            resources: hosting.resources,
-            server,
-            runs,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
-        },
-    );
-
-    expect([
-        instance.triggers,
-        instance.trigger(github.package.id, "github"),
-        instance.trigger(github.package.id, "gitlab"),
-    ]).toEqual([[github], github, undefined]);
-}, 1500);
-
-test("reject a trigger registered twice and release startup resources", async () => {
-    const events: string[] = [];
-    await expect(
+test("hand the workload its webhook deliveries, refusing a workload receiving none", async () => {
+    // start a workload answering deliveries with their path, and one receiving none
+    const start = (webhooks: boolean) =>
         WorkloadInstance.start(
             defineWorkload({
                 name: "fixture",
-                start: (context) => {
-                    context.defer(() => {
-                        events.push("resources");
-                    });
-
-                    return { packages: [], triggers: [github, github] };
-                },
+                start: () => ({
+                    packages: [],
+                    ...(webhooks
+                        ? {
+                              webhooks: {
+                                  fetch: async (request: Request) =>
+                                      new Response(new URL(request.url).pathname, { status: 202 }),
+                              },
+                          }
+                        : {}),
+                }),
             }),
             {
                 clock: Clock.system,
@@ -321,24 +269,28 @@ test("reject a trigger registered twice and release startup resources", async ()
                 },
                 resources: hosting.resources,
                 server,
-                runs,
                 serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
             },
-        ),
-    ).rejects.toThrow(`duplicate workload trigger: ${github.package.id}/github`);
-    expect(events).toEqual(["resources"]);
+        );
+    await using receiving = await start(true);
+    await using deaf = await start(false);
+
+    // answer a delivery, and refuse one to a workload receiving none
+    const answered = await receiving
+        .requireWebhookHandler()
+        .fetch(new Request("https://hooks.test/github/notes", { method: "POST" }));
+    expect([answered.status, await answered.text()]).toEqual([202, "/github/notes"]);
+    expect(() => deaf.requireWebhookHandler()).toThrow("the workload receives no webhooks");
 }, 1500);
 
-test("give a starting workload its server context and the machine recording its runs", async () => {
-    // start a workload that keeps its server context and the machine
+test("give a starting workload its server context", async () => {
+    // start a workload that records its server context
     let received: ServerContext | undefined;
-    let recording: RunClient | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
             start: async (context) => {
                 received = context.server;
-                recording = context.runs;
 
                 return { packages: [] };
             },
@@ -351,11 +303,10 @@ test("give a starting workload its server context and the machine recording its 
             },
             resources: hosting.resources,
             server,
-            runs,
             serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
         },
     );
-    expect([instance.triggers, received, recording]).toEqual([[], server, runs]);
+    expect([instance.packages, received]).toEqual([[], server]);
 });
 
 test("serve the next start once a reload starts it, then release the previous start's resources", async () => {
@@ -382,7 +333,6 @@ test("serve the next start once a reload starts it, then release the previous st
             },
             resources: hosting.resources,
             server,
-            runs,
             serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
         },
     );

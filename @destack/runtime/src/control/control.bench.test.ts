@@ -1,8 +1,8 @@
 import { expect, onTestFinished, test, type TestContext } from "@destack/test";
 import { defineTable, eq, integer, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Clock } from "@destack/schema";
 import { ControlLoop, type Controller } from "./control.ts";
+import { Clock } from "@destack/environment";
 
 /** The keys one burst reconciles. */
 const KEYS = 20;
@@ -47,7 +47,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
             }
             const end = performance.now() + WORK_MILLISECONDS;
             while (performance.now() < end) {
-                // keep the thread busy as decoding does
+                // occupy the thread as decoding does
             }
 
             // finish the burst at the last key

@@ -4,14 +4,19 @@ import {
     type Table,
     DatabaseError,
     type Change,
+    Lease,
+    type LeaseOutcome,
 } from "@destack/db";
-import { aligned, Clock, found } from "@destack/schema";
+import { nth, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { CallError } from "../error/error.ts";
 import { RetryPolicy, until, yieldToEventLoop } from "../timer/index.ts";
 import type { Alarm } from "./alarm.ts";
-import { LEASE_MILLISECONDS, Leases } from "./lease.ts";
+import { Clock } from "@destack/environment";
+
+/** The default lease duration: 15 s, Kubernetes leader election's lease duration. */
+export const LEASE_MILLISECONDS = 15_000;
 
 /** The control loop's spans. */
 const { span } = telemetry.scope(import.meta.destack.package);
@@ -22,7 +27,7 @@ const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 /** How long a key's peer may answer unavailable before its failures are reported: a minute. */
 const UNAVAILABLE_REPORT_MILLISECONDS = 60_000;
 
-/** A loop keeping the actual state of each listed key matching its rows. */
+/** A loop converging the actual state of each listed key to its rows. */
 export interface Controller {
     /** The controller's name in reports. */
     readonly name: string;
@@ -34,7 +39,7 @@ export interface Controller {
     readonly list: () => Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
-    /** Whether a key converges and returns, or keeps its process running until stopped. */
+    /** Whether a key converges and returns, or runs its process until stopped. */
     readonly mode?: "reconcile" | "follow";
     /** Converge one key and return the delay before looking again, or follow it until stopped. */
     readonly reconcile: (
@@ -121,13 +126,13 @@ export class ControlLoop {
     readonly #reconciling = new Set<Promise<void>>();
     /** The lease holder and duration, when instances share the loop. */
     readonly #lease?: { readonly holder: string; readonly duration: number };
-    /** The wake-up the host keeps for the earliest due key. */
+    /** The host's wake-up for the earliest due key. */
     readonly #alarm?: Alarm;
     /** The clock keys come due at. */
     readonly #clock: Clock;
     /** How long a key's peer may answer unavailable before its failures are reported. */
     readonly #unavailableFor: number;
-    /** The earliest due time the alarm keeps, absent for none. */
+    /** The earliest due time the alarm is set to, absent for none. */
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations. */
     #busy: number | undefined;
@@ -153,7 +158,7 @@ export class ControlLoop {
             readonly retry?: Partial<RetryPolicy>;
             /** Lease each key to this instance. */
             readonly lease?: { readonly holder: string; readonly duration?: number };
-            /** Keep a wake-up for the earliest due key, so an evicted instance runs it. */
+            /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
             /** The clock keys come due at. */
             readonly clock: Clock;
@@ -206,7 +211,12 @@ export class ControlLoop {
                 resolve();
             }
             if (this.#lease !== undefined) {
-                await Leases.release(this.database, this.#lease.holder);
+                for (const controller of this.controllers) {
+                    await Lease.release(this.database, {
+                        holder: this.#lease.holder,
+                        name: ControlLoop.#leaseName(controller),
+                    });
+                }
             }
         }
     }
@@ -226,7 +236,7 @@ export class ControlLoop {
             return promise;
         }
 
-        // settle at the deadline on the clock while late keys keep running and the alarm stays due
+        // settle at the deadline on the clock while late keys go on running and the alarm stays due
         const settled = new AbortController();
         this.#clock.sleep(deadline - this.#clock.now(), settled.signal).then(resolve, () => {});
 
@@ -240,7 +250,7 @@ export class ControlLoop {
             resolve();
         }
 
-        // keep the earliest due time
+        // record the earliest due time
         const due = found(this.#due, controller);
         const current = due.get(key);
         if (current === undefined || at < current) {
@@ -399,15 +409,15 @@ export class ControlLoop {
             if (runnable !== undefined) {
                 this.#start(runnable);
 
-                // keep the wake-up due while the key runs
-                await this.#keep(this.#busy);
+                // set the wake-up due while the key runs
+                await this.#schedule(this.#busy);
 
                 // let other tasks run before the next key
                 await yieldToEventLoop();
             }
-            // keep the wake-up due while keys run or at the next key
+            // set the wake-up due while keys run, or at the next key
             else {
-                await this.#keep(this.#busy ?? due ?? skipped);
+                await this.#schedule(this.#busy ?? due ?? skipped);
 
                 // settle idle waiters once nothing reconciles
                 if (this.#isListed && this.#reconciling.size === 0) {
@@ -593,16 +603,15 @@ export class ControlLoop {
         // take the lease or wait for it to lapse
         const { holder, duration } = options;
         const acquire = () =>
-            Leases.acquire(
-                this.database,
-                work.controller.name,
-                work.key,
+            Lease.acquire(this.database, {
+                name: ControlLoop.#leaseName(work.controller),
+                key: work.key,
                 holder,
                 duration,
-                this.#clock.now(),
-            );
+                now: this.#clock.now(),
+            });
         const acquired = await acquire();
-        if ("lapsesAt" in acquired) {
+        if (acquired.kind === "busy") {
             return Math.max(0, acquired.lapsesAt - this.#clock.now());
         }
 
@@ -619,9 +628,9 @@ export class ControlLoop {
         }
     }
 
-    /** Renew a held lease each interval of the clock until reconciled, or abort it as lost. */
+    /** Renew an acquired lease each interval of the clock until reconciled, or abort it as lost. */
     async #renew(
-        acquire: () => Promise<{ readonly epoch: number } | { readonly lapsesAt: number }>,
+        acquire: () => Promise<LeaseOutcome>,
         key: string,
         interval: number,
         lost: AbortController,
@@ -636,7 +645,7 @@ export class ControlLoop {
             // lose the lease once another holds it or renewing fails
             try {
                 const renewed = await acquire();
-                if ("lapsesAt" in renewed) {
+                if (renewed.kind === "busy") {
                     lost.abort(new Error(`lease of ${key} lost`));
 
                     return;
@@ -649,8 +658,8 @@ export class ControlLoop {
         }
     }
 
-    /** Keep the host's wake-up at the earliest due time, once per change. */
-    async #keep(due: number | undefined): Promise<void> {
+    /** Schedule the host's wake-up at the earliest due time, once per change. */
+    async #schedule(due: number | undefined): Promise<void> {
         // leave an unchanged wake-up
         const alarm = this.#alarm;
         if (alarm === undefined || due === this.#alarmed) {
@@ -692,6 +701,11 @@ export class ControlLoop {
             }
         }
     }
+
+    /** Read the lease name of a controller's keys. */
+    static #leaseName(controller: Controller): string {
+        return `controller:${controller.name}`;
+    }
 }
 
 /** One key due at a time. */
@@ -718,8 +732,8 @@ class DueQueue {
         let index = heap.length - 1;
         while (index > 0) {
             const parent = (index - 1) >> 1;
-            const above = aligned(heap, parent);
-            const below = aligned(heap, index);
+            const above = nth(heap, parent);
+            const below = nth(heap, index);
             if (above.at <= below.at) {
                 break;
             }
@@ -745,16 +759,16 @@ class DueQueue {
             const left = 2 * index + 1;
             const right = left + 1;
             let smallest = index;
-            if (left < heap.length && aligned(heap, left).at < aligned(heap, smallest).at) {
+            if (left < heap.length && nth(heap, left).at < nth(heap, smallest).at) {
                 smallest = left;
             }
-            if (right < heap.length && aligned(heap, right).at < aligned(heap, smallest).at) {
+            if (right < heap.length && nth(heap, right).at < nth(heap, smallest).at) {
                 smallest = right;
             }
             if (smallest === index) {
                 return earliest;
             }
-            [heap[smallest], heap[index]] = [aligned(heap, index), aligned(heap, smallest)];
+            [heap[smallest], heap[index]] = [nth(heap, index), nth(heap, smallest)];
             index = smallest;
         }
     }

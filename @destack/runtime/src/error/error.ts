@@ -30,7 +30,11 @@ export const DECLARED_ERRORS = {
         ]),
     },
     UNPROCESSABLE_CONTENT: { status: CALL_ERROR_STATUSES.UNPROCESSABLE_CONTENT },
-    TOO_MANY_REQUESTS: { status: CALL_ERROR_STATUSES.TOO_MANY_REQUESTS },
+    TOO_MANY_REQUESTS: {
+        status: CALL_ERROR_STATUSES.TOO_MANY_REQUESTS,
+        // how long until the call may be retried, in milliseconds, as Retry-After states it
+        data: schema.object({ retryAfter: schema.number().nonnegative() }),
+    },
     SERVICE_UNAVAILABLE: { status: CALL_ERROR_STATUSES.SERVICE_UNAVAILABLE },
 } as const satisfies Partial<
     Record<CallErrorCode, { readonly status: number; readonly data?: schema.Schema }>
@@ -56,6 +60,11 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
         const statuses: Readonly<Record<string, number>> = CALL_ERROR_STATUSES;
 
         return statuses[code] ?? fallbackORPCErrorStatus(code, undefined);
+    }
+
+    /** Report whether a status refuses for good: a client failure other than the transient ones. */
+    static isRefusal(status: number): boolean {
+        return status >= 400 && status < 500 && !TRANSIENT_STATUSES.has(status);
     }
 
     /** Read the data of a failure of a code that declares data. */
@@ -111,7 +120,7 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
 
     /** Read the call error a failure is or has, absent for a failure without one. */
     static of(error: unknown): ORPCError<string, unknown> | undefined {
-        // keep a call error
+        // take a call error as it is
         if (isCallError(error)) {
             return error;
         }

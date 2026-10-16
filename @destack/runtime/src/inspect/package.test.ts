@@ -121,7 +121,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                 action: "update",
                 target: "api",
                 risk: "backward-incompatible",
-                detail: "serve callers from 2026.9.0: earlier callers keep their release",
+                detail: "serve callers from 2026.9.0: earlier callers stay on their release",
             },
             {
                 action: "convert",
@@ -139,7 +139,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                 action: "update",
                 target: "api/procedure/query.search/output",
                 risk: "backward-incompatible",
-                detail: "incompatible values: earlier readers keep their release",
+                detail: "incompatible values: earlier readers stay on their release",
             },
             {
                 action: "create",
@@ -151,7 +151,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                 action: "delete",
                 target: "api/procedure/query.retired",
                 risk: "backward-incompatible",
-                detail: "remove procedure query.retired: earlier callers keep their release",
+                detail: "remove procedure query.retired: earlier callers stay on their release",
             },
         ],
         "api/procedure/query.count/input: declare a conversion for 2026.9.0",

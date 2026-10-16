@@ -1,34 +1,43 @@
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import type { Listener, ServerSocket, ServerSocketHandler } from "@destack/environment";
+import { telemetry } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { CallError } from "../error/index.ts";
 import type { Fetch } from "../runtime/fetch.ts";
 
-/** The path at which a host and an instance exchange a held socket's messages, closes and sends. */
+/** The path where a host and an instance exchange a hibernated socket's messages and closes. */
 export const SOCKET_PATH = "/.destack/socket";
 
-/** The header with a held socket beside its event. */
+/** The header with a hibernated socket beside its event. */
 export const SOCKET_HEADER = "Destack-Socket";
 
 /** The header that identifies the instance that accepted an upgrade. */
 export const SOCKET_INSTANCE_HEADER = "Destack-Socket-Instance";
 
-/** A held socket as a host describes it: its identifier and the value kept beside it. */
-export const HeldSocketDescription = defineSchema(
+/** The most bytes in one WebSocket message: 1 MiB. */
+const MESSAGE_BYTES = 1024 * 1024;
+
+/** The instruments capturing the closes instances refuse. */
+const instruments = telemetry.scope(import.meta.destack.package);
+
+/** A hibernated socket as a host describes it: its identifier and the value stored beside it. */
+export const SocketDescription = defineSchema(
     schema.object({
-        /** The socket's identifier, unique among the instance's held sockets. */
+        /** The socket's identifier, unique among the instance's hibernated sockets. */
         id: schema.string().min(1),
-        /** The value the instance kept beside the socket when it accepted it. */
+        /** The value the instance stored beside the socket when it accepted it. */
         attachment: schema.json(),
     }),
 );
-/** A held socket as a host describes it. */
-export type HeldSocketDescription = schema.Infer<typeof HeldSocketDescription>;
+/** A hibernated socket as a host describes it. */
+export type SocketDescription = schema.Infer<typeof SocketDescription>;
 
 /** An instance's acceptance of a WebSocket upgrade. */
 export const SocketAcceptance = defineSchema(
     schema.object({
-        /** The socket's identifier, which the instance picks, unique among its held sockets. */
+        /** The socket's identifier, the instance's pick, unique among its hibernated sockets. */
         id: schema.string().min(1),
-        /** The value kept beside the socket. */
+        /** The value stored beside the socket. */
         attachment: schema.json(),
         /** The subprotocol the upgrade answers with, among those the client offered. */
         protocol: schema.string().min(1).exactOptional(),
@@ -46,11 +55,11 @@ export const SocketAcceptance = defineSchema(
 /** An instance's acceptance of a WebSocket upgrade. */
 export type SocketAcceptance = schema.Infer<typeof SocketAcceptance>;
 
-/** One WebSocket a host holds for an instance, open while the instance sleeps. */
-export interface HeldSocket {
+/** One WebSocket a host hibernates for an instance while it sleeps. */
+export interface Socket {
     /** The socket's identifier. */
     readonly id: string;
-    /** The value the instance kept beside the socket. */
+    /** The value the instance stored beside the socket. */
     readonly attachment: JsonValue;
     /** Send one binary message, in order with the socket's other sends. */
     readonly send: (message: Uint8Array<ArrayBuffer>) => void;
@@ -58,25 +67,25 @@ export interface HeldSocket {
     readonly close: () => void;
 }
 
-/** What a workload does with its held sockets' messages and closes. */
+/** What a workload does with its hibernated sockets' messages and closes. */
 export interface SocketHandler {
-    /** Take one binary message a held socket received. */
-    readonly message: (socket: HeldSocket, message: Uint8Array<ArrayBuffer>) => Promise<void>;
-    /** Take the close of a held socket. */
-    readonly close: (socket: HeldSocket) => Promise<void>;
+    /** Take one binary message a hibernated socket received. */
+    readonly message: (socket: Socket, message: Uint8Array<ArrayBuffer>) => Promise<void>;
+    /** Take the close of a hibernated socket. */
+    readonly close: (socket: Socket) => Promise<void>;
 }
 
-/** Where an instance connects to the sockets its host keeps open. */
+/** Where an instance connects to the sockets its host hibernates. */
 export interface SocketHost {
-    /** The URL of the held sockets. */
+    /** The URL of the hibernated sockets. */
     readonly url: string;
     /** Send a request to the host. */
     readonly fetch: Fetch;
 }
 
-/** The WebSockets a host keeps open for an instance while it sleeps. */
+/** The WebSockets a host hibernates for an instance while it sleeps. */
 export class Hibernation {
-    /** Where the host keeps the sockets. */
+    /** Where the host hibernates the sockets. */
     readonly #host: SocketHost;
     /** The secret the host and the instance prove each other's requests with. */
     readonly #secret: string;
@@ -99,26 +108,26 @@ export class Hibernation {
         });
     }
 
-    /** List the held sockets with their kept values. */
-    async list(): Promise<readonly HeldSocket[]> {
-        // read the descriptions the host keeps
+    /** List the hibernated sockets with their stored values. */
+    async list(): Promise<readonly Socket[]> {
+        // read the descriptions the host stores
         const response = await this.#host.fetch(
             new Request(this.#host.url, { headers: this.#headers() }),
         );
         if (!response.ok) {
             throw new CallError("BAD_GATEWAY", {
-                message: `the host cannot list held sockets: ${response.status}`,
+                message: `the host cannot list hibernated sockets: ${response.status}`,
             });
         }
 
         return schema
-            .array(HeldSocketDescription)
+            .array(SocketDescription)
             .parse(await response.json())
             .map((description) => this.socket(description));
     }
 
-    /** Address a held socket the host describes. */
-    socket(description: HeldSocketDescription): HeldSocket {
+    /** Address a hibernated socket the host describes. */
+    socket(description: SocketDescription): Socket {
         const url = `${this.#host.url}/${encodeURIComponent(description.id)}`;
 
         return {
@@ -145,12 +154,12 @@ export class Hibernation {
             await response.arrayBuffer();
             if (!response.ok) {
                 throw new CallError("BAD_GATEWAY", {
-                    message: `the host refused a held socket's ${request.method}: ${response.status}`,
+                    message: `the host refused a hibernated socket's ${request.method}: ${response.status}`,
                 });
             }
         });
 
-        // keep it as the socket's last, reporting its failure
+        // store it as the socket's last, reporting its failure
         const settled = next.catch((error: unknown) => this.#report(error));
         this.#pending.set(id, settled);
 
@@ -165,5 +174,176 @@ export class Hibernation {
     /** The headers proving the instance to its host. */
     #headers(): Record<string, string> {
         return { authorization: `Bearer ${this.#secret}` };
+    }
+}
+
+/** A socket the host hibernates for an instance, with the acceptance the instance answered. */
+type HostSocket = ServerSocket<{
+    readonly instance: string;
+    readonly acceptance: SocketAcceptance;
+}>;
+
+/** Hand an instance a request its host makes at a path below its origin. */
+export type SocketDelivery = (
+    instanceId: string,
+    path: string,
+    request: RequestInit & { readonly headers: Record<string, string> },
+) => Promise<Response>;
+
+/** The host's side of hibernation: the WebSockets it hibernates for its instances. */
+export class HibernationHost {
+    /** The hibernated sockets, by instance and identifier. */
+    readonly #hibernated = new Map<string, Map<string, HostSocket>>();
+    /** Hand an instance its hibernated sockets' events. */
+    readonly #deliver: SocketDelivery;
+
+    /** Hibernate sockets, delivering their events to their instances. */
+    constructor(deliver: SocketDelivery) {
+        this.#deliver = deliver;
+    }
+
+    /** The handler a listener serving hibernated sockets takes. */
+    get websocket(): ServerSocketHandler<HostSocket["attachment"]> {
+        return {
+            maxPayloadLength: MESSAGE_BYTES,
+            open: (socket) => {
+                const { instance, acceptance } = socket.attachment;
+                this.#upsertSockets(instance).set(acceptance.id, socket);
+            },
+            message: (socket, message) => void this.#message(socket, message),
+            close: (socket) => void this.#close(socket),
+        };
+    }
+
+    /** Hibernate a WebSocket that an instance accepted in its answer to an upgrade. */
+    upgrade(
+        listener: Listener<HostSocket["attachment"]>,
+        request: Request,
+        answer: Response,
+    ): boolean {
+        // read the instance's acceptance
+        const accepted = answer.headers.get(SOCKET_HEADER);
+        const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
+        if (accepted === null || instanceId === null) {
+            throw new CallError("BAD_GATEWAY", {
+                message: "the answer has no socket acceptance for a named instance",
+            });
+        }
+        const acceptance = SocketAcceptance.parse(JSON.parse(accepted));
+
+        // attach the instance and its acceptance to the socket
+        return listener.upgrade(request, {
+            attachment: { instance: instanceId, acceptance },
+            ...(acceptance.protocol === undefined
+                ? {}
+                : { headers: { "sec-websocket-protocol": acceptance.protocol } }),
+        });
+    }
+
+    /** Answer an instance's listing of its hibernated sockets, or its send or close of one. */
+    async answer(instanceId: string, request: Request): Promise<Response> {
+        // list every hibernated socket of the instance
+        const sockets = this.#sockets(instanceId);
+        const { pathname } = new URL(request.url);
+        if (pathname === SOCKET_PATH) {
+            return Response.json(
+                [...sockets.values()].map((socket) =>
+                    HibernationHost.#describe(socket.attachment.acceptance),
+                ),
+            );
+        }
+
+        // close the socket of the identifier, a closed one at once, or send to it
+        const id = decodeURIComponent(pathname.slice(SOCKET_PATH.length + 1));
+        const socket = sockets.get(id);
+        if (request.method === "DELETE") {
+            socket?.close();
+        } else if (socket === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no hibernated socket ${id}` });
+        } else {
+            socket.send(new Uint8Array(await request.arrayBuffer()));
+        }
+
+        return new Response(null, { status: 204 });
+    }
+
+    /** Close every socket hibernated for an instance, as it stops. */
+    release(instanceId: string): void {
+        for (const socket of this.#sockets(instanceId).values()) {
+            socket.close();
+        }
+        this.#hibernated.delete(instanceId);
+    }
+
+    /** Hand a hibernated socket's message to its instance, answering the declared text itself. */
+    async #message(socket: HostSocket, message: string | Uint8Array): Promise<void> {
+        // answer the declared text message without the instance
+        const { respond } = socket.attachment.acceptance;
+        if (respond !== undefined && message === respond.request) {
+            socket.send(respond.response);
+
+            return;
+        }
+
+        // hand the message over as bytes
+        const body =
+            typeof message === "string"
+                ? new TextEncoder().encode(message)
+                : new Uint8Array(message);
+        await this.#event(socket, { method: "POST", body });
+    }
+
+    /** Hand a hibernated socket's close to its instance and forget the socket. */
+    async #close(socket: HostSocket): Promise<void> {
+        const { instance, acceptance } = socket.attachment;
+        this.#hibernated.get(instance)?.delete(acceptance.id);
+        await this.#event(socket, { method: "DELETE" });
+    }
+
+    /** Deliver a hibernated socket's event to its instance below the socket's path. */
+    async #event(socket: HostSocket, request: RequestInit): Promise<void> {
+        // deliver the event below the socket's path, describing the socket
+        const { instance, acceptance } = socket.attachment;
+        const description = HibernationHost.#describe(acceptance);
+        const response = await this.#deliver(
+            instance,
+            `${SOCKET_PATH}/${encodeURIComponent(acceptance.id)}`,
+            { ...request, headers: { [SOCKET_HEADER]: JSON.stringify(description) } },
+        );
+        await response.arrayBuffer();
+
+        // report a close the instance refuses, which its connection's lapse then sweeps
+        if (!response.ok && request.method === "DELETE") {
+            instruments.captureException(
+                new CallError("BAD_GATEWAY", {
+                    message: `instance ${instance} refused the close of socket ${acceptance.id}: ${response.status}`,
+                }),
+            );
+        }
+        // close a socket whose message the instance refuses
+        else if (!response.ok) {
+            socket.close();
+        }
+    }
+
+    /** Describe an accepted socket as its instance reads it. */
+    static #describe(acceptance: SocketAcceptance): SocketDescription {
+        return { id: acceptance.id, attachment: acceptance.attachment };
+    }
+
+    /** Read the hibernated sockets of an instance, none for an instance without any. */
+    #sockets(instanceId: string): ReadonlyMap<string, HostSocket> {
+        return this.#hibernated.get(instanceId) ?? new Map();
+    }
+
+    /** Read the hibernated sockets of an instance, adding an empty set for its first. */
+    #upsertSockets(instanceId: string): Map<string, HostSocket> {
+        let sockets = this.#hibernated.get(instanceId);
+        if (sockets === undefined) {
+            sockets = new Map();
+            this.#hibernated.set(instanceId, sockets);
+        }
+
+        return sockets;
     }
 }

@@ -38,7 +38,7 @@ export const Egress = {
 
     /** Write the URL of a host path beside an egress, below the same prefix. */
     beside(egress: string, path: string): string {
-        // keep the prefix above the egress path
+        // take the prefix above the egress path
         const url = new URL(egress);
         const prefix = url.pathname.endsWith(EGRESS_PATH)
             ? url.pathname.slice(0, -EGRESS_PATH.length)
@@ -79,7 +79,7 @@ export const Egress = {
             return undefined;
         }
 
-        // keep the request below the address
+        // take the request below the address
         url.pathname = path ?? "/";
 
         return { address, request: copyRequest(request, {}, url.href) };

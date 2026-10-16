@@ -1,8 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { serve, type Server } from "bun";
-import { type BunHibernation } from "./socket.ts";
-import { SOCKET_HEADER } from "../workload/socket.ts";
+import { type Listener, Network } from "@destack/environment";
+import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 
 import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
@@ -30,17 +29,16 @@ export type BunEndpoint = (
 ) & {
     /** Handle one request. */
     readonly fetch: (request: Request) => Response | Promise<Response>;
-    /** The WebSockets the endpoint keeps open for instances. */
-    readonly hibernation?: BunHibernation;
+    /** The WebSockets the endpoint hibernates for instances. */
+    readonly hibernation?: HibernationHost;
 };
-
-/** A listener of one endpoint, as a process publishes and stops it. */
-type Listener = Pick<Server<unknown>, "url" | "stop">;
 
 /** The endpoints and lifecycle of one process. */
 export interface BunProcessOptions {
     /** The endpoints to listen on. */
     readonly endpoints: readonly BunEndpoint[];
+    /** The network to listen on. */
+    readonly network: Network;
     /** The signal aborted on shutdown. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
@@ -54,7 +52,7 @@ export interface BunProcessOptions {
 /** Serve each endpoint until shutdown and drain it on close. */
 export async function serveProcess(options: BunProcessOptions): Promise<void> {
     // shut down on process signals
-    const listeners: Listener[] = [];
+    const listeners: Pick<Listener<unknown>, "url" | "stop">[] = [];
     const stopped = Promise.withResolvers<void>();
     const stop = () => stopped.resolve();
     const shutdown = () => options.shutdown();
@@ -64,7 +62,7 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
     try {
         // open every listener, on its socket or its interface's port
         for (const endpoint of options.endpoints) {
-            listeners.push(listen(endpoint));
+            listeners.push(listen(options.network, endpoint));
         }
         await options.ready?.(listeners.map((listener) => listener.url));
         if (!options.signal.aborted) {
@@ -86,8 +84,8 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
     }
 }
 
-/** Listen on an endpoint's socket or port, keeping open the WebSockets its answers accept. */
-function listen(endpoint: BunEndpoint): Listener {
+/** Listen on an endpoint's socket or port, hibernating the WebSockets its answers accept. */
+function listen(network: Network, endpoint: BunEndpoint): Pick<Listener<unknown>, "url" | "stop"> {
     // answer each request plainly on an endpoint without sockets
     const { hibernation } = endpoint;
     const address =
@@ -95,13 +93,13 @@ function listen(endpoint: BunEndpoint): Listener {
             ? { unix: endpoint.unix }
             : { hostname: endpoint.hostname, port: endpoint.port };
     if (hibernation === undefined) {
-        return serve({ ...address, fetch: (request) => endpoint.fetch(request) });
+        return network.serve({ ...address, fetch: (request) => endpoint.fetch(request) });
     }
 
-    // keep open the WebSockets the instances accept
-    return serve({
+    // hibernate the WebSockets the instances accept
+    return network.serve({
         ...address,
-        fetch: async (request, server) => {
+        fetch: async (request, listener) => {
             // answer the request, and pass on anything but an accepted upgrade
             const answer = await endpoint.fetch(request);
             const isAccepted =
@@ -110,8 +108,8 @@ function listen(endpoint: BunEndpoint): Listener {
                 return answer;
             }
 
-            // hold the accepted socket, refusing an upgrade Bun does not take
-            return hibernation.upgrade(server, request, answer)
+            // hibernate the accepted socket, refusing an upgrade Bun does not take
+            return hibernation.upgrade(listener, request, answer)
                 ? undefined
                 : new Response(null, { status: 426 });
         },
@@ -146,6 +144,7 @@ export async function runWorkload(
     // serve the workload on the socket only its host reaches
     await serveProcess({
         endpoints: [{ unix: socket, fetch: (request) => workload.fetch(request) }],
+        network: Network.system,
         signal: workload.signal,
         shutdown: () => workload.shutdown(),
         close: () => workload.close(),

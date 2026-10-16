@@ -80,7 +80,7 @@ export function defineProcedure(
         throw new TypeError("a procedure for anyone needs public authentication");
     }
 
-    // keep the principal kinds by reference
+    // take the principal kinds by reference
     const declared: ProcedurePermission =
         typeof permission === "object" && "principals" in permission
             ? {

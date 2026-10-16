@@ -115,7 +115,7 @@ function compareAdapters(
                 },
             ];
         }
-        // keep an unchanged adapter
+        // skip an unchanged adapter
         else {
             return [];
         }
@@ -149,7 +149,7 @@ export function compareApi(
             action: "update",
             target,
             risk: "backward-incompatible",
-            detail: `serve callers from ${after.since}: earlier callers keep their release`,
+            detail: `serve callers from ${after.since}: earlier callers stay on their release`,
         });
     }
 
@@ -179,7 +179,7 @@ export function compareApi(
             action: "delete",
             target: Address.join(target, "procedure", name),
             risk: "backward-incompatible",
-            detail: `remove procedure ${name}: earlier callers keep their release`,
+            detail: `remove procedure ${name}: earlier callers stay on their release`,
         });
     }
 
@@ -212,7 +212,7 @@ export function apiSymbols(
     ]);
 }
 
-/** Plan a kept procedure's input for earlier callers' inputs and its output for earlier callers. */
+/** Plan a staying procedure's input for earlier callers' inputs, and its output for them. */
 function payloadPlans(
     previous: ProcedureDescription,
     procedure: ProcedureDescription,

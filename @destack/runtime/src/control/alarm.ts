@@ -1,4 +1,4 @@
-/** A durable wake-up the host keeps for a loop, such as a Durable Object's alarm. */
+/** A durable wake-up the host sets for a loop, such as a Durable Object's alarm. */
 export interface Alarm {
     /** Wake the instance at a time, in UTC epoch milliseconds, replacing the earlier wake-up. */
     readonly setAlarm: (at: number) => Promise<void>;
@@ -6,7 +6,7 @@ export interface Alarm {
     readonly deleteAlarm: () => Promise<void>;
 }
 
-/** A clock that keeps several loops' alarms on one host wake-up. */
+/** A clock placing several loops' alarms on one host wake-up. */
 export class AlarmClock {
     /** The host's wake-up. */
     readonly #alarm: Alarm;
@@ -15,7 +15,7 @@ export class AlarmClock {
     /** The time the host's wake-up is set to, absent for none. */
     #current: number | undefined;
 
-    /** Keep alarms on a host's wake-up. */
+    /** Place alarms on a host's wake-up. */
     constructor(alarm: Alarm) {
         this.#alarm = alarm;
     }

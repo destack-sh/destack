@@ -1,6 +1,6 @@
 # @destack/runtime
 
-`@destack/runtime` declares a package's procedures, triggers and workloads, serves them over oRPC, and issues the tokens its calls carry.
+`@destack/runtime` declares a package's procedures and workloads, serves them over oRPC, and issues the tokens its calls carry.
 
 ```ts
 const list = defineProcedure({
@@ -12,18 +12,17 @@ list.route({ method: "GET", path: "/pages" }).output(PageList);
 const implementation = implement(pages.router).$context<RequestContext>();
 throw new CallError("NOT_FOUND", { message: `no page ${id}` });
 await CallError.read(response, "MISDIRECTED_REQUEST");
-await outbox.append(inbox, deliveryId, delivery, transaction);
-await issuer.issue({ ...person, actors: [installation], grant }, now);
+await issuer.issue({ caller, credential }, now); // a caller's verified authentication
 client.notes.list({}, { context: { exchange: Exchange.of(served) } });
 ```
 
 ## Prior art
 
-`defineProcedure` is oRPC's `oc`, `CallError` is `ORPCError`, a schedule trigger is a Kubernetes CronJob, `/outbox` is a transactional outbox, and a token carries an RFC 8693 actor chain and an RFC 9396 grant.
+`defineProcedure` is oRPC's `oc`, `CallError` is `ORPCError`, `ControlLoop` leases each key as Kubernetes leader election does, and a token carries an RFC 8693 actor chain and an RFC 9396 grant.
 
 ```ts
-on: { schedule: { timing, concurrency: "forbid", deadline: 60_000, call } };
-await new StandardSignature().sign(message, secret);
+throw new CallError("TOO_MANY_REQUESTS", { message, data: { retryAfter } }); // Retry-After
+new ControlLoop(database, controllers, { clock, report, lease: { holder: instance } });
 ```
 
 ## Packages
@@ -33,6 +32,7 @@ await new StandardSignature().sign(message, secret);
 ```ts
 export const npm = defineAdapter("npm", { path: "/npm" });
 export const hooks = defineAdapter("hooks", { path: "/hooks", callers: [principal.installation] });
+export const sync = defineAdapter("sync", { path: "/sync", callers: "self" }); // the installation itself
 export default definePackage({
     objects: { repository, release },
     adapters: { npm, hooks },
@@ -43,39 +43,18 @@ const forge = createClient(forgePackage, { url: PackageMount.url(origin, forgePa
 await forge.release.list({ scope });
 ```
 
-## Triggers
-
-`defineTrigger` declares what fires runs, each one object method call the space's machine makes later as the installation.
-
-```ts
-export const reminders = defineTrigger({
-    name: "reminders",
-    on: {
-        schedule: {
-            timing: { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Zurich" },
-            concurrency: "forbid",
-            deadline: 60_000,
-            call: reminder.call("send", {}),
-        },
-    },
-});
-export const pushes = defineTrigger({
-    name: "pushes",
-    on: { webhook: { signature: new StandardSignature(), path: "/{repository}", secret } },
-    call: (delivery) =>
-        repository.call("push", { id: delivery.parameters.repository!, payload: delivery.payload }),
-});
-```
-
 ## Workloads
 
-`defineWorkload` declares a `start` that runs once per instance and returns the served packages, the package's triggers, and what it does with the WebSockets its host keeps open, as Durable Objects hibernate theirs.
+`defineWorkload` declares a `start` that runs once per instance and returns the served packages and what it does with its host's webhook deliveries and the WebSockets its host hibernates, as Durable Objects do.
 
 ```ts
 export const workload = defineWorkload({
     name: "main",
     permissions: { space: [message.permission("send")] },
-    start: async (context) => ({ packages: [implementPages(context)], triggers: [pushes] }),
+    start: async (context) => ({
+        packages: [implementPages(context)],
+        webhooks: { fetch: receive },
+    }),
 });
 
 // a room's partition: accept a socket in a route, answer its messages through the host
@@ -116,14 +95,13 @@ const expiry: Controller = {
     list: async () => ["expiry"],
     reconcile: async () => ((await removeExpired()) ? 0 : undefined),
 };
-await new ControlLoop(database, [expiry, outbox.controller(inbox)], { clock, report }).run(signal);
+await new ControlLoop(database, [expiry], { clock, report }).run(signal);
 ```
 
 ## Requests
 
-`RequestId.create` stamps a UUIDv7, `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562), and `RateLimit` is a token bucket.
+`RequestId.create` stamps a UUIDv7, and `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562).
 
 ```ts
 const requestId = await RequestId.derive(reading.measuredAt, `${source} ${eventId}`);
-const { isAdmitted, state, wait } = new RateLimit({ rate: 1, burst: 20 }).admit(kept, now);
 ```

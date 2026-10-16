@@ -12,9 +12,9 @@ import type { ProcedureContext } from "./procedure-context.ts";
 import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { copyRequest } from "../request/index.ts";
-import { Clock, LONGEST_DELAY } from "@destack/schema";
+import { Clock, LONGEST_DELAY } from "@destack/environment";
 
-/** The seconds a starting server keeps a request, and a client then waits before retrying. */
+/** The seconds a starting server delays a request, and a client then waits before retrying. */
 const STARTING_RETRY_SECONDS = 1;
 
 /** A hosted HTTP server. */
@@ -109,7 +109,7 @@ export class Server implements AsyncDisposable {
         return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
     }
 
-    /** Start the server: run the controllers that keep its replicas, and serve once it is ready. */
+    /** Start the server: run the controllers maintaining its replicas, then serve once ready. */
     static start(options: ServerOptions): Server {
         // create the server, run its controllers and wait for its readiness in the background
         const server = new Server(options);
@@ -139,7 +139,7 @@ export class Server implements AsyncDisposable {
             this.health.set("serving");
             this.#serving.resolve();
         }
-        // wait for readiness, holding requests while starting
+        // wait for readiness, delaying requests while starting
         else {
             await ready(signal);
             if (signal.aborted) {
@@ -169,7 +169,7 @@ export class Server implements AsyncDisposable {
             return this.#headers(probe);
         }
 
-        // hold a request while starting, up to the retry window
+        // delay a request while starting, up to the retry window
         if (!this.#closing && this.health.status === "starting") {
             await this.#awaitServing();
         }
@@ -186,7 +186,7 @@ export class Server implements AsyncDisposable {
             return this.#headers(new Response(null, { status: 503 }));
         }
 
-        // keep cancellation across the response
+        // carry cancellation across the response
         const controller = new AbortController();
         const signal = AbortSignal.any([request.signal, controller.signal]);
         this.#requests.set(controller, request);
@@ -242,7 +242,7 @@ export class Server implements AsyncDisposable {
 
     /** Apply the response headers. */
     #headers(response: Response): Response {
-        // keep responses without a header policy
+        // leave responses without a header policy
         if (!this.#options.responseHeaders) {
             return response;
         }
@@ -349,12 +349,12 @@ export class Server implements AsyncDisposable {
         // renew the call's access
         context.request.authorization?.renew();
 
-        // admit anyone, and leave each row to the object store, refusing a credential that failed
+        // allow anyone, and leave each row to the object store, refusing a credential that failed
         const permission = context.access.permission;
         if (permission === "anyone" || permission === "rows" || "rows" in permission) {
             Caller.requireChain(context.request.caller());
         }
-        // admit principals of the declared kinds calling as themselves
+        // allow principals of the declared kinds calling as themselves
         else if ("principals" in permission) {
             const caller = context.request.caller();
             const sender = Caller.sender(caller);
@@ -386,7 +386,7 @@ export class Server implements AsyncDisposable {
         await options.authorizeMachine(context);
     }
 
-    /** Keep a request open until its response body settles. */
+    /** Leave a request open until its response body settles. */
     #respond(response: Response, controller: AbortController, signal: AbortSignal): Response {
         // finish a response without a body
         if (!response.body) {
@@ -413,7 +413,7 @@ export class Server implements AsyncDisposable {
                 .finally(finish);
         };
 
-        // forward cancellation and keep stream errors
+        // forward cancellation and stream errors
         let responseError: unknown;
         signal.addEventListener("abort", abort, { once: true });
         if (signal.aborted) {
@@ -527,7 +527,7 @@ export interface ServerOptions extends PackageImplementation {
     drainTimeout: number;
     /** This instance's lease holder name. */
     instance?: string;
-    /** Keep a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
+    /** Set a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
     alarm?: Alarm;
     /** Report a controller's failure to the host beside its telemetry. */
     readonly report?: (error: unknown) => void;
@@ -545,7 +545,7 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
     readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
     /** The package's controllers. */
     readonly controllers?: readonly Controller[];
-    /** Verify a credential the package keeps the keys of before the host, undefined for another. */
+    /** Verify a credential whose keys the package has before the host, undefined for another. */
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
@@ -553,7 +553,7 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
 
 /** Attach the request's watermarks to its response. */
 function attachBookmark(response: Response, observed: Bookmark): Response {
-    // keep a response without writes
+    // leave a response without writes
     if (observed.watermarks.length === 0) {
         return response;
     }

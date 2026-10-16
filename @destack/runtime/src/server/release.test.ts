@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { schema, Clock } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { PackageHandle } from "../declare/index.ts";
 import { Health } from "../health/index.ts";
@@ -8,6 +8,7 @@ import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import { fixturePackage, hosting } from "../test/fixture.ts";
 import { VERSION_HEADER } from "../request/index.ts";
+import { Clock } from "@destack/environment";
 
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
 const search = defineProcedure({

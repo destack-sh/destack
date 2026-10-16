@@ -11,7 +11,7 @@ import { implement, RequestHandler } from "./handler.ts";
 test("capture a handler's unknown failure once where it happens, and never again where a client handles the server's answer", async ({
     onTestFinished,
 }) => {
-    // keep the message of each captured exception
+    // record the message of each captured exception
     const captured: unknown[] = [];
     const telemetry = await startTelemetry({
         name: "notes",

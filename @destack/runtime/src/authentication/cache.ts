@@ -70,7 +70,7 @@ export class TokenCache {
     }
 }
 
-/** A token the cache keeps, with when it stops being reused and the step-up it answers. */
+/** A token the cache stores, with when it stops being reused and the step-up it answers. */
 interface CachedToken {
     /** The exchanged access token. */
     readonly token: Promise<string>;

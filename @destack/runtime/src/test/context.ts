@@ -6,7 +6,7 @@ import { ResourceContext } from "@destack/resource/context";
 import type { Reconciliation } from "../control/index.ts";
 import { type CallKey } from "../request/index.ts";
 import { RequestContext } from "../server/index.ts";
-import { Clock } from "@destack/schema";
+import { Clock } from "@destack/environment";
 
 /** The package a hand-built test context addresses. */
 const AUDIENCE = PackageId.parse("package-01996ab0-0000-7000-8000-00000000c0de");

@@ -11,7 +11,7 @@ test("derive the same time-ordered UUIDv8 for a key however often, its retry per
     const other = await RequestId.derive(TIME, "stream-1 batch-2");
     const later = await RequestId.derive(TIME + 1, "stream-1 batch-1");
 
-    // keep the time in the leading 48 bits and the key's digest in the rest
+    // place the time in the leading 48 bits and the key's digest in the rest
     expect({
         derived,
         isRepeated: repeated === derived,

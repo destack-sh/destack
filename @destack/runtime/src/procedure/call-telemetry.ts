@@ -89,7 +89,7 @@ export class CallTelemetry {
         span: Span,
         active: Context,
     ): AsyncIteratorClass<unknown, unknown, void> {
-        // keep the failure until the stream closes
+        // record the failure until the stream closes
         let failure: unknown;
         const iterator = stream[Symbol.asyncIterator]();
 

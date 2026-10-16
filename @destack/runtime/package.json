@@ -24,14 +24,11 @@
         "./health": "./src/health/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./observable": "./src/observable/index.ts",
-        "./outbox": "./src/outbox/index.ts",
         "./procedure": "./src/procedure/index.ts",
         "./request": "./src/request/index.ts",
-        "./schedule": "./src/schedule/index.ts",
         "./server": "./src/server/index.ts",
         "./test": "./src/test/index.ts",
         "./timer": "./src/timer/index.ts",
-        "./trigger": "./src/trigger/index.ts",
         "./workload": "./src/workload/index.ts"
     },
     "devDependencies": {
@@ -39,25 +36,25 @@
         "@types/node": "26.6.1"
     },
     "dependencies": {
-        "jose": "6.2.12",
+        "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
-        "uuid": "14.0.2",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@orpc/shared": "1.15.1",
         "@orpc/client": "1.15.1",
         "@orpc/contract": "1.15.1",
+        "@orpc/json-schema": "1.15.1",
         "@orpc/openapi": "1.15.1",
         "@orpc/openapi-client": "1.15.1",
-        "@orpc/json-schema": "1.15.1",
         "@orpc/server": "1.15.1",
-        "@destack/resource": "workspace:*",
-        "@destack/access": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "cron-parser": "5.7.0",
-        "@destack/error": "workspace:*",
-        "@destack/identity": "workspace:*"
+        "@orpc/shared": "1.15.1",
+        "jose": "6.2.12",
+        "uuid": "14.0.2"
     }
 }

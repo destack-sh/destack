@@ -1,7 +1,7 @@
 import { AccessFixture } from "@destack/access/test";
 import { Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Clock, Identifier, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
@@ -15,6 +15,7 @@ import {
     Authorization,
     Caller,
     principal,
+    Relationship,
 } from "@destack/access";
 import { boolean, defineTable, eq, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -28,6 +29,7 @@ import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import { RequestContext } from "./context.ts";
 import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
+import { Clock } from "@destack/environment";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
@@ -86,7 +88,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
     },
 );
 
-test("verify a credential the package keeps before the host, which answers every other request", async () => {
+test("verify a credential the package verifies before the host, which answers every other request", async () => {
     // serve the caller's name, the package verifying its own key and refusing a revoked one
     const definition = {
         me: defineProcedure({
@@ -261,7 +263,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         credentials.set(subject.id, token.accessToken);
     }
 
-    // keep notes and their relationships in a database
+    // store notes and their relationships in a database
     const noteTable = defineTable("note", {
         id: text("id").primaryKey(),
         scope: text("scope").notNull(),
@@ -300,7 +302,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         );
     const asOwner = AccessContext.of(Caller.of(owner), Date.now());
 
-    // keep the host's installation state
+    // store the host's installation state
     let isEnabled = true;
     let invocations = 0;
     let authentications = 0;
@@ -407,15 +409,18 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(authorizer, database, () => asOwner, call);
     const shared = await byOwner((authorization) =>
-        authorization.grant({
-            object: note.reference(spaceId, "one"),
-            relation: "reader",
-            subject: guest,
-        }),
+        Relationship.grant(
+            {
+                object: note.reference(spaceId, "one"),
+                relation: "reader",
+                subject: guest,
+            },
+            authorization,
+        ),
     );
     expect(await client.read({ id: "one" })).toBe("personal note");
     await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await byOwner((authorization) => authorization.revoke(shared.object, shared.id));
+    await byOwner((authorization) => Relationship.revoke(shared.object, shared.id, authorization));
     await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     // allow public notes and reject invalid credentials

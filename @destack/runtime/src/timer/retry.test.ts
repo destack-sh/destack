@@ -1,5 +1,6 @@
-import { expect, test, TestClock } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { RetryPolicy } from "./retry.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 test("grow waits by the coefficient up to the maximum, spread below the interval with full jitter", () => {
     // double up to four seconds and jitter
@@ -24,7 +25,7 @@ test("retry until stopped by default, or up to the maximum attempts", () => {
 
 test("pause on the clock until it passes the interval, ending quietly once the signal aborts", async () => {
     // wait a second of a stopped clock, and end on abort
-    const clock = new TestClock(0);
+    const clock = new VirtualClock(0);
     const policy = RetryPolicy.of();
     const running = new AbortController();
     const aborted = new AbortController();

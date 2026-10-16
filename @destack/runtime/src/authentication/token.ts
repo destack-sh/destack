@@ -147,7 +147,7 @@ export class TokenVerifier {
             }
         }
 
-        // cache keys through JOSE, or take a key set a directory keeps
+        // cache keys through JOSE, or take a key set a directory stores
         this.keys =
             typeof options.keys === "function"
                 ? options.keys
@@ -245,7 +245,7 @@ export interface TokenVerifierOptions {
     readonly issuer: string;
     /** The receiving package. */
     readonly audience: PackageId;
-    /** The public keys, an HTTPS JWKS endpoint, or a key set a directory keeps. */
+    /** The public keys, an HTTPS JWKS endpoint, or a key set a directory stores. */
     readonly keys: URL | JSONWebKeySet | JWTVerifyGetKey;
     /** The fetch of key discovery. */
     readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;

@@ -49,7 +49,7 @@ export const Bearer = {
 
     /** Answer a failed verification of a signed token. */
     refusal(error: unknown, message: string): CallError<string, unknown> {
-        // keep a refusal the key source answered
+        // pass on a refusal the key source answered
         if (isCallError(error)) {
             return error;
         }

@@ -1,4 +1,4 @@
-import type { Clock } from "@destack/schema";
+import type { Clock } from "@destack/environment";
 
 /** How a failed operation retries. */
 export interface RetryPolicy {
@@ -33,7 +33,7 @@ export const RetryPolicy = {
         return clock.sleep(RetryPolicy.interval(policy, failures), signal).then(
             () => true,
             (error: unknown) => {
-                // end on abort and keep other failures
+                // end on abort and record other failures
                 if (!signal.aborted) {
                     throw error;
                 }

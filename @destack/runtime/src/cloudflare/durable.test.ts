@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { DurableObjectWorkload } from "./durable.ts";
 
 test("start the workload on the object's alarm before any event, serve requests and run alarms through it for at most ten minutes", async () => {
-    // keep the object's alarm and its events in order
+    // record the object's alarm and its events in order
     const events: string[] = [];
     const storage = {
         setAlarm: async (at: number) => {
@@ -41,7 +41,7 @@ test("start the workload on the object's alarm before any event, serve requests 
         },
     );
 
-    // hold the first request until the start settles before serving it and an alarm
+    // delay the first request until the start settles before serving it and an alarm
     const answering = object.fetch(new Request("https://object.test/served"));
     events.push("requested");
     started.resolve();

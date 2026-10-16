@@ -135,7 +135,7 @@ function streamProcedure<State extends Context>(
     );
 }
 
-/** Record an audit event and keep any handler failure. */
+/** Record an audit event and rethrow any handler failure. */
 async function recordAudit<State extends Context>(
     event: ProcedureAudit<State>,
     audit: (event: ProcedureAudit<State>) => Promise<void>,
@@ -143,7 +143,7 @@ async function recordAudit<State extends Context>(
     try {
         await audit(event);
     } catch (error) {
-        // keep both failures
+        // report both failures
         const failure =
             event.error !== undefined
                 ? new AggregateError([event.error, error], "procedure failure audit failed")

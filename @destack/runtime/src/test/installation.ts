@@ -33,6 +33,7 @@ export async function testServerContext(owner: Package, space: string): Promise<
         keys: await testKeys(),
         fetch: (request) =>
             Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
+        url: `https://fixture--${space}.test`,
         publisher: IDLE,
         publisherAt: () => IDLE,
         at: (address) => ({
