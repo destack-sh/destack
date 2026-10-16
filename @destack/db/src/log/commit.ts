@@ -688,10 +688,10 @@ export class Transaction {
                           (key.isNullsNotDistinct ||
                               key.columns.every((column) => after[column] !== null)) &&
                           covers(after);
-                      const isKept =
+                      const isRetained =
                           before !== null && covers(before) && sameKey(table, key, before, after);
 
-                      return isSet && !isKept ? [{ key, covers, after }] : [];
+                      return isSet && !isRetained ? [{ key, covers, after }] : [];
                   }),
         );
 

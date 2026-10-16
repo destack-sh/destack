@@ -463,11 +463,11 @@ function keep(
     // keep the columns set true, or all but those set false
     const columns = table[TABLE].columns;
     const isPicked = Object.values(selection).includes(true);
-    const isKept = (name: string) =>
+    const isRetained = (name: string) =>
         !Object.hasOwn(columns, name) ||
         (isPicked ? selection[name] === true : selection[name] !== false);
 
-    return Object.fromEntries(Object.entries(row).filter(([name]) => isKept(name)));
+    return Object.fromEntries(Object.entries(row).filter(([name]) => isRetained(name)));
 }
 
 /** Decode a selected driver value, null as missing. */
