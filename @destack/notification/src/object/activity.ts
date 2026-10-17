@@ -2,7 +2,7 @@ import { intersection, principal, relation, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, defineShape, field, ParentReference } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns, Subject } from "@destack/sync";
 import { relationship, space } from "@destack/account/object";
 
@@ -17,10 +17,10 @@ export const NOTIFY_RECIPIENTS = 100;
 const KEY_LENGTH = 200;
 
 /** A notification's name, one segment of its preference setting's name. */
-export const NotificationName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u));
+export const NotificationName = schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u);
 
 /** A notification key or thread. */
-export const NotificationKey = defineSchema(schema.string().min(1).max(KEY_LENGTH));
+export const NotificationKey = schema.string().min(1).max(KEY_LENGTH);
 
 /** What happened to an object, for one person. */
 export const activity = defineObject(

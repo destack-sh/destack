@@ -4,7 +4,7 @@ import { TEST_DIALECTS } from "@destack/db/test";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { message } from "@destack/message";
-import { journal, Shape } from "@destack/object";
+import { journal } from "@destack/object";
 import { subjectContext } from "@destack/runtime/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { type Page, Scope, Subject } from "@destack/sync";
@@ -41,8 +41,7 @@ test.for(TEST_DIALECTS)(
 
         // read the first page of alice's activities as alice, then as bob
         const first = async (person: Subject) => {
-            const subscription = Shape.subscription(
-                activityShape,
+            const subscription = activityShape.subscription(
                 { scope: fixture.spaceId, recipient: actors.alice.id },
                 "space-019f5530-8000-7000-8000-0000000000aa",
                 person,

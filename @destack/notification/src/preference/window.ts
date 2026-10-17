@@ -1,16 +1,14 @@
-import { defineSchema, PlainDate, PlainTime, schema, TimeZone, Weekday } from "@destack/schema";
+import { PlainDate, PlainTime, schema, TimeZone, Weekday } from "@destack/schema";
 
 /** The schema of a recurring span of local time on some weekdays. */
-const windowSchema = defineSchema(
-    schema.object({
-        /** The weekdays it starts on. */
-        days: schema.array(Weekday).min(1).max(7),
-        /** The time it starts. */
-        from: PlainTime,
-        /** The time it ends, the next day when not after the start. */
-        to: PlainTime,
-    }),
-);
+const windowSchema = schema.object({
+    /** The weekdays it starts on. */
+    days: schema.array(Weekday).min(1).max(7),
+    /** The time it starts. */
+    from: PlainTime,
+    /** The time it ends, the next day when not after the start. */
+    to: PlainTime,
+});
 /** A recurring span of local time on some weekdays. */
 export type Window = schema.Infer<typeof windowSchema>;
 

@@ -5,29 +5,27 @@ import { user } from "@destack/account/object";
 import { Catalog, Localization, type LocaleTag, Message, SOURCE_LOCALE } from "@destack/locale";
 import type { Subject } from "@destack/sync";
 import { Package, PackageId } from "@destack/package";
-import { defineSchema, Duration, fromJsonSchema, present, schema } from "@destack/schema";
+import { Duration, fromJsonSchema, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { NotificationMetadata } from "../declare/notification.ts";
 import { Action, NotificationContentDefinition } from "./content.ts";
 import { NotificationType } from "./notification.ts";
 
 /** A notification as manifests describe it. */
-export const NotificationDescription = defineSchema(
-    NotificationMetadata.extend({
-        /** The declaring package. */
-        package: Package,
-        /** The payload's JSON Schema. */
-        payload: schema.jsonObject(),
-        /** The content every channel shows, its arguments the payload's fields. */
-        content: NotificationContentDefinition,
-        /** The line summarizing a thread's notifications, its argument the count. */
-        summary: Message,
-        /** The actions, the first the default. */
-        actions: schema.array(Action),
-        /** How long an unread notification collapses later ones of its thread. */
-        collapse: Duration.schema.exactOptional(),
-    }),
-);
+export const NotificationDescription = NotificationMetadata.extend({
+    /** The declaring package. */
+    package: Package,
+    /** The payload's JSON Schema. */
+    payload: schema.jsonObject(),
+    /** The content every channel shows, its arguments the payload's fields. */
+    content: NotificationContentDefinition,
+    /** The line summarizing a thread's notifications, its argument the count. */
+    summary: Message,
+    /** The actions, the first the default. */
+    actions: schema.array(Action),
+    /** How long an unread notification collapses later ones of its thread. */
+    collapse: Duration.schema.exactOptional(),
+});
 /** A declared notification as manifests describe it. */
 export type NotificationDescription = schema.Infer<typeof NotificationDescription>;
 

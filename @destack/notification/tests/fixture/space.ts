@@ -28,11 +28,11 @@ const NOTES_CATALOG: Catalog = {
 };
 
 /** The documents' package's build, declaring its notifications and shipping its German catalog. */
-export const NOTES_BUILD: BuildReader = await MemoryBuild.declaring(
+export const NOTES_BUILD: BuildReader = await MemoryBuild.of(
     notes,
     notifications.map((declared) => ({
         kind: "notification",
-        package: notification.package.id,
+        kindPackageId: notification.package.id,
         name: declared.name,
         description: declared.describe(),
     })),

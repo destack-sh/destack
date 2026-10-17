@@ -3,35 +3,33 @@ import { AccessName, Subject } from "@destack/sync";
 import { type Select } from "@destack/db";
 import { defineObject, field, ParentReference } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { space } from "@destack/account/object";
 
 import { NOTIFY_RECIPIENTS, NotificationKey, NotificationName } from "./activity.ts";
 import { REASONS } from "./subscription.ts";
 
 /** The principals an announcement notifies. */
-export const Audience = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** The source's subscribers with their reasons. */
-            kind: schema.literal("subscribers"),
-        }),
-        schema.object({
-            /** The space's members, as a chat's @channel. */
-            kind: schema.literal("members"),
-            /** Why the members receive it. */
-            reason: schema.enum(REASONS),
-        }),
-        schema.object({
-            /** The users with a permission on the source. */
-            kind: schema.literal("permission"),
-            /** The permission, such as "edit". */
-            permission: AccessName,
-            /** Why those users receive it. */
-            reason: schema.enum(REASONS),
-        }),
-    ]),
-);
+export const Audience = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The source's subscribers with their reasons. */
+        kind: schema.literal("subscribers"),
+    }),
+    schema.object({
+        /** The space's members, as a chat's @channel. */
+        kind: schema.literal("members"),
+        /** Why the members receive it. */
+        reason: schema.enum(REASONS),
+    }),
+    schema.object({
+        /** The users with a permission on the source. */
+        kind: schema.literal("permission"),
+        /** The permission, such as "edit". */
+        permission: AccessName,
+        /** Why those users receive it. */
+        reason: schema.enum(REASONS),
+    }),
+]);
 /** The principals an announcement notifies. */
 export type Audience = schema.Infer<typeof Audience>;
 

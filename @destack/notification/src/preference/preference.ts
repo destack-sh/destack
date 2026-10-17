@@ -1,5 +1,5 @@
 import type { Package } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Setting } from "@destack/setting";
 
 /** The channels that alert beside the inbox. */
@@ -15,14 +15,12 @@ export const INTERRUPTION_LEVELS = ["passive", "active", "timeSensitive", "criti
 export type InterruptionLevel = (typeof INTERRUPTION_LEVELS)[number];
 
 /** How a recipient receives one notification. */
-const PreferenceSchema = defineSchema(
-    schema.object({
-        /** The channels that alert. */
-        channels: schema.array(schema.enum(CHANNELS)),
-        /** Alert at once, or in the scheduled summary. */
-        delivery: schema.enum(["immediate", "summary"]),
-    }),
-);
+const PreferenceSchema = schema.object({
+    /** The channels that alert. */
+    channels: schema.array(schema.enum(CHANNELS)),
+    /** Alert at once, or in the scheduled summary. */
+    delivery: schema.enum(["immediate", "summary"]),
+});
 
 /** How a recipient receives one notification, and the setting keeping it per notification. */
 export const Preference = Object.assign(PreferenceSchema, {

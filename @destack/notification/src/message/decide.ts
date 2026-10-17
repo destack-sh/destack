@@ -1,6 +1,6 @@
 import type { Destination } from "@destack/message";
 import type { MethodContext } from "@destack/object";
-import { nth, defineSchema, Instant, schema, TimeZone } from "@destack/schema";
+import { nth, Instant, schema, TimeZone } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import type { Subject } from "@destack/sync";
 import type { InboxEntry } from "../notification/inbox.ts";
@@ -25,32 +25,30 @@ export type RoutingEntry = Pick<InboxEntry, "isUnread"> & {
 };
 
 /** The schema of a decision. */
-const DecisionSchema = defineSchema(
-    schema.discriminatedUnion("action", [
-        schema.object({
-            /** Send it now. */
-            action: schema.literal("send"),
-        }),
-        schema.object({
-            /** Decide again later. */
-            action: schema.literal("defer"),
-            /** When to decide again. */
-            until: Instant,
-        }),
-        schema.object({
-            /** Send it in a scheduled summary. */
-            action: schema.literal("summarize"),
-            /** When the summary goes out. */
-            at: Instant,
-        }),
-        schema.object({
-            /** Send nothing. */
-            action: schema.literal("skip"),
-            /** Why. */
-            reason: schema.enum(SKIP_REASONS),
-        }),
-    ]),
-);
+const DecisionSchema = schema.discriminatedUnion("action", [
+    schema.object({
+        /** Send it now. */
+        action: schema.literal("send"),
+    }),
+    schema.object({
+        /** Decide again later. */
+        action: schema.literal("defer"),
+        /** When to decide again. */
+        until: Instant,
+    }),
+    schema.object({
+        /** Send it in a scheduled summary. */
+        action: schema.literal("summarize"),
+        /** When the summary goes out. */
+        at: Instant,
+    }),
+    schema.object({
+        /** Send nothing. */
+        action: schema.literal("skip"),
+        /** Why. */
+        reason: schema.enum(SKIP_REASONS),
+    }),
+]);
 
 /** The settings a person placed that a decision follows, resolved for one notification. */
 export interface Settings {
