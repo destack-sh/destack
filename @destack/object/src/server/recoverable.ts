@@ -80,7 +80,7 @@ export class RecoverableController implements Controller {
         return next === undefined ? undefined : Math.max(0, next - now);
     }
 
-    /** Purge expired deleted objects as the store's principal, returning the count. */
+    /** Purge expired deleted objects as the code serving their type, returning the count. */
     static async purge(store: ObjectStore, now: number): Promise<number> {
         // purge each type in batches until one comes back short
         let purged = 0;
@@ -94,7 +94,7 @@ export class RecoverableController implements Controller {
                     now,
                 );
                 await store.mutate(
-                    store.self,
+                    store.serving(object, now),
                     {
                         id: RequestId.create(now),
                         calls: rows.map((row) =>

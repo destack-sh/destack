@@ -10,6 +10,8 @@ import { contained, Manager, principal, relation, through, union } from "@destac
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
+import { defineResourceKind } from "@destack/resource";
+import { ObjectDescription } from "../src/object/description.ts";
 import { comment, label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -205,6 +207,84 @@ test.each(TEST_DIALECTS)(
             ],
         });
         expect(await titles()).toEqual([["two", "second"]]);
+    },
+);
+
+/** Vaults of a space, a resource kind only an installed package provisions. */
+const vault = defineObject({
+    name: "vault",
+    plural: "vaults",
+    scope: space,
+    provisioned: { kind: defineResourceKind("vault", { spec: schema.object({}) }) },
+    fields: {},
+});
+
+/** Read a stack resource entry's declared kind. */
+function kindOf(value: unknown): string {
+    return schema
+        .looseObject({ declaration: schema.object({ kind: schema.string() }) })
+        .parse(value).declaration.kind;
+}
+
+test.each(TEST_DIALECTS)(
+    "leave a resource entry no served type collects to the installed type provisioning its kind, refusing it without one, on %s",
+    async (dialect) => {
+        const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        const database = storage.database;
+        await openSpace(database, spaceId);
+        await database
+            .insert(space.table)
+            .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+
+        // collect the note resources as notes, leaving other kinds' entries uncollected
+        const objects = [
+            note.implement({
+                declaration: {
+                    keys: ["resources"],
+                    collect: (document) =>
+                        Object.fromEntries(
+                            Object.entries(
+                                schema
+                                    .record(schema.string(), schema.unknown())
+                                    .parse(document["resources"]),
+                            ).filter(([, value]) => kindOf(value) === "note"),
+                        ),
+                    values: (name) => ({ title: name }),
+                },
+            }),
+        ];
+        const apply = async (installing?: () => Promise<readonly ObjectDescription[]>) =>
+            Stack.apply({
+                now: Date.now(),
+                database,
+                objects,
+                manager,
+                as: spacePrincipal(spaceId),
+                scope: spaceId,
+                document: {
+                    resources: {
+                        draft: { declaration: { kind: "note" } },
+                        secrets: { declaration: { kind: "vault" } },
+                    },
+                },
+                store: await serve(database),
+                ...(installing === undefined ? {} : { installing }),
+            });
+
+        // refuse the vault entry without installed types, then plan it under the installed vault type
+        const refused = await refusal(apply());
+        const planned = await apply(async () => [ObjectDescription.of(vault)]);
+        expect([refused, planned]).toEqual([
+            ["UNSUPPORTED_DECLARATION", "this server cannot apply resources secrets"],
+            {
+                steps: [
+                    { action: "create", target: "note/draft", risk: "safe", detail: "declare" },
+                    { action: "create", target: "vault/secrets", risk: "safe", detail: "declare" },
+                ],
+                deferred: "resources secrets wait for the store to serve their types",
+            },
+        ]);
     },
 );
 

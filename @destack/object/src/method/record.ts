@@ -35,7 +35,7 @@ import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
 import {
     defineMethod,
-    type Method,
+    Method,
     type MethodConfiguration,
     type MethodDefinition,
     type MethodSource,
@@ -1324,11 +1324,6 @@ export const RecordMethod = {
         }
     },
 
-    /** Reject a method without a handler. */
-    missingHandler(context: MethodContext): never {
-        throw new TypeError(`object ${context.object.name} has no handler for ${context.name}`);
-    },
-
     /** Read how a call creates its object's first relationships. */
     readCreation(
         context: MethodContext,
@@ -1469,7 +1464,7 @@ export class MethodBuilder<
                         );
                     }
 
-                    return this.handler(context, execution);
+                    return Method.handle(this, context, execution);
                 }
 
                 // append an events type's object to the event log
@@ -1487,7 +1482,7 @@ export class MethodBuilder<
                 const { row } = await RecordMethod.insertAuthorized(
                     context,
                     execution,
-                    (inserted) => this.handler(inserted, execution),
+                    (inserted) => Method.handle(this, inserted, execution),
                 );
 
                 return row;
@@ -1590,7 +1585,7 @@ export class MethodBuilder<
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }
 
-                return this.handler(context, execution);
+                return Method.handle(this, context, execution);
             },
         });
     }
@@ -1682,7 +1677,7 @@ export class MethodBuilder<
                 // refuse managed objects
                 RecordMethod.requireUnmanaged(context);
 
-                return this.handler(context, execution);
+                return Method.handle(this, context, execution);
             },
         });
     }
@@ -1832,7 +1827,6 @@ export class MethodBuilder<
                     output: definition.output ?? shapes.row,
                 };
             },
-            handler: (context) => RecordMethod.missingHandler(context),
         };
     }
 }

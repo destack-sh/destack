@@ -122,6 +122,7 @@ export class HookServer implements HookHandler {
                 ...(record.base === undefined ? {} : { base: record.base }),
             },
             objects: this.types,
+            replicas: [],
             ...(record.requestId === undefined ? {} : { requestId: record.requestId }),
             prepared:
                 record.prepared === undefined

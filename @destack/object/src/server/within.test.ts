@@ -16,6 +16,9 @@ import { Clock } from "@destack/environment";
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
 
+/** Refuse a query sent over the uplink, as these replicas send none. */
+const refuseQueries = () => Promise.reject(new Error("the fixture answers no queries"));
+
 /** The space the replicas are held for. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
@@ -144,6 +147,7 @@ test.each(TEST_DIALECTS)(
         // store the space's replica of the universe in its database, decided at home for the space
         const replicating: ObjectStore = await serve(space.database, {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (asked, signal) =>
                 served.source.replicate(
                     asked,
@@ -294,6 +298,7 @@ test.each(TEST_DIALECTS)(
             database: space.database,
             uplink: {
                 receive: refuseChanges,
+                call: refuseQueries,
                 stream: (asked, signal) =>
                     served.source.replicate(
                         asked,
@@ -375,6 +380,7 @@ test.each(TEST_DIALECTS)(
             database: space.database,
             uplink: {
                 receive: refuseChanges,
+                call: refuseQueries,
                 stream: (asked, signal) =>
                     served.source.replicate(
                         asked,

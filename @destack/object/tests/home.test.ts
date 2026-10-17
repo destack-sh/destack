@@ -70,6 +70,9 @@ const preferences = definePackage({ objects: { preference } });
 /** Refuse a change sent over the uplink, as the client sends its changes home itself. */
 const refuseChanges = () => Promise.reject(new Error("the replica receives no changes"));
 
+/** Refuse a query sent over the uplink, as the replica sends none. */
+const refuseQueries = () => Promise.reject(new Error("the replica answers no queries"));
+
 /** Serve alice's preferences at their home and a replica at her room's machine. */
 async function serveHomes() {
     // store alice's person and room at home, owned by her
@@ -135,6 +138,7 @@ async function serveHomes() {
         database: replicateStorage.database,
         uplink: {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (subscription, signal) =>
                 feed.subscribe(
                     replica.source.buildReplica(subscription).queries,

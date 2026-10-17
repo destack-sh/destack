@@ -164,9 +164,9 @@ export const ObjectController = {
             return undefined;
         }
 
-        // reconcile them, running methods as the store's principal at one time
+        // reconcile them, running methods as the type's serving principal at one time
         const now = store.clock.now();
-        const caller = store.self;
+        const caller = store.serving(object, now);
         const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
             store.mutate(
                 caller,

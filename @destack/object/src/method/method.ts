@@ -198,8 +198,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly audit?: { readonly details: schema.Object<Record<string, schema.Schema>> };
     /** Derive the method's procedure under a name. */
     readonly procedure: (name: string, schema: ObjectSchema) => MethodProcedure;
-    /** Change rows for a call where it executes. */
-    readonly handler: (context: MethodContext, execution: Execution) => Promise<unknown>;
+    /** Change rows where a call executes, absent for a custom method nothing here handles. */
+    readonly handler?: (context: MethodContext, execution: Execution) => Promise<unknown>;
     /** Execute a call around the handler where it executes. */
     readonly execute: (
         this: Method,
@@ -251,8 +251,8 @@ export type MethodDefinition<Configuration extends MethodConfiguration> = Omit<
         context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,
         execution: StoreExecution,
     ) => Promise<void>;
-    /** Change rows for a call as the method types it, where it executes. */
-    readonly handler: (
+    /** Change rows for a call as the method types it, absent for an unimplemented custom method. */
+    readonly handler?: (
         context: MethodContext<Configuration>,
         execution: Execution,
     ) => Promise<unknown>;
@@ -268,6 +268,15 @@ export type MethodDefinition<Configuration extends MethodConfiguration> = Omit<
 
 /** What every method can report about itself. */
 export const Method = {
+    /** Run a method's handler on a call, refusing a custom method no code here handles. */
+    handle(method: Method, context: MethodContext, execution: Execution): Promise<unknown> {
+        if (method.handler === undefined) {
+            throw new TypeError(`object ${context.object.name} has no handler for ${context.name}`);
+        }
+
+        return method.handler(context, execution);
+    },
+
     /** Read the identifier of the object a method returned. */
     resultId(result: unknown): string | undefined {
         const parsed = IDENTIFIED.safeParse(result);
@@ -467,7 +476,7 @@ export const Method = {
                 : {
                       handler: (context: MethodContext, execution: Execution) =>
                           wrapped(context, (changed = context) =>
-                              declared.handler(changed, execution),
+                              Method.handle(declared, changed, execution),
                           ),
                       // predict a handled custom method its declaration leaves predicted
                       ...(source?.builder === "query" || source?.builder === "mutation"
@@ -560,8 +569,12 @@ export function defineMethod<Configuration extends MethodConfiguration>(
         ...shared,
         [METHOD]: true,
         isPredicted: definition.isPredicted ?? true,
-        handler: (context: MethodContext, execution: Execution) =>
-            handler(Method.requirePrepared(declared, context), execution),
+        ...(handler === undefined
+            ? {}
+            : {
+                  handler: (context: MethodContext, execution: Execution) =>
+                      handler(Method.requirePrepared(declared, context), execution),
+              }),
         ...(authorize === undefined
             ? {}
             : {
@@ -570,7 +583,7 @@ export function defineMethod<Configuration extends MethodConfiguration>(
               }),
         execute(this: Method, context: MethodContext, execution: Execution) {
             return execute === undefined
-                ? this.handler(context, execution)
+                ? Method.handle(this, context, execution)
                 : execute.call(this, Method.requirePrepared(declared, context), execution);
         },
     });

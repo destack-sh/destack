@@ -3,7 +3,7 @@ import { Duration, present, type schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
 import type { MethodContext } from "./context.ts";
-import { defineMethod, type Method } from "./method.ts";
+import { defineMethod, Method } from "./method.ts";
 import { MethodBuilder } from "./record.ts";
 import { Step } from "./step.ts";
 import { Empty, type MethodProcedure, type ObjectSchema } from "./procedure.ts";
@@ -69,7 +69,7 @@ export const RecoverableMethod = {
                         );
                     }
 
-                    return this.handler(context, execution);
+                    return Method.handle(this, context, execution);
                 },
             });
         }

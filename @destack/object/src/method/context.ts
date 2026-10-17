@@ -7,6 +7,7 @@ import {
     type Permission,
     type PermissionReference,
     principal,
+    Grant,
 } from "@destack/access";
 import {
     and,
@@ -114,6 +115,8 @@ export class MethodContext<
     readonly #location: CallLocation;
     /** The object types served together. */
     readonly objects: readonly ObjectType[];
+    /** The object types queried here over rows replicated from their home. */
+    readonly replicas: readonly ObjectType[];
     /** The value the prepare phase produced. */
     readonly prepared: Prepared;
     /** The idempotency key of the call's external work. */
@@ -151,6 +154,7 @@ export class MethodContext<
         this.caller = fields.caller;
         this.prepared = fields.prepared;
         this.objects = fields.objects;
+        this.replicas = fields.replicas;
         this.#location = fields.location;
 
         // take the present optional fields
@@ -181,7 +185,7 @@ export class MethodContext<
             results.push(await this.#run(caller, entry, true, CallSite.store));
         }
 
-        return MethodContext.results(this.objects, calls, results);
+        return MethodContext.results([...this.objects, ...this.replicas], calls, results);
     }
 
     /** Generate a new identifier from the call's request, stable across attempts in order. */
@@ -239,7 +243,7 @@ export class MethodContext<
     /** Read through a method in this call's transaction as a caller. */
     async query<Result>(caller: AccessContext, call: sync.Call<Result>): Promise<Result> {
         const [result] = MethodContext.results(
-            this.objects,
+            [...this.objects, ...this.replicas],
             [call],
             [await this.#run(caller, call, false, CallSite.store)],
         );
@@ -745,13 +749,15 @@ export class MethodContext<
         return this.caller.now;
     }
 
-    /** The principal the call's code runs as: its store's, or its sandbox's installation. */
+    /** The principal the call's code runs as: its type's installation, else its store's. */
     get self(): AccessContext {
-        // act as the store's principal, else as the sandbox's installation
+        // act as the installation serving the type in the store, else as the store's principal
         const location = this.#location;
         if (location.kind === "store") {
-            return AccessContext.of(Caller.of(location.store.principal), this.now);
-        } else if (location.kind === "sandbox") {
+            return location.store.serving(this.object, this.now);
+        }
+        // act as the sandbox's installation
+        else if (location.kind === "sandbox") {
             const { space, installation } = location.server;
             const subject = principal.installation.reference(space, installation);
 
@@ -759,6 +765,24 @@ export class MethodContext<
         }
 
         throw new TypeError(`${this.object.name}.${this.name} acts as itself only in its store`);
+    }
+
+    /** Act for the call's space: as the space, or as its installation under the space's grant. */
+    async space(): Promise<AccessContext> {
+        // act as the space when the call's code runs as it
+        const self = this.self;
+        const installation = self.subject;
+        if (!principal.installation.is(installation)) {
+            return self;
+        }
+
+        // act as the space with the installation acting for it, within the space's live grant
+        const space = principal.space.reference(sync.Scope.universe.id, installation.scope);
+        const reader = { read: <Read extends Table>(table: Read) => this.read(table) };
+        const parties = { delegator: space, delegate: installation };
+        const caller = await Grant.act(reader, parties, this.now);
+
+        return AccessContext.of(caller, this.now);
     }
 
     /** The log position the call's mutation started at, refusing a prediction and a query. */
@@ -798,6 +822,7 @@ export type MethodContextOptions<
     | "target"
     | "caller"
     | "objects"
+    | "replicas"
     | "prepared"
     | "idempotencyKey"
     | "writerId"

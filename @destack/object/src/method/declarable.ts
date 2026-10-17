@@ -3,7 +3,7 @@ import { Manager } from "@destack/access";
 import { type Condition, type Row, TABLE, type Transaction, Table } from "@destack/db";
 import { canonicalize, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import { defineMethod, type Method } from "./method.ts";
+import { defineMethod, Method } from "./method.ts";
 import type { MethodContext } from "./context.ts";
 import { RevisionShape } from "./procedure.ts";
 
@@ -45,7 +45,7 @@ export function detach<const Permission extends string>(
                 });
             }
 
-            return this.handler(context, execution);
+            return Method.handle(this, context, execution);
         },
     });
 }
@@ -98,7 +98,7 @@ export function adopt<const Permission extends string>(
         async execute(context, execution) {
             await DeclarableMethod.requireAdoptable(context);
 
-            return this.handler(context, execution);
+            return Method.handle(this, context, execution);
         },
     });
 }

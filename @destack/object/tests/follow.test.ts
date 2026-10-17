@@ -37,6 +37,9 @@ const REPLICA_MILLISECONDS = 5000;
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
 
+/** Refuse a query sent over the uplink, as these replicas send none. */
+const refuseQueries = () => Promise.reject(new Error("the fixture answers no queries"));
+
 /** The account with the space. */
 const accountId = schema
     .identifier("account")
@@ -183,6 +186,7 @@ test.each(TEST_DIALECTS)(
             database: installed.database,
             uplink: {
                 receive: refuseChanges,
+                call: refuseQueries,
                 stream: (subscription, signal) =>
                     feed.subscribe(
                         store.source.buildReplica(subscription).queries,
@@ -394,6 +398,7 @@ test("follow replicates as a server without methods, journal or call key", async
         database: follower.database,
         uplink: {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (subscription, signal) =>
                 feed.subscribe(
                     store.source.buildReplica(subscription).queries,
@@ -478,6 +483,7 @@ test("replicate the chains of an installation's two served spaces in one replica
         database: installed.database,
         uplink: {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (asked, signal) =>
                 source.source.replicate(asked, asked.after, follower, signal),
         },
@@ -641,7 +647,7 @@ test("decide a via chain for the subject whose follow brought its rows", async (
         servers: serversOf([document]),
         policies: [space],
         database,
-        uplink: { receive: refuseChanges, stream: async function* () {} },
+        uplink: { receive: refuseChanges, call: refuseQueries, stream: async function* () {} },
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: document.package },
@@ -800,6 +806,7 @@ test("replicate a scoped table an installation's database declares beside its fo
         database: installed.database,
         uplink: {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (asked, signal) =>
                 source.source.replicate(asked, asked.after, follower, signal),
         },
@@ -917,6 +924,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         database: installed.database,
         uplink: {
             receive: refuseChanges,
+            call: refuseQueries,
             stream: (asked, signal) =>
                 source.source.replicate(asked, asked.after, follower, signal),
         },
@@ -991,6 +999,7 @@ test("replicate the chain of an account another replica brought first, once the 
     const followed = Promise.withResolvers<unknown>();
     const publisher = {
         receive: refuseChanges,
+        call: refuseQueries,
         stream: async function* (asked: Subscription, signal: AbortSignal) {
             // stream the universe's rows from home
             if (asked.name !== chain) {

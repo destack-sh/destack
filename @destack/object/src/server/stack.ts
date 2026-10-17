@@ -19,6 +19,7 @@ import {
     found,
     Identifier,
     JsonValue,
+    nth,
     present,
     schema,
     type JsonObject,
@@ -60,6 +61,28 @@ const DESCRIBED = schema.looseObject({
     declarable: schema.unknown().exactOptional(),
     /** The type its records nest in, whose declarations contain the type's own. */
     nested: schema.unknown().exactOptional(),
+    /** The resource kind the type provisions, absent on a type provisioning none. */
+    provisioned: schema
+        .looseObject({
+            /** The kind, as a description tags it. */
+            kind: schema.looseObject({
+                /** The tagged kind. */
+                $kind: schema.looseObject({
+                    /** The kind's name. */
+                    name: schema.string(),
+                }),
+            }),
+        })
+        .exactOptional(),
+});
+
+/** A stack's resource entry, as planning its creation reads it: its declaration's kind. */
+const DECLARED_RESOURCE = schema.looseObject({
+    /** The resource's declaration. */
+    declaration: schema.looseObject({
+        /** The declaration's resource kind. */
+        kind: schema.string(),
+    }),
 });
 
 /** The columns a declaration determines. */
@@ -172,8 +195,8 @@ export class Stack {
     readonly #options: ApplyOptions;
     /** The declared object types in dependency order. */
     readonly #ordered: readonly TypeDeclaration[];
-    /** The document keys no served type collects, which types the stack installs may collect. */
-    readonly #installing: readonly string[];
+    /** The document entries no served type collects, which types the stack installs may collect. */
+    readonly #installing: readonly Installing[];
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
 
@@ -274,34 +297,43 @@ export class Stack {
             );
         }
 
-        // leave collections no declaration collects for the types the stack installs, and reject entries that none or several collect
+        // leave collections and entries no declaration collects to the types the stack installs, and reject entries several collect
         const ordered = Stack.#order(declared);
-        const installing: string[] = [];
+        const installing: Installing[] = [];
         for (const [key, value] of Object.entries(options.document)) {
+            // read the entries each reader of the key collects
             const readers = ordered.filter((entry) =>
                 (entry.keys ?? [entry.object.plural]).includes(key),
             );
-            if (readers.length === 0 && options.installing === undefined) {
-                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
-            } else if (readers.length === 0) {
-                installing.push(key);
-                continue;
-            }
             const collected = await Promise.all(
                 readers.map(async (entry) =>
                     Object.keys(await Stack.#collect(entry, options.document, ordered)),
                 ),
             );
-            for (const name of Object.keys(DECLARED.parse(value))) {
-                const count = collected.filter((names) => names.includes(name)).length;
-                if (count === 0) {
-                    throw new ObjectError(
-                        "UNSUPPORTED_DECLARATION",
-                        `this server cannot apply ${key} ${name}`,
-                    );
-                } else if (count > 1) {
-                    throw new TypeError(`several object types collect ${key} ${name}`);
-                }
+
+            // find the entries no reader collects, and one several collect
+            const names = Object.keys(DECLARED.parse(value));
+            const uncollected = names.filter(
+                (name) => !collected.some((each) => each.includes(name)),
+            );
+            const repeated = names.find(
+                (name) => collected.filter((each) => each.includes(name)).length > 1,
+            );
+
+            // reject a repeated entry, and leave the uncollected ones to the installed types
+            if (repeated !== undefined) {
+                throw new TypeError(`several object types collect ${key} ${repeated}`);
+            } else if (readers.length === 0 && options.installing === undefined) {
+                throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
+            } else if (readers.length === 0) {
+                installing.push({ key, names: "every" });
+            } else if (uncollected.length > 0 && options.installing === undefined) {
+                throw new ObjectError(
+                    "UNSUPPORTED_DECLARATION",
+                    `this server cannot apply ${key} ${nth(uncollected, 0)}`,
+                );
+            } else if (uncollected.length > 0) {
+                installing.push({ key, names: uncollected });
             }
         }
 
@@ -485,7 +517,11 @@ export class Stack {
 
         // plan the declarations of the types the stack installs and wait until the store serves them
         if (this.#installing.length > 0) {
-            const installing = this.#installing.join(", ");
+            const installing = this.#installing
+                .map((entry) =>
+                    entry.names === "every" ? entry.key : `${entry.key} ${entry.names.join(", ")}`,
+                )
+                .join(", ");
             steps.push(...(await this.#planInstalling()));
 
             return { steps, deferred: `${installing} wait for the store to serve their types` };
@@ -501,16 +537,34 @@ export class Stack {
 
     /** Plan creating the declarations of the types the stack installs. */
     async #planInstalling(): Promise<Step[]> {
-        // read the declarable types the applied declarations install
+        // read the types the applied declarations install, and the ones stacks declare by collection
         const installing = present(this.#options.installing, "the reader of the installed types");
         const descriptions = await installing(this.transaction.view());
-        const types = descriptions
-            .map((description) => DESCRIBED.parse(description.definition))
-            .filter((type) => type.declarable !== undefined);
+        const described = descriptions.map((description) =>
+            DESCRIBED.parse(description.definition),
+        );
+        const types = described.filter((type) => type.declarable !== undefined);
+
+        // plan each resource entry the type provisioning its kind takes, declared through that kind
+        const steps: Step[] = [];
+        for (const { key, names } of this.#installing) {
+            for (const name of names === "every" ? [] : names) {
+                const declared = DECLARED_RESOURCE.parse(DECLARED.parse(this.document[key])[name]);
+                const type = described.find(
+                    (each) => each.provisioned?.kind.$kind.name === declared.declaration.kind,
+                );
+                if (type === undefined) {
+                    throw new ObjectError(
+                        "UNSUPPORTED_DECLARATION",
+                        `this server cannot apply ${key} ${name}`,
+                    );
+                }
+                steps.push(Stack.#creation(type.name, name));
+            }
+        }
 
         // plan each declaration of a collection one of them collects, and the declarations nested in it
-        const steps: Step[] = [];
-        for (const key of this.#installing) {
+        for (const { key } of this.#installing.filter((entry) => entry.names === "every")) {
             const type = types.find((each) => each.plural === key && each.nested === undefined);
             if (type === undefined) {
                 throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
@@ -542,7 +596,10 @@ export class Stack {
         const target = this.#ordered.find((entry) =>
             typeof object === "string" ? entry.object.name === object : entry.object.same(object),
         );
-        if (!target) {
+        if (!target && this.#installing.length > 0) {
+            const plural = typeof object === "string" ? object : object.plural;
+            throw new DependencyWait(`${plural} wait for the store to serve the installed types`);
+        } else if (!target) {
             const plural = typeof object === "string" ? object : object.plural;
             throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${plural}`);
         }
@@ -1075,10 +1132,18 @@ export class StackPlan {
 /** Stop applying until a dependency is ready. */
 class DependencyWait extends Error {}
 
-/** A stack's declarations in dependency order, and the keys left to the types it installs. */
+/** A stack's declarations in dependency order, and the entries left to the types it installs. */
 interface Declared {
     /** The declared object types in dependency order. */
     readonly ordered: readonly TypeDeclaration[];
-    /** The document keys no served type collects. */
-    readonly installing: readonly string[];
+    /** The document entries no served type collects. */
+    readonly installing: readonly Installing[];
+}
+
+/** A document key's entries no served type collects: every entry, or the named ones. */
+interface Installing {
+    /** The document key. */
+    readonly key: string;
+    /** The entries left to the installed types. */
+    readonly names: "every" | readonly string[];
 }

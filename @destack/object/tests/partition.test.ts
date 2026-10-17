@@ -60,6 +60,7 @@ function idle(name: string): Uplink {
             throw new TypeError(`${name} streams no replicas`);
         },
         receive: () => Promise.reject(new TypeError(`${name} receives no changes`)),
+        call: () => Promise.reject(new TypeError("the fixture answers no queries")),
     };
 }
 

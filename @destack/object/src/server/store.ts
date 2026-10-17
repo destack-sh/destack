@@ -734,12 +734,22 @@ export class ObjectStore {
     #uplink(): sync.Uplink {
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
-            receive: async (mutation, signer) => {
+            receive: (mutation, signer) => {
                 // run the changes as the follower's principal
                 if (signer === undefined) {
                     throw new TypeError("a change sent in process needs its sending principal");
                 }
-                await this.receive(mutation, signer);
+
+                return this.receive(mutation, signer);
+            },
+            call: (call, scope, signer) => {
+                // answer the query as the follower's principal in the scope it reads
+                if (signer === undefined) {
+                    throw new TypeError("a query sent in process needs its sending principal");
+                }
+                const caller = AccessContext.of(Caller.of(signer), this.clock.now());
+
+                return this.query(caller, this.#place(call, scope));
             },
         };
     }
@@ -821,9 +831,15 @@ export class ObjectStore {
             : new Journal(options.database, callKey, { events, clock: options.clock });
     }
 
-    /** The store's principal acting as itself now, as its controllers and settlements call. */
-    get self(): AccessContext {
-        return AccessContext.of(Caller.of(this.principal), this.clock.now());
+    /** Read the caller serving a type: the installation serving it, else the store's principal. */
+    serving(object: ObjectType, now = this.clock.now()): AccessContext {
+        const served = this.readServer(object);
+        const subject =
+            served === undefined
+                ? this.principal
+                : principal.installation.reference(served.space, served.installation);
+
+        return AccessContext.of(Caller.of(subject), now);
     }
 
     /** The event log with the store's calls and events, failing for a store without methods. */
@@ -1127,9 +1143,9 @@ export class ObjectStore {
             }),
             receive: store.receive.handler(async ({ input, context }) => {
                 // run the follower's mutation as the caller the route's identity verified
-                await this.receiveFrom(input.mutation, context.access());
+                const results = await this.receiveFrom(input.mutation, context.access());
 
-                return {};
+                return { results: results.map((result) => schema.json().parse(result ?? null)) };
             }),
             broadcast: store.broadcast.handler(async ({ input, context }) => {
                 await this.source.broadcast(input.scope, input.object, input.event, context);
@@ -1302,9 +1318,14 @@ export class ObjectStore {
         transaction: { readonly id: string; readonly calls: Calls },
         options: MutateOptions = {},
     ): Promise<ResultsOf<Calls>> {
+        // parse each answer by its served type, or by the replicated one whose home answered it
         const answers = await this.#mutate(caller, transaction, options);
 
-        return MethodContext.results(this.objects, transaction.calls, answers);
+        return MethodContext.results(
+            [...this.objects, ...this.replicated],
+            transaction.calls,
+            answers,
+        );
     }
 
     /** Run a mutation's calls as a caller in one transaction, answering untyped results. */
@@ -1328,6 +1349,17 @@ export class ObjectStore {
             return [];
         } else if (options.transaction !== undefined) {
             return this.#mutateInside(options.transaction, mutation, caller, options);
+        }
+
+        // run a change of rows replicated here at their home as the caller's subject, within its grant
+        if (this.#isForwarded(mutation)) {
+            for (const call of mutation.calls) {
+                this.#requireGranted(caller, call);
+            }
+            const forwarded = await this.#forward(mutation, caller.subject);
+            if (forwarded !== undefined) {
+                return forwarded;
+            }
         }
 
         // resolve each call in one scope, of methods the caller's grant allows
@@ -1831,33 +1863,103 @@ export class ObjectStore {
         );
     }
 
-    /** Run a mutation another in-process store sent once, as its principal. */
-    async receive(mutation: sync.Mutation, as: Subject): Promise<void> {
+    /** Run a mutation another in-process store sent once, as its principal, answering results. */
+    async receive(mutation: sync.Mutation, as: Subject): Promise<readonly unknown[]> {
         // pass changes of replicated rows to their home, else run them here under the sent request
-        if (!(await this.#forward(mutation))) {
-            await this.mutate(AccessContext.of(Caller.of(as), this.clock.now()), mutation);
-        }
+        const forwarded = await this.#forward(mutation, this.principal);
+
+        return (
+            forwarded ??
+            this.#mutate(AccessContext.of(Caller.of(as), this.clock.now()), mutation, {})
+        );
     }
 
-    /** Run a follower's mutation of the served rows as the caller. */
-    async receiveFrom(transaction: sync.Mutation, caller: AccessContext): Promise<void> {
+    /** Run a follower's mutation of the served rows as the caller, answering its results. */
+    async receiveFrom(
+        transaction: sync.Mutation,
+        caller: AccessContext,
+    ): Promise<readonly unknown[]> {
         // pass an installation's change of replicated rows toward their home
         if (principal.installation.is(caller.subject) && this.#isForwarded(transaction)) {
-            await (await this.#readHomeAll(transaction)).receive(transaction, caller.subject);
+            return (await this.#readHomeAll(transaction)).receive(transaction, caller.subject);
         }
         // run the served rows' change as the caller, refusing anyone else's change of replicated rows
         else {
             this.#requireServed(transaction);
-            await this.mutate(caller, transaction);
+
+            return this.#mutate(caller, transaction, {});
         }
     }
 
     /** Report whether every call of a mutation changes rows replicated over the uplink. */
-    #isForwarded(transaction: sync.Mutation): boolean {
+    #isForwarded(transaction: { readonly calls: readonly sync.Call[] }): boolean {
         return (
             this.subscriber !== undefined &&
             transaction.calls.every((call) => this.#isUplinked(call))
         );
+    }
+
+    /** Refuse a forwarded call outside the caller's grant, which its home cannot check. */
+    #requireGranted(caller: AccessContext, call: sync.Call): void {
+        // check a delegated caller alone
+        const { grant } = caller;
+        if (grant === undefined) {
+            return;
+        }
+
+        // require the grant to reach the method and give its permission on the target
+        const object = present(
+            ObjectType.find(this.replicated, call),
+            `the type of ${call.method}`,
+        );
+        const scope = object.readScope(call.method, call.input);
+        ObjectStore.#requireReached(caller, object, scope, call.method);
+        const { permission } = object.method(call.method);
+        const id = typeof call.input["id"] === "string" ? call.input["id"] : undefined;
+        const target = { scope, ...(id === undefined ? {} : { id }) };
+        if (
+            permission !== undefined &&
+            !GrantPermission.allows(object.policy.permission(permission), target, grant.permissions)
+        ) {
+            throw new CallError("FORBIDDEN", {
+                message: `grant ${grant.id} does not give ${object.name}.${permission} in ${scope}`,
+            });
+        }
+    }
+
+    /** Report whether an unhandled custom query of a replicated type runs at its rows' home. */
+    #isAskedAtHome(object: ObjectType, method: Method): boolean {
+        return (
+            method.handler === undefined &&
+            !method.mutates &&
+            this.replicas.some((replica) => replica.same(object)) &&
+            !this.objects.some((served) => served.same(object))
+        );
+    }
+
+    /** Answer a custom query at its rows' home, as the caller's subject. */
+    async #askHome(
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        scope: string,
+        caller: AccessContext,
+    ): Promise<unknown> {
+        // find the home of the call's rows, refusing a call nothing here answers
+        const call = {
+            type: object.typeReference,
+            method: name,
+            input,
+            release: object.package.version,
+        };
+        const home = await this.#readHome(call);
+        if (home === undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: `nothing here answers ${object.name}.${name} at the rows' home`,
+            });
+        }
+
+        return home.call(call, scope, caller.subject);
     }
 
     /** Report whether a call's type's rows replicate over the uplink instead of living here. */
@@ -1925,8 +2027,11 @@ export class ObjectStore {
             : this.subscriber?.uplink;
     }
 
-    /** Pass a mutation of replicated rows to their one home once per request, returning success. */
-    async #forward(mutation: sync.Mutation): Promise<boolean> {
+    /** Pass a mutation of replicated rows to their one home once per request, answering results. */
+    async #forward(
+        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
+        signer: Subject,
+    ): Promise<readonly unknown[] | undefined> {
         // leave a mutation of rows the database stores itself, and refuse one mixing both
         const view = Snapshot.live(this.database);
         const replicated = await Promise.all(
@@ -1940,17 +2045,17 @@ export class ObjectStore {
             }),
         );
         if (replicated.every((isReplicated) => !isReplicated)) {
-            return false;
+            return undefined;
         } else if (replicated.some((isReplicated) => !isReplicated)) {
             throw new CallError("BAD_REQUEST", {
                 message: "a mutation must change rows of one home, local or replicated",
             });
         }
 
-        // pass it to the publisher the replicas follow, signed as this store's principal
-        await (await this.#readHomeAll(mutation)).receive(mutation, this.principal);
+        // pass it to the publisher the replicas follow, signed as the given principal
+        const sent = sync.Mutation.parse(mutation);
 
-        return true;
+        return (await this.#readHomeAll(sent)).receive(sent, signer);
     }
 
     /** List the controllers the served objects need. */
@@ -2385,6 +2490,7 @@ export class ObjectStore {
             ...(options.requestId === undefined ? {} : { requestId: options.requestId }),
             location: execution,
             objects: this.objects,
+            replicas: this.replicas,
         });
 
         // refuse writing a predefined row, then load the permitted target at the given revision
@@ -2752,7 +2858,9 @@ export class ObjectStore {
             if (prepared === undefined) {
                 await method.authorize?.(called, execution);
             }
-            executed = await method.execute(called, execution);
+            executed = this.#isAskedAtHome(object, method)
+                ? await this.#askHome(object, name, input, scope, caller)
+                : await method.execute(called, execution);
         } catch (error) {
             throw await this.#conceal(authorization, caller, called.target, error);
         }

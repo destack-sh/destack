@@ -2,7 +2,7 @@ import { present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Step } from "../method/step.ts";
 import type { TextField } from "../field/field.ts";
-import { defineMethod, type Method } from "../method/method.ts";
+import { defineMethod, Method } from "../method/method.ts";
 import type { Procedure, ReplayShape, TargetShape } from "../method/procedure.ts";
 import type { ObjectType, TextFieldName } from "../object/object.ts";
 import { Element, SequenceEdit } from "../sequence/index.ts";
@@ -212,7 +212,7 @@ export const text: Trait<TextDefinition> & {
                     }
                 }
 
-                return this.handler(context, execution);
+                return Method.handle(this, context, execution);
             },
         });
     },

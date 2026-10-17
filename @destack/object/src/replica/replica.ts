@@ -202,7 +202,12 @@ export const storeProcedures = {
                 mutation: Mutation,
             }),
         )
-        .output(schema.object({})),
+        .output(
+            schema.object({
+                /** The results of the mutation's calls, in order. */
+                results: schema.array(schema.json()),
+            }),
+        ),
     broadcast: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
         .route({ method: "POST", path: "/store/broadcast" })
         .input(

@@ -3,7 +3,7 @@ import { Table } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
 import type { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
-import { defineMethod, type Method } from "./method.ts";
+import { defineMethod, Method } from "./method.ts";
 import { RevisionShape } from "./procedure.ts";
 import type { Execution } from "./execution.ts";
 import { RecordMethod } from "./record.ts";
@@ -45,7 +45,7 @@ export const NestedMethod = {
                 // require a valid destination before moving
                 await NestedMethod.requireDestination(context, execution, nesting);
 
-                return this.handler(context, execution);
+                return Method.handle(this, context, execution);
             },
         });
     },

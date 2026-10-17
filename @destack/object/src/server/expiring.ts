@@ -87,7 +87,7 @@ export class ExpiringController implements Controller {
         return next === undefined ? undefined : Math.max(0, next - now);
     }
 
-    /** Remove expired objects as the store's principal, returning the count. */
+    /** Remove expired objects as the code serving their type, returning the count. */
     static async expire(store: ObjectStore, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
@@ -103,7 +103,7 @@ export class ExpiringController implements Controller {
                         now,
                     );
                     await store.mutate(
-                        store.self,
+                        store.serving(object, now),
                         {
                             id: RequestId.create(now),
                             calls: rows.map((row) =>

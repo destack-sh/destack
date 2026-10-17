@@ -95,6 +95,7 @@ async function openStores(): Promise<{
     const decided = { subject: spacePrincipal(followerId), parent: Scope.universe.id };
     const publisher = {
         receive: () => Promise.reject(new Error("the follower sends no changes")),
+        call: () => Promise.reject(new Error("the follower sends no queries")),
         stream: (asked: Subscription, signal: AbortSignal) =>
             home.source.replicate(asked, asked.after, decided, signal),
     };

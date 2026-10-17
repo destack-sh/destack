@@ -51,6 +51,7 @@ async function serveInstalledNotes() {
                 throw new TypeError("the fixture streams no replicas");
             },
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
+            call: () => Promise.reject(new TypeError("the fixture answers no queries")),
         },
         settings: {},
         keys: await testKeys(),

@@ -2241,6 +2241,7 @@ export class ObjectClient<
             ),
             location: { kind: "client", database },
             objects: this.objects,
+            replicas: [],
             run: (entry, _caller, mutates, code) => {
                 const nested = ObjectType.resolve(this.objects, entry, mutates, code);
 

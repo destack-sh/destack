@@ -4,7 +4,7 @@ import { CallError } from "@destack/runtime/error";
 import { Step } from "../method/step.ts";
 import { Casing } from "../object/name.ts";
 import type { StateField, StateMachine } from "../field/field.ts";
-import { defineMethod, type Method } from "../method/method.ts";
+import { defineMethod, Method } from "../method/method.ts";
 import {
     type Procedure,
     type ReplayShape,
@@ -150,7 +150,7 @@ export const transitions: Trait<StateFields> & {
                     });
                 }
 
-                return this.handler(context, execution);
+                return Method.handle(this, context, execution);
             },
         });
     },

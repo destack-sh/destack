@@ -204,13 +204,13 @@ const store = new ObjectStore({
 });
 const row = await store.query(caller, page.call("get", { spaceId, id }));
 const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
-// the store's own principal
-await store.mutate(store.self, { id: RequestId.create(), calls: [create] });
+// the installation serving the type, else the store's own principal
+await store.mutate(store.serving(page), { id: RequestId.create(), calls: [create] });
 ```
 
 ## Replicas
 
-A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, where `acquire` follows a key until it lapses.
+A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, and changes replicated rows at their home over the store's `Uplink`.
 
 ```ts
 import { defineShape, Follow } from "@destack/object";
@@ -281,7 +281,7 @@ const store = new ObjectStore({
     events,
     origin,
 });
-await store.mutate(store.self, {
+await store.mutate(store.serving(call), {
     id: requestId,
     calls: [call.call("record", { scope, items: [{ id, time, data, actor, method }] })],
 });
@@ -347,7 +347,7 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`context.mutate` runs calls inside a handler's transaction, as the same caller or as the store itself (`context.self`).
+`context.mutate` runs calls inside a handler's transaction, as the same caller or as the code itself (`context.self`: the installation serving the type, else the store's principal); `context.space()` acts for the space, as its installation under the space's grant.
 
 ```ts
 export const shelf = base.shelf.implement({
@@ -361,6 +361,7 @@ export const shelf = base.shelf.implement({
         },
     },
 });
+const recipient = await context.query(await context.space(), user.call("recipient", { id }));
 ```
 
 ## Descriptions
