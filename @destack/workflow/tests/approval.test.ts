@@ -1,7 +1,10 @@
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
+import { AccessContext, Caller, principal } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
+import { RequestId } from "@destack/runtime/request";
 import { expect, refusal, test } from "@destack/test";
-import { approval, change, changeRequest, defineWorkflow } from "../src/index.ts";
+import { type Approval, approval, change, changeRequest, defineWorkflow } from "../src/index.ts";
 import { actor, alice, bob, note, openWorkflow, type WorkflowFixture } from "./fixture.ts";
 
 /** The input of a review: the note it asks about. */
@@ -201,6 +204,135 @@ test("cancel the run of a change its requester withdraws", async () => {
         { state: "withdrawn", title: "Plan" },
         ["cancelled"],
     ]);
+});
+
+test("publish bob's note as bob once he approves alice's elevated change, and fail the same change as alice", async () => {
+    // serve the change requests over bob's note, which alice cannot write
+    const fixture = await openWorkflow(idle, async () => {});
+    const [written] = await fixture.asBob([
+        note.call("create", { spaceId: fixture.spaceId, title: "Plan" }),
+    ]);
+    const { id } = schema.looseObject({ id: schema.string() }).parse(written);
+    const parent = { packageId: note.package.id, type: note.name, id };
+
+    // look until a condition is true, giving the controllers a turn to see each commit
+    const eventually = async <Value>(look: () => Promise<Value | undefined>): Promise<Value> => {
+        for (let attempt = 0; attempt < 1000; attempt++) {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+            await fixture.until(() => true);
+            const found = await look();
+            if (found !== undefined) {
+                return found;
+            }
+        }
+        throw new TypeError("the change never reached the condition");
+    };
+
+    // ask bob to publish it, approve as bob, and read how the change settled
+    const ask = async (as: "requester" | "approver") => {
+        const rename = note.call("publish", { spaceId: fixture.spaceId, id, title: as });
+        const [opened] = await fixture.asAlice([
+            changeRequest.call("create", {
+                spaceId: fixture.spaceId,
+                parent,
+                call: rename,
+                approvers: [bob],
+                as,
+            }),
+        ]);
+        const { id: requestId } = schema.looseObject({ id: schema.string() }).parse(opened);
+        const asked = await eventually(async () =>
+            (await fixture.store.database.select().from(approval.table)).find(
+                (row) => row.state === "requested",
+            ),
+        );
+        await fixture.asBob([approval.call("approve", approval.target(asked))]);
+
+        return eventually(async () => {
+            const rows = await fixture.store.database.select().from(changeRequest.table);
+            const row = rows.find((each) => each.id === requestId && each.state !== "open");
+
+            return row === undefined ? undefined : [row.state, row.failure?.code ?? null];
+        });
+    };
+    const elevated = await ask("approver");
+    const reviewed = await ask("requester");
+    const [renamed] = await fixture.store.database.select().from(note.table);
+
+    // apply the elevated change as bob, and fail alice's own with the publish refusal
+    expect([elevated, reviewed, renamed?.title]).toEqual([
+        ["applied", null],
+        ["failed", "NOT_FOUND"],
+        "approver",
+    ]);
+});
+
+test("refuse alice's agent a call her grant gives once approved, ask her in a change request, and make it through the agent once she approves", async () => {
+    // let alice's agent read her notes at once, publish them once each use is approved, and open change requests for her
+    const fixture = await openWorkflow(idle, async () => {});
+    const [written] = await fixture.asAlice([
+        note.call("create", { spaceId: fixture.spaceId, title: "Plan" }),
+    ]);
+    const { id } = schema.looseObject({ id: schema.string() }).parse(written);
+    const agent = principal.installation.reference(fixture.spaceId, "installation-agent");
+    const permissions = [
+        { ...note.permission("read"), scope: fixture.spaceId },
+        { ...note.permission("publish"), scope: fixture.spaceId, mode: "approval" as const },
+        { ...changeRequest.permission("open"), scope: fixture.spaceId },
+    ];
+    const grantId = await new AccessFixture(fixture.store.database).replicateGrant(
+        alice,
+        agent,
+        permissions,
+    );
+    const caller = AccessContext.of(
+        {
+            ...Caller.of(alice),
+            actors: [agent],
+            grants: [{ id: grantId, scope: alice.id }],
+        },
+        fixture.clock.now(),
+    );
+
+    // publish as the agent, refused for approval, then ask alice in a change request
+    const publish = note.call("publish", { spaceId: fixture.spaceId, id, title: "Final" });
+    const refused = await refusal(
+        fixture.store.mutate(caller, {
+            id: RequestId.create(fixture.clock.now()),
+            calls: [publish],
+        }),
+    );
+    const [requested] = await fixture.store.mutate(caller, {
+        id: RequestId.create(fixture.clock.now()),
+        calls: [changeRequest.call("create", { spaceId: fixture.spaceId, call: publish })],
+    });
+
+    // approve as alice once asked, and publish the note through her agent
+    let asked: Approval | undefined;
+    for (let look = 0; look < 1000 && asked === undefined; look++) {
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
+        await fixture.until(() => true);
+        [asked] = await fixture.store.database.select().from(approval.table);
+    }
+    if (asked === undefined) {
+        throw new TypeError("alice was not asked");
+    }
+    await fixture.asAlice([approval.call("approve", approval.target(asked))]);
+    await settle(fixture, "applied");
+    const [published] = await fixture.store.database.select().from(note.table);
+    const [request] = await fixture.store.database.select().from(changeRequest.table);
+    expect([refused, request?.id, ObjectReference.at("approver", asked), published?.title]).toEqual(
+        [
+            ["APPROVAL_REQUIRED", `grant ${grantId} gives publish on note ${id} once approved`],
+            present(requested, "the change request").id,
+            alice,
+            "Final",
+        ],
+    );
 });
 
 test("refuse a requester asking to approve their own change", async () => {

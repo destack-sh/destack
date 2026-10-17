@@ -23,7 +23,7 @@ export const ScheduledCall = {
     send(
         workflow: Pick<Workflow<ScheduledCallInput>, "start">,
         call: Call,
-        options: Pick<RunStart, "at" | "key" | "actor"> = {},
+        options: Pick<RunStart, "at" | "key" | "actor">,
     ): Call {
         return workflow.start({ call }, options);
     },

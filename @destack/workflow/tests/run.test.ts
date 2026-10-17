@@ -1,8 +1,9 @@
-import { relation } from "@destack/access";
+import { principal, relation } from "@destack/access";
 import { space } from "@destack/account/object";
 import { eq, TABLE } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { Failure, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow } from "../src/index.ts";
 import { actor, alice, note, openWorkflow, START, type WorkflowFixture } from "./fixture.ts";
@@ -216,6 +217,26 @@ test("take a call step hours after the run started, past a request's retry perio
         .select({ title: note.table.title })
         .from(note.table);
     expect([run?.["state"], titles]).toEqual(["completed", [{ title: "late" }]]);
+});
+
+test("fail a run acting for a user who granted its installation nothing, as no consent lets it act", async () => {
+    const write = defineWorkflow({ name: "write", input: schema.object({}) });
+    const fixture = await openWorkflow(write, async (step) => {
+        await step.call("write", note.call("create", { spaceId: fixture.spaceId, title: "late" }));
+    });
+
+    // start a run acting for carol, who never consented to the installation
+    const carol = principal.user.reference(
+        Scope.universe.id,
+        "user-01996ab0-0000-7000-8000-000000000102",
+    );
+    await fixture.start(() => write.start({}, actor(carol)));
+    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
+    const { failure } = schema.looseObject({ failure: Failure }).parse(run);
+    expect([failure.code, failure.message]).toEqual([
+        "FORBIDDEN",
+        `installation installation-01996ab0-0000-7000-8000-000000000201 acts for user ${carol.id} under no grant`,
+    ]);
 });
 
 test("refuse a stranger controlling another's run", async () => {

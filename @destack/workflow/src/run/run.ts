@@ -1,10 +1,12 @@
-import { type DatabaseConnection, Lease, type Row } from "@destack/db";
+import { AccessContext, Grant } from "@destack/access";
+import { type DatabaseConnection, Lease, type Row, Snapshot } from "@destack/db";
 import { Limits, type MethodContext, type ObjectReconciliation } from "@destack/object";
 import { LEASE_MILLISECONDS } from "@destack/runtime/control";
-import { CallError, isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/runtime/error";
 import { RetryPolicy } from "@destack/runtime/timer";
-import { Duration, schema } from "@destack/schema";
-import { Failure, ObjectReference } from "@destack/sync";
+import { Duration, type JsonValue, schema } from "@destack/schema";
+import { Failure, ObjectReference, Subject } from "@destack/sync";
+import type { ObjectStore } from "@destack/object/server";
 import { type RunContext, type Step, StepContext, Suspension } from "../step/step.ts";
 import { recorded, type Workflow } from "../workflow/workflow.ts";
 
@@ -31,8 +33,8 @@ export const ENDED_STATES = [
     "cancelled",
 ] as const satisfies readonly RunState[];
 
-/** A run's row as advancing it reads it. */
-export const RunRecord = schema.looseObject({
+/** The schema of a run as advancing it reads it, whatever workflow's table stores it. */
+const runSchema = schema.looseObject({
     /** The run. */
     id: schema.string(),
     /** The scope the run acts in. */
@@ -56,9 +58,6 @@ export const RunRecord = schema.looseObject({
     /** The failure the run last answered. */
     failure: Failure.nullable(),
 });
-/** A run's row as advancing it reads it. */
-export type RunRecord = schema.Infer<typeof RunRecord>;
-
 /** The input a run's creation takes beside its fields. */
 const RunCreation = schema.looseObject({
     /** The key one live run takes at a time. */
@@ -74,10 +73,64 @@ const RunCreation = schema.looseObject({
 /** What one advance settled: when the run wakes, absent once ended or waiting on writes. */
 type Settled = { readonly wake: number | undefined; readonly isEnded: boolean };
 
-/** The runs of workflows: started, reset and advanced step by step. */
-export const Run = {
+/** A run of a workflow: its state, input, attempts and wake times, advanced step by step. */
+export class Run<Input = unknown, Output = unknown> {
+    /** The workflow the run belongs to. */
+    readonly workflow: Workflow<Input, Output>;
+    /** The run's row, whose actor and input its limits read. */
+    readonly row: Row;
+    /** The run. */
+    readonly id: string;
+    /** The scope the run acts in. */
+    readonly scope: string;
+    /** When the run was created, which stamps the requests its steps derive. */
+    readonly createdAt: number;
+    /** Whether the run is due, waits, is paused, or ended. */
+    readonly state: RunState;
+    /** The run's input. */
+    readonly input: JsonValue;
+    /** The advances that failed and were retried so far. */
+    readonly attempts: number;
+    /** When the run is next due. */
+    readonly wakeAt: number | null;
+    /** When the run times out. */
+    readonly deadline: number | null;
+    /** When the run first advanced. */
+    readonly startedAt: number | null;
+    /** The object type a waiting run waits for. */
+    readonly waitType: string | null;
+    /** The failure the run last answered. */
+    readonly failure: Failure | null;
+    /** The principal the run acts for. */
+    readonly actor: Subject;
+
+    /** Read a run of a workflow from its row. */
+    constructor(workflow: Workflow<Input, Output>, row: Row) {
+        // parse the row's fields
+        const fields = runSchema.parse(row);
+        this.workflow = workflow;
+        this.row = row;
+        this.id = fields.id;
+        this.scope = fields.scope;
+        this.createdAt = fields.createdAt;
+        this.state = fields.state;
+        this.input = fields.input;
+        this.attempts = fields.attempts;
+        this.wakeAt = fields.wakeAt;
+        this.deadline = fields.deadline;
+        this.startedAt = fields.startedAt;
+        this.waitType = fields.waitType;
+        this.failure = fields.failure;
+        this.actor = ObjectReference.at("actor", row);
+    }
+
+    /** The run's row as the workflow's run calls target it. */
+    get target() {
+        return this.workflow.run.target({ id: this.id, scope: this.scope });
+    }
+
     /** Create a run, answering its key's live run or replacing it before it began. */
-    async create<Input, Output>(
+    static async create<Input, Output>(
         workflow: Workflow<Input, Output>,
         context: MethodContext,
         next: (context?: MethodContext) => Promise<unknown>,
@@ -99,7 +152,7 @@ export const Run = {
         if (live !== undefined && creation.mode === "replace" && live["startedAt"] === null) {
             const [replaced] = await context.mutate(context.self, [
                 workflow.run.call("replace", {
-                    ...workflow.run.target(RunRecord.parse(live)),
+                    ...workflow.run.target(new Run(workflow, live)),
                     input: creation.input,
                     wakeAt: creation.wakeAt ?? null,
                 }),
@@ -116,290 +169,286 @@ export const Run = {
             timeout === undefined ? {} : { deadline: context.now + Duration.milliseconds(timeout) };
 
         return next(context.with({ input: { ...context.input, ...deadline } }));
-    },
+    }
 
-    /** Run a run again from a step, forgetting that step and every later one. */
-    async reset<Input, Output>(
-        workflow: Workflow<Input, Output>,
-        context: MethodContext,
-    ): Promise<{ readonly forgotten: number }> {
+    /** Run the run again from a step, forgetting that step and every later one. */
+    async reset(context: MethodContext): Promise<{ readonly forgotten: number }> {
         // find the step the run starts again at
         const { step: name } = schema.object({ step: schema.string() }).parse(context.input);
-        const run = RunRecord.parse(context.target);
         const [from] = await context
-            .read(workflow.step)
-            .findMany({ where: { parentId: run.id, name } });
+            .read(this.workflow.step)
+            .findMany({ where: { parentId: this.id, name } });
         if (from === undefined) {
-            throw new CallError("NOT_FOUND", { message: `run ${run.id} took no step ${name}` });
+            throw new CallError("NOT_FOUND", { message: `run ${this.id} took no step ${name}` });
         }
 
         // forget the step and every later one, and make the run due again from its first attempt
         const position = schema.number().parse(from["position"]);
         const later = await context
-            .read(workflow.step)
-            .findMany({ where: { parentId: run.id, position: { gte: position } } });
-        const target = workflow.run.target(run);
+            .read(this.workflow.step)
+            .findMany({ where: { parentId: this.id, position: { gte: position } } });
+        const target = this.target;
         await context.mutate(context.self, [
             ...later.map((row) =>
-                workflow.step.call("delete", workflow.step.target(StepTarget.parse(row))),
+                this.workflow.step.call("delete", this.workflow.step.target(StepTarget.parse(row))),
             ),
-            workflow.run.call("restart", {
+            this.workflow.run.call("restart", {
                 ...target,
                 attempts: 0,
                 wakeAt: null,
                 failure: null,
-                ...(workflow.output === undefined ? {} : { output: null }),
+                ...(this.workflow.output === undefined ? {} : { output: null }),
             }),
         ]);
 
         return { forgotten: later.length };
-    },
+    }
 
-    /** Advance a run to its next wait, output, retry or failure, answering the wait to its wake. */
-    async advance<Input, Output>(
-        workflow: Workflow<Input, Output>,
+    /** Read the caller the run calls as: its serving code, or for others within their grant. */
+    async caller(store: ObjectStore, now: number): Promise<AccessContext> {
+        // call as the code serving the run when it is the actor
+        const self = store.serving(this.workflow.run, now);
+        if (Subject.same(self.subject, this.actor)) {
+            return self;
+        }
+
+        // call for its space or a user as the code serving the run, within their live grant to it
+        const parties = { delegator: this.actor, delegate: self.subject };
+        const caller = await Grant.act(Snapshot.live(store.database), parties, now);
+
+        return AccessContext.of(caller, now);
+    }
+
+    /** Advance the run to its next wait, output, retry or failure, answering when it wakes. */
+    async advance(
         code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
-        row: Row,
         reconciliation: ObjectReconciliation,
     ): Promise<number | undefined> {
         // fail a run past its deadline
         const { now, database } = reconciliation;
-        const run = RunRecord.parse(row);
-        const target = workflow.run.target(run);
-        if (run.deadline !== null && run.deadline <= now) {
+        const { target } = this;
+        if (this.deadline !== null && this.deadline <= now) {
             const failure = Failure.of(
-                new CallError("TIMEOUT", { message: `run ${run.id} timed out` }),
+                new CallError("TIMEOUT", { message: `run ${this.id} timed out` }),
             );
-            await reconciliation.mutate([workflow.run.call("fail", { ...target, failure })]);
-            await releaseSlot(workflow, run, database);
+            await reconciliation.mutate([this.workflow.run.call("fail", { ...target, failure })]);
+            await this.#releaseSlot(database);
 
             return undefined;
         }
 
         // wait until a sleeping, retried, limited or later run is due, a run waiting for writes waking on them
-        if (run.wakeAt !== null && run.wakeAt > now && run.waitType === null) {
-            return waitUntil(run, run.wakeAt, now);
+        if (this.wakeAt !== null && this.wakeAt > now && this.waitType === null) {
+            return this.#waitUntil(this.wakeAt, now);
         }
 
         // take a start of the workflow's rate once per run, delaying a limited one
-        if (run.startedAt === null) {
-            const limited = await takeStart(workflow, run, row, database, now);
+        if (this.startedAt === null) {
+            const limited = await this.#takeStart(database, now);
             if (limited !== undefined) {
                 await reconciliation.mutate([
-                    workflow.run.call("delay", {
+                    this.workflow.run.call("delay", {
                         ...target,
-                        attempts: run.attempts,
+                        attempts: this.attempts,
                         wakeAt: now + limited,
-                        failure: run.failure,
+                        failure: this.failure,
                     }),
                 ]);
 
-                return waitUntil(run, now + limited, now);
+                return this.#waitUntil(now + limited, now);
             }
             await reconciliation.mutate([
-                workflow.run.call("begin", { ...target, startedAt: now }),
+                this.workflow.run.call("begin", { ...target, startedAt: now }),
             ]);
         }
 
         // take a concurrency slot while advancing, delaying the run until one frees
-        const slot = await takeSlot(workflow, run, row, database, now);
+        const slot = await this.#takeSlot(database, now);
         if (slot !== undefined && slot.kind === "busy") {
             await reconciliation.mutate([
-                workflow.run.call("delay", {
+                this.workflow.run.call("delay", {
                     ...target,
-                    attempts: run.attempts,
+                    attempts: this.attempts,
                     wakeAt: slot.lapsesAt,
-                    failure: run.failure,
+                    failure: this.failure,
                 }),
             ]);
 
-            return waitUntil(run, slot.lapsesAt, now);
+            return this.#waitUntil(slot.lapsesAt, now);
         }
 
         // advance the run, renewing its slot meanwhile and releasing it after unless the run holds it to its end
         const renewing = new AbortController();
         if (slot !== undefined) {
-            void renewSlot(workflow, run, row, reconciliation, renewing.signal);
+            void this.#renewSlot(reconciliation, renewing.signal);
         }
         let settled: Settled;
         try {
-            settled = await runSteps(workflow, code, row, run, reconciliation);
+            settled = await this.#runSteps(code, reconciliation);
         } finally {
             renewing.abort();
         }
-        if (slot !== undefined && (!workflow.isSingleton || settled.isEnded)) {
-            await releaseSlot(workflow, run, database);
+        if (slot !== undefined && (!this.workflow.isSingleton || settled.isEnded)) {
+            await this.#releaseSlot(database);
         }
 
-        return settled.wake === undefined ? undefined : waitUntil(run, settled.wake, now);
-    },
-};
+        return settled.wake === undefined ? undefined : this.#waitUntil(settled.wake, now);
+    }
 
-/** Run the workflow's function once over the run's recorded steps, settling what it did. */
-async function runSteps<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
-    row: Row,
-    run: RunRecord,
-    reconciliation: ObjectReconciliation,
-): Promise<Settled> {
-    // replay the run's recorded steps and take the rest
-    const { store, now } = reconciliation;
-    const target = workflow.run.target(run);
-    const steps = new StepContext(
-        workflow,
-        run,
-        ObjectReference.at("actor", row),
-        store,
-        await StepContext.load(store, workflow, run),
-    );
-    try {
-        const input = workflow.input.parse(run.input);
-        const output = await code(steps, input, { id: run.id, scope: run.scope });
+    /** Run the workflow's function once over the run's recorded steps, settling what it did. */
+    async #runSteps(
+        code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
+        reconciliation: ObjectReconciliation,
+    ): Promise<Settled> {
+        // replay the run's recorded steps and take the rest, acting as its actor while its grant lasts
+        const { store, now } = reconciliation;
+        const { target } = this;
+        try {
+            const steps = new StepContext(
+                this.workflow,
+                this,
+                this.actor,
+                await this.caller(store, now),
+                store,
+                await StepContext.load(store, this.workflow, this),
+            );
+            const input = this.workflow.input.parse(this.input);
+            const output = await code(steps, input, { id: this.id, scope: this.scope });
 
-        // complete the run, with its output where the workflow declares one
-        await reconciliation.mutate([
-            workflow.run.call(
-                "complete",
-                workflow.output === undefined
-                    ? target
-                    : { ...target, output: recorded(workflow.output.parse(output)) },
-            ),
-        ]);
-
-        return { wake: undefined, isEnded: true };
-    } catch (error) {
-        // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
-        if (error instanceof Suspension) {
-            const wakeAt = error.at ?? null;
-            const waitType = error.waitType ?? null;
-            if (run.state === "waiting" && run.wakeAt === wakeAt && run.waitType === waitType) {
-                return { wake: error.at, isEnded: false };
-            }
+            // complete the run, with its output where the workflow declares one
             await reconciliation.mutate([
-                workflow.run.call("wait", { ...target, waitType, wakeAt }),
-            ]);
-
-            return { wake: error.at, isEnded: false };
-        }
-        // fail on a final refusal or an input or output its schema refuses
-        else if (
-            (isCallError(error) && CallError.isRefusal(error.status)) ||
-            error instanceof schema.Error
-        ) {
-            await reconciliation.mutate([
-                workflow.run.call("fail", { ...target, failure: Failure.of(error) }),
+                this.workflow.run.call(
+                    "complete",
+                    this.workflow.output === undefined
+                        ? target
+                        : { ...target, output: recorded(this.workflow.output.parse(output)) },
+                ),
             ]);
 
             return { wake: undefined, isEnded: true };
-        }
-        // retry another failure after its backoff while attempts remain, else fail with it
-        else {
-            const attempts = run.attempts + 1;
-            const failure = Failure.of(error);
-            if (RetryPolicy.isRetried(workflow.retries, attempts)) {
-                const wakeAt = now + RetryPolicy.interval(workflow.retries, attempts);
+        } catch (error) {
+            // read a refusal, a domain one too
+            const refusal = CallError.of(error);
+
+            // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
+            if (error instanceof Suspension) {
+                const wakeAt = error.at ?? null;
+                const waitType = error.waitType ?? null;
+                if (
+                    this.state === "waiting" &&
+                    this.wakeAt === wakeAt &&
+                    this.waitType === waitType
+                ) {
+                    return { wake: error.at, isEnded: false };
+                }
                 await reconciliation.mutate([
-                    workflow.run.call("delay", { ...target, attempts, wakeAt, failure }),
+                    this.workflow.run.call("wait", { ...target, waitType, wakeAt }),
                 ]);
 
-                return { wake: wakeAt, isEnded: false };
+                return { wake: error.at, isEnded: false };
             }
-            await reconciliation.mutate([workflow.run.call("fail", { ...target, failure })]);
+            // fail on a final refusal, or an input or output its schema refuses
+            else if (
+                (refusal !== undefined && CallError.isRefusal(refusal.status)) ||
+                error instanceof schema.Error
+            ) {
+                await reconciliation.mutate([
+                    this.workflow.run.call("fail", {
+                        ...target,
+                        failure: Failure.of(refusal ?? error),
+                    }),
+                ]);
 
-            return { wake: undefined, isEnded: true };
+                return { wake: undefined, isEnded: true };
+            }
+            // retry another failure after its backoff while attempts remain, else fail with it
+            else {
+                const attempts = this.attempts + 1;
+                const failure = Failure.of(error);
+                if (RetryPolicy.isRetried(this.workflow.retries, attempts)) {
+                    const wakeAt = now + RetryPolicy.interval(this.workflow.retries, attempts);
+                    await reconciliation.mutate([
+                        this.workflow.run.call("delay", { ...target, attempts, wakeAt, failure }),
+                    ]);
+
+                    return { wake: wakeAt, isEnded: false };
+                }
+                await reconciliation.mutate([
+                    this.workflow.run.call("fail", { ...target, failure }),
+                ]);
+
+                return { wake: undefined, isEnded: true };
+            }
         }
     }
-}
 
-/** Take a start token of the workflow's rate, answering the wait of a limited start. */
-async function takeStart<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    run: RunRecord,
-    row: Row,
-    database: DatabaseConnection,
-    now: number,
-): Promise<number | undefined> {
-    // take a token when the workflow limits its starts
-    const { rate } = workflow.limits;
+    /** Take a start token of the workflow's rate, answering the wait of a limited start. */
+    async #takeStart(database: DatabaseConnection, now: number): Promise<number | undefined> {
+        // take a token when the workflow limits its starts
+        const { rate } = this.workflow.limits;
 
-    return rate === undefined
-        ? undefined
-        : await Limits.take(database, limitName(workflow), limitKey(workflow, run, row), rate, now);
-}
-
-/** Take or renew a concurrency slot for the run, absent when the workflow limits none. */
-async function takeSlot<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    run: RunRecord,
-    row: Row,
-    database: DatabaseConnection,
-    now: number,
-) {
-    // take a slot when the workflow limits how many runs advance at once
-    const { concurrency } = workflow.limits;
-
-    return concurrency === undefined
-        ? undefined
-        : await Lease.acquire(database, {
-              name: limitName(workflow),
-              key: limitKey(workflow, run, row),
-              holder: run.id,
-              duration: LEASE_MILLISECONDS,
-              now,
-              slots: concurrency.slots,
-          });
-}
-
-/** Renew the run's slot a third into its lease until the advance ends. */
-async function renewSlot<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    run: RunRecord,
-    row: Row,
-    reconciliation: ObjectReconciliation,
-    signal: AbortSignal,
-): Promise<void> {
-    const clock = reconciliation.store.clock;
-    while (
-        await clock.sleep(LEASE_MILLISECONDS / 3, signal).then(
-            () => true,
-            () => false,
-        )
-    ) {
-        await takeSlot(workflow, run, row, reconciliation.database, clock.now());
+        return rate === undefined
+            ? undefined
+            : await Limits.take(database, this.#limitName, this.#limitKey, rate, now);
     }
-}
 
-/** Release the run's concurrency slot. */
-async function releaseSlot<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    run: RunRecord,
-    database: DatabaseConnection,
-): Promise<void> {
-    if (workflow.limits.concurrency !== undefined) {
-        await Lease.release(database, { holder: run.id, name: limitName(workflow) });
+    /** Take or renew a concurrency slot for the run, absent when the workflow limits none. */
+    async #takeSlot(database: DatabaseConnection, now: number) {
+        // take a slot when the workflow limits how many runs advance at once
+        const { concurrency } = this.workflow.limits;
+
+        return concurrency === undefined
+            ? undefined
+            : await Lease.acquire(database, {
+                  name: this.#limitName,
+                  key: this.#limitKey,
+                  holder: this.id,
+                  duration: LEASE_MILLISECONDS,
+                  now,
+                  slots: concurrency.slots,
+              });
     }
-}
 
-/** Answer the wait until a time, no later than the run's deadline. */
-function waitUntil(run: RunRecord, at: number, now: number): number {
-    const due = run.deadline === null ? at : Math.min(at, run.deadline);
+    /** Renew the run's slot a third into its lease until the advance ends. */
+    async #renewSlot(reconciliation: ObjectReconciliation, signal: AbortSignal): Promise<void> {
+        const clock = reconciliation.store.clock;
+        while (
+            await clock.sleep(LEASE_MILLISECONDS / 3, signal).then(
+                () => true,
+                () => false,
+            )
+        ) {
+            await this.#takeSlot(reconciliation.database, clock.now());
+        }
+    }
 
-    return Math.max(0, due - now);
-}
+    /** Release the run's concurrency slot. */
+    async #releaseSlot(database: DatabaseConnection): Promise<void> {
+        if (this.workflow.limits.concurrency !== undefined) {
+            await Lease.release(database, { holder: this.id, name: this.#limitName });
+        }
+    }
 
-/** Name the limits of a workflow's runs. */
-function limitName(workflow: Pick<Workflow, "package" | "name">): string {
-    return `workflow:${workflow.package.name}/${workflow.name}`;
-}
+    /** Answer the wait until a time, no later than the run's deadline. */
+    #waitUntil(at: number, now: number): number {
+        const due = this.deadline === null ? at : Math.min(at, this.deadline);
 
-/** Read whose limit a run counts against: its scope's, its actor's or an input value's. */
-function limitKey(workflow: Pick<Workflow, "limits">, run: RunRecord, row: Row): string {
-    return Limits.key(workflow.limits.key, {
-        scope: run.scope,
-        caller: ObjectReference.at("actor", row),
-        input: run.input,
-    });
+        return Math.max(0, due - now);
+    }
+
+    /** The name of the limits of the workflow's runs. */
+    get #limitName(): string {
+        return `workflow:${this.workflow.package.name}/${this.workflow.name}`;
+    }
+
+    /** Whose limit the run counts against: its scope's, its actor's or an input value's. */
+    get #limitKey(): string {
+        return Limits.key(this.workflow.limits.key, {
+            scope: this.scope,
+            caller: this.actor,
+            input: this.input,
+        });
+    }
 }
 
 /** A step's row as its target reads it. */

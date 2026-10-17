@@ -12,7 +12,10 @@ const calls = defineWorkflow({
 
 test("make a scheduled call once at its time as its actor, answering the call's result", async () => {
     // send a note's creation as alice to run in a minute
-    const fixture = await openServed(calls, calls.implement(ScheduledCall.run));
+    const fixture = await openServed(
+        calls,
+        calls.implement((step, input) => ScheduledCall.run(step, input)),
+    );
     await fixture.start((spaceId) =>
         ScheduledCall.send(calls, note.call("create", { spaceId, title: "later" }), {
             at: START + 60_000,

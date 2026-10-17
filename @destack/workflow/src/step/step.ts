@@ -1,4 +1,4 @@
-import { AccessContext, Caller } from "@destack/access";
+import type { AccessContext } from "@destack/access";
 import { and, eq, TABLE, Transaction } from "@destack/db";
 import { CallSite, MethodContext, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -8,7 +8,7 @@ import { Duration, type JsonValue, schema } from "@destack/schema";
 import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Approval, approval, type ApprovalState } from "../approval/approval.ts";
-import type { RunRecord } from "../run/run.ts";
+import type { Run } from "../run/run.ts";
 import { recorded, type Workflow } from "../workflow/workflow.ts";
 
 /** A step's row as replaying it reads it. */
@@ -128,7 +128,7 @@ export class StepContext implements Step {
     /** The workflow. */
     readonly #workflow: WorkflowObjects;
     /** The run. */
-    readonly #run: RunRecord;
+    readonly #run: Pick<Run, "id" | "scope">;
     /** The principal the run acts as. */
     readonly #actor: Subject;
     /** The store the steps act through. */
@@ -142,20 +142,21 @@ export class StepContext implements Step {
     /** The recorded steps' names, by their place in the run. */
     readonly #positions: ReadonlyMap<number, string>;
 
-    /** Take a run's steps over the step objects recorded so far. */
+    /** Take a run's steps over its recorded step objects, acting as its actor through a caller. */
     constructor(
         workflow: WorkflowObjects,
-        run: RunRecord,
+        run: Pick<Run, "id" | "scope">,
         actor: Subject,
+        caller: AccessContext,
         store: ObjectStore,
         recordedSteps: readonly StepRecord[],
     ) {
-        // hold the run, its actor and its steps by name
+        // hold the run, its actor, the caller acting as it and its steps by name
         this.#workflow = workflow;
         this.#run = run;
         this.#actor = actor;
+        this.#caller = caller;
         this.#store = store;
-        this.#caller = AccessContext.of(Caller.of(actor), store.clock.now());
         this.#recorded = new Map(recordedSteps.map((step) => [step.name, step]));
         this.#positions = new Map(recordedSteps.map((step) => [step.position, step.name]));
     }
@@ -164,7 +165,7 @@ export class StepContext implements Step {
     static async load(
         store: ObjectStore,
         workflow: WorkflowObjects,
-        run: RunRecord,
+        run: Pick<Run, "id" | "scope">,
     ): Promise<StepRecord[]> {
         const table = workflow.step.table;
         const rows = await store.database
@@ -184,11 +185,11 @@ export class StepContext implements Step {
             return this.#answer(call, completed);
         }
 
-        // make a call preparing nothing in one transaction with its step's record, exactly once
+        // make a served call preparing nothing in one transaction with its step's record, exactly once
         const now = this.#store.clock.now();
         const method = ObjectType.find(this.#store.objects, call)?.method(call.method);
         try {
-            if (method?.prepare === undefined) {
+            if (method !== undefined && method.prepare === undefined) {
                 return await Transaction.run(this.#store.database, async (transaction) => {
                     const [made] = await this.#store.mutate(
                         this.#caller,
@@ -201,7 +202,7 @@ export class StepContext implements Step {
                 });
             }
 
-            // make a preparing call under a request its started step derives, which a retry repeats
+            // make a preparing call, or one its rows' home runs, under a request its started step derives
             const started = recordedStep?.createdAt ?? now;
             if (recordedStep === undefined) {
                 await this.#wait(name, undefined, recordedStep);
@@ -406,7 +407,7 @@ export class StepContext implements Step {
         if (recordedStep === undefined) {
             await Transaction.run(this.#store.database, async (transaction) => {
                 await this.#store.mutate(
-                    this.#store.self,
+                    this.#store.serving(workflow.run),
                     {
                         id: RequestId.create(this.#store.clock.now()),
                         calls: [workflow.start(input, { key, actor: this.#actor })],
@@ -602,7 +603,7 @@ export class StepContext implements Step {
     /** Write a step record as the store, the run's lease making it the only writer. */
     async #record(call: sync.Call, transaction?: Transaction): Promise<void> {
         await this.#store.mutate(
-            this.#store.self,
+            this.#store.serving(this.#workflow.step),
             { id: RequestId.create(this.#store.clock.now()), calls: [call] },
             transaction === undefined ? {} : { transaction },
         );

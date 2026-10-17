@@ -15,7 +15,7 @@ const served = summarize.implement(async (step, input) => {
 });
 await store.mutate(caller, {
     id: RequestId.create(),
-    calls: [summarize.start({ id }, { key: id })],
+    calls: [summarize.start({ id }, { key: id, actor: caller.subject })],
 });
 ```
 
@@ -38,10 +38,12 @@ A run is due, waits, is paused or has ended; its actor pauses, resumes, cancels 
 
 ```ts
 summarize.start(input, { key: id, mode: "replace", at: tomorrow, actor });
+summarize.start(input, { actor: space }); // acts for the space within its grant to the installation
 summarize.run.call("reset", { ...target, step: "write" }); // run again from a step
 defineWorkflow({
     name: "digest",
     input,
+    scope: "universe", // runs live in the universe, a space by default
     retries: { maximumAttempts: 3 }, // Temporal's RetryPolicy and its defaults
     timeout: { hours: 1 },
     expiring: { after: { days: 7 } },
@@ -50,7 +52,7 @@ defineWorkflow({
         concurrency: { slots: 1 },
         key: "caller",
     },
-    singleton: true, // a run holds its slot from its start to its end
+    singleton: true, // a run takes its slot from its start to its end
 });
 ```
 
@@ -104,10 +106,11 @@ defineWorkflow({
 
 ## Approvals
 
-`step.approve` asks approvers to decide on an object, and a change request holds a call until they approve it, as a pull request holds a merge.
+`step.approve` asks approvers to decide on an object, and a change request makes a call once they approve it, as a pull request merges once approved.
 
 ```ts
 const decision = await step.approve("review", subject, { approvers: [bob, alice], count: 2 });
 await client.changeRequest.create({ spaceId, parent, call: rename, approvers: [bob] });
+await client.changeRequest.create({ spaceId, call: publish }); // after APPROVAL_REQUIRED: asks the grant's delegator
 await client.approval.approve(approval.target(asked));
 ```

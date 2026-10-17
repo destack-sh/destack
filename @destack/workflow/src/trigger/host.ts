@@ -1,3 +1,4 @@
+import { principal } from "@destack/access";
 import {
     and,
     Change,
@@ -23,7 +24,7 @@ import { RequestId } from "@destack/runtime/request";
 import { refusal } from "@destack/runtime/server";
 import type { ServerContext, WebhookHandler } from "@destack/runtime/workload";
 import { canonicalize, schema } from "@destack/schema";
-import type { Call } from "@destack/sync";
+import type { Call, Subject } from "@destack/sync";
 import { LIVE_STATES } from "../run/run.ts";
 import type { Workflow } from "../workflow/workflow.ts";
 import type { ChangeOperation, ObjectChange } from "./change.ts";
@@ -352,9 +353,9 @@ class TriggerDeclaration<Input> implements Controller {
         return [];
     }
 
-    /** List the store's space as the one key. */
+    /** List the workflow's space as the one key. */
     async list(): Promise<readonly string[]> {
-        return [this.#store.principal.scope];
+        return [spaceOf(this.#store.serving(this.#workflow.run).subject)];
     }
 
     /** Create missing declared rows, update changed schedules and retire undeclared rows. */
@@ -409,7 +410,7 @@ class TriggerDeclaration<Input> implements Controller {
         }
         if (calls.length > 0) {
             await this.#store.mutate(
-                this.#store.self,
+                this.#store.serving(trigger),
                 { id: RequestId.create(this.#store.clock.now()), calls },
                 { scope },
             );
@@ -419,7 +420,7 @@ class TriggerDeclaration<Input> implements Controller {
     }
 }
 
-/** Follow a change trigger's object changes in the log, starting one run per admitted change. */
+/** Follow a change trigger's object changes in the log, starting one run per matching change. */
 class ChangeController<Input> implements Controller {
     /** The controller's name in reports. */
     readonly name: string;
@@ -456,12 +457,12 @@ class ChangeController<Input> implements Controller {
         return [this.#trigger.name];
     }
 
-    /** Start the runs of the admitted changes since the trigger's slot, advancing it. */
+    /** Start the runs of the matching changes since the trigger's slot, advancing it. */
     async reconcile(): Promise<number> {
         // look again later while the trigger is paused
         const change = this.#trigger.change;
         const database = this.#store.database;
-        const scope = this.#store.principal.scope;
+        const scope = spaceOf(this.#store.serving(this.#workflow.run).subject);
         if (!(await isActive(database, this.#workflow, scope, this.#trigger.name))) {
             return Math.floor(change.maxLag / SLOT_ADVANCES);
         }
@@ -480,14 +481,14 @@ class ChangeController<Input> implements Controller {
                   );
         let after = (await log.slot(slot)) ?? (await this.#begin(slot, epoch));
 
-        // start each admitted change's run page by page, advancing the slot after each page
+        // start each matching change's run page by page, advancing the slot after each page
         try {
             for (;;) {
                 const page = await log.read({ tables: [table], after });
                 for (const logged of page.changes) {
-                    const admitted = ChangeController.#see(change.operations, logged, epoch, match);
-                    if (admitted !== undefined) {
-                        await this.#start(admitted, logged.changedAt);
+                    const matching = ChangeController.#see(change.operations, logged, epoch, match);
+                    if (matching !== undefined) {
+                        await this.#start(matching, logged.changedAt);
                     }
                 }
                 after = Math.max(after, page.sequence);
@@ -638,14 +639,15 @@ async function start<Input>(
         options.time ??
         ("at" in event ? event.at : "receivedAt" in event ? event.receivedAt : store.clock.now());
     const id = await RequestId.derive(time, `${workflow.package.id}/${name} ${Trigger.key(event)}`);
+    const self = store.serving(workflow.run);
     const run = workflow.start(input, {
-        actor: store.principal,
+        actor: self.subject,
         ...(options.key === undefined ? {} : { key: options.key }),
     });
     await store.mutate(
-        store.self,
+        self,
         { id, calls: [...(options.before ?? []), run] },
-        { scope: options.scope ?? store.principal.scope },
+        { scope: options.scope ?? spaceOf(store.serving(workflow.run).subject) },
     );
 }
 
@@ -672,7 +674,14 @@ async function requireActive<Input>(
     workflow: StartedWorkflow<Input>,
     name: string,
 ): Promise<void> {
-    if (!(await isActive(store.database, workflow, store.principal.scope, name))) {
+    if (
+        !(await isActive(
+            store.database,
+            workflow,
+            spaceOf(store.serving(workflow.run).subject),
+            name,
+        ))
+    ) {
         throw new CallError("SERVICE_UNAVAILABLE", { message: `trigger ${name} is paused` });
     }
 }
@@ -759,4 +768,9 @@ function requireSchedule<Input>(
 /** Report whether a trigger fires on a schedule. */
 function isSchedule<Input>(trigger: Trigger<Input>): trigger is ScheduleTrigger<Input> {
     return trigger.kind === "schedule";
+}
+
+/** Read the space a serving principal acts in: an installation's scope, else the space itself. */
+function spaceOf(subject: Subject): string {
+    return principal.installation.is(subject) ? subject.scope : subject.id;
 }

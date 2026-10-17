@@ -1,11 +1,11 @@
-import { contained, relation, through } from "@destack/access";
+import { contained, none, relation, through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { and, eq, TABLE } from "@destack/db";
 import { field, Limits, method, ObjectType, ObjectWatch } from "@destack/object";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { RetryPolicy } from "@destack/runtime/timer";
-import { canonicalize, Duration, type JsonValue, schema } from "@destack/schema";
+import { canonicalize, Duration, type JsonValue, present, schema } from "@destack/schema";
 import {
     type Call,
     Failure,
@@ -22,7 +22,7 @@ import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import { Trigger, type TriggerDefinition, TRIGGER_KINDS } from "../trigger/trigger.ts";
 import { TriggerHost } from "../trigger/host.ts";
 
-/** A durable function of a package, run step by step as objects of the space it runs in. */
+/** A durable function of a package, run step by step as objects of the scope it runs in. */
 export interface Workflow<Input = unknown, Output = unknown> extends Declaration {
     /** The declaration kind. */
     readonly kind: "workflow";
@@ -53,7 +53,7 @@ export interface Workflow<Input = unknown, Output = unknown> extends Declaration
     /** The object types the workflow declares: its runs, their steps and its triggers. */
     readonly objects: Readonly<Record<string, ObjectType>>;
     /** Build the call starting a run, which a method makes in its own transaction. */
-    readonly start: (input: NoInfer<Input>, options?: RunStart) => Call;
+    readonly start: (input: NoInfer<Input>, options: RunStart) => Call;
     /** Implement the workflow with its function and the triggers starting it. */
     readonly implement: (
         run: (step: Step, input: Input, context: RunContext) => Promise<Output>,
@@ -77,7 +77,7 @@ export interface WorkflowImplementation {
     readonly webhooks: (store: ObjectStore) => WebhookHandler;
 }
 
-/** How a run starts: the key one live run takes, what another start of the key does, and when. */
+/** How a run starts: its actor, the key one live run takes, a repeated start's effect, and when. */
 export interface RunStart {
     /** The key one live run takes at a time, absent for none. */
     readonly key?: string;
@@ -85,14 +85,16 @@ export interface RunStart {
     readonly mode?: "dedupe" | "replace";
     /** When the run starts, at once by default, in UTC epoch milliseconds. */
     readonly at?: number;
-    /** The principal the run acts as, the starting principal by default. */
-    readonly actor?: Subject;
+    /** The principal the run acts as, which its creation records. */
+    readonly actor: Subject;
 }
 
 /** What a workflow declares. */
 export interface WorkflowDefinition<Input, Output> {
     /** The workflow's name, unique among the package's declarations. */
     readonly name: string;
+    /** Where its runs live: in a space by default, or in the universe. */
+    readonly scope?: "space" | "universe";
     /** The schema of a run's input. */
     readonly input: schema.Schema<Input>;
     /** The schema of a run's output, absent for a workflow returning nothing. */
@@ -126,13 +128,18 @@ export function defineWorkflow<Input, Output = void>(
         throw new TypeError(`singleton workflow ${name} declares no concurrency limit`);
     }
 
+    // place the types in a space, advanced by its installations, or in the universe, advanced through roles
+    const isUniversal = definition.scope === "universe";
+    const scope = isUniversal ? "universe" : space;
+    const advance = isUniversal ? none() : contained();
+
     // declare the runs, which their actor reads and controls and the store advances
     const run = ObjectType.declare(
         {
             name: `${name}-run`,
             plural: `${name}-runs`,
             identity: "run",
-            scope: space,
+            scope,
             fields: {
                 /** The run's input, as the workflow's input schema reads it. */
                 input: field.json(schema.json()),
@@ -218,7 +225,7 @@ export function defineWorkflow<Input, Output = void>(
                 // let the actor read and control a run, and the installations of its space advance it
                 read: relation("actor"),
                 control: relation("actor"),
-                advance: contained(),
+                advance,
             },
             constraints: {
                 key: {
@@ -281,7 +288,7 @@ export function defineWorkflow<Input, Output = void>(
             name: `${name}-step`,
             plural: `${name}-steps`,
             identity: "step",
-            scope: space,
+            scope,
             nested: { in: run, receive: "advance", delete: "cascade" },
             fields: {
                 /** The step's name, unique within its run. */
@@ -297,7 +304,7 @@ export function defineWorkflow<Input, Output = void>(
                 /** When the step completed, absent while it waits. */
                 completedAt: field.time().optional(),
             },
-            permissions: { read: through("parent", "read"), advance: contained() },
+            permissions: { read: through("parent", "read"), advance },
             constraints: { name: { kind: "unique", on: ["parentId", "name"] } },
             methods: {
                 create: method.create("advance", { isInternal: true }),
@@ -317,7 +324,7 @@ export function defineWorkflow<Input, Output = void>(
             name: `${name}-trigger`,
             plural: `${name}-triggers`,
             identity: "trigger",
-            scope: space,
+            scope,
             fields: {
                 /** The trigger's name, unique in its space. */
                 name: field.string(schema.string().min(1)).immutable(),
@@ -348,7 +355,7 @@ export function defineWorkflow<Input, Output = void>(
                 // let the space's readers read and its managers create and pause triggers, and the store fire them
                 read: through("scope", "read"),
                 manage: through("scope", "manage"),
-                advance: contained(),
+                advance,
             },
             constraints: { name: { kind: "unique", on: ["scope", "name"] } },
             methods: {
@@ -394,15 +401,13 @@ export function defineWorkflow<Input, Output = void>(
         step,
         trigger,
         objects: { [`${name}Run`]: run, [`${name}Step`]: step, [`${name}Trigger`]: trigger },
-        start: (input: Input, options: RunStart = {}) =>
+        start: (input: Input, options: RunStart) =>
             run.call("create", {
                 input: recorded(definition.input.parse(input)),
                 ...(options.key === undefined ? {} : { key: options.key }),
                 ...(options.mode === undefined ? {} : { mode: options.mode }),
                 ...(options.at === undefined ? {} : { wakeAt: options.at }),
-                ...(options.actor === undefined
-                    ? {}
-                    : ObjectReference.columns("actor", options.actor)),
+                ...ObjectReference.columns("actor", options.actor),
             }),
         implement: (
             code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
@@ -413,7 +418,8 @@ export function defineWorkflow<Input, Output = void>(
                 run.implement({
                     methods: {
                         create: (call, next) => Run.create(workflow, call, next),
-                        reset: (call) => Run.reset(workflow, call),
+                        reset: (call) =>
+                            new Run(workflow, present(call.target, "the run")).reset(call),
                     },
                     controller: {
                         pending: { state: { in: ["pending", "waiting"] } },
@@ -439,7 +445,7 @@ export function defineWorkflow<Input, Output = void>(
                             // advance each pending run, looking again at the earliest wake time
                             const wakes = await Promise.all(
                                 reconciliation.rows.map((row) =>
-                                    Run.advance(workflow, code, row, reconciliation),
+                                    new Run(workflow, row).advance(code, reconciliation),
                                 ),
                             );
                             const due = wakes.filter((wait) => wait !== undefined);

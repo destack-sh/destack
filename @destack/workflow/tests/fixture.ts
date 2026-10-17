@@ -44,23 +44,41 @@ const INSTALLATION = schema
     .identifier("installation")
     .parse("installation-01996ab0-0000-7000-8000-000000000201");
 
-/** The time the scenarios start at: the current minute, as the replicated access is stamped in real time. */
+/** The time the scenarios start at: the current minute, as replicated access uses real time. */
 export const START = Math.floor(Date.now() / 60_000) * 60_000;
 
-/** Notes their owners write. */
-export const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    fields: { owner: field.subject().caller(), title: field.string() },
-    permissions: { read: relation("owner"), write: relation("owner"), approve: relation("owner") },
-    attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
+/** Notes their owners write, and publish under a new title, which no role lets anyone else do. */
+export const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: { owner: field.subject().caller(), title: field.string() },
+        permissions: {
+            read: relation("owner"),
+            write: relation("owner"),
+            approve: relation("owner"),
+            publish: relation("owner"),
+        },
+        attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
+    },
+    (method) => ({
+        publish: method.mutation({
+            permission: "publish",
+            input: schema.object({ title: schema.string() }),
+        }),
+    }),
+);
+
+/** Notes as the fixture serves them, publishing under the given title. */
+const servedNote = note.implement({
+    methods: { publish: (call) => call.update({ title: call.input.title }) },
 });
 
 /** The workflow package as the fixtures serve it: approvals, change requests and change runs. */
 const PACKAGE = workflowServer.definition(undefined);
 
-/** A space serving notes, the workflow package and one workflow, its controllers on a virtual clock. */
+/** A space serving notes, the workflow package and a workflow, on a virtual clock. */
 export interface WorkflowFixture {
     /** The store serving the notes and the workflow. */
     readonly store: ObjectStore;
@@ -84,7 +102,7 @@ export interface WorkflowFixture {
     ) => Promise<readonly Record<string, unknown>[]>;
 }
 
-/** Serve notes and a workflow in a space alice writes notes in, advancing runs on a virtual clock. */
+/** Serve notes and a workflow in alice's space, advancing runs on a virtual clock. */
 export async function openWorkflow<Input, Output>(
     workflow: Workflow<Input, Output>,
     code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
@@ -151,7 +169,7 @@ export async function openServed<Input, Output>(
         servers: [
             defineServer(handle, {
                 objects: [
-                    note,
+                    servedNote,
                     ...objects,
                     ...(PACKAGE.objects ?? []),
                     ...servings.flatMap((serving) => serving.objects),
@@ -165,6 +183,27 @@ export async function openServed<Input, Output>(
         events: await testEvents(storage.database),
         origin: { package: note.package },
     });
+
+    // grant the installation, as alice and bob each consent on first use, every permission of the served types
+    const servedTypes = [
+        note,
+        ...objects,
+        ...Object.values(workflowPackage.objects),
+        ...[workflow, ...invoked.map((each) => each.workflow)].flatMap((each) =>
+            Object.values(each.objects),
+        ),
+    ];
+    const consented = servedTypes.flatMap((type) =>
+        Object.keys(type.policy.definition.permissions).map((name) => ({
+            ...type.policy.permission(name),
+            scope: spaceId,
+        })),
+    );
+    const installation = principal.installation.reference(spaceId, INSTALLATION);
+    const access = new AccessFixture(storage.database);
+    for (const user of [alice, bob]) {
+        await access.replicateGrant(user, installation, consented, START);
+    }
 
     // run the workflows' controllers until the test ends, failing the test on a reconciliation error
     const names = [workflow.name, ...invoked.map((each) => each.workflow.name), "change"];
@@ -192,7 +231,7 @@ export async function openServed<Input, Output>(
     // read the runs, and wait for a condition over them
     const runs = async () =>
         (await store.database.select().from(workflow.run.table)).toSorted((left, right) =>
-            String(left["id"]).localeCompare(String(right["id"])),
+            schema.string().parse(left["id"]).localeCompare(schema.string().parse(right["id"])),
         );
     const until = async (condition: (rows: readonly Record<string, unknown>[]) => boolean) => {
         for (let look = 0; look < 1000; look++) {
@@ -218,7 +257,7 @@ export async function openServed<Input, Output>(
         }
         const states = (await runs()).map(
             (row) =>
-                `${String(row["state"])}@${String(row["wakeAt"])} ${JSON.stringify(row["failure"])}`,
+                `${JSON.stringify(row["state"])}@${JSON.stringify(row["wakeAt"])} ${JSON.stringify(row["failure"])}`,
         );
         throw new Error(`the runs did not reach the condition: ${states.join(", ")}`);
     };
@@ -231,7 +270,7 @@ export async function openServed<Input, Output>(
         start: (call) =>
             store
                 .mutate(
-                    store.self,
+                    store.serving(workflow.run),
                     { id: RequestId.create(clock.now()), calls: [call(spaceId)] },
                     { scope: spaceId },
                 )

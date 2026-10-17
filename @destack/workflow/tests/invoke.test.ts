@@ -53,7 +53,9 @@ test("add the outputs of two child runs, each started once under a key its step 
     // expect the sum, and the two child runs completed under the parent's keys
     const children = (await fixture.store.database.select().from(double.run.table))
         .map((row) => [row["key"], row["state"], row["output"]])
-        .toSorted((left, right) => String(left[0]).localeCompare(String(right[0])));
+        .toSorted((left, right) =>
+            schema.string().parse(left[0]).localeCompare(schema.string().parse(right[0])),
+        );
     expect([run?.["output"], children]).toEqual([
         { value: 10 },
         [
