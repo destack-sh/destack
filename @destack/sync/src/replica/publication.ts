@@ -1,6 +1,6 @@
 import { LogPosition } from "@destack/db";
 import { defineSchema, Duration, schema } from "@destack/schema";
-import type { Mutation } from "../call/call.ts";
+import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
@@ -107,13 +107,15 @@ export interface Publisher {
     readonly stream: (subscription: Subscription, signal: AbortSignal) => AsyncIterable<Page>;
 }
 
-/** A publisher that also receives the changes its follower's server sends to the rows' home. */
+/** A publisher that also runs the calls its follower's server sends to the rows' home. */
 export interface Uplink extends Publisher {
-    /** Run a mutation of the rows at their home, once however often it is delivered. */
-    readonly receive: (mutation: Mutation, signer?: Subject) => Promise<void>;
+    /** Run a mutation of the rows at their home once however often sent, answering its results. */
+    readonly receive: (mutation: Mutation, signer?: Subject) => Promise<readonly unknown[]>;
+    /** Answer a query of the rows at their home, in the scope it reads. */
+    readonly call: (call: Call, scope: string, signer?: Subject) => Promise<unknown>;
 }
 
-/** A publisher that also receives the changes its follower's server sends to the rows' home. */
+/** A publisher that also runs the calls its follower's server sends to the rows' home. */
 export const Uplink = {
     /** Replicate and send through a client's replica procedures, as follower or change signer. */
     of(
@@ -122,16 +124,22 @@ export const Uplink = {
                 subscription: Subscription,
                 options: { readonly signal: AbortSignal },
             ) => Promise<AsyncIterable<Page>>;
-            readonly receive: (input: { readonly mutation: Mutation }) => Promise<unknown>;
+            readonly receive: (input: {
+                readonly mutation: Mutation;
+            }) => Promise<{ readonly results: readonly unknown[] }>;
+            readonly call: (input: {
+                readonly scope: string;
+                readonly call: Call;
+            }) => Promise<unknown>;
         },
     ): Uplink {
         return {
             async *stream(subscription, signal) {
                 yield* await replica().stream(subscription, { signal });
             },
-            receive: async (mutation, signer) => {
-                await replica(signer).receive({ mutation });
-            },
+            receive: async (mutation, signer) =>
+                (await replica(signer).receive({ mutation })).results,
+            call: (call, scope, signer) => replica(signer).call({ scope, call }),
         };
     },
 };

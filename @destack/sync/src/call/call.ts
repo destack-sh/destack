@@ -1,6 +1,9 @@
 import { defineSchema, schema, Version } from "@destack/schema";
 import { ObjectTypeReference } from "../scope/reference.ts";
 
+/** A UUID of version 7 or 8, whose leading 48 bits a request identifier fills with its time. */
+const TIME_ORDERED_UUID = /^.{14}[78]/u;
+
 /** A method call: the type, the method, its input and the release it was made against. */
 export const Call = Object.assign(
     defineSchema(
@@ -31,8 +34,8 @@ export type Call<Result = unknown> = schema.Infer<typeof Call> & {
 /** Calls a client makes atomically. */
 export const Mutation = defineSchema(
     schema.object({
-        /** The request identifier. */
-        id: schema.uuidv7(),
+        /** The request identifier: a UUIDv7 a caller created, or a UUIDv8 it derived. */
+        id: schema.uuid().regex(TIME_ORDERED_UUID),
         /** The calls in order. */
         calls: schema.array(Call).min(1),
     }),

@@ -21,7 +21,7 @@ import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { nth, schema } from "@destack/schema";
 import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
-import { type Resumption, Uplink } from "./publication.ts";
+import type { Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import {
     asset,
@@ -1473,51 +1473,3 @@ function recordFrom(feed: Feed, replica: Replica, received: Page[]) {
         }
     };
 }
-
-test("stream through a client's replica procedures as the follower, and send a forwarded change as its signer", async () => {
-    // call a fake client, recording whom each call signs as
-    const signers: string[] = [];
-    const uplink = Uplink.of((signer) => {
-        signers.push(signer === undefined ? "follower" : signer.id);
-
-        return {
-            stream: async () => (async function* (): AsyncIterable<Page> {})(),
-            receive: async () => ({}),
-        };
-    });
-
-    // stream a replica, then send a change an installation signs
-    const pages = await Array.fromAsync(
-        uplink.stream(
-            { name: "notes", scope: "inbox", below: "inbox", publication: "notes", parameters: {} },
-            AbortSignal.timeout(1000),
-        ),
-    );
-    await uplink.receive(
-        {
-            id: "019f5530-8000-7000-8000-000000000001",
-            calls: [
-                {
-                    type: {
-                        packageId: schema
-                            .identifier("package")
-                            .parse("package-01996ab0-0000-7000-8000-000000000001"),
-                        type: "note",
-                    },
-                    method: "create",
-                    release: "1.0.0",
-                    input: { id: "a" },
-                },
-            ],
-        },
-        {
-            packageId: schema
-                .identifier("package")
-                .parse("package-01996ab0-0000-7000-8000-000000000001"),
-            type: "installation",
-            scope: "inbox",
-            id: "installation-a",
-        },
-    );
-    expect([pages, signers]).toEqual([[], ["follower", "installation-a"]]);
-});

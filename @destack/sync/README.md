@@ -89,6 +89,10 @@ const board = new Replica({ name: "board", scope: spaceId, tables: [project, tas
 await Replica.isSynced(local, "board", spaceId); // true once the replica took its first snapshot
 await local.select().from(task).where(Replica.includes("board", task));
 await board.drop(local);
+// a follower's server sends changes and unhandled queries of the rows to their home
+const uplink = Uplink.of((signer) => client.store);
+await uplink.receive(mutation, signer); // the mutation's results
+await uplink.call(call, scope, signer); // the query's result
 ```
 
 ## Predictions
