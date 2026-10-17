@@ -29,7 +29,7 @@ import {
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import type { ModuleDescription } from "@destack/package/code";
-import type { Capabilities } from "@destack/package";
+import type { Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
@@ -143,9 +143,9 @@ export class OutputCompilation implements Compilation {
         return this.project.runtime;
     }
 
-    /** What the package's workloads and views may access. */
-    get capabilities(): Capabilities {
-        return this.project.declaration.definition.capabilities ?? {};
+    /** What the package's workloads and views always use beyond the bare sandbox. */
+    get sandbox(): Sandbox {
+        return this.project.declaration.definition.sandbox ?? {};
     }
 
     /** Locate the module and export of one of the package's declarations. */

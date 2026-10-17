@@ -10,9 +10,8 @@ export const personal = defineStack({
         credentials: { declaration: credentials, retention: { within: { days: 30 } }, tags: {} },
     },
     alertRules: {
-        // roll an installation back to its previous revision when a new fatal issue opens
         rollback: {
-            title: "Roll back new fatal issues",
+            title: "Roll back installation on new fatal issues",
             condition: { kind: "issue", on: "open", filter: "level = fatal" },
             actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
         },
