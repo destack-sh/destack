@@ -1,18 +1,16 @@
 import { defineTable, json, text } from "@destack/db";
 import { Ciphertext, PublicKey } from "@destack/identity";
-import { defineSchema, Instant, schema } from "@destack/schema";
+import { Instant, schema } from "@destack/schema";
 
 /** A signing key an identity publishes. */
-export const SigningKey = defineSchema(
-    schema.object({
-        /** The public half, as the identity publishes it. */
-        publicKey: PublicKey,
-        /** The private half as encrypted PKCS #8 bytes. */
-        privateKey: Ciphertext,
-        /** When the identity first published it. */
-        publishedAt: Instant,
-    }),
-);
+export const SigningKey = schema.object({
+    /** The public half, as the identity publishes it. */
+    publicKey: PublicKey,
+    /** The private half as encrypted PKCS #8 bytes. */
+    privateKey: Ciphertext,
+    /** When the identity first published it. */
+    publishedAt: Instant,
+});
 /** A signing key an identity publishes. */
 export type SigningKey = schema.Infer<typeof SigningKey>;
 

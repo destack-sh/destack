@@ -5,7 +5,7 @@ import { account } from "./account.ts";
 import { user } from "./user.ts";
 import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
 import { proof } from "./proof.ts";
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
 import { CallError, isCallError } from "@destack/runtime/error";
@@ -14,16 +14,14 @@ import { CallError, isCallError } from "@destack/runtime/error";
 const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
 
 /** A client's public key with a proof of its private half, which the client's machine registers. */
-export const KeyRegistration = defineSchema(
-    schema.object({
-        /** The client. */
-        client: schema.identifier("client"),
-        /** The key's public half. */
-        publicKey: PublicKey,
-        /** The client's proof that it has the private half. */
-        proof: CompactProof,
-    }),
-);
+export const KeyRegistration = schema.object({
+    /** The client. */
+    client: schema.identifier("client"),
+    /** The key's public half. */
+    publicKey: PublicKey,
+    /** The client's proof that it has the private half. */
+    proof: CompactProof,
+});
 /** A client's public key with a proof of its private half, which the client's machine registers. */
 export type KeyRegistration = schema.Infer<typeof KeyRegistration>;
 

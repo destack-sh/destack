@@ -2,7 +2,7 @@ import { none, permission, principal, relation, through, union } from "@destack/
 import { type Select, type Snapshot } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import type { AssertionKey } from "@destack/runtime/authentication";
 import { CompactProof, PublicKey } from "@destack/identity";
@@ -45,24 +45,22 @@ const KeyProof = schema.object({
 });
 
 /** A provider's code, a lowercase DNS label such as cloudflare or aws. */
-export const ProviderCode = defineSchema(schema.string().regex(/^[a-z][a-z0-9-]{1,30}$/u));
+export const ProviderCode = schema.string().regex(/^[a-z][a-z0-9-]{1,30}$/u);
 /** A provider's code. */
 export type ProviderCode = schema.Infer<typeof ProviderCode>;
 
 /** The size of an account's dedicated cloud machine. */
-export const MachineSize = defineSchema(schema.enum(MACHINE_SIZES));
+export const MachineSize = schema.enum(MACHINE_SIZES);
 /** The size of an account's dedicated cloud machine. */
 export type MachineSize = schema.Infer<typeof MachineSize>;
 
 /** The relay serving a machine's tunnel. */
-export const EndpointRelay = defineSchema(
-    schema.object({
-        /** The relay's origin, where other relays forward the machine's requests. */
-        url: schema.url(),
-        /** When the tunnel's token lapses, in UTC epoch milliseconds. */
-        lapsesAt: schema.number().int(),
-    }),
-);
+export const EndpointRelay = schema.object({
+    /** The relay's origin, where other relays forward the machine's requests. */
+    url: schema.url(),
+    /** When the tunnel's token lapses, in UTC epoch milliseconds. */
+    lapsesAt: schema.number().int(),
+});
 /** The relay serving a machine's tunnel. */
 export type EndpointRelay = schema.Infer<typeof EndpointRelay>;
 
@@ -93,9 +91,7 @@ const CloudMachine = schema.object({
 });
 
 /** A machine's kind with the fields only that kind has. */
-export const MachineVariant = defineSchema(
-    schema.discriminatedUnion("kind", [PersonalMachine, CloudMachine]),
-);
+export const MachineVariant = schema.discriminatedUnion("kind", [PersonalMachine, CloudMachine]);
 /** A machine's kind with the fields only that kind has. */
 export type MachineVariant = schema.Infer<typeof MachineVariant>;
 

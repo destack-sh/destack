@@ -14,7 +14,6 @@ import accountPackage from "../src/package.ts";
 import { AccountFixture, type Actor, ISSUER, outcome } from "../src/test/index.ts";
 import { claimNames, firstPage, place } from "./fixture.ts";
 import { Claim, Claimant } from "@destack/object";
-import { Shape } from "@destack/object";
 
 test("place spaces where they are created, store names in them, let exactly a space replicate its own access, and refuse machines exchanging tokens or replicating access", async () => {
     // store two machines and a cloud machine of the owner's account, and a machine and a cloud machine of another account
@@ -481,11 +480,7 @@ async function assignments(machine: Actor): Promise<unknown[]> {
 async function placementChanges(machine: Actor) {
     const controller = new AbortController();
     const pages = await machine.client.store.stream(
-        Shape.subscription(
-            placementShape,
-            { scope: Scope.universe.id, machine: machine.id },
-            machine.id,
-        ),
+        placementShape.subscription({ scope: Scope.universe.id, machine: machine.id }, machine.id),
         { signal: controller.signal },
     );
     const page = await firstPage(pages);

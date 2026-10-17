@@ -1,7 +1,7 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
 import type { Snapshot } from "@destack/db";
 import { defineObject, defineShape, field } from "@destack/object";
-import { defineSchema, Digest, Identifier, present, schema } from "@destack/schema";
+import { Digest, Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
@@ -9,18 +9,16 @@ import { endpoint } from "./endpoint.ts";
 import { machine } from "./machine.ts";
 
 /** Where a space runs: the machine serving its databases at an epoch. */
-const PlacementSchema = defineSchema(
-    schema.object({
-        /** The placed space. */
-        id: schema.identifier("space"),
-        /** The account the space belongs to. */
-        scope: schema.identifier("account"),
-        /** The machine serving the space's databases. */
-        machine: schema.identifier("machine"),
-        /** The epoch the machine serves the space at. */
-        epoch: schema.number().int().min(1),
-    }),
-);
+const PlacementSchema = schema.object({
+    /** The placed space. */
+    id: schema.identifier("space"),
+    /** The account the space belongs to. */
+    scope: schema.identifier("account"),
+    /** The machine serving the space's databases. */
+    machine: schema.identifier("machine"),
+    /** The epoch the machine serves the space at. */
+    epoch: schema.number().int().min(1),
+});
 /** Where a space runs, and the machine a new space goes on. */
 export const Placement = Object.assign(PlacementSchema, {
     /** Pick the machine for a space by rendezvous hashing, or none from no machines. */

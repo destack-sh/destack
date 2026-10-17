@@ -12,7 +12,7 @@ import {
 import { eq, inArray, Snapshot, Transaction } from "@destack/db";
 import { RequestId } from "@destack/runtime/request";
 import type { Authorization, ObjectStore } from "@destack/object/server";
-import { canonicalize, defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
 import { CallError } from "@destack/runtime/error";
 import { Scope, Subject } from "@destack/sync";
@@ -104,41 +104,39 @@ export type OperatorStore = Pick<
 >;
 
 /** The organisation operating the universe as it declares it, with its cloud machines. */
-export const OperatorDeclaration = defineSchema(
-    schema.object({
-        /** The organisation's display name, such as Destack. */
-        name: schema.string().min(1),
-        /** The jurisdiction the organisation stores its data in. */
-        residencyId: ResidencyCode,
-        /** The email of the operator, invited as the organisation's owner until they accept. */
-        operator: schema.email(),
-        /** The reserved handles, which the organisation claims without an account. */
-        reserved: schema.array(AccountHandle),
-        /** The handles the organisation publishes under, each an account in its residency. */
-        publishers: schema.array(AccountHandle),
-        /** The handle of the organisation's own account in the operator's residency. */
-        handle: AccountHandle,
-        /** The cloud machines serving the residencies. */
-        machines: schema.array(
-            schema.object({
-                /** The machine's identifier. */
-                id: schema.identifier("machine"),
-                /** The machine's name, such as eu-central. */
-                name: schema.string().min(1),
-                /** The jurisdiction it serves. */
-                residencyId: ResidencyCode,
-                /** The provider running it. */
-                providerCode: ProviderCode,
-                /** The provider location, such as Cloudflare's eu jurisdiction. */
-                location: schema.string().min(1),
-                /** The machine's public key. */
-                key: PublicKey,
-                /** The origin the machine answers at, published as its endpoint. */
-                origin: schema.url(),
-            }),
-        ),
-    }),
-);
+export const OperatorDeclaration = schema.object({
+    /** The organisation's display name, such as Destack. */
+    name: schema.string().min(1),
+    /** The jurisdiction the organisation stores its data in. */
+    residencyId: ResidencyCode,
+    /** The email of the operator, invited as the organisation's owner until they accept. */
+    operator: schema.email(),
+    /** The reserved handles, which the organisation claims without an account. */
+    reserved: schema.array(AccountHandle),
+    /** The handles the organisation publishes under, each an account in its residency. */
+    publishers: schema.array(AccountHandle),
+    /** The handle of the organisation's own account in the operator's residency. */
+    handle: AccountHandle,
+    /** The cloud machines serving the residencies. */
+    machines: schema.array(
+        schema.object({
+            /** The machine's identifier. */
+            id: schema.identifier("machine"),
+            /** The machine's name, such as eu-central. */
+            name: schema.string().min(1),
+            /** The jurisdiction it serves. */
+            residencyId: ResidencyCode,
+            /** The provider running it. */
+            providerCode: ProviderCode,
+            /** The provider location, such as Cloudflare's eu jurisdiction. */
+            location: schema.string().min(1),
+            /** The machine's public key. */
+            key: PublicKey,
+            /** The origin the machine answers at, published as its endpoint. */
+            origin: schema.url(),
+        }),
+    ),
+});
 /** The organisation operating the universe as it declares it. */
 export type OperatorDeclaration = schema.Infer<typeof OperatorDeclaration>;
 

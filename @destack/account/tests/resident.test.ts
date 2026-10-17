@@ -5,7 +5,6 @@ import { expect, test } from "@destack/test";
 import { type Page, Scope } from "@destack/sync";
 import { account, residentShape } from "../src/object/index.ts";
 import { AccountFixture } from "../src/test/index.ts";
-import { Shape } from "@destack/object";
 
 /** How long a live replica may take to deliver a change: a second on a loaded machine. */
 const CHANGE_MILLISECONDS = 1000;
@@ -26,11 +25,7 @@ test("replicate every account of a residency to its cloud machine as it is creat
     const controller = new AbortController();
     const pages = (
         await machine.client.store.stream(
-            Shape.subscription(
-                residentShape,
-                { scope: Scope.universe.id, residency: "eu" },
-                machine.id,
-            ),
+            residentShape.subscription({ scope: Scope.universe.id, residency: "eu" }, machine.id),
             { signal: controller.signal },
         )
     )[Symbol.asyncIterator]();

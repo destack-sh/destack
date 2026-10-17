@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import { account } from "./account.ts";
 import { organisation } from "./organisation.ts";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The DNS label of the TXT record proving a claim, below the claimed hostname. */
 const CHALLENGE_LABEL = "_destack";
@@ -42,14 +42,12 @@ export const HostnamePattern = schema
 
 /** The TXT record proving the claim to a domain. */
 export const DomainChallenge = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The record's name, below the claimed domain. */
-            name: schema.string().min(1),
-            /** The record's value, with the claim. */
-            value: schema.string().min(1),
-        }),
-    ),
+    schema.object({
+        /** The record's name, below the claimed domain. */
+        name: schema.string().min(1),
+        /** The record's value, with the claim. */
+        value: schema.string().min(1),
+    }),
     {
         /** Read the record a claim's administrators publish. */
         of(domain: { readonly scope: string; readonly name: string }): DomainChallenge {

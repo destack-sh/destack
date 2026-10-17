@@ -5,7 +5,7 @@ import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
-import { Digest, Instant, defineSchema, schema } from "@destack/schema";
+import { Digest, Instant, schema } from "@destack/schema";
 import { CompactProof } from "@destack/identity";
 import { key } from "./key.ts";
 import { machine } from "./machine.ts";
@@ -28,16 +28,14 @@ export const CLIENT_KINDS = ["native", "browser", "mobile", "token"] as const;
 const MAX_PERMISSIONS = 32;
 
 /** A browser profile a machine registers for the person signed in on it. */
-export const ClientRegistration = defineSchema(
-    schema.object({
-        /** The client's identifier, which the browser generated with its key on its first visit. */
-        id: schema.identifier("client"),
-        /** The person's name for the client. */
-        name: DisplayName,
-        /** The operating system. */
-        platform: Platform.exactOptional(),
-    }),
-);
+export const ClientRegistration = schema.object({
+    /** The client's identifier, which the browser generated with its key on its first visit. */
+    id: schema.identifier("client"),
+    /** The person's name for the client. */
+    name: DisplayName,
+    /** The operating system. */
+    platform: Platform.exactOptional(),
+});
 /** A browser profile a machine registers for the person signed in on it. */
 export type ClientRegistration = schema.Infer<typeof ClientRegistration>;
 

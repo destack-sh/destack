@@ -9,7 +9,7 @@ import {
     union,
 } from "@destack/access";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { StackSource } from "./stack-source.ts";
 import { AccountHandle } from "../address/handle.ts";
@@ -27,7 +27,7 @@ export const MEMBER_ROLES = ["owner", "admin", "billing", "member", "guest"] as 
 export const DEFAULT_MEMBER_ROLE = "member";
 
 /** A role a member has in its organisation. */
-export const MemberRole = defineSchema(schema.enum(MEMBER_ROLES));
+export const MemberRole = schema.enum(MEMBER_ROLES);
 /** A role a member has in its organisation. */
 export type MemberRole = schema.Infer<typeof MemberRole>;
 

@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The operating systems, as User-Agent Client Hints name them in `Sec-CH-UA-Platform`. */
 export const PLATFORMS = [
@@ -21,7 +21,7 @@ const NODE_PLATFORMS: Readonly<Record<string, (typeof PLATFORMS)[number]>> = {
 };
 
 /** An operating system, as User-Agent Client Hints name it. */
-export const Platform = Object.assign(defineSchema(schema.enum(PLATFORMS)), {
+export const Platform = Object.assign(schema.enum(PLATFORMS), {
     /** Read the operating system of a Node platform name, absent for one outside the list. */
     ofNode(name: string): (typeof PLATFORMS)[number] | undefined {
         return Object.hasOwn(NODE_PLATFORMS, name) ? NODE_PLATFORMS[name] : undefined;
