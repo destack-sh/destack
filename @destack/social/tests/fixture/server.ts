@@ -202,6 +202,7 @@ async function serveInstallation(
             build: await MemoryBuild.write(new Map(), { package: article.package }),
             publisher: silent,
             settings: {},
+            capabilities: [],
             publisherAt: () => silent,
             at: unfetched,
             resources: new ResourceContext(),
