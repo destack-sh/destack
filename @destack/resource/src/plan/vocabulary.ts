@@ -1,25 +1,23 @@
-import { defineSchema, Digest, schema, Version } from "@destack/schema";
+import { Digest, schema, Version } from "@destack/schema";
 import type { graph } from "@destack/package";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
 import type { Plan, Step } from "./plan.ts";
 
 /** The releases that added and removed a term, and the digest of its last definition. */
-export const VocabularyEntry = defineSchema(
-    schema.object({
-        /** The release that added the term. */
-        introduced: Version,
-        /** The release that removed the term, absent while declared. */
-        removed: Version.exactOptional(),
-        /** The digest of the term's last declared definition. */
-        digest: Digest,
-    }),
-);
+export const VocabularyEntry = schema.object({
+    /** The release that added the term. */
+    introduced: Version,
+    /** The release that removed the term, absent while declared. */
+    removed: Version.exactOptional(),
+    /** The digest of the term's last declared definition. */
+    digest: Digest,
+});
 /** The releases that added and removed a term, and the digest of its last definition. */
 export type VocabularyEntry = schema.Infer<typeof VocabularyEntry>;
 
 /** The terms of a package's releases, such as `object/note/relation/editor`. */
-export const Vocabulary = Object.assign(defineSchema(schema.record(Address, VocabularyEntry)), {
+export const Vocabulary = Object.assign(schema.record(Address, VocabularyEntry), {
     plan,
     advance,
 });

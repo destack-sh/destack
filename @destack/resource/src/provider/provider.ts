@@ -1,4 +1,4 @@
-import { defineSchema, type Digest, schema } from "@destack/schema";
+import { type Digest, schema } from "@destack/schema";
 import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
 import type { KindState, ResourceKind } from "../declare/kind.ts";
 import type { Plan } from "../plan/plan.ts";
@@ -29,24 +29,22 @@ export const ResourceRecord = {
 };
 
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
-export const ResourceBinding = defineSchema(
-    schema.object({
-        /** The bound resource's identifier, which its kind's connector reads. */
-        resource: schema.string().min(1),
-        /** The resource kind, such as database. */
-        kind: schema.string().min(1),
-        /** The provider that keeps the resource, such as sqlite. */
-        provider: schema.string().min(1),
-        /** The provider's reference, such as a file URL or an egress URL. */
-        reference: schema.string().min(1),
-        /** The credential the host lends the workload for the resource. */
-        credential: schema.string().min(1).exactOptional(),
-        /** The space keeping a bound object its service serves, such as a secret. */
-        scope: schema.identifier("space").exactOptional(),
-        /** The version of the bound object the deployment captured, such as a secret's. */
-        version: schema.number().int().positive().exactOptional(),
-    }),
-);
+export const ResourceBinding = schema.object({
+    /** The bound resource's identifier, which its kind's connector reads. */
+    resource: schema.string().min(1),
+    /** The resource kind, such as database. */
+    kind: schema.string().min(1),
+    /** The provider that keeps the resource, such as sqlite. */
+    provider: schema.string().min(1),
+    /** The provider's reference, such as a file URL or an egress URL. */
+    reference: schema.string().min(1),
+    /** The credential the host lends the workload for the resource. */
+    credential: schema.string().min(1).exactOptional(),
+    /** The space keeping a bound object its service serves, such as a secret. */
+    scope: schema.identifier("space").exactOptional(),
+    /** The version of the bound object the deployment captured, such as a secret's. */
+    version: schema.number().int().positive().exactOptional(),
+});
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
 export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
 

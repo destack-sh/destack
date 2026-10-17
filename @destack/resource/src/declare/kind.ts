@@ -1,4 +1,4 @@
-import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import { schema, type JsonValue } from "@destack/schema";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { ResourceRecord } from "../provider/provider.ts";
@@ -37,9 +37,7 @@ export class ResourceKind<
         this.state = state;
 
         // describe declarations of the kind
-        this.description = defineSchema(
-            ResourceDescription.extend({ kind: schema.literal(name), spec }),
-        );
+        this.description = ResourceDescription.extend({ kind: schema.literal(name), spec });
     }
 
     /** Read a stored resource of this kind, refusing an invalid specification. */

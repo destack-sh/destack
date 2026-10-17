@@ -1,4 +1,4 @@
-import { defineSchema, Duration, schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import { DeclarationName, Package } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import type { Connector } from "../provider/provider.ts";
@@ -8,61 +8,53 @@ import { ResourceHandle } from "./handle.ts";
 export const RESOURCE_DECLARATION = "resource";
 
 /** A resource's identifier, whichever kind it is: the kind's name as prefix and a UUIDv7. */
-export const ResourceId = defineSchema(schema.anyIdentifier());
+export const ResourceId = schema.anyIdentifier();
 /** A resource's identifier, whichever kind it is. */
 export type ResourceId = schema.Infer<typeof ResourceId>;
 
 /** A named infrastructure dependency declared by a package. */
-export const ResourceDescription = defineSchema(
-    schema.object({
-        /** The package-local resource name. */
-        name: DeclarationName,
-        /** The resource kind defined by its domain library. */
-        kind: DeclarationName,
-        /** The specification validated by the domain library. */
-        spec: schema.jsonObject(),
-    }),
-);
+export const ResourceDescription = schema.object({
+    /** The package-local resource name. */
+    name: DeclarationName,
+    /** The resource kind defined by its domain library. */
+    kind: DeclarationName,
+    /** The specification validated by the domain library. */
+    spec: schema.jsonObject(),
+});
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
 
 /** What deleting a resource does to its content. */
-export const ResourceRetention = defineSchema(
-    schema.union([
-        schema.literal("delete"),
-        schema.literal("forever"),
-        schema.object({
-            /** How long the deleted resource stays restorable before its content is destroyed. */
-            within: Duration.schema,
-        }),
-    ]),
-);
+export const ResourceRetention = schema.union([
+    schema.literal("delete"),
+    schema.literal("forever"),
+    schema.object({
+        /** How long the deleted resource stays restorable before its content is destroyed. */
+        within: Duration.schema,
+    }),
+]);
 /** What deleting a resource does to its content. */
 export type ResourceRetention = schema.Infer<typeof ResourceRetention>;
 
 /** Where a resource is asked to live: its provider, and the provider's location and machine. */
-export const ResourcePlacement = defineSchema(
-    schema.object({
-        /** The provider adapter. */
-        provider: schema.string().min(1),
-        /** The location code accepted by the provider adapter. */
-        location: schema.string().min(1).exactOptional(),
-        /** The machine administering the resource. */
-        machine: schema.identifier("machine").exactOptional(),
-    }),
-);
+export const ResourcePlacement = schema.object({
+    /** The provider adapter. */
+    provider: schema.string().min(1),
+    /** The location code accepted by the provider adapter. */
+    location: schema.string().min(1).exactOptional(),
+    /** The machine administering the resource. */
+    machine: schema.identifier("machine").exactOptional(),
+});
 /** Where a resource is asked to live. */
 export type ResourcePlacement = schema.Infer<typeof ResourcePlacement>;
 
 /** A provisioned resource in a space. */
-export const ResourceReference = defineSchema(
-    schema.object({
-        /** The space the resource lives in. */
-        scope: schema.identifier("space"),
-        /** The persistent resource identifier. */
-        id: ResourceId,
-    }),
-);
+export const ResourceReference = schema.object({
+    /** The space the resource lives in. */
+    scope: schema.identifier("space"),
+    /** The persistent resource identifier. */
+    id: ResourceId,
+});
 /** A provisioned resource in a space. */
 export type ResourceReference = schema.Infer<typeof ResourceReference>;
 
@@ -82,6 +74,11 @@ export class ResourceDeclaration<
         super(owner, declaration.name);
         this.kind = declaration.kind;
         this.spec = declaration.spec;
+    }
+
+    /** Report whether a value is a resource declaration, of any client and description. */
+    static is(value: unknown): value is ResourceDeclaration<unknown> {
+        return value instanceof ResourceDeclaration;
     }
 
     /** The connectors that open clients of this kind's resources on the running runtime. */

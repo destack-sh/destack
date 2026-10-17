@@ -1,4 +1,4 @@
-import { defineSchema, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { graph, type Package } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
@@ -7,14 +7,12 @@ import { Vocabulary } from "./vocabulary.ts";
 
 /** The steps from a package's previous release to this one. */
 export const Upgrade = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The earlier published release. */
-            from: Version,
-            /** The steps in review order. */
-            steps: schema.array(Step),
-        }),
-    ),
+    schema.object({
+        /** The earlier published release. */
+        from: Version,
+        /** The steps in review order. */
+        steps: schema.array(Step),
+    }),
     { plan: planUpgrade },
 );
 /** The steps from a package's previous release to this one. */
@@ -22,16 +20,14 @@ export type Upgrade = schema.Infer<typeof Upgrade>;
 
 /** What a package has published. */
 export const History = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The latest published release. */
-            release: Version,
-            /** The latest release's declarations, without the members they derive. */
-            declarations: schema.array(graph.Declaration),
-            /** The terms of the package's published releases. */
-            vocabulary: Vocabulary,
-        }),
-    ),
+    schema.object({
+        /** The latest published release. */
+        release: Version,
+        /** The latest release's declarations, without the members they derive. */
+        declarations: schema.array(graph.Declaration),
+        /** The terms of the package's published releases. */
+        vocabulary: Vocabulary,
+    }),
     {
         /** Read what a package has published from its latest release and its vocabulary. */
         async read(latest: BuildReader, vocabulary: Vocabulary): Promise<History> {

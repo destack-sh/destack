@@ -1,11 +1,4 @@
-import {
-    compareJsonSchemas,
-    defineSchema,
-    Digest,
-    schema,
-    type JsonSchema,
-    Version,
-} from "@destack/schema";
+import { compareJsonSchemas, Digest, schema, type JsonSchema, Version } from "@destack/schema";
 import { type Package, type DeclarationDescription } from "@destack/package";
 import { PlanError } from "../error/error.ts";
 import { Address } from "./address.ts";
@@ -14,34 +7,38 @@ import { Address } from "./address.ts";
 export const RISKS = ["safe", "fallible", "backward-incompatible", "destructive"] as const;
 
 /** How consequential a step is, from least to most. */
-export const Risk = defineSchema(schema.enum(RISKS));
+export const Risk = schema.enum(RISKS);
 /** How consequential a step is, from least to most. */
 export type Risk = schema.Infer<typeof Risk>;
 
 /** What a step does to its target. */
-export const Action = defineSchema(
-    schema.enum(["create", "update", "delete", "replace", "rename", "convert", "restore"]),
-);
+export const Action = schema.enum([
+    "create",
+    "update",
+    "delete",
+    "replace",
+    "rename",
+    "convert",
+    "restore",
+]);
 /** What a step does to its target. */
 export type Action = schema.Infer<typeof Action>;
 
 /** One change a plan makes, as reviewers see it. */
-export const Step = defineSchema(
-    schema.object({
-        /** What the step does. */
-        action: Action,
-        /** The changed target. */
-        target: Address,
-        /** How consequential the step is. */
-        risk: Risk,
-        /** A readable summary, such as "add column priority". */
-        detail: schema.string().min(1),
-        /** Each changed field's current and planned value. */
-        fields: schema
-            .record(schema.string(), schema.object({ before: schema.json(), after: schema.json() }))
-            .exactOptional(),
-    }),
-);
+export const Step = schema.object({
+    /** What the step does. */
+    action: Action,
+    /** The changed target. */
+    target: Address,
+    /** How consequential the step is. */
+    risk: Risk,
+    /** A readable summary, such as "add column priority". */
+    detail: schema.string().min(1),
+    /** Each changed field's current and planned value. */
+    fields: schema
+        .record(schema.string(), schema.object({ before: schema.json(), after: schema.json() }))
+        .exactOptional(),
+});
 /** One change a plan makes, as reviewers see it. */
 export type Step = schema.Infer<typeof Step>;
 
@@ -55,14 +52,12 @@ export interface Plan<Change extends Step = Step> {
 
 /** The changes one review covers. */
 export const Plan = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The steps in application order. */
-            steps: schema.array(Step),
-            /** Why the plan stops before later steps. */
-            deferred: schema.string().min(1).exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The steps in application order. */
+        steps: schema.array(Step),
+        /** Why the plan stops before later steps. */
+        deferred: schema.string().min(1).exactOptional(),
+    }),
     { classify, isAtLeast, join, digest: digestSteps, values: planValues },
 );
 
