@@ -1,18 +1,16 @@
 import { machine } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { CHANNELS } from "../release/index.ts";
 
 /** What staging found: the installed release, and the release staged for activation. */
-export const Staging = defineSchema(
-    schema.object({
-        /** The installed release's version. */
-        installed: Version,
-        /** The version of the release staged for activation, null while none newer is. */
-        staged: Version.nullable(),
-    }),
-);
+export const Staging = schema.object({
+    /** The installed release's version. */
+    installed: Version,
+    /** The version of the release staged for activation, null while none newer is. */
+    staged: Version.nullable(),
+});
 /** What staging found. */
 export type Staging = schema.Infer<typeof Staging>;
 
