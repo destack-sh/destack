@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The parents CLDR gives locales whose parent is not their language alone. */
 const PARENTS: Readonly<Record<string, string>> = {
@@ -40,25 +40,23 @@ const RIGHT_TO_LEFT_SCRIPTS = new Set([
 ]);
 
 /** A BCP 47 language tag, such as de-AT, in its canonical casing. */
-export const LocaleTag = defineSchema(
-    schema
-        .string()
-        .regex(
-            /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|\d{3}))?(?:-(?:[a-z\d]{5,8}|\d[a-z\d]{3}))*$/u,
-        ),
-);
+export const LocaleTag = schema
+    .string()
+    .regex(
+        /^[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|\d{3}))?(?:-(?:[a-z\d]{5,8}|\d[a-z\d]{3}))*$/u,
+    );
 
 /** A BCP 47 language tag. */
 export type LocaleTag = schema.Infer<typeof LocaleTag>;
 
 /** A country by its ISO 3166-1 alpha-2 code, such as CH. */
-export const Country = defineSchema(schema.string().regex(/^[A-Z]{2}$/u));
+export const Country = schema.string().regex(/^[A-Z]{2}$/u);
 
 /** A country by its ISO 3166-1 alpha-2 code. */
 export type Country = schema.Infer<typeof Country>;
 
 /** The direction a script runs in: left to right or right to left. */
-export const Direction = defineSchema(schema.enum(["ltr", "rtl"]));
+export const Direction = schema.enum(["ltr", "rtl"]);
 
 /** The direction a script runs in. */
 export type Direction = schema.Infer<typeof Direction>;

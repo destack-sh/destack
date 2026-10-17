@@ -1,24 +1,22 @@
 import { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
 
 /** The path of a catalog in a build, capturing a dependency's package and the tag. */
 const CATALOG_PATH = /^locale\/(?:([^/]+)\/)?([^/]+)\.json$/u;
 
 /** The translations of one package's messages into one locale. */
-const catalogSchema = defineSchema(
-    schema.object({
-        /** The package whose messages the catalog translates. */
-        package: PackageId,
-        /** The locale the catalog translates into. */
-        locale: LocaleTag,
-        /** The translated source of each message, by identifier. */
-        messages: schema.record(schema.string().min(1), schema.string()),
-        /** The identifiers of machine-translated messages no person reviewed yet. */
-        drafts: schema.array(schema.string().min(1)).exactOptional(),
-    }),
-);
+const catalogSchema = schema.object({
+    /** The package whose messages the catalog translates. */
+    package: PackageId,
+    /** The locale the catalog translates into. */
+    locale: LocaleTag,
+    /** The translated source of each message, by identifier. */
+    messages: schema.record(schema.string().min(1), schema.string()),
+    /** The identifiers of machine-translated messages no person reviewed yet. */
+    drafts: schema.array(schema.string().min(1)).exactOptional(),
+});
 
 /** The translations of one package's messages into one locale. */
 export const Catalog = Object.assign(catalogSchema, {

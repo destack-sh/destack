@@ -1,5 +1,5 @@
 import { ModuleMetadata, PackageId } from "@destack/package";
-import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 
 /** An argument's name: a camel case MessageFormat 2 variable name. */
 const ARGUMENT_NAME = /^[a-z][a-zA-Z0-9]*$/u;
@@ -108,18 +108,16 @@ export function verbatim(strings: TemplateStringsArray, ...parts: readonly unkno
 }
 
 /** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
-const messageSchema = defineSchema(
-    schema.object({
-        /** The package that wrote it, whose catalogs translate it. */
-        package: PackageId,
-        /** The stable identifier catalogs translate it under. */
-        id: schema.string().min(1),
-        /** The source text in the package's language, as MessageFormat 2. */
-        source: schema.string(),
-        /** The values of its placeholders and selectors, by variable name. */
-        values: schema.jsonObject(),
-    }),
-);
+const messageSchema = schema.object({
+    /** The package that wrote it, whose catalogs translate it. */
+    package: PackageId,
+    /** The stable identifier catalogs translate it under. */
+    id: schema.string().min(1),
+    /** The source text in the package's language, as MessageFormat 2. */
+    source: schema.string(),
+    /** The values of its placeholders and selectors, by variable name. */
+    values: schema.jsonObject(),
+});
 
 /** The messages a package writes, rendered where they are read. */
 export const Message = Object.assign(messageSchema, {
