@@ -593,13 +593,12 @@ export class RepositoryFixture implements AsyncDisposable {
 
         return createClient(forgePackage, {
             url: ORIGIN,
-            fetch: this.accounts.keystore.asserting(
-                this.accounts.database,
-                subject,
-                forgePackage.id,
-                accountTest.ISSUER,
-                route,
-            ),
+            fetch: this.accounts.keystore
+                .source(this.accounts.database, subject, {
+                    issuer: accountTest.ISSUER,
+                    send: route,
+                })
+                .fetchGranted(forgePackage.id),
         });
     }
 
