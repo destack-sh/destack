@@ -8,10 +8,10 @@ import type { Setting } from "../../../src/setting/index.ts";
 export async function release(settings: readonly Setting[]): Promise<BuildReader> {
     const declarations = settings.map((declared) => ({
         kind: "setting",
-        package: setting.package.id,
+        kindPackageId: setting.package.id,
         name: declared.name,
         description: describeSetting(declared),
     }));
 
-    return await MemoryBuild.declaring(setting.package, declarations);
+    return await MemoryBuild.of(setting.package, declarations);
 }

@@ -1,5 +1,5 @@
 import { PackageId, type Package } from "@destack/package";
-import { nth, defineSchema, schema, Version, canonicalize } from "@destack/schema";
+import { nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
@@ -32,19 +32,15 @@ const SPACE_WEIGHT = 2;
 const INSTALLATION_WEIGHT = 4;
 
 /** A package-local setting name, stable across releases. */
-export const SettingName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
-);
+export const SettingName = schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u);
 
 /** The schema of a setting's identity: its package and name. */
-const SettingIdentity = defineSchema(
-    schema.object({
-        /** The package declaring the setting. */
-        packageId: PackageId,
-        /** The package-local name. */
-        name: SettingName,
-    }),
-);
+const SettingIdentity = schema.object({
+    /** The package declaring the setting. */
+    packageId: PackageId,
+    /** The package-local name. */
+    name: SettingName,
+});
 
 /** The identity of a setting across package renames and releases. */
 export const SettingReference = Object.assign(SettingIdentity, {

@@ -1,11 +1,4 @@
-import {
-    defineSchema,
-    fromJsonSchema,
-    JsonValue,
-    schema,
-    toJsonSchema,
-    Version,
-} from "@destack/schema";
+import { fromJsonSchema, JsonValue, schema, toJsonSchema, Version } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
@@ -28,13 +21,11 @@ const description = SettingMetadata.extend({
 });
 
 /** A setting declaration as manifests describe it. */
-export const SettingDescription = defineSchema(
-    schema.discriminatedUnion("scope", [
-        SettingScope.options[0].extend(description.shape),
-        SettingScope.options[1].extend(description.shape),
-        SettingScope.options[2].extend(description.shape),
-    ]),
-);
+export const SettingDescription = schema.discriminatedUnion("scope", [
+    SettingScope.options[0].extend(description.shape),
+    SettingScope.options[1].extend(description.shape),
+    SettingScope.options[2].extend(description.shape),
+]);
 /** A setting declaration as manifests describe it. */
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
 

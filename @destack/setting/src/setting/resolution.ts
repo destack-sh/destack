@@ -1,5 +1,5 @@
 import { Package } from "@destack/package";
-import { defineSchema, schema, canonicalize } from "@destack/schema";
+import { schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
 import { SettingReference } from "./setting.ts";
@@ -30,59 +30,55 @@ const DeviceSource = schema.object({
 });
 
 /** The declaration default, a placed or device value, or a value the declaration now rejects. */
-export const SettingSource = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** The declaration default. */
-            kind: schema.literal("default"),
-            /** The release declaring the default. */
-            package: Package,
-        }),
-        ValueSource,
-        DeviceSource,
-        schema.object({
-            /** A value the current declaration rejects, skipped by the resolution. */
-            kind: schema.literal("invalid"),
-            /** The skipped value. */
-            source: schema.discriminatedUnion("kind", [ValueSource, DeviceSource]),
-        }),
-    ]),
-);
+export const SettingSource = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The declaration default. */
+        kind: schema.literal("default"),
+        /** The release declaring the default. */
+        package: Package,
+    }),
+    ValueSource,
+    DeviceSource,
+    schema.object({
+        /** A value the current declaration rejects, skipped by the resolution. */
+        kind: schema.literal("invalid"),
+        /** The skipped value. */
+        source: schema.discriminatedUnion("kind", [ValueSource, DeviceSource]),
+    }),
+]);
 /** The source of a candidate. */
 export type SettingSource = schema.Infer<typeof SettingSource>;
 
 /** An effective value with the sources deciding it. */
 export const SettingResolution = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The setting. */
-            setting: SettingReference,
-            /** The selection the value is resolved for. */
-            selection: SettingSelection,
-            /** The effective value. */
-            value: schema.json(),
-            /** The agreeing requirements or winning sources, then the skipped invalid values. */
-            sources: schema.array(SettingSource).min(1),
-            /** The other applicable sources in ascending precedence. */
-            overridden: schema.array(SettingSource),
-            /** Whether a requirement fixes the value, or some key of a merged value. */
-            enforcement: schema.enum(["ordinary", "required"]),
-            /** How each record key resolved, absent for a setting merging whole values. */
-            keys: schema
-                .record(
-                    schema.string(),
-                    schema.object({
-                        /** The source deciding the key. */
-                        source: SettingSource,
-                        /** The other sources setting the key, in ascending precedence. */
-                        overridden: schema.array(SettingSource),
-                        /** Whether a requirement fixes the key. */
-                        enforcement: schema.enum(["ordinary", "required"]),
-                    }),
-                )
-                .exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The setting. */
+        setting: SettingReference,
+        /** The selection the value is resolved for. */
+        selection: SettingSelection,
+        /** The effective value. */
+        value: schema.json(),
+        /** The agreeing requirements or winning sources, then the skipped invalid values. */
+        sources: schema.array(SettingSource).min(1),
+        /** The other applicable sources in ascending precedence. */
+        overridden: schema.array(SettingSource),
+        /** Whether a requirement fixes the value, or some key of a merged value. */
+        enforcement: schema.enum(["ordinary", "required"]),
+        /** How each record key resolved, absent for a setting merging whole values. */
+        keys: schema
+            .record(
+                schema.string(),
+                schema.object({
+                    /** The source deciding the key. */
+                    source: SettingSource,
+                    /** The other sources setting the key, in ascending precedence. */
+                    overridden: schema.array(SettingSource),
+                    /** Whether a requirement fixes the key. */
+                    enforcement: schema.enum(["ordinary", "required"]),
+                }),
+            )
+            .exactOptional(),
+    }),
     {
         /** Read the value a resolution shows at an exact placement or on the device. */
         observed(
