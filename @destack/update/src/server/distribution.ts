@@ -70,7 +70,7 @@ export class DistributionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "distribution";
     /** The store keeping the distribution row. */
-    readonly #store: Pick<ObjectStore, "database" | "self" | "mutate">;
+    readonly #store: Pick<ObjectStore, "database" | "serving" | "mutate">;
     /** This machine, the scope of its distribution. */
     readonly #machineId: Identifier<"machine">;
     /** The installed distribution. */
@@ -78,7 +78,7 @@ export class DistributionController implements Controller {
 
     /** Control the distribution of a machine. */
     constructor(
-        store: Pick<ObjectStore, "database" | "self" | "mutate">,
+        store: Pick<ObjectStore, "database" | "serving" | "mutate">,
         machineId: Identifier<"machine">,
         host: DistributionHost,
     ) {
@@ -105,7 +105,7 @@ export class DistributionController implements Controller {
         const [recorded] =
             found === undefined
                 ? await this.#store.mutate(
-                      this.#store.self,
+                      this.#store.serving(distribution),
                       {
                           id: RequestId.create(now),
                           calls: [
@@ -127,7 +127,7 @@ export class DistributionController implements Controller {
 
         // stage the latest release
         await this.#store.mutate(
-            this.#store.self,
+            this.#store.serving(distribution),
             {
                 id: RequestId.create(now),
                 calls: [distribution.call("stage", distribution.target(recorded))],
