@@ -1,110 +1,105 @@
 # @destack/observability
 
-`@destack/observability` is an OTLP/JSON receiver over `@destack/event` with OpenTelemetry's logs, spans and metrics as event kinds, Sentry's issues grouped by error type and in-app frames with resolve, ignore and reopen, Sentry's alert rules, and meters that measure a space's use for `@destack/finance`.
+`@destack/observability` keeps a space's logs, spans, metric points, visits and actions, groups failures into issues, fires alerts, and declares the meters a space's use is priced by.
 
 ```ts
-// an OTLP/HTTP collector
-await receiver.receive({ scope, installation, instance, build }, "logs", exported);
-await client.observability.trace({ scope, trace }); // a trace's spans and logs
-await client.observability.percentiles({
-    scope,
-    where: 'name = "http.server.duration"',
-    fold: "p99",
-    group,
-    step: 60_000,
-    from,
-    before,
-});
-// Sentry's resolve in next release
-await client.issue.update({
-    spaceId,
-    requestId,
-    id,
-    until: { kind: "revision", after: issue.lastRevisionId },
-});
-// a Sentry metric alert
-await client.alertRule.create({
-    spaceId,
-    requestId,
-    title: "Error rate",
-    condition,
-    actions: [{ kind: "notify" }],
-});
+await client.span.list({ spaceId, where: { trace } });
+await client.issue.update({ spaceId, requestId, id, until: { kind: "revision", after } });
+await client.issue.resolve({ spaceId, requestId, id });
 ```
 
 ## Events
 
-`log`, `span`, `metric`, `visit` and `action` are the event kinds a space's `EventStore` keeps.
+`log`, `span`, `metric`, `session`, `visit` and `action` are events types keyed by session, their personal attributes masked unless the reader may unmask them.
 
 ```ts
-import { OBSERVABILITY_KINDS } from "@destack/observability";
+import { log, session } from "@destack/observability";
 
-const tables = eventTables([...OBSERVABILITY_KINDS, usage]);
+await client.log.list({ spaceId, where: { session: "session-1" } }); // one session's timeline
+await events.series(session.eventKind(), { scopes }, { fold: "count", group: ["build", "status"] }); // release health
 ```
 
-## Service
+## OTLP
 
-`implementObservability` serves observability over an event store, with issues, alert rules and meters when it observes spaces.
+The `otlp` adapter takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, grouping a space's exceptions into its issues.
 
 ```ts
-import { implementObservability } from "@destack/observability/server";
+import { OtlpExport, OtlpIntake } from "@destack/observability";
 
-const observability = implementObservability({
-    events,
-    spaces: { openBuild, measure, skus: UNIT_SKUS },
-    report,
+const stamped = new OtlpExport("logs", body).stamp({ installation, build }); // as the forwarding machine
+await new OtlpIntake(store).append(caller, scope, "logs", stamped.body);
+```
+
+## Issues and alerts
+
+Failures group into issues that are assigned, resolved, ignored and regress; alert rules raise alerts over issues or folds of events, pending until they fire, announced and answered by their rule's actions unless a silence covers them.
+
+```ts
+await client.alertRule.create({
+    spaceId,
+    requestId,
+    title: "Error rate",
+    condition: {
+        kind: "events",
+        event: log.typeReference,
+        where: "severity >= 17",
+        fold: "count",
+        group: ["installationId"],
+        per: {},
+        window: { minutes: 5 },
+        comparison: "above",
+        threshold: 0.05,
+    },
+    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }], // the call runs as the author, waiting on approval
+    pending: { minutes: 2 },
+    noData: "ok",
+});
+await client.silence.create({
+    spaceId,
+    requestId,
+    matchers: [{ label: "installationId", operator: "=", value }],
+    startsAt,
+    endsAt,
+    comment,
 });
 ```
 
-## Alert rules
+## Server
 
-`defineAlertRule` declares an alert rule that each installation of the package keeps in its space, keyed by its export and shown by its title, and a `call` action runs a method of the installation.
+The package's server serves issues, alert rules, alerts and the `otlp` adapter, and `TelemetryPolicy` keeps each events type as long as the space's settings say.
 
 ```ts
-import { defineAlertRule } from "@destack/observability/declare";
+import observabilityServer from "@destack/observability/server";
+import { TelemetryPolicy } from "@destack/observability";
 
-export const rollback = defineAlertRule({
-    title: "Roll back new fatal issues",
-    condition: { kind: "issue", on: "open", filter: "level = fatal" },
-    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+const events = new EventStore({
+    database,
+    kinds,
+    files,
+    personal,
+    policy: TelemetryPolicy.of(database),
+    clock,
+    report,
 });
 ```
 
 ## Meters
 
-`METERS` measure a space's use in generic units, the same on every machine kind, which each vendor's pricing model maps to its own SKUs, grouped by the resource people see: Compute, Database, Storage and Network.
+`defineMeter` declares what a meter's events count and how a period's events fold into usage; the platform's meters measure a space's use in generic units that each vendor's pricing maps to its own SKUs.
 
 ```ts
-import {
-    memory, // compute.memory, GB-seconds held
-    cpu, // compute.cpu, CPU milliseconds
-    requests, // compute.requests
-    databaseBytes, // database.bytes, averaged over the month
-    rowsRead, // database.rows.read
-    rowsWritten, // database.rows.written
-    storageBytes, // storage.bytes, averaged over the month
-    storageWrites, // storage.writes
-    storageReads, // storage.reads
-    egress, // network.egress, bytes
-} from "@destack/observability/meter";
-import { Reading } from "@destack/observability/server";
-
-Reading.counted(rowsRead, [{ scope, installation, value: 1200 }]);
-```
-
-## Machine hours
-
-`machineHours` measures the hours a dedicated machine stays awake, beside the spaces' meters.
-
-```ts
-import { machineHours } from "@destack/observability/meter";
-
-machineHours.reference; // { packageId, name: "machine.hours" }
+const requests = defineMeter({
+    name: "api.requests",
+    description,
+    aggregation: "sum",
+    unit: "request",
+});
+import { cpu, machineHours, rowsRead } from "@destack/observability/meter";
 ```
 
 ## Settings
 
-`telemetryRetention`, `analyticsRetention` and `traceSampling` set how many days a space keeps its telemetry and analytics and the share of traces it keeps.
+`telemetryRetention`, `analyticsRetention` and `traceSampling` set how many days a space keeps its telemetry and analytics, and the share of traces it keeps.
 
 ```ts
 import { telemetryRetention, traceSampling } from "@destack/observability/setting";

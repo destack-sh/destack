@@ -1,12 +1,18 @@
-import { ids, notes } from "./observability.ts";
-import { alertRule, type AlertRuleDefinition } from "../../src/object/index.ts";
+import type { DatabaseConnection } from "@destack/db";
+import { StackFrame, Symbolicator } from "@destack/package/stack";
+import { FRAMES_ATTRIBUTE } from "@destack/telemetry/otlp";
 import { graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { Digest, present, schema } from "@destack/schema";
-import type { OtlpEmitter, OtlpReceiver } from "@destack/telemetry/otlp";
+import { Digest, type Identifier, present } from "@destack/schema";
 import { installationRevision } from "@destack/stack/object";
-import type { StackFixture } from "@destack/stack/test";
+import { EMITTER_ATTRIBUTES } from "../../src/otlp/index.ts";
+import { ids, notes } from "./space.ts";
+
+/** The digest the notes build's revisions record of its manifest. */
+export const NOTES_MANIFEST = Digest.parse(
+    "8bdf50d6d97eea3aeea1819f64e41b24dfc909ad0d1e5e6edfd7c7ed48b24bd1",
+);
 
 /** The note module's source: a class whose rename method fails, and the module's path. */
 export const NOTE_SOURCE = [
@@ -22,10 +28,8 @@ export function encode(value: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(value);
 }
 
-/** Open the notes build: a workload mapping into `Note.rename`, with its alert rules. */
-export async function openNotesBuild(
-    rules: Readonly<Record<string, AlertRuleDefinition>> = {},
-): Promise<BuildReader> {
+/** Open the notes build: a workload whose source map points into `Note.rename`. */
+export async function openNotesBuild(): Promise<BuildReader> {
     // keep the source, the workload's source map and the note module's graph file
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     files.set("src/note.ts", encode(NOTE_SOURCE));
@@ -41,7 +45,7 @@ export async function openNotesBuild(
             }),
         ),
     );
-    const module = await notesModule(rules);
+    const module = await notesModule();
     files.set(`graph/${module.digest}.json`, module.bytes);
 
     // list them in the manifest
@@ -86,8 +90,8 @@ export async function openNotesBuild(
     );
 }
 
-/** Build the note module's graph file: `Note`, its `rename` method and each alert rule. */
-async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>) {
+/** Build the note module's graph file: `Note` and its `rename` method. */
+async function notesModule() {
     return graph.Module.file({
         path: "src/note.ts",
         digest: await Digest.of(encode(NOTE_SOURCE)),
@@ -108,13 +112,6 @@ async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>)
                 signature: "rename(title: string)",
                 isExported: true,
             },
-            ...Object.keys(rules).map((name) => ({
-                moniker: at(name),
-                kind: "variable" as const,
-                source: { file: "src/note.ts", start: 0, end: 0 },
-                signature: `const ${name}`,
-                isExported: true,
-            })),
         ],
         declarations: [
             {
@@ -125,38 +122,25 @@ async function notesModule(rules: Readonly<Record<string, AlertRuleDefinition>>)
                 name: "rename",
                 description: {},
             },
-            ...Object.entries(rules).map(([name, rule]) => ({
-                moniker: `${at(name)}:alert-rule`,
-                symbol: at(name),
-                kind: "alert-rule",
-                package: alertRule.package.id,
-                name,
-                description: rule,
-            })),
         ],
         edges: [],
     });
 }
 
-/** Keep a notes release in the space's build bucket and record a revision of it at a time. */
+/** Record a revision of the notes installation running the notes build, made at a time. */
 export async function recordNotesRevision(
-    fixture: StackFixture,
-    now = Date.now(),
-    build?: BuildReader,
-) {
-    // keep the release in the build store
-    const reader = build ?? (await openNotesBuild());
-    const manifest = await (await fixture.builds()).packages.put(reader);
-
-    // record the revision of it
-    const id = schema.identifier("installation-revision").parse(installationRevision.generateId());
-    await fixture.database.insert(installationRevision.table).values({
+    database: DatabaseConnection,
+    now: number,
+): Promise<Identifier<"installation-revision">> {
+    const id = installationRevision.generateId();
+    await database.insert(installationRevision.table).values({
         id,
         scope: ids.space,
         installationId: ids.notes,
-        build: { kind: "release", version: notes.version, manifest },
+        build: { kind: "release", version: notes.version, manifest: NOTES_MANIFEST },
         views: {},
         settings: [],
+        catalogs: [],
         digest: String(now).padStart(64, "c"),
         createdAt: now,
         updatedAt: now,
@@ -239,12 +223,23 @@ function nanoseconds(time: number): string {
     return String(BigInt(time) * 1_000_000n);
 }
 
-/** An OTLP/JSON logs export of the notes workload. */
-export function logsExport(records: readonly NotesRecord[]) {
+/** The resource attributes the machine sets on the notes instance's exports it forwards. */
+export const NOTES_RESOURCE = {
+    "service.name": notes.name,
+    [EMITTER_ATTRIBUTES.installation]: ids.notes,
+    [EMITTER_ATTRIBUTES.instance]: ids.instance,
+    [EMITTER_ATTRIBUTES.build]: NOTES_MANIFEST,
+};
+
+/** An OTLP/JSON logs export of the notes workload under a resource. */
+export function logsExport(
+    records: readonly NotesRecord[],
+    resource: Readonly<Record<string, Value>> = NOTES_RESOURCE,
+) {
     return {
         resourceLogs: [
             {
-                resource: { attributes: otlpAttributes({ "service.name": notes.name }) },
+                resource: { attributes: otlpAttributes(resource) },
                 scopeLogs: [
                     {
                         scope: { name: notes.name, version: notes.version },
@@ -268,12 +263,15 @@ export function logsExport(records: readonly NotesRecord[]) {
     };
 }
 
-/** An OTLP/JSON traces export of the notes workload. */
-export function tracesExport(spans: readonly NotesSpan[]) {
+/** An OTLP/JSON traces export of the notes workload under a resource. */
+export function tracesExport(
+    spans: readonly NotesSpan[],
+    resource: Readonly<Record<string, Value>> = NOTES_RESOURCE,
+) {
     return {
         resourceSpans: [
             {
-                resource: { attributes: otlpAttributes({ "service.name": notes.name }) },
+                resource: { attributes: otlpAttributes(resource) },
                 scopeSpans: [
                     {
                         scope: { name: notes.name, version: notes.version },
@@ -299,41 +297,28 @@ export function tracesExport(spans: readonly NotesSpan[]) {
     };
 }
 
-/** Export exception log records as the notes workload's instance, as its machine relays them. */
-export async function exportLogs(
-    receiver: OtlpReceiver,
+/** A logs export of exception records of the notes workload. */
+export function exceptionsExport(
     records: readonly {
         readonly time: number;
         readonly attributes: Readonly<Record<string, Value>>;
         readonly trace?: string;
         readonly span?: string;
     }[],
-): Promise<void> {
-    await receiver.receive(
-        NOTES_EMITTER,
-        "logs",
-        logsExport(records.map((record) => ({ ...record, name: "exception", severity: 17 }))),
-    );
+) {
+    return logsExport(records.map((record) => ({ ...record, name: "exception", severity: 17 })));
 }
 
-/** A logs export of the notes package whose resource names one attribute. */
-export function claimingLogs(key: string, value: string) {
-    return {
-        resourceLogs: [
-            {
-                resource: { attributes: [{ key, value: { stringValue: value } }] },
-                scopeLogs: [
-                    {
-                        scope: { name: notes.name, version: notes.version },
-                        logRecords: [{ timeUnixNano: "1", eventName: "note.saved" }],
-                    },
-                ],
-            },
-        ],
-    };
-}
+/** The stack trace of a failure of `Note.rename`, as the notes workload's runtime writes it. */
+const RENAME_STACK =
+    "RangeError: title is too long\n    at rename (file:///srv/output/bun/workload.js:1:1)";
 
-/** A failure of `Note.rename` as the notes workload captures it, for a person. */
+/** The frames of that failure, symbolicated through the notes build as its runtime exports them. */
+const RENAME_FRAMES = JSON.stringify(
+    await new Symbolicator(await openNotesBuild()).frames(StackFrame.read(RENAME_STACK)),
+);
+
+/** A failure of `Note.rename` as the notes workload captures and exports it, for a person. */
 export function renameFailure(time: number, person: string) {
     return {
         time,
@@ -341,8 +326,8 @@ export function renameFailure(time: number, person: string) {
             "error.type": "RangeError",
             "exception.type": "RangeError",
             "exception.message": "title is too long\nat most 500 characters",
-            "exception.stacktrace":
-                "RangeError: title is too long\n    at rename (file:///srv/output/bun/workload.js:1:1)",
+            "exception.stacktrace": RENAME_STACK,
+            [FRAMES_ATTRIBUTE]: RENAME_FRAMES,
             "exception.escaped": true,
             "enduser.id": person,
         },
@@ -360,16 +345,3 @@ function lineAt(line: number): number {
         .slice(0, line - 1)
         .reduce((offset, text) => offset + text.length + 1, 0);
 }
-
-/** The digest of the manifest of the plain notes build `openNotesBuild` writes. */
-export const NOTES_MANIFEST = Digest.parse(
-    "8bdf50d6d97eea3aeea1819f64e41b24dfc909ad0d1e5e6edfd7c7ed48b24bd1",
-);
-
-/** The notes workload's instance running the notes build, as its machine verified it. */
-export const NOTES_EMITTER: OtlpEmitter = {
-    scope: ids.space,
-    installation: ids.notes,
-    instance: ids.instance,
-    build: NOTES_MANIFEST,
-};

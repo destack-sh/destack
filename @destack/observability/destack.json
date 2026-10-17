@@ -7,9 +7,6 @@
         ".": {
             "runtimes": ["bun", "workerd"]
         },
-        "./service": {
-            "runtimes": ["browser", "bun", "workerd"]
-        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
@@ -21,23 +18,22 @@
         },
         "./inspect": {
             "runtimes": ["bun"]
-        },
-        "./view": {
-            "runtimes": ["browser"]
         }
     },
     "declarations": {
-        "defineAlertRule": {
+        "defineMeter": {
             "describes": [
                 {
-                    "kind": "alert-rule",
-                    "function": "./inspect#describeAlertRule"
+                    "kind": "meter",
+                    "function": "./inspect#describeMeter",
+                    "compare": "./inspect#compareMeter",
+                    "vocabulary": "./inspect#meterVocabulary"
                 }
             ]
         }
     },
     "stamps": {
-        "defineAlertRule": {
+        "defineMeter": {
             "module": 1
         }
     }
