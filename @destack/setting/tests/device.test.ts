@@ -11,7 +11,7 @@ import { Observable } from "@destack/runtime/observable";
 import { Server } from "@destack/runtime/server";
 
 import { expect, onTestFinished, test } from "@destack/test";
-import { clientSetting, setting, SettingValue } from "../src/object/index.ts";
+import { deviceSetting, setting, SettingValue } from "../src/object/index.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import {
     type Setting,
@@ -22,7 +22,7 @@ import {
 import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import settingPackage from "../src/package.ts";
 import { Storage } from "./fixture/storage.ts";
-import { alice, clientSource, named, source } from "./fixture/value.ts";
+import { alice, deviceSource, named, source } from "./fixture/value.ts";
 import { Clock } from "@destack/environment";
 
 /** The space Alice acts in. */
@@ -154,13 +154,13 @@ test.each(TEST_DIALECTS)(
     5000,
 );
 
-test("resolve a value the client stores over the user's own, off the server", async () => {
+test("resolve a value the device stores over the user's own, off the server", async () => {
     const storage = await Storage.open("sqlite");
     onTestFinished(() => storage.close());
     const personal = await follow(storage, alice);
     const release = editor.package.version;
 
-    // set Alice's own value on the server, and store the client's value in its database
+    // set Alice's own value on the server, and store the device's value in its database
     const placed = await storage.call(
         setting.call("create", {
             scope: alice,
@@ -170,7 +170,7 @@ test("resolve a value the client stores over the user's own, off the server", as
             release,
         }),
     );
-    const local = personal.mutate(clientSetting).create({
+    const local = personal.mutate(deviceSetting).create({
         ...named(editor),
         value: "standard",
         release,
@@ -178,11 +178,11 @@ test("resolve a value the client stores over the user's own, off the server", as
     const value = await local.predicted;
     await local.confirmed;
 
-    // read both layers and resolve the client's value over Alice's
+    // read both layers and resolve the device's value over Alice's
     const selection = SettingSelection.parse({ scope: alice });
     const values = personal.query.setting.findMany({ where: editor.condition(selection) });
     const placedRows = values.subscribe();
-    const keptRows = personal.query.clientSetting.findMany().subscribe();
+    const keptRows = personal.query.deviceSetting.findMany().subscribe();
     onTestFinished(async () => {
         await Promise.all([placedRows.close(), keptRows.close()]);
     });
@@ -195,7 +195,7 @@ test("resolve a value the client stores over the user's own, off the server", as
         await keptRows.read(),
     );
 
-    // expect the client's value to win, and no mutation of it to reach the outbox
+    // expect the device's value to win, and no mutation of it to reach the outbox
     expect({
         value: resolved.value,
         sources: resolved.sources,
@@ -203,7 +203,7 @@ test("resolve a value the client stores over the user's own, off the server", as
         mutations: (await personal.inspect()).mutations,
     }).toEqual({
         value: "standard",
-        sources: [clientSource(value)],
+        sources: [deviceSource(value)],
         overridden: [{ kind: "default", package: notes }, source(placed)],
         mutations: { pending: 0, executed: 0, rejected: 0 },
     });
@@ -338,21 +338,21 @@ async function follow(
     storage: Storage,
     scope: string,
 ): Promise<
-    ObjectClient<{ readonly setting: typeof setting; readonly clientSetting: typeof clientSetting }>
+    ObjectClient<{ readonly setting: typeof setting; readonly deviceSetting: typeof deviceSetting }>
 > {
     // serve the scope as Alice
     const server = serve(storage, scope);
 
-    // replicate the scope's values into a local database beside the client's own values
+    // replicate the scope's values into a local database beside the device's own values
     const local = await TestDatabase.create("sqlite", []);
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
         clock: Clock.system,
         database: local.database,
-        objects: { setting, clientSetting },
+        objects: { setting, deviceSetting },
         scope,
         caller: storage.subject,
-        client: principal.client.reference(Scope.universe.id, Identifier.create("client")),
+        device: principal.device.reference(Scope.universe.id, Identifier.create("device")),
         endpoint: { url: "https://settings.test", fetch: (request) => server.fetch(request) },
         reconnect: (cell) => {
             throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);

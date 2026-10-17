@@ -34,7 +34,7 @@ export const SettingPlacement = Object.assign(Placement, {
 /** The scope and overrides a resolution selects. */
 export const SettingSelection = defineSchema(
     Placement.extend({
-        /** The selected user, space or client, or null for an anonymous visitor. */
+        /** The selected user, space or device, or null for an anonymous visitor. */
         scope: schema.string().min(1).nullable(),
     }),
 );

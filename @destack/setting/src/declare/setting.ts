@@ -10,7 +10,7 @@ export const SettingScope = defineSchema(
             /** A value of each user. */
             scope: schema.literal("user"),
             /** The overrides the setting permits. */
-            overrides: schema.array(schema.enum(["package", "space", "installation", "client"])),
+            overrides: schema.array(schema.enum(["package", "space", "installation", "device"])),
         }),
         schema.object({
             /** A value of each space. */
@@ -19,8 +19,8 @@ export const SettingScope = defineSchema(
             overrides: schema.array(schema.literal("installation")),
         }),
         schema.object({
-            /** A value each client stores for itself, as a local object. */
-            scope: schema.literal("client"),
+            /** A value each device stores for itself, as a local object. */
+            scope: schema.literal("device"),
             /** The overrides the setting permits: none. */
             overrides: schema.tuple([]),
         }),

@@ -12,7 +12,7 @@ export const editorMode = defineSetting({
     schema: schema.enum(["standard", "vim"]),
     default: "standard",
     scope: "user",
-    overrides: ["space", "installation", "client"],
+    overrides: ["space", "installation", "device"],
     apply: "immediate",
 });
 ```
@@ -30,11 +30,11 @@ await client
 
 ## Resolving
 
-`resolve` picks the value that applies to a selection from the values along its scope chain and a client's own values.
+`resolve` picks the value that applies to a selection from the values along its scope chain and a device's own values.
 
 ```ts
 const selection = SettingSelection.parse({ scope: userId, space: spaceId });
-const resolution = editorMode.resolve(selection, values, chain, clientValues);
+const resolution = editorMode.resolve(selection, values, chain, deviceValues);
 resolution.value; // "vim"
 const mode = await SettingValue.resolve(database, editorMode, { ...selection, scope: userId });
 ```

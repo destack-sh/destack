@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import type { ClientSettingValue, SettingValue } from "../../src/object/index.ts";
+import type { DeviceSettingValue, SettingValue } from "../../src/object/index.ts";
 import { ObjectReference, Scope } from "@destack/sync";
 import { SettingPlacement, SettingSelection } from "../../src/setting/placement.ts";
 import type { SettingSource } from "../../src/setting/resolution.ts";
@@ -54,17 +54,17 @@ export const personal: SettingValue = {
 };
 
 /** The editor mode Alice's laptop stores. */
-export const laptop: ClientSettingValue = {
+export const laptop: DeviceSettingValue = {
     id: schema
-        .identifier("client-setting")
-        .parse("client-setting-019f5530-8000-7000-8000-000000000007"),
+        .identifier("device-setting")
+        .parse("device-setting-019f5530-8000-7000-8000-000000000007"),
     createdAt: 1000,
     ...ObjectReference.columns("createdBy", undefined),
     updatedAt: 1000,
     ...ObjectReference.columns("updatedBy", undefined),
     revision: 1,
     tags: {},
-    scope: schema.identifier("client").parse("client-019f5530-8000-7000-8000-000000000009"),
+    scope: schema.identifier("device").parse("device-019f5530-8000-7000-8000-000000000009"),
     ...named(editor),
     value: "standard",
     release: "2026.9.0",
@@ -95,12 +95,12 @@ export function source(value: SettingValue, kind: "value" | "invalid" = "value")
     return kind === "value" ? placed : { kind, source: placed };
 }
 
-/** Describe a client's value as the source it contributes to a resolution. */
-export function clientSource(
-    value: ClientSettingValue,
-    kind: "client" | "invalid" = "client",
+/** Describe a device's value as the source it contributes to a resolution. */
+export function deviceSource(
+    value: DeviceSettingValue,
+    kind: "device" | "invalid" = "device",
 ): SettingSource {
-    const local = { kind: "client" as const, id: value.id, revision: value.revision };
+    const local = { kind: "device" as const, id: value.id, revision: value.revision };
 
-    return kind === "client" ? local : { kind, source: local };
+    return kind === "device" ? local : { kind, source: local };
 }

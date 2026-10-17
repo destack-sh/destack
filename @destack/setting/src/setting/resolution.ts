@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { defineSchema, schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
-import type { ClientSettingValue } from "../object/client-setting.ts";
+import type { DeviceSettingValue } from "../object/device-setting.ts";
 import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
 
@@ -19,17 +19,17 @@ const ValueSource = PlacedValue.extend({
     kind: schema.literal("value"),
 });
 
-/** A value the client stores. */
-const ClientSource = schema.object({
-    /** A client's value. */
-    kind: schema.literal("client"),
-    /** The value's identifier in the client's database. */
-    id: schema.identifier("client-setting"),
+/** A value the device stores. */
+const DeviceSource = schema.object({
+    /** A device's value. */
+    kind: schema.literal("device"),
+    /** The value's identifier in the device's database. */
+    id: schema.identifier("device-setting"),
     /** The value's revision. */
     revision: schema.number().int().min(1),
 });
 
-/** The declaration default, a placed or client value, or a value the declaration now rejects. */
+/** The declaration default, a placed or device value, or a value the declaration now rejects. */
 export const SettingSource = defineSchema(
     schema.discriminatedUnion("kind", [
         schema.object({
@@ -39,12 +39,12 @@ export const SettingSource = defineSchema(
             package: Package,
         }),
         ValueSource,
-        ClientSource,
+        DeviceSource,
         schema.object({
             /** A value the current declaration rejects, skipped by the resolution. */
             kind: schema.literal("invalid"),
             /** The skipped value. */
-            source: schema.discriminatedUnion("kind", [ValueSource, ClientSource]),
+            source: schema.discriminatedUnion("kind", [ValueSource, DeviceSource]),
         }),
     ]),
 );
@@ -84,13 +84,13 @@ export const SettingResolution = Object.assign(
         }),
     ),
     {
-        /** Read the value a resolution shows at an exact placement or on the client. */
+        /** Read the value a resolution shows at an exact placement or on the device. */
         observed(
             resolution: SettingResolution<unknown>,
-            at: SettingPlacement | "client",
-        ): Pick<SettingValue | ClientSettingValue, "id" | "revision"> | null {
-            // list every placed and client source, invalid ones included, and find the one at the placement
-            const selected = at === "client" ? at : canonicalize(SettingPlacement.of(at));
+            at: SettingPlacement | "device",
+        ): Pick<SettingValue | DeviceSettingValue, "id" | "revision"> | null {
+            // list every placed and device source, invalid ones included, and find the one at the placement
+            const selected = at === "device" ? at : canonicalize(SettingPlacement.of(at));
             const placed = [...resolution.sources, ...resolution.overridden].flatMap((source) =>
                 source.kind === "invalid"
                     ? [source.source]
@@ -99,8 +99,8 @@ export const SettingResolution = Object.assign(
                       : [source],
             );
             const found = placed.find((source) =>
-                source.kind === "client"
-                    ? selected === "client"
+                source.kind === "device"
+                    ? selected === "device"
                     : canonicalize(SettingPlacement.of(source)) === selected,
             );
 

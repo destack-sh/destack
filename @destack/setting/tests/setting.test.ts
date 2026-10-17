@@ -10,14 +10,14 @@ import {
     settingVocabulary,
     SettingDescription,
 } from "../src/inspect/index.ts";
-import type { ClientSettingValue, SettingValue } from "../src/object/index.ts";
+import type { DeviceSettingValue, SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
 import { Setting, SettingCatalog, SettingReference } from "../src/setting/index.ts";
 import {
     account,
     alice,
     chain,
-    clientSource,
+    deviceSource,
     installation,
     laptop,
     named,
@@ -69,12 +69,12 @@ function failure(run: () => unknown): { code: string; message: string } | "accep
     }
 }
 
-test("resolve personal, client and required values independently of their order", () => {
-    // take the client's value over the personal one and a recommendation, in either order
+test("resolve personal, device and required values independently of their order", () => {
+    // take the device's value over the personal one and a recommendation, in either order
     const recommendation: SettingValue = { ...required, mode: "recommend" };
     const ordinary = {
         ...standard,
-        sources: [clientSource(laptop)],
+        sources: [deviceSource(laptop)],
         overridden: [{ kind: "default", package: notes }, source(recommendation), source(personal)],
     };
     expect([
@@ -82,7 +82,7 @@ test("resolve personal, client and required values independently of their order"
         editor.resolve(selection, [recommendation, personal], chain, [laptop]),
     ]).toEqual([ordinary, ordinary]);
 
-    // expose the personal value once the client's value goes
+    // expose the personal value once the device's value goes
     expect(editor.resolve(selection, [personal], chain)).toEqual({
         ...standard,
         value: "vim",
@@ -90,13 +90,13 @@ test("resolve personal, client and required values independently of their order"
         overridden: [{ kind: "default", package: notes }],
     });
 
-    // take a requirement over every ordinary value, the client's included
+    // take a requirement over every ordinary value, the device's included
     expect(editor.resolve(selection, [personal, required], chain, [laptop])).toEqual({
         ...standard,
         value: "vim",
         enforcement: "required",
         sources: [source(required)],
-        overridden: [{ kind: "default", package: notes }, source(personal), clientSource(laptop)],
+        overridden: [{ kind: "default", package: notes }, source(personal), deviceSource(laptop)],
     });
 });
 
@@ -139,14 +139,14 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
 });
 
 test("resolve each key of a merged setting from its own nearest placement, requirements fixing theirs", () => {
-    // bind one command personally, another on the client, and require a third in the space
+    // bind one command personally, another on the device, and require a third in the space
     const bindings = { ...personal, ...named(keybindings) };
     const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
     const local = { ...laptop, ...named(keybindings), value: { "note.search": "mod+k" } };
     const fixed = { ...required, ...named(keybindings), value: { "note.pin": null } };
     const resolved = keybindings.resolve(selection, [fixed, mine], chain, [local]);
 
-    // take every key from the placement deciding it, the client override leaving the personal keys
+    // take every key from the placement deciding it, the device override leaving the personal keys
     expect(resolved).toEqual({
         setting: keybindings.reference,
         selection,
@@ -154,7 +154,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
         sources: [
             { kind: "default", package: notes },
             source(mine),
-            clientSource(local),
+            deviceSource(local),
             source(fixed),
         ],
         overridden: [],
@@ -170,7 +170,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
                 overridden: [source(mine)],
                 enforcement: "required",
             },
-            "note.search": { source: clientSource(local), overridden: [], enforcement: "ordinary" },
+            "note.search": { source: deviceSource(local), overridden: [], enforcement: "ordinary" },
         },
     });
 
@@ -246,7 +246,7 @@ test("describe a setting and read the settings a build declares", async () => {
         },
         default: "standard",
         scope: "user",
-        overrides: ["space", "installation", "client"],
+        overrides: ["space", "installation", "device"],
         apply: "immediate",
     });
     expect(settingVocabulary(editor)).toEqual({
@@ -310,12 +310,12 @@ test("resolve space settings per installation and machine settings per machine",
         { ...standard, setting: template.reference, selection: second },
     ]);
 
-    // resolve a client setting from the value its client stores, and refuse a value placed in a scope
+    // resolve a device setting from the value its device stores, and refuse a value placed in a scope
     const cache = defineSetting(
         {
             ...editor.definition,
             name: "cacheDirectory",
-            scope: "client",
+            scope: "device",
             overrides: [],
             schema: schema.string().min(1),
             default: "/cache",
@@ -323,28 +323,28 @@ test("resolve space settings per installation and machine settings per machine",
         },
         { package: notes },
     );
-    const client = "client-019f5530-8000-7000-8000-000000000015";
-    const path: ClientSettingValue = {
+    const device = "device-019f5530-8000-7000-8000-000000000015";
+    const path: DeviceSettingValue = {
         ...laptop,
         ...named(cache),
         value: "/Users/alice/cache",
     };
-    const elsewhere: SettingValue = { ...personal, ...named(cache), scope: client };
-    const onClient = SettingSelection.parse({ scope: client });
-    expect(cache.resolve(onClient, [], [client], [path])).toEqual({
+    const elsewhere: SettingValue = { ...personal, ...named(cache), scope: device };
+    const onDevice = SettingSelection.parse({ scope: device });
+    expect(cache.resolve(onDevice, [], [device], [path])).toEqual({
         setting: cache.reference,
-        selection: onClient,
+        selection: onDevice,
         value: "/Users/alice/cache",
-        sources: [clientSource(path)],
+        sources: [deviceSource(path)],
         overridden: [{ kind: "default", package: notes }],
         enforcement: "ordinary",
     });
     expect(
         failure(() =>
             cache.resolve(
-                SettingSelection.parse({ scope: "client-019f5530-8000-7000-8000-000000000016" }),
+                SettingSelection.parse({ scope: "device-019f5530-8000-7000-8000-000000000016" }),
                 [elsewhere],
-                [client],
+                [device],
             ),
         ),
     ).toEqual({
@@ -370,7 +370,7 @@ test("refuse placements and writes a setting does not permit", () => {
         unsupported,
         {
             code: "INVALID_PLACEMENT",
-            message: `clients cannot store values of ${SettingReference.key(plain.reference)}`,
+            message: `devices cannot store values of ${SettingReference.key(plain.reference)}`,
         },
         {
             code: "INVALID_PLACEMENT",
@@ -432,21 +432,21 @@ test("skip stored values a changed schema rejects, falling through to the next s
         },
     ]);
 
-    // skip the client's value the changed schema rejects too
+    // skip the device's value the changed schema rejects too
     const emacs = { ...laptop, value: "vim" };
     expect(upgraded.resolve(selection, [], chain, [emacs]).sources).toEqual([
         { kind: "default", package: { ...notes, version: "2026.10.0" } },
-        clientSource(emacs, "invalid"),
+        deviceSource(emacs, "invalid"),
     ]);
 
-    // find the invalid values at their placement and on the client, and nothing where no value is placed
+    // find the invalid values at their placement and on the device, and nothing where no value is placed
     const resolution = upgraded.resolve(selection, [personal], chain);
     const local = upgraded.resolve(selection, [personal], chain, [emacs]);
     expect([
         SettingResolution.observed(resolution, { scope: alice }),
         SettingResolution.observed(resolution, { scope: alice, installation }),
-        SettingResolution.observed(resolution, "client"),
-        SettingResolution.observed(local, "client"),
+        SettingResolution.observed(resolution, "device"),
+        SettingResolution.observed(local, "device"),
     ]).toEqual([
         { id: personal.id, revision: personal.revision },
         null,
@@ -510,7 +510,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
         {
             ...editor.definition,
             scope: "user",
-            overrides: ["package", "space", "installation", "client"],
+            overrides: ["package", "space", "installation", "device"],
         },
         { package: notes },
     );

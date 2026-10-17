@@ -4,7 +4,7 @@ import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
-import type { ClientSettingValue } from "../object/client-setting.ts";
+import type { DeviceSettingValue } from "../object/device-setting.ts";
 import type { SettingResolution, SettingSource } from "./resolution.ts";
 import { SettingPlacement, type SettingSelection } from "./placement.ts";
 import type { SettingMode } from "./mode.ts";
@@ -16,8 +16,8 @@ const DEFAULT_TIER = 0;
 const ENCLOSING_TIER = 1;
 /** Values set in the selected scope follow every recommendation. */
 const SET_TIER = 2;
-/** Values the client stores follow every value set in the selected scope. */
-const CLIENT_TIER = 3;
+/** Values the device stores follow every value set in the selected scope. */
+const DEVICE_TIER = 3;
 
 /** An enclosing recommendation one scope nearer follows a farther one, for any installation. */
 const DEPTH_WEIGHT = 2;
@@ -136,11 +136,11 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         selection: SettingSelection,
         values: readonly SettingValue[],
         chain: readonly string[],
-        client: readonly ClientSettingValue[] = [],
+        device: readonly DeviceSettingValue[] = [],
     ): SettingResolution<schema.Infer<Value>> {
-        // rank the default and each applicable placed and client value of a selection of the setting's scope
+        // rank the default and each applicable placed and device value of a selection of the setting's scope
         this.#requireSelectable(selection);
-        const { ordinary, required, invalid } = this.#candidates(values, selection, chain, client);
+        const { ordinary, required, invalid } = this.#candidates(values, selection, chain, device);
 
         // combine each key from its own nearest placement for a setting merging keys, or take one value
         return this.definition.merge === "key"
@@ -148,11 +148,11 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             : this.#decide(selection, ordinary, required, invalid);
     }
 
-    /** Report whether clients store values of this setting. */
-    isClientStored(): boolean {
+    /** Report whether devices store values of this setting. */
+    isDeviceStored(): boolean {
         const { scope, overrides } = this.definition;
 
-        return scope === "client" || overrides.some((override) => override === "client");
+        return scope === "device" || overrides.some((override) => override === "device");
     }
 
     /** Require a selection of the setting's scope, or an anonymous one of a user setting. */
@@ -169,12 +169,12 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
     }
 
-    /** Rank the default and each applicable placed and client value, invalid ones apart. */
+    /** Rank the default and each applicable placed and device value, invalid ones apart. */
     #candidates(
         values: readonly SettingValue[],
         selection: SettingSelection,
         chain: readonly string[],
-        client: readonly ClientSettingValue[],
+        device: readonly DeviceSettingValue[],
     ): {
         readonly ordinary: Candidate[];
         readonly required: Candidate[];
@@ -193,7 +193,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const invalid: SettingSource[] = [];
         const candidates = [
             ...values.map((value) => this.#candidate(value, selection, chain)),
-            ...client.map((value) => this.#clientCandidate(value)),
+            ...device.map((value) => this.#deviceCandidate(value)),
         ].filter((candidate) => candidate !== undefined);
         for (const candidate of candidates) {
             // an invalid value, set apart
@@ -411,29 +411,29 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return this.#converted(value, rank, source, value.mode);
     }
 
-    /** Rank a client's value of this setting above every placed one. */
-    #clientCandidate(value: ClientSettingValue): Candidate | undefined {
-        // skip the values of other settings, and refuse one the setting holds off clients
+    /** Rank a device's value of this setting above every placed one. */
+    #deviceCandidate(value: DeviceSettingValue): Candidate | undefined {
+        // skip the values of other settings, and refuse one the setting bars from devices
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
             return undefined;
-        } else if (!this.isClientStored()) {
+        } else if (!this.isDeviceStored()) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
-                `clients cannot store values of ${SettingReference.key(this.reference)}`,
+                `devices cannot store values of ${SettingReference.key(this.reference)}`,
             );
         }
 
-        // convert the client's value to this release, marking it invalid when the declaration rejects it
-        const source = { kind: "client" as const, id: value.id, revision: value.revision };
+        // convert the device's value to this release, marking it invalid when the declaration rejects it
+        const source = { kind: "device" as const, id: value.id, revision: value.revision };
 
-        return this.#converted(value, [CLIENT_TIER, 0], source, "set");
+        return this.#converted(value, [DEVICE_TIER, 0], source, "set");
     }
 
     /** Convert a stored value to this release as a candidate. */
     #converted(
         value: Pick<SettingValue, "value" | "release">,
         rank: Rank,
-        source: Extract<SettingSource, { readonly kind: "value" | "client" }>,
+        source: Extract<SettingSource, { readonly kind: "value" | "device" }>,
         mode: SettingMode,
     ): Candidate {
         const converted = this.#convert(value.value, value.release);
