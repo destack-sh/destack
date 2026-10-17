@@ -1,5 +1,5 @@
 import {
-    AddressResolver,
+    Directory,
     DOMAINS,
     type Domains,
     InstallationOrigin,
@@ -71,10 +71,10 @@ export class Relay {
     readonly domains: Domains;
 
     /** The directory's replica: placements, machines, endpoints and claims of names. */
-    readonly #directory: Snapshot;
+    readonly #view: Snapshot;
 
-    /** The resolver of handles and names over the directory's replica. */
-    readonly #names: AddressResolver;
+    /** The directory's replica: names, placements and machines. */
+    readonly #directory: Directory;
 
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
     readonly #itself: ReturnType<ServerContext["at"]>;
@@ -95,11 +95,11 @@ export class Relay {
     constructor(options: RelayOptions) {
         // resolve handles and names through the replicas in the store's database
         this.#store = options.store;
-        this.#directory = Snapshot.live(options.store.database);
-        this.#names = new AddressResolver(this.#directory);
+        this.#view = Snapshot.live(options.store.database);
+        this.#directory = new Directory(this.#view);
 
         // set the token verifier and the calls to tunnels and cloud machines
-        this.#tokens = Tunnel.verifier(options.issuer, this.#directory);
+        this.#tokens = Tunnel.verifier(options.issuer, this.#view);
         this.domains = options.domains ?? DOMAINS;
         this.#itself = options.itself;
         this.#origin = new URL(options.origin);
@@ -324,9 +324,8 @@ export class Relay {
     /** Find the machine serving a space by its address through the directory's replica. */
     async #locateSpace(name: string, address: SpaceAddress): Promise<Destination> {
         // find the space's placement through the replicated claims
-        const named = await this.#names.find(space, address);
-        const [placed] =
-            named === undefined ? [] : await Placement.find(this.#directory, [named.id]);
+        const named = await this.#directory.find(space, address);
+        const [placed] = named === undefined ? [] : await Placement.find(this.#view, [named.id]);
         if (placed === undefined) {
             throw new CallError("NOT_FOUND", { message: `${name} resolves to nothing` });
         }
@@ -337,11 +336,11 @@ export class Relay {
     /** Find a standing machine of any residency by its name within its account. */
     async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
         // find the account by its handle, and its standing machine by name
-        const accountId = await this.#names.account(handle);
+        const accountId = await this.#directory.account(handle);
         const [named] =
             accountId === undefined
                 ? []
-                : await this.#directory.read(machine.table).findMany({
+                : await this.#view.read(machine.table).findMany({
                       where: {
                           scope: accountId,
                           name: machineName,
@@ -364,7 +363,7 @@ export class Relay {
         }
 
         // route to a cloud machine at its URL, or to the relay with a computer's tunnel, unless that is this relay
-        const published = await this.#directory
+        const published = await this.#view
             .read(endpoint.table)
             .findFirst({ where: { id: machineId } });
         const url = published?.relay?.url ?? published?.url;
@@ -441,7 +440,7 @@ export class Relay {
 
     /** Read a machine's open tunnel row, absent before its first open. */
     async #opened(machineId: Identifier<"machine">) {
-        return this.#directory
+        return this.#view
             .read(tunnel.table)
             .findFirst({ where: { id: tunnel.identifier(Tunnel.id(machineId)) } });
     }
