@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { Mutation } from "@destack/sync";
 import { v7 } from "uuid";
 import { CallError } from "../error/index.ts";
 
@@ -9,9 +9,6 @@ export const VERSION_HEADER = "Destack-Version";
 export const REQUEST_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 /** How far a client's clock may run ahead when it creates a request identifier: five minutes. */
 const CLIENT_CLOCK_TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
-
-/** The version digit of a time-ordered request identifier (RFC 9562 5.7 and 5.8). */
-const TIME_ORDERED = /^.{14}[78]/u;
 
 /** The version digit of a derived request identifier (RFC 9562 5.8). */
 const DERIVED = /^.{14}8/u;
@@ -48,7 +45,7 @@ export function copyRequest(request: Request, changes: RequestInit, url = reques
 /** A timestamped request identifier reused across retries as its idempotency key. */
 export const RequestId = {
     /** The schema of a request identifier: a UUIDv7 a caller created, or a UUIDv8 it derived. */
-    schema: schema.uuid().regex(TIME_ORDERED),
+    schema: Mutation.shape.id,
 
     /** Create a request identifier stamped with a time, which starts its retry period. */
     create(time: number): string {

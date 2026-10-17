@@ -14,6 +14,7 @@ const IDLE: Uplink = {
         yield* [];
     },
     receive: () => Promise.reject(new Error("the idle machine cannot receive changes")),
+    call: () => Promise.reject(new Error("the idle machine answers no queries")),
 };
 
 /** Open a fresh installation root's keys, as a test installation has. */

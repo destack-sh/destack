@@ -27,7 +27,7 @@ new ControlLoop(database, controllers, { clock, report, lease: { holder: instanc
 
 ## Packages
 
-`definePackage` declares a package's handle from its objects, views, adapters, resources and secrets, and `defineAdapter` answers a protocol others define below the package's mount.
+`definePackage` declares a package's handle from its objects, views, adapters, resources, secrets and the permissions its installations request by scope, and `defineAdapter` answers a protocol others define below the package's mount.
 
 ```ts
 export const npm = defineAdapter("npm", { path: "/npm" });
@@ -36,6 +36,7 @@ export const sync = defineAdapter("sync", { path: "/sync", callers: "self" }); /
 export default definePackage({
     objects: { repository, release },
     adapters: { npm, hooks },
+    permissions: { space: [message.permission("send")], universe: [user.permission("recipient")] },
     since: "2026.8.0",
 });
 
@@ -50,7 +51,6 @@ await forge.release.list({ scope });
 ```ts
 export const workload = defineWorkload({
     name: "main",
-    permissions: { space: [message.permission("send")] },
     start: async (context) => ({
         packages: [implementPages(context)],
         webhooks: { fetch: receive },

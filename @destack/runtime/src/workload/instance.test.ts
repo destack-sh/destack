@@ -34,6 +34,7 @@ const publisher = {
         throw new Error("the fixture publisher streams no replicas");
     },
     receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
+    call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
 } satisfies Uplink;
 
 /** The fixture installation's server context. */

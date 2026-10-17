@@ -7,6 +7,5 @@ export function describeWorkload(workload: Workload): WorkloadDefinition {
     return WorkloadDefinition.parse({
         name: workload.name,
         compute: ComputeDefinition.merge(workload.compute),
-        ...(workload.permissions === undefined ? {} : { permissions: workload.permissions }),
     });
 }

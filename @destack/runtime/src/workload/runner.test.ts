@@ -156,6 +156,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
             throw new Error("the fixture publisher streams no replicas");
         },
         receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
+        call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
     };
     const runner = await WorkloadRunner.start(
         {
@@ -293,6 +294,7 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
                 },
                 receive: () =>
                     Promise.reject(new Error("the fixture publisher receives no changes")),
+                call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
             }),
         },
         start,
@@ -381,6 +383,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
                 },
                 receive: () =>
                     Promise.reject(new Error("the fixture publisher receives no changes")),
+                call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
             }),
             socketHost: host,
         },
@@ -457,6 +460,8 @@ test("hand a routed request to the workload's own package at the route path, und
                     },
                     receive: () =>
                         Promise.reject(new Error("the fixture publisher receives no changes")),
+                    call: () =>
+                        Promise.reject(new Error("the fixture publisher answers no queries")),
                 }),
             },
             start,

@@ -30,6 +30,7 @@ export function describePackage(handle: PackageHandle): PackageDescription {
             Object.values(handle.adapters).map((adapter) => [adapter.name, { path: adapter.path }]),
         ),
         views: Object.keys(handle.views),
+        permissions: handle.permissions,
     });
 }
 

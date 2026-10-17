@@ -1,3 +1,4 @@
+import { none, Policy } from "@destack/access";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
@@ -239,7 +240,7 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters and views, with hooks of its own types alone", () => {
+test("describe a package's routes, adapters, views and requested permissions, with hooks of its own types alone", () => {
     // route the package's own query with hooks beside another package's type with hooks
     const foreign: ObjectDeclaration = {
         ...query({}),
@@ -247,10 +248,12 @@ test("describe a package's routes, adapters and views, with hooks of its own typ
         hooks: { create: ["prepare"] },
     };
     const own = { ...query({}), hooks: { create: ["authorize"] } };
+    const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
     const handle = definePackage(
         {
             objects: { query: own, card: foreign },
             adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
+            permissions: { universe: [user.permission("recipient")] },
         },
         MODULE,
     );
@@ -263,5 +266,8 @@ test("describe a package's routes, adapters and views, with hooks of its own typ
         },
         adapters: { npm: { path: "/npm" } },
         views: [],
+        permissions: {
+            universe: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
+        },
     });
 });

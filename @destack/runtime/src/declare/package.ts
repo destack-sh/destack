@@ -3,7 +3,7 @@ import type { Declaration, ResourceRequirement } from "@destack/package/declare"
 import { mapValues, Version } from "@destack/schema";
 import { AdapterPath } from "../runtime/description.ts";
 import type { ProcedureRouter } from "../runtime/runtime.ts";
-import type { Policy } from "@destack/access";
+import { PermissionRequest, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
 
 /** A package's handler of a protocol others define, at a path below the package's mount. */
@@ -42,6 +42,8 @@ export interface PackageInput {
     readonly resources?: Readonly<Record<string, ResourceRequirement>>;
     /** The secrets the package reads, by name. */
     readonly secrets?: Readonly<Record<string, Declaration>>;
+    /** The permissions the package's installations request by scope, consented at install. */
+    readonly permissions?: PermissionRequest;
     /** The oldest caller release the package serves, every release when absent. */
     readonly since?: Version;
 }
@@ -62,6 +64,8 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     readonly resources: Declared<Input["resources"]>;
     /** The secrets the package reads, by name. */
     readonly secrets: Declared<Input["secrets"]>;
+    /** The permissions the package's installations request by scope. */
+    readonly permissions: PermissionRequest;
 }
 
 /** The declarations of one kind a package lists, none when it leaves the kind out. */
@@ -146,6 +150,7 @@ export const PackageHandle = {
                 (each) => each,
             ),
             secrets: mapValues<typeof secrets, Declared<Input["secrets"]>>(secrets, (each) => each),
+            permissions: PermissionRequest.parse(input.permissions ?? {}),
         });
     },
 };

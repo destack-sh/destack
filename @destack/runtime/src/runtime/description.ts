@@ -1,4 +1,5 @@
 import { defineSchema, schema, Version } from "@destack/schema";
+import { PermissionRequest } from "@destack/access";
 import { DeclarationName } from "@destack/package";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -108,7 +109,9 @@ export const PackageDescription = defineSchema(
         ),
         /** The names of the views it offers. */
         views: schema.array(DeclarationName),
+        /** The permissions its installations request by scope. */
+        permissions: PermissionRequest,
     }),
 );
-/** A declared package: the API its objects derive, its adapters and its views. */
+/** A declared package: its API, objects, adapters, views and requested permissions. */
 export type PackageDescription = schema.Infer<typeof PackageDescription>;

@@ -9,7 +9,6 @@ import {
 } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { type BuildReader, WorkloadDefinition } from "@destack/package/manifest";
-import type { Permission, PermissionRequest, PermissionScope } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { PackageImplementation } from "../server/index.ts";
 import type { Deriver } from "@destack/identity";
@@ -23,8 +22,6 @@ export interface Workload extends Declaration {
     readonly compute?: ComputeDefinition;
     /** The package's capabilities the workload uses, every one when absent. */
     readonly capabilities?: readonly CapabilityName[];
-    /** The kind permissions the workload requests by scope. */
-    readonly permissions?: PermissionRequest;
     /** Start one instance and return its packages and handlers. */
     readonly start: (
         context: WorkloadContext,
@@ -33,11 +30,7 @@ export interface Workload extends Declaration {
 
 /** Declare a workload. */
 export function defineWorkload(
-    definition: Omit<WorkloadDefinition, "permissions"> &
-        Pick<Workload, "start"> & {
-            /** The kind permissions the workload requests by scope. */
-            readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
-        },
+    definition: WorkloadDefinition & Pick<Workload, "start">,
     module?: ModuleMetadata,
 ): Workload {
     // stamp the declaring package
