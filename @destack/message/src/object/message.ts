@@ -23,8 +23,8 @@ export const DesktopDestination = schema.object({
     client: schema.identifier("client"),
 });
 
-/** Where a message goes: an email address, a Web Push endpoint, a webhook or a desktop client. */
-export const Destination = defineSchema(
+/** The schema of a destination. */
+const DestinationSchema = defineSchema(
     schema.discriminatedUnion("channel", [
         EmailDestination,
         PushDestination,
@@ -32,8 +32,32 @@ export const Destination = defineSchema(
         DesktopDestination,
     ]),
 );
+
+/** Where a message goes: an email address, a Web Push endpoint, a webhook or a desktop client. */
+export const Destination = Object.assign(DestinationSchema, {
+    /** Key a destination by its channel and its address, endpoint or client. */
+    key(to: Destination): string {
+        // key a desktop by its client, an email by its address, a browser by its endpoint
+        if (to.channel === "desktop") {
+            return `desktop:${to.client}`;
+        } else if (to.channel === "email") {
+            return `email:${to.address}`;
+        } else if (to.channel === "push") {
+            return `push:${to.url}`;
+        }
+        // key a webhook by its channel alone
+        else {
+            return "webhook";
+        }
+    },
+
+    /** Report whether two destinations reach the same address, endpoint or client. */
+    same(left: Destination, right: Destination): boolean {
+        return Destination.key(left) === Destination.key(right);
+    },
+});
 /** Where a message goes. */
-export type Destination = schema.Infer<typeof Destination>;
+export type Destination = schema.Infer<typeof DestinationSchema>;
 
 /** What a message says: an email's subject and bodies, a push payload, or a webhook event. */
 export const Content = defineSchema(
