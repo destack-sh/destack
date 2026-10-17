@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
 import { compactVerify, decodeJwt, decodeProtectedHeader, errors, SignJWT } from "jose";
@@ -13,7 +13,7 @@ const PROOF_SKEW_SECONDS = 60;
 const PROOF_LENGTH = 4096;
 
 /** A key proof in its compact serialization, as clients and machines present it. */
-export const CompactProof = defineSchema(schema.string().min(1).max(PROOF_LENGTH));
+export const CompactProof = schema.string().min(1).max(PROOF_LENGTH);
 
 /** The header carrying a key's proof bound to the request it authenticates (RFC 9449 4.1). */
 export const PROOF_HEADER = "dpop";

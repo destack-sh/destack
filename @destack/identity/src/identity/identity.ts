@@ -1,4 +1,4 @@
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
 import { CompactSign, compactVerify, decodeJwt, decodeProtectedHeader, errors } from "jose";
@@ -13,16 +13,14 @@ const MAX_ROTATION_KEYS = 5;
 export const MAX_SIGNING_KEYS = 3;
 
 /** A space's or the universe's identity. */
-export const Identity = defineSchema(
-    schema.object({
-        /** The keys that verify what the identity signs, newest first. */
-        signingKeys: schema.array(PublicKey).min(1).max(MAX_SIGNING_KEYS),
-        /** The keys that may sign the identity's next operation, highest priority first. */
-        rotationKeys: schema.array(PublicKey).min(1).max(MAX_ROTATION_KEYS),
-        /** The digest of the operation it comes from, which the next operation names. */
-        digest: Digest,
-    }),
-);
+export const Identity = schema.object({
+    /** The keys that verify what the identity signs, newest first. */
+    signingKeys: schema.array(PublicKey).min(1).max(MAX_SIGNING_KEYS),
+    /** The keys that may sign the identity's next operation, highest priority first. */
+    rotationKeys: schema.array(PublicKey).min(1).max(MAX_ROTATION_KEYS),
+    /** The digest of the operation it comes from, which the next operation names. */
+    digest: Digest,
+});
 /** A space's or the universe's identity. */
 export type Identity = schema.Infer<typeof Identity>;
 
@@ -35,7 +33,7 @@ const identityOperation = Identity.omit({ digest: true }).extend({
 });
 
 /** A change of an identity, as a directory applies it. */
-export const IdentityOperation = Object.assign(defineSchema(identityOperation), {
+export const IdentityOperation = Object.assign(identityOperation, {
     /** Sign an operation with a rotation key's private half. */
     async sign(operation: IdentityOperation, rotationKey: CryptoKey): Promise<string> {
         const alg = rotationKey.algorithm.name === "Ed25519" ? "Ed25519" : "ES256";

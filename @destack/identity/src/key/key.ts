@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 
 /** A base64url coordinate of a 256-bit curve point, 32 bytes unpadded. */
@@ -42,7 +42,7 @@ const published = {
 };
 
 /** A public key as a JSON Web Key, verifying what its private half signs. */
-export const PublicKey = Object.assign(defineSchema(publicKey), {
+export const PublicKey = Object.assign(publicKey, {
     /** Export a key pair's public half. */
     async of(key: CryptoKey): Promise<PublicKey> {
         const { kty, crv, x, y } = await crypto.subtle.exportKey("jwk", key);
@@ -150,24 +150,22 @@ export const KeyPair = {
 };
 
 /** Published signing keys as a JSON Web Key Set (RFC 7517 5). */
-export const KeySet = defineSchema(
-    schema.object({
-        /** The keys, newest first. */
-        keys: schema.array(
-            schema.discriminatedUnion("kty", [
-                curveKey.extend({
-                    ...published,
-                    /** The JWS algorithm the key verifies. */
-                    alg: schema.literal("ES256"),
-                }),
-                edwardsKey.extend({
-                    ...published,
-                    /** The JWS algorithm the key verifies (RFC 9864). */
-                    alg: schema.literal("Ed25519"),
-                }),
-            ]),
-        ),
-    }),
-);
+export const KeySet = schema.object({
+    /** The keys, newest first. */
+    keys: schema.array(
+        schema.discriminatedUnion("kty", [
+            curveKey.extend({
+                ...published,
+                /** The JWS algorithm the key verifies. */
+                alg: schema.literal("ES256"),
+            }),
+            edwardsKey.extend({
+                ...published,
+                /** The JWS algorithm the key verifies (RFC 9864). */
+                alg: schema.literal("Ed25519"),
+            }),
+        ]),
+    ),
+});
 /** Published signing keys as a JSON Web Key Set. */
 export type KeySet = schema.Infer<typeof KeySet>;

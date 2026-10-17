@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { compactDecrypt, CompactEncrypt, decodeProtectedHeader, errors } from "jose";
 import { IdentityError } from "../error/error.ts";
 
@@ -12,7 +12,7 @@ const ENCRYPTION = "A256GCM";
 export type KeyManagement = "A256GCMKW" | "ECDH-ES+A256KW";
 
 /** Bytes encrypted as a compact JWE (RFC 7516), like a KMS ciphertext. */
-export const Ciphertext = Object.assign(defineSchema(schema.string().regex(COMPACT_JWE)), {
+export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
     /** Encrypt bytes under a fresh content key, binding a context. */
     async encrypt(
         plaintext: Uint8Array<ArrayBuffer>,
