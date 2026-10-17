@@ -1,4 +1,4 @@
-import { defineSchema, Duration, schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import { type Content, GONE, type Message, MessageError } from "../object/message.ts";
 import type { ObjectStore } from "@destack/object/server";
 import type { ObjectReference } from "@destack/sync";
@@ -10,23 +10,21 @@ const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
 const RETRIED_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
 
 /** What a provider made of one message: sent, retried, or refused for good. */
-const outcome = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({ kind: schema.literal("sent") }),
-        schema.object({
-            kind: schema.literal("retry"),
-            /** The wait the provider asks for before the next try, in milliseconds. */
-            after: schema.number().exactOptional(),
-            /** Why the provider refused it for now. */
-            error: MessageError,
-        }),
-        schema.object({
-            kind: schema.literal("failed"),
-            /** Why the provider refused it for good. */
-            error: MessageError,
-        }),
-    ]),
-);
+const outcome = schema.discriminatedUnion("kind", [
+    schema.object({ kind: schema.literal("sent") }),
+    schema.object({
+        kind: schema.literal("retry"),
+        /** The wait the provider asks for before the next try, in milliseconds. */
+        after: schema.number().exactOptional(),
+        /** Why the provider refused it for now. */
+        error: MessageError,
+    }),
+    schema.object({
+        kind: schema.literal("failed"),
+        /** Why the provider refused it for good. */
+        error: MessageError,
+    }),
+]);
 /** What a provider made of one message. */
 export type Outcome = schema.Infer<typeof outcome>;
 

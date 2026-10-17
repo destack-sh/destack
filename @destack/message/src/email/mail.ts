@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { EmailContent } from "./message.ts";
 import type { Outcome } from "../provider/index.ts";
 
@@ -6,16 +6,14 @@ import type { Outcome } from "../provider/index.ts";
 const KEY_LENGTH = 998;
 
 /** One email to one address, in plain text and optionally HTML. */
-export const Mail = defineSchema(
-    EmailContent.omit({ channel: true }).extend({
-        /** The address. */
-        to: schema.email(),
-        /** The key the provider deduplicates by, which the Message-ID digests. */
-        key: schema.string().min(1).max(KEY_LENGTH),
-        /** The origination time in the Date header, in milliseconds since the epoch. */
-        date: schema.number().int(),
-    }),
-);
+export const Mail = EmailContent.omit({ channel: true }).extend({
+    /** The address. */
+    to: schema.email(),
+    /** The key the provider deduplicates by, which the Message-ID digests. */
+    key: schema.string().min(1).max(KEY_LENGTH),
+    /** The origination time in the Date header, in milliseconds since the epoch. */
+    date: schema.number().int(),
+});
 /** One email to one address. */
 export type Mail = schema.Infer<typeof Mail>;
 

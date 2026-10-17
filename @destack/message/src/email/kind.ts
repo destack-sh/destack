@@ -1,10 +1,10 @@
 import { ModuleMetadata } from "@destack/package";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { MailTransport } from "./mail.ts";
 
 /** A mail resource's specification, empty: its host's provider sends from the host's address. */
-export const MailSpec = defineSchema(schema.object({}));
+export const MailSpec = schema.object({});
 /** The mail resource kind: sending email through its host's provider, such as SES or SMTP. */
 export const MailKind = defineResourceKind("mail", { spec: MailSpec });
 /** A named mail dependency. */

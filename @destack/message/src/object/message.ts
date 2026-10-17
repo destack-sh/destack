@@ -1,7 +1,7 @@
 import { type Select } from "@destack/db";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
@@ -24,14 +24,12 @@ export const DesktopDestination = schema.object({
 });
 
 /** The schema of a destination. */
-const DestinationSchema = defineSchema(
-    schema.discriminatedUnion("channel", [
-        EmailDestination,
-        PushDestination,
-        WebhookDestination,
-        DesktopDestination,
-    ]),
-);
+const DestinationSchema = schema.discriminatedUnion("channel", [
+    EmailDestination,
+    PushDestination,
+    WebhookDestination,
+    DesktopDestination,
+]);
 
 /** Where a message goes: an email address, a Web Push endpoint, a webhook or a desktop client. */
 export const Destination = Object.assign(DestinationSchema, {
@@ -60,9 +58,11 @@ export const Destination = Object.assign(DestinationSchema, {
 export type Destination = schema.Infer<typeof DestinationSchema>;
 
 /** What a message says: an email's subject and bodies, a push payload, or a webhook event. */
-export const Content = defineSchema(
-    schema.discriminatedUnion("channel", [EmailContent, PushContent, WebhookContent]),
-);
+export const Content = schema.discriminatedUnion("channel", [
+    EmailContent,
+    PushContent,
+    WebhookContent,
+]);
 /** What a message says on its channel. */
 export type Content = schema.Infer<typeof Content>;
 
@@ -112,14 +112,12 @@ export class MessageKey {
 }
 
 /** Why a provider refused a message. */
-export const MessageError = defineSchema(
-    schema.object({
-        /** The provider's code, such as a mail service's error type or an HTTP status. */
-        code: schema.string().min(1),
-        /** The provider's message. */
-        message: schema.string(),
-    }),
-);
+export const MessageError = schema.object({
+    /** The provider's code, such as a mail service's error type or an HTTP status. */
+    code: schema.string().min(1),
+    /** The provider's message. */
+    message: schema.string(),
+});
 /** Why a provider refused a message. */
 export type MessageError = schema.Infer<typeof MessageError>;
 
