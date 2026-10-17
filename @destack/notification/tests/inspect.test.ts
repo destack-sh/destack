@@ -1,20 +1,23 @@
-import { MemoryBuild } from "@destack/package/test";
-import { plural, t } from "@destack/locale";
-import { expect, test } from "@destack/test";
+import { argument, type Message, plural, t } from "@destack/locale";
+import { expect, expectTypeOf, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { describeSetting } from "@destack/setting/inspect";
 import { defineNotification } from "../src/declare/index.ts";
-import { notification } from "../src/index.ts";
 import {
     describeNotification,
     notificationPreference,
     notificationVocabulary,
-    readNotifications,
 } from "../src/inspect/index.ts";
-import { mention, notes } from "./fixture/document.ts";
+import type { MutationName } from "@destack/object";
+import {
+    type ActionDefinition,
+    type NotificationDefinition,
+    type PayloadField,
+} from "../src/notification/index.ts";
+import { document, mention, notes } from "./fixture/document.ts";
 
 /** A notification description read back from its JSON. */
-const Described = schema.record(schema.string(), schema.json());
+const Described = schema.jsonObject();
 
 test("describe a declared notification for manifests with its actions, and its preference as a setting", () => {
     // describe the notification
@@ -32,7 +35,25 @@ test("describe a declared notification for manifests with its actions, and its p
             required: ["author", "excerpt"],
             additionalProperties: false,
         },
-        actions: { reply: { title: "Reply", text: { placeholder: "Reply", button: "Send" } } },
+        content: {
+            title: {
+                package: notes.id,
+                id: "h0a6nydo5bqi",
+                source: "{$author} mentioned you",
+                values: {},
+            },
+            body: mention.definition.content.body,
+        },
+        summary: mention.definition.summary,
+        actions: [
+            {
+                name: "reply",
+                title: "Reply",
+                text: { placeholder: "Reply", button: "Send" },
+                type: document.typeReference,
+                method: "reply",
+            },
+        ],
     });
 
     // fix the notification's name in stored notifications with its payload's shape
@@ -48,7 +69,7 @@ test("describe a declared notification for manifests with its actions, and its p
         description: "Someone mentions you in a remark.",
         apply: "immediate",
         scope: "user",
-        overrides: ["space", "installation", "client"],
+        overrides: ["space", "installation", "device"],
         package: notes,
         default: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         schema: {
@@ -77,20 +98,22 @@ test("refuse declarations whose names cannot identify a setting, and unlabeled a
     ]).toEqual([
         "notification.reviewRequested",
         [["invalid_format", ["name"]]],
-        [["invalid_format", []]],
+        [["invalid_format", ["name"]]],
         [["too_small", ["title"]]],
     ]);
 });
 
-test("read the notifications a build declares from its graph, and none another package declares", async () => {
-    // declare the mention, and a notification of the notes package's kind beside it
-    const reader = await MemoryBuild.declaring(notes, [
-        declaration(notification.package.id),
-        declaration(notes.id),
-    ]);
+test("type a declaration's content by its payload's fields, its summary by the count and its actions by mutating methods", () => {
+    // take the payload's fields as the content's arguments, and only the count as the summary's
+    expectTypeOf<PayloadField<typeof mention.definition.payload>>().toEqualTypeOf<
+        "author" | "excerpt"
+    >();
+    expectTypeOf<NotificationDefinition["summary"]>().toEqualTypeOf<Message<"count">>();
 
-    // read the described mention once, leaving the notes package's kind out
-    expect(await readNotifications(reader)).toEqual([describeNotification(mention)]);
+    // take a mutating method of the type, and a string field as the target
+    type Approval = ActionDefinition<{ id: string; count: number }, typeof document>;
+    expectTypeOf<Approval["method"]>().toEqualTypeOf<MutationName<typeof document>>();
+    expectTypeOf<Approval["target"]>().toEqualTypeOf<"id" | undefined>();
 });
 
 /** Declare a review notification under a name with one action, deferred until called. */
@@ -101,17 +124,12 @@ function declare(name: string, action: string, title: string) {
                 name,
                 title: "Reviews",
                 description: "A review waits for you.",
-                payload: schema.object({}),
+                payload: schema.object({ id: schema.string() }),
                 interruption: "active",
                 preference: { channels: [], delivery: "immediate" },
-                content: () => ({ title: "Review", body: "" }),
-                summary: (count) => t`${plural(count, { one: "# review", other: "# reviews" })}`,
-                actions: {
-                    [action]: {
-                        title,
-                        effect: async () => undefined,
-                    },
-                },
+                content: { title: t`Review`, body: t`${argument("id")}` },
+                summary: t`${plural(argument("count"), { one: "# review", other: "# reviews" })}`,
+                actions: [{ name: action, title, type: document, method: "approve", target: "id" }],
             },
             { package: notes },
         );
@@ -130,15 +148,4 @@ function issues(build: () => unknown) {
     }
 
     return [];
-}
-
-/** Declare the mention as a notification of a package's kind, as the build records it. */
-function declaration(packageId: typeof notes.id) {
-    return {
-        kind: "notification",
-        package: packageId,
-        module: "src/notification.ts",
-        name: "mention",
-        description: describeNotification(mention),
-    };
 }

@@ -1,14 +1,14 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { activity, focus } from "../src/index.ts";
-import { Subject } from "@destack/sync";
+import { Activity, activity, focus } from "../src/index.ts";
+import { ObjectReference } from "@destack/sync";
 import { subscribeBrowser } from "@destack/message/test";
 import { document, mention } from "./fixture/document.ts";
 import { actors, documentParent, serveSpace } from "./fixture/space.ts";
 
 test.for(TEST_DIALECTS)(
-    "retract a notification from a recipient who loses access to its activity before it goes out, and project it again on a regained share, on %s",
+    "drop an activity from a recipient's home once they lose access to its source, sending nothing, and replicate it back on a regained share, on %s",
     async (dialect) => {
         const fixture = await serveSpace(dialect);
 
@@ -26,67 +26,91 @@ test.for(TEST_DIALECTS)(
             isTimeSensitiveAllowed: true,
         });
 
-        // mention carol on a document she views and defer the alerts until her quiet hours end at 12:00 UTC
-        const plan = await fixture.call(document, "create", { title: "Launch plan" });
-        const { id: relationship } = await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "viewer",
-            subject: actors.carol,
-        });
-        const box = fixture.inbox("carol");
-        await fixture.call(document, "remark", {
-            id: plan.id,
-            text: "@carol, a question",
-            mentions: [actors.carol],
-        });
-        await box.until((state) => state.unread === 1);
+        // mention carol on a document she views and schedule the alerts for the end of her quiet hours at 12:00 UTC
+        const plan = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Launch plan" }),
+        );
+        const { id: relationship } = await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "viewer",
+                subject: actors.carol,
+            }),
+        );
+        await fixture.call(
+            document.call("remark", {
+                ...fixture.scope,
+                id: plan.id,
+                text: "@carol, a question",
+                mentions: [actors.carol],
+            }),
+        );
         await fixture.dispatch();
-        const mentioned = aligned(await fixture.notifications(), 0);
+        const mentioned = nth((await fixture.inbox("carol")).entries, 0);
         const end = Date.UTC(2026, 8, 28, 12, 0);
-        expect(
-            (await fixture.deliveries(mentioned.id)).map((row) => [
-                row.channel,
-                row.state,
-                row.dueAt,
-            ]),
-        ).toEqual([
-            ["email", "pending", end],
-            ["push", "pending", end],
-        ]);
+        const read = async () =>
+            (await fixture.messages("carol", mentioned.notification.id)).map((row) => [
+                row.to.channel,
+                row.status,
+            ]);
+        expect(await read()).toEqual([]);
 
-        // revoke carol's access to empty her inbox and badge at once
-        await fixture.call(document, "revoke", { id: plan.id, relationshipId: relationship });
-        await box.until((state) => state.rows.size === 0 && state.unread === 0);
+        // revoke carol's access, which drops the activity from her home and empties her inbox
+        await fixture.call(
+            document.call("revoke", {
+                ...fixture.scope,
+                id: plan.id,
+                relationshipId: relationship,
+            }),
+        );
+        await fixture.dispatch();
+        const revoked = (await fixture.inbox("carol")).entries;
 
-        // send nothing after the quiet hours end, with the notification and its deliveries retracted
-        fixture.wait(120);
+        // send nothing once the quiet hours end, the delivery ending without the activity her home no longer has
+        await fixture.wait(120);
         await fixture.dispatch();
         expect([
+            revoked,
             fixture.clock.now(),
             fixture.pushes.requests.length,
             fixture.mails.sent.length,
-            await fixture.deliveries(mentioned.id),
-            await fixture.notifications(),
-        ]).toEqual([end, 0, 0, [], []]);
+            await read(),
+        ]).toEqual([[], end, 0, 0, []]);
 
-        // project the kept activity again once carol regains her share
-        await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "viewer",
-            subject: actors.carol,
-        });
-        await box.until((state) => state.unread === 1);
-        expect((await fixture.notifications()).map((row) => [row.source, row.readAt])).toEqual([
-            [mentioned.source, null],
-        ]);
+        // replicate the kept activity back once carol regains her share, unread, alerting nothing again
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "viewer",
+                subject: actors.carol,
+            }),
+        );
+        await fixture.dispatch();
+        const regained = (await fixture.inbox("carol")).entries;
+        expect([
+            regained.map((entry) => [entry.notification.id, entry.isUnread]),
+            fixture.pushes.requests.length,
+            fixture.mails.sent.map((mail) => mail.to),
+        ]).toEqual([[[mentioned.notification.id, true]], 0, []]);
     },
 );
 
 test("post an activity through notify as its calling reader, and refuse a caller who cannot read its source", async () => {
-    // share a document with bob alone
+    // share a document only with bob
     const fixture = await serveSpace("sqlite");
-    const plan = await fixture.call(document, "create", { title: "Launch plan" });
-    await fixture.call(document, "grant", { id: plan.id, relation: "viewer", subject: actors.bob });
+    const plan = await fixture.call(
+        document.call("create", { ...fixture.scope, title: "Launch plan" }),
+    );
+    await fixture.call(
+        document.call("grant", {
+            ...fixture.scope,
+            id: plan.id,
+            relation: "viewer",
+            subject: actors.bob,
+        }),
+    );
     const notice = {
         ...documentParent(plan.id),
         packageId: mention.reference.packageId,
@@ -98,15 +122,19 @@ test("post an activity through notify as its calling reader, and refuse a caller
 
     // notify alice as bob, then as carol, who reads no document
     fixture.as("bob");
-    await fixture.call(activity, "notify", notice);
+    await fixture.call(activity.call("notify", { ...fixture.scope, ...notice }));
     fixture.as("carol");
-    const refused = fixture.call(activity, "notify", notice);
+    const refused = fixture.call(activity.call("notify", { ...fixture.scope, ...notice }));
 
     await expect(refused).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "permission denied: post",
     });
     expect(
-        (await fixture.activities()).map((row) => [row.recipient, row.actor, row.reason]),
-    ).toEqual([[Subject.key(actors.alice), Subject.key(actors.bob), "mention"]]);
+        (await fixture.activities()).map((row) => [
+            Activity.recipient(row),
+            ObjectReference.at("actor", row),
+            row.reason,
+        ]),
+    ).toEqual([[actors.alice, actors.bob, "mention"]]);
 });

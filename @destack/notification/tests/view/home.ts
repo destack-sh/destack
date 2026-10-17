@@ -1,20 +1,18 @@
+import { Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
-import { PackageId } from "@destack/package";
+import type { ObjectStore } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock } from "@destack/schema";
-import type { ClientOptions } from "@destack/service/client";
-import { Health } from "@destack/service/health";
-import { Server } from "@destack/service/server";
+import type { ClientOptions } from "@destack/runtime/client";
+import { Health } from "@destack/runtime/health";
+import { Server } from "@destack/runtime/server";
 import { onTestFinished } from "@destack/test";
 import type { ViewContext } from "@destack/view/declare";
-import { notification } from "../../src/index.ts";
-import { inboxService } from "../../src/service/index.ts";
+import { activity, notification } from "../../src/index.ts";
+import notificationPackage from "../../src/package.ts";
 import { document } from "../fixture/document.ts";
 import { actors, serveSpace } from "../fixture/space.ts";
-
-/** The package the home's server authenticates its callers for. */
-const AUDIENCE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000ad");
+import { Clock } from "@destack/environment";
 
 /** The longest a token the test server issues lives, in milliseconds. */
 const TOKEN_LIFETIME = 60_000;
@@ -33,34 +31,46 @@ export interface Home {
 export async function openHome(): Promise<Home> {
     // mention bob in two documents at the real time his device stamps its requests with
     const scenario = await serveSpace("sqlite", { at: Date.now() });
-    const plan = await scenario.call(document, "create", { title: "Launch plan" });
-    const draft = await scenario.call(document, "create", { title: "Draft" });
+    const plan = await scenario.call(
+        document.call("create", { ...scenario.scope, title: "Launch plan" }),
+    );
+    const draft = await scenario.call(
+        document.call("create", { ...scenario.scope, title: "Draft" }),
+    );
     for (const shared of [plan, draft]) {
-        await scenario.call(document, "grant", {
-            id: shared.id,
-            relation: "editor",
-            subject: actors.bob,
-        });
-        await scenario.call(document, "remark", {
-            id: shared.id,
-            text: "@bob, have a look",
-            mentions: [actors.bob],
-        });
+        await scenario.call(
+            document.call("grant", {
+                ...scenario.scope,
+                id: shared.id,
+                relation: "editor",
+                subject: actors.bob,
+            }),
+        );
+        await scenario.call(
+            document.call("remark", {
+                ...scenario.scope,
+                id: shared.id,
+                text: "@bob, have a look",
+                mentions: [actors.bob],
+            }),
+        );
     }
 
-    // wait for both notifications in his home
-    await scenario.inbox("bob").until((state) => state.unread === 2);
+    // plan both notifications in his home
+    await scenario.dispatch();
+    const home = await scenario.home("bob");
 
     // serve the home over HTTP to bob, then follow it from his device
-    const endpoint = serveHome(scenario.store, scenario.homeId);
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notification }), {
+    const endpoint = serveHome(home.store, home.id);
+    const objects = { notification, activity };
+    const storage = await TestDatabase.create("sqlite", ObjectClient.tables(objects), {
         isMigrated: true,
     });
     const client = await ObjectClient.open({
         clock: Clock.system,
         database: storage.database,
-        objects: { notification },
-        scope: scenario.homeId,
+        objects,
+        scope: home.id,
         caller: actors.bob,
         endpoint,
         reconnect: () => endpoint,
@@ -83,37 +93,32 @@ export async function openHome(): Promise<Home> {
             account: "account-019f5530-8000-7000-8000-0000000000ac",
             view: "notes",
             user: actors.bob,
-            home: scenario.homeId,
+            home: home.id,
         },
-        clients: { [scenario.homeId]: client },
+        clients: { [home.id]: client },
         failures,
     };
 }
 
 /** Serve the home's inbox over HTTP as bob on the real clock, returning his endpoint. */
-function serveHome(
-    objects: Awaited<ReturnType<typeof serveSpace>>["store"],
-    homeId: string,
-): ClientOptions {
+function serveHome(objects: ObjectStore, homeId: string): ClientOptions {
     const server = Server.start({
-        ...objects.implement(inboxService, objects.routed, objects.controllers(), {}),
+        ...objects.package(notificationPackage),
         clock: Clock.system,
-        audience: AUDIENCE,
         scope: homeId,
         resources: new ResourceContext(),
-        health: new Health(inboxService.name),
+        health: new Health("notification"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
         authenticate: async () => {
             const now = Date.now();
 
             return {
-                subject: actors.bob,
-                subjects: [actors.bob],
+                caller: Caller.of(actors.bob),
                 credential: {
                     kind: "session",
                     id: actors.bob.id,
-                    audience: AUDIENCE,
+                    audience: notificationPackage.id,
                     scope: homeId,
                     verifiedAt: now,
                     expiresAt: now + TOKEN_LIFETIME,

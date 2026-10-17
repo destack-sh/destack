@@ -1,10 +1,13 @@
-import type { Localization, Message } from "@destack/locale";
-import type { Call } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
-import type { ObjectReference } from "@destack/sync";
+import { type Localization, Message } from "@destack/locale";
+import type { MutationName, ObjectType } from "@destack/object";
+import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { ObjectTypeReference } from "@destack/sync";
 
-/** The wording every channel shows, rendered in its recipient's locale. */
-export const Wording = defineSchema(
+/** An action's name, in camel case, as notification actions' identifiers are. */
+export const ActionName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u));
+
+/** The content every channel shows, rendered in its recipient's locale. */
+export const NotificationContent = defineSchema(
     schema.object({
         /** The headline. */
         title: schema.string(),
@@ -14,39 +17,56 @@ export const Wording = defineSchema(
         body: schema.string(),
     }),
 );
-/** The wording every channel shows, rendered in its recipient's locale. */
-export type Wording = schema.Infer<typeof Wording>;
+/** The content every channel shows, rendered in its recipient's locale. */
+export type NotificationContent = schema.Infer<typeof NotificationContent>;
 
-/** A text as a declaration writes it: as it reads, or a message in each recipient's locale. */
-type Text = string | Message;
-
-/** The wording every channel shows, as a declaration writes it. */
-export interface WordingDefinition {
+/** The content a declaration writes: messages whose arguments are the payload's fields. */
+export interface NotificationContentDefinition<Names extends string = string> {
     /** The headline. */
-    readonly title: Text;
+    readonly title: Message<Names>;
     /** The line below the headline. */
-    readonly subtitle?: Text;
+    readonly subtitle?: Message<Names>;
     /** The text. */
-    readonly body: Text;
+    readonly body: Message<Names>;
 }
 
-/** The wording a declaration writes, rendered in a recipient's locale. */
-export const WordingDefinition = {
-    /** Render a definition's messages in a recipient's locale. */
-    render(definition: WordingDefinition, locale: Localization): Wording {
-        const write = (text: Text) => (typeof text === "string" ? text : locale.render(text));
+/** The content a declaration writes, as its build describes it. */
+export const NotificationContentDefinition = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The headline. */
+            title: Message,
+            /** The line below the headline. */
+            subtitle: Message.exactOptional(),
+            /** The text. */
+            body: Message,
+        }),
+    ),
+    {
+        /** Render the messages in a recipient's locale, their arguments filled from a payload. */
+        render(
+            definition: NotificationContentDefinition,
+            payload: Readonly<Record<string, JsonValue>>,
+            locale: Localization,
+        ): NotificationContent {
+            const write = (message: Message) => locale.render(message, payload);
 
-        return {
-            title: write(definition.title),
-            ...(definition.subtitle === undefined ? {} : { subtitle: write(definition.subtitle) }),
-            body: write(definition.body),
-        };
+            return {
+                title: write(definition.title),
+                ...(definition.subtitle === undefined
+                    ? {}
+                    : { subtitle: write(definition.subtitle) }),
+                body: write(definition.body),
+            };
+        },
     },
-};
+);
 
 /** An action's metadata: what its button shows. */
 export const ActionMetadata = defineSchema(
     schema.object({
+        /** The name, in camel case. */
+        name: ActionName,
         /** The button's label. */
         title: schema.string().min(1),
         /** Whether the action destroys or declines. */
@@ -65,12 +85,35 @@ export const ActionMetadata = defineSchema(
 /** An action's metadata. */
 export type ActionMetadata = schema.Infer<typeof ActionMetadata>;
 
-/** An action beside a notification: one effect the recipient makes. */
-export interface Action<Payload = unknown> extends ActionMetadata {
-    /** Make the action's effect as the recipient, in the call answering the activity. */
-    effect(
-        activity: { readonly source: ObjectReference; readonly payload: Payload },
-        call: Call,
-        text?: string,
-    ): Promise<unknown>;
+/** An action as its build describes it: its button, and the method of its package it calls. */
+export const Action = defineSchema(
+    ActionMetadata.extend({
+        /** The type whose method it calls, of the declaring package. */
+        type: ObjectTypeReference,
+        /** The mutating method it calls, given the recipient's text as `text` where it asks. */
+        method: schema.string().min(1),
+        /** The payload field identifying the object it calls, the source when absent. */
+        target: schema.string().min(1).exactOptional(),
+    }),
+);
+/** An action as its build describes it. */
+export type Action = schema.Infer<typeof Action>;
+
+/** The payload fields with string values, which may identify an action's target. */
+type StringField<Payload> = {
+    [Field in keyof Payload]: Payload[Field] extends string ? Field : never;
+}[keyof Payload] &
+    string;
+
+/** An action beside a notification: a call of its package's method as the recipient. */
+export interface ActionDefinition<
+    Payload,
+    Type extends ObjectType = ObjectType,
+> extends ActionMetadata {
+    /** The type whose method it calls, of the declaring package. */
+    readonly type: Type;
+    /** The mutating method it calls, given the recipient's text as `text` where it asks. */
+    readonly method: ObjectType extends Type ? string : MutationName<Type>;
+    /** The payload field identifying the object it calls, the source when absent. */
+    readonly target?: StringField<Payload>;
 }

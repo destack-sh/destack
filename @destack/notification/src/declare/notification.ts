@@ -1,5 +1,7 @@
 import { ModuleMetadata } from "@destack/package";
+import type { ObjectType } from "@destack/object";
 import { defineSchema, schema } from "@destack/schema";
+import { Action, type ActionDefinition } from "../notification/content.ts";
 import { NotificationType, type NotificationDefinition } from "../notification/notification.ts";
 import { NotificationName } from "../object/activity.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
@@ -21,23 +23,40 @@ export const NotificationMetadata = defineSchema(
 );
 
 /** Declare a notification. */
-export function defineNotification<Payload extends schema.Schema>(
-    definition: NotificationDefinition<Payload>,
+export function defineNotification<
+    Payload extends schema.Schema,
+    const Types extends readonly ObjectType[] = [],
+>(
+    definition: NotificationDefinition<Payload, Types>,
     module?: ModuleMetadata,
 ): NotificationType<Payload> {
     // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineNotification").package;
 
-    // validate the metadata and the action names
-    const { name, title, description, interruption, preference, payload, actions } = definition;
+    // validate the metadata, and require a declarative payload schema
+    const { actions = [], ...declared } = definition;
+    const { name, title, description, interruption, preference, payload } = declared;
     NotificationMetadata.parse({ name, title, description, interruption, preference });
-    for (const action of Object.keys(actions ?? {})) {
-        NotificationName.parse(action);
-    }
-
-    // require a declarative payload schema
     defineSchema(payload);
 
-    // validate the action metadata as the declaration derives it
-    return new NotificationType(owner, definition);
+    // refer to each action's type, requiring a mutating method of the declaring package
+    const described = actions.map((action: ActionDefinition<schema.Infer<Payload>>) => {
+        const { type, method, ...metadata } = action;
+        // refuse another package's type
+        if (type.package.id !== owner.id) {
+            throw new TypeError(
+                `action ${action.name} of ${name} calls ${type.name} of another package`,
+            );
+        }
+        // refuse a method changing nothing
+        else if (!type.method(method).mutates) {
+            throw new TypeError(
+                `action ${action.name} of ${name} calls ${type.name}.${method}, which changes nothing`,
+            );
+        }
+
+        return Action.parse({ ...metadata, type: type.typeReference, method });
+    });
+
+    return new NotificationType(owner, declared, described);
 }

@@ -1,6 +1,16 @@
 import { expect, test } from "@destack/test";
+import type { Destination } from "@destack/message";
 import { schema } from "@destack/schema";
-import { type Contact, decide, focus, summary, Window } from "../src/index.ts";
+import {
+    focus,
+    Recipient,
+    Routing,
+    type RoutingEntry,
+    type Settings,
+    summary,
+    Window,
+} from "../src/index.ts";
+import type * as accountObject from "@destack/account/object";
 import { notes } from "./fixture/document.ts";
 
 /** How long an email waits in the scenarios: a quarter hour. */
@@ -20,52 +30,48 @@ test("end quiet hours in a time zone after the night the clocks go back", () => 
     expect([inside, outside]).toEqual([Date.UTC(2026, 9, 25, 6, 0), undefined]);
 });
 
-/** The browser on the recipient's phone, subscribed to pushes. */
+/** The browser on the person's phone, subscribed to pushes. */
 const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a1");
 
-/** The desktop the recipient signed in. */
+/** The desktop the person signed in. */
 const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a2");
 
-test("decide each channel by the first rule that applies, from read state down to the email delay", () => {
-    // start from an unread, active mention the recipient receives everywhere, with nothing quiet
-    const delivery: Parameters<typeof decide>[0] = {
-        channel: "push",
-        client: PHONE,
-        isSummarized: false,
-        dueAt: SATURDAY,
+test("decide each destination by the first rule that applies, from read state down to the email delay", () => {
+    // start from an unread, active mention the person receives everywhere, with nothing quiet
+    const phone = { url: "https://push.example/phone", keys: { p256dh: "key", auth: "auth" } };
+    const push: Destination = { channel: "push", ...phone };
+    const entry: RoutingEntry = {
+        isUnread: true,
+        notification: { snoozedUntil: null },
+        activity: { packageId: notes.id, occurredAt: SATURDAY, interruption: "active" },
     };
-    const notified: Parameters<typeof decide>[1] = {
-        packageId: notes.id,
-        occurredAt: SATURDAY,
-        readAt: null,
-        snoozedUntil: null,
-        interruption: "active",
-    };
-    const contact: Contact = {
+    const recipient: accountObject.Recipient = {
         desktops: [LAPTOP],
-        browsers: [
-            { id: PHONE, url: "https://push.example/phone", keys: { p256dh: "key", auth: "auth" } },
-        ],
+        browsers: [{ id: PHONE, ...phone }],
         email: "dana@example.com",
         timeZone: "UTC",
         locale: "en",
     };
-    const settings: Parameters<typeof decide>[3] = {
+    const settings: Settings = {
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         focus: focus.definition.default,
         summary: summary.definition.default,
     };
     const focused = { ...focus.definition.default, until: SATURDAY + HOUR };
-    const desktop: Changes["delivery"] = { channel: "desktop", client: LAPTOP };
-    const email: Changes["delivery"] = { channel: "email", client: null };
+    const desktop: Destination = { channel: "desktop", client: LAPTOP };
+    const email: Destination = { channel: "email", address: "dana@example.com" };
+    const summarized: Changes["settings"] = {
+        preference: { channels: ["push"], delivery: "summary" },
+        summary: { times: ["18:00"], channels: ["push"] },
+    };
     const cases: readonly [string, Changes][] = [
-        ["read", { notification: { readAt: SATURDAY } }],
-        ["unaddressed", { contact: { browsers: [] } }],
-        ["snoozed", { notification: { snoozedUntil: SATURDAY + HOUR } }],
+        ["read", { entry: { isUnread: false } }],
+        ["unaddressed", { recipient: { browsers: [] } }],
+        ["snoozed", { entry: { notification: { snoozedUntil: SATURDAY + HOUR } } }],
         [
             "critical in a focus, turned off",
             {
-                notification: { interruption: "critical" },
+                activity: { interruption: "critical" },
                 settings: { focus: focused, preference: { channels: [], delivery: "immediate" } },
             },
         ],
@@ -73,37 +79,20 @@ test("decide each channel by the first rule that applies, from read state down t
             "turned off",
             { settings: { preference: { channels: ["desktop"], delivery: "immediate" } } },
         ],
-        ["passive", { notification: { interruption: "passive" } }],
-        [
-            "summarized",
-            {
-                settings: {
-                    preference: { channels: ["push"], delivery: "summary" },
-                    summary: { times: ["18:00"], channels: ["push"] },
-                },
-            },
-        ],
-        [
-            "summarized and due",
-            {
-                delivery: { isSummarized: true },
-                settings: {
-                    preference: { channels: ["push"], delivery: "summary" },
-                    summary: { times: ["18:00"], channels: ["push"] },
-                },
-            },
-        ],
+        ["passive", { activity: { interruption: "passive" } }],
+        ["summarized", { settings: summarized }],
+        ["summarized in the summary going out", { settings: summarized, summaryAt: SATURDAY }],
         [
             "summarized on the desktop",
             {
-                delivery: desktop,
+                to: desktop,
                 settings: { preference: { channels: ["desktop"], delivery: "summary" } },
             },
         ],
         [
             "time-sensitive, summarized",
             {
-                notification: { interruption: "timeSensitive" },
+                activity: { interruption: "timeSensitive" },
                 settings: { preference: { channels: ["push"], delivery: "summary" } },
             },
         ],
@@ -114,67 +103,67 @@ test("decide each channel by the first rule that applies, from read state down t
         ],
         [
             "time-sensitive in a focus",
-            { notification: { interruption: "timeSensitive" }, settings: { focus: focused } },
+            { activity: { interruption: "timeSensitive" }, settings: { focus: focused } },
         ],
         [
             "time-sensitive in a strict focus",
             {
-                notification: { interruption: "timeSensitive" },
+                activity: { interruption: "timeSensitive" },
                 settings: { focus: { ...focused, isTimeSensitiveAllowed: false } },
             },
         ],
-        ["email", { delivery: email }],
-        ["email after the delay", { delivery: email, now: SATURDAY + EMAIL_DELAY }],
+        ["email", { to: email }],
+        ["email after the delay", { to: email, now: SATURDAY + EMAIL_DELAY }],
     ];
 
     // decide each case
     const decided = cases.map(([name, changes]) => [
         name,
-        decide(
-            { ...delivery, ...changes.delivery },
-            { ...notified, ...changes.notification },
-            { ...contact, ...changes.contact },
+        new Routing(
+            { ...entry, ...changes.entry, activity: { ...entry.activity, ...changes.activity } },
+            new Recipient({ ...recipient, ...changes.recipient }),
             { ...settings, ...changes.settings },
-            EMAIL_DELAY,
+            {
+                emailDelay: EMAIL_DELAY,
+                ...(changes.summaryAt === undefined ? {} : { summaryAt: changes.summaryAt }),
+            },
             changes.now ?? SATURDAY,
-        ),
+        ).decide(changes.to ?? push),
     ]);
     expect(decided).toEqual([
         ["read", { action: "skip", reason: "read" }],
         ["unaddressed", { action: "skip", reason: "unaddressed" }],
-        ["snoozed", { action: "defer", until: SATURDAY + HOUR, isSummarized: false }],
+        ["snoozed", { action: "defer", until: SATURDAY + HOUR }],
         ["critical in a focus, turned off", { action: "send" }],
         ["turned off", { action: "skip", reason: "preference" }],
         ["passive", { action: "skip", reason: "preference" }],
-        [
-            "summarized",
-            { action: "defer", until: Date.UTC(2026, 9, 24, 18, 0), isSummarized: true },
-        ],
-        ["summarized and due", { action: "send" }],
+        ["summarized", { action: "summarize", at: Date.UTC(2026, 9, 24, 18, 0) }],
+        ["summarized in the summary going out", { action: "send" }],
         ["summarized on the desktop", { action: "skip", reason: "preference" }],
         ["time-sensitive, summarized", { action: "send" }],
-        ["in a focus", { action: "defer", until: SATURDAY + HOUR, isSummarized: false }],
+        ["in a focus", { action: "defer", until: SATURDAY + HOUR }],
         ["in a focus allowing the app", { action: "send" }],
         ["time-sensitive in a focus", { action: "send" }],
-        [
-            "time-sensitive in a strict focus",
-            { action: "defer", until: SATURDAY + HOUR, isSummarized: false },
-        ],
-        ["email", { action: "defer", until: SATURDAY + EMAIL_DELAY, isSummarized: false }],
+        ["time-sensitive in a strict focus", { action: "defer", until: SATURDAY + HOUR }],
+        ["email", { action: "defer", until: SATURDAY + EMAIL_DELAY }],
         ["email after the delay", { action: "send" }],
     ]);
 });
 
 /** What one case changes of the base scenario. */
 interface Changes {
-    /** The delivery's changed fields. */
-    readonly delivery?: Partial<Parameters<typeof decide>[0]>;
-    /** The notification's changed fields. */
-    readonly notification?: Partial<Parameters<typeof decide>[1]>;
-    /** The contact's changed fields. */
-    readonly contact?: Partial<Contact>;
+    /** The destination, the phone by default. */
+    readonly to?: Destination;
+    /** The entry's changed state. */
+    readonly entry?: Partial<Omit<RoutingEntry, "activity">>;
+    /** The activity's changed fields. */
+    readonly activity?: Partial<RoutingEntry["activity"]>;
+    /** The recipient's changed fields. */
+    readonly recipient?: Partial<accountObject.Recipient>;
     /** The changed settings. */
-    readonly settings?: Partial<Parameters<typeof decide>[3]>;
+    readonly settings?: Partial<Settings>;
+    /** The summary going out now, absent outside one. */
+    readonly summaryAt?: number;
     /** The changed time of the decision. */
     readonly now?: number;
 }

@@ -1,5 +1,5 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned, found, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { notification } from "../src/index.ts";
 import { decrypt, subscribeBrowser } from "@destack/message/test";
@@ -13,47 +13,58 @@ const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-
 const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000c");
 
 test.for(TEST_DIALECTS)(
-    "deliver mentions to the desktop and the phone, badging the inbox until they are read, on %s",
+    "send mentions to the desktop and the phone, badging the inbox until they are read, on %s",
     async (dialect) => {
         const fixture = await serveSpace(dialect);
 
         // give bob a laptop, a phone and an email address, and share two documents with him
         const phone = await subscribeBrowser();
-        await fixture.subscribe("bob", {
-            id: PHONE,
-            url: "https://fcm.googleapis.com/fcm/send/bob",
-            keys: phone.keys,
-        });
+        const url = "https://fcm.googleapis.com/fcm/send/bob";
+        await fixture.subscribe("bob", { id: PHONE, url, keys: phone.keys });
         await fixture.contact("bob", { email: "bob@example.com" });
         await fixture.desktop("bob", LAPTOP);
-        const plan = await fixture.call(document, "create", { title: "Launch plan" });
-        const draft = await fixture.call(document, "create", { title: "Draft" });
-        await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "editor",
-            subject: actors.bob,
-        });
-        await fixture.call(document, "grant", {
-            id: draft.id,
-            relation: "viewer",
-            subject: actors.bob,
-        });
-        const box = fixture.inbox("bob");
+        const plan = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Launch plan" }),
+        );
+        const draft = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Draft" }),
+        );
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "editor",
+                subject: actors.bob,
+            }),
+        );
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: draft.id,
+                relation: "viewer",
+                subject: actors.bob,
+            }),
+        );
 
-        // mention bob while he is away, badging his inbox and alerting his laptop and phone
-        await fixture.call(document, "remark", {
-            id: plan.id,
-            text: "@bob, tighten the intro",
-            mentions: [actors.bob],
-        });
-        await box.until((state) => state.unread === 1);
+        // mention bob while he is away, badging his inbox and alerting his laptop and phone, the email waiting in its run
+        await fixture.call(
+            document.call("remark", {
+                ...fixture.scope,
+                id: plan.id,
+                text: "@bob, tighten the intro",
+                mentions: [actors.bob],
+            }),
+        );
         await fixture.dispatch();
-        const first = aligned([...box.rows.values()], 0);
-        const desktop = aligned(await fixture.deliveries(first.id), 0);
+        const first = nth((await fixture.inbox("bob")).entries, 0);
+        const home = (await fixture.home("bob")).id;
         expect([
-            box.unread,
-            [desktop.channel, desktop.client, desktop.state],
-            JSON.parse(await decrypt(phone, aligned(fixture.pushes.requests, 0).body)),
+            (await fixture.inbox("bob")).unread(),
+            (await fixture.messages("bob", first.notification.id)).map((row) => [
+                row.to.channel,
+                row.status,
+            ]),
+            JSON.parse(await decrypt(phone, nth(fixture.pushes.requests, 0).body)),
             fixture.pushes.requests.map((request) => [
                 request.urgency,
                 request.ttl,
@@ -61,86 +72,93 @@ test.for(TEST_DIALECTS)(
             ]),
         ]).toEqual([
             1,
-            ["desktop", LAPTOP, "sent"],
+            [
+                ["desktop", "sent"],
+                ["push", "sent"],
+            ],
             {
-                notification: first.id,
-                activity: first.source,
-                scope: fixture.homeId,
-                content: { title: "alice mentioned you", body: "@bob, tighten the intro" },
+                notification: first.notification.id,
+                scope: home,
+                content: {
+                    title: "⁨alice⁩ mentioned you",
+                    body: "⁨@bob, tighten the intro⁩",
+                },
+                activity: { scope: fixture.spaceId, id: first.activity.id },
                 actions: [{ name: "reply", title: "Reply", isDestructive: false, hasText: true }],
             },
             [["normal", 86_400, 32]],
         ]);
 
-        // mention bob again, alerting his laptop and his phone
-        await fixture.call(document, "remark", {
-            id: draft.id,
-            text: "@bob, see the draft",
-            mentions: [actors.bob],
-        });
-        await box.until((state) => state.unread === 2);
+        // mention bob again, alerting his laptop and his phone and holding the email 15 minutes
+        await fixture.call(
+            document.call("remark", {
+                ...fixture.scope,
+                id: draft.id,
+                text: "@bob, see the draft",
+                mentions: [actors.bob],
+            }),
+        );
         await fixture.dispatch();
-        const second = [...box.rows.values()].find((row) => row.id !== first.id);
-        if (second === undefined) {
-            throw new TypeError("bob has no second notification");
-        }
-        expect([fixture.pushes.requests.length, await fixture.deliveries(second.id)]).toEqual([
+        const second = present(
+            (await fixture.inbox("bob")).entries.find(
+                (entry) => entry.notification.id !== first.notification.id,
+            ),
+            "the second notification",
+        );
+        expect([
+            (await fixture.inbox("bob")).unread(),
+            fixture.pushes.requests.length,
+            await fixture.messages("bob", second.notification.id),
+        ]).toEqual([
+            2,
             2,
             [
-                {
-                    channel: "desktop",
-                    client: LAPTOP,
-                    state: "sent",
-                    dueAt: fixture.clock.now(),
-                    isSummarized: false,
-                    reason: null,
-                },
-                {
-                    channel: "email",
-                    client: null,
-                    state: "pending",
-                    dueAt: fixture.clock.now() + 15 * 60_000,
-                    isSummarized: false,
-                    reason: null,
-                },
-                {
-                    channel: "push",
-                    client: PHONE,
-                    state: "sent",
-                    dueAt: fixture.clock.now(),
-                    isSummarized: false,
-                    reason: null,
-                },
+                { to: { channel: "desktop", client: LAPTOP }, status: "sent", reason: null },
+                { to: { channel: "push", url, keys: phone.keys }, status: "sent", reason: null },
             ],
         ]);
 
-        // read the first on the desktop to withdraw it there, then email the second after 15 unread minutes
+        // read the first, then email the second after 15 unread minutes and send the first no email
         fixture.as("bob");
-        await fixture.call(notification, "read", { id: first.id });
-        await box.until((state) => state.unread === 1);
-        fixture.wait(15);
+        await fixture.call(
+            notification.call("read", {
+                ...(await fixture.homeScope()),
+                id: first.notification.id,
+            }),
+        );
+        const unread = (await fixture.inbox("bob")).unread();
+        await fixture.wait(15);
         await fixture.dispatch();
         expect([
+            unread,
             fixture.mails.sent.map((mail) => [mail.to, mail.subject, mail.text, typeof mail.key]),
-            (await fixture.deliveries(first.id)).map((row) => [row.channel, row.state, row.reason]),
+            ...(await Promise.all(
+                [first, second].map(async (entry) =>
+                    (await fixture.messages("bob", entry.notification.id)).map(
+                        (row) => row.to.channel,
+                    ),
+                ),
+            )),
         ]).toEqual([
-            [["bob@example.com", "alice mentioned you", "@bob, see the draft", "string"]],
-            [
-                ["email", "skipped", "read"],
-                ["push", "sent", null],
-            ],
+            1,
+            [["bob@example.com", "⁨alice⁩ mentioned you", "⁨@bob, see the draft⁩", "string"]],
+            ["desktop", "push"],
+            ["desktop", "email", "push"],
         ]);
 
-        // mark every unread notification read at once, clearing the badge and keeping the first one's time
-        const readAt = fixture.clock.now() - 15 * 60_000;
-        await fixture.call(notification, "readAll", {
-            where: { readAt: null },
-            readAt: fixture.clock.now(),
-        });
-        await box.until((state) => state.unread === 0);
-        expect([found(box.rows, first.id).readAt, found(box.rows, second.id).readAt]).toEqual([
-            readAt,
-            fixture.clock.now(),
+        // mark every notification read at once, clearing the badge
+        await fixture.call(
+            notification.call("readAll", {
+                ...(await fixture.homeScope()),
+                where: {},
+                readAt: fixture.clock.now(),
+            }),
+        );
+        const inbox = await fixture.inbox("bob");
+        const { entries } = inbox;
+        expect([inbox.unread(), entries.map((entry) => entry.notification.readAt)]).toEqual([
+            0,
+            [fixture.clock.now(), fixture.clock.now()],
         ]);
     },
 );

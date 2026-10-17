@@ -30,9 +30,9 @@ function drawInHome(
             {
                 context: home.context,
                 clients: new Map(Object.entries(home.clients)),
-                services: new Map(),
+                packages: new Map(),
                 origin: (path) => {
-                    throw new TypeError(`the inbox reaches no ${path}`);
+                    throw new TypeError(`the inbox cannot call ${path}`);
                 },
             },
             catalogs,

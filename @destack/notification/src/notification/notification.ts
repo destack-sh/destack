@@ -1,18 +1,21 @@
-import { Catalog, Localization, type Message } from "@destack/locale";
-import type { Call, CallOf, ResultOf } from "@destack/object";
+import type { Localization, Message } from "@destack/locale";
+import {
+    MethodContext,
+    type MethodContextOf,
+    type ObjectType,
+    type ResultOf,
+} from "@destack/object";
 import type { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { BuildCache } from "@destack/package/manifest";
-import { Duration, type JsonValue, schema, zip } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import type { Setting } from "@destack/setting";
-import { ObjectReference, Subject } from "@destack/sync";
-import { activity, type Activity } from "../object/activity.ts";
-import { type Audience, announcement, type Announcement } from "../object/announcement.ts";
+import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
+import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
+import { Activity, activity } from "../object/activity.ts";
+import { announcement, type Announcement } from "../object/announcement.ts";
 import { type InterruptionLevel, Preference } from "../preference/preference.ts";
-import { preferenceSetting } from "../setting/setting.ts";
-import { type Action, ActionMetadata, WordingDefinition } from "./content.ts";
+import { type Action, type ActionDefinition, NotificationContentDefinition } from "./content.ts";
 import type { Notice } from "./notice.ts";
+import type { NotificationDescription } from "./catalog.ts";
 
 /** The largest payload as JSON, in bytes. */
 const PAYLOAD_BYTES = 2048;
@@ -20,11 +23,14 @@ const PAYLOAD_BYTES = 2048;
 /** The default collapse window: a quarter hour, the default email delay. */
 const COLLAPSE: Duration = { minutes: 15 };
 
-/** The catalogs read from each installation's build so far. */
-const CATALOGS = new BuildCache((reader) => Catalog.read(reader));
+/** The payload fields a notification's messages take as arguments. */
+export type PayloadField<Payload extends schema.Schema> = keyof schema.Infer<Payload> & string;
 
-/** A notification's declaration. */
-export interface NotificationDefinition<Payload extends schema.Schema = schema.Schema> {
+/** A notification's declaration: typed data its build describes. */
+export interface NotificationDefinition<
+    Payload extends schema.Schema = schema.Schema,
+    Types extends readonly ObjectType[] = readonly ObjectType[],
+> {
     /** The name, in camel case. */
     readonly name: string;
     /** The label settings show, such as "Mentions". */
@@ -37,53 +43,46 @@ export interface NotificationDefinition<Payload extends schema.Schema = schema.S
     readonly interruption: InterruptionLevel;
     /** The preference recipients start from. */
     readonly preference: Preference;
-    /** Write the text every channel shows, its messages rendered in each recipient's locale. */
-    content(payload: schema.Infer<Payload>): WordingDefinition;
-    /** Summarize a thread's notifications as a plural message. */
-    summary(count: number): Message;
-    /** The actions, by name. */
-    readonly actions?: Readonly<Record<string, Action<schema.Infer<Payload>>>>;
+    /** The content every channel shows, its arguments the payload's fields. */
+    readonly content: NotificationContentDefinition<PayloadField<Payload>>;
+    /** The line summarizing a thread's notifications, its argument the count. */
+    readonly summary: Message<"count">;
+    /** The actions beside it, the first the default. */
+    readonly actions?: {
+        readonly [Index in keyof Types]: ActionDefinition<schema.Infer<Payload>, Types[Index]>;
+    };
     /** How long an unread notification collapses later ones of its thread. */
     readonly collapse?: Duration;
 }
 
 /** A declared notification. */
 export class NotificationType<Payload extends schema.Schema = schema.Schema> {
-    /** The declaring package. */
+    /** The declaring package's release. */
     readonly package: Package;
     /** The name. */
     readonly name: string;
-    /** The declaration. */
-    readonly definition: NotificationDefinition<Payload>;
-    /** The reference rows carry. */
+    /** The declaration beside its actions. */
+    readonly definition: Omit<NotificationDefinition<Payload>, "actions">;
+    /** The actions, the first the default. */
+    readonly actions: readonly Action[];
+    /** The declaration's reference, as its rows keep it. */
     readonly reference: DeclarationReference;
     /** The recipient's preference setting. */
-    readonly preference: Setting<typeof Preference>;
-    /** The metadata of each action by name: what its button shows. */
-    readonly actions: Readonly<Record<string, ActionMetadata>>;
+    readonly preference: ReturnType<typeof Preference.setting>;
 
-    /** Keep a declaration and derive its preference setting and action metadata. */
-    constructor(owner: Package, definition: NotificationDefinition<Payload>) {
-        // keep the declaration
+    /** Keep a declaration and derive its preference setting. */
+    constructor(
+        owner: Package,
+        definition: Omit<NotificationDefinition<Payload>, "actions">,
+        actions: readonly Action[],
+    ) {
+        // keep the declaration and derive its reference and preference setting
         this.package = owner;
         this.name = definition.name;
         this.definition = definition;
+        this.actions = actions;
         this.reference = DeclarationReference.of(this);
-
-        // derive the preference setting and the action metadata
-        this.preference = preferenceSetting(owner, definition);
-        this.actions = Object.fromEntries(
-            Object.entries(definition.actions ?? {}).map(([name, action]) => [
-                name,
-                ActionMetadata.parse(
-                    schema.defined({
-                        title: action.title,
-                        isDestructive: action.isDestructive,
-                        text: action.text,
-                    }),
-                ),
-            ]),
-        );
+        this.preference = Preference.setting(owner, definition);
     }
 
     /** Serialise the notification as its reference. */
@@ -104,7 +103,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             parent: { packageId: source.packageId, type: source.type, id: source.id },
             packageId: this.reference.packageId,
             name: this.name,
-            payload: this.#payload(notice.payload),
+            payload: this.payload(notice.payload),
             ...(key === undefined ? {} : { key }),
             ...(thread === undefined ? {} : { thread }),
         };
@@ -127,68 +126,130 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         }
     }
 
+    /** Describe the notification for manifests. */
+    describe(): NotificationDescription {
+        const { definition, actions } = this;
+        const { name, title, description, interruption, preference, content, summary } = definition;
+
+        return {
+            name,
+            title,
+            description,
+            interruption,
+            preference,
+            package: this.package,
+            payload: JsonValue.object(toJsonSchema(definition.payload)),
+            content,
+            summary,
+            actions: [...actions],
+            ...(definition.collapse === undefined ? {} : { collapse: definition.collapse }),
+        };
+    }
+
+    /** List the notification's term: its name, with its payload's shape. */
+    vocabulary(): Record<string, JsonValue> {
+        const { name, payload } = this.definition;
+
+        return { [name]: { payload: JsonValue.object(toJsonSchema(payload)) } };
+    }
+
+    /** Render an activity's fields in its recipient's locale, counting its occurrences. */
+    render(payload: JsonValue, count: number, locale: Localization) {
+        // fill the messages' arguments from the payload, and the summary's from the count
+        const { definition } = this;
+        const values = schema.record(schema.string(), schema.json()).parse(payload);
+        const { summary } = definition;
+
+        return {
+            content: NotificationContentDefinition.render(definition.content, values, locale),
+            summary: locale.render(summary, { count }),
+            actions: this.actions.map(({ name, title, isDestructive, text }) => ({
+                name,
+                title,
+                ...(isDestructive === undefined ? {} : { isDestructive }),
+                ...(text === undefined ? {} : { text }),
+            })),
+            interruption: definition.interruption,
+            preference: definition.preference,
+        };
+    }
+
+    /** Parse a payload and require its size within the limit. */
+    payload(value: unknown): JsonValue {
+        // parse and measure the payload
+        const payload = schema.json().parse(this.definition.payload.parse(value));
+        const bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
+        if (bytes > PAYLOAD_BYTES) {
+            throw new CallError("BAD_REQUEST", {
+                message: `notification ${this.name} takes at most ${PAYLOAD_BYTES} bytes`,
+            });
+        }
+
+        return payload;
+    }
+
     /** Record an activity for each named recipient, replacing or joining their existing one. */
     async notify(
-        call: CallOf<typeof activity, "notify">,
+        localize: (recipient: Subject) => Promise<Localization>,
+        context: MethodContextOf<typeof activity, "notify">,
     ): Promise<ResultOf<typeof activity, "notify">> {
         // require a small payload and recipients other than the caller, each listed once
-        const payload = this.#payload(call.input.payload);
-        const recipients = NotificationType.#recipients(call, call.input.recipients);
+        const payload = this.payload(context.input.payload);
+        const recipients = NotificationType.#recipients(context, context.input.recipients);
         if (recipients.length === 0) {
             return {};
         }
 
-        // read the existing activities and each recipient's locale
-        const thread = call.input.thread ?? call.input.parent.id;
-        const existing = await this.#existing(call, recipients, thread);
-        const locales = await NotificationType.#localizations(call, recipients);
+        // read the existing activities and each recipient's localization
+        const thread = context.input.thread ?? context.input.parent.id;
+        const existing = await this.#existing(context, recipients, thread);
+        const locales = await Promise.all(recipients.map((recipient) => localize(recipient)));
 
         // replace or join each existing activity, and post the others in one mutation
-        const calls = [...locales].map(([recipient, locale]) => {
-            const known = existing.get(recipient);
+        const calls = zip(recipients, locales).map(([recipient, locale]) => {
+            const known = existing.get(Subject.key(recipient));
 
             return known === undefined
-                ? this.#post(call, recipient, { payload, locale, thread })
-                : this.#occur(call, known, { payload, locale, thread });
+                ? this.#post(context, recipient, { payload, locale, thread })
+                : this.#occur(context, known, { payload, locale, thread });
         });
-        await call.mutate(call.caller, calls);
+        await context.mutate(context.caller, calls);
 
         return {};
     }
 
     /** Post or replace the announcement of a notice to an audience. */
     async announce(
-        call: CallOf<typeof announcement, "announce">,
+        context: MethodContextOf<typeof announcement, "announce">,
     ): Promise<ResultOf<typeof announcement, "announce">> {
-        // require a small payload and an audience the source's type declares
-        const { parent, audience, key } = call.input;
-        const payload = this.#payload(call.input.payload);
-        const source: ObjectReference = { ...parent, scope: call.scope };
-        NotificationType.#requireAudience(call, source, audience);
+        // require a small payload
+        const { parent, audience, key } = context.input;
+        const payload = this.payload(context.input.payload);
+        const source: ObjectReference = { ...parent, scope: context.scope };
 
         // read the announcement a keyed one replaces
-        const { subject } = call.caller;
-        const excluded = (call.input.excluded ?? []).map((principal) => Subject.key(principal));
+        const { subject } = context.caller;
+        const excluded = (context.input.excluded ?? []).map((each) => Subject.key(each));
         const values = {
-            author: subject === undefined ? null : Subject.key(subject),
+            ...ObjectReference.columns("author", subject),
             audience,
             excluded: [...new Set(excluded)],
-            thread: call.input.thread ?? parent.id,
+            thread: context.input.thread ?? parent.id,
             payload,
             cursor: null,
             expandedAt: null,
         };
-        const known = key === undefined ? undefined : await this.#announced(call, source, key);
+        const known = key === undefined ? undefined : await this.#announced(context, source, key);
 
         // replace it
         if (known !== undefined) {
-            await call.mutate(call.caller, [
+            await context.mutate(context.caller, [
                 announcement.call("replace", { id: known.id, ...values }),
             ]);
         }
         // post one otherwise
         else {
-            await call.mutate(call.caller, [
+            await context.mutate(context.caller, [
                 announcement.call("post", {
                     ...values,
                     parent,
@@ -202,73 +263,91 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         return {};
     }
 
-    /** Answer an activity with an action as its recipient. */
+    /** Answer an activity with an action, sending its call for the recipient after the commit. */
     async act(
-        call: CallOf<typeof activity, "act">,
-        action: string,
-        text?: string,
+        name: string,
+        text: string | undefined,
+        context: MethodContextOf<typeof activity, "act">,
     ): Promise<ResultOf<typeof activity, "act">> {
         // require a declared action
-        const declared = this.definition.actions?.[action];
+        const declared = this.actions.find((action) => action.name === name);
         if (declared === undefined) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `notification ${this.name} has no action ${action}`,
+            throw new CallError("BAD_REQUEST", {
+                message: `notification ${this.name} has no action ${name}`,
             });
         }
         // require text exactly where the action asks for it
         else if ((declared.text === undefined) !== (text === undefined)) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `action ${action} of ${this.name} takes text only where it asks for it`,
+            throw new CallError("BAD_REQUEST", {
+                message: `action ${name} of ${this.name} takes text only where it asks for it`,
             });
         }
 
-        // make the action's effect
-        const row = call.target;
-        const payload = this.definition.payload.parse(row.payload);
-        await declared.effect({ source: ObjectReference.parent(row), payload }, call, text);
+        // find the type the action calls among the served ones
+        const row = context.target;
+        const key = ObjectTypeReference.key(declared.type);
+        const called = context.objects.find(
+            (object) => ObjectTypeReference.key(object.typeReference) === key,
+        );
+        if (called === undefined) {
+            throw new TypeError(
+                `action ${name} of ${this.name} calls ${key}, which nothing here serves`,
+            );
+        }
+
+        // make the call as the person acting, on the target the payload identifies, else on the source
+        const id = NotificationType.#target(row, declared);
+        const input = {
+            ...called.target({ scope: row.scope, id }),
+            ...(text === undefined ? {} : { text }),
+        };
+        await context.mutate(context.caller, [called.call(declared.method, input)]);
 
         return row;
     }
 
-    /** Parse a payload and require its size within the limit. */
-    #payload(value: unknown): JsonValue {
-        // parse and measure the payload
-        const payload = schema.json().parse(this.definition.payload.parse(value));
-        const bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
-        if (bytes > PAYLOAD_BYTES) {
-            throw new TypeError(`notification ${this.name} takes at most ${PAYLOAD_BYTES} bytes`);
+    /** Read the identifier of an action's target: a payload field, else the activity's source. */
+    static #target(row: Activity, action: Action): string {
+        // read the target the payload identifies
+        if (action.target !== undefined) {
+            const payload = schema.jsonObject().parse(row.payload);
+
+            return schema.string().parse(payload[action.target]);
+        }
+        // require the source to be of the type the action calls
+        else if (
+            row.parentPackageId !== action.type.packageId ||
+            row.parentType !== action.type.type
+        ) {
+            throw new TypeError(
+                `action ${action.name} calls ${action.type.type}, not the source ${row.parentType}`,
+            );
         }
 
-        return payload;
+        return row.parentId;
     }
 
-    /** Refuse an audience of a permission the source's object type does not declare. */
-    static #requireAudience(call: Call, source: ObjectReference, audience: Audience): void {
-        const { permissions } = call.requireAuthorization().authorizer.policy(source).definition;
-        if (audience.kind === "permission" && !Object.hasOwn(permissions, audience.permission)) {
-            throw new TypeError(`object ${source.type} has no permission ${audience.permission}`);
-        }
-    }
-
-    /** Key each recipient once by subject key, leaving out the caller. */
-    static #recipients(call: Call, recipients: readonly Subject[]): string[] {
-        const { subject } = call.caller;
+    /** List each recipient once, leaving out the caller. */
+    static #recipients(context: MethodContext, recipients: readonly Subject[]): Subject[] {
+        const { subject } = context.caller;
         const others = recipients.filter(
             (recipient) => subject === undefined || !Subject.same(recipient, subject),
         );
 
-        return [...new Set(others.map((recipient) => Subject.key(recipient)))];
+        return [
+            ...new Map(others.map((recipient) => [Subject.key(recipient), recipient])).values(),
+        ];
     }
 
     /** Read the activities a notice replaces by its key, or joins in its thread, by recipient. */
     async #existing(
-        call: CallOf<typeof activity, "notify">,
-        recipients: readonly string[],
+        context: MethodContextOf<typeof activity, "notify">,
+        recipients: readonly Subject[],
         thread: string,
     ): Promise<ReadonlyMap<string, Activity>> {
         // match the source's keyed activity, or the thread's recent ones
-        const { parent, key } = call.input;
-        const since = call.now - Duration.milliseconds(this.definition.collapse ?? COLLAPSE);
+        const { parent, key } = context.input;
+        const since = context.now - Duration.milliseconds(this.definition.collapse ?? COLLAPSE);
         const matched =
             key === undefined
                 ? { thread, createdAt: { gte: since } }
@@ -280,47 +359,33 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
                   };
 
         // read them
-        const current = await call.read(activity).rows({
-            scope: schema.identifier("space").parse(call.scope),
-            recipient: { in: [...recipients] },
-            packageId: this.reference.packageId,
-            name: this.name,
-            ...matched,
+        const current = await context.read(activity).findMany({
+            where: {
+                scope: schema.identifier("space").parse(context.scope),
+                recipientId: { in: recipients.map((recipient) => recipient.id) },
+                packageId: this.reference.packageId,
+                name: this.name,
+                ...matched,
+            },
         });
 
         // sort by creation so the latest of each recipient wins
         const ordered = current.toSorted((left, right) => left.createdAt - right.createdAt);
 
-        return new Map(ordered.map((row) => [row.recipient, row]));
-    }
-
-    /** Read each recipient's localization with the catalogs the installation's build ships. */
-    static async #localizations(
-        call: Call,
-        recipients: readonly string[],
-    ): Promise<ReadonlyMap<string, Localization>> {
-        // read the build's catalogs and each recipient's locale
-        const installation = call.requireInstallation();
-        const catalogs = await CATALOGS.read(installation.build);
-        const tags = await Promise.all(
-            recipients.map((recipient) => installation.directory.locale(recipient)),
-        );
-
-        return new Map(
-            zip(recipients, tags).map(([recipient, tag]) => [
-                recipient,
-                Localization.of(tag, catalogs),
-            ]),
-        );
+        return new Map(ordered.map((row) => [Subject.key(Activity.recipient(row)), row]));
     }
 
     /** Build the call posting a recipient's first activity of a notice. */
-    #post(call: CallOf<typeof activity, "notify">, recipient: string, occurrence: Occurrence) {
-        const { parent, key, reason } = call.input;
+    #post(
+        context: MethodContextOf<typeof activity, "notify">,
+        recipient: Subject,
+        occurrence: Occurrence,
+    ) {
+        const { parent, key, reason } = context.input;
 
         return activity.call("post", {
             parent,
-            recipient,
+            ...ObjectReference.columns("recipient", recipient),
             packageId: this.reference.packageId,
             release: this.package,
             name: this.name,
@@ -328,55 +393,45 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             thread: occurrence.thread,
             reason,
             payload: occurrence.payload,
-            occurredAt: call.now,
-            ...this.#rendering(occurrence, 1),
+            occurredAt: context.now,
+            ...this.render(occurrence.payload, 1, occurrence.locale),
         });
     }
 
     /** Build the call replacing or joining an existing activity, counting the occurrence. */
-    #occur(call: CallOf<typeof activity, "notify">, existing: Activity, occurrence: Occurrence) {
-        const count = call.input.key === undefined ? existing.count + 1 : 1;
+    #occur(
+        context: MethodContextOf<typeof activity, "notify">,
+        known: Activity,
+        occurrence: Occurrence,
+    ) {
+        const count = context.input.key === undefined ? known.count + 1 : 1;
 
         return activity.call("occur", {
-            id: existing.id,
-            reason: call.input.reason,
+            id: known.id,
+            reason: context.input.reason,
             payload: occurrence.payload,
             thread: occurrence.thread,
             count,
-            occurredAt: call.now,
-            ...this.#rendering(occurrence, count),
+            occurredAt: context.now,
+            ...this.render(occurrence.payload, count, occurrence.locale),
         });
-    }
-
-    /** Render an activity's fields in its recipient's locale. */
-    #rendering(occurrence: Occurrence, count: number) {
-        // render the content and the summary line in the recipient's locale
-        const { definition } = this;
-        const { payload, locale } = occurrence;
-        const content = definition.content(definition.payload.parse(payload));
-
-        return {
-            content: WordingDefinition.render(content, locale),
-            summary: locale.render(definition.summary(count)),
-            actions: this.actions,
-            interruption: definition.interruption,
-            preference: definition.preference,
-        };
     }
 
     /** Read the announcement of a source under a key, absent before one. */
     async #announced(
-        call: Call,
+        context: MethodContext,
         source: ObjectReference,
         key: string,
     ): Promise<Announcement | undefined> {
-        const [known] = await call.read(announcement).rows({
-            packageId: this.reference.packageId,
-            name: this.name,
-            parentPackageId: source.packageId,
-            parentType: source.type,
-            parentId: source.id,
-            key,
+        const [known] = await context.read(announcement).findMany({
+            where: {
+                packageId: this.reference.packageId,
+                name: this.name,
+                parentPackageId: source.packageId,
+                parentType: source.type,
+                parentId: source.id,
+                key,
+            },
         });
 
         return known;

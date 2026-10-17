@@ -1,8 +1,8 @@
 import { TEST_DIALECTS } from "@destack/db/test";
-import { and, eq } from "@destack/db";
-import { aligned, present, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { delivery, focus, notification } from "../src/index.ts";
+import { message } from "@destack/message";
+import { focus, Notification } from "../src/index.ts";
 import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
@@ -13,7 +13,7 @@ const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000
 const STUDIO = schema.identifier("client").parse("client-019f5530-8000-7000-8000-00000000000e");
 
 test.for(TEST_DIALECTS)(
-    "defer banners for each desktop through quiet hours, then send them to the desktops still signed in, on %s",
+    "hold a mention through quiet hours, show it on the desktops still signed in once they end, and mark it delivered on receipt, on %s",
     async (dialect) => {
         const fixture = await serveSpace(dialect);
 
@@ -27,80 +27,76 @@ test.for(TEST_DIALECTS)(
             isTimeSensitiveAllowed: true,
         });
 
-        // mention carol and defer one delivery per desktop until her quiet hours end at 12:00 UTC
-        const plan = await fixture.call(document, "create", { title: "Launch plan" });
-        await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "viewer",
-            subject: actors.carol,
-        });
-        const box = fixture.inbox("carol");
-        await fixture.call(document, "remark", {
-            id: plan.id,
-            text: "@carol, a question",
-            mentions: [actors.carol],
-        });
-        await box.until((state) => state.unread === 1);
+        // mention carol, whose delivery waits for the end of her quiet hours at 12:00 UTC
+        const plan = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Launch plan" }),
+        );
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "viewer",
+                subject: actors.carol,
+            }),
+        );
+        await fixture.call(
+            document.call("remark", {
+                ...fixture.scope,
+                id: plan.id,
+                text: "@carol, a question",
+                mentions: [actors.carol],
+            }),
+        );
         await fixture.dispatch();
-        const mentioned = aligned(await fixture.notifications(), 0);
+        const mentioned = nth((await fixture.inbox("carol")).entries, 0).notification;
         const end = Date.UTC(2026, 8, 28, 12, 0);
+        const { test: home } = await fixture.home("carol");
+        const desktops = async () =>
+            (await home.database.select().from(message.table))
+                .filter((row) => Notification.read(row) === mentioned.id)
+                .flatMap((row) =>
+                    row.to.channel === "desktop"
+                        ? [
+                              {
+                                  id: row.id,
+                                  client: row.to.client,
+                                  status: row.status,
+                                  reason: row.reason,
+                              },
+                          ]
+                        : [],
+                )
+                .toSorted((left, right) => left.client.localeCompare(right.client));
         const read = async () =>
-            (await fixture.deliveries(mentioned.id))
-                .filter((row) => row.channel === "desktop")
-                .map((row) => [row.client, row.state, row.dueAt, row.reason]);
-        expect(await read()).toEqual([
-            [LAPTOP, "pending", end, null],
-            [STUDIO, "pending", end, null],
-        ]);
+            (await desktops()).map((row) => [row.client, row.status, row.reason]);
+        expect(await read()).toEqual([]);
 
         // sign carol out of the studio, then show the notification on the laptop once the quiet hours end
         await fixture.desktop("carol", STUDIO, true);
-        fixture.wait(120);
+        await fixture.wait(120);
         await fixture.dispatch();
-        expect([fixture.clock.now(), await read()]).toEqual([
-            end,
-            [
-                [LAPTOP, "sent", end, null],
-                [STUDIO, "skipped", end, "unaddressed"],
-            ],
-        ]);
+        expect([fixture.clock.now(), await read()]).toEqual([end, [[LAPTOP, "sent", null]]]);
 
-        // receive the laptop's delivery once, keeping the first time, and refuse the studio's
+        // mark the laptop's message delivered as it receives it, twice alike
         fixture.as("carol");
-        const desktops = async () =>
-            fixture.database
-                .select({
-                    id: delivery.table.id,
-                    client: delivery.table.client,
-                    receivedAt: delivery.table.receivedAt,
-                })
-                .from(delivery.table)
-                .where(
-                    and(
-                        eq(delivery.table.parentId, mentioned.id),
-                        eq(delivery.table.channel, "desktop"),
-                    ),
-                )
-                .orderBy(delivery.table.client);
-        const [laptop, studio] = (await desktops()).map((row) => row.id);
+        const [laptop] = (await desktops()).map((row) => row.id);
+        const carolHome = await fixture.homeScope();
         const receive = (id: string | undefined) =>
-            refusal(fixture.call(delivery, "receive", { id: present(id, "a desktop delivery") }));
+            refusal(
+                fixture.call(
+                    message.call("receive", {
+                        ...message.in(carolHome.spaceId),
+                        id: present(id, "a desktop message"),
+                    }),
+                ),
+            );
         const first = await receive(laptop);
-        fixture.wait(1);
+        await fixture.wait(1);
         const again = await receive(laptop);
-        expect([first, again, await receive(studio), await desktops()]).toEqual([
+        expect([first, again, await read()]).toEqual([
             "done",
             "done",
-            ["CONFLICT", `delivery ${studio} is not a sent desktop delivery`],
-            [
-                { id: laptop, client: LAPTOP, receivedAt: end },
-                { id: studio, client: STUDIO, receivedAt: null },
-            ],
+            [[LAPTOP, "delivered", null]],
         ]);
-
-        // withdraw the banners once carol reads the notification
-        await fixture.call(notification, "read", { id: mentioned.id });
-        await fixture.dispatch();
-        expect(await read()).toEqual([]);
     },
 );

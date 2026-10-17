@@ -1,256 +1,320 @@
 import { principal } from "@destack/access";
-import { Key, TABLE } from "@destack/db";
-import { type Call, type CallOf, type NextOf, type ResultOf } from "@destack/object";
-import { schema } from "@destack/schema";
-import { ObjectReference, replicaRow, Scope, Subject } from "@destack/sync";
-import { user } from "@destack/account/object";
-import type { NotificationType } from "../notification/notification.ts";
-import { activity, type Activity } from "../object/activity.ts";
-import { announcement } from "../object/announcement.ts";
-import { type Reason, subscription } from "../object/subscription.ts";
+import { client } from "@destack/account/object";
+import { t } from "@destack/locale";
+import { type Content, Destination, MessageKey, message } from "@destack/message";
+import type { MethodContext, MethodContextOf, ResultOf } from "@destack/object";
+import { Duration, type Identifier, nth, present, TimeZone } from "@destack/schema";
+import { ObjectReference, Scope } from "@destack/sync";
+import { ScheduledCall } from "@destack/workflow";
+import {
+    type Decision,
+    Recipient,
+    type RecipientDestination,
+    Routing,
+    Settings,
+} from "../message/index.ts";
+import type { NotificationContent } from "../notification/content.ts";
+import { Inbox, InboxEntry } from "../notification/inbox.ts";
+import { Activity, activity } from "../object/activity.ts";
+import {
+    deliver,
+    Notification,
+    notification,
+    scheduled,
+    summarize,
+} from "../object/notification.ts";
+import type { InterruptionLevel } from "../preference/preference.ts";
+import type { NotificationServer } from "./server.ts";
 
-/** The recipients of one announcement batch by default, as many as one notify call lists. */
-const BATCH = 100;
+/** How urgently each interruption level's push goes out, as RFC 8030's urgencies. */
+const URGENCY = {
+    passive: "very-low",
+    active: "normal",
+    timeSensitive: "high",
+    critical: "high",
+} as const satisfies Record<InterruptionLevel, string>;
 
-/** One recipient of an announcement's batch, with the reason it is notified. */
-interface Recipient {
-    /** The position of the recipient in its audience, which the cursor keeps. */
-    readonly id: string;
-    /** The recipient. */
-    readonly owner: Subject;
-    /** Why the recipient is notified. */
-    readonly reason: Reason;
+/** The notification a push shows, with its activity. */
+interface PushNotice {
+    /** The notification. */
+    readonly notification: Notification["id"];
+    /** Its activity's last occurrence. */
+    readonly occurrence: Activity;
 }
 
-/** What an app serves its activities with: its declared notifications. */
-export interface NotificationOptions {
-    /** The declarations whose actions answer the activities and whose announcements expand. */
-    readonly notifications: readonly NotificationType[];
-    /** The recipients of one announcement batch, 100 by default. */
-    readonly batch?: number;
-}
-
-/** Serve an app's activities, announcements and subscriptions. */
-export function serveActivities(options: NotificationOptions) {
-    return [
-        activity.implement({
-            methods: {
-                act: (call) => act(call, options),
-                notify: (call) => declarationOf(call.input, options).notify(call),
-            },
-        }),
-        announcement.implement({
-            methods: {
-                announce: (call) => declarationOf(call.input, options).announce(call),
-                expand: (call) => expand(call, options),
-            },
-            controller: {
-                pending: { expandedAt: { isNull: true } },
-                reconcile: async (reconciliation) => {
-                    // expand the announcement's next batch
-                    await reconciliation.mutate(
-                        reconciliation.rows.map((row) =>
-                            announcement.call("expand", announcement.target(row)),
-                        ),
-                    );
-
-                    return undefined;
-                },
-            },
-        }),
-        subscription.implement({
-            methods: {
-                add: (call, next) => add(call, next),
-                subscribers: (call) => subscribers(call),
-            },
-        }),
-    ] as const;
-}
-
-/** Find the served declaration of an activity, an announcement or a notice. */
-function declarationOf(
-    row: Pick<Activity, "packageId" | "name">,
-    options: NotificationOptions,
-): NotificationType {
-    const declaration = options.notifications.find((declared) => declared.is(row));
-    if (declaration === undefined) {
-        throw new TypeError(`notification ${row.packageId}/${row.name} is not served`);
-    }
-
-    return declaration;
-}
-
-/** Answer an activity's action as its recipient. */
-function act(
-    call: CallOf<typeof activity, "act">,
-    options: NotificationOptions,
-): Promise<ResultOf<typeof activity, "act">> {
-    const { action, text } = call.input;
-
-    return declarationOf(call.target, options).act(call, action, text);
-}
-
-/** Expand an announcement's next batch into its recipients' activities. */
-async function expand(
-    call: CallOf<typeof announcement, "expand">,
-    options: NotificationOptions,
-): Promise<ResultOf<typeof announcement, "expand">> {
-    // read the source and the page after the cursor
-    const row = call.requireTarget();
-    const source = ObjectReference.parent(row);
-    const limit = options.batch ?? BATCH;
-    const page = { ...(row.cursor === null ? {} : { after: row.cursor }), limit };
-
-    // read the next batch of the audience, skipping the author and excluded principals
-    const audience = await readAudience(call, source, page);
-    const skipped = new Set([...(row.author === null ? [] : [row.author]), ...row.excluded]);
-    const recipients = audience.filter((entry) => !skipped.has(Subject.key(entry.owner)));
-
-    // notify each reason's recipients together in one mutation
-    const reasons = [...Map.groupBy(recipients, (entry) => entry.reason)];
-    await call.mutate(
-        call.caller,
-        reasons.map(([reason, entries]) =>
-            activity.call("notify", {
-                parent: { packageId: source.packageId, type: source.type, id: source.id },
-                packageId: row.packageId,
-                name: row.name,
-                recipients: entries.map((entry) => entry.owner),
-                reason,
-                payload: row.payload,
-                ...(row.key === null ? {} : { key: row.key }),
-                thread: row.thread,
-            }),
-        ),
-    );
-
-    // advance the cursor, finishing with a batch short of full
-    return call.update({
-        cursor: audience.at(-1)?.id ?? row.cursor,
-        expandedAt: audience.length < limit ? call.now : null,
-    });
-}
-
-/** Read a page of an announcement's audience. */
-async function readAudience(
-    call: CallOf<typeof announcement, "expand">,
-    source: ObjectReference,
-    page: { readonly after?: string; readonly limit: number },
-): Promise<readonly Recipient[]> {
-    // read the announcement's audience
-    const row = call.requireTarget();
-    const target = row.audience;
-
-    // read the source's subscribers
-    if (target.kind === "subscribers") {
-        const parent = { packageId: source.packageId, type: source.type, id: source.id };
-        const read = await call.query(
-            call.caller,
-            subscription.call("subscribers", { parent, ...page, until: row.updatedAt }),
-        );
-
-        return read.items;
-    }
-    // read the space's members for the announcement's reason
-    else if (target.kind === "members") {
-        const members = await readMembers(call, page);
-
-        return members.map((entry) => ({ ...entry, reason: target.reason }));
-    }
-    // read the permitted users for the announcement's reason
-    else {
-        const permitted = await readPermitted(call, source, target.permission, page);
-
-        return permitted.map((entry) => ({ ...entry, reason: target.reason }));
-    }
-}
-
-/** Subscribe a principal to an object, keeping an existing subscription. */
-async function add(
-    call: CallOf<typeof subscription, "add">,
-    next: NextOf<typeof subscription, "add">,
-): Promise<ResultOf<typeof subscription, "add">> {
-    // keep the principal's subscription to the parent, or subscribe it
-    const parent = call.requireParent();
-    const [existing] = await call.read(subscription).rows({
-        parentPackageId: parent.packageId,
-        parentType: parent.type,
-        parentId: parent.id,
-        owner: schema.string().parse(call.input["owner"]),
-    });
-
-    return existing ?? next();
-}
-
-/** Read a page of an object's subscribers, oldest first. */
-async function subscribers(
-    call: CallOf<typeof subscription, "subscribers">,
-): Promise<ResultOf<typeof subscription, "subscribers">> {
-    const { parent, after, limit, until } = call.input;
-    const rows = await call.read(subscription).rows(
-        {
-            parentPackageId: parent.packageId,
-            parentType: parent.type,
-            parentId: parent.id,
-            ...(after === undefined ? {} : { id: { gt: after } }),
-            ...(until === undefined ? {} : { createdAt: { lte: until } }),
+/** Implement a home's notifications: start, decide and send an occurrence's delivery. */
+export function implementNotification(server: NotificationServer): typeof notification {
+    return notification.implement({
+        methods: {
+            plan,
+            decide: (context) => decide(context, server),
+            send: (context) => send(context, server),
+            schedule,
+            summarize: (context) => summarizeAt(context, server),
+            forget,
         },
-        { orderBy: { id: "asc" }, limit },
+    });
+}
+
+/** Start the delivery of the activity's last occurrence, once per occurrence. */
+async function plan(
+    context: MethodContextOf<typeof notification, "plan">,
+): Promise<ResultOf<typeof notification, "plan">> {
+    // start one run per occurrence, keyed by the notification and the occurrence's time
+    const row = context.target;
+    const entry = present(await InboxEntry.read(context, row), `the activity of ${row.id}`);
+    const { occurredAt } = entry.activity;
+    const start = deliver.start(
+        { notification: row.id, occurredAt },
+        { key: `${row.id}/${occurredAt}`, actor: context.self.subject },
     );
+    await context.mutate(context.self, [start]);
+
+    return context.update({ plannedAt: context.now });
+}
+
+/** Decide what each waiting destination does with the occurrence now. */
+async function decide(
+    context: MethodContextOf<typeof notification, "decide">,
+    server: NotificationServer,
+): Promise<ResultOf<typeof notification, "decide">> {
+    // decide nothing once the home lost the activity, as after a revoked share
+    const entry = await InboxEntry.read(context, context.target);
+    if (entry === undefined) {
+        return { items: [] };
+    }
+
+    // route the occurrence under the person's settings to the waiting destinations
+    const recipient = await Recipient.read(context, entry.person);
+    const settings = nth(await Settings.read(context, entry.person, [entry.activity]), 0);
+    const emailDelay = Duration.milliseconds(server.emailDelay);
+    const routing = new Routing(entry, recipient, settings, { emailDelay }, context.now);
+    const { destinations, occurredAt } = context.input;
+    const waiting = recipient
+        .reachable(context)
+        .filter((to) => destinations === undefined || destinations.includes(Destination.key(to)));
+
+    // skip a replaced occurrence, else decide each destination
+    const isReplaced = entry.activity.occurredAt > occurredAt;
+    const replaced: Decision = { action: "skip", reason: "replaced" };
+    const items = waiting.map((to) => ({
+        key: Destination.key(to),
+        to,
+        decision: isReplaced ? replaced : routing.decide(to),
+    }));
+
+    return { items };
+}
+
+/** Send the occurrence to one destination now. */
+async function send(
+    context: MethodContextOf<typeof notification, "send">,
+    server: NotificationServer,
+): Promise<ResultOf<typeof notification, "send">> {
+    // compose the content for the recipient's destination
+    const entry = present(await InboxEntry.read(context, context.target), "the activity");
+    const recipient = await Recipient.read(context, entry.person);
+    const to = recipient.destination(context.input.to);
+    const notice = { notification: context.target.id, occurrence: entry.activity };
+    const content = compose(server, to, entry.activity.content, notice, context.scope);
+    const source = notification.reference(context.scope, context.target.id);
+
+    return { message: await createMessage(context, to, content, source) };
+}
+
+/** Keep the occurrence for a scheduled summary, starting the summary's run once per time. */
+async function schedule(
+    context: MethodContextOf<typeof notification, "schedule">,
+): Promise<ResultOf<typeof notification, "schedule">> {
+    // start one summary run per home and time
+    const { at } = context.input;
+    const start = summarize.start({ at }, { key: String(at), actor: context.self.subject });
+    await context.mutate(context.self, [start]);
+
+    return context.update({ summaryAt: at });
+}
+
+/** Send the scheduled summary due at a time to each summary destination, once. */
+async function summarizeAt(
+    context: MethodContextOf<typeof notification, "summarize">,
+    server: NotificationServer,
+): Promise<ResultOf<typeof notification, "summarize">> {
+    // read the notifications waiting for the summary, with their activities
+    const { at } = context.input;
+    const states = await context.read(notification).findMany({ where: { summaryAt: at } });
+    const activities = await context.read(activity).findMany({
+        where: { id: { in: states.map((state) => Notification.activity(state.id)) } },
+    });
+    const { entries } = new Inbox(states, activities, context.now);
+    const [lead] = entries;
+    if (lead === undefined) {
+        return {};
+    }
+
+    // read where the person receives notifications, and each entry's settings
+    const { person } = lead;
+    const recipient = await Recipient.read(context, person);
+    const settings = await Settings.read(
+        context,
+        person,
+        entries.map((entry) => entry.activity),
+    );
+
+    // send each destination the entries it takes in the summary, in the person's language
+    const own = await server.catalog(context, import.meta.destack.package.id);
+    const locale = own.localization(recipient.locale);
+    const options = { emailDelay: Duration.milliseconds(server.emailDelay), summaryAt: at };
+    const routings = entries.map(
+        (entry, index) => new Routing(entry, recipient, nth(settings, index), options, context.now),
+    );
+    const decided = recipient.reachable(context).map((to) => ({
+        to,
+        decisions: routings.map((routing) => routing.decide(to)),
+    }));
+    for (const { to, decisions } of decided) {
+        // send the entries the destination takes, for the latest of them
+        const included = entries.filter((_entry, index) => nth(decisions, index).action === "send");
+        const [latest] = included;
+        if (latest !== undefined) {
+            const content: NotificationContent = {
+                title: locale.render(t`Scheduled summary`),
+                body: Activity.summarize(included.map((entry) => entry.activity)).join("\n"),
+            };
+            const composed = compose(server, to, content, undefined, context.scope);
+            const source = notification.reference(context.scope, latest.notification.id);
+            await createMessage(context, to, composed, source);
+        }
+    }
+
+    // schedule a snoozed entry for the summary after its snooze, and release the rest
+    const next = entries.flatMap((entry, index) => {
+        // read the latest time a destination defers the entry to
+        const deferred = decided.flatMap(({ decisions }) => {
+            const decision = nth(decisions, index);
+
+            return decision.action === "defer" ? [decision.until] : [];
+        });
+        if (deferred.length === 0) {
+            return [];
+        }
+
+        // join the first summary after the latest deferral
+        const after = Math.max(...deferred);
+        const nextAt = TimeZone.next(recipient.timeZone, nth(settings, index).summary.times, after);
+
+        return [
+            notification.call("schedule", {
+                ...notification.target(entry.notification),
+                at: nextAt,
+            }),
+        ];
+    });
+    await context.mutate(context.self, [
+        ...next,
+        notification.call("reschedule", {
+            ...notification.in(context.scope),
+            where: { summaryAt: at },
+            summaryAt: null,
+        }),
+    ]);
+
+    return {};
+}
+
+/** Forget a browser whose push service forgot it, as long as the recipient lists it. */
+async function forget(
+    context: MethodContextOf<typeof notification, "forget">,
+): Promise<ResultOf<typeof notification, "forget">> {
+    // send the account the browser's unsubscription, acting for the space
+    const entry = present(await InboxEntry.read(context, context.target), "the activity");
+    const { person } = entry;
+    const recipient = await Recipient.read(context, person);
+    const unsubscriptions = recipient.browsers
+        .filter((each) => each.url === context.input.url)
+        .map((browser) =>
+            ScheduledCall.send(
+                scheduled,
+                client.call("unsubscribe", { id: browser.id, userId: person.id }),
+                { actor: principal.space.reference(Scope.universe.id, context.scope) },
+            ),
+        );
+    await context.mutate(context.self, unsubscriptions);
+
+    return context.target;
+}
+
+/** Send a home's message for a notification, its content sealed to the home's message key. */
+async function createMessage(
+    context: MethodContext,
+    to: RecipientDestination,
+    content: Content | undefined,
+    source: ObjectReference,
+): Promise<Identifier<"message">> {
+    // seal the content to the space's message content key, showing a desktop message without content
+    const sealing = message.call("contentKey", message.in(context.scope));
+    const ciphertext =
+        content === undefined
+            ? undefined
+            : await MessageKey.of((await context.query(context.self, sealing)).key).seal(
+                  content,
+                  context.scope,
+              );
+
+    // create the message for its notification
+    const [created] = await context.mutate(context.self, [
+        message.call("create", {
+            ...message.in(context.scope),
+            to,
+            ...ObjectReference.columns("source", source),
+            ...(ciphertext === undefined ? {} : { ciphertext }),
+        }),
+    ]);
+
+    return created.id;
+}
+
+/** Compose a message's content for its destination: none to a desktop, an email, or a push. */
+function compose(
+    server: NotificationServer,
+    to: RecipientDestination,
+    content: NotificationContent,
+    notice: PushNotice | undefined,
+    home: string,
+): Content | undefined {
+    // show a desktop message without content
+    if (to.channel === "desktop") {
+        return undefined;
+    }
+    // email the content
+    else if (to.channel === "email") {
+        const text = [content.subtitle, content.body].filter((line) => line !== undefined);
+
+        return { channel: "email", subject: content.title, text: text.join("\n\n") };
+    }
+
+    // push a summary, or one notification with its activity and actions
+    const data =
+        notice === undefined
+            ? { scope: home, content: content, actions: [] }
+            : {
+                  notification: notice.notification,
+                  scope: home,
+                  content: content,
+                  activity: { scope: notice.occurrence.scope, id: notice.occurrence.id },
+                  actions: notice.occurrence.actions.map((action) => ({
+                      name: action.name,
+                      title: action.title,
+                      isDestructive: action.isDestructive === true,
+                      hasText: action.text !== undefined,
+                  })),
+              };
+    const level = notice === undefined ? "passive" : notice.occurrence.interruption;
 
     return {
-        items: rows.map((row) => ({
-            id: row.id,
-            owner: Subject.read(row.owner),
-            reason: row.reason,
-        })),
+        channel: "push",
+        data,
+        urgency: URGENCY[level],
+        ttl: Duration.seconds(server.pushTtl),
+        ...(notice === undefined ? {} : { topic: Notification.topic(notice.notification) }),
     };
-}
-
-/** Read a page of the space's members: the users its copy follows because they joined it. */
-async function readMembers(
-    call: Call,
-    page: { readonly after?: string; readonly limit: number },
-): Promise<readonly { readonly id: string; readonly owner: Subject }[]> {
-    // read the next users the space's copy includes, in key order past the page's start
-    const after =
-        page.after === undefined ? {} : { key: { gt: Key.name(user.table, { id: page.after }) } };
-    const included = await call
-        .requireTransaction()
-        .rows(
-            replicaRow,
-            { name: call.scope, table: user.table[TABLE].sqlName, ...after },
-            { orderBy: { key: "asc" }, limit: page.limit },
-        );
-
-    return included.map((row) => {
-        const id = schema.identifier("user").parse(Key.parse(user.table, row.key)["id"]);
-
-        return { id, owner: principal.user.reference(Scope.universe.id, id) };
-    });
-}
-
-/** Read a page of the users with a permission on an object. */
-async function readPermitted(
-    call: Call,
-    source: ObjectReference,
-    permission: string,
-    page: { readonly after?: string; readonly limit: number },
-): Promise<readonly { readonly id: string; readonly owner: Subject }[]> {
-    // list the user principals with the permission
-    const authorizer = call.requireAuthorization().authorizer;
-    const userType = {
-        packageId: principal.user.definition.packageId,
-        type: principal.user.name,
-    };
-    const subjects = await authorizer.subjects(
-        call.view(),
-        authorizer.policy(source).permission(permission),
-        source,
-        userType,
-        call.now,
-        page,
-    );
-
-    return subjects.map((owner) => ({ id: Subject.key(owner), owner }));
 }

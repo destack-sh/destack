@@ -1,36 +1,95 @@
+import type { Call } from "@destack/sync";
+import { STACKS } from "@destack/account/test";
 import { readFile } from "node:fs/promises";
-import { anyone, type PermissionReference, principal } from "@destack/access";
+import {
+    anyone,
+    CONTAINED,
+    type PermissionReference,
+    PermissionSet,
+    principal,
+    universe,
+} from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { account, client, key, user, space, Account } from "@destack/account/object";
-import { journal } from "@destack/audit/stack";
-import { type Database, type DatabaseConnection, type Dialect, eq, Key, Snapshot, TABLE, type Table } from "@destack/db";
+import {
+    account,
+    claim,
+    client,
+    key,
+    relationship,
+    user,
+    space,
+    Account,
+} from "@destack/account/object";
+import { call, journal } from "@destack/object";
+import {
+    type Database,
+    type DatabaseConnection,
+    defineDatabase,
+    type Dialect,
+    eq,
+    Snapshot,
+    Table,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Catalog, type LocaleTag } from "@destack/locale";
+import type { LocaleTag } from "@destack/locale";
 import { Derivation } from "@destack/identity";
 import { emailProvider } from "@destack/message/email";
 import { MailFixture } from "@destack/message/test";
 import { type PushKeys, pushProvider, Vapid } from "@destack/message/push";
-import { message, messageAttempt, MessageKey } from "@destack/message";
-import { serveMessages } from "@destack/message/server";
-import { Call, type CallableName, type CallInput, type CallOutput, type ObjectCall, type ObjectType } from "@destack/object";
-import { ObjectStore, ScopeProjector } from "@destack/object/server";
+import { message } from "@destack/message";
+import { implementEndpoint, implementMessage, type MessageOptions } from "@destack/message/server";
+import messagePackage from "@destack/message/package";
+import { messageTables } from "@destack/message/stack";
+import { ObjectType } from "@destack/object";
+import { defineServer, ObjectStore } from "@destack/object/server";
+import { serversOf, testEvents } from "@destack/object/test";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { PackageId } from "@destack/package";
-import { type Identifier, present, schema } from "@destack/schema";
+import { Package } from "@destack/package";
+import { Identifier, present, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { setting } from "@destack/setting/object";
-import type { Controller } from "@destack/service/control";
-import { RequestId } from "@destack/service/request";
-import { reconciliation, subjectContext, testCallKey } from "@destack/service/test";
-
-import { type Mutation, Replica, replicaRow, replicaTables, Scope, Subject } from "@destack/sync";
-import { onTestFinished, TestClock } from "@destack/test";
+import { settingServer, type SettingOptions } from "@destack/setting/server";
+import { PackageHandle } from "@destack/runtime";
+import { type Controller, ControlLoop } from "@destack/runtime/control";
+import { RequestId } from "@destack/runtime/request";
+import {
+    reconciliation,
+    subjectContext,
+    testCallKey,
+    testServerContext,
+} from "@destack/runtime/test";
+import type { ServerContext } from "@destack/runtime/workload";
+import {
+    type Mutation,
+    type Uplink,
+    Replica,
+    replicaPosition,
+    replicaTables,
+    Scope,
+    ObjectReference,
+    Subject,
+} from "@destack/sync";
+import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
-import { activity, announcement, delivery, notification } from "../object/index.ts";
-import { serveInbox } from "../server/index.ts";
-import { inboxService } from "../service/index.ts";
-import { HomeInbox } from "./inbox.ts";
+import {
+    activity,
+    announcement,
+    deliver,
+    Notification,
+    notification,
+    scheduled,
+    subscription,
+    summarize,
+} from "../object/index.ts";
+import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { installBuild } from "@destack/stack/test";
+import { implementUser } from "@destack/account/server";
+import { NotificationServer, type NotificationOptions } from "../server/index.ts";
+import notificationPackage from "../package.ts";
+import { PUSH_CAPABILITY } from "../message/recipient.ts";
+import { Inbox } from "../notification/inbox.ts";
+import { VirtualClock } from "@destack/environment/simulation";
 
 /** The inbox's build, shipping its own German catalog. */
 export const INBOX_BUILD: BuildReader = await MemoryBuild.write(
@@ -40,44 +99,33 @@ export const INBOX_BUILD: BuildReader = await MemoryBuild.write(
             new Uint8Array(await readFile(`${import.meta.dirname}/../../locale/de.json`)),
         ],
     ]),
-    { package: inboxService.package },
+    { package: Package.of(notificationPackage) },
 );
-
-/** The inbox's own catalogs, read from its build as the machine reads them. */
-export const INBOX_CATALOGS: readonly Catalog[] = await Catalog.read(INBOX_BUILD);
 
 /** The time zone and locale each person of a scenario signs up with. */
 const SIGN_UP = { timeZone: "UTC", locale: "en" };
 
-/** The installation of the app keeping the activities. */
+/** The installation of the notification package in every space and home. */
 const INSTALLATION = schema
     .identifier("installation")
     .parse("installation-019f5530-8000-7000-8000-0000000000f1");
 
-/** The permissions the fixture's installation has in each space and home. */
-const INSTALLATION_PERMISSIONS = [
-    notification.permission("read"),
-    notification.permission("deliver"),
-    delivery.permission("deliver"),
-    announcement.permission("expand"),
-    message.permission("send"),
-    message.permission("read"),
-    message.permission("control"),
-    message.permission("erase"),
-    messageAttempt.permission("record"),
-];
+/** The controllers a dispatch reconciles, by name; replicas follow in the background. */
+const DISPATCHED = new Set([
+    "activity",
+    "announcement",
+    "message",
+    ...[deliver, summarize, scheduled].map((workflow) => workflow.run.name),
+]);
 
-/** The controllers a dispatch runs, by name. */
-const DISPATCHED = new Set(["notification", "delivery", "announcement", "message", "sends"]);
-
-/** The objects living in the people's home rather than the app's space. */
-const HOME_OBJECTS = new Set(["notification", "delivery"]);
+/** The objects living in the person's home rather than the app's space. */
+const HOME_OBJECTS = new Set(["notification", "message"]);
 
 /** The most rounds a dispatch takes. */
 const DISPATCH_ROUNDS = 20;
 
-/** The longest a dispatch waits for the home's projection, in milliseconds. */
-const PROJECTION_TIMEOUT = 5000;
+/** The longest a dispatch waits for a home's replicas of the space, in milliseconds. */
+const REPLICA_TIMEOUT = 5000;
 
 /** The status a push service answers a push it accepted with (RFC 8030 5). */
 const CREATED = 201;
@@ -88,26 +136,55 @@ const GONE = 410;
 /** How refused messages retry in a scenario: at once, twice. */
 const RETRY = { initialInterval: 0, maximumInterval: 0, maximumAttempts: 2, backoffCoefficient: 1 };
 
-/** Stream no copies, as a machine with nothing to copy. */
-async function* idle() {}
+/** A person's home: its own database, with its notifications, messages and replicas. */
+export const homeDatabase = defineDatabase({
+    name: "home",
+    tables: [
+        journal,
+        ...call.tables,
+        ...replicaTables,
+        ...[setting, activity, announcement, subscription, notification].flatMap(
+            (object) => object.tables,
+        ),
+        ...messageTables,
+        ...[deliver, summarize, scheduled].flatMap((workflow) =>
+            Object.values(workflow.objects).flatMap((object) => object.tables),
+        ),
+        installation.table,
+        installationRevision.table,
+        declaration.table,
+    ],
+    replicated: [user.table, client.table, key.table, space.table, account.table],
+});
 
-/** Answer an installation's calls to an address with a refusal. */
-export function unfetched(address: string) {
-    return {
-        url: address,
-        fetch: () => Promise.reject(new Error("the test installation fetches no address")),
-    };
-}
+/** The setting package as a space serves it, its values written directly by the fixture. */
+const SETTINGS: SettingOptions = {
+    declared: () => Promise.reject(new TypeError("the fixture writes setting values directly")),
+    after: [],
+};
+
+/** The universe's stand-in: the spaces and people a home follows on its person's behalf. */
+export const universeDatabase = defineDatabase({
+    name: "universe",
+    tables: [
+        journal,
+        ...call.tables,
+        ...replicaTables,
+        ...[account, space, user, client, key, claim, relationship].flatMap(
+            (object) => object.tables,
+        ),
+    ],
+});
 
 /** What a NotificationFixture serves: an app's objects in a space, and the people it notifies. */
 export interface NotificationFixtureOptions<Name extends string> {
-    /** The dialect of the database, SQLite by default. */
+    /** The dialect of the databases, SQLite by default. */
     readonly dialect?: Dialect;
-    /** The app's package and service recording the calls. */
+    /** The app's package recording the calls. */
     readonly origin: ObjectStore["origin"];
     /** The app's objects in the space, with the activities it serves. */
     readonly objects: readonly ObjectType[];
-    /** The database with the app's objects' tables and the fixture's tables. */
+    /** The space's database with the app's objects' tables and the fixture's tables. */
     readonly database: Database;
     /** The people the scenario acts as and notifies, by name. */
     readonly people: Readonly<Record<Name, Subject>>;
@@ -115,224 +192,261 @@ export interface NotificationFixtureOptions<Name extends string> {
     readonly actor: NoInfer<Name>;
     /** The app's build, an empty one of its package by default. */
     readonly build?: BuildReader;
+    /** The recipients of one announcement batch, 100 by default. */
+    readonly batch?: number;
     /** The scenario's start in Unix milliseconds, now by default. */
     readonly at?: number;
     /** The permissions the app's workloads request on its own objects. */
     readonly requested?: readonly PermissionReference[];
 }
 
-/** An app's space and its people's home in one database. */
+/** A person's home: its space, its database and its store. */
+interface Home {
+    /** The home space. */
+    readonly id: Identifier<"space">;
+    /** The home's database. */
+    readonly test: TestDatabase;
+    /** The home's store, planning the person's activities and advancing their deliveries. */
+    readonly store: ObjectStore;
+}
+
+/** An app's space and its people's homes, each in a database of its own. */
 export class NotificationFixture<Name extends string> implements AsyncDisposable {
     /** The people the scenario acts as and notifies, by name. */
     readonly people: Readonly<Record<Name, Subject>>;
-    /** The store of the app's objects in the space and the inbox's in the home. */
+    /** The store of the app's objects in the space. */
     readonly store: ObjectStore;
     /** The app's space. */
     readonly spaceId: Identifier<"space">;
-    /** The people's home. */
-    readonly homeId: Identifier<"space">;
     /** The push service the recipients' browsers subscribe at. */
     readonly pushes: PushService;
     /** The mail transport. */
     readonly mails: MailFixture;
-    /** The browser clients whose push subscriptions the inbox forgot at the account service. */
+    /** The browser clients whose push subscriptions a home forgot at the account package. */
     readonly forgotten: string[] = [];
     /** The scenario's clock, which the stores and the fixture's calls read. */
-    readonly clock: TestClock;
-    /** The languages people read, by subject key. */
-    readonly #locales = new Map<string, LocaleTag>();
-    /** The test database. */
+    readonly clock: VirtualClock;
+    /** The people's homes, by name, opened as a scenario first needs each. */
+    readonly #homes = new Map<Name, Home>();
+    /** The builds each space installs: the app's and the inbox's. */
+    readonly #builds: readonly BuildReader[];
+    /** The space's database. */
     readonly #test: TestDatabase;
-    /** The controllers a dispatch reconciles. */
-    readonly #controllers: readonly Controller[];
-    /** End the projection and the inboxes. */
+    /** The dialect of the space's and the homes' databases. */
+    readonly #dialect: Dialect;
+    /** What every store serves notifications with, beside a home. */
+    readonly #options: NotificationOptions;
+    /** The message providers the homes send through. */
+    readonly #providers: MessageOptions["providers"];
+    /** The root secret every home's message key derives from. */
+    readonly #root: Awaited<ReturnType<typeof Derivation.of>>;
+    /** End the replicas and the inboxes. */
     readonly #following = new AbortController();
-    /** The work closed before the database: the projection and the inboxes. */
+    /** The work closed before the databases: the replicas and the inboxes. */
     readonly #followers: (() => Promise<void>)[] = [];
-    /** The closing of the database, absent while open. */
+    /** The stand-in of the universe, opened with the first home. */
+    #universe:
+        | Promise<{
+              readonly test: TestDatabase;
+              readonly store: ObjectStore;
+              readonly accountId: Identifier<"account">;
+          }>
+        | undefined;
+    /** The closing of the databases, absent while open. */
     #closed: Promise<void> | undefined;
     /** The person calls act as. */
     #actor: Name;
 
-    /** The tables the fixture keeps beside the app's. */
+    /** The tables a space keeps beside the app's. */
     static readonly tables: readonly Table[] = [
         journal,
+        ...call.tables,
         ...replicaTables,
-        ...[user, setting, notification, delivery, message, messageAttempt].flatMap(
-            (object) => object.tables,
-        ),
+        installation.table,
+        installationRevision.table,
+        declaration.table,
     ];
 
-    /** The tables the fixture keeps as copies, receiving their changes as their home. */
-    static readonly copies: readonly Table[] = [client.table, key.table];
-
-    /** Keep the served space and home. */
+    /** Keep the served space and the means to open homes. */
     private constructor(
         test: TestDatabase,
         store: ObjectStore,
-        spaces: { readonly spaceId: Identifier<"space">; readonly homeId: Identifier<"space"> },
-        transports: { readonly pushes: PushService; readonly mails: MailFixture },
-        options: NotificationFixtureOptions<Name> & { readonly clock: TestClock },
+        spaceId: Identifier<"space">,
+        served: {
+            readonly options: NotificationOptions;
+            readonly providers: MessageOptions["providers"];
+            readonly root: Awaited<ReturnType<typeof Derivation.of>>;
+            readonly pushes: PushService;
+            readonly mails: MailFixture;
+            readonly builds: readonly BuildReader[];
+        },
+        options: NotificationFixtureOptions<Name> & { readonly clock: VirtualClock },
     ) {
         // keep the database, the store and the transports
         this.#test = test;
+        this.#dialect = options.dialect ?? "sqlite";
         this.store = store;
-        this.spaceId = spaces.spaceId;
-        this.homeId = spaces.homeId;
-        this.pushes = transports.pushes;
-        this.mails = transports.mails;
+        this.spaceId = spaceId;
+        this.#options = served.options;
+        this.#providers = served.providers;
+        this.#root = served.root;
+        this.pushes = served.pushes;
+        this.mails = served.mails;
+        this.#builds = served.builds;
 
         // act as the first person at the scenario's start
         this.people = options.people;
         this.#actor = options.actor;
         this.clock = options.clock;
-        this.#controllers = store.controllers().filter((each) => DISPATCHED.has(each.name));
-
-        // read each person in the locale they signed up with
-        for (const person of Object.values<Subject>(options.people)) {
-            this.#locales.set(Subject.key(person), SIGN_UP.locale);
-        }
     }
 
-    /** The database with the space and the home. */
+    /** The space's database. */
     get database(): DatabaseConnection {
         return this.#test.database;
     }
 
-    /** Serve an app's objects in a new space and the inbox in its people's home. */
+    /** Serve an app's objects in a new space, opening its people's homes as they are needed. */
     static async open<Name extends string>(
         options: NotificationFixtureOptions<Name>,
     ): Promise<NotificationFixture<Name>> {
-        // migrate the database of the app's objects and the inbox
+        // send mail and pushes through the fixture's transports, sealed to one root's keys
         const { dialect = "sqlite", at = Date.now() } = options;
-        const clock = new TestClock(at);
-        const transports = { pushes: new PushService(), mails: new MailFixture() };
-        const objects = await NotificationFixture.#objects(options.objects, transports);
-        const test = await TestDatabase.create(dialect, options.database, { isMigrated: true });
-
-        // keep the space and the people's home, granting the installation in both
-        const { database } = test;
-        const spaceId = await NotificationFixture.openSpace(database, at);
-        const homeId = await NotificationFixture.openSpace(database, at);
-        const installation = principal.installation.reference(spaceId, INSTALLATION);
-        const requested = [...INSTALLATION_PERMISSIONS, ...(options.requested ?? [])];
-        for (const granted of [spaceId, homeId]) {
-            await NotificationFixture.grant(database, granted, installation, requested, at);
-        }
-
-        // copy each person's user
-        for (const [name, person] of Object.entries<Subject>(options.people)) {
-            await database.insert(user.table).values(NotificationFixture.#user(person, name, at));
-        }
-
-        // serve them as the app's installation, sending changes of copied clients to their home
-        const uplink = {
-            stream: idle,
-            receive: (mutation: Mutation) => fixture.#receive(mutation),
-        };
-        const fixture: NotificationFixture<Name> = new NotificationFixture(
-            test,
-            new ObjectStore({
-                principal: installation,
-                objects,
-                policies: [client],
-                database,
-                clock,
-                callKey: testCallKey,
-                origin: options.origin,
-                subscriber: { uplink, subscriptions: async () => [] },
-                installation: {
-                    id: INSTALLATION,
-                    scope: spaceId,
-                    build:
-                        options.build ??
-                        (await MemoryBuild.write(new Map(), { package: options.origin.package })),
-                    publisher: uplink,
-                    settings: {},
-                    publisherAt: () => uplink,
-                    at: unfetched,
-                    directory: {
-                        isHome: async (_subject, home) => home === homeId,
-                        locale: async (subject) =>
-                            present(fixture.#locales.get(subject), `the locale of ${subject}`),
-                        address: async () => {},
-                        messageKey: async (home) => {
-                            throw new Error(`the source space sends no messages, not to ${home}`);
-                        },
-                    },
-                },
-            }),
-            { spaceId, homeId },
-            transports,
-            { ...options, clock },
+        const clock = new VirtualClock(at);
+        const pushes = new PushService();
+        const mails = new MailFixture();
+        const vapid = await crypto.subtle.generateKey(
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["sign", "verify"],
         );
-        onTestFinished(() => fixture.close());
-
-        // project the space's activities into the home
-        fixture.#follow();
-
-        return fixture;
-    }
-
-    /** Describe a person's user row as they sign up. */
-    static #user(person: Subject, name: string, at: number) {
-        return {
-            id: schema.identifier("user").parse(person.id),
-            scope: Scope.universe.id,
-            name,
-            ...SIGN_UP,
-            createdAt: at,
-            updatedAt: at,
-        };
-    }
-
-    /** Serve the app's objects beside the users, the inbox and the messages. */
-    static async #objects(
-        served: readonly ObjectType[],
-        transports: { readonly pushes: PushService; readonly mails: MailFixture },
-    ) {
-        // send mail and pushes through the fixtures' transports
-        const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-            "sign",
-            "verify",
-        ]);
         const root = Derivation.of(
             await Derivation.root(crypto.getRandomValues(new Uint8Array(32))),
         );
         const providers = {
-            email: emailProvider(transports.mails),
-            push: pushProvider(
-                async () => new Vapid(keys, "https://destack.app"),
-                transports.pushes.fetch,
-            ),
+            email: emailProvider(mails),
+            push: pushProvider(async () => new Vapid(vapid, "https://destack.app"), pushes.fetch),
         };
 
-        return [
-            ...served,
-            user,
-            ...serveInbox({
-                catalogs: INBOX_CATALOGS,
-                key: async () => (await MessageKey.derive(root)).key,
-            }),
-            ...serveMessages({ providers, retry: RETRY, deriver: async () => root }),
-        ];
+        // render each notification in its declaring build's catalogs and its recipient's language
+        const build =
+            options.build ??
+            (await MemoryBuild.write(new Map(), { package: options.origin.package }));
+        const builds = [build, INBOX_BUILD];
+        const served: NotificationOptions =
+            options.batch === undefined ? {} : { batch: options.batch };
+
+        // keep the space, granting the installation in it
+        const test = await TestDatabase.create(dialect, options.database, { isMigrated: true });
+        const spaceId = await NotificationFixture.openSpace(test.database, at);
+        const installer = principal.installation.reference(spaceId, INSTALLATION);
+        const requested = options.requested ?? [];
+        await NotificationFixture.grant(test.database, spaceId, installer, requested, at);
+        await NotificationFixture.install(test.database, spaceId, builds, at);
+
+        // keep each person's profile in the space, in their sign-up locale
+        for (const [name, person] of Object.entries<Subject>(options.people)) {
+            await NotificationFixture.person(test.database, person, { name, ...SIGN_UP }, at);
+        }
+
+        // serve the app's objects and the notifications as the installation
+        const app = PackageHandle.of(options.origin.package, {
+            objects: Object.fromEntries(options.objects.map((each) => [each.name, each])),
+        });
+        const store = new ObjectStore({
+            servers: [
+                defineServer(app, { objects: options.objects }),
+                defineServer(notificationPackage, new NotificationServer(served).definition()).at(
+                    await NotificationFixture.installation(spaceId),
+                ),
+                settingServer(SETTINGS),
+            ],
+            chain: async () => undefined,
+            principal: installer,
+            database: test.database,
+            // know the space, as the stack serving it follows it
+            policies: [space],
+            clock,
+            callKey: testCallKey,
+            events: await testEvents(test.database),
+            origin: options.origin,
+        });
+        const fixture: NotificationFixture<Name> = new NotificationFixture(
+            test,
+            store,
+            spaceId,
+            { options: served, providers, root, pushes, mails, builds },
+            { ...options, clock },
+        );
+
+        // close the homes and the space once the test ends
+        onTestFinished(() => fixture.close());
+
+        return fixture;
     }
 
-    /** Open a new space below a new account, and return its identifier. */
-    static async openSpace(database: DatabaseConnection, at: number): Promise<Identifier<"space">> {
-        // record the account and the space as copies of their home's access has them
-        const accountId = schema.identifier("account").parse(`account-${v7()}`);
+    /** Keep a person's public profile in a database once, as their sign-up writes it. */
+    static async person(
+        database: DatabaseConnection,
+        subject: Subject,
+        profile: { readonly name: string; readonly locale: LocaleTag; readonly timeZone: string },
+        at = Date.now(),
+    ): Promise<void> {
+        await database
+            .insert(user.table)
+            .values({
+                id: user.identifier(subject.id),
+                scope: Scope.universe.id,
+                homeId: Account.home(Account.personal(subject.id)),
+                ...profile,
+                createdAt: at,
+                updatedAt: at,
+            })
+            .onConflictDoNothing();
+    }
+
+    /** Install each build's package in a space, as applying its stack does. */
+    static async install(
+        database: DatabaseConnection,
+        scope: Identifier<"space">,
+        builds: readonly BuildReader[],
+        at = Date.now(),
+    ): Promise<void> {
+        for (const build of builds) {
+            await installBuild(database, scope, build, at);
+        }
+    }
+
+    /** Open the home space of an account, a new one unless given, and return its identifier. */
+    static async openSpace(
+        database: DatabaseConnection,
+        at: number,
+        accountId: Identifier<"account"> = schema.identifier("account").parse(`account-${v7()}`),
+    ): Promise<Identifier<"space">> {
+        // replicate the account and the space from their home's access
         const spaceId = Account.home(accountId);
         const reference = space.reference(accountId, spaceId);
-        const accessCopies = new AccessFixture(database);
-        await accessCopies.copyScope(account.reference(Scope.universe.id, accountId));
-        await accessCopies.copyScope(reference);
+        const access = new AccessFixture(database);
+        await access.replicateScope(account.reference(Scope.universe.id, accountId));
+        await access.replicateScope(reference);
+
+        // keep the space's row where the database replicates spaces
+        if (database.tables.includes(space.table)) {
+            const row = {
+                id: spaceId,
+                scope: accountId,
+                name: "space",
+                stack: STACKS.space,
+                createdAt: at,
+                updatedAt: at,
+            };
+            await database.insert(space.table).values(Table.complete(space.table, row));
+        }
 
         // define a role reading the space and bind it to anyone
-        await accessCopies.copyRole(
+        await access.replicateRole(
             reference,
             {
-                name: "member",
+                name: "visitor",
                 description: "Reads the space",
                 permissions: [space.permission("read")],
             },
@@ -343,47 +457,124 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         return spaceId;
     }
 
-    /** Grant an installation in a space what its workloads request there, as approving it does. */
+    /** Describe the notification installation of a space, which may push. */
+    static async installation(spaceId: string): Promise<ServerContext> {
+        return {
+            ...(await testServerContext(Package.of(notificationPackage), spaceId)),
+            installation: INSTALLATION,
+            capabilities: [PUSH_CAPABILITY],
+        };
+    }
+
+    /** Grant an installation in a space what its package and its push capability request. */
     static async grant(
         database: DatabaseConnection,
         spaceId: string,
-        installation: Subject,
-        permissions: readonly PermissionReference[],
+        installer: Subject,
+        requested: readonly PermissionReference[],
         at: number,
     ): Promise<void> {
-        await new AccessFixture(database).copyRole(
+        // bind the role with the space permissions the package requests and the app's ones
+        const access = new AccessFixture(database);
+        const lent = notificationPackage.permissions.installation ?? {};
+        await access.replicateRole(
             await Scope.object(Snapshot.live(database), spaceId),
             {
-                name: `installation/${installation.id}`,
+                name: `installation/${installer.id}`,
                 description: "What the installation requests in this space",
-                permissions: [...permissions],
+                permissions: [...(lent.space ?? []), ...requested],
             },
-            installation,
+            installer,
             at,
         );
+
+        // grant the installation what its space lends beyond the space, the allowed push capability's too
+        const delegator = principal.space.reference(Scope.universe.id, spaceId);
+        const scopes = { space: spaceId, home: [], account: undefined };
+        const push =
+            notificationPackage.capabilities[PUSH_CAPABILITY]?.permissions?.installation ?? {};
+        const beyond = [lent, push]
+            .flatMap((set) => PermissionSet.grant(set, scopes))
+            .filter((permission) => permission.scope !== spaceId);
+        await access.replicateGrant(delegator, installer, beyond, at);
     }
 
-    /** Close the projection and the inboxes, then the database. */
+    /** Close the replicas and the inboxes, then the databases. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.close();
     }
 
-    /** Close the projection and the inboxes, then the database, once. */
+    /** Open the universe's stand-in once: the space's row and access, served as the universe. */
+    #openUniverse(at: number): Promise<{
+        readonly test: TestDatabase;
+        readonly store: ObjectStore;
+        readonly accountId: Identifier<"account">;
+    }> {
+        this.#universe ??= (async () => {
+            // keep the space's row and access in the universe's database
+            const test = await TestDatabase.create(this.#dialect, universeDatabase, {
+                isMigrated: true,
+            });
+            const accountId = schema
+                .identifier("account")
+                .parse(`account-${Identifier.uuid(this.spaceId)}`);
+            await NotificationFixture.openSpace(test.database, at, accountId);
+            const store = new ObjectStore({
+                chain: async () => undefined,
+                clock: this.clock,
+                principal: universe.reference(Scope.universe.id, Scope.universe.id),
+                servers: serversOf([account, space, implementUser(), relationship]),
+                claims: { object: claim },
+                database: test.database,
+                callKey: testCallKey,
+                events: await testEvents(test.database),
+                origin: { package: notificationPackage },
+            });
+
+            return { test, store, accountId };
+        })();
+
+        return this.#universe;
+    }
+
+    /** Close the replicas and the inboxes, then the databases, once. */
     close(): Promise<void> {
         this.#closed ??= (async () => {
+            // end the replicas and the inboxes
             this.#following.abort();
             for (const follower of this.#followers) {
                 await follower();
             }
+
+            // close the homes' databases, then the space's
+            for (const home of this.#homes.values()) {
+                await home.test.close();
+            }
+            await (await this.#universe)?.test.close();
             await this.#test.close();
         })();
 
         return this.#closed;
     }
 
-    /** Move the clock by some minutes. */
-    wait(minutes: number): void {
+    /** Move the clock by some minutes, letting the homes' follows confirm their replicas. */
+    async wait(minutes: number): Promise<void> {
+        // move the clock past the feeds' heartbeats, which repeat positions to caught-up follows
         this.clock.advance(minutes * 60_000);
+        const now = this.clock.now();
+
+        // wait until each home's followed replicas are confirmed at the new time
+        for (const home of this.#homes.values()) {
+            const { database } = home.test;
+            const isConfirmed = async () => {
+                const rows = await database
+                    .select({ sequence: replicaPosition.sequence, at: replicaPosition.confirmedAt })
+                    .from(replicaPosition);
+
+                return rows.every((row) => row.sequence === null || row.at >= now);
+            };
+            await database.log.until(isConfirmed, AbortSignal.timeout(REPLICA_TIMEOUT));
+        }
     }
 
     /** Act as another person. */
@@ -391,56 +582,165 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         this.#actor = person;
     }
 
-    /** Call a method of an object type as the current person in its space. */
-    call<Type extends ObjectType, Method extends CallableName<Type>>(
-        object: Type,
-        name: Method,
-        input: NoInfer<CallInput<Type, Method>>,
-    ): Promise<CallOutput<Type, Method>>;
-    /**
-     * Call a method of an object type as the current person in its space.
-     *
-     * @construct the result is the method's output, which CallOutput reads from the same method.
-     */
-    call(
-        object: ObjectType,
-        name: string,
-        input: Readonly<Record<string, unknown>>,
-    ): Promise<unknown> {
-        // read through a query, or write through a one-call mutation, in the object's space
-        const scope = HOME_OBJECTS.has(object.name) ? this.homeId : this.spaceId;
-        const call: ObjectCall = object.call(name, { spaceId: scope, ...input });
-        const caller = this.#context(scope).caller();
-
-        return object.method(name).mutates
-            ? this.store
-                  .mutate(caller, { id: RequestId.create(this.clock.now()), calls: [call] })
-                  .then(([result]) => result)
-            : this.store.query(caller, call);
+    /** The space's selection, which the calls of the app's types spread. */
+    get scope(): { readonly spaceId: Identifier<"space"> } {
+        return { spaceId: this.spaceId };
     }
 
-    /** Follow a person's inbox in the home until the fixture closes. */
-    inbox(person: Name): HomeInbox {
-        const inbox = new HomeInbox(this.store, this.homeId, this.people[person]);
-        this.#followers.push(() => inbox.close());
-
-        return inbox;
+    /** Read the current person's home's selection, which the calls of the home's types spread. */
+    async homeScope(): Promise<{ readonly spaceId: Identifier<"space"> }> {
+        return { spaceId: (await this.home(this.#actor)).id };
     }
 
-    /** Copy a person who joined the space, as the space keeps the users it follows. */
-    async join(person: Name): Promise<void> {
-        // copy the user
-        const row = NotificationFixture.#user(this.people[person], person, this.clock.now());
-        await this.database.insert(user.table).values(row).onConflictDoNothing();
+    /** Make a call as the current person, in their home for the home's types, else in the space. */
+    async call<Result>(called: Call<Result>): Promise<Result> {
+        // read through a query, or write through a one-call mutation, in the call's store
+        const object = present(
+            ObjectType.find([...this.store.objects, notification, message], called),
+            "the called type",
+        );
+        const { store, id: scope } = HOME_OBJECTS.has(object.name)
+            ? await this.home(this.#actor)
+            : { store: this.store, id: this.spaceId };
+        const caller = this.#context(scope).access();
+        const id = RequestId.create(this.clock.now());
 
-        // record it as a copy of the space's replica
-        await this.database.insert(replicaRow).values({
-            name: this.spaceId,
-            scope: Scope.universe.id,
-            table: user.table[TABLE].sqlName,
-            key: Key.name(user.table, { id: row.id }),
-            concealed: [],
+        return object.method(called.method).mutates
+            ? store.mutate(caller, { id, calls: [called] }, { scope }).then(([result]) => result)
+            : store.query(caller, called);
+    }
+
+    /** Open a person's home once, with their profile and replicas of the space. */
+    async home(person: Name): Promise<Home> {
+        // keep an opened home
+        const opened = this.#homes.get(person);
+        if (opened !== undefined) {
+            return opened;
+        }
+
+        // keep the home in a database of its own, owned by the person, with their profile and the installation's grant
+        const subject = this.people[person];
+        const at = this.clock.now();
+        const test = await TestDatabase.create(this.#dialect, homeDatabase, { isMigrated: true });
+        const id = await NotificationFixture.openSpace(
+            test.database,
+            at,
+            Account.personal(subject.id),
+        );
+        const owned = await Scope.object(Snapshot.live(test.database), id);
+        await new AccessFixture(test.database).bindOwner(owned, subject, at);
+
+        // keep the person's personal account, which makes the space their home, as its chain does
+        await test.database.insert(account.table).values({
+            id: Account.personal(subject.id),
+            scope: subject.id,
+            handle: person,
+            name: person,
+            residencyId: "eu",
+            kind: "personal",
+            createdAt: at,
+            updatedAt: at,
         });
+        const installer = principal.installation.reference(id, INSTALLATION);
+        await NotificationFixture.grant(test.database, id, installer, [], at);
+        await NotificationFixture.install(test.database, id, this.#builds, at);
+        // keep the person's profile in their home, the space and the universe, whose follow relation admits the home
+        const { store: universal, test: universeTest, accountId } = await this.#openUniverse(at);
+        for (const database of [test.database, this.#test.database, universeTest.database]) {
+            await NotificationFixture.person(database, subject, { name: person, ...SIGN_UP }, at);
+        }
+
+        // record the person, their personal account and its home at the universe, as sign-up does
+        const universeAccess = new AccessFixture(universeTest.database);
+        const personal = Account.personal(subject.id);
+        await universeAccess.replicateScope(subject);
+        await universeAccess.replicateScope(account.reference(Scope.universe.id, personal));
+        await universeAccess.replicateScope(space.reference(personal, id));
+
+        // relate the person to the space at the universe, as its membership does
+        await universeAccess.replicateRelationship(
+            accountId,
+            space.reference(accountId, this.spaceId),
+            "guest",
+            subject,
+            at,
+        );
+
+        // serve the notifications and the messages as the installation, following the space's activities as the home
+        const homeSpace = principal.space.reference(Scope.universe.id, id);
+        const homeSets = [
+            { ...account.reference(Scope.universe.id, personal), relation: CONTAINED },
+            { ...subject, relation: "home" },
+        ];
+        const uplink: Uplink = {
+            stream: idle,
+            receive: (mutation: Mutation) => this.#receive(universeTest, mutation),
+            // answer the person's queries at the universe's stand-in
+            call: (asked, scope, signer) => universal.uplink.call(asked, scope, signer),
+        };
+        const store = new ObjectStore({
+            servers: [
+                defineServer(
+                    notificationPackage,
+                    new NotificationServer(this.#options).definition(),
+                ).at(await NotificationFixture.installation(id)),
+                defineServer(messagePackage, {
+                    objects: [
+                        implementMessage({
+                            providers: this.#providers,
+                            retry: RETRY,
+                            keys: this.#root,
+                        }),
+                        implementEndpoint(this.#root),
+                    ],
+                }),
+                settingServer(SETTINGS),
+            ],
+            principal: installer,
+            database: test.database,
+            clock: this.clock,
+            callKey: testCallKey,
+            events: await testEvents(test.database),
+            origin: { package: notificationPackage },
+            // know the home's space and the person's clients
+            policies: [client, space],
+            uplink,
+            // keep the home's chain above it, as its machine does where the home is placed
+            chain: async () => ({ kind: "home", parent: Account.personal(subject.id) }),
+            // follow the app's space at its store and every other scope at the universe's stand-in, as the home
+            publisher: (scope) => ({
+                stream: (request, signal) =>
+                    (scope === this.spaceId ? this.store : universal).source.relayed(
+                        request,
+                        subjectContext(homeSpace, scope, {
+                            signal,
+                            clock: this.clock,
+                            groups: homeSets,
+                        }),
+                    ),
+            }),
+        });
+        const home: Home = { id, test, store };
+        this.#homes.set(person, home);
+
+        // follow the replicas in the background until the fixture closes
+        this.#replicate(home);
+
+        return home;
+    }
+
+    /** Make a person a member of the space, reading it. */
+    async join(person: Name): Promise<void> {
+        await new AccessFixture(this.database).replicateRole(
+            await Scope.object(Snapshot.live(this.database), this.spaceId),
+            {
+                name: `member/${person}`,
+                description: "Reads the space as its member",
+                permissions: [space.permission("read")],
+            },
+            this.people[person],
+            this.clock.now(),
+        );
     }
 
     /** Give a person a verified email, a time zone or a language. */
@@ -452,41 +752,43 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
             readonly locale?: LocaleTag;
         },
     ): Promise<void> {
-        // keep the verified email, the time zone and the locale on the person's user
-        const row = NotificationFixture.#user(this.people[person], person, this.clock.now());
+        // keep the verified email, the time zone and the locale on the person's user in every database
+        await this.home(person);
         const fields = {
             ...(profile.email === undefined ? {} : { email: profile.email, emailVerified: true }),
             ...(profile.timeZone === undefined ? {} : { timeZone: profile.timeZone }),
             ...(profile.locale === undefined ? {} : { locale: profile.locale }),
         };
-        await this.database
-            .insert(user.table)
-            .values({ ...row, ...fields })
-            .onConflictDoUpdate({
-                target: user.table.id,
-                set: { ...fields, updatedAt: this.clock.now() },
-            });
-
-        // keep the language where the directory reads it too
-        if (profile.locale !== undefined) {
-            this.#locales.set(Subject.key(this.people[person]), profile.locale);
+        const id = schema.identifier("user").parse(this.people[person].id);
+        const universal = await this.#universe;
+        const databases = [
+            this.#test.database,
+            ...(universal === undefined ? [] : [universal.test.database]),
+            ...[...this.#homes.values()].map((home) => home.test.database),
+        ];
+        for (const database of databases) {
+            await database
+                .update(user.table)
+                .set({ ...fields, updatedAt: this.clock.now() })
+                .where(eq(user.table.id, id));
         }
     }
 
-    /** Set a person's value of a setting in their scope. */
+    /** Set a person's value of a setting in their scope, as their home replicates it. */
     async set<Value extends schema.Schema>(
         person: Name,
         declared: Setting<Value>,
         value: schema.Infer<Value>,
     ): Promise<void> {
+        // keep the value in the person's home, as its replica of their scope does
+        const { test } = await this.home(person);
         const subject = this.people[person];
-        const caller = Subject.key(subject);
-        await this.database.insert(setting.table).values({
+        await test.database.insert(setting.table).values({
             id: schema.identifier("setting").parse(`setting-${v7()}`),
             createdAt: this.clock.now(),
-            createdBy: caller,
+            ...ObjectReference.columns("createdBy", subject),
             updatedAt: this.clock.now(),
-            updatedBy: caller,
+            ...ObjectReference.columns("updatedBy", subject),
             revision: 1,
             tags: {},
             scope: subject.id,
@@ -501,9 +803,12 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
 
     /** Sign a person's desktop client in, or revoke it. */
     async desktop(person: Name, id: Identifier<"client">, isRevoked = false): Promise<void> {
+        // keep the client at the universe, which owns the person's clients, beside their home
+        await this.home(person);
+        const { test } = await this.#openUniverse(this.clock.now());
         const scope = schema.identifier("user").parse(this.people[person].id);
         const revokedAt = isRevoked ? this.clock.now() : null;
-        await this.database
+        await test.database
             .insert(client.table)
             .values({
                 id,
@@ -526,7 +831,10 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
             readonly keys: PushKeys;
         },
     ): Promise<void> {
-        await this.database.insert(client.table).values({
+        // keep the client at the universe, which owns the person's clients, beside their home
+        await this.home(person);
+        const { test } = await this.#openUniverse(this.clock.now());
+        await test.database.insert(client.table).values({
             id: browser.id,
             scope: schema.identifier("user").parse(this.people[person].id),
             kind: "browser",
@@ -537,36 +845,34 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         });
     }
 
-    /** Project the space's activities and reconcile every key the controllers list. */
+    /** Let the homes replicate the space's activities, reconciling the controllers' keys. */
     async dispatch(): Promise<void> {
-        const { database } = this;
         for (let round = 0; round < DISPATCH_ROUNDS; round++) {
-            // wait for the home's projection to reach the space's latest change it did not replicate
-            const position = await database.log.position(await database.log.epoch());
-            if (
-                !(await Replica.wait(
-                    database,
+            // wait for each home's replica of the space to catch up with its latest change
+            const position = await this.database.log.position(await this.database.log.epoch());
+            for (const home of this.#homes.values()) {
+                const isReplicated = await Replica.wait(
+                    home.test.database,
                     this.spaceId,
                     position,
-                    AbortSignal.timeout(PROJECTION_TIMEOUT),
-                ))
-            ) {
-                throw new TypeError("the home's projection never caught up with the space");
-            }
-
-            // reconcile every listed key
-            const before = (await database.log.position()).sequence;
-            for (const controller of this.#controllers) {
-                for (const listed of await controller.list()) {
-                    await controller.reconcile(
-                        listed,
-                        reconciliation(new AbortController().signal),
-                    );
+                    AbortSignal.timeout(REPLICA_TIMEOUT),
+                );
+                if (!isReplicated) {
+                    throw new TypeError("a home's replica never caught up with the space");
                 }
             }
 
+            // reconcile every listed key of the space and the homes, their workflows' due runs among them
+            const before = await this.#positions();
+            const homes = [...this.#homes.values()];
+            const stores = [this.store, ...homes.map((home) => home.store)];
+            const controllers = stores.flatMap((store) =>
+                store.controllers().filter((each) => DISPATCHED.has(each.name)),
+            );
+            await NotificationFixture.#reconcile(controllers);
+
             // stop once a round changes nothing
-            if ((await database.log.position()).sequence === before) {
+            if ((await this.#positions()) === before) {
                 return;
             }
         }
@@ -578,50 +884,36 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         const table = activity.table;
         const rows = await this.database.select().from(table).where(eq(table.scope, this.spaceId));
 
-        return rows.toSorted((left, right) => NotificationFixture.#compare(left, right));
-    }
-
-    /** Read the home's notifications as the system stores them, by recipient and creation order. */
-    async notifications() {
-        const table = notification.table;
-        const rows = await this.database.select().from(table).where(eq(table.scope, this.homeId));
-
-        return rows.toSorted((left, right) => NotificationFixture.#compare(left, right));
-    }
-
-    /** Order rows by recipient, then creation, then identifier. */
-    static #compare(
-        left: { readonly recipient: string; readonly createdAt: number; readonly id: string },
-        right: { readonly recipient: string; readonly createdAt: number; readonly id: string },
-    ): number {
-        return (
-            left.recipient.localeCompare(right.recipient) ||
-            left.createdAt - right.createdAt ||
-            left.id.localeCompare(right.id)
+        return rows.toSorted(
+            (left, right) =>
+                left.recipientId.localeCompare(right.recipientId) ||
+                left.createdAt - right.createdAt ||
+                left.id.localeCompare(right.id),
         );
     }
 
-    /** Read the deliveries of a notification, by channel and client. */
-    async deliveries(id: string) {
-        const table = delivery.table;
-        const rows = await this.database
-            .select()
-            .from(table)
-            .where(eq(table.parentId, schema.identifier("notification").parse(id)));
+    /** Read a person's inbox in their home, as the home keeps it, latest occurrence first. */
+    async inbox(person: Name): Promise<Inbox> {
+        // join the home's notifications with its activity replicas
+        const { test } = await this.home(person);
+        const notifications = await test.database.select().from(notification.table);
+        const activities = await test.database.select().from(activity.table);
 
-        return rows
-            .map((row) => ({
-                channel: row.channel,
-                client: row.client,
-                state: row.state,
-                dueAt: row.dueAt,
-                isSummarized: row.isSummarized,
-                reason: row.reason,
-            }))
-            .toSorted((left, right) => left.channel.localeCompare(right.channel));
+        return new Inbox(notifications, activities, this.clock.now());
     }
 
-    /** Authenticate the current person in a space at the scenario's time. */
+    /** Read a person's messages of a notification, by channel. */
+    async messages(person: Name, id: string) {
+        const home = await this.home(person);
+        const rows = await home.test.database.select().from(message.table);
+
+        return rows
+            .filter((row) => Notification.read(row) === id)
+            .map((row) => ({ to: row.to, status: row.status, reason: row.reason }))
+            .toSorted((left, right) => left.to.channel.localeCompare(right.to.channel));
+    }
+
+    /** Authenticate the current person in a scope at the scenario's time. */
     #context(scope: string) {
         return subjectContext(this.people[this.#actor], scope, {
             signal: this.#following.signal,
@@ -629,67 +921,65 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         });
     }
 
-    /** Receive the inbox's changes of copied clients as the account service that keeps them. */
-    async #receive(mutation: Mutation): Promise<void> {
-        for (const call of mutation.calls) {
+    /** Read the log positions of the space and the homes, as one comparable text. */
+    async #positions(): Promise<string> {
+        const databases = [this.#test, ...[...this.#homes.values()].map((home) => home.test)];
+        const positions = await Promise.all(
+            databases.map(async (test) => (await test.database.log.position()).sequence),
+        );
+
+        return positions.join(" ");
+    }
+
+    /** Reconcile every key some controllers list, once each. */
+    static async #reconcile(controllers: readonly Controller[]): Promise<void> {
+        for (const controller of controllers) {
+            for (const listed of await controller.list()) {
+                await controller.reconcile(listed, reconciliation(new AbortController().signal));
+            }
+        }
+    }
+
+    /** Follow a home's replicas of the space in the background until the fixture closes. */
+    #replicate(home: Home): void {
+        const replicas = home.store.controllers().filter((each) => !DISPATCHED.has(each.name));
+        const running = new ControlLoop(home.test.database, replicas, {
+            clock: this.clock,
+            report: (_controller, _key, error) => {
+                throw error;
+            },
+        }).run(this.#following.signal);
+        this.#followers.push(() => running);
+    }
+
+    /** Receive a home's changes of replicated clients as the account package that keeps them. */
+    async #receive(test: TestDatabase, mutation: Mutation): Promise<readonly unknown[]> {
+        for (const received of mutation.calls) {
             // refuse any other change than forgetting a push subscription
-            if (Call.typeOf([client], call) === undefined || call.method !== "unsubscribe") {
-                throw new TypeError(`the fixture receives no ${call.type.type}.${call.method}`);
+            if (
+                ObjectType.find([client], received) === undefined ||
+                received.method !== "unsubscribe"
+            ) {
+                throw new TypeError(
+                    `the fixture receives no ${received.type.type}.${received.method}`,
+                );
             }
 
-            // forget it in its copy
-            const id = schema.identifier("client").parse(call.input["id"]);
-            await this.database
+            // forget it at the universe
+            const id = schema.identifier("client").parse(received.input["id"]);
+            await test.database
                 .update(client.table)
                 .set({ push: null })
                 .where(eq(client.table.id, id));
             this.forgotten.push(id);
         }
-    }
 
-    /** Project the space's activities into the home as the people's notifications. */
-    #follow(): void {
-        // subscribe the home to every person's activities in the space
-        const projection = new Replica({
-            name: this.homeId,
-            scope: this.spaceId,
-            tables: [],
-            isRelayed: false,
-            projectors: [
-                new ScopeProjector(
-                    notification,
-                    present(notification.projected, "the notifications' projection"),
-                    this.homeId,
-                    this.clock,
-                ),
-            ],
-        });
-        const subscribed = this.store.source.projectionShape.subscription({
-            name: this.homeId,
-            scope: this.spaceId,
-            below: this.homeId,
-            parameters: {
-                installation: INSTALLATION,
-                service: PackageId.parse(this.store.origin.package.id),
-                packageId: activity.policy.definition.packageId,
-                type: activity.name,
-                to: "recipient",
-                recipients: Object.values<Subject>(this.people).map((person) =>
-                    Subject.key(person),
-                ),
-            },
-        });
-
-        // follow the projection until the fixture closes
-        const followed = projection.follow(
-            this.database,
-            (from, signal) => this.store.source.project({ ...subscribed, ...from }, signal),
-            this.#following.signal,
-            { clock: this.clock },
-        );
-        this.#followers.push(() => followed);
+        return mutation.calls.map(() => ({}));
     }
 }
+
+/** Stream no replicas, as a home sends its clients' changes and replicates nothing upward. */
+async function* idle() {}
 
 /** One push a push service received, with the headers RFC 8030 reads and its encrypted body. */
 export interface ReceivedPush {

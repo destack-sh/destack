@@ -1,28 +1,17 @@
 # @destack/notification
 
-`defineNotification` is Apple's `UNNotificationContent` with its `interruptionLevel` and text input actions, `focus` and `summary` are Apple's Focus and Scheduled Summary as settings, a `subscription` carries GitHub's notification reasons (`author`, `mention`, `assigned`, `participating`, `subscribed`), and each person's inbox is GitHub's notification inbox.
+`@destack/notification` declares notifications, records them as activities for each recipient, keeps each person's inbox in their home, and sends them as messages under the person's focus and summary settings.
 
 ```ts
-// UNNotificationInterruptionLevel
-defineNotification({ name: "mention", interruption: "timeSensitive", content, summary, actions });
-// UNTextInputNotificationAction
-actions: { reply: { title: "Reply", text: { placeholder: "Reply", button: "Send" }, effect } };
-// GitHub's participating
-subscription.call("add", { parent, owner: Subject.key(caller), reason: "participating" });
-// a Focus
-const weekend: Focus = {
-    schedules: [{ days: [6, 7], from: "00:00", to: "00:00" }],
-    allowed: [],
-    isTimeSensitiveAllowed: true,
-};
-const evening: Summary = { times: ["19:00"], channels: ["email"] }; // Scheduled Summary
-// GitHub's mark all as read
-home.mutate.notification.readAll({ where: { readAt: null }, readAt: Date.now() });
+await call.mutate(call.caller, [
+    mention.call({ source, recipients: [bob], reason: "mention", payload: { author, excerpt } }),
+]);
+await home.mutate.notification.read({ id });
 ```
 
 ## Declarations
 
-`defineNotification` declares a notification with its payload, content, summary and actions.
+`defineNotification` declares a notification: its payload, its content as catalog messages over the payload's fields, its summary over `count`, and the actions it offers.
 
 ```ts
 import { defineNotification } from "@destack/notification/declare";
@@ -34,14 +23,15 @@ export const mention = defineNotification({
     payload: schema.object({ author: schema.string(), excerpt: schema.string().max(280) }),
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: (payload) => ({ title: t`${payload.author} mentioned you`, body: payload.excerpt }),
-    summary: (count) => t`${plural(count, { one: "# mention", other: "# mentions" })}`,
+    content: { title: t`${argument("author")} mentioned you`, body: t`${argument("excerpt")}` },
+    summary: t`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
+    actions: [{ name: "open", title: "Open", type: page, method: "open" }],
 });
 ```
 
 ## Notifying
 
-An object type attaches `activity`, `announcement` and `subscription`, a declaration's `call` notifies recipients or an audience, and `serveActivities` serves the notices, actions, announcements and subscriptions.
+An object type attaches `activity`, `announcement` and `subscription`; a notification's `call` notifies named recipients or an audience.
 
 ```ts
 export const page = defineObject({
@@ -53,45 +43,51 @@ export const page = defineObject({
     ],
 });
 await call.mutate(call.caller, [
-    mention.call({ source, recipients: mentioned, reason: "mention", payload }),
+    subscription.call("add", { parent, owner: Subject.key(caller), reason: "participating" }),
     update.call({ source, audience: { kind: "subscribers" }, payload }),
 ]);
-const { items } = await call.query(
-    call.caller,
-    subscription.call("subscribers", { parent, limit }),
-);
-const objects = { page, ...serveActivities({ notifications: [mention, update] }) };
 ```
 
 ## Inbox
 
-Each person's home copies their activities into `notification` objects, and `NOTIFICATIONS` and `UNREAD` read the inbox.
+A person's home replicates their activities and keeps one `notification` of each with its read, snooze and archive state.
 
 ```ts
-const notifications = home.query.notification.findMany(NOTIFICATIONS); // latest first
-const unread = home.query.notification.aggregate(UNREAD);
+const entries = Inbox.entries(notifications, activities, Date.now());
+const unread = Inbox.unread(entries, { space: spaceId });
+await home.mutate.notification.snooze({ id, until: tomorrow });
 ```
 
 ## Delivery
 
-`implementInbox` extends each home's store with its inbox, `decide` sends, defers or skips each delivery under the recipient's contact, focus and summary, and `delivery.receive` records the desktop receiving a sent desktop delivery.
+Each new occurrence starts a `deliver` workflow run in the person's home, which decides every destination in rounds: `Decision.of` sends, defers, keeps for the scheduled summary, or skips, from the person's preference, focus and summary; the `summarize` workflow sends one summary per home and summary time.
 
 ```ts
-const extension = implementInbox({ catalogs, key: (space) => messageKey(space) });
-await inbox.mutate(delivery).receive({ id }).confirmed; // receivedAt: the first time
-const decision = decide(
-    row,
-    notification,
-    contact,
-    { preference, focus, summary },
-    emailDelay,
-    now,
-);
+const weekend: Focus = {
+    schedules: [{ days: [6, 7], from: "00:00", to: "00:00" }],
+    allowed: [],
+    isTimeSensitiveAllowed: true,
+};
+const evening: Summary = { times: ["19:00"], channels: ["email"] };
+const decision = Decision.of(to, entry, recipient, settings, { emailDelay }, now); // { action: "defer", until }
+```
+
+## Server
+
+The package's server, its default export of `./server`, serves a space's activities, announcements and subscriptions, and a home's notifications with their `deliver` and `summarize` workflows.
+
+```ts
+import notificationServer from "@destack/notification/server";
+
+// the package requests in its space: notification.plan, announcement.expand, message.*
+// and in the universe, acting for its home under the home's grant: user.recipient
+// its optional `push` capability adds client.unsubscribe, pushing only where an installation allows it
+const store = new ObjectStore({ servers: [notificationServer, messageServer], ...options });
 ```
 
 ## Views
 
-`NotificationInbox` lists the person's inbox, and `NotificationBadge` counts unread notifications.
+`NotificationInbox` lists the person's inbox, and `NotificationBadge` counts their unread notifications.
 
 ```tsx
 import { NotificationBadge, NotificationInbox } from "@destack/notification/view";
@@ -102,7 +98,7 @@ import { NotificationBadge, NotificationInbox } from "@destack/notification/view
 
 ## Tests
 
-`NotificationFixture` serves an app's objects and its people's inboxes with in-memory delivery, on a clock the test moves.
+`NotificationFixture` serves an app's objects in a space and each person's home in a database of its own, on a clock the test moves.
 
 ```ts
 await using fixture = await NotificationFixture.open({
@@ -112,7 +108,6 @@ await using fixture = await NotificationFixture.open({
     people: { alice, bob },
     actor: "alice",
 });
-await fixture.inbox("bob").until((state) => state.unread === 1);
 await fixture.dispatch();
-fixture.mails.sent;
+Inbox.unread(await fixture.entries("bob"));
 ```

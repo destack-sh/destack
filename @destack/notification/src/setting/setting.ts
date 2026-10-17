@@ -1,8 +1,7 @@
-import { type Package, PackageId } from "@destack/package";
+import { PackageId } from "@destack/package";
 import { PlainTime, schema } from "@destack/schema";
-import { Setting } from "@destack/setting";
 import { defineSetting } from "@destack/setting/declare";
-import { CHANNELS, Preference } from "../preference/preference.ts";
+import { CHANNELS } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
 
 /** The most quiet windows one focus schedules: two per day for a week. */
@@ -10,34 +9,6 @@ const WINDOW_COUNT = 14;
 
 /** The most summaries a day, as mobile platforms allow twelve. */
 const SUMMARY_COUNT = 12;
-
-/** Build the setting of a recipient's preference for one declared notification. */
-export function preferenceSetting(
-    owner: Package,
-    notification: {
-        /** The notification's name. */
-        readonly name: string;
-        /** The preference recipients start from. */
-        readonly preference: Preference;
-        /** The label settings show, the name by default. */
-        readonly title?: string;
-        /** What it tells, the label by default. */
-        readonly description?: string;
-    },
-): Setting<typeof Preference> {
-    const title = notification.title ?? notification.name;
-
-    return new Setting(owner, {
-        name: `notification.${notification.name}`,
-        title,
-        description: notification.description ?? title,
-        schema: Preference,
-        default: notification.preference,
-        scope: "user",
-        overrides: ["space", "installation", "client"],
-        apply: "immediate",
-    });
-}
 
 /** When notifications stay quiet, as mobile platforms' focus modes. */
 export const focus = defineSetting({
@@ -56,7 +27,7 @@ export const focus = defineSetting({
     }),
     default: { schedules: [], allowed: [], isTimeSensitiveAllowed: true },
     scope: "user",
-    overrides: ["client"],
+    overrides: ["device"],
     apply: "immediate",
 });
 

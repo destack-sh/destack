@@ -1,13 +1,13 @@
 import { plural, t } from "@destack/locale";
-import type { Identifier } from "@destack/schema";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { text } from "@destack/theme/text";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { Badge } from "@destack/ui/badge";
 import { For, type JSX, omit, Show, useHome, useLocale, useQuery } from "@destack/view";
-import { NOTIFICATIONS, UNREAD } from "../inbox/inbox.ts";
-import { notification } from "../object/activity.ts";
+import { Inbox, type InboxEntry } from "../notification/inbox.ts";
+import { activity } from "../object/activity.ts";
+import { notification } from "../object/notification.ts";
 
 /** The styles of an inbox and its entries. */
 const styles = style.create({
@@ -78,25 +78,13 @@ const styles = style.create({
     },
 });
 
-/** A notification as the inbox shows it. */
-export interface NotificationEntry {
-    /** The notification's identifier. */
-    readonly id: Identifier<"notification">;
-    /** The line it shows, rendered in the person's locale where it happened. */
-    readonly summary: string;
-    /** When it last occurred, in epoch milliseconds. */
-    readonly occurredAt: number;
-    /** When the person read it, null while unread. */
-    readonly readAt: number | null;
-}
-
 /** The properties of a notification inbox, the native list's attributes included. */
 export interface NotificationInboxProperties extends Omit<
     JSX.HTMLAttributes<HTMLUListElement>,
     "class" | "style"
 > {
     /** Handle a notification being opened, after it is marked read. */
-    readonly onOpen?: (entry: NotificationEntry) => void;
+    readonly onOpen?: (entry: InboxEntry) => void;
     /** The StyleX styles applied after the inbox's styles. */
     readonly style?: style.Styles;
 }
@@ -109,18 +97,34 @@ export interface NotificationBadgeProperties {
     readonly packageId?: string;
 }
 
+/** Follow the person's inbox: their notifications joined with their activity replicas. */
+function useInbox(): {
+    readonly read: (entry: InboxEntry) => void;
+    readonly inbox: () => Inbox;
+} {
+    // follow the home's notifications and activity replicas
+    const home = useHome({ notification, activity });
+    const notifications = useQuery(() => home.query.notification.findMany({}));
+    const activities = useQuery(() => home.query.activity.findMany({}));
+
+    return {
+        read: (entry) => home.mutate.notification.read({ id: entry.notification.id }),
+        inbox: () => new Inbox(notifications(), activities(), Date.now()),
+    };
+}
+
 /** Render the person's notifications latest first, marking one read when opened. */
 export function NotificationInbox(properties: NotificationInboxProperties): JSX.Element {
-    // follow the inbox, latest first
+    // follow the inbox's notifications neither archived nor snoozed, latest first
     const locale = useLocale();
     const rest = omit(properties, "onOpen", "style");
-    const home = useHome({ notification });
-    const entries = useQuery(() => home.query.notification.findMany(NOTIFICATIONS));
+    const { read, inbox } = useInbox();
+    const listed = () => inbox().entries.filter((entry) => !entry.isArchived && !entry.isSnoozed);
 
     // mark a notification read and hand it to the owner
-    const open = (entry: NotificationEntry) => {
-        if (entry.readAt === null) {
-            home.mutate.notification.read({ id: entry.id });
+    const open = (entry: InboxEntry) => {
+        if (entry.isUnread) {
+            read(entry);
         }
         properties.onOpen?.(entry);
     };
@@ -133,7 +137,7 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
             {...style.attrs(text.footnote, styles.inbox, properties.style)}
         >
             <For
-                each={entries()}
+                each={listed()}
                 fallback={
                     <li {...style.attrs(styles.empty)}>{locale.render(t`No notifications`)}</li>
                 }
@@ -146,11 +150,11 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
 
 /** Render one notification as a button showing its line, its time and whether it is unread. */
 function NotificationRow(properties: {
-    readonly entry: NotificationEntry;
-    readonly onOpen: (entry: NotificationEntry) => void;
+    readonly entry: InboxEntry;
+    readonly onOpen: (entry: InboxEntry) => void;
 }): JSX.Element {
     const locale = useLocale();
-    const isUnread = (): boolean => properties.entry.readAt === null;
+    const isUnread = (): boolean => properties.entry.isUnread;
 
     return (
         <li data-slot="notification" data-state={isUnread() ? "unread" : "read"}>
@@ -167,12 +171,12 @@ function NotificationRow(properties: {
                     <Show when={isUnread()}>
                         <span {...style.attrs(styles.hidden)}>{locale.render(t`Unread`)} </span>
                     </Show>
-                    {properties.entry.summary}
+                    {properties.entry.activity.summary}
                     <time
-                        datetime={new Date(properties.entry.occurredAt).toISOString()}
+                        datetime={new Date(properties.entry.activity.occurredAt).toISOString()}
                         {...style.attrs(text.caption, styles.time)}
                     >
-                        {locale.relative(properties.entry.occurredAt, Date.now())}
+                        {locale.relative(properties.entry.activity.occurredAt, Date.now())}
                     </time>
                 </span>
             </button>
@@ -182,19 +186,14 @@ function NotificationRow(properties: {
 
 /** Render the person's unread notifications as a count, for a space and app or all of them. */
 export function NotificationBadge(properties: NotificationBadgeProperties): JSX.Element {
-    // sum the unread counts of the groups the badge covers
+    // count the unread notifications the badge covers
     const locale = useLocale();
-    const home = useHome({ notification });
-    const groups = useQuery(() => home.query.notification.aggregate(UNREAD));
+    const { inbox } = useInbox();
     const unread = (): number =>
-        groups()
-            .filter(
-                ({ group }) =>
-                    (properties.space === undefined || properties.space === group.space) &&
-                    (properties.packageId === undefined ||
-                        properties.packageId === group.packageId),
-            )
-            .reduce((sum, count) => sum + count.values.unread, 0);
+        inbox().unread({
+            ...(properties.space === undefined ? {} : { space: properties.space }),
+            ...(properties.packageId === undefined ? {} : { packageId: properties.packageId }),
+        });
 
     return (
         <Show when={unread() > 0}>

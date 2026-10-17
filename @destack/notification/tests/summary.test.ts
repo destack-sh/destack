@@ -18,62 +18,78 @@ test.for(TEST_DIALECTS)(
         });
 
         // subscribe erin to two documents bob edits
-        const plan = await fixture.call(document, "create", { title: "Launch plan" });
-        const draft = await fixture.call(document, "create", { title: "Draft" });
+        const plan = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Launch plan" }),
+        );
+        const draft = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Draft" }),
+        );
         for (const edited of [plan, draft]) {
             fixture.as("alice");
-            await fixture.call(document, "grant", {
-                id: edited.id,
-                relation: "viewer",
-                subject: actors.erin,
-            });
-            await fixture.call(document, "grant", {
-                id: edited.id,
-                relation: "editor",
-                subject: actors.bob,
-            });
+            await fixture.call(
+                document.call("grant", {
+                    ...fixture.scope,
+                    id: edited.id,
+                    relation: "viewer",
+                    subject: actors.erin,
+                }),
+            );
+            await fixture.call(
+                document.call("grant", {
+                    ...fixture.scope,
+                    id: edited.id,
+                    relation: "editor",
+                    subject: actors.bob,
+                }),
+            );
             fixture.as("erin");
-            await fixture.call(subscription, "create", documentParent(edited.id));
+            await fixture.call(
+                subscription.call("create", { ...fixture.scope, ...documentParent(edited.id) }),
+            );
         }
 
         // change the plan twice and the draft once and defer each email to the summary at 16:00 UTC
         fixture.as("bob");
-        await fixture.call(document, "edit", { id: plan.id, summary: "Rewrote the intro" });
-        await fixture.call(document, "edit", { id: plan.id, summary: "Added a timeline" });
-        await fixture.call(document, "edit", { id: draft.id, summary: "Fixed a typo" });
+        await fixture.call(
+            document.call("edit", { ...fixture.scope, id: plan.id, summary: "Rewrote the intro" }),
+        );
+        await fixture.call(
+            document.call("edit", { ...fixture.scope, id: plan.id, summary: "Added a timeline" }),
+        );
+        await fixture.call(
+            document.call("edit", { ...fixture.scope, id: draft.id, summary: "Fixed a typo" }),
+        );
         await fixture.dispatch();
-        const threads = new Map((await fixture.notifications()).map((row) => [row.thread, row]));
+        const threads = new Map(
+            (await fixture.inbox("erin")).entries.map((entry) => [
+                entry.activity.thread,
+                entry.notification.id,
+            ]),
+        );
         const planned = found(threads, plan.id);
         const drafted = found(threads, draft.id);
         const evening = Date.UTC(2026, 8, 28, 16, 0);
-        expect([
-            (await fixture.deliveries(planned.id)).map((row) => [
-                row.channel,
-                row.state,
-                row.dueAt,
-                row.isSummarized,
-            ]),
-            (await fixture.deliveries(drafted.id)).map((row) => [
-                row.channel,
-                row.state,
-                row.dueAt,
-                row.isSummarized,
-            ]),
-        ]).toEqual([[["email", "pending", evening, true]], [["email", "pending", evening, true]]]);
+        const read = async (id: string) =>
+            (await fixture.messages("erin", id)).map((row) => [row.to.channel, row.status]);
+        expect([await read(planned), await read(drafted)]).toEqual([[], []]);
 
         // read the draft's change, then send one summary of the rest at 18:00 in Vienna
         fixture.as("erin");
-        await fixture.call(notification, "read", { id: drafted.id });
-        fixture.wait((evening - fixture.clock.now()) / 60_000);
+        await fixture.call(
+            notification.call("read", { ...(await fixture.homeScope()), id: drafted }),
+        );
+        await fixture.wait((evening - fixture.clock.now()) / 60_000);
         await fixture.dispatch();
+        const settled = async (id: string) =>
+            (await fixture.messages("erin", id)).map((row) => [row.status, row.reason]);
         expect([
             fixture.mails.sent.map((mail) => [mail.to, mail.subject, mail.text]),
-            (await fixture.deliveries(planned.id)).map((row) => [row.state, row.reason]),
-            (await fixture.deliveries(drafted.id)).map((row) => [row.state, row.reason]),
+            await settled(planned),
+            await settled(drafted),
         ]).toEqual([
             [["erin@example.com", "Scheduled summary", "2 changes"]],
             [["sent", null]],
-            [["skipped", "read"]],
+            [],
         ]);
     },
 );
@@ -85,25 +101,37 @@ test.for(TEST_DIALECTS)(
 
         // let erin read Austrian German and receive email, subscribed to a document bob edits
         await fixture.contact("erin", { email: "erin@example.com", locale: "de-AT" });
-        const plan = await fixture.call(document, "create", { title: "Launch plan" });
-        await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "viewer",
-            subject: actors.erin,
-        });
-        await fixture.call(document, "grant", {
-            id: plan.id,
-            relation: "editor",
-            subject: actors.bob,
-        });
+        const plan = await fixture.call(
+            document.call("create", { ...fixture.scope, title: "Launch plan" }),
+        );
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "viewer",
+                subject: actors.erin,
+            }),
+        );
+        await fixture.call(
+            document.call("grant", {
+                ...fixture.scope,
+                id: plan.id,
+                relation: "editor",
+                subject: actors.bob,
+            }),
+        );
         fixture.as("erin");
-        await fixture.call(subscription, "create", documentParent(plan.id));
+        await fixture.call(
+            subscription.call("create", { ...fixture.scope, ...documentParent(plan.id) }),
+        );
 
         // change the plan, emailing erin once the email delay passes
         fixture.as("bob");
-        await fixture.call(document, "edit", { id: plan.id, summary: "Rewrote the intro" });
+        await fixture.call(
+            document.call("edit", { ...fixture.scope, id: plan.id, summary: "Rewrote the intro" }),
+        );
         await fixture.dispatch();
-        fixture.wait(16);
+        await fixture.wait(16);
         await fixture.dispatch();
 
         // take later changes in the summary, and change the plan again for the summary at 18:00 UTC
@@ -111,17 +139,19 @@ test.for(TEST_DIALECTS)(
             channels: ["desktop", "push", "email"],
             delivery: "summary",
         });
-        await fixture.call(document, "edit", { id: plan.id, summary: "Added a timeline" });
+        await fixture.call(
+            document.call("edit", { ...fixture.scope, id: plan.id, summary: "Added a timeline" }),
+        );
         await fixture.dispatch();
-        fixture.wait((Date.UTC(2026, 8, 28, 18, 0) - fixture.clock.now()) / 60_000);
+        await fixture.wait((Date.UTC(2026, 8, 28, 18, 0) - fixture.clock.now()) / 60_000);
         await fixture.dispatch();
         expect([
-            (await fixture.notifications()).length,
+            (await fixture.inbox("erin")).entries.length,
             fixture.mails.sent.map((mail) => [mail.subject, mail.text]),
         ]).toEqual([
             2,
             [
-                ["Dokument geändert", "Rewrote the intro"],
+                ["Dokument geändert", "\u2068Rewrote the intro\u2069"],
                 ["Geplante Zusammenfassung", "1 Änderung"],
             ],
         ]);
