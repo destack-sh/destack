@@ -3,17 +3,17 @@ import { CallError } from "@destack/runtime/error";
 import { type Identifier, schema } from "@destack/schema";
 import type { Clock } from "@destack/environment";
 
-/** The keychain service storing the keys of a computer's native clients, by client. */
+/** The keychain service storing the keys of the clients registered on a computer, by client. */
 export const CLIENT_KEYS = "app.destack.client";
 
-/** The keys a computer's native clients prove themselves to its machine with, in its keychain. */
+/** The keys of the clients registered on a computer, proving them to its machine. */
 export class ClientKey {
     /** The keychain storing the private keys, by client. */
     readonly #keys: Keychain;
     /** The clock proofs are signed and verified at. */
     readonly #clock: Clock;
 
-    /** Store native client keys in a keychain. */
+    /** Store client keys in a keychain. */
     constructor(keys: Keychain, clock: Clock) {
         this.#keys = keys;
         this.#clock = clock;

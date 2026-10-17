@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { DnsResolver } from "./dns-resolver.ts";
 import { account } from "../object/account.ts";
-import { Allowance } from "../object/allowance.ts";
+import { Entitlement } from "../object/entitlement.ts";
 import { Domain, DomainChallenge, domain } from "../object/domain.ts";
 import { hostname } from "../object/hostname.ts";
 
@@ -19,7 +19,7 @@ export function implementDomain(options: DomainOptions): typeof domain {
         methods: {
             create: async (call, next) => {
                 // refuse a payer whose plan allows no domains
-                await Allowance.requireCustomDomains(call);
+                await Entitlement.requireCustomDomains(call);
 
                 return next();
             },

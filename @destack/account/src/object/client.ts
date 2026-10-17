@@ -1,17 +1,18 @@
-import { AccessContext, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, GrantPermission, none, principal, through } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { Digest, Instant, defineSchema, schema } from "@destack/schema";
 import { CompactProof } from "@destack/identity";
 import { key } from "./key.ts";
 import { machine } from "./machine.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
+import { sudo } from "../authentication/sudo.ts";
 import { PushSubscription } from "./recipient.ts";
 
 /** The name a device's client starts with, which its program renames once it signs in. */
@@ -20,8 +21,11 @@ export const DEVICE_CLIENT_NAME = "Destack app";
 /** The longest operating system version, in characters, such as 14.5.0. */
 const VERSION_LENGTH = 64;
 
-/** The kinds of clients. */
-export const CLIENT_KINDS = ["native", "browser", "mobile"] as const;
+/** The kinds of clients: programs with keys, and bearer tokens acting through their secret. */
+export const CLIENT_KINDS = ["native", "browser", "mobile", "token"] as const;
+
+/** The most permissions a token's grant gives, 32 of 150 bytes below 8 KiB headers. */
+const MAX_PERMISSIONS = 32;
 
 /** A browser profile a machine registers for the person signed in on it. */
 export const ClientRegistration = defineSchema(
@@ -37,12 +41,13 @@ export const ClientRegistration = defineSchema(
 /** A browser profile a machine registers for the person signed in on it. */
 export type ClientRegistration = schema.Infer<typeof ClientRegistration>;
 
-/** A program a person signs in through, identified by its keys, after OAuth's client instances. */
+/** A program acting for a person: one with keys like OAuth's client instances, or a token. */
 export const client = defineObject(
     {
         name: "client",
         plural: "clients",
         scope: user,
+        represents: principal.client,
         // replicate a user's clients into the scopes inside the user's scope
         inherited: {},
         attachments: [key.attach({ by: "rotate" })],
@@ -63,6 +68,8 @@ export const client = defineObject(
             model: field.string().optional(),
             /** The version of the Destack program that registered the client. */
             version: field.string().optional(),
+            /** The SHA-256 digest of a token's secret, absent for a client with keys. */
+            digest: field.string(Digest).sensitive("deterministic").optional(),
             /** The Web Push subscription of a browser client, absent until it subscribes. */
             push: field.json(PushSubscription).sensitive().optional(),
             /** The last time the client proved itself. */
@@ -70,19 +77,33 @@ export const client = defineObject(
             /** The time the person withdrew the client. */
             revokedAt: field.time().optional(),
         },
-        permissions: [
-            "read",
-            "list",
-            "create",
-            "update",
-            "verify",
-            "rotate",
-            "unsubscribe",
-            "revoke",
-            "report",
-        ],
+        permissions: {
+            // the person's own, through roles on their scope
+            read: none(),
+            list: none(),
+            create: none(),
+            issue: none(),
+            update: none(),
+            verify: none(),
+            rotate: none(),
+            // the person's home too, dropping a browser its push service forgot (RFC 8030 410 Gone)
+            unsubscribe: through("scope", "recipient"),
+            revoke: none(),
+            report: none(),
+        },
+        elevated: { issue: sudo },
         constraints: {
             scope: { kind: "index", on: ["scope"] },
+            digest: { kind: "unique", on: ["digest"] },
+            token: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { kind: "token", digest: { isNotNull: true } },
+                        { kind: { ne: "token" }, digest: { isNull: true } },
+                    ],
+                },
+            },
             push: {
                 kind: "check",
                 condition: { OR: [{ push: { isNull: true } }, { kind: "browser" }] },
@@ -102,6 +123,17 @@ export const client = defineObject(
                 "model",
                 "version",
             ],
+            isPredicted: false,
+        }),
+        /** Issue a bearer token acting for the person under their grant of its permissions. */
+        issue: method.create("issue", {
+            fields: ["name", "digest"],
+            input: schema.object({
+                /** The permissions the token's grant gives. */
+                permissions: schema.array(GrantPermission.schema).max(MAX_PERMISSIONS),
+                /** The time the token's grant lapses, in UTC epoch milliseconds. */
+                expiresAt: Instant,
+            }),
             isPredicted: false,
         }),
         update: method.update("update", {

@@ -109,7 +109,7 @@ export class DomainFixture implements AsyncDisposable {
         return opened;
     }
 
-    /** Record the users and their two accounts, and serve the domains under a test's allowances. */
+    /** Record the users and their two accounts, and serve domains under a test's entitlements. */
     static async open(database: DatabaseConnection): Promise<DomainFixture> {
         const fixture = new DomainFixture(database, await testEvents(database));
         try {

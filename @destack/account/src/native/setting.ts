@@ -10,7 +10,7 @@ export const currentSpace = defineSetting({
     description: "The space the terminal acts in when a command names none.",
     schema: SpaceAddress.nullable(),
     default: null,
-    scope: "client",
+    scope: "device",
     overrides: [],
     apply: "immediate",
 });
@@ -22,10 +22,10 @@ export const currentLogin = defineSetting({
     description: "The person the terminal and the desktop act as while several are signed in.",
     schema: schema.identifier("login").nullable(),
     default: null,
-    scope: "client",
+    scope: "device",
     overrides: [],
     apply: "immediate",
 });
 
-/** The settings of a computer's native client, which it stores as local objects. */
+/** The settings of a computer's native device, which it stores as local objects. */
 export const NATIVE_SETTINGS = new SettingCatalog([currentSpace, currentLogin]);

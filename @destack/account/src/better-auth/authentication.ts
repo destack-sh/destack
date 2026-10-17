@@ -6,14 +6,14 @@ import {
     Grant,
     principal,
 } from "@destack/access";
-import { and, eq, Snapshot, type DatabaseConnection } from "@destack/db";
+import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
 import { Bearer, TokenVerifier } from "@destack/runtime/authentication";
 import { CallError } from "@destack/runtime/error";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Identity } from "../object/identity.ts";
-import { personalAccessToken } from "../object/personal-access-token.ts";
+import { client } from "../object/client.ts";
 import { session } from "../object/session.ts";
 import { user, User } from "../object/user.ts";
 import { ActiveSession } from "./active-session.ts";
@@ -101,27 +101,33 @@ export const AccountAuthentication = {
         };
     },
 
-    /** Verify a personal access token of an active user under the user's live grant to it. */
+    /** Verify a token client of an active user under the user's live grant to it. */
     async personalToken(
         secret: string,
         database: DatabaseConnection,
         audience: PackageId,
         now: number,
     ): Promise<Authentication> {
-        // read the token of an active user by its secret's digest
-        const table = personalAccessToken.table;
+        // read the unrevoked token client of an active user by its secret's digest
+        const table = client.table;
         const [row] = await database
             .select({ id: table.id, userId: user.table.id })
             .from(table)
             .innerJoin(user.table, eq(user.table.id, table.scope))
-            .where(and(eq(table.digest, await Digest.of(secret)), User.isActive()))
+            .where(
+                and(
+                    eq(table.digest, await Digest.of(secret)),
+                    isNull(table.revokedAt),
+                    User.isActive(),
+                ),
+            )
             .limit(1);
         if (row === undefined) {
             throw new CallError("UNAUTHORIZED", { message: "invalid personal access token" });
         }
 
         // read the user's unexpired grant to it
-        const delegate = personalAccessToken.reference(row.userId, row.id);
+        const delegate = principal.client.reference(Scope.universe.id, row.id);
         const grant = await Snapshot.live(database)
             .read(accessGrant)
             .findFirst({
@@ -147,7 +153,7 @@ export const AccountAuthentication = {
         );
 
         return {
-            caller: { ...caller, actors: [delegate], grant: Grant.claim(grant) },
+            caller: { ...caller, actors: [delegate], grants: [Grant.claim(grant)] },
             credential,
         };
     },

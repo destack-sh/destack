@@ -40,7 +40,7 @@ const CodeSent = schema.looseObject({
 
 /** A device authorization (RFC 8628 3.2). */
 const DeviceResponse = schema.looseObject({
-    /** The code the native client polls with. */
+    /** The code the native device polls with. */
     device_code: schema.string().min(1),
     /** The code the person enters. */
     user_code: schema.string().min(1),
@@ -52,7 +52,7 @@ const DeviceResponse = schema.looseObject({
     expires_in: schema.number().int().positive(),
 });
 
-/** The claims of an ID token the native client reads: the signed-in person (OIDC Core 2). */
+/** The claims of an ID token the native device reads: the signed-in person (OIDC Core 2). */
 const IdClaims = schema.looseObject({
     /** The person's user. */
     sub: schema.identifier("user"),
@@ -111,7 +111,7 @@ export interface TokenBinding {
     readonly grant?: Identifier<"grant">;
 }
 
-/** The issuer a native client signs people in with, by redirect or device code. */
+/** The issuer a native device signs people in with, by redirect or device code. */
 export class Issuer {
     /** The issuer's URL, the account package's oauth adapter. */
     readonly url: string;

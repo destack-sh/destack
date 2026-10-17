@@ -42,8 +42,10 @@ const USER_AGENT_PLATFORMS: readonly (readonly [RegExp, Platform])[] = [
 
 /** The browser's client as its keystore stores it. */
 export const ClientRecord = schema.object({
-    /** The client's identifier, the principal its local objects partition by. */
+    /** The client's identifier, which a person's sign-in registers. */
     id: schema.identifier("client"),
+    /** The browser's device, the principal its local objects partition by. */
+    device: schema.identifier("device"),
     /** The ECDSA P-256 key pair, its private half unextractable. */
     keys: schema.object({
         /** The private half, which signs proofs. */
@@ -164,11 +166,11 @@ export class BrowserClient {
         };
     }
 
-    /** Read this browser's client as the principal its local objects partition by. */
-    async subject(): Promise<Subject> {
+    /** Read this browser's device as the principal its local objects partition by. */
+    async device(): Promise<Subject> {
         const record = await this.#record();
 
-        return principal.client.reference(Scope.universe.id, record.id);
+        return principal.device.reference(Scope.universe.id, record.device);
     }
 
     /** Bind the page's credential to this browser's client. */
@@ -207,6 +209,7 @@ export class BrowserClient {
 
         return this.#store.createIfAbsent({
             id: Identifier.create("client"),
+            device: Identifier.create("device"),
             keys,
             publicKey,
             isRegistered: false,

@@ -1,5 +1,6 @@
-import { none, permission, through, union } from "@destack/access";
-import { Condition, type Select } from "@destack/db";
+import { type Credential, none, permission, through, union } from "@destack/access";
+import { Condition, type Select, type Snapshot } from "@destack/db";
+import { MACHINE_KEY } from "@destack/runtime/authentication";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
 import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
@@ -7,7 +8,7 @@ import { proof } from "./proof.ts";
 import { defineSchema, Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
-import { isCallError } from "@destack/runtime/error";
+import { CallError, isCallError } from "@destack/runtime/error";
 
 /** How long a key authenticates, a year in milliseconds. */
 const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
@@ -126,6 +127,28 @@ export const Key = {
     /** Match the keys that authenticate at a time: standing and unsuspended. */
     authenticates(now: number): Condition {
         return { AND: [Key.standing(now), { suspendedAt: { isNull: true } }] };
+    },
+
+    /** Refuse a machine's token whose key no longer authenticates at a time. */
+    async requireStanding(
+        reader: Pick<Snapshot, "read">,
+        credential: Credential,
+        now: number,
+    ): Promise<void> {
+        // pass other credentials, and assertions, whose verifier read the standing key
+        if (credential.kind !== MACHINE_KEY || credential.tokenId === undefined) {
+            return;
+        }
+
+        // require the key to authenticate now: unrevoked, unexpired and unsuspended
+        const standing = await reader.read(key.table).findMany({
+            where: { AND: [{ id: credential.id }, Key.authenticates(now)] },
+        });
+        if (standing.length === 0) {
+            throw new CallError("UNAUTHORIZED", {
+                message: "machine token's key no longer authenticates",
+            });
+        }
     },
 
     /** Spend a verified proof once in the call's mutation, refusing a proof its key used before. */

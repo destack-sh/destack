@@ -263,20 +263,6 @@ class SpaceVerification {
         // resolve the subject's memberships and groups in the account and the scopes enclosing it
         const sets = await this.#sets(authorizer, subject, accountId);
 
-        // pass a credential's grant on in the account or the space into the space
-        const { grant } = caller;
-        const granted =
-            grant === undefined
-                ? undefined
-                : {
-                      ...grant,
-                      permissions: grant.permissions
-                          .filter(
-                              (entry) => entry.scope === accountId || entry.scope === this.spaceId,
-                          )
-                          .map((entry) => ({ ...entry, scope: this.spaceId })),
-                  };
-
         // bound the returned verification by both the credential and assertion lifetimes
         const verifiedAt = this.now;
 
@@ -289,7 +275,7 @@ class SpaceVerification {
                 actors: isOwn ? [...caller.actors] : [],
                 groups: sets,
                 contacts: isOwn ? [...caller.contacts] : [],
-                ...(granted === undefined ? {} : { grant: granted }),
+                grants: isOwn ? [...caller.grants] : [],
             },
             credential: {
                 kind: credential.kind,
@@ -409,7 +395,7 @@ class SpaceVerification {
                 ...represented.caller,
                 actors: [ObjectReference.at("delegate", grant)],
                 contacts: [],
-                grant: Grant.claim(grant),
+                grants: [Grant.claim(grant)],
             },
             credential: { ...credential, expiresAt: Math.min(credential.expiresAt, lapse) },
         };
@@ -492,7 +478,7 @@ function describeDelegation(
         caller: {
             ...Caller.of(delegator),
             actors: [ObjectReference.at("delegate", grant)],
-            grant: Grant.claim(grant),
+            grants: [Grant.claim(grant)],
         },
         credential: {
             kind: credential.kind,

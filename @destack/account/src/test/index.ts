@@ -1,5 +1,5 @@
 export * from "./account.ts";
-export * from "./allowance.ts";
+export * from "./entitlement.ts";
 export * from "./browser.ts";
 export * from "./directory.ts";
 export * from "./outcome.ts";

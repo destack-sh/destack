@@ -11,7 +11,8 @@ import {
 import { placement } from "./placement.ts";
 import { defineObject, defineShape, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
+import { CallError } from "@destack/runtime/error";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { organisation } from "./organisation.ts";
@@ -133,6 +134,12 @@ export type Space = Select<typeof space.table>;
 /** The resources whose use sets a space's conditions. */
 export type SpaceResource = "database" | "storage" | "compute" | "network";
 
+/** The resources whose exceeded entitlement throttles a space's requests. */
+export const THROTTLED_RESOURCES = [
+    "compute",
+    "network",
+] as const satisfies readonly SpaceResource[];
+
 /** The space checks, reads and replicates of a serving machine. */
 export const Space = {
     /** Build the access a space's home writes at its birth: the space owns itself. */
@@ -206,6 +213,37 @@ export const Space = {
         const existing = await view.read(replica).findFirst({ where: { scope: id } });
 
         return existing === undefined && (scope === undefined || scope.fencedAt === null);
+    },
+
+    /** Read a space's row, refusing an unknown space. */
+    async read(snapshot: Pick<Snapshot, "read">, spaceId: string): Promise<Space> {
+        const id = schema.identifier("space").parse(spaceId);
+
+        return present(
+            await snapshot.read(space.table).findFirst({ where: { id } }),
+            `space ${spaceId}`,
+        );
+    },
+
+    /** Report whether a space's entitlement to a resource is exceeded. */
+    isExceeded(row: Pick<Space, "conditions">, resource: SpaceResource): boolean {
+        return row.conditions[resource]?.status === "false";
+    },
+
+    /** Find the first exceeded resource that throttles a space's requests, absent when none is. */
+    throttled(row: Pick<Space, "conditions">): SpaceResource | undefined {
+        return THROTTLED_RESOURCES.find((resource) => Space.isExceeded(row, resource));
+    },
+
+    /** Refuse a resource use beyond a space's entitlement, with the condition's message. */
+    requireWithin(row: Pick<Space, "id" | "conditions">, resource: SpaceResource): void {
+        // refuse an exceeded resource with its condition's message
+        if (Space.isExceeded(row, resource)) {
+            const { message } = present(row.conditions[resource], `the ${resource} condition`);
+            throw new CallError("QUOTA_EXCEEDED", {
+                message: `space ${row.id} exceeds its entitlement: ${message}`,
+            });
+        }
     },
 
     /** Watch the directory's placements, and select the keys of a space whose placement changed. */

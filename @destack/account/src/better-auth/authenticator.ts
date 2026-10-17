@@ -170,7 +170,7 @@ export interface BetterAuthAuthenticatorOptions {
     /** The sign-in applications the deployment configures, such as GitHub, Google or Microsoft. */
     providers: NonNullable<BetterAuthOptions["socialProviders"]>;
     /** The account objects, which create a new person's personal account and decide access. */
-    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer" | "database" | "self">;
+    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer" | "database" | "serving">;
     /** The event log the journal stores audited calls in. */
     events: EventStore;
     /** The lifetimes of the packages' access tokens, in milliseconds, a minute when absent. */

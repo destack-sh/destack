@@ -213,7 +213,7 @@ export const Residency = {
 
     /** Apply the residencies the universe declares: create new ones and rename others. */
     async apply(
-        objects: Pick<ObjectStore, "database" | "self" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "serving" | "mutate">,
         definitions: readonly ResidencyDefinition[],
         now: number,
     ): Promise<void> {
@@ -238,7 +238,7 @@ export const Residency = {
             return [];
         });
         if (calls.length > 0) {
-            await objects.mutate(objects.self, {
+            await objects.mutate(objects.serving(residency), {
                 id: RequestId.create(now),
                 calls,
             });

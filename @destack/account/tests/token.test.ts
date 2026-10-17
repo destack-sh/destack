@@ -1,11 +1,12 @@
 import { accessGrant, type GrantPermission, principal } from "@destack/access";
-import { eq } from "@destack/db";
-import { Identifier, present } from "@destack/schema";
+import { eq, Snapshot } from "@destack/db";
+import { Identifier, present, schema } from "@destack/schema";
 import { Scope, Subject, ObjectReference } from "@destack/sync";
 import { createClient } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
 import { expect, refusal, test } from "@destack/test";
 import { account } from "../src/object/account.ts";
+import { Identity } from "../src/object/identity.ts";
 import { Credential } from "../src/credential/credential.ts";
 import { ACCESS_TOKEN_TYPE, PERSONAL_ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
@@ -18,8 +19,8 @@ const VAULT = Identifier.create("package");
 /** One day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
 
-/** Issue a personal token with its holder's grant, act through it within the grant, revoke both. */
-test("issue a personal access token with its grant, act through it, and revoke both", async () => {
+/** Issue a token client with its holder's grant, act through it within the grant, revoke both. */
+test("issue a token client with its grant, act through it, and revoke both", async () => {
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId, spaceId } = await fixture.createSpace(owner);
@@ -41,11 +42,11 @@ test("issue a personal access token with its grant, act through it, and revoke b
     };
 
     // challenge a single factor
-    expect(await outcome(owner.client.personalAccessToken.issue(issuing))).toBe(
+    expect(await outcome(owner.client.client.issue(issuing))).toBe(
         "INSUFFICIENT_AUTHENTICATION: authentication assurance is too low: authenticate again",
     );
     await fixture.elevate(owner.id);
-    const issued = await owner.client.personalAccessToken.issue(issuing);
+    const issued = await owner.client.client.issue(issuing);
     expect(issued).toEqual({
         id: issued.id,
         createdAt: issued.createdAt,
@@ -56,10 +57,19 @@ test("issue a personal access token with its grant, act through it, and revoke b
         tags: {},
         scope: owner.id,
         name: "agent",
+        kind: "token",
+        machineId: null,
+        platform: null,
+        platformVersion: null,
+        architecture: null,
+        model: null,
+        version: null,
+        lastActiveAt: issued.createdAt,
+        revokedAt: null,
     });
 
     // grant the token the permissions until its expiry, from the owner in their own scope
-    const token = principal.personalAccessToken.reference(owner.id, issued.id);
+    const token = principal.client.reference(Scope.universe.id, issued.id);
     const grants = async () => (await owner.client.grant.list({ userId: owner.id })).items;
     const [grant] = await grants();
     expect(await grants()).toEqual([
@@ -85,7 +95,7 @@ test("issue a personal access token with its grant, act through it, and revoke b
         encoded: bytes.toBase64({ alphabet: "base64url", omitPadding: true }),
     }).toEqual({ prefix: "dst_pat_", length: 32, encoded });
 
-    // exchange the token for the owner's tokens through it, under its grant
+    // exchange the token for the owner's tokens through it, carrying its grant by reference
     const exchange = (space?: Identifier<"space">) =>
         fixture.exchangeToken(credential.secret, PERSONAL_ACCESS_TOKEN_TYPE, {
             audience: space === undefined ? accountPackage.id : VAULT,
@@ -94,27 +104,16 @@ test("issue a personal access token with its grant, act through it, and revoke b
     const universal = claims((await exchange()).accessToken);
     const exchanged = claims((await exchange(spaceId)).accessToken);
     expect([
-        [universal.sub, universal.act, universal.grant],
-        [exchanged.sub, exchanged.act, exchanged.grant],
+        [universal.sub, universal.act, universal["grants"]],
+        [exchanged.sub, exchanged.act, exchanged["grants"]],
     ]).toEqual([
-        [owner.id, [token], { id: grantId, scope: owner.id, permissions }],
-        [
-            owner.id,
-            [token],
-            {
-                id: grantId,
-                scope: owner.id,
-                permissions: [
-                    { ...account.permission("read"), scope: spaceId },
-                    { packageId: VAULT, type: "version", name: "read", scope: spaceId },
-                ],
-            },
-        ],
+        [owner.id, [token], [{ id: grantId, scope: owner.id }]],
+        [owner.id, [token], [{ id: grantId, scope: owner.id }]],
     ]);
     const bearer = fixture.bearer((await exchange()).accessToken);
 
     // find no owner's scope at all, which the grant leaves out
-    expect(await refusal(bearer.personalAccessToken.list({ userId: owner.id }))).toEqual([
+    expect(await refusal(bearer.client.list({ userId: owner.id }))).toEqual([
         "NOT_FOUND",
         `no scope ${owner.id}`,
     ]);
@@ -132,7 +131,7 @@ test("issue a personal access token with its grant, act through it, and revoke b
             { expiresAt: Date.now() + 400 * DAY },
         ].map((change) =>
             outcome(
-                owner.client.personalAccessToken.issue({
+                owner.client.client.issue({
                     ...issuing,
                     requestId: RequestId.create(Date.now()),
                     name: "refused",
@@ -150,10 +149,10 @@ test("issue a personal access token with its grant, act through it, and revoke b
 
     // hide the token from another user, who finds the owner's public profile alone
     const other = await fixture.person("other@example.com");
-    expect((await other.client.personalAccessToken.list({ userId: owner.id })).items).toEqual([]);
+    expect((await other.client.client.list({ userId: owner.id })).items).toEqual([]);
     expect(
         await outcome(
-            other.client.personalAccessToken.issue({
+            other.client.client.issue({
                 ...issuing,
                 userId: owner.id,
                 requestId: RequestId.create(Date.now()),
@@ -162,43 +161,29 @@ test("issue a personal access token with its grant, act through it, and revoke b
                 permissions: [],
             }),
         ),
-    ).toBe("NOT_FOUND: personal-access-token not found");
-
-    // refuse revoking the token's grant on its own, which revoking the token does
-    expect(
-        await refusal(
-            owner.client.grant.revoke({
-                userId: owner.id,
-                id: grantId,
-                requestId: RequestId.create(Date.now()),
-            }),
-        ),
-    ).toEqual([
-        "CONFLICT",
-        `grant ${grantId} belongs to personal access token ${issued.id}: revoke the token`,
-    ]);
+    ).toBe("NOT_FOUND: client not found");
 
     // revoke the token with its grant, refusing both at once
     const revoking = { userId: owner.id, id: issued.id };
-    expect(
-        await owner.client.personalAccessToken.revoke({
-            ...revoking,
-            requestId: RequestId.create(Date.now()),
-        }),
-    ).toEqual({});
+    const revoked = await owner.client.client.revoke({
+        ...revoking,
+        requestId: RequestId.create(Date.now()),
+    });
     expect({
+        revokedAt: schema.looseObject({ revokedAt: schema.number() }).parse(revoked).revokedAt > 0,
         grants: await grants(),
         exchanged: await outcome(exchange()),
         revoked: await outcome(
-            owner.client.personalAccessToken.revoke({
+            owner.client.client.revoke({
                 ...revoking,
                 requestId: RequestId.create(Date.now()),
             }),
         ),
     }).toEqual({
+        revokedAt: true,
         grants: [],
         exchanged: "BAD_REQUEST: invalid_grant: invalid personal access token",
-        revoked: `NOT_FOUND: no personal-access-token ${issued.id}`,
+        revoked: "CONFLICT: client is revoked",
     });
 });
 
@@ -211,7 +196,7 @@ test("refuse a personal access token whose grant lapsed", async () => {
     // issue a token reading the account
     await fixture.elevate(owner.id);
     const credential = await Credential.create("personal-access-token");
-    await owner.client.personalAccessToken.issue({
+    await owner.client.client.issue({
         userId: owner.id,
         requestId: RequestId.create(Date.now()),
         name: "agent",
@@ -341,3 +326,34 @@ async function* take<Item>(items: AsyncIterable<Item>, count: number): AsyncGene
         }
     }
 }
+
+test("authenticate a person's universe token in the space it is bound to, refusing it in another and calling anonymously without one", async () => {
+    // sign a person's token toward the account package in their home
+    await using fixture = await AccountFixture.open();
+    const person = await fixture.person("ada@example.test");
+    const { spaceId } = await fixture.personalHome(person);
+    const token = await fixture.token(person.id, accountPackage.id, spaceId);
+
+    // authenticate calls to the home and to another space over the universe's directory
+    const authenticate = (scope: string, headers: Record<string, string>) =>
+        Identity.authenticate(
+            Snapshot.live(fixture.database),
+            new Request("https://machine.test/", { headers }),
+            {
+                audience: accountPackage.id,
+                universe: ISSUER,
+                scope,
+                now: Date.now(),
+            },
+        );
+    const bearer = { authorization: `Bearer ${token}` };
+    expect({
+        anonymous: await authenticate(spaceId, {}),
+        home: (await authenticate(spaceId, bearer))?.caller.subject,
+        other: await refusal(authenticate(Identifier.create("space"), bearer)),
+    }).toEqual({
+        anonymous: undefined,
+        home: person.subject,
+        other: ["UNAUTHORIZED", "invalid access token claims"],
+    });
+});

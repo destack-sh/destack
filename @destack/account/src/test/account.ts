@@ -71,7 +71,7 @@ import {
 } from "../object/index.ts";
 import { JWT_BEARER, SESSION_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
-import { accountServer, Platform, type PlatformDeclaration } from "../server/index.ts";
+import { accountServer, Operator, OperatorDeclaration, UniverseRole } from "../server/index.ts";
 import { accountDatabase } from "../stack/index.ts";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
@@ -703,7 +703,7 @@ export class AccountFixture implements AsyncDisposable {
             this.objects.clock,
         );
         const { publicKey } = await identity.generate();
-        await this.objects.mutate(this.objects.self, {
+        await this.objects.mutate(this.objects.serving(machine), {
             id: RequestId.create(this.objects.clock.now()),
             calls: [
                 machine.call("declare", {
@@ -1017,7 +1017,7 @@ export class AccountFixture implements AsyncDisposable {
     /** Declare the platform with a cloud machine per residency. */
     static async #platformDeclaration(
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
-    ): Promise<PlatformDeclaration> {
+    ): Promise<OperatorDeclaration> {
         return {
             name: "Destack",
             residencyId: "eu",
@@ -1037,7 +1037,7 @@ export class AccountFixture implements AsyncDisposable {
         storage: TestDatabase,
         keys: AccountKeys,
         options: AccountFixtureOptions & Required<Pick<AccountFixtureOptions, "stacks" | "homes">>,
-        platform?: PlatformDeclaration,
+        platform?: OperatorDeclaration,
     ): Promise<Served> {
         // compose the universe's store of the account and setting packages, signing in once it exists
         const { database } = storage;
@@ -1080,9 +1080,10 @@ export class AccountFixture implements AsyncDisposable {
         });
         const { packages } = store;
 
-        // store the platform before the universe's identity, which its role starts
+        // own the universe as the universe, then store the platform before its identity
+        await UniverseRole.trust(store, clock.now());
         if (platform !== undefined) {
-            await Platform.apply(store, platform, options.stacks.residency, clock.now());
+            await new Operator(platform, options.stacks.residency).apply(store, clock.now());
         }
 
         // sign in with the universe's identity, mailing links and codes into an inbox
@@ -1223,7 +1224,7 @@ export class AccountFixture implements AsyncDisposable {
         // sign the operator in and find the platform organisation
         const operator = await this.session(ids.operator);
         const organisationId = present(
-            await Platform.find(Snapshot.live(this.database)),
+            await UniverseRole.operating(Snapshot.live(this.database)),
             "the platform organisation",
         );
 
@@ -1364,7 +1365,7 @@ async function cloudMachine(
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
-): Promise<PlatformDeclaration["machines"][number]> {
+): Promise<OperatorDeclaration["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
     const { publicKey } = await new MachineIdentity(id, keychain, Clock.system).generate();

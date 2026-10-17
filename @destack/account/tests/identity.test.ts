@@ -520,6 +520,8 @@ test("rotate once for two identities of one machine rotating at once, ending on 
     const { kty, crv, x, y } = StoredKey.parse(JSON.parse(found(keys.secrets, identity.machineId)));
     expect({
         registered: registered.length,
-        active: registered.filter((key) => key.revokedAt === null).map((key) => key.publicKey),
+        active: registered
+            .filter((entry) => entry.revokedAt === null)
+            .map((entry) => entry.publicKey),
     }).toEqual({ registered: 2, active: [{ kty, crv, x, y }] });
 });

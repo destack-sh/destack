@@ -6,6 +6,7 @@ import { Scope } from "@destack/sync";
 import type { Select, Snapshot } from "@destack/db";
 import { defineObject, defineShape, field } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
+import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 
@@ -100,6 +101,18 @@ export const identityShape = defineShape({
     queries: () => [identity.query({ scopes: "every" }), operation.query({ scopes: "every" })],
 });
 
+/** What a token is verified against: the receiving package, issuer, space and time. */
+export interface Verification {
+    /** The package receiving the call. */
+    readonly audience: PackageId;
+    /** The universe's issuer, which its tokens carry. */
+    readonly universe: string;
+    /** The space the call targets, absent for a call outside any one space. */
+    readonly scope?: string;
+    /** The time the token is verified at. */
+    readonly now: number;
+}
+
 /** The reads of identities from their logs. */
 export const Identity = {
     /** List an identity's log in order, nullified operations included. */
@@ -157,20 +170,30 @@ export const Identity = {
         return PublicKey.keySet(found.signingKeys);
     },
 
+    /** Verify a request's bearer token and a machine token's key, absent without a token. */
+    async authenticate(
+        snapshot: Snapshot,
+        request: Request,
+        options: Verification,
+    ): Promise<Authentication | undefined> {
+        // call anonymously without a bearer token
+        const token = Bearer.token(request.headers.get("authorization"));
+        if (token === undefined) {
+            return undefined;
+        }
+
+        // verify the token, and the key of a machine's token
+        const authentication = await Identity.verify(snapshot, token, options);
+        await Key.requireStanding(snapshot, authentication.credential, options.now);
+
+        return authentication;
+    },
+
     /** Verify a token by its issuer's identity keys: the universe's, or a space's own. */
     async verify(
         snapshot: Snapshot,
         token: string,
-        options: {
-            /** The package receiving the call. */
-            readonly audience: PackageId;
-            /** The universe's issuer, which its tokens carry. */
-            readonly universe: string;
-            /** The space the call targets, absent for a call outside any one space. */
-            readonly scope?: string;
-            /** The time the token is verified at. */
-            readonly now: number;
-        },
+        options: Verification,
     ): Promise<Authentication> {
         // read the issuing universe or space, refusing any other issuer
         const issuer = schema.string().safeParse(Bearer.issuer(token));

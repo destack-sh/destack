@@ -139,7 +139,7 @@ test("find an account's residency, the residencies' homes and the enabled shared
     });
 
     // drain the eu residency's shared cloud machine
-    await fixture.objects.mutate(fixture.objects.self, {
+    await fixture.objects.mutate(fixture.objects.serving(machine), {
         id: RequestId.create(Date.now()),
         calls: [
             machine.call("drain", machine.target({ scope: Scope.universe.id, id: ids.machine })),

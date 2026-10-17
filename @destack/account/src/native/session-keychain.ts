@@ -1,7 +1,7 @@
 import { Keychain } from "@destack/identity";
 import type { Person } from "./person.ts";
 
-/** The keychain service storing the refresh tokens of people signed in on a native client. */
+/** The keychain service storing the refresh tokens of people signed in on a native device. */
 export const SESSIONS = "app.destack.login";
 
 /** The refresh tokens of the people signed in on this computer, one keychain entry each. */

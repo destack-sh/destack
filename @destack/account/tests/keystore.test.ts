@@ -274,7 +274,7 @@ async function universeRegistry(database: DatabaseConnection, clock: Clock) {
     await new AccessFixture(database).replicateRole(
         Scope.universe,
         {
-            name: "platform",
+            name: "universe",
             description: "Start and extend the universe's identity",
             permissions: [identity.permission("start"), identity.permission("extend")],
         },

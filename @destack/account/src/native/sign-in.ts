@@ -27,10 +27,10 @@ const POLL_MILLISECONDS = 5000;
 /** How much longer each slow down makes a device flow wait: five seconds (RFC 8628 3.5). */
 const SLOW_DOWN_MILLISECONDS = 5000;
 
-/** The local logins of a native client, which its sign-ins write. */
+/** The local logins of a native device, which its sign-ins write. */
 export type LoginClient = ObjectClient<{ readonly login: typeof login }>;
 
-/** What a native client signs people in with. */
+/** What a native device signs people in with. */
 export interface NativeSignInOptions {
     /** The issuer people sign in with. */
     readonly issuer: Issuer;
@@ -38,7 +38,7 @@ export interface NativeSignInOptions {
     readonly sessions: SessionKeychain;
     /** The keys of the clients sign-ins register, proving them to this computer's machine. */
     readonly keys: ClientKey;
-    /** The native client's local logins. */
+    /** The native device's local logins. */
     readonly logins: LoginClient;
     /** The clock sign-ins are timed by. */
     readonly clock: Clock;
@@ -69,7 +69,7 @@ export interface EmailSignIn {
     readonly verify: (code: string) => Promise<Login>;
 }
 
-/** Sign people in on a native client, each sign-in registering a new client for the person. */
+/** Sign people in on a native device, each sign-in registering a new client for the person. */
 export class NativeSignIn {
     /** What the client signs people in with. */
     readonly #options: NativeSignInOptions;
@@ -239,7 +239,7 @@ export class NativeSignIn {
         const person = { issuer: current.issuer, subject: current.subjectId };
         const token = await sessions.load(person);
         if (token !== undefined) {
-            await issuer.revoke(client.identifier(current.registrationId), token);
+            await issuer.revoke(client.identifier(current.clientId), token);
             await sessions.remove(person, token);
         }
 
@@ -277,8 +277,8 @@ export class NativeSignIn {
         const existing = await logins.query.login.findFirst({
             where: { issuer: person.issuer, subjectId: person.subject },
         });
-        if (existing !== undefined && existing.registrationId !== clientId) {
-            const withdrawn = client.identifier(existing.registrationId);
+        if (existing !== undefined && existing.clientId !== clientId) {
+            const withdrawn = client.identifier(existing.clientId);
             await this.#withdraw(accounts, sub, withdrawn);
             await this.#options.keys.forget(withdrawn);
         }
@@ -291,7 +291,7 @@ export class NativeSignIn {
             subjectId: person.subject,
             name,
             status: "authenticated",
-            registrationId: clientId,
+            clientId,
         });
     }
 
@@ -334,7 +334,7 @@ export class NativeSignIn {
         existing: Login | undefined,
         fields: Pick<
             Select<typeof login.table>,
-            "issuer" | "subjectId" | "name" | "status" | "registrationId"
+            "issuer" | "subjectId" | "name" | "status" | "clientId"
         >,
     ): Promise<Login> {
         // update it or create the first

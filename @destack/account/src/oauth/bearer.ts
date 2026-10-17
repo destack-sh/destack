@@ -39,7 +39,7 @@ export interface BearerOptions {
     /** The account database with the machines' keys and the placements. */
     readonly database: DatabaseConnection;
     /** The account objects, which store the spent proofs. */
-    readonly objects: Pick<ObjectStore, "mutate" | "self">;
+    readonly objects: Pick<ObjectStore, "mutate" | "serving">;
     /** The token endpoint's URL, every assertion's audience. */
     readonly endpoint: string;
     /** The clock assertions are verified at. */
@@ -61,7 +61,7 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         audience: accountPackage.id,
         keys: (thumbprint, issuer, now) => assertionKey(database, thumbprint, issuer, now),
         spend: async (digest, expiresAt, now) => {
-            await options.objects.mutate(options.objects.self, {
+            await options.objects.mutate(options.objects.serving(proof), {
                 id: RequestId.create(now),
                 calls: [proof.call("create", { id: digest, expiresAt })],
             });

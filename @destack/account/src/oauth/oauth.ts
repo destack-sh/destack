@@ -31,7 +31,7 @@ export interface OAuthExtensionOptions {
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which register devices' clients. */
-    readonly objects: Pick<ObjectStore, "mutate" | "database" | "self">;
+    readonly objects: Pick<ObjectStore, "mutate" | "database" | "serving">;
     /** The check of mailed sign-in codes, spending each. */
     readonly codes: CodeCheck;
     /** The policies expanding memberships. */

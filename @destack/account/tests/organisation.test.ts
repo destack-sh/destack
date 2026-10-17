@@ -7,7 +7,7 @@ import { expect, test } from "@destack/test";
 import { domain } from "../src/object/domain.ts";
 import { group } from "../src/object/group.ts";
 import type { MemberRole } from "../src/object/organisation.ts";
-import { AccountFixture, type Person, TestAllowance, outcome } from "../src/test/index.ts";
+import { AccountFixture, type Person, TestEntitlement, outcome } from "../src/test/index.ts";
 
 test("grant an organisation's active members the access of their roles", async () => {
     // seat a person in each role below owner and suspend one more member
@@ -184,7 +184,7 @@ test("serve an organisation's accounts on hostnames below the domains it verifie
     await using fixture = await AccountFixture.open();
     const founder = await fixture.person("founder@example.com");
     const { organisationId, accountId } = await found(fixture, founder);
-    await TestAllowance.set(fixture.database, accountId, "domain", { kind: "access" });
+    await TestEntitlement.set(fixture.database, accountId, "domain", { kind: "boolean" });
     const claimed = await founder.client.domain.create({
         scope: organisationId,
         requestId: RequestId.create(Date.now()),

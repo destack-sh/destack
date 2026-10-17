@@ -6,7 +6,7 @@ import { Account, account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { machine } from "../object/machine.ts";
 import { Residency, residency } from "../object/residency.ts";
-import { Platform } from "./platform.ts";
+import { UniverseRole } from "./universe.ts";
 
 /** Implement residencies. */
 export function implementResidency(): typeof residency {
@@ -74,7 +74,7 @@ async function publisher(
     }
 
     // sell a name or account of the platform's organisation through the residency home's account
-    const platform = await Platform.find(context);
+    const platform = await UniverseRole.operating(context);
     const isPlatform = holder.objectId === platform || holder.owner === platform;
     if (isPlatform) {
         return (await Residency.isHome(context, context.input.home))

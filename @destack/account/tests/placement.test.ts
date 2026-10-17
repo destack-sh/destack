@@ -339,7 +339,7 @@ test("remove a space's delegated grants when the space is finalized", async () =
             .findFirst({ where: { id: created.id } }),
         "the deleting space",
     );
-    await fixture.objects.mutate(fixture.objects.self, {
+    await fixture.objects.mutate(fixture.objects.serving(accountObject.space), {
         id: RequestId.create(Date.now()),
         calls: [accountObject.space.call("finalize", accountObject.space.target(deleting))],
     });

@@ -19,14 +19,14 @@ import { NativeSignIn } from "./sign-in.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
 
-/** The time the native client's clock reads, in UTC epoch milliseconds: 2026-01-01. */
+/** The time the native device's clock reads, in UTC epoch milliseconds: 2026-01-01. */
 const NOW = 1_767_225_600_000;
 
-/** The native client the fixtures sign people in on. */
-const CLIENT = schema.identifier("client").parse("client-01996ab0-0000-7000-8000-0000000000e1");
+/** The native device the fixtures sign people in on. */
+const DEVICE = schema.identifier("device").parse("device-01996ab0-0000-7000-8000-0000000000e1");
 
-/** The native client as the creator of its logins. */
-const WRITER = principal.client.reference(Scope.universe.id, CLIENT);
+/** The native device as the creator of its logins. */
+const WRITER = principal.device.reference(Scope.universe.id, DEVICE);
 
 /** The person signed in on the issuer's pages. */
 const EMAIL = "ada@example.com";
@@ -78,7 +78,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
     }).toEqual({
         page: [200, "Signed in. You can close this window."],
         rows: [loginRow(signedIn, owner)],
-        clients: [...before, { id: signedIn.registrationId, isRevoked: false }],
+        clients: [...before, { id: signedIn.clientId, isRevoked: false }],
         isRetained: true,
     });
 
@@ -90,7 +90,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
 
     // sign out, forgetting the refresh token the issuer no longer refreshes
     await signIn.signOut(signedIn);
-    const registration = schema.identifier("client").parse(signedIn.registrationId);
+    const registration = schema.identifier("client").parse(signedIn.clientId);
     expect({
         again,
         rows: await logins.query.login.findMany(),
@@ -174,8 +174,8 @@ test("sign a person in with a device code once they approve it, and replace the 
         rows: [{ ...loginRow(second, owner), revision: 2, id: first.id }],
         clients: [
             ...before,
-            { id: first.registrationId, isRevoked: true },
-            { id: second.registrationId, isRevoked: false },
+            { id: first.clientId, isRevoked: true },
+            { id: second.clientId, isRevoked: false },
         ],
     });
 });
@@ -198,7 +198,7 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
     }).toEqual({
         wrong: "UNAUTHORIZED: the issuer refused the code: the code is wrong or expired",
         rows: [loginRow(signedIn, owner)],
-        clients: [...before, { id: signedIn.registrationId, isRevoked: false }],
+        clients: [...before, { id: signedIn.clientId, isRevoked: false }],
     });
 });
 
@@ -257,14 +257,14 @@ async function consent(browser: Browser, url: string): Promise<string> {
     return present(allowed.headers.get("location"), "the loopback redirect");
 }
 
-/** The login a sign-in writes for a person on the native client. */
-function loginRow(signedIn: { id: string; registrationId: string }, person: Person) {
+/** The login a sign-in writes for a person on the native device. */
+function loginRow(signedIn: { id: string; clientId: string }, person: Person) {
     return {
         id: signedIn.id,
-        scope: CLIENT,
+        scope: DEVICE,
         issuer: ISSUER,
         subjectId: person.id,
-        registrationId: signedIn.registrationId,
+        clientId: signedIn.clientId,
         name: EMAIL,
         status: "authenticated",
         tags: {},
@@ -276,7 +276,7 @@ function loginRow(signedIn: { id: string; registrationId: string }, person: Pers
     };
 }
 
-/** Read the native clients of a person, oldest first. */
+/** Read the clients of a person, oldest first. */
 async function nativeClients(accounts: AccountFixture, person: Person) {
     const rows = await accounts.database
         .select({ id: client.table.id, revokedAt: client.table.revokedAt })
@@ -287,20 +287,20 @@ async function nativeClients(accounts: AccountFixture, person: Person) {
     return rows.map((row) => ({ id: row.id, isRevoked: row.revokedAt !== null }));
 }
 
-/** Sign people in on a native client against the fixture's issuer. */
+/** Sign people in on a native device against the fixture's issuer. */
 async function native(accounts: AccountFixture) {
-    // store the client's logins in a local database
+    // store the device's logins in a local database
     const database = await connectBunSqlite(":memory:");
     onTestFinished(() => database.close());
-    const subject = principal.client.reference(Scope.universe.id, CLIENT);
+    const subject = principal.device.reference(Scope.universe.id, DEVICE);
     const logins = await ObjectClient.open({
         database,
         objects: { login },
         package: login.package,
         clock: new VirtualClock(NOW),
-        scope: CLIENT,
+        scope: DEVICE,
         caller: subject,
-        client: subject,
+        device: subject,
         endpoint: {
             url: "http://local.invalid/",
             fetch: async () => {

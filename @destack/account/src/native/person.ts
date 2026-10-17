@@ -72,7 +72,7 @@ export class PersonClient {
 
         return new PersonClient(
             principal.user.reference(Scope.universe.id, login.subjectId),
-            { issuer: login.issuer, clientId: client.identifier(login.registrationId) },
+            { issuer: login.issuer, clientId: client.identifier(login.clientId) },
             sessions,
             fetch,
             clock,

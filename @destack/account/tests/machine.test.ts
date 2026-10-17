@@ -97,7 +97,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
     const target = machine.reference(accountId, enrolled.machineId);
     const tenants = { ...account.reference(tenant.id, rival.accountId), relation: "member" };
     await Transaction.run(fixture.storage.database, async (transaction) => {
-        const caller = fixture.objects.self;
+        const caller = fixture.objects.serving(machine);
         const universe = await fixture.objects.authorize(transaction, accountId, caller);
         await Relationship.replace(
             {

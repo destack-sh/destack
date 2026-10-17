@@ -3,7 +3,7 @@ import { defineServer, type PackageServer } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
-import { Allowance } from "../object/allowance.ts";
+import { Entitlement } from "../object/entitlement.ts";
 import { claim } from "../object/claim.ts";
 import accountPackage from "../package.ts";
 import { implementAccount } from "./account.ts";
@@ -22,7 +22,6 @@ import { implementOrganisation } from "./organisation.ts";
 import { implementPlacement } from "./placement.ts";
 import { implementResidency } from "./residency.ts";
 import { implementSpace } from "./space.ts";
-import { implementPersonalAccessToken } from "./personal-access-token.ts";
 import { implementUser } from "./user.ts";
 
 /** What the universe serves the account package with. */
@@ -44,7 +43,6 @@ export function accountServer(options: AccountOptions): PackageServer {
             implementOrganisation(),
             implementMember(),
             implementGroup(),
-            implementPersonalAccessToken(),
             implementClient(),
             implementKey(),
             implementOAuthClient(),
@@ -60,7 +58,7 @@ export function accountServer(options: AccountOptions): PackageServer {
             claim,
             proof,
         ],
-        follows: [Allowance.universe],
+        follows: [Entitlement.universe],
         adapters: { oauth: async (request) => (await options.signIn).handler(request) },
         responseHeaders: { "Cache-Control": "no-store" },
     });

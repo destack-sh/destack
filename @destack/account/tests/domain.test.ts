@@ -4,7 +4,7 @@ import { ObjectReference, Scope } from "@destack/sync";
 import { RequestId } from "@destack/runtime/request";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "@destack/test";
 import { found } from "@destack/schema";
-import { outcome, TestAllowance } from "../src/test/index.ts";
+import { outcome, TestEntitlement } from "../src/test/index.ts";
 import { DomainFixture, NOW } from "./domain.ts";
 
 /** The account database of each dialect for the accounts of the scenarios. */
@@ -39,7 +39,7 @@ test.for(TEST_DIALECTS)(
             owner.domain.verify({ scope: accountId, id, requestId: RequestId.create(Date.now()) });
 
         // claim the domain for the account on a plan with custom domains
-        await TestAllowance.set(fixture.database, accountId, "domain", { kind: "access" });
+        await TestEntitlement.set(fixture.database, accountId, "domain", { kind: "boolean" });
         const claimed = await owner.domain.create({
             scope: accountId,
             requestId: RequestId.create(Date.now()),
@@ -116,8 +116,8 @@ test.for(TEST_DIALECTS)(
         const rival = fixture.client(fixture.rivalId);
 
         // claim the domain in both accounts on plans with custom domains
-        await TestAllowance.set(fixture.database, accountId, "domain", { kind: "access" });
-        await TestAllowance.set(fixture.database, otherId, "domain", { kind: "access" });
+        await TestEntitlement.set(fixture.database, accountId, "domain", { kind: "boolean" });
+        await TestEntitlement.set(fixture.database, otherId, "domain", { kind: "boolean" });
         const first = await owner.domain.create({
             scope: accountId,
             requestId: RequestId.create(Date.now()),
@@ -152,7 +152,7 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-/** Serve hostnames below a verified domain of the account, refusing to remove the domain while one serves. */
+/** Serve hostnames below an account's verified domain, refusing its removal while one serves. */
 test.for(TEST_DIALECTS)(
     "serve hostnames below a verified domain alone, and refuse to remove the domain while one serves on %s",
     async (dialect) => {
@@ -163,7 +163,7 @@ test.for(TEST_DIALECTS)(
         const notes = `notes.${name}`;
 
         // refuse a hostname before its domain is verified
-        await TestAllowance.set(fixture.database, accountId, "domain", { kind: "access" });
+        await TestEntitlement.set(fixture.database, accountId, "domain", { kind: "boolean" });
         const claimed = await owner.domain.create({
             scope: accountId,
             requestId: RequestId.create(Date.now()),
@@ -209,7 +209,7 @@ test.for(TEST_DIALECTS)("refuse domain methods to a non-member on %s", async (di
     const { accountId, name } = fixture;
     const owner = fixture.client(fixture.ownerId);
     const stranger = fixture.client(fixture.strangerId);
-    await TestAllowance.set(fixture.database, accountId, "domain", { kind: "access" });
+    await TestEntitlement.set(fixture.database, accountId, "domain", { kind: "boolean" });
     const claimed = await owner.domain.create({
         scope: accountId,
         requestId: RequestId.create(Date.now()),
@@ -253,7 +253,7 @@ function serve(client: ReturnType<DomainFixture["client"]>, accountId: string, n
 test.for(TEST_DIALECTS)(
     "refuse a domain claim the account's plan allows no custom domains on %s",
     async (dialect) => {
-        // serve the domains under the account's allowances
+        // serve the domains under the account's entitlements
         const { database } = found(databases, dialect);
         await using fixture = await DomainFixture.open(database);
         const owner = fixture.client(fixture.ownerId);
@@ -268,7 +268,7 @@ test.for(TEST_DIALECTS)(
         expect(await outcome(claim())).toBe(
             `QUOTA_EXCEEDED: the plan of ${fixture.accountId} allows no custom domains`,
         );
-        await TestAllowance.set(database, fixture.accountId, "domain", { kind: "access" });
+        await TestEntitlement.set(database, fixture.accountId, "domain", { kind: "boolean" });
         expect((await claim()).name).toBe(fixture.name);
     },
 );

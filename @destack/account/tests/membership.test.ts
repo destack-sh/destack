@@ -113,6 +113,7 @@ async function openSpace() {
         database: spaceStorage.database,
         uplink: {
             receive: () => Promise.reject(new Error("the replica receives no changes")),
+            call: () => Promise.reject(new Error("the stand-in answers no queries")),
             stream: (subscription, signal) =>
                 feed.subscribe(
                     replica.source.buildReplica(subscription).queries,

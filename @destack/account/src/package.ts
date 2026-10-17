@@ -1,7 +1,7 @@
 import { defineAdapter, definePackage } from "@destack/runtime";
 import {
     account,
-    allowance,
+    entitlement,
     assignment,
     claim,
     client,
@@ -21,7 +21,6 @@ import {
     operation,
     organisation,
     passkey,
-    personalAccessToken,
     placement,
     relationship,
     proof,
@@ -48,7 +47,6 @@ export default definePackage({
         twoFactor,
         client,
         key,
-        personalAccessToken,
         oauthClient,
         oauthConsent,
         grant,
@@ -78,7 +76,7 @@ export default definePackage({
         placement,
         assignment,
         claim,
-        allowance,
+        entitlement,
     },
     adapters: { oauth: defineAdapter("oauth", { path: OAUTH_PATH }) },
 });
