@@ -13,6 +13,7 @@ import {
     ObjectTypeReference,
     type Subject,
 } from "@destack/sync";
+import { changeRequest } from "../approval/request.ts";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { ObjectStore } from "@destack/object/server";
@@ -30,7 +31,7 @@ export interface Workflow<Input = unknown, Output = unknown> extends Declaration
     readonly input: schema.Schema<Input>;
     /** The schema of a run's output, absent for a workflow returning nothing. */
     readonly output: schema.Schema<Output> | undefined;
-    /** The object types a run waits for, whose writes wake it. */
+    /** The object types a run waits for, whose writes wake it, always change requests. */
     readonly waits: readonly ObjectType[];
     /** How a run retries an advance that failed without a final refusal. */
     readonly retries: RetryPolicy;
@@ -301,6 +302,8 @@ export function defineWorkflow<Input, Output = void>(
                 failure: field.json(Failure).optional(),
                 /** When a sleeping or waiting step wakes. */
                 wakeAt: field.time().optional(),
+                /** The change request a call step waits on while its call awaits approval. */
+                changeRequestId: field.string().optional(),
                 /** When the step completed, absent while it waits. */
                 completedAt: field.time().optional(),
             },
@@ -309,7 +312,7 @@ export function defineWorkflow<Input, Output = void>(
             methods: {
                 create: method.create("advance", { isInternal: true }),
                 update: method.update("advance", {
-                    fields: ["output", "failure", "wakeAt", "completedAt"],
+                    fields: ["output", "failure", "wakeAt", "changeRequestId", "completedAt"],
                     isInternal: true,
                 }),
                 delete: method.delete("advance", { isInternal: true }),
@@ -379,8 +382,13 @@ export function defineWorkflow<Input, Output = void>(
         module,
     );
 
+    // wait for change requests in every workflow, as any call step may await approval
+    const waits = [
+        changeRequest,
+        ...(definition.waits ?? []).filter((type) => type !== changeRequest),
+    ];
+
     // build the workflow, its implementation serving the run type with its controller
-    const waits = definition.waits ?? [];
     const timeout = definition.timeout;
     const workflow: Workflow<Input, Output> = Object.freeze({
         kind: "workflow" as const,

@@ -1,4 +1,3 @@
-import { principal } from "@destack/access";
 import {
     and,
     Change,
@@ -24,7 +23,7 @@ import { RequestId } from "@destack/runtime/request";
 import { refusal } from "@destack/runtime/server";
 import type { ServerContext, WebhookHandler } from "@destack/runtime/workload";
 import { canonicalize, schema } from "@destack/schema";
-import type { Call, Subject } from "@destack/sync";
+import { type Call, Scope } from "@destack/sync";
 import { LIVE_STATES } from "../run/run.ts";
 import type { Workflow } from "../workflow/workflow.ts";
 import type { ChangeOperation, ObjectChange } from "./change.ts";
@@ -355,7 +354,7 @@ class TriggerDeclaration<Input> implements Controller {
 
     /** List the workflow's space as the one key. */
     async list(): Promise<readonly string[]> {
-        return [spaceOf(this.#store.serving(this.#workflow.run).subject)];
+        return [runScope(this.#store)];
     }
 
     /** Create missing declared rows, update changed schedules and retire undeclared rows. */
@@ -462,7 +461,7 @@ class ChangeController<Input> implements Controller {
         // look again later while the trigger is paused
         const change = this.#trigger.change;
         const database = this.#store.database;
-        const scope = spaceOf(this.#store.serving(this.#workflow.run).subject);
+        const scope = runScope(this.#store);
         if (!(await isActive(database, this.#workflow, scope, this.#trigger.name))) {
             return Math.floor(change.maxLag / SLOT_ADVANCES);
         }
@@ -647,7 +646,7 @@ async function start<Input>(
     await store.mutate(
         self,
         { id, calls: [...(options.before ?? []), run] },
-        { scope: options.scope ?? spaceOf(store.serving(workflow.run).subject) },
+        { scope: options.scope ?? runScope(store) },
     );
 }
 
@@ -674,14 +673,7 @@ async function requireActive<Input>(
     workflow: StartedWorkflow<Input>,
     name: string,
 ): Promise<void> {
-    if (
-        !(await isActive(
-            store.database,
-            workflow,
-            spaceOf(store.serving(workflow.run).subject),
-            name,
-        ))
-    ) {
+    if (!(await isActive(store.database, workflow, runScope(store), name))) {
         throw new CallError("SERVICE_UNAVAILABLE", { message: `trigger ${name} is paused` });
     }
 }
@@ -770,7 +762,7 @@ function isSchedule<Input>(trigger: Trigger<Input>): trigger is ScheduleTrigger<
     return trigger.kind === "schedule";
 }
 
-/** Read the space a serving principal acts in: an installation's scope, else the space itself. */
-function spaceOf(subject: Subject): string {
-    return principal.installation.is(subject) ? subject.scope : subject.id;
+/** Read the scope a store's runs live in: its space, else the universe. */
+function runScope(store: Pick<ObjectStore, "space">): string {
+    return store.space ?? Scope.universe.id;
 }

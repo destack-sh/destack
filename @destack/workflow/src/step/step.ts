@@ -4,10 +4,11 @@ import { CallSite, MethodContext, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError, errorOf, isCallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
-import { Duration, type JsonValue, schema } from "@destack/schema";
+import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Approval, approval, type ApprovalState } from "../approval/approval.ts";
+import { changeRequest } from "../approval/request.ts";
 import type { Run } from "../run/run.ts";
 import { recorded, type Workflow } from "../workflow/workflow.ts";
 
@@ -25,6 +26,8 @@ export const StepRecord = schema.looseObject({
     failure: Failure.nullable(),
     /** When a sleeping or waiting step wakes. */
     wakeAt: schema.number().nullable(),
+    /** The change request a call step waits on while its call awaits approval. */
+    changeRequestId: schema.string().nullable(),
     /** When the step completed, null while it waits. */
     completedAt: schema.number().nullable(),
     /** When the run first took the step, which stamps the request a prepared call derives. */
@@ -54,7 +57,7 @@ export interface ApprovalRequest {
 
 /** The steps a workflow's function takes, each memoised by its name across its run's advances. */
 export interface Step {
-    /** Make an object method call once as the run's actor. */
+    /** Make an object method call once as the run's actor, waiting for any approval it needs. */
     readonly call: <Result>(name: string, call: sync.Call<Result>) => Promise<Result>;
     /** Read an object query method once as the run's actor, answering the same on replay. */
     readonly query: <Result>(name: string, call: sync.Call<Result>) => Promise<Result>;
@@ -176,13 +179,18 @@ export class StepContext implements Step {
         return rows.map((row) => StepRecord.parse(row));
     }
 
-    /** Make an object method call once as the run's actor. */
+    /** Make an object method call once as the run's actor, waiting for any approval it needs. */
     async call<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
         // answer a recorded call again by its method's output schema, its failure thrown again
         const recordedStep = this.#take(name);
         const completed = StepContext.#completed(recordedStep);
         if (completed !== undefined) {
             return this.#answer(call, completed);
+        }
+
+        // answer a call awaiting approval once its change request is decided
+        if (recordedStep?.changeRequestId != null) {
+            return this.#approved(name, call, recordedStep.changeRequestId);
         }
 
         // make a served call preparing nothing in one transaction with its step's record, exactly once
@@ -217,13 +225,102 @@ export class StepContext implements Step {
 
             return made;
         } catch (error) {
+            // ask for approval of a call the grant gives once approved
+            if (isCallError(error) && error.code === "APPROVAL_REQUIRED") {
+                return this.#request(name, call);
+            }
             // record a final refusal as the call's answer, and let anything else retry the advance
-            if (isCallError(error) && CallError.isRefusal(error.status)) {
+            else if (isCallError(error) && CallError.isRefusal(error.status)) {
                 await this.#complete(name, { failure: Failure.of(error) });
             }
 
             throw error;
         }
+    }
+
+    /** Open a change request for a call awaiting approval, and wait on it. */
+    async #request<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
+        await Transaction.run(this.#store.database, async (transaction) => {
+            // open the change request as the run's actor, asking its grant's delegator
+            const [opened] = await this.#store.mutate(
+                this.#caller,
+                {
+                    id: RequestId.create(this.#store.clock.now()),
+                    calls: [
+                        changeRequest.call("create", {
+                            ...changeRequest.in(this.#run.scope),
+                            call,
+                        }),
+                    ],
+                },
+                { site: CallSite.store, transaction },
+            );
+
+            // record the step waiting on it
+            const existing = await this.#started(name);
+            const values = { changeRequestId: opened.id };
+            await this.#record(
+                existing === undefined
+                    ? this.#workflow.step.call("create", {
+                          ...this.#workflow.step.in(this.#run.scope),
+                          parentId: this.#run.id,
+                          name,
+                          position: this.#position(name),
+                          ...values,
+                      })
+                    : this.#workflow.step.call("update", {
+                          ...this.#workflow.step.target({
+                              scope: this.#run.scope,
+                              id: existing.id,
+                          }),
+                          ...values,
+                      }),
+                transaction,
+            );
+        });
+
+        throw new Suspension(undefined, this.#waitType(changeRequest.typeReference));
+    }
+
+    /** Answer a call awaiting approval once its change request is decided. */
+    async #approved<Result>(
+        name: string,
+        call: sync.Call<Result>,
+        changeRequestId: string,
+    ): Promise<Result> {
+        // read the change request
+        const table = changeRequest.table;
+        const [row] = await this.#store.database
+            .select()
+            .from(table)
+            .where(eq(table[TABLE].column("id"), changeRequestId));
+        const request = present(row, `change request ${changeRequestId}`);
+
+        // answer the applied call's output, or the refusal it answered
+        if (request.state === "applied") {
+            const output = request.output ?? null;
+            await this.#complete(name, { output });
+            const [result] = MethodContext.results(this.#store.objects, [call], [output]);
+
+            return result;
+        } else if (request.state === "failed") {
+            const failure = present(request.failure, `the failure of ${changeRequestId}`);
+            await this.#complete(name, { failure });
+            throw errorOf(failure);
+        }
+        // refuse a call its approvers rejected or its requester withdrew
+        else if (request.state === "rejected" || request.state === "withdrawn") {
+            const failure = Failure.of(
+                new CallError("FORBIDDEN", {
+                    message: `change request ${changeRequestId} was ${request.state}`,
+                }),
+            );
+            await this.#complete(name, { failure });
+            throw errorOf(failure);
+        }
+
+        // wait for the decision
+        throw new Suspension(undefined, this.#waitType(changeRequest.typeReference));
     }
 
     /** Read an object query method once as the run's actor. */

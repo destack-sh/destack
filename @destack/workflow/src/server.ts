@@ -1,14 +1,13 @@
-import { AccessContext, Grant, principal } from "@destack/access";
-import type { Table } from "@destack/db";
+import { principal } from "@destack/access";
 import { defineServer } from "@destack/object/server";
 import { CallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
-import { Call, ObjectReference, Subject } from "@destack/sync";
-import { approval, change, ChangeRequest, changeRequest } from "./approval/index.ts";
+import { ObjectReference, Subject } from "@destack/sync";
+import { approval, change, Change, ChangeRequest, changeRequest } from "./approval/index.ts";
 import workflowPackage from "./package.ts";
 
 /** The change runs as the workflow package serves them. */
-const changes = change.implement((step, input, context) => ChangeRequest.run(step, input, context));
+const changes = change.implement((step, input, context) => new Change(step, input, context).run());
 
 /** The workflow package's server, whose change requests run until approved or rejected. */
 export default defineServer(workflowPackage, {
@@ -44,35 +43,22 @@ export default defineServer(workflowPackage, {
                             },
                         }),
                     );
-                    await ChangeRequest.start(context, row.id, approvers);
+                    await new ChangeRequest(row).start(context, approvers);
 
                     return row;
                 },
 
-                apply: async (context, next) => {
-                    // make the call as its principal through its actors' grants, as the approved change
-                    const delegator = await ChangeRequest.principal(context, context.target);
-                    const reader = {
-                        read: <Read extends Table>(table: Read) => context.read(table),
-                    };
-                    const recorded = context.target.actors;
-                    const actors = recorded.length === 0 ? [context.self.subject] : recorded;
-                    const acting = await Grant.chain(
-                        reader,
-                        { subject: delegator, actors },
-                        context.now,
-                    );
-                    await context.mutate(
-                        AccessContext.of(acting, context.now, { approval: context.target.id }),
-                        [Call.parse(context.target.call)],
-                    );
+                execute: async (context) => {
+                    // make the approved call, recording its output on the change
+                    const output = await new ChangeRequest(context.target).execute(context);
+                    await context.update({ output });
 
-                    return next();
+                    return output;
                 },
 
                 withdraw: async (context, next) => {
                     // cancel the change's live run
-                    await ChangeRequest.cancel(context, context.target.id);
+                    await new ChangeRequest(context.target).cancel(context);
 
                     return next();
                 },

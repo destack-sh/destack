@@ -335,6 +335,61 @@ test("refuse alice's agent a call her grant gives once approved, ask her in a ch
     );
 });
 
+/** Publish a note in a run, answering its published title. */
+const release = defineWorkflow({
+    name: "release",
+    input: schema.object({ id: schema.string() }),
+    output: schema.object({ title: schema.string() }),
+});
+
+test("wait at a call alice's grant gives once approved, ask her in a change request, and answer the call once she approves", async () => {
+    // publish a note in a run alice starts, her grant to the serving installation giving publish once approved
+    const fixture: WorkflowFixture = await openWorkflow(release, async (step, input) => {
+        const publish = note.call("publish", {
+            spaceId: fixture.spaceId,
+            id: input.id,
+            title: "Final",
+        });
+        const published = await step.call("publish", publish);
+
+        return { title: published.title };
+    });
+    const [written] = await fixture.asAlice([
+        note.call("create", { spaceId: fixture.spaceId, title: "Plan" }),
+    ]);
+    const { id } = schema.looseObject({ id: schema.string() }).parse(written);
+    await new AccessFixture(fixture.store.database).replicateGrant(
+        alice,
+        fixture.store.serving(release.run).subject,
+        [
+            { ...note.permission("publish"), scope: fixture.spaceId, mode: "approval" as const },
+            { ...changeRequest.permission("open"), scope: fixture.spaceId },
+        ],
+        fixture.clock.now(),
+    );
+
+    // start the run, and approve as alice once the change request asks her
+    await fixture.start(() => release.start({ id }, actor()));
+    let asked: Approval | undefined;
+    for (let look = 0; look < 1000 && asked === undefined; look++) {
+        await fixture.until(() => true);
+        [asked] = await fixture.store.database.select().from(approval.table);
+    }
+    if (asked === undefined) {
+        throw new TypeError("alice was not asked");
+    }
+    await fixture.asAlice([approval.call("approve", approval.target(asked))]);
+    const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
+
+    // expect alice asked, the change applied, and the run answering the published title
+    const [request] = await fixture.store.database.select().from(changeRequest.table);
+    expect([ObjectReference.at("approver", asked), request?.state, run?.["output"]]).toEqual([
+        alice,
+        "applied",
+        { title: "Final" },
+    ]);
+});
+
 test("refuse a requester asking to approve their own change", async () => {
     const { id, open } = await openChange();
     expect(await refusal(open(id, [alice]))).toEqual([

@@ -25,6 +25,7 @@ A step answers its recorded output on replay, so a run makes each call once, how
 
 ```ts
 await step.call("charge", invoice.call("pay", target)); // an object method call as the run's actor
+await step.call("publish", note.call("publish", target)); // waits on a change request when the grant asks approval
 await step.query("read", note.call("get", target)); // a read, answered the same on replay
 await step.run("count", schema.number(), async () => words(text)); // local code, recorded by its schema
 await step.sleepUntil("morning", nine);

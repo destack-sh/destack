@@ -55,7 +55,12 @@ test("describe a workflow's schemas, retries, timeout, expiry, limits and trigge
                 required: ["sent"],
                 additionalProperties: false,
             },
-            waits: [],
+            waits: [
+                {
+                    packageId: "package-01a1441c-7a6d-7444-b168-a063d720a275",
+                    name: "change-request",
+                },
+            ],
             retries: {
                 initialInterval: 1000,
                 backoffCoefficient: 2,
