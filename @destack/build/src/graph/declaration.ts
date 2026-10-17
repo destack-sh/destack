@@ -143,7 +143,7 @@ function describe(declaration: DeclarationDescription): graph.Declaration {
 
     return graph.Declaration.at(graph.Moniker.of(location), {
         kind: declaration.kind,
-        package: declaration.package.id,
+        kindPackageId: declaration.package.id,
         name: declaration.name,
         description: declaration.description,
         ...(declaration.vocabulary === undefined ? {} : { vocabulary: declaration.vocabulary }),
@@ -159,7 +159,7 @@ function derive(
         moniker: graph.Moniker.parse(`${parent.symbol}.${member.name}:${member.kind}`),
         symbol: parent.symbol,
         kind: member.kind,
-        package: parent.package,
+        kindPackageId: parent.kindPackageId,
         name: member.name,
         description: member.description,
     };

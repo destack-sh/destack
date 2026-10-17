@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     type DomainError,
     CALL_ERROR_STATUSES,
@@ -7,7 +7,7 @@ import {
 } from "@destack/error";
 
 /** Failures during source inspection and compilation. */
-export const BuildErrorCode = defineSchema(schema.enum(["INSPECTION_FAILED", "BUILD_FAILED"]));
+export const BuildErrorCode = schema.enum(["INSPECTION_FAILED", "BUILD_FAILED"]);
 
 /** A machine-readable build failure code. */
 export type BuildErrorCode = schema.Infer<typeof BuildErrorCode>;

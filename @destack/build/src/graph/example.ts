@@ -40,7 +40,7 @@ export class ExampleGraph {
                 moniker: graph.Moniker.parse(`${symbol}:example`),
                 symbol,
                 kind: "example",
-                package: kinds.id,
+                kindPackageId: kinds.id,
                 name: example.name,
                 description: {
                     ...example.description,

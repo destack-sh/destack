@@ -36,7 +36,7 @@ export class TestGraph {
                     moniker: `${symbol}:${test.kind}`,
                     symbol,
                     kind: test.kind,
-                    package: tests.package.id,
+                    kindPackageId: tests.package.id,
                     name: [...test.suites, test.name].join(" › "),
                     description: { modifiers: test.modifiers },
                 },

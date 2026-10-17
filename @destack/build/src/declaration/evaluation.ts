@@ -56,8 +56,8 @@ export interface Evaluation {
 }
 
 /** Key a kind by its declaring package and name. */
-export function kindKey(declaration: Pick<graph.Declaration, "kind" | "package">): string {
-    return JSON.stringify([declaration.package, declaration.kind]);
+export function kindKey(declaration: Pick<graph.Declaration, "kind" | "kindPackageId">): string {
+    return JSON.stringify([declaration.kindPackageId, declaration.kind]);
 }
 
 /** The declarations a build evaluates in its worker. */
@@ -327,8 +327,9 @@ async function describeDeclaration(
     // keep the kind's comparison and check each plan it returns
     const comparison = namespace.compare[index];
     if (typeof comparison === "function") {
-        compare.set(kindKey({ kind: parsed.kind, package: parsed.package.id }), (before, after) =>
-            Plan.parse(Reflect.apply(comparison, undefined, [before, after])),
+        compare.set(
+            kindKey({ kind: parsed.kind, kindPackageId: parsed.package.id }),
+            (before, after) => Plan.parse(Reflect.apply(comparison, undefined, [before, after])),
         );
     }
 

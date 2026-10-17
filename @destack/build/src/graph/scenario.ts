@@ -43,7 +43,7 @@ export class ScenarioGraph {
                 moniker: graph.Moniker.parse(`${symbol}:scenario`),
                 symbol,
                 kind: "scenario",
-                package: kinds.id,
+                kindPackageId: kinds.id,
                 name: scenario.name,
                 description: ScenarioDescription.parse({
                     interaction: name(scenario.interaction),
