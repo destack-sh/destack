@@ -2,7 +2,7 @@ import { Snapshot } from "@destack/db";
 import { Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, test } from "@destack/test";
-import { AddressResolver } from "../src/address/index.ts";
+import { Directory } from "../src/address/index.ts";
 import { Account } from "../src/object/index.ts";
 import { AccountFixture, type Actor, ids, outcome } from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
@@ -14,7 +14,7 @@ test("find and resolve an address over the directory's rows, list an account's p
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const { accountId, handle, spaceId, machine } = await fixture.createSpace(owner);
-    const resolver = new AddressResolver(Snapshot.live(fixture.storage.database));
+    const resolver = new Directory(Snapshot.live(fixture.storage.database));
     const row = { id: spaceId, scope: accountId, name: "notes" };
     const snapshot = Snapshot.live(fixture.storage.database);
     const object = { objectId: spaceId, owner: accountId };

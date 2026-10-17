@@ -82,12 +82,12 @@ const fetch = identity.fetch(send, audience, issuer);
 
 ## Addresses
 
-`AddressResolver` finds the machine serving an address such as `work--acme`.
+`Directory` finds the machine serving an address such as `work--acme`.
 
 ```ts
-import { AddressResolver } from "@destack/account/address";
+import { Directory } from "@destack/account/address";
 
-const resolver = new AddressResolver(snapshot);
+const resolver = new Directory(snapshot);
 const { machine, url } = await resolver.resolve(space, "work--acme", now); // space: the space type
 ```
 

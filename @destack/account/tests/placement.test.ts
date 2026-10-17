@@ -4,7 +4,7 @@ import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, test } from "@destack/test";
 import { ObjectReference, Scope } from "@destack/sync";
-import { AddressResolver } from "../src/address/index.ts";
+import { Directory } from "../src/address/index.ts";
 import { isCallError } from "@destack/runtime/error";
 import { account, assignment, placement, Placement, placementShape } from "../src/object/index.ts";
 import * as accountObject from "../src/object/index.ts";
@@ -197,7 +197,7 @@ test("place spaces where they are created, store names in them, let exactly a sp
         await publish(cloud, cloud.id, accountId, "https://cloud.test/"),
     ]).toEqual(["executed", `NOT_FOUND: no machine ${cloud.id}`, "executed"]);
     // read URLs as any signed-in machine, as the directory gives them
-    const resolver = new AddressResolver(Snapshot.live(fixture.storage.database));
+    const resolver = new Directory(Snapshot.live(fixture.storage.database));
     expect([
         await url(peer, accountId, local.id),
         await url(peer, accountId, cloud.id),

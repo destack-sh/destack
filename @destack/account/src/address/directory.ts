@@ -1,15 +1,18 @@
 import type { Snapshot } from "@destack/db";
 import { Claim, claimTable, type ObjectType } from "@destack/object";
 import { schema, type Identifier } from "@destack/schema";
+import { type Fetch, PackageMount, SpaceMount } from "@destack/runtime";
+import { createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
-import type { ObjectReference } from "@destack/sync";
+import objectPackage from "@destack/object/package";
+import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { type Placement, placement } from "../object/placement.ts";
 import { SpaceAddress } from "./address.ts";
 
-/** The resolver of handles and addresses `<name>--<handle>` over the directory's replica. */
-export class AddressResolver<View extends Pick<Snapshot, "read"> = Snapshot> {
+/** The directory: handles, space addresses `<name>--<handle>`, placements and machines. */
+export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** The view of the replicated placements, names and endpoints. */
     readonly snapshot: View;
 
@@ -100,6 +103,22 @@ export class AddressResolver<View extends Pick<Snapshot, "read"> = Snapshot> {
             machine: machineId,
             epoch: placed.epoch,
             url,
+        };
+    }
+
+    /** Stream follows of a space's rows from its object package, where its machine answers. */
+    publisher(scope: string, fetch: Fetch, now: () => number): Publisher {
+        const space = schema.identifier("space").parse(scope);
+        const locate = (at: number) => this.locate(space, at);
+
+        return {
+            stream: async function* (followed, signal) {
+                // reach the space's object package where its machine answers now
+                const located = await locate(now());
+                const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
+                const objects = createClient(objectPackage, { url, fetch });
+                yield* await objects.store.stream(followed, { signal });
+            },
         };
     }
 

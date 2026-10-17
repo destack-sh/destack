@@ -17,7 +17,7 @@ import {
     outcome,
 } from "../src/test/index.ts";
 
-import { AddressResolver } from "../src/address/index.ts";
+import { Directory } from "../src/address/index.ts";
 import { Clock } from "@destack/environment";
 
 /** The platform organisation of the fixture's universe, declaring no cloud machines. */
@@ -69,8 +69,8 @@ test("apply the platform organisation once with its publishers as accounts and i
             .filter((entry) => entry.scope === first)
             .map((entry) => entry.handle)
             .toSorted(),
-        await new AddressResolver(Snapshot.live(fixture.database)).account("admin"),
-        await new AddressResolver(Snapshot.live(fixture.database)).account("app"),
+        await new Directory(Snapshot.live(fixture.database)).account("admin"),
+        await new Directory(Snapshot.live(fixture.database)).account("app"),
         await stranger.client.user.suggestHandle({ id: stranger.id }),
         await availability(stranger, "destack"),
         await claim(stranger, "destack"),
