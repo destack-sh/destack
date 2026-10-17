@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The buckets of a base-2 exponential histogram above or below zero. */
 const Buckets = schema.object({
@@ -10,26 +10,24 @@ const Buckets = schema.object({
 
 /** A base-2 exponential histogram, as OpenTelemetry records a distribution of values. */
 export const Histogram = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The recorded values. */
-            count: schema.number().int().nonnegative(),
-            /** Their sum. */
-            sum: schema.number(),
-            /** The smallest value, when recorded. */
-            min: schema.number().exactOptional(),
-            /** The largest value, when recorded. */
-            max: schema.number().exactOptional(),
-            /** The resolution: each bucket spans a factor of 2^(2^-scale). */
-            scale: schema.number().int().min(-10).max(20),
-            /** The values equal to zero. */
-            zeroCount: schema.number().int().nonnegative(),
-            /** The buckets above zero. */
-            positive: Buckets,
-            /** The buckets below zero. */
-            negative: Buckets,
-        }),
-    ),
+    schema.object({
+        /** The recorded values. */
+        count: schema.number().int().nonnegative(),
+        /** Their sum. */
+        sum: schema.number(),
+        /** The smallest value, when recorded. */
+        min: schema.number().exactOptional(),
+        /** The largest value, when recorded. */
+        max: schema.number().exactOptional(),
+        /** The resolution: each bucket spans a factor of 2^(2^-scale). */
+        scale: schema.number().int().min(-10).max(20),
+        /** The values equal to zero. */
+        zeroCount: schema.number().int().nonnegative(),
+        /** The buckets above zero. */
+        positive: Buckets,
+        /** The buckets below zero. */
+        negative: Buckets,
+    }),
     { merge, quantile },
 );
 /** A base-2 exponential histogram. */

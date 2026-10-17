@@ -1,6 +1,6 @@
 import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
 import type { Package } from "@destack/package";
-import { defineSchema, JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
 /** The microseconds in a millisecond, the unit of event times. */
@@ -55,29 +55,23 @@ export const EventTime = {
 };
 
 /** An event of any kind as it is kept, its personal values sealed. */
-const EventSchema = defineSchema(
-    schema.object({
-        /** The scope the event happened in, its home. */
-        scope: schema.string().min(1),
-        /** The event's identity. */
-        id: schema.string().min(1),
-        /** When the event happened, in Unix microseconds. */
-        time: schema.number().int().nonnegative(),
-        /** The values of the kind's query keys, a map key's as its entries. */
-        keys: schema.record(
-            schema.string(),
-            schema
-                .union([
-                    schema.string(),
-                    schema.number(),
-                    schema.record(schema.string(), EntryValue),
-                ])
-                .nullable(),
-        ),
-        /** The data. */
-        data: schema.json(),
-    }),
-);
+const EventSchema = schema.object({
+    /** The scope the event happened in, its home. */
+    scope: schema.string().min(1),
+    /** The event's identity. */
+    id: schema.string().min(1),
+    /** When the event happened, in Unix microseconds. */
+    time: schema.number().int().nonnegative(),
+    /** The values of the kind's query keys, a map key's as its entries. */
+    keys: schema.record(
+        schema.string(),
+        schema
+            .union([schema.string(), schema.number(), schema.record(schema.string(), EntryValue)])
+            .nullable(),
+    ),
+    /** The data. */
+    data: schema.json(),
+});
 
 /** Events of any kind, and identities for events without one. */
 export const Event = Object.assign(EventSchema, {
@@ -91,19 +85,17 @@ export const Event = Object.assign(EventSchema, {
 });
 
 /** How an event is kept: exactly once in the caller's transaction, or at most once outside it. */
-export const Delivery = defineSchema(schema.enum(["exactly-once", "at-most-once"]));
+export const Delivery = schema.enum(["exactly-once", "at-most-once"]);
 /** Whether an event is kept exactly once or at most once. */
 export type Delivery = schema.Infer<typeof Delivery>;
 
 /** When a scope's hot events flush into a segment: at an age of the oldest, or at a count. */
-export const FlushPolicy = defineSchema(
-    schema.object({
-        /** The longest an event stays hot, in milliseconds. */
-        maxAge: schema.number().int().positive(),
-        /** The most hot events a scope keeps of the kind. */
-        maxRows: schema.number().int().positive(),
-    }),
-);
+export const FlushPolicy = schema.object({
+    /** The longest an event stays hot, in milliseconds. */
+    maxAge: schema.number().int().positive(),
+    /** The most hot events a scope keeps of the kind. */
+    maxRows: schema.number().int().positive(),
+});
 /** When a scope's hot events flush into a segment. */
 export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 

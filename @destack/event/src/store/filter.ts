@@ -8,7 +8,7 @@ import {
     SearchText,
     TABLE,
 } from "@destack/db";
-import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { Event, EventKind } from "../kind/kind.ts";
 
@@ -17,14 +17,12 @@ export type EventOrder = "ascending" | "descending";
 
 /** Where a page of events in time order ends: the time and identity of its last event. */
 export const EventCursor = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The last event's time, in Unix microseconds. */
-            time: schema.number().int().nonnegative(),
-            /** The last event's identity. */
-            id: schema.string().min(1),
-        }),
-    ),
+    schema.object({
+        /** The last event's time, in Unix microseconds. */
+        time: schema.number().int().nonnegative(),
+        /** The last event's identity. */
+        id: schema.string().min(1),
+    }),
     {
         /** Order two events by time, then identity, as pages read them. */
         compare(left: EventCursor, right: EventCursor): number {
