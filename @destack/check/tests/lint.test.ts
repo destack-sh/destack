@@ -513,14 +513,17 @@ function at(line: number, value: string) {
     return { value, loc: { start: { line } } };
 }
 
-test("find the first comment that configures rules, ignoring ordinary comments", () => {
-    // read directives in either tool's form, and nothing else
+test("find the first comment that configures rules, ignoring ordinary comments and reasoned next-line suppressions", () => {
+    // read directives in either tool's form, allowing a named next-line suppression with its reason
     expect([
         directiveLine([at(1, " a note about eslint"), at(2, " eslint-disable-next-line")]),
         directiveLine([at(3, " oxlint-disable no-console")]),
         directiveLine([at(4, "eslint curly: off")]),
         directiveLine([at(5, " plain comment")]),
-    ]).toEqual([2, 3, 4, undefined]);
+        directiveLine([at(6, " oxlint-disable-next-line typescript/no-explicit-any -- trusted")]),
+        directiveLine([at(7, " oxlint-disable-next-line typescript/no-explicit-any")]),
+        directiveLine([at(8, " eslint-disable-next-line curly -- reason")]),
+    ]).toEqual([2, 3, 4, undefined, undefined, 7, 8]);
 });
 
 /** A component source path, which parses JSX. */
