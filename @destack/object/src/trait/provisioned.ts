@@ -82,8 +82,8 @@ function resourceFields(kind: ResourceKind) {
         states: field.json(desiredStates(kind)).default([]),
         /** The digests of the states only draining consumers need, dropped after they stop. */
         drainingStates: field.json(desiredStates(kind)).default([]),
-        /** The digest of the desired states the provider applied, absent before the first apply. */
-        appliedState: field.string(Digest).optional(),
+        /** The digests of the desired states the provider applied, none before the first apply. */
+        appliedStates: field.json(desiredStates(kind)).default([]),
         /** Whether a provider provisions it, a stack declares it, or a connection lends it. */
         origin: field.enum(["provisioned", "declared", "connection"]).default("provisioned"),
         /** The space connection whose credential the host lends to every call, if any. */

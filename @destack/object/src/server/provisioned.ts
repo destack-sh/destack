@@ -345,7 +345,8 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         // skip resources whose desired states applied already
         const desired = [...row.states, ...row.drainingStates];
         const stateDigest = await Digest.json(desired);
-        if (row.appliedState === stateDigest && row.conditions["ready"]?.reason === "Applied") {
+        const appliedDigest = await Digest.json(row.appliedStates);
+        if (appliedDigest === stateDigest && row.conditions["ready"]?.reason === "Applied") {
             return;
         }
 
@@ -393,7 +394,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         }
         // apply the plan and record the desired states it applied
         else {
-            const digests = { plan: planDigest, state: stateDigest };
+            const digests = { plan: planDigest, states: desired };
             await ResourceController.#applyPlan(
                 object,
                 row,
@@ -477,7 +478,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         row: ResourceRow,
         provider: ResourceControllerOptions["providers"][number],
         plan: Plan,
-        digests: { readonly plan: string; readonly state: string },
+        digests: { readonly plan: string; readonly states: readonly Digest[] },
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<void> {
@@ -497,7 +498,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 object,
                 row,
                 reconciliation,
-                { appliedState: digests.state, plan: null, approvedPlan: null },
+                { appliedStates: [...digests.states], plan: null, approvedPlan: null },
                 {
                     ready: { status: "true", reason: "Applied", message },
                     ...(row.conditions[DRAINING] === undefined
