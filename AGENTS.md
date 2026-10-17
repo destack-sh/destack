@@ -126,9 +126,10 @@ Expose granular, reusable parts:
 Put verbs on appropriate nouns:
 - **DM40** Associated functions SHOULD live on their noun when one presents itself, even when they use no state.
 - **DM41** Verbs SHOULD live on the noun that performs them, such as `authorization.grant` or `Scope.own`, instead of exported free functions; modules MAY keep their helpers unexported behind that noun.
-- **DM42** Functions that could be methods SHOULD be methods: `foo(dwhat efinition: &Definition) -> bool` becomes `Definition.foo`.
-- **DM43** Method matrices such as `x_for_y` SHOULD be replaced by realigned state and construction flows.
-- **DM44** Functions SHOULD operate on individual "units", with callers looping / mapping, instead of taking entire collections / arrays (wherever feasible).
+- **DM42** Instance nouns (or even singleton nouns) SHOULD be preferred over static nouns that act as just "namespaces"; that is, reshaping to allow the logic to live on "instances" SHOULD BE preferred over both static methods and generic free functions where feasible.
+- **DM43** Functions that *could* be methods SHOULD be methods: `foo(definition: &Definition) -> bool` becomes `Definition.foo` (this applies for both free functions and static methods); having loads of static methods / free functions that carry a related set of state is a strong smell that we SHOULD introduce proper nouns.
+- **DM44** Method matrices such as `x_for_y` SHOULD be replaced by realigned state and construction flows.
+- **DM45** Functions SHOULD operate on individual "units", with callers looping / mapping, instead of taking entire collections / arrays (wherever feasible).
 
 Make mutation obvious:
 - **DM50** Mutating methods MUST make the mutation obvious in name and signature.
@@ -152,7 +153,7 @@ Make invariants crisp, strong and early:
 Fail loudly and fix at the owner:
 - **DI10** Violated invariants MUST fail loudly, especially invariants from other subsystems, and especially from subsystems we control.
 - **DI11** Code MUST treat a missing value that an upstream shape or contract promises as an error instead of working around it.
-- **DI12** Code MUST NOT work around issues in dependencies we control.
+- **DI12** Code MUST NOT work around issues in dependencies we control in any direct or indirect way.
 - **DI13** Code MUST NOT recover state, compensate for owned upstream logic, or bypass the owner of state through side channels.
 - **DI14** Agents MUST surface suspected boundary violations and suspicious interactions found while reading or touching code in passing.
 
