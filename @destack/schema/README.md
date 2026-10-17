@@ -4,9 +4,7 @@
 
 ```ts
 // z.object
-const Note = defineSchema(
-    schema.object({ title: schema.string().min(1), archived: schema.boolean() }),
-);
+const Note = schema.object({ title: schema.string().min(1), archived: schema.boolean() });
 type Note = schema.Infer<typeof Note>; // z.infer
 toJsonSchema(Note); // z.toJSONSchema, refusing transforms, refinements, dates and loose objects
 // the same Note, refusing defaults, open objects and unknown keywords

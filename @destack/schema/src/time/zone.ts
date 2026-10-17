@@ -1,5 +1,4 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../declare/schema.ts";
 import { PlainDate, PlainTime } from "./plain.ts";
 
 /** The longest IANA time zone name accepted, beyond the longest in the database. */
@@ -12,12 +11,10 @@ const MINUTE_MILLISECONDS = 60_000;
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 /** The schema of an IANA time zone name. */
-const timeZoneSchema = defineSchema(
-    schema
-        .string()
-        .max(TIME_ZONE_LENGTH)
-        .regex(/^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/u),
-);
+const timeZoneSchema = schema
+    .string()
+    .max(TIME_ZONE_LENGTH)
+    .regex(/^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/u);
 /** An IANA time zone name. */
 export type TimeZone = schema.Infer<typeof timeZoneSchema>;
 

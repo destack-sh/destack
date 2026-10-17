@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { defineSchema } from "../declare/schema.ts";
 
 /** The prerelease channels, in the order semantic versioning sorts their identifiers. */
 const PRERELEASE_CHANNELS = ["dev", "nightly"] as const;
@@ -8,7 +7,7 @@ const PRERELEASE_CHANNELS = ["dev", "nightly"] as const;
 const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-(dev|nightly)\.(0|[1-9]\d*))?$/u;
 
 /** A package release version, such as 2026.9.0, 2026.10.0-nightly.3 or 2026.9.0-dev.4. */
-export const Version = Object.assign(defineSchema(z.string().regex(VERSION)), {
+export const Version = Object.assign(z.string().regex(VERSION), {
     /** Order versions by release, prereleases before their release, dev before nightly builds. */
     compare(left: string, right: string): number {
         // find the first differing component

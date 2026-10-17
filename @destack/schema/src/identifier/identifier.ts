@@ -1,6 +1,5 @@
 import { v7 } from "uuid";
 import { z } from "zod";
-import { defineSchema } from "../declare/schema.ts";
 import { brand } from "./brand.ts";
 
 /** The characters of a UUID's canonical text form, RFC 9562. */
@@ -40,7 +39,7 @@ export function identifier<const Prefix extends string>(
     }
 
     // match the prefix followed by a UUIDv7, and register the validator
-    const validator = defineSchema(z.string().regex(new RegExp(`^${prefix}-${UUID_V7}$`, "u")));
+    const validator = z.string().regex(new RegExp(`^${prefix}-${UUID_V7}$`, "u"));
     VALIDATORS.set(prefix, validator);
 
     return brand<Prefix>(validator);
@@ -51,11 +50,7 @@ export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
     // match any valid prefix followed by a UUIDv7
     const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$`, "u");
 
-    // brand and register the validator
-    const validator = z.string().regex(pattern).brand<string>();
-    defineSchema(validator);
-
-    return validator;
+    return z.string().regex(pattern).brand<string>();
 }
 
 /** Create and read prefixed identifiers. */

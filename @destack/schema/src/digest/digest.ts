@@ -1,12 +1,11 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../declare/schema.ts";
 import { canonicalize } from "../json/json.ts";
 
 /** The runtime's `node:crypto` on Bun, Node, Deno and workerd, absent in browsers. */
 const NODE_CRYPTO = loadNodeCrypto();
 
 /** The schema of a SHA-256 digest as lowercase hexadecimal. */
-const digestSchema = defineSchema(schema.string().regex(/^[0-9a-f]{64}$/u));
+const digestSchema = schema.string().regex(/^[0-9a-f]{64}$/u);
 
 /** A SHA-256 digest as lowercase hexadecimal. */
 export type Digest = schema.Infer<typeof digestSchema>;
@@ -84,6 +83,6 @@ async function hash(content: string | Uint8Array<ArrayBuffer>): Promise<Digest> 
 }
 
 /** A committed Git object identifier: a SHA-1 or SHA-256 digest in hexadecimal. */
-export const Commit = defineSchema(schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u));
+export const Commit = schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
 /** A committed Git object identifier. */
 export type Commit = schema.Infer<typeof Commit>;

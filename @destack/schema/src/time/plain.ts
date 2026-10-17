@@ -1,11 +1,10 @@
 import * as schema from "../validate/index.ts";
-import { defineSchema } from "../declare/schema.ts";
 
 /** The minutes in an hour. */
 const HOUR_MINUTES = 60;
 
 /** A weekday as ISO 8601 numbers it, Monday 1 through Sunday 7. */
-export const Weekday = defineSchema(schema.number().int().min(1).max(7));
+export const Weekday = schema.number().int().min(1).max(7);
 /** A weekday, Monday 1 through Sunday 7. */
 export type Weekday = schema.Infer<typeof Weekday>;
 
@@ -51,17 +50,14 @@ export const PlainDate = {
 };
 
 /** A time of day written HH:MM on a 24-hour clock, as Temporal's PlainTime without seconds. */
-export const PlainTime = Object.assign(
-    defineSchema(schema.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u)),
-    {
-        /** Read the minutes since midnight of a time of day. */
-        minutes(time: PlainTime): number {
-            const hours = Number(time.slice(0, 2));
-            const minutes = Number(time.slice(3, 5));
+export const PlainTime = Object.assign(schema.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u), {
+    /** Read the minutes since midnight of a time of day. */
+    minutes(time: PlainTime): number {
+        const hours = Number(time.slice(0, 2));
+        const minutes = Number(time.slice(3, 5));
 
-            return hours * HOUR_MINUTES + minutes;
-        },
+        return hours * HOUR_MINUTES + minutes;
     },
-);
+});
 /** A time of day, written HH:MM. */
 export type PlainTime = schema.Infer<typeof PlainTime>;

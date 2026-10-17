@@ -1,5 +1,4 @@
 export * as schema from "./validate/index.ts";
-export * from "./declare/index.ts";
 export * from "./inspect/index.ts";
 export * from "./identifier/index.ts";
 export * from "./version/index.ts";
