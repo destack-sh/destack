@@ -95,6 +95,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** The host's start message. */
 const start: WorkloadStart = {
     root: "00".repeat(32),
+    capabilities: [],
     instance: schema.identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
     space: spaceId,
     installation: schema

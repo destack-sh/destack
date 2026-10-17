@@ -9,8 +9,8 @@ const MOUNTED = /^\/(package-[^/]+)(\/.*)?$/u;
 /** The path a machine serves each space under. */
 const SPACE = /^\/spaces\/([^/]+)(\/.*)?$/u;
 
-/** The path where a machine takes calls to its computer's native client. */
-const CLIENT = /^\/clients\/([^/]+)(\/.*)?$/u;
+/** The path where a machine takes calls to its computer's native device. */
+const DEVICE = /^\/devices\/([^/]+)(\/.*)?$/u;
 
 /** The path where a machine takes calls to each installation it serves. */
 const INSTALLED = /^\/spaces\/([^/]+)\/installations\/([^/]+)(\/.*)?$/u;
@@ -70,18 +70,18 @@ export const SpaceMount = {
     },
 };
 
-/** The paths where machines take calls to the local objects of their computer's native client. */
-export const ClientMount = {
-    /** Build the path a native client's local objects are served at. */
-    path(clientId: string): `/clients/${string}` {
-        return `/clients/${clientId}`;
+/** The paths where machines take calls to the local objects of their computer's native device. */
+export const DeviceMount = {
+    /** Build the path a native device's local objects are served at. */
+    path(deviceId: string): `/devices/${string}` {
+        return `/devices/${deviceId}`;
     },
 
-    /** Split a path into the client and the path below its mount, absent outside any client. */
-    parse(pathname: string): { readonly clientId: string; readonly path: string } | undefined {
-        const [, clientId, path] = CLIENT.exec(pathname) ?? [];
+    /** Split a path into the device and the path below its mount, absent outside any device. */
+    parse(pathname: string): { readonly deviceId: string; readonly path: string } | undefined {
+        const [, deviceId, path] = DEVICE.exec(pathname) ?? [];
 
-        return clientId === undefined ? undefined : { clientId, path: path ?? "/" };
+        return deviceId === undefined ? undefined : { deviceId, path: path ?? "/" };
     },
 };
 

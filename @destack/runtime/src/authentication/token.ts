@@ -48,7 +48,7 @@ const tokenIdentity = Caller.schema.pick({ subject: true, groups: true, contacts
 
 /** The verified identity an access token signs: subject, its groups, and what it proved. */
 export const TokenIdentity = Object.assign(tokenIdentity, {
-    /** Write an authentication's Destack claims: identity, actors, grant and space. */
+    /** Write an authentication's Destack claims: identity, actors, grants and space. */
     claims(authentication: Authentication) {
         const { caller, credential } = authentication;
         const identity = tokenIdentity.parse(
@@ -69,7 +69,7 @@ export const TokenIdentity = Object.assign(tokenIdentity, {
         return {
             caller: identity,
             ...(caller.actors.length === 0 ? {} : { act: [...caller.actors] }),
-            ...(caller.grant === undefined ? {} : { grant: caller.grant }),
+            ...(caller.grants.length === 0 ? {} : { grants: [...caller.grants] }),
             ...(credential.scope === undefined
                 ? {}
                 : { space: schema.identifier("space").parse(credential.scope) }),
@@ -110,8 +110,8 @@ export const AccessToken = schema
         exp: schema.number().int(),
         /** The principals acting for the subject in order, the last sending the call. */
         act: schema.array(Subject).min(1).exactOptional(),
-        /** The grant limiting the call to what the subject gave. */
-        grant: GrantClaim.exactOptional(),
+        /** The grants each actor acts under, from the one before it. */
+        grants: schema.array(GrantClaim).min(1).exactOptional(),
         /** The space the token is bound to, absent for a call to a universe package. */
         space: schema.identifier("space").exactOptional(),
         /** The verified identity. */
@@ -197,7 +197,7 @@ export class TokenVerifier {
         const caller: Caller = {
             ...identity,
             actors: claims.act ?? [],
-            ...(claims.grant === undefined ? {} : { grant: claims.grant }),
+            grants: claims.grants ?? [],
         };
         const credential: Credential = {
             ...presented,
@@ -352,7 +352,7 @@ function requireDelegation(caller: Caller): void {
     // list the chain from the subject to the sender
     const { actors } = caller;
     const chain = [caller.subject, ...actors];
-    const isImpersonation = caller.grant === undefined && actors.length > 0;
+    const isImpersonation = caller.grants.length === 0 && actors.length > 0;
 
     // refuse other subjects than principals, a repeated one, and an impersonation by other than one person
     if (

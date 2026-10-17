@@ -1,5 +1,5 @@
 import { AccessFixture } from "@destack/access/test";
-import { Subject } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
@@ -374,18 +374,18 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     expect(authentications).toBe(3);
 
-    // limit an owner's token to one object by their grant to it
+    // limit an owner's token to one object by their stored grant to it
     const now = Date.now();
+    const token = principal.client.reference(Scope.universe.id, "client-restricted");
+    const grantId = await new AccessFixture(database).replicateGrant(owner, token, [
+        { ...note.permission("read"), scope: spaceId, objectId: "one" },
+    ]);
     const restricted = await issuer.issue(
         {
             caller: {
                 ...Caller.of(owner),
-                actors: [principal.personalAccessToken.reference(owner.id, "restricted-token")],
-                grant: {
-                    id: Identifier.create("grant"),
-                    scope: owner.id,
-                    permissions: [{ ...note.permission("read"), scope: spaceId, objectId: "one" }],
-                },
+                actors: [token],
+                grants: [{ id: grantId, scope: owner.id }],
             },
             credential: {
                 kind: "personal",

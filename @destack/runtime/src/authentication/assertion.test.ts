@@ -1,5 +1,5 @@
 import { expect, refusal, test } from "@destack/test";
-import { KEY_ASSURANCE, principal } from "@destack/access";
+import { Caller, KEY_ASSURANCE, principal } from "@destack/access";
 import { PublicKey } from "@destack/identity";
 import { PackageId } from "@destack/package";
 import { Identifier } from "@destack/schema";
@@ -69,7 +69,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
     // answer the machine as the caller, and refuse every other assertion
     expect({ authentication, refusals }).toEqual({
         authentication: {
-            caller: { subject: key.subject, actors: [], groups: [], contacts: [] },
+            caller: Caller.of(key.subject),
             credential: {
                 kind: MACHINE_KEY,
                 id: key.id,

@@ -240,7 +240,7 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters, views and requested permissions, with hooks of its own types alone", () => {
+test("describe a package's routes, adapters, views, requested permissions and capabilities, with hooks of its own types alone", () => {
     // route the package's own query with hooks beside another package's type with hooks
     const foreign: ObjectDeclaration = {
         ...query({}),
@@ -253,7 +253,15 @@ test("describe a package's routes, adapters, views and requested permissions, wi
         {
             objects: { query: own, card: foreign },
             adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
-            permissions: { universe: [user.permission("recipient")] },
+            permissions: { installation: { universe: [user.permission("recipient")] } },
+            capabilities: {
+                push: {
+                    reason: "Drop the browsers push services forgot",
+                    optional: true,
+                    permissions: { user: { home: [user.permission("recipient")] } },
+                    requires: [{ packageId: MODULE.package.id, name: "push" }],
+                },
+            },
         },
         MODULE,
     );
@@ -267,7 +275,21 @@ test("describe a package's routes, adapters, views and requested permissions, wi
         adapters: { npm: { path: "/npm" } },
         views: [],
         permissions: {
-            universe: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
+            installation: {
+                universe: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
+            },
+        },
+        capabilities: {
+            push: {
+                reason: "Drop the browsers push services forgot",
+                optional: true,
+                permissions: {
+                    user: {
+                        home: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
+                    },
+                },
+                requires: [{ packageId: MODULE.package.id, name: "push" }],
+            },
         },
     });
 });

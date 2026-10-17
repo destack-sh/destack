@@ -2,7 +2,7 @@ import type { Channel, DatabaseConnection, Table } from "@destack/db";
 import type { JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
-    type CapabilityName,
+    type SandboxName,
     type ComputeDefinition,
     ModuleMetadata,
     type PackageId,
@@ -20,8 +20,8 @@ import type { Clock } from "@destack/environment";
 export interface Workload extends Declaration {
     /** The compute settings of each instance. */
     readonly compute?: ComputeDefinition;
-    /** The package's capabilities the workload uses, every one when absent. */
-    readonly capabilities?: readonly CapabilityName[];
+    /** The package's sandbox abilities the workload uses, every one when absent. */
+    readonly sandbox?: readonly SandboxName[];
     /** Start one instance and return its packages and handlers. */
     readonly start: (
         context: WorkloadContext,
@@ -90,6 +90,8 @@ export interface ServerContext {
     readonly build: BuildReader;
     /** The installation's resolved value of each setting its package declares. */
     readonly settings: Readonly<Record<string, JsonValue>>;
+    /** The package's capabilities the installation runs with: required and allowed ones. */
+    readonly capabilities: readonly string[];
     /** The installation's bound resources and secrets, each read through its declaration. */
     readonly resources: ResourceContext;
     /** Derive the installation's keys and secrets from its root, rooted in its space's identity. */

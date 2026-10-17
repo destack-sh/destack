@@ -14,7 +14,9 @@ test("ask the egress to act for a served person, or under the grant its delegate
     // read the contexts of a person's call, a delegated call, an installation's own call and none
     const contexts = {
         person: Exchange.of(called({ subject: person })),
-        delegated: Exchange.of(called({ subject: person, actors: [installation], grant })),
+        delegated: Exchange.of(
+            called({ subject: person, actors: [installation], grants: [grant] }),
+        ),
         installation: Exchange.of(called({ subject: installation })),
         outside: Exchange.of(undefined),
     };
@@ -26,12 +28,12 @@ test("ask the egress to act for a served person, or under the grant its delegate
     expect({ contexts, asked, read, none: Exchange.ask(contexts.installation) }).toEqual({
         contexts: {
             person: { subject: person },
-            delegated: { subject: person, grant: grant.id },
+            delegated: { subject: person, grants: [grant.id] },
             installation: undefined,
             outside: undefined,
         },
-        asked: { [Exchange.header]: JSON.stringify({ subject: person, grant: grant.id }) },
-        read: { subject: person, grant: grant.id },
+        asked: { [Exchange.header]: JSON.stringify({ subject: person, grants: [grant.id] }) },
+        read: { subject: person, grants: [grant.id] },
         none: {},
     });
     expect(malformed).toThrow(`invalid ${Exchange.header}`);
@@ -39,9 +41,9 @@ test("ask the egress to act for a served person, or under the grant its delegate
 
 /** Build a served caller without groups or contacts. */
 function called(
-    caller: Pick<Caller, "subject"> & Partial<Pick<Caller, "actors" | "grant">>,
+    caller: Pick<Caller, "subject"> & Partial<Pick<Caller, "actors" | "grants">>,
 ): Caller {
-    return { actors: [], groups: [], contacts: [], ...caller };
+    return { actors: [], groups: [], contacts: [], grants: [], ...caller };
 }
 
 /** Read an ask with a header that is not JSON. */

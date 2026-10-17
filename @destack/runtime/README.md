@@ -27,7 +27,7 @@ new ControlLoop(database, controllers, { clock, report, lease: { holder: instanc
 
 ## Packages
 
-`definePackage` declares a package's handle from its objects, views, adapters, resources, secrets and the permissions its installations request by scope, and `defineAdapter` answers a protocol others define below the package's mount.
+`definePackage` declares a package's handle from its objects, views, adapters, resources, secrets, the permissions its installations request of their space and their users, and its capabilities, and `defineAdapter` answers a protocol others define below the package's mount.
 
 ```ts
 export const npm = defineAdapter("npm", { path: "/npm" });
@@ -36,7 +36,21 @@ export const sync = defineAdapter("sync", { path: "/sync", callers: "self" }); /
 export default definePackage({
     objects: { repository, release },
     adapters: { npm, hooks },
-    permissions: { space: [message.permission("send")], universe: [user.permission("recipient")] },
+    permissions: {
+        installation: {
+            space: [message.permission("send")],
+            universe: [user.permission("recipient")],
+        },
+        user: { home: [notification.permission("read")] },
+    },
+    capabilities: {
+        push: {
+            reason: "Push notifications",
+            optional: true, // asked for once its code needs it
+            permissions: { installation: { universe: [client.permission("unsubscribe")] } },
+            requires: [{ packageId: pricing, name: "push" }], // the account's plan must include it
+        },
+    },
     since: "2026.8.0",
 });
 

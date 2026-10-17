@@ -7,7 +7,6 @@ import {
     type Authentication,
     Caller,
     Credential,
-    GrantPermission,
     principal,
     universe,
 } from "@destack/access";
@@ -191,23 +190,20 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         disconnected.authenticate(request, issuedAt * 1000, spaceId),
     ).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
 
-    // carry workload identity, delegates and their grant through signing and verification
+    // carry workload identity, delegates and their grants through signing and verification
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
     const deploymentId = schema
         .identifier("deployment")
         .parse("deployment-019f7480-0000-7000-8000-000000000004");
-    const read = { packageId: PackageId.parse(audience), type: "note", name: "read" };
-    const selection = { ...read, scope: spaceId, objectId: "note-one" };
     const grant = {
         id: schema.identifier("grant").parse("grant-019f7480-0000-7000-8000-000000000005"),
         scope: subject.id,
-        permissions: [selection],
     };
     const delegated = {
         caller: {
             ...authentication.caller,
             actors: [actor],
-            grant,
+            grants: [grant],
             contacts: [{ medium: "email" as const, address: "alice@example.com" }],
         },
         credential: {
@@ -237,23 +233,17 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect({
         deployments: represented.credential.deployments,
         actors: access.actors,
-        grant: access.grant,
+        grants: access.grants,
         principal: Caller.principal(access),
         assurance: represented.credential.assurance,
         contacts: Caller.contacts(access),
-        write: GrantPermission.allows(
-            { ...read, name: "write" },
-            { scope: spaceId, id: "note-one" },
-            access.grant?.permissions,
-        ),
     }).toEqual({
         deployments: [{ subject: actor, id: deploymentId }],
         actors: [actor],
-        grant,
+        grants: [grant],
         principal: actor,
         assurance: { level: 2, authenticatedAt: issuedAt * 1000 },
         contacts: [],
-        write: false,
     });
 
     // record a deployment for each workload in a delegation chain

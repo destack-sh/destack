@@ -44,6 +44,7 @@ const server: ServerContext = {
     space: "space-01996ab0-0000-7000-8000-000000000001",
     build: await MemoryBuild.write(new Map(), { package: first }),
     settings: {},
+    capabilities: [],
     resources: new ResourceContext(),
     keys: {
         derive: () => Promise.reject(new Error("the fixture derives no secret")),

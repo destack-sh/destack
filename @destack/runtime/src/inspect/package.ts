@@ -31,6 +31,7 @@ export function describePackage(handle: PackageHandle): PackageDescription {
         ),
         views: Object.keys(handle.views),
         permissions: handle.permissions,
+        capabilities: handle.capabilities,
     });
 }
 

@@ -30,6 +30,7 @@ export async function testServerContext(owner: Package, space: string): Promise<
         space,
         build: await MemoryBuild.write(new Map(), { package: owner }),
         settings: {},
+        capabilities: [],
         resources: new ResourceContext(),
         keys: await testKeys(),
         fetch: (request) =>

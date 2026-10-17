@@ -1,6 +1,6 @@
 import { defineSchema, schema, Version } from "@destack/schema";
 import { PermissionRequest } from "@destack/access";
-import { DeclarationName } from "@destack/package";
+import { DeclarationName, PackageId, Sandbox } from "@destack/package";
 import { ObjectTypeReference } from "@destack/sync";
 
 /** A JSON Schema. */
@@ -87,6 +87,38 @@ export type ObjectRoute = schema.Infer<typeof ObjectRoute>;
 /** The path below a package's mount an adapter answers, one or more segments such as /npm. */
 export const AdapterPath = defineSchema(schema.string().regex(/^(\/[^/]+)+$/u));
 
+/** A finance feature a capability needs the account's plan to include, by its package and name. */
+export const FeatureReference = defineSchema(
+    schema.object({
+        /** The package declaring the feature. */
+        packageId: PackageId,
+        /** The feature's name in its package. */
+        name: schema.string().min(1),
+    }),
+);
+/** A finance feature, by its package and name. */
+export type FeatureReference = schema.Infer<typeof FeatureReference>;
+
+/** Something a package's installations can do beyond its own request, and what it needs. */
+export const Capability = defineSchema(
+    schema
+        .object({
+            /** Why the package needs it, shown when someone allows it. */
+            reason: schema.string().min(1),
+            /** Whether an installation may go without it, asking for it once its code needs it. */
+            optional: schema.boolean().exactOptional(),
+            /** The permissions it needs of the installation's space and of each user. */
+            permissions: PermissionRequest.exactOptional(),
+            /** The sandbox abilities it unlocks for the package's workloads and views. */
+            sandbox: Sandbox.exactOptional(),
+            /** The features the account's plan must include for it, as finance sells them. */
+            requires: schema.array(FeatureReference).exactOptional(),
+        })
+        .strict(),
+);
+/** Something a package's installations can do, and what it needs. */
+export type Capability = schema.Infer<typeof Capability>;
+
 /** The kind of the declaration `definePackage` makes, as manifests list it. */
 export const PACKAGE_DECLARATION = "package";
 
@@ -109,8 +141,10 @@ export const PackageDescription = defineSchema(
         ),
         /** The names of the views it offers. */
         views: schema.array(DeclarationName),
-        /** The permissions its installations request by scope. */
+        /** The permissions its installations always request, by delegator. */
         permissions: PermissionRequest,
+        /** What its installations can do beyond its own request, by name. */
+        capabilities: schema.record(DeclarationName, Capability),
     }),
 );
 /** A declared package: its API, objects, adapters, views and requested permissions. */

@@ -8,8 +8,8 @@ export const ExchangeAsk = defineSchema(
     schema.object({
         /** The principal the call acts for. */
         subject: Subject,
-        /** The grant the call acts under, else the subject's one grant to the installation. */
-        grant: schema.identifier("grant").exactOptional(),
+        /** The grants of the chain the call acts under, else the subject's one grant to it. */
+        grants: schema.array(schema.identifier("grant")).min(1).exactOptional(),
     }),
 );
 /** What an instance's call asks its host's egress to exchange its token for. */
@@ -28,10 +28,10 @@ export const Exchange = {
 
     /** Read the exchange of calls for a served call's person, or its subject under its grant. */
     of(caller: Caller | undefined): ExchangeAsk | undefined {
-        // act for the subject under the grant of a delegated call
+        // act for the subject under the grants of a delegated call
         const subject = caller?.subject;
-        if (subject !== undefined && caller?.grant !== undefined) {
-            return { subject, grant: caller.grant.id };
+        if (subject !== undefined && caller !== undefined && caller.grants.length > 0) {
+            return { subject, grants: caller.grants.map((grant) => grant.id) };
         }
         // act for a person calling directly
         else if (subject !== undefined && principal.user.is(subject)) {

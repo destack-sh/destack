@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { ClientMount, PackageMount } from "./mount.ts";
+import { DeviceMount, PackageMount } from "./mount.ts";
 
 test("mount each package under its own path and route requests below it", async () => {
     // build a mount and route requests inside and outside it
@@ -31,18 +31,18 @@ test("mount each package under its own path and route requests below it", async 
     });
 });
 
-test("mount a native client's local objects under its own path and split paths below it", () => {
-    const path = ClientMount.path("client-01");
+test("mount a native device's local objects under its own path and split paths below it", () => {
+    const path = DeviceMount.path("device-01");
 
     expect({
         path,
-        below: ClientMount.parse(`${path}/store/call`),
-        root: ClientMount.parse(path),
-        outside: ClientMount.parse("/spaces/space-01/package-01"),
+        below: DeviceMount.parse(`${path}/store/call`),
+        root: DeviceMount.parse(path),
+        outside: DeviceMount.parse("/spaces/space-01/package-01"),
     }).toEqual({
-        path: "/clients/client-01",
-        below: { clientId: "client-01", path: "/store/call" },
-        root: { clientId: "client-01", path: "/" },
+        path: "/devices/device-01",
+        below: { deviceId: "device-01", path: "/store/call" },
+        root: { deviceId: "device-01", path: "/" },
         outside: undefined,
     });
 });

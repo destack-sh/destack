@@ -1,7 +1,7 @@
 import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
-import { AdapterPath } from "../runtime/description.ts";
+import { AdapterPath, Capability } from "../runtime/description.ts";
 import type { ProcedureRouter } from "../runtime/runtime.ts";
 import { PermissionRequest, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
@@ -42,8 +42,10 @@ export interface PackageInput {
     readonly resources?: Readonly<Record<string, ResourceRequirement>>;
     /** The secrets the package reads, by name. */
     readonly secrets?: Readonly<Record<string, Declaration>>;
-    /** The permissions the package's installations request by scope, consented at install. */
+    /** The permissions the package's installations always request, by delegator. */
     readonly permissions?: PermissionRequest;
+    /** What its installations can do beyond that, each with what it needs, by name. */
+    readonly capabilities?: Readonly<Record<string, Capability>>;
     /** The oldest caller release the package serves, every release when absent. */
     readonly since?: Version;
 }
@@ -64,8 +66,10 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     readonly resources: Declared<Input["resources"]>;
     /** The secrets the package reads, by name. */
     readonly secrets: Declared<Input["secrets"]>;
-    /** The permissions the package's installations request by scope. */
+    /** The permissions the package's installations always request, by delegator. */
     readonly permissions: PermissionRequest;
+    /** What its installations can do beyond that, by name. */
+    readonly capabilities: Readonly<Record<string, Capability>>;
 }
 
 /** The declarations of one kind a package lists, none when it leaves the kind out. */
@@ -151,6 +155,12 @@ export const PackageHandle = {
             ),
             secrets: mapValues<typeof secrets, Declared<Input["secrets"]>>(secrets, (each) => each),
             permissions: PermissionRequest.parse(input.permissions ?? {}),
+            capabilities: Object.fromEntries(
+                Object.entries(input.capabilities ?? {}).map(([name, each]) => [
+                    name,
+                    Capability.parse(each),
+                ]),
+            ),
         });
     },
 };

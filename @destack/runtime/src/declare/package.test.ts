@@ -1,8 +1,9 @@
 import { principal } from "@destack/access";
-import { Package, PackageError } from "@destack/package";
+import { Package, PackageError, PackageId } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { defineProcedure } from "../procedure/index.ts";
 import { defineAdapter, definePackage, type ObjectDeclaration } from "./package.ts";
+import { Capability } from "../runtime/description.ts";
 
 /** A procedure every object type shares. */
 const push = defineProcedure({
@@ -102,4 +103,26 @@ test("refuse routing an object type under the name of shared procedures, and rou
         "notebook",
         "replica",
     ]);
+});
+
+test("bundle what a capability needs: its sandbox abilities, permissions and features", () => {
+    // declare an optional Gmail import reaching Gmail's API on paid plans
+    const importing = {
+        reason: "Import contacts from Gmail",
+        optional: true,
+        sandbox: { network: { connect: ["gmail.googleapis.com"] } },
+        requires: [
+            { packageId: PackageId.parse(note.typeReference.packageId), name: "integrations" },
+        ],
+    };
+    const scanning = { reason: "Scan receipts", sandbox: { camera: { reason: "scans" } } };
+
+    // keep the bundle, and refuse a sandbox entry carrying a reason of its own
+    expect([
+        definePackage({ capabilities: { "gmail-import": importing } }).capabilities,
+        Capability.safeParse(scanning).error?.issues.map((issue) => [
+            issue.code,
+            issue.path.join("."),
+        ]),
+    ]).toEqual([{ "gmail-import": importing }, [["unrecognized_keys", "sandbox.camera"]]]);
 });

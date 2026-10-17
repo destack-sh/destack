@@ -193,6 +193,7 @@ export class WorkloadRunner implements AsyncDisposable {
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,
             settings: start.settings,
+            capabilities: start.capabilities,
             resources,
             keys,
             publisher: runner.publisher(stack, start.secret),

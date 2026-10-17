@@ -35,6 +35,8 @@ export const WorkloadStart = defineSchema(
         bindings: schema.record(DeclarationName, ResourceBinding),
         /** The installation's resolved value of each setting its package declares. */
         settings: schema.record(schema.string().min(1), schema.json()),
+        /** The package's capabilities the installation runs with, by name. */
+        capabilities: schema.array(schema.string().min(1)),
         /** The secret the host and the runner prove each other's requests with. */
         secret: schema.string().min(1),
         /** The host's egress, below which the workload calls addresses as its installation. */
