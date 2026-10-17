@@ -288,13 +288,12 @@ test("follow a space's chain at the universe as the space, through the tokens it
     const space = principal.space.reference(Scope.universe.id, spaceId);
     const accounts = createClient(accountPackage, {
         url: ACCOUNTS_URL,
-        fetch: fixture.keystore.asserting(
-            fixture.database,
-            space,
-            accountPackage.id,
-            ISSUER,
-            (request) => fixture.fetch(request),
-        ),
+        fetch: fixture.keystore
+            .source(fixture.database, space, {
+                issuer: ISSUER,
+                send: (request) => fixture.fetch(request),
+            })
+            .fetchGranted(accountPackage.id),
     });
 
     // read the account's scope in the first page of the space's chain replica

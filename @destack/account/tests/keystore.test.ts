@@ -1,3 +1,4 @@
+import { SpaceMount } from "@destack/runtime";
 import { LocalKeyring, MemoryKeychain, Recipient } from "@destack/identity";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
@@ -115,7 +116,7 @@ test("rekey an identity once a move completes, so the keys its source stored nei
     ]);
 });
 
-test("send a request as an installation with a token its space's key signs, which a verifier of the space's keys accepts", async () => {
+test("sign an installation's request for the space it goes to by its space's key, and refuse a request to no space", async () => {
     // start a space's identity on its machine
     const { database, place, keystore } = await openKeystore(new VirtualClock(Date.now()));
     const space = await place();
@@ -128,12 +129,21 @@ test("send a request as an installation with a token its space's key signs, whic
         "installation-01996ab0-0000-7000-8000-000000000005",
     );
     let received: Request | undefined;
-    const send = keystore.fetch(database, installation, audience, async (request) => {
-        received = request;
+    const send = keystore
+        .source(database, installation, {
+            issuer: "https://universe.test/oauth",
+            send: async (request) => {
+                received = request;
 
-        return new Response(null, { status: 204 });
-    });
-    await send(new Request("https://notes.test/"));
+                return new Response(null, { status: 204 });
+            },
+        })
+        .fetchSigned(audience);
+    const target = "space-01996ab0-0000-7000-8000-0000000000aa";
+    await send(new Request(SpaceMount.url("https://machine.test/", target)));
+    const unscoped = await send(new Request("https://notes.test/")).catch((error: unknown) =>
+        String(error),
+    );
 
     // verify what arrives by the space's keys, as a receiver in another space does
     const verifier = new TokenVerifier({
@@ -146,8 +156,16 @@ test("send a request as an installation with a token its space's key signs, whic
     expect([
         verified.caller.subject,
         verified.credential.kind,
+        verified.credential.scope,
         verified.credential.deployments,
-    ]).toEqual([installation, SPACE_KEY, undefined]);
+        unscoped,
+    ]).toEqual([
+        installation,
+        SPACE_KEY,
+        target,
+        undefined,
+        `TypeError: ${installation.id} signs calls to spaces alone, not https://notes.test/`,
+    ]);
 });
 
 /** Derive 32 bytes under a label from a space's root secret in a keystore, as hexadecimal. */
@@ -231,14 +249,17 @@ test("send a request as the universe bound to the space it goes to, which a veri
     const audience = PackageId.parse("package-01996ab0-0000-7000-8000-000000000012");
     const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
     const received: Request[] = [];
-    const universeFetch = keystore.fetchAsUniverse(database, issuer, async (request) => {
-        received.push(request);
+    const universeFetch = keystore
+        .source(database, universe.reference(Scope.universe.id, Scope.universe.id), {
+            issuer,
+            send: async (request) => {
+                received.push(request);
 
-        return new Response(null, { status: 204 });
-    });
-    await universeFetch(audience)(
-        new Request(`https://machine.test/spaces/${space}/package-x/objects`),
-    );
+                return new Response(null, { status: 204 });
+            },
+        })
+        .fetchSigned(audience);
+    await universeFetch(new Request(`https://machine.test/spaces/${space}/package-x/objects`));
 
     // verify it as the universe in that space, refuse it in another, and refuse a request to no space
     const verify = (spaceId: string) =>
@@ -256,14 +277,13 @@ test("send a request as the universe bound to the space it goes to, which a veri
     expect({
         verified: [verified.caller.subject, verified.credential.kind, verified.credential.scope],
         elsewhere: await outcome(verify("space-01996ab0-0000-7000-8000-000000000013")),
-        spaceless: await universeFetch(audience)(
-            new Request("https://machine.test/package-x"),
-        ).catch((error: unknown) => (error instanceof TypeError ? error.message : error)),
+        spaceless: await universeFetch(new Request("https://machine.test/package-x")).catch(
+            (error: unknown) => (error instanceof TypeError ? error.message : error),
+        ),
     }).toEqual({
         verified: [universe.reference(Scope.universe.id, Scope.universe.id), "universe-key", space],
         elsewhere: "UNAUTHORIZED: invalid access token claims",
-        spaceless:
-            "the universe calls packages in spaces alone, not https://machine.test/package-x",
+        spaceless: `${Scope.universe.id} signs calls to spaces alone, not https://machine.test/package-x`,
     });
 });
 

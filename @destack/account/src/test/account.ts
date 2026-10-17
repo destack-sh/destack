@@ -482,8 +482,8 @@ export class AccountFixture implements AsyncDisposable {
             readonly space?: string;
             /** The person to act as or for, as a subject key. */
             readonly subject?: string;
-            /** The grant to act under. */
-            readonly grant?: string;
+            /** The chain of grants to act under, space-delimited. */
+            readonly grants?: string;
         },
     ): Promise<{ accessToken: string; expiresAt: number }> {
         // post the subject token for the package's resource
@@ -531,7 +531,12 @@ export class AccountFixture implements AsyncDisposable {
                 method: "POST",
                 body: new URLSearchParams({
                     grant_type: JWT_BEARER,
-                    assertion: await this.keystore.assertion(this.database, installation, endpoint),
+                    assertion: await this.keystore
+                        .source(this.database, installation, {
+                            issuer: ISSUER,
+                            send: (request) => this.fetch(request),
+                        })
+                        .assertion(endpoint),
                     resource: PackageId.resource(audience),
                     space: installation.scope,
                 }),

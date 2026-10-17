@@ -1,7 +1,7 @@
-import { principal, universe, Caller } from "@destack/access";
 import { ColumnCipher, eq, type DatabaseConnection, type Select } from "@destack/db";
 import type { IdentityRegistry } from "./registry.ts";
 import { identityKey, type SigningKey } from "./key.ts";
+import { TokenSource } from "./source.ts";
 import {
     type Ciphertext,
     Derivation,
@@ -12,19 +12,9 @@ import {
     MAX_SIGNING_KEYS,
     PublicKey,
 } from "@destack/identity";
-import {
-    ASSERTION_TYPE,
-    SPACE_KEY,
-    TOKEN_LIFETIME_MILLISECONDS,
-    TokenCache,
-    TokenIssuer,
-} from "@destack/runtime/authentication";
-import { type Fetch, SpaceMount } from "@destack/runtime";
-import { PackageId } from "@destack/package";
+import { TokenIssuer } from "@destack/runtime/authentication";
+import type { Fetch } from "@destack/runtime";
 import { present } from "@destack/schema";
-import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
-import { JWT_BEARER } from "../oauth/bearer.ts";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
 import { CallError } from "@destack/runtime/error";
@@ -44,28 +34,11 @@ const LABEL = "destack identity key v1";
 /** The bytes of an identity's root secret: 256 bits, the HKDF-SHA256 output length. */
 const ROOT_BYTES = 32;
 
-/** The milliseconds in a second, as JWTs count times in seconds. */
-const SECOND_MILLISECONDS = 1000;
-
-/** How long an assertion a space signs lives: a minute, one token request and its retries. */
-const ASSERTION_SECONDS = 60;
-
-/** The credential kind of a token the universe's own key signs for the universe. */
-const UNIVERSE_KEY = "universe-key";
-
 /** The uses of an identity's secrets: its private keys and its root. */
 type KeyUse = "signing" | "rotation" | "root";
 
 /** One row of the identity keys a process stores. */
 type IdentityKey = Select<typeof identityKey>;
-
-/** How a space's tokens are issued. */
-interface SpaceIssuer {
-    /** The issuer signing with the identity's key. */
-    readonly issuer: TokenIssuer;
-    /** The credential the tokens carry. */
-    readonly credential: { readonly kind: string; readonly id: string };
-}
 
 /** The keys of the identities a process stores: its spaces' or the universe's. */
 export class IdentityKeystore {
@@ -168,151 +141,13 @@ export class IdentityKeystore {
         this.#forgetSigners(subject);
     }
 
-    /** Wrap a fetch to send each request with a signed token. */
-    fetch(database: DatabaseConnection, subject: Subject, audience: PackageId, send: Fetch): Fetch {
-        // sign with the key of the subject's space
-        const signing = this.#issuer(database, subject);
-
-        return async (request) => {
-            // sign a short token of only the subject
-            const now = this.clock.now();
-            const { accessToken } = await signing.issuer.issue(
-                {
-                    caller: Caller.of(subject),
-                    credential: {
-                        ...signing.credential,
-                        audience,
-                        verifiedAt: now,
-                        expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-                    },
-                },
-                now,
-            );
-
-            // send the request with it
-            const signed = new Request(request);
-            signed.headers.set("authorization", `Bearer ${accessToken}`);
-
-            return send(signed);
-        };
-    }
-
-    /** Ask an issuer for a subject's token of a package with its assertion (RFC 7523). */
-    async token(
+    /** Call out as a subject whose identity's keys this process stores. */
+    source(
         database: DatabaseConnection,
         subject: Subject,
-        audience: PackageId,
-        issuer: string,
-        send: Fetch,
-    ): Promise<{ readonly accessToken: string; readonly expiresAt: number }> {
-        // post an assertion of the subject for the package, an installation's bound to its space
-        const endpoint = `${issuer}${TOKEN_PATH}`;
-        const body = new URLSearchParams({
-            grant_type: JWT_BEARER,
-            assertion: await this.assertion(database, subject, endpoint),
-            resource: PackageId.resource(audience),
-            ...(principal.installation.is(subject) ? { space: subject.scope } : {}),
-        });
-        const response = await send(new Request(endpoint, { method: "POST", body }));
-        if (!response.ok) {
-            throw new CallError("UNAUTHORIZED", {
-                message: `the issuer refused ${subject.id}'s assertion: ${await response.text()}`,
-            });
-        }
-
-        return TokenResponse.granted(TokenResponse.parse(await response.json()));
-    }
-
-    /** Wrap a fetch to call a universe package with tokens granted for the subject's assertions. */
-    asserting(
-        database: DatabaseConnection,
-        subject: Subject,
-        audience: PackageId,
-        issuer: string,
-        send: Fetch,
-    ): Fetch {
-        // cache the granted tokens until shortly before they lapse
-        const tokens = new TokenCache();
-
-        return async (request) => {
-            // send the request with the subject's granted token
-            const token = await tokens.token(subject.id, this.clock.now(), () =>
-                this.token(database, subject, audience, issuer, send),
-            );
-            const signed = new Request(request);
-            signed.headers.set("authorization", `Bearer ${token}`);
-
-            return send(signed);
-        };
-    }
-
-    /** Wrap a fetch to call a package as the universe, bound to the space each request goes to. */
-    fetchAsUniverse(
-        database: DatabaseConnection,
-        issuer: string,
-        send: Fetch,
-    ): (audience: PackageId) => Fetch {
-        // sign as the universe under its issuer, with its identity's key
-        const self = universe.reference(Scope.universe.id, Scope.universe.id);
-        const tokens = new TokenIssuer({
-            authority: { kind: "universe" },
-            issuer,
-            sign: (claims, header) => this.sign(database, Scope.universe.id, claims, header),
-        });
-
-        return (audience) => async (request) => {
-            // bind the token to the space below the request's mount, refusing a request to no space
-            const space = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
-            if (space === undefined) {
-                throw new TypeError(
-                    `the universe calls packages in spaces alone, not ${request.url}`,
-                );
-            }
-
-            // sign a short token of the universe for the package in the space
-            const now = this.clock.now();
-            const { accessToken } = await tokens.issue(
-                {
-                    caller: Caller.of(self),
-                    credential: {
-                        kind: UNIVERSE_KEY,
-                        id: Scope.universe.id,
-                        audience,
-                        scope: space,
-                        verifiedAt: now,
-                        expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-                    },
-                },
-                now,
-            );
-
-            // send the request with it
-            const signed = new Request(request);
-            signed.headers.set("authorization", `Bearer ${accessToken}`);
-
-            return send(signed);
-        };
-    }
-
-    /** Sign an assertion of a space or one of its installations for a token endpoint (RFC 7523). */
-    async assertion(
-        database: DatabaseConnection,
-        subject: Subject,
-        endpoint: string,
-    ): Promise<string> {
-        // sign a short assertion as the space, for itself or its installation
-        const space = IdentityKeystore.#spaceOf(subject);
-        const issuedAt = Math.floor(this.clock.now() / SECOND_MILLISECONDS);
-        const claims = {
-            iss: space,
-            sub: subject.id,
-            aud: endpoint,
-            iat: issuedAt,
-            exp: issuedAt + ASSERTION_SECONDS,
-            jti: crypto.randomUUID(),
-        };
-
-        return this.sign(database, space, claims, { typ: ASSERTION_TYPE });
+        network: { readonly issuer: string; readonly send: Fetch },
+    ): TokenSource {
+        return new TokenSource(this, database, subject, network);
     }
 
     /** Issue tokens as a space this machine stores keys of, signed with its active signing key. */
@@ -521,26 +356,6 @@ export class IdentityKeystore {
                 this.#signers.delete(name);
             }
         }
-    }
-
-    /** Choose how a space or one of its installations signs its tokens, refusing anyone else. */
-    #issuer(database: DatabaseConnection, subject: Subject): SpaceIssuer {
-        const space = IdentityKeystore.#spaceOf(subject);
-
-        return {
-            issuer: this.issuer(database, space),
-            credential: { kind: SPACE_KEY, id: space },
-        };
-    }
-
-    /** Read the space that signs for a space or one of its installations, refusing anyone else. */
-    static #spaceOf(subject: Subject): string {
-        // refuse any signer but a space or its installation
-        if (!principal.installation.is(subject) && !principal.space.is(subject)) {
-            throw new TypeError(`${subject.type} ${subject.id} signs as no space or installation`);
-        }
-
-        return principal.installation.is(subject) ? subject.scope : subject.id;
     }
 
     /** Choose the signing key that signs now. */
