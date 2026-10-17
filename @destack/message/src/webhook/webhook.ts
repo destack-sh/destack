@@ -2,7 +2,7 @@ import type { Fetch } from "@destack/runtime";
 import { ObjectReference } from "@destack/sync";
 import { Secret } from "@destack/vault";
 import { secret } from "@destack/vault/object";
-import { Endpoint } from "../object/endpoint.ts";
+import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { encodeBody, type WebhookAuthentication } from "./message.ts";
 import { type MessageProvider, Outcome } from "../provider/index.ts";
 import type { ObjectStore } from "@destack/object/server";
@@ -117,9 +117,9 @@ function isUnreachable(error: unknown): error is TypeError | DOMException {
     );
 }
 
-/** Read a vault secret's text as the store's principal, which consumes it. */
+/** Read a vault secret's text as the code serving the endpoints, which consumes it. */
 function readSecret(
-    store: Pick<ObjectStore, "query" | "self">,
+    store: Pick<ObjectStore, "query" | "serving">,
     reference: ObjectReference,
 ): Promise<string> {
     return Secret.text({
@@ -129,7 +129,8 @@ function readSecret(
                 id: secret.identifier(reference.id),
             });
 
-            return store.query(store.self, secret.call("read", target));
+            // read as message's own code, never as the vault serving the secret
+            return store.query(store.serving(endpoint), secret.call("read", target));
         },
     });
 }

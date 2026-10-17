@@ -57,8 +57,8 @@ export type Endpoint = Select<typeof endpoint.table>;
 
 /** The endpoints webhook messages go to. */
 export const Endpoint = {
-    /** Read the endpoint a webhook message's source names as the store's principal. */
-    async read(store: Pick<ObjectStore, "query" | "self">, source: ObjectReference) {
+    /** Read the endpoint a webhook message's source names, as the code serving the endpoints. */
+    async read(store: Pick<ObjectStore, "query" | "serving">, source: ObjectReference) {
         // require an endpoint as the source
         if (!endpoint.is(source)) {
             throw new CallError("BAD_REQUEST", {
@@ -69,7 +69,7 @@ export const Endpoint = {
         // read it through the store, as the installation delivering it
         const target = endpoint.target({ scope: source.scope, id: endpoint.identifier(source.id) });
 
-        return store.query(store.self, endpoint.call("get", target));
+        return store.query(store.serving(endpoint), endpoint.call("get", target));
     },
 };
 

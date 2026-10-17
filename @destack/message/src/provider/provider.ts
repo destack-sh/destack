@@ -62,7 +62,7 @@ export interface MessageProvider {
             /** What it says. */
             readonly content: Content;
         },
-        store: Pick<ObjectStore, "query" | "clock" | "self">,
+        store: Pick<ObjectStore, "query" | "clock" | "serving">,
     ) => Promise<Outcome>;
 }
 

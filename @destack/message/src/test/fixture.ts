@@ -18,12 +18,12 @@ export class MailFixture implements MailTransport {
 }
 
 /** A server without object reads, for a provider in a test that sends without a space. */
-export const UNQUERIED: Pick<ObjectStore, "query" | "clock" | "self"> = {
+export const UNQUERIED: Pick<ObjectStore, "query" | "clock" | "serving"> = {
     query: async () => {
         throw new TypeError("the test cannot read objects");
     },
     clock: Clock.system,
-    get self() {
+    serving() {
         const space = principal.space.reference(
             "universe",
             "space-019f5530-8000-7000-8000-0000000000e9",
