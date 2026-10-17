@@ -54,7 +54,7 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/e28dec7ff2d8b4493b8008f14ec2db0faad84afd238c2f7634d6f507e6734976.json",
+            "/_content/tree/66fff74db5de4760838bab6f7b14ee012851722408049856c2e2ddd7fb4ebd57.json",
         cover: {
             image: {
                 src: "/_content/assets/9f1ff7f1d24e2f62.jpg",
@@ -182,7 +182,7 @@ export const posts = [
             },
             alt: "Illustration of a Cambrian ecosystem, with Kylinxia, trilobites, worms, and colourful sponges beneath deep blue water.",
         },
-        date: "2026-10-19",
+        date: "2026-10-24",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
         slug: "introducing-destack",
@@ -194,7 +194,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2609,
+        tokens: 2608,
     },
 ] as const satisfies readonly Post[];
 

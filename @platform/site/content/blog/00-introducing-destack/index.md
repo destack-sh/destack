@@ -1,7 +1,7 @@
 ---
 title: "Introducing Destack"
 subtitle: "The final stack for personal software (for real this time)."
-date: "2026-10-19"
+date: "2026-10-24"
 author: "Florian"
 ---
 
@@ -68,7 +68,7 @@ Code is still there, it's still relevant, but - thanks to game engines - you can
 
 General purpose software is now hitting the same issues that game developers have long solved.
 The principal components of modern software have ossified, but they're scattered and reconstituted a thousand different ways.
-Application software needs its own "software engine": _integrated_ "platform software" with building blocks for a new level of "userland software". 
+General software needs its own "software engine": _integrated_ "platform software" with building blocks for a new level of "userland software". 
 
 It is insufficient to accelerate the software production _process_, not just because of Amdahl's law, but because missing _any_ part of software is to lose the shape of the whole product - and software that doesn't solve any reality-shaped problem is pointless.
 In frighteningly short order, steering only through the peephole of a chatbox makes it almost impossible to figure out where to go next and how to get there.
