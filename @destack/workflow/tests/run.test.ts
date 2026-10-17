@@ -2,10 +2,10 @@ import { principal, relation } from "@destack/access";
 import { space } from "@destack/account/object";
 import { eq, TABLE } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Failure, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { defineWorkflow } from "../src/index.ts";
+import { defineWorkflow, Run } from "../src/index.ts";
 import { actor, alice, note, openWorkflow, START, type WorkflowFixture } from "./fixture.ts";
 
 /** A minute, in milliseconds. */
@@ -354,4 +354,46 @@ test("make a preparing call once across a crash between its commit and its step'
 
     // expect one issue, answered again by the journal under the request its started step derives
     expect([issued, first?.["output"], again?.["output"]]).toEqual([1, 1, 1]);
+});
+
+test("wait until a run ends and answer it as it ended, and refuse a wait its signal aborts first", async () => {
+    // answer a number at once, or sleep an hour first
+    const answer = defineWorkflow({
+        name: "answer",
+        input: schema.object({ isSleeping: schema.boolean() }),
+        output: schema.number(),
+    });
+    const fixture = await openWorkflow(answer, async (step, input) => {
+        if (input.isSleeping) {
+            await step.sleep("nap", { hours: 1 });
+        }
+
+        return step.run("answer", schema.number(), async () => 42);
+    });
+    const runOf = async (isSleeping: boolean) => {
+        await fixture.start(() => answer.start({ isSleeping }, actor()));
+        const rows = await fixture.store.database.select().from(answer.run.table);
+        const row = rows.find(
+            (each) =>
+                schema.object({ isSleeping: schema.boolean() }).parse(each["input"]).isSleeping ===
+                isSleeping,
+        );
+
+        return new Run(answer, present(row, "the started run"));
+    };
+
+    // wait for the quick run, and abort the wait for the sleeping one
+    const ended = await (
+        await runOf(false)
+    ).ended(fixture.store.database, AbortSignal.timeout(5000));
+    const aborted = new AbortController();
+    const waiting = (await runOf(true)).ended(fixture.store.database, aborted.signal);
+    aborted.abort(new Error("stopped waiting"));
+
+    // expect the quick run completed with its answer, and the aborted wait refused
+    expect([
+        ended.state,
+        ended.row["output"],
+        await waiting.catch((error: unknown) => String(error)),
+    ]).toEqual(["completed", 42, "Error: stopped waiting"]);
 });

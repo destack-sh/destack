@@ -4,7 +4,7 @@ import { Limits, type MethodContext, type ObjectReconciliation } from "@destack/
 import { LEASE_MILLISECONDS } from "@destack/runtime/control";
 import { CallError } from "@destack/runtime/error";
 import { RetryPolicy } from "@destack/runtime/timer";
-import { Duration, type JsonValue, schema } from "@destack/schema";
+import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure, ObjectReference, Subject } from "@destack/sync";
 import type { ObjectStore } from "@destack/object/server";
 import { type RunContext, type Step, StepContext, Suspension } from "../step/step.ts";
@@ -127,6 +127,27 @@ export class Run<Input = unknown, Output = unknown> {
     /** The run's row as the workflow's run calls target it. */
     get target() {
         return this.workflow.run.target({ id: this.id, scope: this.scope });
+    }
+
+    /** Wait until the run ends, answering it as it ended. */
+    async ended(database: DatabaseConnection, signal: AbortSignal): Promise<Run<Input, Output>> {
+        // read the run again on each commit until it is in an ended state
+        let ended: Run<Input, Output> | undefined;
+        await database.log.until(async () => {
+            // read the run, answering it once ended
+            const row = await Snapshot.live(database)
+                .read(this.workflow.run.table)
+                .findFirst({ where: { id: this.id } });
+            const read = new Run(this.workflow, present(row, `run ${this.id}`));
+            ended = ENDED_STATES.some((state) => state === read.state) ? read : undefined;
+
+            return ended !== undefined;
+        }, signal);
+
+        // refuse a wait the signal aborted first
+        signal.throwIfAborted();
+
+        return present(ended, `the end of run ${this.id}`);
     }
 
     /** Create a run, answering its key's live run or replacing it before it began. */
