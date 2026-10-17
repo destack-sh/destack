@@ -1,5 +1,4 @@
 import { expect, refusal } from "@destack/test";
-import { Shape } from "@destack/object";
 import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
 import { secret } from "@destack/vault/object";
 import { RequestId } from "@destack/runtime/request";
@@ -308,8 +307,7 @@ repositoryTest(
             const pages = await forge
                 .connectSpace(space)
                 .store.stream(
-                    Shape.subscription(
-                        referenceShape,
+                    referenceShape.subscription(
                         { scope: forge.space, repository: site.id, name: "refs/heads/main" },
                         below,
                     ),

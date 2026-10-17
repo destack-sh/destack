@@ -1,11 +1,11 @@
 import { ModuleMetadata } from "@destack/package";
 import { type Connector, defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { connectors } from "#git";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { GitStorage } from "./storage.ts";
 
 /** The specification of a Git storage: none beyond its name. */
-export const GitStorageSpec = defineSchema(schema.object({}));
+export const GitStorageSpec = schema.object({});
 
 /** The Git storage resource kind: repositories a machine stores. */
 export const GitStorageKind = defineResourceKind("git", { spec: GitStorageSpec });
