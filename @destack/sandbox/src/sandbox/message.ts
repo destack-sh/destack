@@ -1,40 +1,36 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** Explicit process inputs and host-approved access. */
-export const SandboxOptions = defineSchema(
-    schema.object({
-        /** Absolute executable path. */
-        executable: schema.string().min(1),
-        /** Arguments passed unchanged to the executable. */
-        arguments: schema.array(schema.string()),
-        /** Absolute working directory. */
-        directory: schema.string().min(1),
-        /** Environment supplied to the workload, excluding inherited host variables. */
-        environment: schema.record(schema.string(), schema.string()),
-        /** Absolute readable paths, in addition to the executable and required OS runtime files. */
-        read: schema.array(schema.string()),
-        /** Absolute writable files and directories, also readable. */
-        write: schema.array(schema.string()),
-        /** Allowed outgoing domains through the supplied proxies, optionally qualified by port. */
-        network: schema.array(schema.string()),
-        /** Unix sockets available for host-mediated service connections. */
-        sockets: schema.array(schema.string()).exactOptional(),
-        /** Whether the workload may listen on loopback ports. */
-        allowsListening: schema.boolean().exactOptional(),
-    }),
-);
+export const SandboxOptions = schema.object({
+    /** Absolute executable path. */
+    executable: schema.string().min(1),
+    /** Arguments passed unchanged to the executable. */
+    arguments: schema.array(schema.string()),
+    /** Absolute working directory. */
+    directory: schema.string().min(1),
+    /** Environment supplied to the workload, excluding inherited host variables. */
+    environment: schema.record(schema.string(), schema.string()),
+    /** Absolute readable paths, in addition to the executable and required OS runtime files. */
+    read: schema.array(schema.string()),
+    /** Absolute writable files and directories, also readable. */
+    write: schema.array(schema.string()),
+    /** Allowed outgoing domains through the supplied proxies, optionally qualified by port. */
+    network: schema.array(schema.string()),
+    /** Unix sockets available for host-mediated service connections. */
+    sockets: schema.array(schema.string()).exactOptional(),
+    /** Whether the workload may listen on loopback ports. */
+    allowsListening: schema.boolean().exactOptional(),
+});
 /** Explicit process inputs and host-approved access. */
 export type SandboxOptions = schema.Infer<typeof SandboxOptions>;
 
 /** Process termination reported after sandbox cleanup. */
-export const SandboxExit = defineSchema(
-    schema.object({
-        /** Exit code, absent when a signal terminates the process. */
-        code: schema.int().nullable(),
-        /** Terminating signal, absent after a normal exit. */
-        signal: schema.string().min(1).nullable(),
-    }),
-);
+export const SandboxExit = schema.object({
+    /** Exit code, absent when a signal terminates the process. */
+    code: schema.int().nullable(),
+    /** Terminating signal, absent after a normal exit. */
+    signal: schema.string().min(1).nullable(),
+});
 /** Process termination reported after sandbox cleanup. */
 export type SandboxExit = schema.Infer<typeof SandboxExit>;
 
