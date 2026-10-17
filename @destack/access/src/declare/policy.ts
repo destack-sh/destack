@@ -91,7 +91,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
             throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
         }
 
-        return DeclaredPermission.parse({
+        return Permission.parse({
             packageId: this.definition.packageId,
             type: this.definition.name,
             name,
@@ -307,10 +307,10 @@ export const PermissionReference = Object.assign(permissionReference, {
 });
 
 /** A permission a policy declares, branded by `Policy.permission`'s parse. */
-const DeclaredPermission = permissionReference.brand<"permission">();
+export const Permission = permissionReference.brand<"permission">();
 
 /** A permission of a policy, produced by `Policy.permission`. */
-export type Permission = schema.Infer<typeof DeclaredPermission>;
+export type Permission = schema.Infer<typeof Permission>;
 
 /** A subject type accepted by a policy. */
 export type SubjectTypeInput = string | Policy | PolicySubject | SubjectType;

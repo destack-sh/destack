@@ -1,10 +1,12 @@
-import { eq, Transaction, type DatabaseConnection } from "@destack/db";
-import { Scope, type ObjectReference, type Subject } from "@destack/sync";
+import { eq, Table, Transaction, type DatabaseConnection } from "@destack/db";
+import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
+import type { GrantPermission } from "../grant/permission.ts";
+import { accessGrant } from "../grant/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 
 /** A database storing replicas of other packages' access, for tests of packages that follow one. */
@@ -92,6 +94,29 @@ export class AccessFixture {
                 },
                 governing,
             ),
+        );
+
+        return id;
+    }
+
+    /** Grant a delegate some of a principal's authority in its own scope, as its home does. */
+    async replicateGrant(
+        delegator: Subject,
+        delegate: Subject,
+        permissions: readonly GrantPermission[],
+        now = Date.now(),
+    ): Promise<Identifier<"grant">> {
+        const id = schema.identifier("grant").parse(`grant-${v7()}`);
+        await this.database.insert(accessGrant).values(
+            Table.complete(accessGrant, {
+                id,
+                createdAt: now,
+                scope: delegator.id,
+                ...ObjectReference.columns("delegator", delegator),
+                ...ObjectReference.columns("delegate", delegate),
+                permissions: [...permissions],
+                expiresAt: null,
+            }),
         );
 
         return id;

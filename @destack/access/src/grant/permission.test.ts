@@ -266,3 +266,18 @@ test("reach every method of a type a grant binds no method of, else only its bou
         GrantPermission.reaches(pages, "space-1", "list", undefined),
     ]).toEqual([true, false, true, true, true, true]);
 });
+
+test("give a scope-less grant permission in every scope, and narrow it to the other side's scope", () => {
+    const anywhere = { packageId: module1.package.id, type: "page", name: "read" };
+    const here: GrantPermission = { ...anywhere, scope: "space-1" };
+    const pages = { packageId: module1.package.id, type: "page" };
+
+    expect([
+        GrantPermission.gives(anywhere, anywhere, "space-1"),
+        GrantPermission.gives(anywhere, anywhere, "space-2"),
+        GrantPermission.gives(here, anywhere, "space-2"),
+        GrantPermission.reaches(pages, "space-2", "get", [anywhere]),
+        GrantPermission.intersect([anywhere], [here]),
+        GrantPermission.intersect([here], [{ ...anywhere, scope: "space-2" }]),
+    ]).toEqual([true, true, false, true, [here], []]);
+});

@@ -40,6 +40,45 @@ export const Grant = {
         return snapshot.read(accessGrant).findFirst({ where: { id } });
     },
 
+    /** Find a delegator's one grant to a delegate unexpired at a time, absent without one. */
+    async find(
+        reader: Pick<Snapshot, "read">,
+        parties: { readonly delegator: Subject; readonly delegate: Subject },
+        now: number,
+    ): Promise<Grant | undefined> {
+        // read the grant of the two parties
+        const grant = await reader.read(accessGrant).findFirst({
+            where: {
+                ...ObjectReference.columns("delegator", parties.delegator),
+                ...ObjectReference.columns("delegate", parties.delegate),
+            },
+        });
+
+        return grant === undefined || (grant.expiresAt !== null && grant.expiresAt <= now)
+            ? undefined
+            : grant;
+    },
+
+    /** Act for a delegator as its delegate within the delegator's live grant. */
+    async act(
+        reader: Pick<Snapshot, "read">,
+        parties: { readonly delegator: Subject; readonly delegate: Subject },
+        now: number,
+    ): Promise<Caller> {
+        // read the delegator's live grant to the delegate
+        const { delegator, delegate } = parties;
+        const live = await Grant.find(reader, parties, now);
+        if (live === undefined) {
+            throw new AccessError(
+                "FORBIDDEN",
+                `${delegate.type} ${delegate.id} acts for ${delegator.type} ${delegator.id} under no grant`,
+            );
+        }
+
+        // act as the delegator with the delegate acting for it, within the grant
+        return { ...Caller.of(delegator), actors: [delegate], grant: Grant.claim(live) };
+    },
+
     /** Require a grant between a delegator and a delegate unrevoked and unexpired at a time. */
     require(
         grant: Grant | undefined,
@@ -65,7 +104,7 @@ export const Grant = {
         return grant;
     },
 
-    /** Grant a delegate some of the caller's authority, in the caller's own scope. */
+    /** Grant a delegate part of the caller's authority in its scope, replacing an earlier grant. */
     async create(
         scope: ObjectReference,
         request: GrantRequest,
@@ -92,6 +131,21 @@ export const Grant = {
             throw new AccessError("FORBIDDEN", "a grant needs one other principal as delegate");
         } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
             throw new AccessError("CONFLICT", "a grant must expire after its creation");
+        }
+
+        // replace the delegator's earlier grant to the delegate, live or lapsed
+        const [earlier] = await authorization.snapshot.read(accessGrant).findMany({
+            where: {
+                ...ObjectReference.columns("delegator", delegator),
+                ...ObjectReference.columns("delegate", delegate),
+            },
+        });
+        if (earlier !== undefined) {
+            await authorization.transaction.write({
+                table: accessGrant,
+                before: earlier,
+                after: null,
+            });
         }
 
         // write the grant

@@ -1,8 +1,17 @@
-import { check, defineTable, identifier, index, integer, json, text } from "@destack/db";
+import {
+    check,
+    defineTable,
+    identifier,
+    index,
+    integer,
+    json,
+    text,
+    uniqueIndex,
+} from "@destack/db";
 import { schema } from "@destack/schema";
 import { GrantPermission } from "./permission.ts";
 
-/** A delegator's grant of permissions to a delegate acting for it, in the delegator's scope. */
+/** A delegator's one grant of permissions to a delegate acting for it, in the delegator's scope. */
 export const accessGrant = defineTable(
     "grant",
     {
@@ -38,11 +47,16 @@ export const accessGrant = defineTable(
     {
         log: { retention: "history" },
         constraints: (grant) => [
-            index("grant_delegator").on(
+            // one grant per delegator and delegate, found by its delegator first
+            uniqueIndex("grant_parties").on(
                 grant.delegatorPackageId,
                 grant.delegatorType,
                 grant.delegatorScope,
                 grant.delegatorId,
+                grant.delegatePackageId,
+                grant.delegateType,
+                grant.delegateScope,
+                grant.delegateId,
             ),
             index("grant_delegate").on(
                 grant.delegateScope,

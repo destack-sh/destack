@@ -777,6 +777,54 @@ databaseTest(
     },
 );
 
+databaseTest(
+    "act for a delegator under its one grant to a delegate, replaced by a later grant and refused once lapsed",
+    async ({ fixture }) => {
+        const { database, authorizer, alice } = fixture;
+        const assistant = principal.installation.reference("personal", "assistant");
+        await database.insert(Scope.table).values(
+            Table.complete(Scope.table, {
+                scope: "alice",
+                parent: Scope.universe.id,
+                partition: Scope.universe.id,
+                packageId: ACCESS_PACKAGE_ID,
+                type: principal.user.name,
+                ancestors: [],
+            }),
+        );
+
+        // grant the assistant editing a, then editing b until 2000 in its place
+        const grant = (objectId: string) =>
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    Grant.create(
+                        scopeOf("alice"),
+                        { delegate: assistant, permissions: [editing(objectId)], expiresAt: 2000 },
+                        authorization,
+                    ),
+            );
+        await grant("a");
+        const later = await grant("b");
+
+        // act for alice under the one live grant, and under none once it lapsed
+        const parties = { delegator: alice.subject, delegate: assistant };
+        const caller = await Grant.act(Snapshot.live(database), parties, 1000);
+        const grants = await database.select().from(accessGrant);
+        expect({
+            grants: grants.map((row) => row.id),
+            caller: [caller.subject, caller.actors, caller.grant],
+            lapsed: await outcome(Grant.act(Snapshot.live(database), parties, 2000)),
+        }).toEqual({
+            grants: [later.id],
+            caller: [alice.subject, [assistant], Grant.claim(later)],
+            lapsed: "FORBIDDEN: installation assistant acts for user alice under no grant",
+        });
+    },
+);
+
 test("follow a scope relation of several scope types to the nearest scope only, and refuse one of a plain type", () => {
     // relate pins to the account or space they live in
     const pin = pinPolicy([account, space]);

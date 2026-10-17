@@ -120,7 +120,7 @@ await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, auth
 
 ## Grants
 
-A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, presented on a caller as its RFC 8693 actor chain.
+A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, each in one scope or every scope the delegator reaches, presented on a caller as its RFC 8693 actor chain.
 
 ```ts
 const grant = await Grant.create(
@@ -136,5 +136,6 @@ const caller = {
     actors: [installation],
     grant: Grant.claim(grant),
 };
+await Grant.find(snapshot, { delegator: alice, delegate: installation }, now); // the live grant
 await Grant.revoke(aliceScope, grant.id, authorization);
 ```

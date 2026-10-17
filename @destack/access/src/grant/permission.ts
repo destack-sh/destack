@@ -4,8 +4,8 @@ import { PermissionReference } from "../declare/policy.ts";
 /** The schema of a grant permission: a permission in a scope, on an object or through a method. */
 const grantPermissionSchema = defineSchema(
     PermissionReference.extend({
-        /** The scope in which the permission applies. */
-        scope: schema.string().min(1),
+        /** The scope the permission applies in, absent for every scope the delegator reaches. */
+        scope: schema.string().min(1).exactOptional(),
         /** The one object the permission applies to, absent for every object of the scope. */
         objectId: schema.string().min(1).exactOptional(),
         /** The one method the permission is used through, absent for every method. */
@@ -71,21 +71,25 @@ export const GrantPermission = {
             return left === undefined ? right?.slice() : left.slice();
         }
 
-        // take each permission both give, on the narrower object and method
+        // take each permission both give, in the narrower scope, object and method
         return left.flatMap((entry) =>
             right
                 .filter(
                     (other) =>
-                        GrantPermission.gives(entry, other, other.scope) &&
+                        PermissionReference.key(entry) === PermissionReference.key(other) &&
+                        GrantPermission.overlaps(entry.scope, other.scope) &&
                         GrantPermission.overlaps(entry.objectId, other.objectId) &&
                         GrantPermission.overlaps(entry.method, other.method),
                 )
                 .map((other) => {
+                    // keep the narrower of each selection
+                    const scope = entry.scope ?? other.scope;
                     const objectId = entry.objectId ?? other.objectId;
                     const method = entry.method ?? other.method;
 
                     return {
                         ...entry,
+                        ...(scope === undefined ? {} : { scope }),
                         ...(objectId === undefined ? {} : { objectId }),
                         ...(method === undefined ? {} : { method }),
                     };
@@ -105,7 +109,7 @@ export const GrantPermission = {
             (entry) =>
                 entry.packageId === type.packageId &&
                 entry.type === type.type &&
-                entry.scope === scope,
+                GrantPermission.overlaps(entry.scope, scope),
         );
 
         // allow every method of a type when no entry binds methods, else the bound and unbound ones
@@ -121,7 +125,7 @@ export const GrantPermission = {
             entry.packageId === permission.packageId &&
             entry.type === permission.type &&
             entry.name === permission.name &&
-            entry.scope === scope
+            GrantPermission.overlaps(entry.scope, scope)
         );
     },
 
