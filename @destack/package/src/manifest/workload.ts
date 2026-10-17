@@ -14,8 +14,6 @@ export const WorkloadDefinition = defineSchema(
             compute: ComputeDefinition.exactOptional(),
             /** The package's capabilities the workload uses, every one when omitted. */
             capabilities: schema.array(CapabilityName).exactOptional(),
-            /** The permissions the workload requests by scope, as a `PermissionRequest`. */
-            permissions: schema.jsonObject().exactOptional(),
         })
         .strict(),
 );
@@ -39,8 +37,6 @@ export const WorkloadDescription = defineSchema(
         compute: ComputeDefinition,
         /** What the workload may call beyond its sandbox, as its package declares it. */
         capabilities: Capabilities,
-        /** The permissions the workload requests by scope, as a `PermissionRequest`. */
-        permissions: schema.jsonObject(),
     }),
 );
 /** A workload located in a compiled output with the declarations its code imports. */
