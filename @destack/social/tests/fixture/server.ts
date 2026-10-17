@@ -69,7 +69,7 @@ const ListPage = schema.looseObject({
 });
 
 /** The social package's build, declaring the comments' notifications. */
-const SOCIAL_BUILD = await MemoryBuild.declaring(
+const SOCIAL_BUILD = await MemoryBuild.of(
     comment.package,
     [mention, thread, reply].map((declared) => ({
         kind: "notification",
