@@ -19,6 +19,9 @@ import { type PackageAccess, serveStore } from "./http.ts";
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
 
+/** The prefix of the keys storing manifests, each followed by its digest. */
+const MANIFESTS_PREFIX = "manifests/";
+
 /** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
 const MARKS_KEY = "marks";
 
@@ -48,6 +51,8 @@ export const Retention = {
 export class PackageStore {
     /** The bucket storing the builds. */
     readonly bucket: Bucket;
+    /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
+    readonly #readers = new Map<string, Promise<BuildReader>>();
 
     /** Store builds in a bucket. */
     constructor(bucket: Bucket) {
@@ -84,14 +89,14 @@ export class PackageStore {
         signal?.throwIfAborted();
         const bytes = encodeManifest(manifest);
         const file = await PackageFile.describe("manifest.json", "application/json", bytes);
-        await this.#put(`manifests/${file.digest}`, bytes, file);
+        await this.#put(`${MANIFESTS_PREFIX}${file.digest}`, bytes, file);
 
         return file.digest;
     }
 
     /** Report whether the store keeps a build, whose manifest it stores after every file. */
     async contains(digest: string): Promise<boolean> {
-        return (await this.bucket.head(`manifests/${Digest.parse(digest)}`)) !== null;
+        return (await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) !== null;
     }
 
     /** Copy a served build by manifest digest unless kept, fetching only missing files. */
@@ -158,7 +163,7 @@ export class PackageStore {
         requireDistinctPaths(await reader.distributed());
 
         // store the manifest last
-        await this.#put(`manifests/${digest}`, bytes, {
+        await this.#put(`${MANIFESTS_PREFIX}${digest}`, bytes, {
             path: "manifest.json",
             digest,
             size: bytes.byteLength,
@@ -189,8 +194,22 @@ export class PackageStore {
         );
     }
 
-    /** Open a stored build for selective reads. */
-    async contents(digest: string): Promise<BuildReader> {
+    /** Open a stored build for selective reads, one reader per build, as its files never change. */
+    contents(digest: string): Promise<BuildReader> {
+        // reuse the build's reader, forgetting one whose opening failed
+        const known = this.#readers.get(digest);
+        if (known !== undefined) {
+            return known;
+        }
+        const opening = this.#open(digest);
+        this.#readers.set(digest, opening);
+        opening.catch(() => this.#readers.delete(digest));
+
+        return opening;
+    }
+
+    /** Open a stored build's reader over its manifest's listed files. */
+    async #open(digest: string): Promise<BuildReader> {
         // index the files the manifest lists directly
         const manifest = await this.get(digest);
         const reader = new BuildReader(manifest, async (path, signal) => {
@@ -357,7 +376,7 @@ export class PackageStore {
         // keep the manifests stored since the moment and those retention keeps, by batch
         const kept = new Set<string>();
         const candidates = new Map<string, string>();
-        await this.#batches("manifests/", async (batch) => {
+        await this.#batches(MANIFESTS_PREFIX, async (batch) => {
             const old = batch
                 .filter((file) => file.uploaded < before)
                 .map((file) => PackageStore.#digest(file));
@@ -447,7 +466,7 @@ export class PackageStore {
     async head(digest: string): Promise<PackageFile> {
         // read the manifest's metadata by its validated digest
         Digest.parse(digest);
-        const stored = await this.bucket.head(`manifests/${digest}`);
+        const stored = await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`);
         if (!stored) {
             throw new CallError("NOT_FOUND", { message: "package manifest not found" });
         }
@@ -460,7 +479,7 @@ export class PackageStore {
         // read the manifest by its validated digest
         Digest.parse(digest);
         const object = await this.bucket.get(
-            `manifests/${digest}`,
+            `${MANIFESTS_PREFIX}${digest}`,
             range === undefined ? {} : { range },
         );
         if (!object) {
@@ -529,7 +548,7 @@ export class PackageStore {
         const kept = new Set<string>();
         for (const digest of retained) {
             // skip a retained manifest the store lacks
-            if ((await this.bucket.head(`manifests/${Digest.parse(digest)}`)) === null) {
+            if ((await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) === null) {
                 continue;
             }
 
@@ -579,8 +598,12 @@ export class PackageStore {
         } while (cursor !== undefined);
     }
 
-    /** Delete files in batches the bucket accepts. */
+    /** Delete files in batches the bucket accepts, forgetting the readers of deleted builds. */
     async #delete(keys: readonly string[]): Promise<void> {
+        // forget the readers of the builds whose manifests go
+        for (const key of keys.filter((each) => each.startsWith(MANIFESTS_PREFIX))) {
+            this.#readers.delete(key.slice(MANIFESTS_PREFIX.length));
+        }
         for (let start = 0; start < keys.length; start += MAX_BATCH_FILES) {
             await this.bucket.delete(keys.slice(start, start + MAX_BATCH_FILES));
         }
@@ -591,7 +614,7 @@ export class PackageStore {
         switch (entry.kind) {
             // name a whole build's manifest
             case "build":
-                return [`manifests/${entry.manifest}`];
+                return [`${MANIFESTS_PREFIX}${entry.manifest}`];
             // name an output's files
             case "output":
                 return entry.output.files.map((file) => `files/${file.digest}`);

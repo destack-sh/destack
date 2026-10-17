@@ -211,6 +211,30 @@ test("sweep an old unretained build but keep the files a recent build shares wit
     });
 });
 
+test("open one reader per stored build, and forget a swept build's reader", async () => {
+    // store a build and open it twice
+    const directory = await temporary();
+    await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+    const store = new PackageStore(bucket);
+    const digest = await store.put(await written(SOURCES));
+    const [first, second] = [await store.contents(digest), await store.contents(digest)];
+
+    // mark and drop it, then open it again
+    const later = new Date(Date.now() + 1000);
+    await store.sweep(Retention.none, later);
+    await store.sweep(Retention.none, later, Retention.none, later, later);
+    const reopened = await store.contents(digest).then(
+        () => "opened",
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+
+    // share the reader while the build is stored, and refuse it once swept
+    expect({ isShared: first === second, reopened }).toEqual({
+        isShared: true,
+        reopened: "package manifest not found",
+    });
+});
+
 test("keep a leased build through sweeps until its lease expires, then mark and delete it", async () => {
     // store a build and lease it for two intervals
     const directory = await temporary();
