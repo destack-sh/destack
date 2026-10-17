@@ -1,3 +1,4 @@
+import type { Authentication } from "@destack/access";
 import {
     type ResourceBinding,
     type Connector,
@@ -5,8 +6,8 @@ import {
     ResourceDeclaration,
 } from "@destack/resource";
 import { ModuleMetadata, type Package, PackageId } from "@destack/package";
-import { defineSchema, schema, Version } from "@destack/schema";
-import { Exchange, type ExchangeContext } from "../authentication/exchange.ts";
+import { schema, Version } from "@destack/schema";
+import { Exchange } from "../authentication/exchange.ts";
 import { createClient } from "../client/client.ts";
 import type { Client, ProcedureRouter } from "../runtime/runtime.ts";
 import type { PackageHandle } from "./package.ts";
@@ -14,24 +15,25 @@ import type { PackageHandle } from "./package.ts";
 /** The provider code of installation bindings, connecting over HTTP through the host's egress. */
 export const INSTALLATION_PROVIDER = "http";
 
+/** The context a binding's call passes: the authentication of the call it serves. */
+type BindingContext = { readonly authentication?: Authentication | undefined };
+
 /** An installation binding's specification. */
-export const InstallationBindingSpec = defineSchema(
-    schema.object({
-        /** The package. */
-        package: PackageId,
-        /**
-         * The address an installation calls unless a stack binds another.
-         *
-         * An example is `@destack/message` for a package of the platform.
-         */
-        address: schema.string().min(1).exactOptional(),
-    }),
-);
+export const InstallationBindingSpec = schema.object({
+    /** The package. */
+    package: PackageId,
+    /**
+     * The address an installation calls unless a stack binds another.
+     *
+     * An example is `@destack/message` for a package of the platform.
+     */
+    address: schema.string().min(1).exactOptional(),
+});
 /** An installation binding's specification. */
 export type InstallationBindingSpec = schema.Infer<typeof InstallationBindingSpec>;
 
 /** The state an installation binding requires of its callee: its caller's build release. */
-export const InstallationBindingState = defineSchema(schema.object({ release: Version }));
+export const InstallationBindingState = schema.object({ release: Version });
 /** The state an installation binding requires of its callee. */
 export type InstallationBindingState = schema.Infer<typeof InstallationBindingState>;
 
@@ -45,7 +47,7 @@ export type InstallationBindingDescription = schema.Infer<typeof InstallationKin
 /** A dependency on an installation of a package, bound to a typed client of its endpoint. */
 export class InstallationBinding<
     Router extends ProcedureRouter = ProcedureRouter,
-> extends ResourceDeclaration<Client<Router, ExchangeContext>, InstallationBindingDescription> {
+> extends ResourceDeclaration<Client<Router, BindingContext>, InstallationBindingDescription> {
     /** The package the client calls. */
     readonly handle: PackageHandle & { readonly router: Router };
 
@@ -60,7 +62,9 @@ export class InstallationBinding<
     }
 
     /** The HTTP connector. */
-    override get connectors(): { readonly http: Connector<Client<Router, ExchangeContext>> } {
+    override get connectors(): {
+        readonly http: Connector<Client<Router, BindingContext>>;
+    } {
         return {
             http: {
                 code: INSTALLATION_PROVIDER,
@@ -71,12 +75,12 @@ export class InstallationBinding<
                         throw new TypeError(`installation binding ${this.name} has no credential`);
                     }
 
-                    // ask for an exchange for the subject in a call's context
-                    const client = createClient<Router, ExchangeContext>(this.handle, {
+                    // act for the caller of the served call a call passes as its context
+                    const client = createClient<Router, BindingContext>(this.handle, {
                         url: binding.reference,
                         headers: (options) => ({
                             authorization: `Bearer ${credential}`,
-                            ...Exchange.ask(options.context?.exchange),
+                            ...Exchange.ask(Exchange.of(options.context?.authentication?.caller)),
                         }),
                     });
 

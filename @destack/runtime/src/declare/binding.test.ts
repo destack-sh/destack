@@ -1,4 +1,6 @@
+import { Caller, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
+import { Exchange } from "../authentication/exchange.ts";
 import { Package } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { health } from "../health/index.ts";
@@ -40,13 +42,17 @@ const note = <Router extends ProcedureRouter>(owner: Package, procedures: Router
 /** The notes package, whose note type routes the health procedures. */
 const notes = definePackage({ objects: { note: note(NOTES, health) } }, { package: NOTES });
 
-test("call a bound installation at its reference with the credential the host lends, speaking the package's release", async () => {
+test("call a bound installation at its reference with the credential the host lends, speaking the package's release, for the served caller a call passes", async () => {
     // answer health checks
     const calls: (string | null)[][] = [];
     const server = Bun.serve({
         port: 0,
         fetch: (request) => {
-            calls.push([request.headers.get("authorization"), request.headers.get(VERSION_HEADER)]);
+            calls.push([
+                request.headers.get("authorization"),
+                request.headers.get(VERSION_HEADER),
+                request.headers.get(Exchange.header),
+            ]);
 
             return Response.json({ name: "notes", status: "ready" });
         },
@@ -58,9 +64,26 @@ test("call a bound installation at its reference with the credential the host le
     const url = `http://127.0.0.1:${server.port}`;
     const client = await binding.connectors.http.connect(bound(url, "secret"), binding);
     const answer = await client.note.check();
+
+    // call again for the person a served call came from, as the egress exchanges for them
+    const person = principal.user.reference("universe", "user-ada");
+    const authentication = {
+        caller: Caller.of(person),
+        credential: {
+            kind: "session",
+            id: "fixture",
+            audience: notes.id,
+            verifiedAt: 0,
+            expiresAt: 1,
+        },
+    };
+    await client.note.check(undefined, { context: { authentication } });
     expect([answer, calls, binding.kind, binding.spec]).toEqual([
         { name: "notes", status: "ready" },
-        [["Bearer secret", notes.version]],
+        [
+            ["Bearer secret", notes.version, null],
+            ["Bearer secret", notes.version, JSON.stringify({ subject: person, grants: [] })],
+        ],
         "installation",
         { package: notes.id },
     ]);
