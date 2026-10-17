@@ -1,16 +1,14 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ModuleMetadata } from "@destack/package";
 import { type Connector, defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import type { Bucket } from "../bucket/index.ts";
 import { S3Client } from "../s3/client.ts";
 
 /** A file namespace bound to managed storage, and who writes its files. */
-export const BucketSpec = defineSchema(
-    schema.object({
-        /** Only the package keeping the bucket writes its files, as its own principal. */
-        write: schema.literal("package").exactOptional(),
-    }),
-);
+export const BucketSpec = schema.object({
+    /** Only the package keeping the bucket writes its files, as its own principal. */
+    write: schema.literal("package").exactOptional(),
+});
 /** The bucket resource kind: file storage. */
 export const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
 /** A named file storage dependency. */
