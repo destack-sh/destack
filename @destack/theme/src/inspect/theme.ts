@@ -1,14 +1,12 @@
 import { Package } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { type Theme, ThemeDefinition } from "../theme/index.ts";
 
 /** A theme declaration as manifests describe it. */
-export const ThemeDescription = defineSchema(
-    ThemeDefinition.extend({
-        /** The declaring package. */
-        package: Package,
-    }),
-);
+export const ThemeDescription = ThemeDefinition.extend({
+    /** The declaring package. */
+    package: Package,
+});
 /** A theme declaration as manifests describe it. */
 export type ThemeDescription = schema.Infer<typeof ThemeDescription>;
 

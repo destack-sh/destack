@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Color, HexColor } from "../palette/color.ts";
 import tokens from "./tokens.json" with { type: "json" };
 
@@ -95,88 +95,81 @@ const common = {
 };
 
 /** A design token in the W3C Design Tokens format. */
-export const Token = defineSchema(
-    schema.discriminatedUnion("$type", [
-        schema.object({
-            /** A color. */
-            $type: schema.literal("color"),
-            /** The light appearance's color. */
-            $value: ColorValue,
-            /** The dark appearance's color. */
-            $extensions: schema.object({ [EXTENSION]: schema.object({ dark: ColorValue }) }),
-            ...common,
+export const Token = schema.discriminatedUnion("$type", [
+    schema.object({
+        /** A color. */
+        $type: schema.literal("color"),
+        /** The light appearance's color. */
+        $value: ColorValue,
+        /** The dark appearance's color. */
+        $extensions: schema.object({ [EXTENSION]: schema.object({ dark: ColorValue }) }),
+        ...common,
+    }),
+    schema.object({
+        /** A length. */
+        $type: schema.literal("dimension"),
+        /** The length at a scale of 1. */
+        $value: Dimension,
+        ...common,
+    }),
+    schema.object({
+        /** A duration. */
+        $type: schema.literal("duration"),
+        /** The duration with full motion. */
+        $value: schema.object({ value: schema.number().min(0), unit: schema.literal("ms") }),
+        ...common,
+    }),
+    schema.object({
+        /** An easing curve. */
+        $type: schema.literal("cubicBezier"),
+        /** The control points, the portable form of a spring. */
+        $value: schema.tuple([schema.number(), schema.number(), schema.number(), schema.number()]),
+        /** The spring a `linear()` easing samples instead. */
+        $extensions: schema
+            .object({ [EXTENSION]: schema.object({ spring: Spring }) })
+            .exactOptional(),
+        ...common,
+    }),
+    schema.object({
+        /** A font stack. */
+        $type: schema.literal("fontFamily"),
+        /** The family names in order of preference. */
+        $value: schema.array(schema.string().min(1)).min(1),
+        ...common,
+    }),
+    schema.object({
+        /** A font weight. */
+        $type: schema.literal("fontWeight"),
+        /** The weight from 1 to 1000, as CSS font-weight takes it. */
+        $value: schema.number().int().min(1).max(1000),
+        ...common,
+    }),
+    schema.object({
+        /** A text style. */
+        $type: schema.literal("typography"),
+        /** The family, size, weight, line height and letter spacing at a text scale of 1. */
+        $value: schema.object({
+            /** The font stack, as an alias. */
+            fontFamily: Alias,
+            /** The font size. */
+            fontSize: Dimension,
+            /** The font weight. */
+            fontWeight: schema.number().int().min(1).max(1000),
+            /** The line height as a multiple of the font size. */
+            lineHeight: schema.number().positive(),
+            /** The letter spacing. */
+            letterSpacing: Dimension,
         }),
-        schema.object({
-            /** A length. */
-            $type: schema.literal("dimension"),
-            /** The length at a scale of 1. */
-            $value: Dimension,
-            ...common,
-        }),
-        schema.object({
-            /** A duration. */
-            $type: schema.literal("duration"),
-            /** The duration with full motion. */
-            $value: schema.object({ value: schema.number().min(0), unit: schema.literal("ms") }),
-            ...common,
-        }),
-        schema.object({
-            /** An easing curve. */
-            $type: schema.literal("cubicBezier"),
-            /** The control points, the portable form of a spring. */
-            $value: schema.tuple([
-                schema.number(),
-                schema.number(),
-                schema.number(),
-                schema.number(),
-            ]),
-            /** The spring a `linear()` easing samples instead. */
-            $extensions: schema
-                .object({ [EXTENSION]: schema.object({ spring: Spring }) })
-                .exactOptional(),
-            ...common,
-        }),
-        schema.object({
-            /** A font stack. */
-            $type: schema.literal("fontFamily"),
-            /** The family names in order of preference. */
-            $value: schema.array(schema.string().min(1)).min(1),
-            ...common,
-        }),
-        schema.object({
-            /** A font weight. */
-            $type: schema.literal("fontWeight"),
-            /** The weight from 1 to 1000, as CSS font-weight takes it. */
-            $value: schema.number().int().min(1).max(1000),
-            ...common,
-        }),
-        schema.object({
-            /** A text style. */
-            $type: schema.literal("typography"),
-            /** The family, size, weight, line height and letter spacing at a text scale of 1. */
-            $value: schema.object({
-                /** The font stack, as an alias. */
-                fontFamily: Alias,
-                /** The font size. */
-                fontSize: Dimension,
-                /** The font weight. */
-                fontWeight: schema.number().int().min(1).max(1000),
-                /** The line height as a multiple of the font size. */
-                lineHeight: schema.number().positive(),
-                /** The letter spacing. */
-                letterSpacing: Dimension,
-            }),
-            ...common,
-        }),
-        schema.object({
-            /** A box shadow. */
-            $type: schema.literal("shadow"),
-            /** The layers from top to bottom. */
-            $value: schema.array(ShadowLayer).min(1),
-            ...common,
-        }),
-    ]),
-);
+        ...common,
+    }),
+    schema.object({
+        /** A box shadow. */
+        $type: schema.literal("shadow"),
+        /** The layers from top to bottom. */
+        $value: schema.array(ShadowLayer).min(1),
+        ...common,
+    }),
+]);
 /** A design token in the W3C Design Tokens format. */
 export type Token = schema.Infer<typeof Token>;
 

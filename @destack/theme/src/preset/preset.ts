@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The preset palette names, neutral grays first. */
 export const PRESET_NAMES = [
@@ -74,7 +74,7 @@ export const PRESETS: Readonly<Record<Preset, string>> = {
 };
 
 /** A preset palette name. */
-export const Preset = defineSchema(schema.enum(PRESET_NAMES));
+export const Preset = schema.enum(PRESET_NAMES);
 /** A preset palette name. */
 export type Preset = schema.Infer<typeof Preset>;
 

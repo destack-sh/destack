@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** Three channels of one color. */
 export type Vector = readonly [number, number, number];
@@ -44,7 +44,7 @@ const GAMUT_ITERATIONS = 20;
 const HEX = /^#[0-9a-f]{6}$/iu;
 
 /** A six-digit sRGB hex color such as `#3e63dd`, in either letter case. */
-export const HexColor = defineSchema(schema.string().regex(HEX));
+export const HexColor = schema.string().regex(HEX);
 
 /** A color in OKLCH: lightness from 0 to 1, chroma from 0, hue in degrees. */
 export class Color {

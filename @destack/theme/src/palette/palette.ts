@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Color, HexColor } from "./color.ts";
 import { PRESETS, Preset } from "../preset/index.ts";
 
@@ -15,7 +15,7 @@ const LIGHTNESS_STEP = 0.001;
 const COARSE_STEPS = 16;
 
 /** A palette's seed: a preset name or a six-digit sRGB hex color. */
-export const Seed = defineSchema(schema.union([Preset, HexColor]));
+export const Seed = schema.union([Preset, HexColor]);
 /** A palette's seed. */
 export type Seed = schema.Infer<typeof Seed>;
 

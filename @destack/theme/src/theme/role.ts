@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { apca, Color, HexColor, type Palette, type Scheme } from "../palette/index.ts";
 
 /** An APCA lightness contrast Lc a role needs. */
@@ -95,7 +95,7 @@ export const PALETTE_NAMES = [
 ] as const;
 
 /** A palette name of a theme. */
-export const PaletteName = defineSchema(schema.enum(PALETTE_NAMES));
+export const PaletteName = schema.enum(PALETTE_NAMES);
 /** A palette name of a theme. */
 export type PaletteName = schema.Infer<typeof PaletteName>;
 
@@ -164,7 +164,7 @@ export type RoleSource =
       };
 
 /** A color role name. */
-export const RoleName = defineSchema(schema.enum(ROLE_NAMES));
+export const RoleName = schema.enum(ROLE_NAMES);
 /** A color role name. */
 export type RoleName = schema.Infer<typeof RoleName>;
 
@@ -180,40 +180,38 @@ const LightnessPair = schema.object({
 const Alpha = schema.number().min(0).max(1);
 
 /** A theme's replacement for one role, in the sources the built-in roles use. */
-export const RoleOverride = defineSchema(
-    schema.union([
-        schema.object({
-            /** The palette. */
-            palette: PaletteName,
-            /** The tone's OKLCH lightness, or its offset from the role it follows. */
-            lightness: LightnessPair,
-            /** The role whose lightness the lightness offsets, absolute when absent. */
-            from: RoleName.exactOptional(),
-            /** The opacity, opaque when absent. */
-            alpha: Alpha.exactOptional(),
-        }),
-        schema.object({
-            /** The palette whose seed the role takes. */
-            palette: PaletteName,
-        }),
-        schema.object({
-            /** The role whose color this one takes, keeping its chroma and hue. */
-            from: RoleName,
-            /** The lightness offset from that role. */
-            lightness: LightnessPair,
-            /** The opacity, opaque when absent. */
-            alpha: Alpha.exactOptional(),
-        }),
-        schema.object({
-            /** The light appearance's color. */
-            light: HexColor,
-            /** The dark appearance's color. */
-            dark: HexColor,
-            /** The opacity, opaque when absent. */
-            alpha: Alpha.exactOptional(),
-        }),
-    ]),
-);
+export const RoleOverride = schema.union([
+    schema.object({
+        /** The palette. */
+        palette: PaletteName,
+        /** The tone's OKLCH lightness, or its offset from the role it follows. */
+        lightness: LightnessPair,
+        /** The role whose lightness the lightness offsets, absolute when absent. */
+        from: RoleName.exactOptional(),
+        /** The opacity, opaque when absent. */
+        alpha: Alpha.exactOptional(),
+    }),
+    schema.object({
+        /** The palette whose seed the role takes. */
+        palette: PaletteName,
+    }),
+    schema.object({
+        /** The role whose color this one takes, keeping its chroma and hue. */
+        from: RoleName,
+        /** The lightness offset from that role. */
+        lightness: LightnessPair,
+        /** The opacity, opaque when absent. */
+        alpha: Alpha.exactOptional(),
+    }),
+    schema.object({
+        /** The light appearance's color. */
+        light: HexColor,
+        /** The dark appearance's color. */
+        dark: HexColor,
+        /** The opacity, opaque when absent. */
+        alpha: Alpha.exactOptional(),
+    }),
+]);
 /** A theme's replacement for one role. */
 export type RoleOverride = schema.Infer<typeof RoleOverride>;
 
@@ -483,7 +481,7 @@ export const COLOR_ROLES: Roles = {
 };
 
 /** The surface levels from the page up. */
-export const SurfaceLevel = defineSchema(schema.enum(["base", "raised", "overlay"]));
+export const SurfaceLevel = schema.enum(["base", "raised", "overlay"]);
 /** A surface level. */
 export type SurfaceLevel = schema.Infer<typeof SurfaceLevel>;
 

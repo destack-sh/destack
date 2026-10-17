@@ -1,5 +1,5 @@
 import { PackageError, type Package } from "@destack/package";
-import { defineSchema, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
@@ -69,96 +69,90 @@ const CHECKS = [
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
 
 /** A package-local theme name. */
-export const ThemeName = defineSchema(schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u));
+export const ThemeName = schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u);
 
 /** A corner treatment. */
-export const Radius = defineSchema(schema.enum(["none", "small", "medium", "large", "full"]));
+export const Radius = schema.enum(["none", "small", "medium", "large", "full"]);
 /** A corner treatment. */
 export type Radius = schema.Infer<typeof Radius>;
 
 /** A proportional interface scale. */
-export const Scaling = defineSchema(schema.enum(["90%", "95%", "100%", "105%", "110%"]));
+export const Scaling = schema.enum(["90%", "95%", "100%", "105%", "110%"]);
 /** A proportional interface scale. */
 export type Scaling = schema.Infer<typeof Scaling>;
 
 /** A text style of the type scale. */
-export const TextStyleName = defineSchema(
-    schema.enum([
-        "caption",
-        "footnote",
-        "body",
-        "callout",
-        "subheadline",
-        "headline",
-        "title1",
-        "title2",
-        "title3",
-        "largeTitle",
-    ]),
-);
+export const TextStyleName = schema.enum([
+    "caption",
+    "footnote",
+    "body",
+    "callout",
+    "subheadline",
+    "headline",
+    "title1",
+    "title2",
+    "title3",
+    "largeTitle",
+]);
 /** A text style of the type scale. */
 export type TextStyleName = schema.Infer<typeof TextStyleName>;
 
 /** A font weight by its token name. */
-export const WeightName = defineSchema(schema.enum(["regular", "medium", "semibold", "bold"]));
+export const WeightName = schema.enum(["regular", "medium", "semibold", "bold"]);
 /** A font weight by its token name. */
 export type WeightName = schema.Infer<typeof WeightName>;
 
 /** A theme's change to one text style. */
-export const TextOverride = defineSchema(
-    schema.object({
-        /** The weight the style takes instead of its token weight. */
-        weight: WeightName.exactOptional(),
-    }),
-);
+export const TextOverride = schema.object({
+    /** The weight the style takes instead of its token weight. */
+    weight: WeightName.exactOptional(),
+});
 /** A theme's change to one text style. */
 export type TextOverride = schema.Infer<typeof TextOverride>;
 
 /** A theme as authored, every field beside the name optional. */
-export const ThemeDefinition = defineSchema(
-    schema.object({
-        /** The package-local name. */
-        name: ThemeName,
-        /** The seed of surfaces, text and lines, slate when absent. */
-        base: Seed.exactOptional(),
-        /** The seed of primary actions, selection, focus and the first chart series. */
-        accent: Seed.exactOptional(),
-        /** The seeds of the status roles, red, green, amber and blue when absent. */
-        status: schema
-            .object({
-                /** The seed of destructive actions. */
-                destructive: Seed.exactOptional(),
-                /** The seed of success states. */
-                success: Seed.exactOptional(),
-                /** The seed of warning states. */
-                warning: Seed.exactOptional(),
-                /** The seed of informational states. */
-                info: Seed.exactOptional(),
-            })
-            .exactOptional(),
-        /** The seeds of the chart series after the accent. */
-        chart: schema.array(Seed).max(SERIES.length).exactOptional(),
-        /** The corner treatment, medium when absent. */
-        radius: Radius.exactOptional(),
-        /** The interface scale, 100% when absent. */
-        scaling: Scaling.exactOptional(),
-        /** The font stacks of interface and code text as CSS `font-family` values. */
-        fonts: schema
-            .object({
-                /** The interface font stack. */
-                text: schema.string().min(1).exactOptional(),
-                /** The code font stack. */
-                code: schema.string().min(1).exactOptional(),
-            })
-            .exactOptional(),
-        /** The text styles the theme changes, such as lighter headings for its font. */
-        text: schema.partialRecord(TextStyleName, TextOverride).exactOptional(),
-        /** The density a person's density setting overrides, regular when absent. */
-        density: Density.exactOptional(),
-        /** The roles the theme replaces with a palette's seed or tone or explicit colors. */
-        roles: schema.partialRecord(RoleName, RoleOverride).exactOptional(),
-    }),
-);
+export const ThemeDefinition = schema.object({
+    /** The package-local name. */
+    name: ThemeName,
+    /** The seed of surfaces, text and lines, slate when absent. */
+    base: Seed.exactOptional(),
+    /** The seed of primary actions, selection, focus and the first chart series. */
+    accent: Seed.exactOptional(),
+    /** The seeds of the status roles, red, green, amber and blue when absent. */
+    status: schema
+        .object({
+            /** The seed of destructive actions. */
+            destructive: Seed.exactOptional(),
+            /** The seed of success states. */
+            success: Seed.exactOptional(),
+            /** The seed of warning states. */
+            warning: Seed.exactOptional(),
+            /** The seed of informational states. */
+            info: Seed.exactOptional(),
+        })
+        .exactOptional(),
+    /** The seeds of the chart series after the accent. */
+    chart: schema.array(Seed).max(SERIES.length).exactOptional(),
+    /** The corner treatment, medium when absent. */
+    radius: Radius.exactOptional(),
+    /** The interface scale, 100% when absent. */
+    scaling: Scaling.exactOptional(),
+    /** The font stacks of interface and code text as CSS `font-family` values. */
+    fonts: schema
+        .object({
+            /** The interface font stack. */
+            text: schema.string().min(1).exactOptional(),
+            /** The code font stack. */
+            code: schema.string().min(1).exactOptional(),
+        })
+        .exactOptional(),
+    /** The text styles the theme changes, such as lighter headings for its font. */
+    text: schema.partialRecord(TextStyleName, TextOverride).exactOptional(),
+    /** The density a person's density setting overrides, regular when absent. */
+    density: Density.exactOptional(),
+    /** The roles the theme replaces with a palette's seed or tone or explicit colors. */
+    roles: schema.partialRecord(RoleName, RoleOverride).exactOptional(),
+});
 /** A theme as authored. */
 export type ThemeDefinition = schema.Infer<typeof ThemeDefinition>;
 
