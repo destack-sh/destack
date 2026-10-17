@@ -121,7 +121,7 @@ export class Universe implements AsyncDisposable {
                 (await connected.promise)(audience)(request);
         const directory = new Directory(Snapshot.live(database));
         const home = (account: Identifier<"account">) =>
-            Account.residencyHome(directory.snapshot, account);
+            Account.locate(directory.snapshot, account);
         const registry = Registry.of(directory, home, connect(forgePackage.id), clock);
 
         // apply the residencies, then each step of the platform's declaration, once per run
@@ -218,13 +218,16 @@ export class Universe implements AsyncDisposable {
                 mail: options.mail,
             }),
         );
-        connected.resolve(
-            keystore.fetchAsUniverse(database, issuer, (request) =>
+
+        // call packages in spaces as the universe, with tokens its identity signs
+        const source = keystore.source(database, Scope.universe, {
+            issuer,
+            send: (request) =>
                 request.url.startsWith(origin)
                     ? present(universe, "the universe").fetch(request)
                     : network.fetch(request),
-            ),
-        );
+        });
+        connected.resolve((audience) => source.fetchSigned(audience));
 
         // serve once the run applied the declaration, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {
