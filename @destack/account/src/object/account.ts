@@ -9,7 +9,7 @@ import {
     universe,
     type Creation,
 } from "@destack/access";
-import { Scope, type ObjectReference } from "@destack/sync";
+import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
 import {
     Claim,
@@ -185,6 +185,17 @@ export const Account = {
             "account",
             Identifier.uuid(schema.identifier("user").parse(userId)),
         );
+    },
+
+    /** Read the person whose home a space is: its personal account's owner, absent otherwise. */
+    async homeOwner(reader: Pick<Snapshot, "read">, spaceId: string): Promise<Subject | undefined> {
+        // read the account the space is the home of, answering a personal account's person
+        const id = Account.ofHome(spaceId);
+        const owner = await reader.read(account.table).findFirst({ where: { id } });
+
+        return owner?.kind === "personal"
+            ? user.reference(Scope.universe.id, owner.scope)
+            : undefined;
     },
 
     /** Derive the identifier of an account's home space from the account's UUID. */
