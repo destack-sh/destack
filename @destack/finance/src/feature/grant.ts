@@ -2,7 +2,7 @@ import { PackageId } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { CatalogName } from "../catalog/reference.ts";
 
-/** A product's grant of a feature, as subscription items and purchases keep it. */
+/** A product's grant of a feature, as subscription items and purchases store it. */
 export const FeatureGrant = defineSchema(
     schema.object({
         /** The package declaring the feature. */

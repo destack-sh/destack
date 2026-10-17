@@ -10,16 +10,16 @@ const START = Date.UTC(2026, 9, 1);
 const END = Date.UTC(2026, 10, 1);
 
 test.each(TEST_DIALECTS)(
-    "let the account's viewers read a subscription and its managers cancel it at period end, and keep the provider's transitions to the system on %s",
+    "let the account's viewers read a subscription and its managers cancel it at period end, and leave the provider's transitions to the system on %s",
     async (dialect) => {
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
         await finance.customer();
         const created = await finance.subscribe(await finance.offer(), { start: START, end: END });
 
-        // let the account's viewer read it, and keep it from strangers
+        // let the account's viewer read it, and hide it from strangers
         const read = (person: "bob" | "eve") =>
-            refusal(finance.call(person, subscription, "get", { id: created.id }));
+            refusal(finance.call(person, subscription.call("get", { id: created.id })));
         expect([created.status, await read("bob"), await read("eve")]).toEqual([
             "incomplete",
             "done",
@@ -27,23 +27,29 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // let the owner cancel at the period's end, and refuse the viewer
-        const cancelling = await finance.call("alice", subscription, "update", {
-            id: created.id,
-            cancelAtPeriodEnd: true,
-        });
+        const cancelling = await finance.call(
+            "alice",
+            subscription.call("update", {
+                id: created.id,
+                cancelAtPeriodEnd: true,
+            }),
+        );
         expect([
             cancelling.cancelAtPeriodEnd,
             await refusal(
-                finance.call("bob", subscription, "update", {
-                    id: created.id,
-                    cancelAtPeriodEnd: false,
-                }),
+                finance.call(
+                    "bob",
+                    subscription.call("update", {
+                        id: created.id,
+                        cancelAtPeriodEnd: false,
+                    }),
+                ),
             ),
         ]).toEqual([true, ["FORBIDDEN", "permission denied: bill"]]);
 
         // refuse the provider's transitions to the owner
         expect(
-            await refusal(finance.call("alice", subscription, "activate", { id: created.id })),
+            await refusal(finance.call("alice", subscription.call("activate", { id: created.id }))),
         ).toEqual(["FORBIDDEN", "permission denied: provide"]);
     },
 );
@@ -56,6 +62,6 @@ test.each(TEST_DIALECTS)("refuse subscribing without a customer on %s", async (d
     // refuse a subscription of an account without its billing details
     expect(await refusal(finance.subscribe(offer, { start: START, end: END }))).toEqual([
         "PRECONDITION_FAILED",
-        `account ${ids.buyer} has no customer`,
+        `account ${ids.buyer} lacks a customer`,
     ]);
 });

@@ -8,47 +8,48 @@ import { defineObject, field } from "@destack/object";
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
 /** A good or service a seller offers. */
-export const product = defineObject({
-    name: "product",
-    plural: "products",
-    scope: space,
-    declarable: { from: "create" },
-    owner: "account",
-    fields: {
-        /** The account the row belongs to. */
-        account: field.reference(account).relate("account"),
-        /** The name buyers see, rendered with the declaring package's catalogs. */
-        name: field.message(),
-        /** What buyers get, rendered with the declaring package's catalogs. */
-        description: field.message(),
-        /** Whether buyers may buy it. */
-        active: field.boolean().default(true),
-        /** Whether accounts without a subscription get its grants, only valid without prices. */
-        isDefault: field.boolean().default(false),
-        /** The payment provider's identifier of the product, mirrored at its first sale. */
-        providerId: field.string().optional(),
+export const product = defineObject(
+    {
+        name: "product",
+        plural: "products",
+        scope: space,
+        declarable: { from: "create" },
+        owner: "account",
+        fields: {
+            /** The account the row belongs to. */
+            account: field.reference(account).relate("account"),
+            /** The name buyers see, rendered with the declaring package's catalogs. */
+            name: field.message(),
+            /** What buyers get, rendered with the declaring package's catalogs. */
+            description: field.message(),
+            /** Whether buyers may buy it. */
+            active: field.boolean().default(true),
+            /** Whether accounts without a subscription get its grants, valid without prices. */
+            isDefault: field.boolean().default(false),
+            /** The payment provider's identifier of the product, mirrored at its first sale. */
+            providerId: field.string().optional(),
+        },
+        attributes: { active: "boolean" },
+        permissions: {
+            read: union(through("account", "read"), resource({ active: true })),
+            sell: through("account", "manage"),
+            provide: through("account", "serve"),
+        },
+        constraints: {
+            default: { kind: "index", on: ["accountId"], unique: true, where: { isDefault: true } },
+        },
     },
-    attributes: { active: "boolean" },
-    permissions: {
-        read: union(through("account", "read"), resource({ active: true })),
-        sell: through("account", "manage"),
-        provide: through("account", "serve"),
-    },
-    constraints: {
-        default: { kind: "index", on: ["accountId"], unique: true, where: { isDefault: true } },
-    },
-}).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
-    create: method.create("sell", {
-        fields: ["accountId", "name", "description", "active", "isDefault"],
+    (method) => ({
+        create: method.create("sell", {
+            fields: ["accountId", "name", "description", "active", "isDefault"],
+        }),
+        /** Record the provider's identifier of the product. */
+        record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
+        update: method.update("sell", {
+            fields: ["name", "description", "active", "isDefault"],
+        }),
     }),
-    update: method.update("sell", {
-        fields: ["name", "description", "active", "isDefault"],
-    }),
-    /** Record the provider's identifier of the product. */
-    record: method.update("provide", { isInternal: true, fields: ["providerId"] }),
-}));
+);
 /** A persisted product. */
 export type Product = Select<typeof product.table>;
 

@@ -6,7 +6,7 @@ const API_KEY = "sk_test_destack";
 /** A month in seconds, the fixture's billing period. */
 const MONTH_SECONDS = 30 * 86_400;
 
-/** A Stripe object as the fixture keeps it. */
+/** A Stripe object as the fixture stores it. */
 type StripeObject = Record<string, unknown>;
 
 /** An event the fixture delivers to the webhook endpoint. */
@@ -31,9 +31,9 @@ interface Route {
 export class StripeFixture {
     /** The API key, as the vault would hand it. */
     readonly key: Secret = Secret.of(API_KEY);
-    /** The kept objects, by identifier. */
+    /** The stored objects, by identifier. */
     readonly objects = new Map<string, StripeObject>();
-    /** The answers kept per idempotency key. */
+    /** The answers stored per idempotency key. */
     readonly #answers = new Map<string, StripeObject>();
     /** The count of objects created, which numbers identifiers. */
     #created = 0;
@@ -119,7 +119,7 @@ export class StripeFixture {
         ];
     }
 
-    /** Answer an API request as Stripe would, keeping an answer per idempotency key. */
+    /** Answer an API request as Stripe would, storing an answer per idempotency key. */
     readonly fetch = async (request: Request): Promise<Response> => {
         // refuse a request without the key
         if (request.headers.get("authorization") !== `Bearer ${API_KEY}`) {
@@ -128,9 +128,9 @@ export class StripeFixture {
 
         // answer a repeated key as before
         const key = request.headers.get("idempotency-key");
-        const kept = key === null ? undefined : this.#answers.get(key);
-        if (kept !== undefined) {
-            return Response.json(kept);
+        const answered = key === null ? undefined : this.#answers.get(key);
+        if (answered !== undefined) {
+            return Response.json(answered);
         }
 
         // route the request with its form parameters
@@ -157,6 +157,11 @@ export class StripeFixture {
             { status: 404 },
         );
     };
+
+    /** Tell of a subscription's changed items. */
+    updated(subscriptionId: string): StripeDelivery[] {
+        return [{ type: "customer.subscription.updated", object: this.#object(subscriptionId) }];
+    }
 
     /** Tell of a subscription canceled at its customer's request. */
     canceled(subscriptionId: string): StripeDelivery[] {
@@ -244,7 +249,7 @@ export class StripeFixture {
         return [{ type: "account.updated", object: account }];
     }
 
-    /** Keep events and post each to the webhook endpoint, returning each answer's status. */
+    /** Store events and post each to the webhook endpoint, returning each answer's status. */
     async deliver(
         deliveries: readonly StripeDelivery[],
         endpoint: (request: Request) => Promise<Response>,
@@ -252,7 +257,7 @@ export class StripeFixture {
     ): Promise<number[]> {
         const statuses: number[] = [];
         for (const delivery of deliveries) {
-            // keep the event, which the API serves by its identifier
+            // store the event, which the API serves by its identifier
             const event = this.#create("evt", {
                 object: "event",
                 type: delivery.type,
@@ -273,7 +278,7 @@ export class StripeFixture {
         return statuses;
     }
 
-    /** List the kept objects of a kind by their identifier's prefix, oldest first. */
+    /** List the stored objects of a kind by their identifier's prefix, oldest first. */
     list(prefix: string): StripeObject[] {
         return this.#all(prefix);
     }
@@ -285,7 +290,7 @@ export class StripeFixture {
 
     /** Create an object under a new identifier of a prefix. */
     #create(prefix: string, input: StripeObject): StripeObject {
-        // number the identifier and keep the object
+        // number the identifier and store the object
         const id = `${prefix}_${String(++this.#created).padStart(6, "0")}`;
         const created = { id, created: this.now, ...input };
         this.objects.set(id, created);
@@ -293,7 +298,7 @@ export class StripeFixture {
         return created;
     }
 
-    /** Merge parameters into a kept object. */
+    /** Merge parameters into a stored object. */
     #update(id: string, input: StripeObject): StripeObject {
         const updated = { ...this.#object(id), ...input };
         this.objects.set(id, updated);
@@ -301,17 +306,17 @@ export class StripeFixture {
         return updated;
     }
 
-    /** Read a kept object, refusing an unknown one. */
+    /** Read a stored object, refusing an unknown one. */
     #object(id: string): StripeObject {
         const found = this.objects.get(id);
         if (found === undefined) {
-            throw new TypeError(`the stripe fixture keeps no ${id}`);
+            throw new TypeError(`the stripe fixture has no ${id}`);
         }
 
         return found;
     }
 
-    /** Read a kept object as the API serves it, answering 404 for a missing one. */
+    /** Read a stored object as the API serves it, answering 404 for a missing one. */
     #read(id: string): StripeObject | Response {
         const found = this.objects.get(id);
         if (found === undefined) {
@@ -330,7 +335,7 @@ export class StripeFixture {
         return found;
     }
 
-    /** List the kept objects of a prefix. */
+    /** List the stored objects of a prefix. */
     #all(prefix: string): StripeObject[] {
         return [...this.objects.values()].filter((each) =>
             String(each["id"]).startsWith(`${prefix}_`),
@@ -419,7 +424,7 @@ export class StripeFixture {
     }
 }
 
-/** Decode a Stripe form into nested objects, keeping arrays as index-keyed objects. */
+/** Decode a Stripe form into nested objects, reading arrays as index-keyed objects. */
 export function decodeForm(form: string): StripeObject {
     const decoded: StripeObject = {};
     for (const [name, value] of new URLSearchParams(form)) {
@@ -438,7 +443,7 @@ export function decodeForm(form: string): StripeObject {
     return decoded;
 }
 
-/** Decide whether a value is an object the fixture keeps. */
+/** Decide whether a value is an object the fixture stores. */
 function isObject(value: unknown): value is StripeObject {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }

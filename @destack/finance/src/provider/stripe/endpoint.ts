@@ -20,18 +20,18 @@ const StripeEndpointObject = schema.looseObject({
 
 /** The webhook endpoints Stripe delivers finance's events to. */
 export const StripeEndpoint = {
-    /** Keep one enabled endpoint at a URL delivering finance's events, returning its identifier. */
-    async keep(client: StripeClient, url: string): Promise<string> {
+    /** Create or enable the one endpoint at a URL delivering finance's events, returning its id. */
+    async upsert(client: StripeClient, url: string): Promise<string> {
         // find the endpoint at the URL among the account's
         const listed = await client.request("GET", "/v1/webhook_endpoints", {
             limit: ENDPOINT_PAGE,
         });
         const endpoints = schema.array(StripeEndpointObject).parse(listed["data"]);
-        const kept = endpoints.find((endpoint) => endpoint.url === url);
+        const existing = endpoints.find((endpoint) => endpoint.url === url);
 
         // create a missing endpoint at the API version finance reads
         const events = [...STRIPE_EVENTS].toSorted();
-        if (kept === undefined) {
+        if (existing === undefined) {
             const created = await client.request("POST", "/v1/webhook_endpoints", {
                 url,
                 enabled_events: events,
@@ -41,17 +41,17 @@ export const StripeEndpoint = {
             return StripeObject.parse(created).id;
         }
 
-        // enable a kept one and subscribe it to exactly finance's events
+        // enable an existing one and subscribe it to exactly finance's events
         const isCurrent =
-            kept.status === "enabled" &&
-            kept.enabled_events.toSorted().join(" ") === events.join(" ");
+            existing.status === "enabled" &&
+            existing.enabled_events.toSorted().join(" ") === events.join(" ");
         if (!isCurrent) {
-            await client.request("POST", `/v1/webhook_endpoints/${kept.id}`, {
+            await client.request("POST", `/v1/webhook_endpoints/${existing.id}`, {
                 enabled_events: events,
                 disabled: false,
             });
         }
 
-        return kept.id;
+        return existing.id;
     },
 };

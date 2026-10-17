@@ -1,12 +1,6 @@
 import { expect, test } from "@destack/test";
-import { defineFeature, defineMeter } from "../src/declare/index.ts";
-import {
-    compareFeature,
-    compareMeter,
-    describeFeature,
-    describeMeter,
-    featureSymbols,
-} from "../src/inspect/index.ts";
+import { defineFeature } from "../src/declare/index.ts";
+import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
 import { Catalog } from "../src/catalog/index.ts";
 import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
@@ -24,17 +18,16 @@ import {
 
 test("read described features and meters back from a build, and relate metered features to their meters", async () => {
     // read the storage package's declarations back from its build
-    const catalog = await Catalog.read(
-        await FinanceFixture.release(storage, [
-            requests,
-            stored,
-            sync,
-            support,
-            seats,
-            calls,
-            storageLimit,
-        ]),
-    );
+    const build = await FinanceFixture.release(storage, [
+        requests,
+        stored,
+        sync,
+        support,
+        seats,
+        calls,
+        storageLimit,
+    ]);
+    const catalog = Catalog.of(build.manifest.package, await build.declarations());
     const features = [sync, support, seats, calls, storageLimit];
     expect([
         features.map((feature) => describeFeature(catalog.feature(feature.reference))),
@@ -58,7 +51,7 @@ test("read described features and meters back from a build, and relate metered f
 
     // refuse an undeclared feature
     expect(() => catalog.feature({ packageId: storage.id, name: "backup" })).toThrow(
-        `feature ${storage.id}/backup is not declared`,
+        `feature ${storage.id}/backup is undeclared`,
     );
 });
 
@@ -66,7 +59,7 @@ test("read described features and meters back from a build, and relate metered f
 function entry(feature: Feature, version: string) {
     return {
         description: schema
-            .record(schema.string(), schema.json())
+            .jsonObject()
             .parse(JSON.parse(JSON.stringify(describeFeature(feature)))),
         symbol: { package: { ...storage, version } },
     };
@@ -77,7 +70,7 @@ function declare(definition: FeatureDefinition): Feature {
     return defineFeature(definition, { package: storage });
 }
 
-test("plan a feature's change between releases: keep its kind, and accept the values earlier grants set", () => {
+test("plan a feature's change between releases: hold its kind, and accept the values earlier grants set", () => {
     const outcome = (after: Feature) => {
         try {
             return compareFeature(entry(seats, "2026.9.0"), entry(after, "2026.10.0")).steps;
@@ -90,7 +83,7 @@ test("plan a feature's change between releases: keep its kind, and accept the va
         }
     };
 
-    // keep an unchanged feature, widen its values safely, and refuse a narrowing or a change of kind
+    // accept an unchanged feature, widen its values safely, and refuse a narrowing or a change of kind
     const values = (value: schema.Schema) =>
         declare({ ...seats.definition, kind: "static", value });
     expect([
@@ -102,48 +95,6 @@ test("plan a feature's change between releases: keep its kind, and accept the va
         [],
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],
         "feature/seats: declare a conversion for 2026.10.0",
-        "feature/seats: keep kind static, or declare a feature of kind boolean",
-    ]);
-});
-
-/** Read a description back from JSON, as a release keeps it. */
-function readBack(description: unknown) {
-    return schema
-        .record(schema.string(), schema.json())
-        .parse(JSON.parse(JSON.stringify(description)));
-}
-
-/** Describe the requests meter counting another way or in another unit. */
-function counting(aggregation: "sum" | "max", unit: string) {
-    return readBack(
-        describeMeter(
-            defineMeter({ ...requests.definition, aggregation, unit }, { package: storage }),
-        ),
-    );
-}
-
-test("plan a meter's change between releases: keep its aggregation and unit", () => {
-    const outcome = (aggregation: "sum" | "max", unit: string) => {
-        try {
-            return compareMeter(
-                { description: counting("sum", "request"), symbol: { package: storage } },
-                {
-                    description: counting(aggregation, unit),
-                    symbol: { package: { ...storage, version: "2026.10.0" } },
-                },
-            ).steps;
-        } catch (error) {
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            return error.message;
-        }
-    };
-
-    // keep an unchanged meter, and refuse counting another way or in another unit
-    expect([outcome("sum", "request"), outcome("max", "call")]).toEqual([
-        [],
-        "meter/api.requests: keep aggregation sum, or declare a meter of aggregation max; meter/api.requests: keep unit request, or declare a meter of unit call",
+        "feature/seats: stay at kind static, or declare a feature of kind boolean",
     ]);
 });

@@ -1,11 +1,8 @@
 # @destack/finance
 
-`@destack/finance` is Stripe Billing's `product`, `price`, `customer`, `subscription`, `invoice` and `checkout-session` with Stripe Entitlements' features, `defineMeter` is a Stripe billing meter, `defineSku` and `charge` are FinOps FOCUS's SKU prices and cost rows, and `StripeProvider` bills through Stripe Connect, Checkout and Tax.
+`@destack/finance` sells products with features, bills accounts for subscriptions and usage through a payment provider, and derives what each account may use.
 
 ```ts
-// a Stripe billing meter
-defineMeter({ name: "api.requests", description, aggregation: "sum", unit: "request" });
-// a Stripe Entitlements feature
 defineFeature({
     name: "api.calls",
     description,
@@ -13,29 +10,21 @@ defineFeature({
     meters: [requests.reference],
     reset: "period",
 });
-// Stripe's recurring.usage_type
-recurring: { interval: "month", intervalCount: 1, usage: "licensed" };
-// a Stripe Checkout Session, kept in the residency's home and owned by the buying account
-await client.checkoutSession.create({ spaceId: home, accountId, requestId, product, currency: "CHF" });
-// FOCUS ServiceName, ServiceCategory, PricingUnit
-defineSku({
-    name: "cloudflare.r2.storage",
-    service: "R2",
-    category: "Storage",
-    pricingUnit: "GB-month",
-    ...price,
+await client.checkoutSession.create({
+    spaceId: home,
+    accountId,
+    requestId,
+    product,
+    currency: "EUR",
 });
-// a FOCUS row: pricingQuantity, listUnitPrice, listCost, billedCost
-Rate.usage(storage, 500e9, true, "1.4");
+const { items } = await client.entitlement.list({ spaceId: home, where: { accountId } });
 ```
 
 ## Products
 
-A stack declares a seller's products by key, each with its name and description as messages, its recurring prices, each including as much usage as its fee, and its feature grants.
+A stack declares a seller and its products, each with recurring prices and feature grants.
 
 ```ts
-import { t } from "@destack/locale";
-
 export const shop = defineStack({
     sellers: { platform: { provider: "stripe", country: "AT", creditPrices: { EUR: "1" } } },
     products: {
@@ -58,12 +47,12 @@ export const shop = defineStack({
 
 ## SKUs
 
-`defineSku` declares a provider's list price per pricing unit of the usage a meter measures.
+`defineSku` declares a provider's list price per pricing unit of what a meter measures, optionally capped per billing period with `maximumQuantity`.
 
 ```ts
 export const storage = defineSku({
     name: "cloudflare.r2.storage",
-    description: "R2 standard storage, kept on average over the month.",
+    description: "R2 standard storage, averaged over the month.",
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
@@ -71,105 +60,67 @@ export const storage = defineSku({
     pricingUnit: "GB-month",
     unitSize: 1_000_000_000,
     currency: "USD",
-    unitAmount: "1.5", // cents
+    unitAmount: "1.5",
     source: "https://developers.cloudflare.com/r2/pricing/",
     observedAt: "2026-10-06",
 });
 ```
 
-`maximumQuantity` caps the pricing units each resource pays for per billing period, as hourly machines capped at a monthly price bill.
-
-```ts
-// 5 credit-cents an awake hour, at most 500 hours a period for each machine
-defineSku({
-    name: "destack.machine.small",
-    pricingUnit: "hour",
-    unitAmount: "5",
-    maximumQuantity: 500,
-    ...price,
-});
-```
-
 ## Usage
 
-A package appends `usage` events in its own scope, and `Metering` rates them past each paying account's slot into its charges and entitlements.
+A space's machine appends `usage` at the home of the account paying for it, and `Metering` rates it into charges and entitlements.
 
 ```ts
-await events.append(usage, [
-    {
-        scope: spaceId,
-        id,
-        time: EventTime.of(from),
-        keys: { meter, sku, installation: null, quantity, level },
-        data: { unit: "byte", from, to },
-    },
-]);
-// [{ kind: "metered", limit, usage, state: "near", … }]
-const { items } = await client.entitlement.list({
-    spaceId: home,
-    where: { accountId, feature: "storage" },
+await finance.usage.append({
+    accountId: payer,
+    requestId,
+    items: [
+        { id, time, meter, sku, spaceId, machineId: null, installationId, quantity, level, data },
+    ],
+});
+await finance.usage.series({
+    accountId: payer,
+    where: { spaceId, meter },
+    fold: "sum",
+    measure: "quantity",
+    group: [],
+    from,
+    before,
 });
 ```
 
-## Service
+## Server
 
-`implementFinance` serves the finance objects in the residency's home over its database and usage events, billing through a `PaymentProvider`.
+Finance's server runs in each residency's home: it reads its `provider` and `tag` settings and its Stripe key, finds sellers through the account package, and resolves catalogs through forge.
 
 ```ts
-import { implementFinance } from "@destack/finance/server";
-import { StripeProvider } from "@destack/finance/stripe";
+import financeServer from "@destack/finance/server";
 
-const provider = new StripeProvider({
-    key: stripeSecretKey,
-    webhookSecret: stripeWebhookSecret,
-    fetch,
-    pages,
-    clock,
-});
-const finance = implementFinance({
-    database,
-    accounts,
-    installation,
-    callKey,
-    registry,
-    tag: "latest",
-    provider,
-    events,
-    report,
-});
+const extension = financeServer(context); // one installation's server, built from its context
 ```
 
 ## Installation
 
-Finance installs in each residency's home: its database and `usage` bucket bind as resources, the `provider` and `tag` settings choose its payment provider and the releases it sells, and it reads releases through the registry its machine mounts.
+Finance installs in each residency's home with its Stripe key as a secret, and its `provider` and `tag` settings.
 
 ```ts
-install(
-    financePackage,
-    {
-        main: "finance",
-        usage: "usage",
-        "stripe-secret-key": "stripe-secret-key",
-        "stripe-webhook": "stripe-webhook",
-    },
-    { alias: "finance" },
-);
+install(financePackage, { "stripe-secret-key": "stripe-secret-key" }, { name: "finance" });
 settings: {
-    provider: { setting: provider, value: { kind: "stripe", pages }, mode: "set" },
+    provider: { setting: provider, value: "stripe", mode: "set" },
     tag: { setting: tag, value: "dev", mode: "set" },
 };
 ```
 
 ## Tests
 
-`FinanceFixture` serves finance over a test database with its home copied, and `StripeFixture` is an in-process Stripe.
+`FinanceFixture` runs finance over a test database with each package published as a forge release, and `StripeFixture` is an in-process Stripe.
 
 ```ts
 const finance = await FinanceFixture.open("sqlite", [[plan.package, [storage, storageSku]]], {
     provider,
     clock,
-    report,
 });
+await finance.append(payer, [{ id, space, meter, quantity, time }]);
+await finance.publish(plan.package, [storage, storageSku]); // a later release, now the latest
 const stripe = new StripeFixture(Date.now());
-await stripe.deliver([{ type: "invoice.paid", object: stripe.pay(invoiceId) }], endpoint, url);
 ```

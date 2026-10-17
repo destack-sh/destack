@@ -1,7 +1,7 @@
 import { ModuleMetadata, Package } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import {
-    ALLOWANCE_KINDS,
+    RESOURCE_KINDS,
     Feature,
     FeatureMetadata,
     FeatureReset,
@@ -17,18 +17,18 @@ export function defineFeature<Value extends schema.Schema>(
     // stamp the declaring package
     const owner = Package.parse(ModuleMetadata.require(module, "defineFeature").package);
 
-    // validate the name, the description and the allowance, each resource allowed by its kind of feature
+    // validate the name, the description and the resource, each allowed by its kind of feature
     FeatureMetadata.parse({
         name: definition.name,
         description: definition.description,
-        ...(definition.allowance === undefined ? {} : { allowance: definition.allowance }),
+        ...(definition.resource === undefined ? {} : { resource: definition.resource }),
     });
     if (
-        definition.allowance !== undefined &&
-        ALLOWANCE_KINDS[definition.allowance] !== definition.kind
+        definition.resource !== undefined &&
+        RESOURCE_KINDS[definition.resource] !== definition.kind
     ) {
         throw new TypeError(
-            `feature ${definition.name} allows ${definition.allowance} as no ${ALLOWANCE_KINDS[definition.allowance]} feature`,
+            `feature ${definition.name} allows ${definition.resource}, which needs a ${RESOURCE_KINDS[definition.resource]} feature`,
         );
     }
 

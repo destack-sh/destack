@@ -2,7 +2,7 @@ import { account, space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { BILLING_PERMISSIONS } from "./customer.ts";
+import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Currency } from "../rate/amount.ts";
 
 /** The fields the provider writes on an invoice. */
@@ -23,54 +23,55 @@ const INVOICE_FIELDS = [
 ] as const;
 
 /** A bill the provider issued to an account, mirrored as the provider reports it. */
-export const invoice = defineObject({
-    name: "invoice",
-    plural: "invoices",
-    scope: space,
-    owner: "account",
-    fields: {
-        /** The account the row belongs to. */
-        account: field.reference(account).relate("account"),
-        /** The invoice's number once finalized, absent on a draft. */
-        number: field.string(schema.string().min(1)).optional(),
-        /** Where the invoice stands at the provider. */
-        status: field.enum(["draft", "open", "paid", "void", "uncollectible"]),
-        /** The currency of the amounts. */
-        currency: field.string(Currency),
-        /** The amount before tax, in the currency's minor unit. */
-        subtotal: field.integer(),
-        /** The tax. */
-        tax: field.integer(),
-        /** The amount due. */
-        total: field.integer(),
-        /** The amount paid so far. */
-        amountPaid: field.integer(),
-        /** When the billed period started. */
-        periodStart: field.time().optional(),
-        /** When the billed period ended. */
-        periodEnd: field.time().optional(),
-        /** The provider's page showing and paying the invoice. */
-        hostedUrl: field.string(schema.url()).optional(),
-        /** The provider's PDF of the invoice. */
-        pdfUrl: field.string(schema.url()).optional(),
-        /** When the provider issued the invoice. */
-        issuedAt: field.time(),
-        /** The provider's identifier of the invoice. */
-        providerId: field.string(),
+export const invoice = defineObject(
+    {
+        name: "invoice",
+        plural: "invoices",
+        scope: space,
+        owner: "account",
+        fields: {
+            /** The account the row belongs to. */
+            account: field.reference(account).relate("account"),
+            /** The invoice's number once finalized, absent on a draft. */
+            number: field.string(schema.string().min(1)).optional(),
+            /** Where the invoice stands at the provider. */
+            status: field.enum(["draft", "open", "paid", "void", "uncollectible"]),
+            /** The currency of the amounts. */
+            currency: field.string(Currency),
+            /** The amount before tax, in the currency's minor unit. */
+            subtotal: field.integer(),
+            /** The tax. */
+            tax: field.integer(),
+            /** The amount due. */
+            total: field.integer(),
+            /** The amount paid so far. */
+            amountPaid: field.integer(),
+            /** When the billed period started. */
+            periodStart: field.time().optional(),
+            /** When the billed period ended. */
+            periodEnd: field.time().optional(),
+            /** The provider's page showing and paying the invoice. */
+            hostedUrl: field.string(schema.url()).optional(),
+            /** The provider's PDF of the invoice. */
+            pdfUrl: field.string(schema.url()).optional(),
+            /** When the provider issued the invoice. */
+            issuedAt: field.time(),
+            /** The provider's identifier of the invoice. */
+            providerId: field.string(),
+        },
+        permissions: BILLING_PERMISSIONS,
+        reserved: ["provide"],
+        constraints: {
+            provider: { kind: "index", on: ["providerId"], unique: true },
+        },
     },
-    permissions: BILLING_PERMISSIONS,
-    reserved: ["provide"],
-    constraints: {
-        provider: { kind: "index", on: ["providerId"], unique: true },
-    },
-}).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
-    create: method.create("provide", {
-        isInternal: true,
-        fields: ["accountId", ...INVOICE_FIELDS],
+    (method) => ({
+        create: method.create("provide", {
+            isInternal: true,
+            fields: ["accountId", ...INVOICE_FIELDS],
+        }),
+        update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
     }),
-    update: method.update("provide", { isInternal: true, fields: INVOICE_FIELDS }),
-}));
+);
 /** A persisted invoice. */
 export type Invoice = Select<typeof invoice.table>;

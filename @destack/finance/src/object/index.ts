@@ -1,3 +1,4 @@
+export * from "./billing.ts";
 export * from "./customer.ts";
 export * from "./seller.ts";
 export * from "./product.ts";
@@ -5,6 +6,8 @@ export * from "./product-feature.ts";
 export * from "./price.ts";
 export * from "./subscription.ts";
 export * from "./checkout-session.ts";
-export * from "./entitlement.ts";
+export * from "./source.ts";
+export * from "./allotment.ts";
 export * from "./invoice.ts";
 export * from "./charge.ts";
+export * from "./usage.ts";

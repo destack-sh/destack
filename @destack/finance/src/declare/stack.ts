@@ -1,4 +1,4 @@
-import type { CallOf } from "@destack/object";
+import type { MethodContextOf } from "@destack/object";
 import type {} from "@destack/stack/declare";
 import type { price, product, productFeature, seller } from "../object/index.ts";
 
@@ -6,7 +6,7 @@ import type { price, product, productFeature, seller } from "../object/index.ts"
 type Declared<
     Type extends typeof seller | typeof product | typeof price | typeof productFeature,
     Supplied extends string,
-> = Omit<CallOf<Type, "create">["input"], "spaceId" | "id" | Supplied>;
+> = Omit<MethodContextOf<Type, "create">["input"], "spaceId" | "id" | Supplied>;
 
 /** Add the sellers and products collections to stacks. */
 declare module "@destack/stack/declare" {

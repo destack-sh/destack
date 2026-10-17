@@ -4,41 +4,42 @@ import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import type { Catalog } from "../catalog/catalog.ts";
 import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
 
 /** A feature a product grants its buyers, with the value or limit of the grant. */
-export const productFeature = defineObject({
-    name: "product-feature",
-    plural: "productFeatures",
-    scope: space,
-    declarable: { from: "create" },
-    nested: { in: product, delete: "cascade", receive: "sell" },
-    fields: {
-        /** The package declaring the feature. */
-        packageId: field.string(PackageId),
-        /** The feature's name in its package. */
-        feature: field.string(CatalogName),
-        /** The value of a static feature, or the limit of a metered one, unlimited without one. */
-        value: field.json(schema.json()).optional(),
+export const productFeature = defineObject(
+    {
+        name: "product-feature",
+        plural: "productFeatures",
+        scope: space,
+        declarable: { from: "create" },
+        nested: { in: product, delete: "cascade", receive: "sell" },
+        fields: {
+            /** The package declaring the feature. */
+            packageId: field.string(PackageId),
+            /** The feature's name in its package. */
+            feature: field.string(CatalogName),
+            /** A static feature's value or a metered one's limit, unlimited without one. */
+            value: field.json(schema.json()).optional(),
+        },
+        permissions: {
+            read: through("parent", "read"),
+            sell: through("parent", "sell"),
+        },
+        constraints: {
+            unique: { kind: "index", on: ["parentId", "packageId", "feature"], unique: true },
+        },
     },
-    permissions: {
-        read: through("parent", "read"),
-        sell: through("parent", "sell"),
-    },
-    constraints: {
-        unique: { kind: "index", on: ["parentId", "packageId", "feature"], unique: true },
-    },
-}).methods((method) => ({
-    get: method.get("read"),
-    list: method.list("read"),
-    create: method.create("sell", { fields: ["packageId", "feature", "value"] }),
-    update: method.update("sell", { fields: ["value"] }),
-    delete: method.delete("sell"),
-}));
+    (method) => ({
+        create: method.create("sell", { fields: ["packageId", "feature", "value"] }),
+        update: method.update("sell", { fields: ["value"] }),
+        delete: method.delete("sell"),
+    }),
+);
 /** A persisted product feature. */
 export type ProductFeature = Select<typeof productFeature.table>;
 
@@ -52,14 +53,16 @@ export const ProductFeature = {
             readonly feature: string;
             readonly value?: JsonValue;
         },
-        snapshot: Snapshot,
+        reader: Pick<Snapshot, "read">,
         catalog: (packageId: PackageId) => Promise<Catalog>,
         publisher: Publisher,
     ): Promise<void> {
         // read the account selling the product
-        const sold = await snapshot.row(product.table, { id: product.identifier(grant.parentId) });
-        if (sold === null) {
-            throw new ServiceError("NOT_FOUND", { message: `no product ${grant.parentId}` });
+        const sold = await reader
+            .read(product.table)
+            .findFirst({ where: { id: product.identifier(grant.parentId) } });
+        if (sold === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no product ${grant.parentId}` });
         }
 
         // refuse a feature of a package another account publishes
@@ -68,7 +71,7 @@ export const ProductFeature = {
             name: grant.feature,
         });
         const declared = await catalog(reference.packageId);
-        await Seller.requirePublisher(snapshot, sold.accountId, declared.package, publisher);
+        await Seller.requirePublisher(sold.accountId, declared.package, publisher, reader);
 
         // refuse a value the feature's declaration rejects
         declared.feature(reference).requireGrant(grant.value ?? null);

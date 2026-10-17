@@ -1,14 +1,22 @@
-import { account, allowance, key, machine, organisation } from "@destack/account/object";
-import { journal } from "@destack/audit/stack";
+import {
+    account,
+    claim,
+    entitlement,
+    key,
+    machine,
+    organisation,
+    space,
+    user,
+} from "@destack/account/object";
+import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { call, journal } from "@destack/object";
 import { defineDatabase } from "@destack/db";
-import { eventTables } from "@destack/event/stack";
-import { announcement } from "@destack/notification";
-import { usage } from "../meter/usage.ts";
+import { packageObject, release, tag } from "@destack/forge/object";
+import { notificationTables } from "@destack/notification/stack";
 import {
     charge,
     checkoutSession,
     customer,
-    entitlement,
     invoice,
     price,
     product,
@@ -16,9 +24,10 @@ import {
     seller,
     subscription,
     subscriptionItem,
+    usage,
 } from "../object/index.ts";
 
-/** The tables of the residency home's main database that finance uses, with its copies. */
+/** The tables of the residency home's main database that finance uses, with its replicas. */
 export const homeDatabase = defineDatabase({
     name: "main",
     tables: [
@@ -34,11 +43,13 @@ export const homeDatabase = defineDatabase({
             entitlement,
             invoice,
             charge,
-            allowance,
-            announcement,
+            usage,
         ].flatMap((type) => type.tables),
-        ...eventTables([usage]),
+        ...notificationTables,
+        ...[user, installation, installationRevision, declaration].flatMap((type) => type.tables),
+        ...[packageObject, release, tag, claim].flatMap((type) => type.tables),
         journal,
+        ...call.tables,
     ],
-    copies: [account.table, organisation.table, machine.table, key.table],
+    replicated: [account.table, organisation.table, space.table, machine.table, key.table],
 });

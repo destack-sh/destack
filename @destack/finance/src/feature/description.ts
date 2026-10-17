@@ -20,7 +20,7 @@ export const FeatureDescription = defineSchema(
             /** A fixed value each grant sets. */
             kind: schema.literal("static"),
             /** The JSON Schema of the value a grant sets. */
-            value: schema.record(schema.string(), schema.json()),
+            value: schema.jsonObject(),
         }),
         description.extend({
             /** Usage of meters up to the limit a grant sets. */

@@ -6,6 +6,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { defineFeature } from "../src/declare/index.ts";
 import { price, product, productFeature, seller } from "../src/object/index.ts";
 import { FinanceFixture } from "../src/test/index.ts";
+import type { StackDefinition } from "@destack/stack/declare";
 
 /** The platform's package declaring the plans' features, which the platform's seller publishes. */
 const tiers = Package.parse({
@@ -36,7 +37,10 @@ function monthly(unitAmount: number) {
 }
 
 /** Declare the platform's seller and a Go plan at a fee, with or without its Pro sibling. */
-function catalog(fee: number, isPro: boolean) {
+function catalog(
+    fee: number,
+    isPro: boolean,
+): Required<Pick<StackDefinition, "sellers" | "products">> {
     const go = {
         name: t`Go`,
         description: t`Go.`,
@@ -47,13 +51,13 @@ function catalog(fee: number, isPro: boolean) {
     const pro = { ...go, name: t`Pro`, prices: { eur: monthly(10_000) } };
 
     return {
-        sellers: { platform: { provider: "stripe", country: "AT", creditPrices: { EUR: "1" } } },
+        sellers: { platform: { provider: "stripe", creditPrices: { EUR: "1" } } },
         products: isPro ? { go, pro } : { go },
-    } as const;
+    };
 }
 
 test.each(TEST_DIALECTS)(
-    "declare the platform's seller active and its plans with their prices and grants, keep them as declared, price new terms anew, archive the plans the stack stops declaring and keep its seller on %s",
+    "declare the platform's seller active and its plans with their prices and grants, store them as declared, price new terms anew, archive the plans the stack stops declaring and keep its seller on %s",
     async (dialect) => {
         // declare Go and Pro twice
         const finance = await FinanceFixture.open(dialect, [[tiers, [seats]]]);
@@ -74,13 +78,13 @@ test.each(TEST_DIALECTS)(
             again: again.steps,
             changed: changed.steps.map((step) => [step.action, step.target.split("/")[0]]),
             sellers: sellers.map((row) => [row.status, row.providerId]),
-            products: products.map((row) => [row.name.source, row.active]).toSorted(),
+            products: products.map((row) => [row.name.source, row.active]).toSorted(byJson),
             prices: prices
                 .map((row) => [named.get(row.parentId), row.unitAmount, row.active])
-                .toSorted(),
+                .toSorted(byJson),
             grants: grants
                 .map((row) => [named.get(row.parentId), row.feature, row.value])
-                .toSorted(),
+                .toSorted(byJson),
         }).toEqual({
             again: [],
             // write Go's new price, then retire in reverse order: Pro's grant, the old prices, Pro
@@ -105,3 +109,8 @@ test.each(TEST_DIALECTS)(
         });
     },
 );
+
+/** Order rows by their JSON text. */
+function byJson(left: unknown, right: unknown): number {
+    return JSON.stringify(left).localeCompare(JSON.stringify(right));
+}

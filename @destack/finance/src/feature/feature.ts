@@ -1,19 +1,20 @@
-import { ALLOWANCE_RESOURCES, type AllowanceResource } from "@destack/account/object";
+import {
+    ENTITLEMENT_RESOURCES,
+    type EntitlementResource,
+    FEATURE_KINDS,
+} from "@destack/account/object";
 import { PackageId, type Package } from "@destack/package";
 import { defineSchema, schema, type JsonValue } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
+import { CallError } from "@destack/runtime/error";
 import { CatalogName, CatalogReference } from "../catalog/reference.ts";
-
-/** What a feature grants: access alone, a fixed value, or usage of meters up to a limit. */
-export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
 
 /** What a feature grants. */
 export const FeatureKind = defineSchema(schema.enum(FEATURE_KINDS));
 /** What a feature grants. */
 export type FeatureKind = schema.Infer<typeof FeatureKind>;
 
-/** The kind of feature allowing each resource. */
-export const ALLOWANCE_KINDS: Readonly<Record<AllowanceResource, FeatureKind>> = {
+/** The kind of feature allowing each platform resource. */
+export const RESOURCE_KINDS: Readonly<Record<EntitlementResource, FeatureKind>> = {
     database: "metered",
     storage: "metered",
     compute: "metered",
@@ -37,8 +38,8 @@ export const FeatureMetadata = defineSchema(
         name: CatalogName,
         /** What the feature grants. */
         description: schema.string().min(1),
-        /** The resource the feature's grant allows, absent for a feature without an allowance. */
-        allowance: schema.enum(ALLOWANCE_RESOURCES).exactOptional(),
+        /** The platform resource the feature's grant allows, absent for a package's own feature. */
+        resource: schema.enum(ENTITLEMENT_RESOURCES).exactOptional(),
     }),
 );
 
@@ -74,7 +75,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     /** The name, description and kind. */
     readonly definition: FeatureDefinition<Value>;
 
-    /** Hold a checked declaration. */
+    /** Create a feature from a checked declaration. */
     constructor(owner: Package, definition: FeatureDefinition<Value>) {
         this.package = owner;
         this.definition = definition;
@@ -126,8 +127,8 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
 
         // refuse any other value
         if (!isAccepted) {
-            throw new ServiceError("BAD_REQUEST", {
-                message: `feature ${CatalogReference.key(this.reference)} does not accept the granted value`,
+            throw new CallError("BAD_REQUEST", {
+                message: `feature ${CatalogReference.key(this.reference)} refuses the granted value`,
             });
         }
     }

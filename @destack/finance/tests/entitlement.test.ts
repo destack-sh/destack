@@ -1,15 +1,11 @@
 import { eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { aligned } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import {
-    Entitlement,
-    Price,
-    subscription,
-    type Subscription,
-    subscriptionItem,
-} from "../src/object/index.ts";
-import { CALL_LIMIT, Finance, ids, STORAGE_LIMIT, SEATS } from "./fixture/finance.ts";
+import { Price, subscription, type Subscription, subscriptionItem } from "../src/object/index.ts";
+import { spaces } from "../src/test/index.ts";
+import { CALL_LIMIT, Finance, ids, resolved, STORAGE_LIMIT, SEATS } from "./fixture/finance.ts";
+import type { Entitlement } from "@destack/account/object";
 import {
     calls,
     storageLimit,
@@ -20,8 +16,7 @@ import {
     support,
     sync,
 } from "./fixture/storage.ts";
-import { Caller } from "@destack/access";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 /** The start of the subscription's first billing period. */
 const START = Date.UTC(2026, 9, 1);
@@ -41,20 +36,9 @@ const END = Date.UTC(2026, 10, 1);
 /** The end of the second billing period. */
 const NEXT = Date.UTC(2026, 11, 1);
 
-/** The CloudEvents source of the fixture's meter events. */
-const SOURCE = "/machines/eu-central";
-
 /** Read the derived fields of entitlements, without their bookkeeping. */
 function derived(rows: readonly Entitlement[]) {
-    return rows.map((row) => [
-        row.feature,
-        row.kind,
-        row.value,
-        row.limit,
-        row.usage,
-        row.resetAt,
-        row.source.type,
-    ]);
+    return rows.map((row) => [row.feature, row.kind, row.value, row.limit, row.usage, row.resetAt]);
 }
 
 /** Open the service with Alice's customer for Acme's buyer account and Carol's offer. */
@@ -76,7 +60,7 @@ async function append(
         ids.buyer,
         Object.entries(events).map(([id, use]) => ({
             id,
-            source: SOURCE,
+            space: spaces.notes,
             meter: { packageId: storage.id, name: use.meter },
             quantity: use.value,
             time: use.time,
@@ -90,8 +74,8 @@ async function transition(
     name: "activate" | "fail" | "cancel",
     row: Subscription,
 ): Promise<Subscription> {
-    return aligned(
-        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+    return nth(
+        await finance.store.mutate(finance.store.serving(subscription), {
             id: RequestId.create(Date.now()),
             calls: [subscription.call(name, subscription.target(row))],
         }),
@@ -119,11 +103,11 @@ test.each(TEST_DIALECTS)(
         expect([due.status, derived(await finance.entitlements(ids.buyer))]).toEqual([
             "past_due",
             [
-                ["api.calls", "metered", null, CALL_LIMIT, 0, END, "subscription-item"],
-                ["seats", "static", SEATS, null, null, null, "subscription-item"],
-                ["storage.limit", "metered", null, STORAGE_LIMIT, 0, null, "subscription-item"],
-                ["support", "static", "priority", null, null, null, "subscription-item"],
-                ["sync", "boolean", null, null, null, null, "subscription-item"],
+                ["api.calls", "metered", null, CALL_LIMIT, 0, END],
+                ["seats", "static", SEATS, null, null, null],
+                ["storage.limit", "metered", null, STORAGE_LIMIT, 0, null],
+                ["support", "static", "priority", null, null, null],
+                ["sync", "boolean", null, null, null, null],
             ],
         ]);
 
@@ -144,7 +128,7 @@ test.each(TEST_DIALECTS)(
             await finance.subscribe(offer, { start: START, end: END }),
         );
 
-        // sum the requests within the period and keep the latest stored size
+        // sum the requests within the period and take the latest stored size
         await append(finance, {
             before: { meter: requests.name, value: 5, time: START - 1 },
             first: { meter: requests.name, value: 10, time: START },
@@ -163,7 +147,7 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // start the requests again once the provider renews the subscription into the next period
-        await finance.store.mutate(Caller.of(finance.store.principal, Date.now()), {
+        await finance.store.mutate(finance.store.serving(subscription), {
             id: RequestId.create(Date.now()),
             calls: [
                 subscription.call("sync", {
@@ -217,7 +201,7 @@ test.each(TEST_DIALECTS)(
         const rows = await finance.entitlements(ids.buyer);
         expect(
             [sync, seats, support, calls, storageLimit].map((feature) =>
-                Entitlement.resolve(rows, feature.reference),
+                resolved(rows, feature.reference),
             ),
         ).toEqual([
             { kind: "boolean" },
@@ -236,7 +220,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "keep one entitlement per item of a subscription granting one feature twice, and add their limits on %s",
+    "add the limits of a subscription's items granting one feature twice into one entitlement on %s",
     async (dialect) => {
         const { finance, offer } = await open(dialect);
 
@@ -247,19 +231,16 @@ test.each(TEST_DIALECTS)(
             await finance.subscribe(offer, { start: START, end: END }),
         );
         const addon = [{ packageId: storage.id, feature: calls.name, value: ADDON_CALLS }];
-        const item = await finance.item(active, offer.monthly, addon);
+        await finance.item(active, offer.monthly, addon);
         await finance.entitle();
 
-        // keep a row per item, and resolve their summed limit
+        // store one row for the feature with the summed limit
         const rows = await finance.entitlements(ids.buyer);
-        const granted = rows.filter((row) => row.feature === calls.name);
         expect([
-            Object.fromEntries(
-                granted.map((row) => [row.source.id === item.id ? "addon" : "plan", row.limit]),
-            ),
-            Entitlement.resolve(rows, calls.reference),
+            rows.filter((row) => row.feature === calls.name).length,
+            resolved(rows, calls.reference),
         ]).toEqual([
-            { addon: ADDON_CALLS, plan: CALL_LIMIT },
+            1,
             {
                 kind: "metered",
                 limit: CALL_LIMIT + ADDON_CALLS,
@@ -287,7 +268,7 @@ test.each(TEST_DIALECTS)(
             .update(subscriptionItem.table)
             .set({
                 grants: (
-                    await Price.offer(Snapshot.live(finance.test.database), offer.monthly)
+                    await Price.offer(offer.monthly, Snapshot.live(finance.test.database))
                 ).grants.map((grant) =>
                     grant.feature === support.name ? { ...grant, value: "community" } : grant,
                 ),
@@ -300,10 +281,7 @@ test.each(TEST_DIALECTS)(
 
         // count the requests within the period, and take the changed support tier with them
         const rows = await finance.entitlements(ids.buyer);
-        expect([
-            Entitlement.resolve(rows, calls.reference),
-            Entitlement.resolve(rows, support.reference),
-        ]).toEqual([
+        expect([resolved(rows, calls.reference), resolved(rows, support.reference)]).toEqual([
             { kind: "metered", limit: CALL_LIMIT, usage: 10, resetAt: END, state: "within" },
             { kind: "static", value: "community" },
         ]);
@@ -333,7 +311,14 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // drop the support entitlement once a later release of storage stops declaring it
-        finance.publish(storage, "2026.10.0", [requests, stored, sync, seats, calls, storageLimit]);
+        await finance.publish(storage, "2026.10.0", [
+            requests,
+            stored,
+            sync,
+            seats,
+            calls,
+            storageLimit,
+        ]);
         await finance.entitle();
         expect(await features()).toEqual(["api.calls", "seats", "storage.limit", "sync"]);
     },

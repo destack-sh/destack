@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
-import type { ProviderSubscription } from "../object/index.ts";
-import type { ProviderInvoice } from "../provider/provider.ts";
+import type { ProviderSubscription } from "../../object/index.ts";
+import type { ProviderInvoice } from "../provider.ts";
 
 /** A Stripe time, in seconds since the Unix epoch. */
 const Seconds = schema.number().int();
@@ -156,7 +156,7 @@ export const Stripe = {
         const row = StripeSubscription.parse(input);
         const [first] = row.items.data;
         if (first === undefined) {
-            throw new TypeError(`stripe subscription ${row.id} has no items`);
+            throw new TypeError(`stripe subscription ${row.id} is empty`);
         }
 
         return {

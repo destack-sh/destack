@@ -22,7 +22,7 @@ export const compareSku: Comparator = (before, after) => {
         (field) => canonicalize(earlier[field]) !== canonicalize(later[field]),
     ).map((field) => ({
         target,
-        detail: `keep ${field} ${canonicalize(earlier[field])}, or declare another sku`,
+        detail: `stay at ${field} ${canonicalize(earlier[field])}, or declare another sku`,
     }));
     if (problems.length > 0) {
         throw new PlanError(problems);

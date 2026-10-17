@@ -1,6 +1,6 @@
 import { Secret } from "@destack/vault";
-import type { Fetch } from "@destack/service";
-import { ServiceError } from "@destack/service/error";
+import type { Fetch } from "@destack/runtime";
+import { CallError } from "@destack/runtime/error";
 
 /** The Stripe API's origin. */
 export const STRIPE_API = "https://api.stripe.com";
@@ -62,12 +62,12 @@ export class StripeClient {
         // refuse a missing object as missing, and any other error answer with Stripe's message
         const body: unknown = await response.json();
         if (response.status === 404) {
-            throw new ServiceError("NOT_FOUND", {
-                message: `stripe keeps no ${path}: ${messageOf(body)}`,
+            throw new CallError("NOT_FOUND", {
+                message: `stripe has no ${path}: ${readMessage(body)}`,
             });
         } else if (!response.ok || typeof body !== "object" || body === null) {
-            throw new ServiceError("BAD_GATEWAY", {
-                message: `stripe answered ${response.status} to ${method} ${path}: ${messageOf(body)}`,
+            throw new CallError("BAD_GATEWAY", {
+                message: `stripe answered ${response.status} to ${method} ${path}: ${readMessage(body)}`,
             });
         }
 
@@ -109,9 +109,9 @@ function isList(value: StripeParameter): value is readonly StripeParameter[] {
     return Array.isArray(value);
 }
 
-/** Read the message of a Stripe error answer. */
-function messageOf(body: unknown): string {
-    // read `error.message` when the answer has one
+/** Read the message of a Stripe error answer, else the whole answer. */
+function readMessage(body: unknown): string {
+    // read the error's message
     if (typeof body === "object" && body !== null && "error" in body) {
         const { error } = body;
         if (typeof error === "object" && error !== null && "message" in error) {
@@ -119,5 +119,5 @@ function messageOf(body: unknown): string {
         }
     }
 
-    return "no message";
+    return JSON.stringify(body);
 }

@@ -2,11 +2,11 @@ import { t } from "@destack/locale";
 import { asc, eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { entitlement, price, product, productFeature, subscription } from "../src/object/index.ts";
+import { entitlement } from "@destack/account/object";
+import { price, product, productFeature, subscription } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { storage, support } from "./fixture/storage.ts";
-import { Caller } from "@destack/access";
-import { RequestId } from "@destack/service/request";
+import { RequestId } from "@destack/runtime/request";
 
 /** A month in milliseconds. */
 const MONTH = 30 * 86_400_000;
@@ -18,46 +18,52 @@ test.each(TEST_DIALECTS)(
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
         const offer = await finance.offer();
-        const free = await finance.call("carol", product, "create", {
-            accountId: ids.shop,
-            name: t`Free`,
-            description: t`Community support.`,
-            isDefault: true,
-        });
-        await finance.call("carol", productFeature, "create", {
-            parentId: free.id,
-            packageId: storage.id,
-            feature: support.name,
-            value: "community",
-        });
-        const priced = await refusal(
-            finance.call("carol", price, "create", {
-                parentId: free.id,
-                currency: "EUR",
-                unitAmount: 0,
-                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+        const free = await finance.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name: t`Free`,
+                description: t`Community support.`,
+                isDefault: true,
             }),
+        );
+        await finance.call(
+            "carol",
+            productFeature.call("create", {
+                parentId: free.id,
+                packageId: storage.id,
+                feature: support.name,
+                value: "community",
+            }),
+        );
+        const priced = await refusal(
+            finance.call(
+                "carol",
+                price.call("create", {
+                    parentId: free.id,
+                    currency: "EUR",
+                    unitAmount: 0,
+                    recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+                }),
+            ),
         );
 
         // derive every account's entitlements, then again once the buyer subscribes to the paid plan
         const read = async () => {
             const rows = await finance.test.database
-                .select({
-                    accountId: entitlement.table.accountId,
-                    source: entitlement.table.source,
-                })
+                .select({ accountId: entitlement.table.accountId, value: entitlement.table.value })
                 .from(entitlement.table)
                 .where(eq(entitlement.table.feature, support.name))
                 .orderBy(asc(entitlement.table.accountId));
 
-            return rows.map((row) => [row.accountId, row.source.type]);
+            return rows.map((row) => [row.accountId, row.value]);
         };
         await finance.entitle();
         const before = await read();
         await finance.customer();
         const now = Date.now();
         const subscribed = await finance.subscribe(offer, { start: now, end: now + MONTH });
-        await finance.store.mutate(Caller.of(finance.store.principal, now), {
+        await finance.store.mutate(finance.store.serving(subscription), {
             id: RequestId.create(now),
             calls: [subscription.call("activate", subscription.target(subscribed))],
         });
@@ -68,13 +74,10 @@ test.each(TEST_DIALECTS)(
         expect({ priced, before, after: await read() }).toEqual({
             priced: [
                 "BAD_REQUEST",
-                `product ${free.id} is every account's default, which has no prices`,
+                `product ${free.id} is every account's default, which refuses prices`,
             ],
-            before: accounts.map((scope) => [scope, "product"]),
-            after: accounts.map((scope) => [
-                scope,
-                scope === ids.buyer ? "subscription-item" : "product",
-            ]),
+            before: accounts.map((scope) => [scope, "community"]),
+            after: accounts.map((scope) => [scope, scope === ids.buyer ? "priority" : "community"]),
         });
     },
 );

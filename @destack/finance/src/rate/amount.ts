@@ -1,9 +1,9 @@
 import { defineSchema, schema } from "@destack/schema";
 
-/** The decimals of a fractional amount, the most a payment provider keeps. */
+/** The decimals of a fractional amount, the most a payment provider stores. */
 const DECIMALS = 12;
 
-/** The fractional minor units in one minor unit at the kept decimals. */
+/** The fractional minor units in one minor unit at those decimals. */
 const SCALE = 10n ** BigInt(DECIMALS);
 
 /** A currency by its ISO 4217 code, or a custom one such as x-credits. */
@@ -24,13 +24,13 @@ export const DecimalAmount = defineSchema(
 /** An amount in fractional minor units. */
 export type DecimalAmount = schema.Infer<typeof DecimalAmount>;
 
-/** A cost in fractional minor units as FOCUS cost columns keep it, negative for a credit. */
+/** A cost in fractional minor units as FOCUS cost columns state it, negative for a credit. */
 export const Cost = Object.assign(
     defineSchema(schema.string().regex(/^-?(?:0|[1-9]\d*)(?:\.\d{1,12})?$/u)),
     {
         /** Read a cost or an amount as whole fractional minor units at 12 decimals. */
         scaled(text: string): bigint {
-            // read the sign, the whole part and the fraction padded to the kept decimals
+            // read the sign, the whole part and the fraction padded to the stored decimals
             const isNegative = text.startsWith("-");
             const [whole = "0", fraction = ""] = (isNegative ? text.slice(1) : text).split(".");
             const scaled = BigInt(whole) * SCALE + BigInt(fraction.padEnd(DECIMALS, "0"));

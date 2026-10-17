@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/service";
+import type { Fetch } from "@destack/runtime";
 import { schema } from "@destack/schema";
 import type {
     CheckoutPages,
@@ -6,8 +6,8 @@ import type {
     Order,
     PaymentProvider,
     ProviderEvent,
-} from "../provider/provider.ts";
-import { type Customer, type Price, Product, type ProviderSubscription } from "../object/index.ts";
+} from "../provider.ts";
+import { type Customer, type Price, Product } from "../../object/index.ts";
 import type { Secret } from "@destack/vault";
 import { StripeClient, type StripeParameter } from "./client.ts";
 import {
@@ -56,7 +56,7 @@ export const STRIPE_EVENTS: readonly string[] = [
 export interface StripeProviderOptions {
     /** The platform account's secret API key, read through the vault. */
     readonly key: Secret;
-    /** The home whose finance bills through the provider, which its customers and sellers carry. */
+    /** The home whose finance bills through the provider, stored on its customers and sellers. */
     readonly home: string;
     /** The fetch calling Stripe. */
     readonly fetch: Fetch;
@@ -64,7 +64,7 @@ export interface StripeProviderOptions {
 
 /** Finance's payment provider on Stripe. */
 export class StripeProvider implements PaymentProvider {
-    /** The provider's name, which its webhook path ends with. */
+    /** The provider's name, which keys each of its events' redeliveries. */
     readonly name = "stripe";
     /** The API client. */
     readonly #client: StripeClient;
@@ -179,7 +179,7 @@ export class StripeProvider implements PaymentProvider {
         pages: CheckoutPages,
         key: string,
     ): Promise<{ readonly providerId: string; readonly url: string }> {
-        // transfer a connected seller's charges, and keep the platform's own
+        // transfer a connected seller's charges, and leave the platform's own
         const transfer =
             order.destination === null ? {} : { transfer_data: { destination: order.destination } };
         const session = await this.#client.request(
@@ -205,11 +205,7 @@ export class StripeProvider implements PaymentProvider {
     }
 
     /** Replace a subscription's items with the prices, prorating the licensed ones. */
-    async change(
-        subscription: string,
-        prices: Order["prices"],
-        key: string,
-    ): Promise<ProviderSubscription> {
+    async change(subscription: string, prices: Order["prices"], key: string): Promise<void> {
         // read the current items
         const current = Stripe.subscription(await this.#fetch("subscriptions", subscription));
 
@@ -218,14 +214,12 @@ export class StripeProvider implements PaymentProvider {
             ...current.items.map((item) => ({ id: item.providerId, deleted: true })),
             ...prices.map(({ price, quantity }) => ({ price, quantity })),
         ];
-        const changed = await this.#client.request(
+        await this.#client.request(
             "POST",
             `/v1/subscriptions/${subscription}`,
             { items, proration_behavior: "create_prorations" },
             key,
         );
-
-        return Stripe.subscription(changed);
     }
 
     /** Expire an open Checkout session, or report it complete once its buyer paid. */
@@ -268,9 +262,9 @@ export class StripeProvider implements PaymentProvider {
         });
     }
 
-    /** Read a webhook delivery's event as Stripe keeps it, absent for one finance here ignores. */
+    /** Read a webhook delivery's event as Stripe has it, absent for one finance here ignores. */
     async receive(request: Request): Promise<ProviderEvent | undefined> {
-        // fetch the event the delivery names
+        // fetch the delivery's event
         const { id } = StripeObject.parse(await request.json());
         const event = StripeEvent.parse(await this.#fetch("events", id));
 
@@ -360,7 +354,7 @@ export class StripeProvider implements PaymentProvider {
         return undefined;
     }
 
-    /** Fetch an object of a kind as Stripe keeps it now. */
+    /** Fetch an object of a kind as Stripe has it now. */
     #fetch(
         kind:
             | "subscriptions"

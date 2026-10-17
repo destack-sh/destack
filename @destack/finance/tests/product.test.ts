@@ -13,27 +13,39 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => finance.close());
 
         // onboard Carol's shop as a seller pricing credits in euros, and offer a monthly plan
-        const shop = await finance.call("carol", seller, "create", {
-            accountId: ids.shop,
-            country: "AT",
-            creditPrices: { EUR: "1" },
-        });
-        const plan = await finance.call("carol", product, "create", {
-            accountId: ids.shop,
-            name: t`Pro`,
-            description: t`Sync, priority support and API access.`,
-        });
-        const monthly = await finance.call("carol", price, "create", {
-            parentId: plan.id,
-            currency: "EUR",
-            unitAmount: 900,
-            recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-        });
-        expect([shop.status, shop.provider, monthly.billingScheme]).toEqual([
-            "onboarding",
-            "stripe",
-            "per_unit",
-        ]);
+        const shop = await finance.call(
+            "carol",
+            seller.call("create", {
+                accountId: ids.shop,
+                creditPrices: { EUR: "1" },
+            }),
+        );
+        const plan = await finance.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name: t`Pro`,
+                description: t`Sync, priority support and API access.`,
+            }),
+        );
+        const monthly = await finance.call(
+            "carol",
+            price.call("create", {
+                parentId: plan.id,
+                currency: "EUR",
+                unitAmount: 900,
+                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+            }),
+        );
+
+        // expect the seller onboarding, without a connected account or country before onboarding
+        expect([
+            shop.status,
+            shop.provider,
+            shop.providerId,
+            shop.country,
+            monthly.billingScheme,
+        ]).toEqual(["onboarding", "stripe", null, null, "per_unit"]);
 
         // grant access to sync, priority support and a thousand API calls a period
         const grants = [
@@ -42,17 +54,23 @@ test.each(TEST_DIALECTS)(
             [calls, 1000],
         ] as const;
         for (const [feature, value] of grants) {
-            await finance.call("carol", productFeature, "create", {
-                parentId: plan.id,
-                packageId: feature.package.id,
-                feature: feature.name,
-                value,
-            });
+            await finance.call(
+                "carol",
+                productFeature.call("create", {
+                    parentId: plan.id,
+                    packageId: feature.package.id,
+                    feature: feature.name,
+                    value,
+                }),
+            );
         }
-        const granted = await finance.call("carol", productFeature, "list", {
-            where: { parentId: plan.id },
-            orderBy: { feature: "asc" },
-        });
+        const granted = await finance.call(
+            "carol",
+            productFeature.call("list", {
+                where: { parentId: plan.id },
+                orderBy: { feature: "asc" },
+            }),
+        );
         expect(granted.items.map((item) => [item.feature, item.value])).toEqual([
             ["api.calls", 1000],
             ["support", "priority"],
@@ -60,17 +78,23 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // let buyers outside the shop read its active products alone
-        const draft = await finance.call("carol", product, "create", {
-            accountId: ids.shop,
-            name: t`Team`,
-            description: t`Not offered yet.`,
-            active: false,
-        });
+        const draft = await finance.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name: t`Team`,
+                description: t`Not offered yet.`,
+                active: false,
+            }),
+        );
         const listed = (shopper: "alice" | "carol") =>
-            finance.call(shopper, product, "list", {
-                where: { accountId: ids.shop },
-                orderBy: { createdAt: "asc" },
-            });
+            finance.call(
+                shopper,
+                product.call("list", {
+                    where: { accountId: ids.shop },
+                    orderBy: { createdAt: "asc" },
+                }),
+            );
         expect([
             (await listed("alice")).items.map((item) => item.name.source),
             (await listed("carol")).items.map((item) => item.name.source),
@@ -89,11 +113,14 @@ test.each(TEST_DIALECTS)(
         // refuse a product by someone outside the shop
         expect(
             await refusal(
-                finance.call("alice", product, "create", {
-                    accountId: ids.shop,
-                    name: t`Fake`,
-                    description: t`Not Carol's.`,
-                }),
+                finance.call(
+                    "alice",
+                    product.call("create", {
+                        accountId: ids.shop,
+                        name: t`Fake`,
+                        description: t`Not Carol's.`,
+                    }),
+                ),
             ),
         ).toEqual(["FORBIDDEN", "permission denied: sell"]);
 
@@ -101,23 +128,35 @@ test.each(TEST_DIALECTS)(
         const grant = { packageId: hosting.id, feature: domains.name, value: null };
         expect(
             await refusal(
-                finance.call("carol", productFeature, "create", {
-                    ...grant,
-                    parentId: offer.product,
-                }),
+                finance.call(
+                    "carol",
+                    productFeature.call("create", {
+                        ...grant,
+                        parentId: offer.product,
+                    }),
+                ),
             ),
-        ).toEqual(["FORBIDDEN", "account shop does not publish package @destack/hosting"]);
+        ).toEqual([
+            "FORBIDDEN",
+            "account shop sells package @destack/hosting, which another account publishes",
+        ]);
 
         // let the destack account grant its own package's feature
-        const hosted = await finance.call("dave", product, "create", {
-            accountId: ids.destack,
-            name: t`Hosting`,
-            description: t`Apps on custom domains.`,
-        });
-        const granted = await finance.call("dave", productFeature, "create", {
-            ...grant,
-            parentId: hosted.id,
-        });
+        const hosted = await finance.call(
+            "dave",
+            product.call("create", {
+                accountId: ids.destack,
+                name: t`Hosting`,
+                description: t`Apps on custom domains.`,
+            }),
+        );
+        const granted = await finance.call(
+            "dave",
+            productFeature.call("create", {
+                ...grant,
+                parentId: hosted.id,
+            }),
+        );
         expect([granted.packageId, granted.feature]).toEqual([hosting.id, domains.name]);
     },
 );
@@ -131,21 +170,30 @@ test.each(TEST_DIALECTS)(
 
         // take the monthly price off sale before the plan
         const offered = () =>
-            refusal(Price.offer(Snapshot.live(finance.test.database), offer.monthly));
+            refusal(Price.offer(offer.monthly, Snapshot.live(finance.test.database)));
         const before = await offered();
-        await finance.call("carol", price, "update", {
-            id: offer.monthly.id,
-            active: false,
-        });
+        await finance.call(
+            "carol",
+            price.call("update", {
+                id: offer.monthly.id,
+                active: false,
+            }),
+        );
         const inactivePrice = await offered();
-        await finance.call("carol", price, "update", {
-            id: offer.monthly.id,
-            active: true,
-        });
-        await finance.call("carol", product, "update", {
-            id: offer.product,
-            active: false,
-        });
+        await finance.call(
+            "carol",
+            price.call("update", {
+                id: offer.monthly.id,
+                active: true,
+            }),
+        );
+        await finance.call(
+            "carol",
+            product.call("update", {
+                id: offer.product,
+                active: false,
+            }),
+        );
         expect([before, inactivePrice, await offered()]).toEqual([
             "done",
             ["BAD_REQUEST", `price ${offer.monthly.id} is inactive`],
@@ -161,35 +209,46 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => finance.close());
 
         // onboard Carol's shop, and offer a plan whose fee includes 900 of usage
-        await finance.call("carol", seller, "create", {
-            accountId: ids.shop,
-            country: "AT",
-            creditPrices: { EUR: "1" },
-        });
-        const plan = await finance.call("carol", product, "create", {
-            accountId: ids.shop,
-            name: t`Go`,
-            description: t`9 a month of usage.`,
-        });
+        await finance.call(
+            "carol",
+            seller.call("create", {
+                accountId: ids.shop,
+                creditPrices: { EUR: "1" },
+            }),
+        );
+        const plan = await finance.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name: t`Go`,
+                description: t`9 a month of usage.`,
+            }),
+        );
         const monthly = {
             parentId: plan.id,
             currency: "EUR",
             recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
         } as const;
-        await finance.call("carol", price, "create", {
-            ...monthly,
-            unitAmount: 900,
-            includedUsage: 900,
-        });
+        await finance.call(
+            "carol",
+            price.call("create", {
+                ...monthly,
+                unitAmount: 900,
+                includedUsage: 900,
+            }),
+        );
 
         // refuse a fee below the usage it includes
         expect(
             await refusal(
-                finance.call("carol", price, "create", {
-                    ...monthly,
-                    unitAmount: 500,
-                    includedUsage: 900,
-                }),
+                finance.call(
+                    "carol",
+                    price.call("create", {
+                        ...monthly,
+                        unitAmount: 500,
+                        includedUsage: 900,
+                    }),
+                ),
             ),
         ).toEqual(["BAD_REQUEST", "a price's included usage of 900 exceeds its fee of 500 EUR"]);
     },
@@ -202,26 +261,34 @@ test.each(TEST_DIALECTS)(
         onTestFinished(() => finance.close());
 
         // onboard Carol's shop pricing credits in euros alone, and offer a plan
-        const shop = await finance.call("carol", seller, "create", {
-            accountId: ids.shop,
-            country: "AT",
-            creditPrices: { EUR: "1" },
-        });
-        const plan = await finance.call("carol", product, "create", {
-            accountId: ids.shop,
-            name: t`Go`,
-            description: t`9 a month of usage.`,
-        });
+        const shop = await finance.call(
+            "carol",
+            seller.call("create", {
+                accountId: ids.shop,
+                creditPrices: { EUR: "1" },
+            }),
+        );
+        const plan = await finance.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name: t`Go`,
+                description: t`9 a month of usage.`,
+            }),
+        );
 
         // refuse a price in dollars
         expect(
             await refusal(
-                finance.call("carol", price, "create", {
-                    parentId: plan.id,
-                    currency: "USD",
-                    unitAmount: 900,
-                    recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-                }),
+                finance.call(
+                    "carol",
+                    price.call("create", {
+                        parentId: plan.id,
+                        currency: "USD",
+                        unitAmount: 900,
+                        recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+                    }),
+                ),
             ),
         ).toEqual(["BAD_REQUEST", `seller ${shop.id} prices no credit in USD`]);
     },

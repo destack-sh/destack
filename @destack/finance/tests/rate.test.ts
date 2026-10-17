@@ -25,7 +25,7 @@ const listed = defineSku(
     { package: storage },
 );
 
-/** Disk listed at 3 credit-cents a GB-month, which each billing currency prices through the seller's book. */
+/** Disk listed at 3 credit-cents a GB-month, priced in each currency by the seller's book. */
 const credited = defineSku(
     {
         name: "destack.credited",
@@ -52,7 +52,7 @@ test("price usage at the SKU's list price converted into the billing currency an
         Rate.usage(credited, 500 * GB, true, "1.4"),
     ].map((each) => [each.skuPriceId, each.listUnitPrice, each.listCost, each.billedCost]);
 
-    // a third of a GB-month keeps millionths of its quantity, and a credit at 1.40 Canadian cents prices 3 credit-cents at 4.2 cents
+    // a third of a GB-month has millionths of its quantity, and a credit at 1.40 Canadian cents prices 3 credit-cents at 4.2 cents
     const priced = `${storage.id}/cloudflare.r2.listed@2026-10-06`;
     expect(rated).toEqual([
         [priced, "3", "1500", "1500"],

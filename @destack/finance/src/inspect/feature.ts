@@ -1,25 +1,25 @@
 import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
-import { schema, toJsonSchema, type JsonValue } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
 import { FeatureDescription } from "../feature/description.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 
-/** Describe a feature with its allowance and its value's JSON Schema or its meters. */
+/** Describe a feature with its resource and its value's JSON Schema or its meters. */
 export function describeFeature(feature: Feature): FeatureDescription {
-    // describe the declaring package, name, description and allowance
+    // describe the declaring package, name, description and resource
     const definition = feature.definition;
     const described = {
         package: feature.package,
         name: feature.name,
         description: definition.description,
-        ...(definition.allowance === undefined ? {} : { allowance: definition.allowance }),
+        ...(definition.resource === undefined ? {} : { resource: definition.resource }),
     };
 
     // describe each kind with what its grants set
     if (definition.kind === "static") {
-        const value = toJsonSchema(definition.value);
+        const value = JsonValue.object(toJsonSchema(definition.value));
 
         return { ...described, kind: "static", value };
     } else if (definition.kind === "metered") {
@@ -34,19 +34,19 @@ export function describeFeature(feature: Feature): FeatureDescription {
     return { ...described, kind: "boolean" };
 }
 
-/** Plan a feature's change between releases: keep its kind and accept earlier grant values. */
+/** Plan a feature's change between releases: same kind, earlier grant values still valid. */
 export const compareFeature: Comparator = (before, after) => {
     // read both releases' features
     const earlier = FeatureDescription.parse(before.description);
     const later = FeatureDescription.parse(after.description);
     const target = Address.join("feature", later.name);
 
-    // refuse a change of kind, which kept grants and entitlements cannot follow
+    // refuse a change of a feature's kind
     if (earlier.kind !== later.kind) {
         throw new PlanError([
             {
                 target,
-                detail: `keep kind ${earlier.kind}, or declare a feature of kind ${later.kind}`,
+                detail: `stay at kind ${earlier.kind}, or declare a feature of kind ${later.kind}`,
             },
         ]);
     }

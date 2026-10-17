@@ -1,10 +1,9 @@
-import { Caller } from "@destack/access";
+import type { Call } from "@destack/sync";
 import { Snapshot, Transaction } from "@destack/db";
-import type { ObjectCall } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { present } from "@destack/schema";
-import { ServiceError } from "@destack/service/error";
-import { RequestId } from "@destack/service/request";
+import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/runtime/request";
 import {
     checkoutSession,
     customer,
@@ -43,7 +42,7 @@ export type ProviderInvoice = Pick<
     readonly isPeriodStart: boolean;
 };
 
-/** What a provider's webhook delivery tells finance, as the provider keeps it now. */
+/** What a provider's webhook delivery tells finance, as the provider has it now. */
 export type ProviderEvent = {
     /** The provider's identifier of the event, which a redelivery repeats. */
     readonly id: string;
@@ -69,7 +68,7 @@ export type ProviderEvent = {
     | {
           /** An invoice was issued or changed. */
           readonly kind: "invoice";
-          /** The invoice as the provider keeps it now. */
+          /** The invoice as the provider has it now. */
           readonly invoice: ProviderInvoice;
       }
     | {
@@ -122,113 +121,124 @@ export interface InvoiceLine {
 
 /** A payment provider finance bills through. */
 export interface PaymentProvider {
-    /** The provider's name, which its webhook path ends with. */
+    /** The provider's name, which keys each of its events' redeliveries. */
     readonly name: string;
 
     /** Open a connected account for a seller in a country, returning its identifier. */
-    openSeller(country: string, key: string): Promise<string>;
+    readonly openSeller: (country: string, key: string) => Promise<string>;
     /** Open the onboarding page of a seller's connected account. */
-    onboard(
+    readonly onboard: (
         seller: string,
         pages: { readonly returnUrl: string; readonly refreshUrl: string },
-    ): Promise<string>;
-    /** Keep a customer's billing details, returning the provider's identifier. */
-    upsertCustomer(customer: Customer, key: string): Promise<string>;
+    ) => Promise<string>;
+    /** Store a customer's billing details, returning the provider's identifier. */
+    readonly upsertCustomer: (customer: Customer, key: string) => Promise<string>;
     /** Mirror a product once per key, returning the provider's identifier. */
-    createProduct(product: Product, key: string): Promise<string>;
+    readonly createProduct: (product: Product, key: string) => Promise<string>;
     /** Mirror a licensed price of a mirrored product once per key, returning its identifier. */
-    createPrice(product: string, terms: Price, key: string): Promise<string>;
+    readonly createPrice: (product: string, terms: Price, key: string) => Promise<string>;
 
     /** Open a checkout of an order, returning the provider's session identifier and page. */
-    checkout(
+    readonly checkout: (
         order: Order,
         pages: CheckoutPages,
         key: string,
-    ): Promise<{ readonly providerId: string; readonly url: string }>;
+    ) => Promise<{ readonly providerId: string; readonly url: string }>;
     /** Expire an open checkout session, or report it complete once its buyer paid. */
-    expire(session: string, key: string): Promise<"expired" | "complete">;
-    /** Replace the prices of a subscription, returning it as the provider bills it then. */
-    change(
-        subscription: string,
-        prices: Order["prices"],
-        key: string,
-    ): Promise<ProviderSubscription>;
+    readonly expire: (session: string, key: string) => Promise<"expired" | "complete">;
+    /** Replace the prices of a subscription, which its update event then reports. */
+    readonly change: (subscription: string, prices: Order["prices"], key: string) => Promise<void>;
     /** Cancel a subscription at once, invoicing its usage so far. */
-    cancel(subscription: string, key: string): Promise<void>;
+    readonly cancel: (subscription: string, key: string) => Promise<void>;
     /** Add a priced line to a draft invoice, returning the provider's identifier of the line. */
-    bill(line: InvoiceLine, key: string): Promise<string>;
+    readonly bill: (line: InvoiceLine, key: string) => Promise<string>;
 
     /** Verify a webhook delivery and read its event, absent for an event finance ignores. */
-    receive(request: Request): Promise<ProviderEvent | undefined>;
+    readonly receive: (request: Request) => Promise<ProviderEvent | undefined>;
 }
 
 /** The provider events finance follows, each applied once however often it arrives. */
 export const ProviderEvent = {
     /** Read a webhook delivery's event and apply it in finance's space, ignoring other events. */
     async receive(
-        store: ObjectStore,
         home: string,
         provider: PaymentProvider,
         request: Request,
+        store: ObjectStore,
     ): Promise<void> {
         const event = await provider.receive(request);
         if (event !== undefined) {
-            await ProviderEvent.apply(store, home, `${provider.name}/${event.id}`, event);
+            await ProviderEvent.apply(home, `${provider.name}/${event.id}`, event, store);
         }
+    },
+
+    /** Run one step of an event in a transaction as finance, under its keyed request. */
+    async step(
+        event: {
+            readonly home: string;
+            readonly key: string;
+            readonly time: number;
+            readonly store: ObjectStore;
+        },
+        name: string,
+        calls: (reader: Snapshot) => Promise<readonly Call[]>,
+    ): Promise<void> {
+        // write the calls the step lists, in the transaction its reads ran in
+        const { home, key, time, store } = event;
+        await Transaction.run(store.database, async (transaction) => {
+            const listed = await calls(transaction.view());
+            if (listed.length > 0) {
+                await store.mutate(
+                    store.serving(subscription),
+                    { id: await RequestId.derive(time, `${key}/${name}`), calls: [...listed] },
+                    { transaction, scope: home },
+                );
+            }
+        });
     },
 
     /** Apply one event under a redelivery key, each step in a transaction under a keyed request. */
     async apply(
-        store: ObjectStore,
         home: string,
         key: string,
         event: ProviderEvent,
+        store: ObjectStore,
     ): Promise<void> {
-        // run each step as the store, its reads recorded, under the request a redelivery repeats
-        const step = (
-            name: string,
-            calls: (snapshot: Snapshot) => Promise<readonly ObjectCall[]>,
-        ) =>
-            Transaction.run(store.database, async (transaction) => {
-                const listed = await calls(transaction.view());
-                if (listed.length > 0) {
-                    await store.mutate(
-                        Caller.of(store.principal, store.clock.now()),
-                        {
-                            id: await RequestId.derive(event.time, `${key}/${name}`),
-                            calls: [...listed],
-                        },
-                        { transaction, scope: home },
-                    );
-                }
-            });
+        // run each step as finance, its reads recorded, under the request a redelivery repeats
+        const step = { home, key, time: event.time, store };
 
         // apply the event by its kind
         if (event.kind === "checkout") {
-            await step("checkout", (snapshot) => ProviderEvent.checkout(snapshot, event));
+            await ProviderEvent.step(step, "checkout", (snapshot) =>
+                ProviderEvent.checkout(event, snapshot),
+            );
         } else if (event.kind === "subscription") {
-            await step("subscription", (snapshot) =>
-                ProviderEvent.subscription(snapshot, event.subscription),
+            await ProviderEvent.step(step, "subscription", (snapshot) =>
+                ProviderEvent.subscription(event.subscription, snapshot),
             );
         } else if (event.kind === "invoice") {
-            await ProviderEvent.closePeriod(store, home, key, event);
-            await step("invoice", (snapshot) =>
-                ProviderEvent.invoice(snapshot, home, event.invoice),
+            await ProviderEvent.closePeriod(home, key, event, store);
+            await ProviderEvent.step(step, "invoice", (snapshot) =>
+                ProviderEvent.invoice(home, event.invoice, snapshot),
             );
         } else {
-            await step("seller", (snapshot) => ProviderEvent.seller(snapshot, event));
+            await ProviderEvent.step(step, "seller", (snapshot) =>
+                ProviderEvent.seller(event, snapshot),
+            );
         }
     },
 
     /** Complete an open session with its subscription, or let it expire, unless settled before. */
     async checkout(
-        snapshot: Snapshot,
         event: Extract<ProviderEvent, { kind: "checkout" }>,
-    ): Promise<ObjectCall[]> {
+        snapshot: Snapshot,
+    ): Promise<Call[]> {
         // read the session
-        const [row] = await snapshot.rows(checkoutSession.table, { providerId: event.session });
+        const [row] = await snapshot
+            .read(checkoutSession.table)
+            .findMany({ where: { providerId: event.session } });
         if (row === undefined) {
-            throw new ServiceError("NOT_FOUND", {
+            throw new CallError("NOT_FOUND", {
                 message: `no checkout session ${event.session}`,
             });
         }
@@ -250,37 +260,39 @@ export const ProviderEvent = {
         }
     },
 
-    /** Follow a subscription finance keeps, leaving one a checkout has not started yet. */
-    async subscription(snapshot: Snapshot, provided: ProviderSubscription): Promise<ObjectCall[]> {
-        const [row] = await snapshot.rows(subscription.table, { providerId: provided.providerId });
+    /** Follow a subscription finance stores, leaving one a checkout has not started yet. */
+    async subscription(provided: ProviderSubscription, snapshot: Snapshot): Promise<Call[]> {
+        const [row] = await snapshot
+            .read(subscription.table)
+            .findMany({ where: { providerId: provided.providerId } });
 
         return row === undefined
             ? []
             : [subscription.call("sync", { ...subscription.target(row), ...provided })];
     },
 
-    /** Mirror an invoice as the provider keeps it, creating it once. */
-    async invoice(
-        snapshot: Snapshot,
-        home: string,
-        issued: ProviderInvoice,
-    ): Promise<ObjectCall[]> {
+    /** Mirror an invoice as the provider has it, creating it once. */
+    async invoice(home: string, issued: ProviderInvoice, snapshot: Snapshot): Promise<Call[]> {
         // read the billed account
-        const [buyer] = await snapshot.rows(customer.table, { providerId: issued.customer });
+        const [buyer] = await snapshot
+            .read(customer.table)
+            .findMany({ where: { providerId: issued.customer } });
         if (buyer === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no customer ${issued.customer}` });
+            throw new CallError("NOT_FOUND", { message: `no customer ${issued.customer}` });
         }
 
-        // create the invoice, or update the one kept
+        // create the invoice, or update the mirrored one
         const {
             customer: _customer,
             subscription: _subscription,
             isPeriodStart: _start,
             ...fields
         } = issued;
-        const [kept] = await snapshot.rows(invoice.table, { providerId: issued.providerId });
+        const [mirrored] = await snapshot
+            .read(invoice.table)
+            .findMany({ where: { providerId: issued.providerId } });
 
-        return kept === undefined
+        return mirrored === undefined
             ? [
                   invoice.call("create", {
                       ...invoice.in(home),
@@ -288,15 +300,15 @@ export const ProviderEvent = {
                       ...fields,
                   }),
               ]
-            : [invoice.call("update", { ...invoice.target(kept), ...fields })];
+            : [invoice.call("update", { ...invoice.target(mirrored), ...fields })];
     },
 
     /** Close the period a drafted renewal invoice ends, once per period, under a stable request. */
     async closePeriod(
-        store: ObjectStore,
         home: string,
         key: string,
         event: Extract<ProviderEvent, { kind: "invoice" }>,
+        store: ObjectStore,
     ): Promise<void> {
         // leave an invoice closing no period, as a first invoice's period is a single instant
         const issued = event.invoice;
@@ -312,17 +324,21 @@ export const ProviderEvent = {
             return;
         }
 
-        // leave a first invoice, whose subscription finance keeps once its checkout settles
-        const [billed] = await Snapshot.live(store.database).rows(subscription.table, {
-            providerId: issued.subscription,
-        });
+        // leave a first invoice, whose subscription finance stores once its checkout settles
+        const [billed] = await Snapshot.live(store.database)
+            .read(subscription.table)
+            .findMany({
+                where: {
+                    providerId: issued.subscription,
+                },
+            });
         if (billed === undefined) {
             return;
         }
 
         // close the period onto the invoice
         await store.mutate(
-            Caller.of(store.principal, store.clock.now()),
+            store.serving(subscription),
             {
                 id: await RequestId.derive(event.time, `${key}/close`),
                 calls: [
@@ -340,13 +356,15 @@ export const ProviderEvent = {
 
     /** Record a seller's capabilities, activating or restricting it as charging starts or stops. */
     async seller(
-        snapshot: Snapshot,
         event: Extract<ProviderEvent, { kind: "seller" }>,
-    ): Promise<ObjectCall[]> {
+        snapshot: Snapshot,
+    ): Promise<Call[]> {
         // read the seller of the connected account
-        const [row] = await snapshot.rows(seller.table, { providerId: event.seller });
+        const [row] = await snapshot
+            .read(seller.table)
+            .findMany({ where: { providerId: event.seller } });
         if (row === undefined) {
-            throw new ServiceError("NOT_FOUND", { message: `no seller ${event.seller}` });
+            throw new CallError("NOT_FOUND", { message: `no seller ${event.seller}` });
         }
 
         // record its capabilities, and move its status with them

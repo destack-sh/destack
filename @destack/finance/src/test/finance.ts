@@ -1,10 +1,14 @@
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/service/authentication";
-import { allowanceShape, universeAllowanceShape } from "@destack/account/object";
-import { accessRelationship, anyone, type Caller, principal, Relationship } from "@destack/access";
+import { STACKS } from "@destack/account/test";
+import { TestTelemetry } from "@destack/telemetry/test";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
+import { AccessContext, anyone, Authentication, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import {
     Account,
     account,
+    claim,
+    entitlement,
+    machine,
     organisation,
     residency,
     Residency,
@@ -13,41 +17,60 @@ import {
 } from "@destack/account/object";
 import { type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { LATEST_TAG } from "@destack/forge/object";
-import { ObjectStore, Stack } from "@destack/object/server";
-import { type Package, PackageId } from "@destack/package";
+import { LocaleTag } from "@destack/locale";
+import { notification } from "@destack/notification";
+import notificationServer from "@destack/notification/server";
+import { NotificationFixture } from "@destack/notification/test";
+import { EventView, type ObjectType } from "@destack/object";
+import { packageObject, tag } from "@destack/forge/object";
+import { publishBuild, resolvedRelease } from "@destack/forge/test";
+import { defineServer, ObjectStore, Stack } from "@destack/object/server";
+import { Package, PackageId } from "@destack/package";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Clock, found, Identifier, JsonValue, present, schema } from "@destack/schema";
-import { Health } from "@destack/service/health";
-import { Server } from "@destack/service/server";
-import { reconciliation, TestBearer, testCallKey } from "@destack/service/test";
+import { Identifier, JsonValue, present, schema } from "@destack/schema";
+import { Health } from "@destack/runtime/health";
+import { RequestId } from "@destack/runtime/request";
+import { Server } from "@destack/runtime/server";
+import { reconciliation, TestBearer, testCallKey } from "@destack/runtime/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
-import { v7 } from "uuid";
-import { EventStore, EventTime } from "@destack/event";
-import { MemoryBucket } from "@destack/bucket/test";
+import { type EventStore, EventTime } from "@destack/event";
+import { serversOf, testEvents } from "@destack/object/test";
 import { type Plan } from "@destack/resource";
 import { StackDefinition } from "@destack/stack/declare";
-import { usage } from "../meter/usage.ts";
 import { homeDatabase } from "./home.ts";
-import { EntitlementController } from "../server/entitlement.ts";
-import { Metering } from "../meter/metering.ts";
-import { UsageController } from "../server/usage.ts";
-import { createClient, type ServiceClient } from "@destack/service/client";
+import { EntitlementController } from "../server/entitlement-controller.ts";
+import { Metering } from "../server/metering.ts";
+import { UsageController } from "../server/usage-controller.ts";
+import { createClient, type ClientOf } from "@destack/runtime/client";
 import { Feature } from "../feature/index.ts";
-import { describeFeature, describeMeter, describeSku } from "../inspect/index.ts";
-import type { Meter } from "../meter/index.ts";
+import { describeFeature, describeSku } from "../inspect/index.ts";
+import { describeMeter } from "@destack/observability/inspect";
+import observabilityPackage from "@destack/observability/package";
+import type { Meter } from "@destack/observability/meter";
+import type { Period } from "../rate/index.ts";
 import type { PaymentProvider } from "../provider/index.ts";
-import { serveFinance } from "../server/index.ts";
-import { price, product, productFeature, seller } from "../object/index.ts";
+import { implementFinance } from "../server/index.ts";
+import {
+    price,
+    product,
+    productFeature,
+    seller,
+    usage,
+    Usage,
+    usageLimit,
+} from "../object/index.ts";
 import { Sku } from "../sku/index.ts";
-import { financeService } from "../service/index.ts";
-import { Catalog } from "../catalog/catalog.ts";
+import financePackage from "../package.ts";
 import { CatalogReference } from "../catalog/reference.ts";
+import { Clock } from "@destack/environment";
 
-/** The residency of the accounts the fixture copies. */
+/** The residency of the accounts the fixture replicates. */
 const RESIDENCY = "eu";
+
+/** The tag the fixture opens releases at, which answers each package's latest. */
+const RELEASE_TAG = "latest";
 
 /** The platform's organisation, owning the residency's platform account. */
 const PLATFORM_ORGANISATION = "organisation-019f5530-8000-7000-8000-0000000000f6";
@@ -63,13 +86,13 @@ const STACK = {
     packageId: PackageId.parse("package-019f5530-8000-7000-8000-0000000000fb"),
 };
 
-/** The names the platform's organisation keeps without accounts, as the directory reserves them. */
+/** The names the platform's organisation reserves without accounts, as the directory does. */
 const PLATFORM_NAMES: ReadonlySet<string> = new Set(["platform"]);
 
 /** The handle of the platform's account, the scope of the platform's packages. */
 const PLATFORM_HANDLE = "destack";
 
-/** The residency's home space, the platform account's home, where finance keeps its rows. */
+/** The residency's home space, the platform account's home, where finance stores its rows. */
 const HOME = Account.home(PLATFORM_ACCOUNT);
 
 /** The finance installation serving the residency, in the residency's home space. */
@@ -81,22 +104,47 @@ const INSTALLATION = principal.installation.reference(
 /** The origin the fixture's clients call. */
 const ORIGIN = "https://finance.test";
 
-/** A use of a resource a test routes to an account, as a machine measured it. */
+/** Finance's build, declaring its notifications, as the residency's home installs it. */
+const FINANCE_BUILD = await MemoryBuild.declaring(usageLimit.package, [
+    {
+        kind: "notification",
+        package: notification.package.id,
+        name: usageLimit.name,
+        description: usageLimit.describe(),
+    },
+]);
+
+/** The machine serving the scenarios' spaces, which sends their uses. */
+const SERVING_MACHINE = "machine-019f5530-8000-7000-8000-0000000000c5";
+
+/** The spaces the scenarios' buyers pay for. */
+export const spaces = {
+    notes: schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000a1"),
+    docs: schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000b2"),
+};
+
+/** The dedicated machines the scenarios' buyers pay for. */
+export const machines = {
+    alpha: schema.identifier("machine").parse("machine-019f5530-8000-7000-8000-0000000000a3"),
+    beta: schema.identifier("machine").parse("machine-019f5530-8000-7000-8000-0000000000b4"),
+};
+
+/** A use of a resource in a space an account pays for, as its machine measured it. */
 export interface FinanceUse {
-    /** The use's identity within its source. */
+    /** The use's identity, unique across spaces. */
     readonly id: string;
-    /** The scope the use happened in, such as a space. */
-    readonly source: string;
+    /** The space the use ran in, absent for a dedicated machine's own hours. */
+    readonly space?: Identifier<"space">;
+    /** The dedicated machine whose hours were used, absent for a space's use. */
+    readonly machine?: Identifier<"machine">;
     /** The meter measuring it. */
     readonly meter: CatalogReference;
     /** The amount used in the meter's unit. */
     readonly quantity: number;
-    /** The level kept, for an averaged meter. */
+    /** The level held, for an averaged meter. */
     readonly level?: number;
     /** The SKU rating it, absent for a seller's own meter. */
     readonly sku?: CatalogReference;
-    /** The meter's unit. */
-    readonly unit?: string;
     /** When the use was measured, in UTC epoch milliseconds. */
     readonly time: number;
 }
@@ -105,13 +153,11 @@ export interface FinanceUse {
 export interface FinanceFixtureOptions {
     /** Open the payment provider billing through for the home, none by default. */
     readonly provider?: (home: string) => PaymentProvider;
-    /** The clock the service runs at, the system clock by default. */
+    /** The clock finance runs at, the system clock by default. */
     readonly clock?: Clock;
-    /** Report a use its declarations refuse, failing the test by default. */
-    readonly report?: (error: unknown) => void;
 }
 
-/** The finance service over a migrated test database, serving clients that sign in by name. */
+/** Finance over a migrated test database, serving clients that sign in by name. */
 export class FinanceFixture {
     /** The isolated database. */
     readonly test: TestDatabase;
@@ -119,86 +165,65 @@ export class FinanceFixture {
     readonly store: ObjectStore;
     /** The HTTP server clients call. */
     readonly http: Server;
-    /** The latest release of each package, by identifier. */
-    readonly #releases: Map<PackageId, Promise<BuildReader>>;
-    /** The clock the service runs at. */
+    /** The clock finance runs at. */
     readonly clock: Clock;
-    /** The usage routed to the accounts, kept over the test database and a memory bucket. */
+    /** The event log recording the calls and the payers' usage. */
     readonly events: EventStore;
     /** The usage metered against the releases' catalogs. */
     readonly metering: Metering;
     /** The payment provider billing through, absent for a fixture selling nothing. */
     readonly provider: PaymentProvider | undefined;
     /** The finance objects the store serves, with their handlers. */
-    readonly #served: ReturnType<typeof serveFinance>;
+    readonly #served: readonly ObjectType[];
     /** The rating of each account's usage, which the test runs where the control loop would. */
     readonly #rating: UsageController;
+    /** The telemetry recording the exceptions finance captures, refused at close unless taken. */
+    readonly telemetry = TestTelemetry.register();
+    /** The spaces and machines replicated below their payers so far. */
+    readonly #replicated = new Set<string>();
     /** The entitlement derivation, which the test runs where the control loop would. */
     readonly #entitlements: EntitlementController;
 
     /** Serve finance over a database, with the releases its grants and meters read. */
-    private constructor(
-        test: TestDatabase,
-        releases: Map<PackageId, Promise<BuildReader>>,
-        options: FinanceFixtureOptions,
-    ) {
-        // serve the objects on the test's clock, opening each package's latest release
+    private constructor(test: TestDatabase, events: EventStore, options: FinanceFixtureOptions) {
+        // serve the objects on the test's clock, resolving each package's latest release in forge
         this.test = test;
-        this.#releases = releases;
         this.clock = options.clock ?? Clock.system;
-        const bucket = new MemoryBucket(this.clock);
-        this.events = new EventStore({
-            database: test.database,
-            kinds: [usage],
-            files: () => bucket,
-            clock: this.clock,
-            // fail the test on a dropped event
-            report: (error) => {
-                throw error;
-            },
-        });
-        const catalog = Catalog.tagged(
-            { open: (packageId) => found(this.#releases, packageId) },
-            LATEST_TAG,
-        );
-        // fail the test on a refused use unless it reports them
-        this.metering = new Metering(
-            this.events,
-            catalog,
-            (handle) => FinanceFixture.#publisher(Snapshot.live(test.database), handle),
-            options.report ??
-                ((error) => {
-                    throw error;
-                }),
+        this.events = events;
+
+        // meter the usage against the releases, publishing each package's SKUs as its account
+        this.metering = new Metering(RELEASE_TAG, (handle) =>
+            FinanceFixture.#publisher(Snapshot.live(test.database), handle),
         );
         this.provider = options.provider === undefined ? undefined : options.provider(HOME);
-        this.#served = serveFinance(this.metering, this.provider, HOME);
+        const definition = implementFinance(HOME, this.metering, this.provider);
+        this.#served = definition.objects ?? [];
         this.store = new ObjectStore({
+            servers: [
+                defineServer(financePackage, definition),
+                notificationServer,
+                ...serversOf([packageObject, resolvedRelease, tag, entitlement]),
+            ],
+            chain: async () => undefined,
             principal: INSTALLATION,
-            objects: this.#served,
             policies: [account, organisation, residency],
+            claims: { object: claim },
             database: test.database,
+            events: this.events,
             callKey: testCallKey,
-            origin: { package: financeService.package, service: financeService.name },
-            shapes: [allowanceShape, universeAllowanceShape],
+            origin: { package: Package.of(financePackage) },
             clock: this.clock,
         });
 
         // rate usage and derive entitlements as the controllers do
         this.#rating = new UsageController(this.store, HOME);
-        this.#entitlements = new EntitlementController(this.store, HOME);
+        this.#entitlements = new EntitlementController(this.store, HOME, this.metering);
 
         // answer clients authenticating by a person's name, leaving the controllers to the test
         this.http = Server.start({
-            ...this.store.implement(
-                financeService,
-                this.store.routed,
-                this.store.controllers(),
-                {},
-            ),
+            ...this.store.package(financePackage),
             controllers: [],
             clock: this.clock,
-            audience: financeService.package.id,
             drainTimeout: 1000,
             health: new Health("finance"),
             resources: new ResourceContext(),
@@ -207,34 +232,41 @@ export class FinanceFixture {
         });
     }
 
-    /** Receive an account's uses, then rate them page by page. */
-    async use(scope: string, uses: readonly FinanceUse[]): Promise<void> {
-        // receive the uses, then rate every page
-        await this.receive(scope, uses);
-        while ((await this.rate(scope)) === 0) {
+    /** Append an account's uses, then rate them page by page. */
+    async use(payer: string, uses: readonly FinanceUse[]): Promise<void> {
+        // append the uses, then rate every page
+        await this.append(payer, uses);
+        while ((await this.rate(payer)) === 0) {
             continue;
         }
     }
 
-    /** Receive an account's uses as its usage events, leaving them unrated. */
-    async receive(scope: string, uses: readonly FinanceUse[]): Promise<void> {
-        await this.events.receive(
-            usage.key,
-            uses.map((use) => ({
-                scope,
-                id: use.id,
-                source: use.source,
-                time: EventTime.of(use.time),
-                keys: {
-                    meter: CatalogReference.key(use.meter),
-                    sku: use.sku === undefined ? null : CatalogReference.key(use.sku),
-                    installation: null,
-                    quantity: use.quantity,
-                    level: use.level ?? null,
-                },
-                data: { unit: use.unit ?? "", from: use.time, to: use.time },
-            })),
-        );
+    /** Fold a paying account's usage of a meter as rating reads it, in a period or now. */
+    usage(payer: string, meter: Meter, period: Period | undefined): Promise<number> {
+        const payerId = account.identifier(payer);
+
+        const events = new EventView(usage.eventKind(), this.events);
+
+        return Usage.read(payerId, meter, period, this.clock.now(), events);
+    }
+
+    /** Append an account's uses as its spaces and machines send them, leaving them unrated. */
+    async append(payer: string, uses: readonly FinanceUse[]): Promise<void> {
+        // send a space's uses as the residency's servers, and a machine's as the machine itself
+        const now = this.clock.now();
+        const payerId = account.identifier(payer);
+        for (const [machineId, sent] of Map.groupBy(uses, (use) => use.machine ?? null)) {
+            const sender = await this.#sender(payerId, machineId, sent);
+            await this.store.mutate(AccessContext.of(Caller.of(sender), now), {
+                id: RequestId.create(now),
+                calls: [
+                    usage.call("append", {
+                        ...usage.in(payerId),
+                        items: sent.map((use) => FinanceFixture.#item(use)),
+                    }),
+                ],
+            });
+        }
     }
 
     /** Rate the next page of an account's usage as the controller does, while pages are full. */
@@ -242,7 +274,91 @@ export class FinanceFixture {
         return this.#rating.reconcile(scope);
     }
 
-    /** Open the service on a dialect with package releases, billing through a provider if given. */
+    /** Flush the hot usage of an account into segments, as the event store's controller does. */
+    async flush(payer: string): Promise<void> {
+        for (const controller of this.events.controllers) {
+            await controller.reconcile(`${usage.eventKind().key} ${payer}`, reconciliation());
+        }
+    }
+
+    /** Rate each payer a restarted usage controller lists until its pages run out. */
+    async rateListed(): Promise<readonly string[]> {
+        const listed = await this.#rating.list();
+        for (const payer of listed) {
+            while ((await this.rate(payer)) === 0) {
+                continue;
+            }
+        }
+
+        return listed;
+    }
+
+    /** Replicate the spaces or machine of uses below their payer once, returning their sender. */
+    async #sender(
+        payer: Identifier<"account">,
+        machineId: Identifier<"machine"> | null,
+        uses: readonly FinanceUse[],
+    ): Promise<Subject> {
+        // replicate each space below the payer once, served by a machine of the payer
+        const access = new AccessFixture(this.test.database);
+        if (machineId === null) {
+            for (const use of uses) {
+                const spaceId = present(use.space, `the space of ${use.id}`);
+                if (!this.#replicated.has(spaceId)) {
+                    this.#replicated.add(spaceId);
+                    await this.test.database.insert(space.table).values({
+                        id: spaceId,
+                        scope: payer,
+                        name: `space-${this.#replicated.size}`,
+                        stack: STACKS.space,
+                        createdAt: 0,
+                        updatedAt: 0,
+                    });
+                    await access.replicateScope(space.reference(payer, spaceId), "own");
+                }
+            }
+
+            return Subject.parse(principal.machine.reference(payer, SERVING_MACHINE));
+        }
+
+        // replicate a machine below the payer once, the machine itself sending its uses
+        const used = machine.reference(payer, machineId);
+        if (!this.#replicated.has(machineId)) {
+            this.#replicated.add(machineId);
+            await this.test.database.insert(machine.table).values({
+                id: machineId,
+                scope: payer,
+                name: `machine-${this.#replicated.size}`,
+                kind: "personal",
+                platform: "Linux",
+                architecture: "arm64",
+                model: "test",
+                createdAt: 0,
+                updatedAt: 0,
+            });
+            await access.replicateScope(used);
+        }
+
+        return Subject.parse(principal.machine.reference(Scope.universe.id, machineId));
+    }
+
+    /** Write a use as the usage append method takes it. */
+    static #item(use: FinanceUse) {
+        return {
+            id: use.id,
+            time: EventTime.of(use.time),
+            meter: CatalogReference.key(use.meter),
+            sku: use.sku === undefined ? null : CatalogReference.key(use.sku),
+            spaceId: use.space ?? null,
+            machineId: use.machine ?? null,
+            installationId: null,
+            quantity: use.quantity,
+            level: use.level ?? null,
+            data: { from: use.time, to: use.time },
+        };
+    }
+
+    /** Open finance on a dialect with package releases, billing through a provider if given. */
     static async open(
         dialect: Dialect,
         releases: readonly (readonly [Package, readonly (Feature | Meter | Sku)[]])[],
@@ -250,51 +366,56 @@ export class FinanceFixture {
     ): Promise<FinanceFixture> {
         // migrate the database, serving the residency, and build each package's release
         const test = await TestDatabase.create(dialect, homeDatabase, { isMigrated: true });
+        await NotificationFixture.install(test.database, HOME, [FINANCE_BUILD]);
         await FinanceFixture.#serveResidency(test.database);
-        await FinanceFixture.#copyHome(test.database);
-        const built = new Map(
-            releases.map(([owner, declared]) => [
-                owner.id,
-                FinanceFixture.release(owner, declared),
-            ]),
-        );
+        await FinanceFixture.#replicateHome(test.database);
+        for (const [owner, declared] of releases) {
+            const build = await FinanceFixture.release(owner, declared);
+            await publishBuild(test.database, HOME, account.identifier(PLATFORM_ACCOUNT), build);
+        }
 
-        return new FinanceFixture(test, built, options);
+        // record the calls and the usage in the database's event log
+        const clock = options.clock ?? Clock.system;
+        const events = await testEvents(test.database, [usage.eventKind()], clock);
+
+        return new FinanceFixture(test, events, options);
     }
 
     /** Relate the finance installation as a residency server, as the platform binds it. */
     static async #serveResidency(database: DatabaseConnection): Promise<void> {
-        await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: residency.reference(Scope.universe.id, RESIDENCY),
-                    relation: "installation",
-                    subject: INSTALLATION,
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                Scope.universe.id,
-            ),
+        await new AccessFixture(database).replicateRelationship(
+            Scope.universe.id,
+            residency.reference(Scope.universe.id, RESIDENCY),
+            "installation",
+            INSTALLATION,
+            0,
         );
     }
 
-    /** Copy the residency's public home space below the platform account, as replication does. */
-    static async #copyHome(database: DatabaseConnection): Promise<void> {
-        // copy the platform's organisation, its account and the home below them
-        const copies = new AccessFixture(database);
+    /** Replicate the residency's public home space below the platform account. */
+    static async #replicateHome(database: DatabaseConnection): Promise<void> {
+        // replicate the platform's organisation, its account and the home below them
+        const access = new AccessFixture(database);
         const owner = organisation.reference(Scope.universe.id, PLATFORM_ORGANISATION);
         const platform = account.reference(PLATFORM_ORGANISATION, PLATFORM_ACCOUNT);
         const home = space.reference(PLATFORM_ACCOUNT, HOME);
-        await copies.copyScope(owner);
-        await copies.copyScope(platform);
-        await copies.copyScope(home, "own");
+        await access.replicateScope(owner);
+        await access.replicateScope(platform);
+        await database.insert(space.table).values({
+            id: HOME,
+            scope: account.identifier(PLATFORM_ACCOUNT),
+            name: "home",
+            stack: STACKS.space,
+            createdAt: 0,
+            updatedAt: 0,
+        });
+        await access.replicateScope(home, "own");
 
-        // show the home to anyone
-        await copies.copyRelationship(HOME, home, "public", anyone.reference("*", "*"));
+        // show the home to anyone from the start, as the platform's standing rows are
+        await access.replicateRelationship(HOME, home, "public", anyone.reference("*", "*"), 0);
     }
 
-    /** The residency's home space, where finance keeps its rows. */
+    /** The residency's home space, where finance stores its rows. */
     get home(): string {
         return HOME;
     }
@@ -322,7 +443,7 @@ export class FinanceFixture {
 
     /** Let a person operate the platform, owning the organisation whose account sells its plans. */
     async operate(person: string): Promise<Identifier<"account">> {
-        // keep the platform's account under its handle, which the platform's packages carry
+        // create the platform's account under its handle, which the platform's packages carry
         const { database } = this.test;
         const platform = account.identifier(PLATFORM_ACCOUNT);
         await database.insert(account.table).values({
@@ -337,7 +458,7 @@ export class FinanceFixture {
 
         // let the person own the organisation, and so the account and its home
         const owner = principal.user.reference(Scope.universe.id, user.identifier(person));
-        await new AccessFixture(database).copyOwner(
+        await new AccessFixture(database).bindOwner(
             organisation.reference(Scope.universe.id, PLATFORM_ORGANISATION),
             Subject.parse(owner),
             this.clock.now(),
@@ -357,36 +478,30 @@ export class FinanceFixture {
         snapshot: Snapshot,
         handle: string,
     ): Promise<Identifier<"account"> | null> {
-        // sell the names the platform's organisation keeps without accounts through the platform
+        // sell the names the platform's organisation reserves without accounts through the platform
         if (PLATFORM_NAMES.has(handle)) {
             return account.identifier(PLATFORM_ACCOUNT);
         }
 
-        // find the account with the handle, the platform's when its organisation keeps it
-        const [held] = await snapshot.rows(account.table, { handle });
-        if (held === undefined) {
+        // find the account with the handle, the platform's when its organisation reserves it
+        const [found] = await snapshot.read(account.table).findMany({ where: { handle } });
+        if (found === undefined) {
             return null;
         }
 
-        return held.scope === PLATFORM_ORGANISATION
+        return found.scope === PLATFORM_ORGANISATION
             ? account.identifier(PLATFORM_ACCOUNT)
-            : held.id;
+            : found.id;
     }
 
     /** Let the servers of the residency serve an account, as its residents. */
     static async #reside(database: DatabaseConnection, reference: ObjectReference): Promise<void> {
-        await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: reference,
-                    relation: "resident",
-                    subject: Residency.servers(RESIDENCY),
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                reference.scope,
-            ),
+        await new AccessFixture(database).replicateRelationship(
+            reference.scope,
+            reference,
+            "resident",
+            Residency.servers(RESIDENCY),
+            0,
         );
     }
 
@@ -396,7 +511,6 @@ export class FinanceFixture {
         declared: readonly (Feature | Meter | Sku)[],
     ): Promise<BuildReader> {
         const declarations = declared.map((entry) => ({
-            package: financeService.package.id,
             name: entry.name,
             ...FinanceFixture.#describe(entry),
         }));
@@ -404,31 +518,51 @@ export class FinanceFixture {
         return await MemoryBuild.declaring(owner, declarations);
     }
 
-    /** Describe a declaration by its kind. */
+    /** Describe a declaration by its kind and the package declaring the kind. */
     static #describe(entry: Feature | Meter | Sku) {
         if (entry instanceof Feature) {
-            return { kind: "feature", description: describeFeature(entry) };
+            return {
+                package: financePackage.id,
+                kind: "feature",
+                description: describeFeature(entry),
+            };
         } else if (entry instanceof Sku) {
-            return { kind: "sku", description: describeSku(entry) };
+            return { package: financePackage.id, kind: "sku", description: describeSku(entry) };
         }
 
-        return { kind: "meter", description: describeMeter(entry) };
+        return {
+            package: observabilityPackage.id,
+            kind: "meter",
+            description: describeMeter(entry),
+        };
     }
 
     /** Publish a later release of a package, which becomes its latest. */
-    publish(owner: Package, declared: readonly (Feature | Meter | Sku)[]): void {
-        this.#releases.set(owner.id, FinanceFixture.release(owner, declared));
+    async publish(owner: Package, declared: readonly (Feature | Meter | Sku)[]): Promise<void> {
+        const build = await FinanceFixture.release(owner, declared);
+        await publishBuild(
+            this.test.database,
+            HOME,
+            account.identifier(PLATFORM_ACCOUNT),
+            build,
+            this.clock.now(),
+        );
     }
 
-    /** Copy an account a person owns, as the account service replicates it. */
+    /** Replicate an account a person owns, as the account package replicates it. */
     async account(id: Identifier<"account">, handle: string, person: string): Promise<void> {
-        // copy the person's user and the account below it
+        // replicate the person's user and the account below it
         const { database } = this.test;
-        const copies = new AccessFixture(database);
+        const access = new AccessFixture(database);
         const owner = user.identifier(person);
-        await copies.copyScope(user.reference(Scope.universe.id, owner));
+        await access.replicateScope(user.reference(Scope.universe.id, owner));
+        await NotificationFixture.person(
+            database,
+            principal.user.reference(Scope.universe.id, owner),
+            { name: person, locale: LocaleTag.parse("en"), timeZone: "UTC" },
+        );
         const reference = account.reference(owner, id);
-        await copies.copyScope(reference);
+        await access.replicateScope(reference);
         await database.insert(account.table).values({
             id,
             scope: owner,
@@ -440,7 +574,7 @@ export class FinanceFixture {
         });
 
         // let the person own it, and the servers of its residency serve it
-        await copies.copyOwner(
+        await access.bindOwner(
             reference,
             Subject.parse(principal.user.reference(Scope.universe.id, owner)),
             this.clock.now(),
@@ -449,7 +583,7 @@ export class FinanceFixture {
     }
 
     /** Open a client calling as a person. */
-    client(person: string): ServiceClient<typeof financeService> {
+    client(person: string): ClientOf<typeof financePackage> {
         return this.#connect(`user ${person}`);
     }
 
@@ -457,7 +591,7 @@ export class FinanceFixture {
     machine(
         name: string,
         claims: { readonly residencies?: readonly string[]; readonly lapsesAt?: number } = {},
-    ): ServiceClient<typeof financeService> {
+    ): ClientOf<typeof financePackage> {
         const {
             residencies = [RESIDENCY],
             lapsesAt = this.clock.now() + TOKEN_LIFETIME_MILLISECONDS,
@@ -467,15 +601,15 @@ export class FinanceFixture {
     }
 
     /** Open a client calling with a bearer of its principal. */
-    #connect(bearer: string): ServiceClient<typeof financeService> {
-        return createClient(financeService, {
+    #connect(bearer: string): ClientOf<typeof financePackage> {
+        return createClient(financePackage, {
             url: ORIGIN,
             headers: { authorization: `Bearer ${bearer}` },
             fetch: (request: Request) => this.http.fetch(request),
         });
     }
 
-    /** Derive every account's entitlements and allowances, as the controller does. */
+    /** Derive every account's entitlements, as the controller does. */
     async entitle(): Promise<void> {
         for (const key of await this.#entitlements.list()) {
             await this.#entitlements.reconcile(key);
@@ -493,14 +627,15 @@ export class FinanceFixture {
         }
     }
 
-    /** Stop serving and close the database. */
+    /** Stop serving and close the database, refusing exceptions no test took. */
     async close(): Promise<void> {
         await this.http.close();
         await this.test.close();
+        this.telemetry[Symbol.dispose]();
     }
 
     /** Authenticate a request as the user or cloud machine of its bearer. */
-    #authenticate(request: Request): Caller {
+    #authenticate(request: Request): Authentication {
         // read the bearer's user or cloud machine
         const bearer = TestBearer.read(request);
         const [kind, name = "", residencies = "", lapsesAt = ""] = bearer.split(" ");
@@ -508,7 +643,7 @@ export class FinanceFixture {
         if (kind !== "machine") {
             const subject = principal.user.reference(Scope.universe.id, user.identifier(name));
 
-            return TestBearer.authenticate(subject, financeService.package.id, now);
+            return TestBearer.authenticate(subject, financePackage.id, now);
         }
 
         // verify a cloud machine with the residencies it serves
@@ -517,12 +652,14 @@ export class FinanceFixture {
         const expiresAt = Number(lapsesAt);
 
         return {
-            subject,
-            subjects: [subject, ...claimed.map((code) => Residency.servers(code))],
+            caller: {
+                ...Caller.of(subject),
+                groups: claimed.map((code) => Residency.servers(code)),
+            },
             credential: {
                 kind: "machine-key",
                 id: subject.id,
-                audience: financeService.package.id,
+                audience: financePackage.id,
                 verifiedAt: Math.min(now, expiresAt - TOKEN_LIFETIME_MILLISECONDS),
                 expiresAt,
             },

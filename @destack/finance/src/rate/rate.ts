@@ -5,7 +5,7 @@ import { type Sku } from "../sku/sku.ts";
 import { Cost, type DecimalAmount } from "./amount.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 
-/** The fractions of a pricing unit a quantity keeps. */
+/** The fractions of a pricing unit a quantity has. */
 const QUANTITY_SCALE = 1_000_000;
 
 /** The rating engine: usage priced at its SKU's list price in the billing currency. */
@@ -46,7 +46,7 @@ export const Rate = {
 
     /** Read a per-unit price's amount per unit in fractional minor units, null if tiered. */
     unitPrice(terms: Pick<Price, "unitAmount" | "unitAmountDecimal">): DecimalAmount | null {
-        // read the decimal amount, else the whole one, which a per-unit price keeps exactly one of
+        // read the per-unit price's decimal amount, else its whole one
         if (terms.unitAmountDecimal !== null) {
             return terms.unitAmountDecimal;
         } else if (terms.unitAmount !== null) {

@@ -7,13 +7,10 @@
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
-        "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         },
-        "./stripe": {
+        "./provider/stripe": {
             "runtimes": ["bun", "workerd"]
         },
         "./test": {
@@ -35,16 +32,6 @@
                 }
             ]
         },
-        "defineMeter": {
-            "describes": [
-                {
-                    "kind": "meter",
-                    "function": "./inspect#describeMeter",
-                    "compare": "./inspect#compareMeter",
-                    "vocabulary": "./inspect#meterVocabulary"
-                }
-            ]
-        },
         "defineSku": {
             "describes": [
                 {
@@ -58,9 +45,6 @@
     },
     "stamps": {
         "defineFeature": {
-            "module": 1
-        },
-        "defineMeter": {
             "module": 1
         },
         "defineSku": {

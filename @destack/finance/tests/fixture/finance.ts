@@ -1,20 +1,25 @@
 import { type Message, t } from "@destack/locale";
-import { accessRelationship, principal, Relationship, Caller } from "@destack/access";
+import { accessRelationship, principal, Relationship } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { account, organisation, Residency, user } from "@destack/account/object";
+import {
+    account,
+    entitlement,
+    type Entitlement,
+    organisation,
+    Residency,
+    user,
+} from "@destack/account/object";
 import { asc, eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import type { TestDatabase } from "@destack/db/test";
-import { Call, type CallableName, type CallOutput, type ObjectType } from "@destack/object";
+import { ObjectType } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
-import { aligned, schema, Identifier, type JsonObject, type JsonValue } from "@destack/schema";
-import { RequestId } from "@destack/service/request";
-import { subjectContext } from "@destack/service/test";
-import { Scope, Subject, type ObjectReference } from "@destack/sync";
+import { nth, schema, Identifier, present, type JsonObject, type JsonValue } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
+import { subjectContext } from "@destack/runtime/test";
+import { Call, ObjectReference, Scope, Subject } from "@destack/sync";
 import { v7 } from "uuid";
 import {
     customer,
-    entitlement,
-    type Entitlement,
     price,
     Price,
     product,
@@ -25,10 +30,10 @@ import {
     subscriptionItem,
     type SubscriptionItem,
 } from "../../src/object/index.ts";
-import type { serveFinance } from "../../src/server/index.ts";
 import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
-import type { Meter } from "../../src/meter/index.ts";
+import type { CatalogReference } from "../../src/catalog/reference.ts";
+import type { Meter } from "@destack/observability/meter";
 import type { Package } from "@destack/package";
 import {
     archived,
@@ -77,7 +82,7 @@ export const SEATS = 5;
 /** The API calls the Pro plan grants each period. */
 export const CALL_LIMIT = 1000;
 
-/** The bytes the Pro plan lets an account keep. */
+/** The bytes the Pro plan lets an account store. */
 export const STORAGE_LIMIT = 1_000_000_000;
 
 /** The shop's seller and its prices of the Pro plan, as qualified references. */
@@ -114,7 +119,7 @@ const RELEASES = [
     [hosting, [domains]],
 ] as const;
 
-/** The finance service over a migrated test database: Acme's buyer and payer accounts, and Carol's shop. */
+/** Finance over a test database with Acme's buyer and payer accounts and Carol's shop. */
 export class Finance {
     /** The isolated database. */
     readonly test: TestDatabase;
@@ -123,23 +128,23 @@ export class Finance {
     /** The served fixture. */
     readonly fixture: FinanceFixture;
 
-    /** Keep the served fixture. */
+    /** Create the fixture over a served finance. */
     private constructor(fixture: FinanceFixture) {
         this.fixture = fixture;
         this.test = fixture.test;
         this.store = fixture.store;
     }
 
-    /** Open the service with Alice owning Acme's buyer account, Bob viewing it, Carol owning her shop, and Dave the destack account, billing through a provider when given. */
+    /** Open finance with Acme's buyer, Carol's shop and Dave's destack account. */
     static async open(dialect: Dialect, options: FinanceFixtureOptions = {}): Promise<Finance> {
         // serve finance with the storage and hosting packages' releases
         const fixture = await FinanceFixture.open(dialect, RELEASES, options);
 
-        // copy Acme with its payer
+        // replicate Acme with its payer
         const { test } = fixture;
         const database = test.database;
-        const copies = new AccessFixture(database);
-        await copies.copyScope(organisation.reference(Scope.universe.id, ids.acme));
+        const access = new AccessFixture(database);
+        await access.replicateScope(organisation.reference(Scope.universe.id, ids.acme));
         await database.insert(organisation.table).values({
             id: ids.acme,
             scope: Scope.universe.id,
@@ -149,10 +154,10 @@ export class Finance {
             updatedAt: 0,
         });
 
-        // copy Acme's accounts, Alice owning its buyer, and Carol's and Dave's own accounts
-        const buyer = await copyAccount(database, ids.acme, ids.buyer, "acme");
-        await copyAccount(database, ids.acme, ids.payer, "acme-billing");
-        await copies.copyOwner(buyer, subject("alice"));
+        // replicate Acme's accounts, Alice owning its buyer, and Carol's and Dave's own accounts
+        const buyer = await replicateAccount(database, ids.acme, ids.buyer, "acme");
+        await replicateAccount(database, ids.acme, ids.payer, "acme-billing");
+        await access.bindOwner(buyer, subject("alice"), fixture.clock.now());
         await fixture.account(ids.shop, "shop", people.carol);
         await fixture.account(ids.destack, "destack", people.dave);
 
@@ -177,11 +182,13 @@ export class Finance {
     /** Offer Carol's Pro plan monthly, granting every feature. */
     async offer(): Promise<Offer> {
         // onboard the shop and offer the plan monthly
-        const shop = await this.call("carol", seller, "create", {
-            accountId: ids.shop,
-            country: "AT",
-            creditPrices: { EUR: "1", USD: "1", CHF: "1" },
-        });
+        const shop = await this.call(
+            "carol",
+            seller.call("create", {
+                accountId: ids.shop,
+                creditPrices: { EUR: "1", USD: "1", CHF: "1" },
+            }),
+        );
         const plan = await this.#product(t`Pro`, [
             [sync, null],
             [support, "priority"],
@@ -189,12 +196,15 @@ export class Finance {
             [calls, CALL_LIMIT],
             [storageLimit, STORAGE_LIMIT],
         ]);
-        const monthly = await this.call("carol", price, "create", {
-            parentId: plan,
-            currency: "EUR",
-            unitAmount: 900,
-            recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-        });
+        const monthly = await this.call(
+            "carol",
+            price.call("create", {
+                parentId: plan,
+                currency: "EUR",
+                unitAmount: 900,
+                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+            }),
+        );
 
         return {
             product: plan,
@@ -203,41 +213,53 @@ export class Finance {
         };
     }
 
-    /** Offer a product in Carol's shop granting features with their values, returning its identifier. */
+    /** Offer a product in Carol's shop granting features, returning its identifier. */
     async #product(
         name: Message,
         grants: readonly (readonly [Feature, JsonValue])[],
     ): Promise<string> {
         // create the product
-        const created = await this.call("carol", product, "create", {
-            accountId: ids.shop,
-            name,
-            description: t`An offer.`,
-        });
+        const created = await this.call(
+            "carol",
+            product.call("create", {
+                accountId: ids.shop,
+                name,
+                description: t`An offer.`,
+            }),
+        );
 
-        // grant each feature
-        for (const [feature, value] of grants) {
-            await this.call("carol", productFeature, "create", {
-                parentId: created.id,
-                packageId: feature.package.id,
-                feature: feature.name,
-                value,
-            });
-        }
+        // grant every feature in one mutation
+        const { home } = this.fixture;
+        const caller = subjectContext(subject("carol"), home).access();
+        await this.store.mutate(caller, {
+            id: RequestId.create(this.fixture.clock.now()),
+            calls: grants.map(([feature, value]) =>
+                productFeature.call("create", {
+                    ...productFeature.in(home),
+                    parentId: created.id,
+                    packageId: feature.package.id,
+                    feature: feature.name,
+                    value,
+                }),
+            ),
+        });
 
         return created.id;
     }
 
-    /** Keep Acme's billing details as the buyer's customer, which subscribing and buying require. */
+    /** Store Acme's billing details as the buyer's customer, which subscribing requires. */
     async customer(): Promise<void> {
-        await this.call("alice", customer, "create", {
-            accountId: ids.buyer,
-            email: "billing@acme.test",
-            name: "Acme",
-        });
+        await this.call(
+            "alice",
+            customer.call("create", {
+                accountId: ids.buyer,
+                email: "billing@acme.test",
+                name: "Acme",
+            }),
+        );
     }
 
-    /** Subscribe the buyer to the monthly price as the provider would, for one billing period, its grants replaced when given. */
+    /** Subscribe the buyer to the monthly price for one period as the provider would. */
     async subscribe(
         offer: Offer,
         period: { readonly start: number; readonly end: number },
@@ -245,14 +267,17 @@ export class Finance {
     ): Promise<Subscription> {
         // create the subscription as the system
         const input = {
-            seller: offer.seller,
+            ...ObjectReference.columns(
+                "seller",
+                seller.reference(offer.seller.scope, offer.seller.id),
+            ),
             currentPeriodStart: period.start,
             currentPeriodEnd: period.end,
             providerId: `sub_${crypto.randomUUID()}`,
         };
-        const created = aligned(
-            await this.store.mutate(Caller.of(this.store.principal, Date.now()), {
-                id: RequestId.create(Date.now()),
+        const created = nth(
+            await this.store.mutate(this.store.serving(subscription), {
+                id: RequestId.create(this.fixture.clock.now()),
                 calls: [
                     subscription.call("create", {
                         ...subscription.in(this.fixture.home),
@@ -270,23 +295,23 @@ export class Finance {
         return created;
     }
 
-    /** Add an item billing a price to a subscription as the provider would, its grants replaced when given. */
+    /** Add an item billing a price to a subscription as the provider would. */
     async item(
         parent: Subscription,
         reference: Offer["monthly"],
         grants?: readonly FeatureGrant[],
     ): Promise<SubscriptionItem> {
-        const offered = await Price.offer(Snapshot.live(this.test.database), reference);
+        const offered = await Price.offer(reference, Snapshot.live(this.test.database));
         const input = {
             parentId: parent.id,
-            price: reference,
+            ...ObjectReference.columns("price", price.reference(reference.scope, reference.id)),
             ...offered,
             grants: grants === undefined ? offered.grants : [...grants],
         };
 
-        return aligned(
-            await this.store.mutate(Caller.of(this.store.principal, Date.now()), {
-                id: RequestId.create(Date.now()),
+        return nth(
+            await this.store.mutate(this.store.serving(subscriptionItem), {
+                id: RequestId.create(this.fixture.clock.now()),
                 calls: [
                     subscriptionItem.call("create", {
                         ...subscriptionItem.in(this.fixture.home),
@@ -298,9 +323,13 @@ export class Finance {
         );
     }
 
-    /** Publish a later release of a package declaring some features and meters, which becomes its latest. */
-    publish(owner: Package, version: string, declared: readonly (Feature | Meter)[]): void {
-        this.fixture.publish({ ...owner, version }, declared);
+    /** Publish a package's next release declaring some features and meters. */
+    publish(
+        owner: Package,
+        version: string,
+        declared: readonly (Feature | Meter)[],
+    ): Promise<void> {
+        return this.fixture.publish({ ...owner, version }, declared);
     }
 
     /** Close the database. */
@@ -308,30 +337,31 @@ export class Finance {
         return this.fixture.close();
     }
 
-    /** Call a method as a person in the residency's home space, where finance keeps its rows. */
-    async call<Type extends ObjectType, Name extends CallableName<Type>>(
-        person: Person,
-        object: Type,
-        name: Name,
-        input: JsonObject,
-    ): Promise<CallOutput<Type, Name>> {
-        // place the call in the home space through the object's route field
-        const field = object.route.field;
-        if (field === undefined) {
-            throw new TypeError("a scoped call needs an object routed by a field");
-        }
+    /** Call a method as a person in the residency's home space, where finance stores its rows. */
+    call<Result>(person: Person, call: Call<Result>): Promise<Result> {
+        // place the call in the home, and run it on its type
+        const object = present(ObjectType.find(this.store.objects, call), Call.label(call));
+        const placed = { ...call, input: { ...object.in(this.fixture.home), ...call.input } };
 
-        // read through a query, or write through a one-call mutation
-        const { home } = this.fixture;
-        const call = Call.record(object, name, { [field]: home, ...input });
-        const caller = subjectContext(subject(person), home).caller();
-        const result = object.method(name).mutates
+        return this.#run(person, object, placed);
+    }
+
+    /** Send a call as a person in the home space, its input unchecked until the store parses it. */
+    send(person: Person, object: ObjectType, name: string, input: JsonObject): Promise<unknown> {
+        const call = object.call(name, { ...object.in(this.fixture.home), ...input });
+
+        return this.#run(person, object, call);
+    }
+
+    /** Run a call as a person: a query, else a one-call mutation. */
+    #run<Result>(person: Person, object: ObjectType, call: Call<Result>): Promise<Result> {
+        const caller = subjectContext(subject(person), this.fixture.home).access();
+
+        return object.method(call.method).mutates
             ? this.store
-                  .mutate(caller, { id: RequestId.create(Date.now()), calls: [call] })
+                  .mutate(caller, { id: RequestId.create(this.fixture.clock.now()), calls: [call] })
                   .then(([written]) => written)
             : this.store.query(caller, call);
-
-        return result as Promise<CallOutput<Type, Name>>;
     }
 
     /** Derive every account's entitlements, as the controller does after each change. */
@@ -350,8 +380,28 @@ export class Finance {
             .select()
             .from(entitlement.table)
             .where(eq(entitlement.table.accountId, scope))
-            .orderBy(asc(entitlement.table.source), asc(entitlement.table.feature));
+            .orderBy(asc(entitlement.table.packageId), asc(entitlement.table.feature));
     }
+}
+
+/** Read an account's entitlement to a feature as what its kind grants, null without one. */
+export function resolved(rows: readonly Entitlement[], feature: CatalogReference) {
+    // find the feature's row
+    const row = rows.find(
+        (each) => each.packageId === feature.packageId && each.feature === feature.name,
+    );
+
+    // keep the fields its kind grants
+    if (row === undefined) {
+        return null;
+    } else if (row.kind === "boolean") {
+        return { kind: row.kind };
+    } else if (row.kind === "static") {
+        return { kind: row.kind, value: row.value };
+    }
+    const { kind, limit, usage, resetAt, state } = row;
+
+    return { kind, limit, usage, resetAt, state };
 }
 
 /** Read a person's subject. */
@@ -359,15 +409,15 @@ export function subject(person: Person): Subject {
     return Subject.parse(principal.user.reference(Scope.universe.id, people[person]));
 }
 
-/** Copy an account below its user or organisation, as the account service replicates it. */
-async function copyAccount(
+/** Replicate an account below its user or organisation, as the account package replicates it. */
+async function replicateAccount(
     database: DatabaseConnection,
     scope: string,
     id: Identifier<"account">,
     handle: string,
 ): Promise<ObjectReference> {
     const reference = account.reference(scope, id);
-    await new AccessFixture(database).copyScope(reference);
+    await new AccessFixture(database).replicateScope(reference);
     await database.insert(account.table).values({
         id,
         scope,

@@ -57,7 +57,7 @@ export class Sku {
     /** The provider, service, meter, unit and prices. */
     readonly definition: SkuDefinition;
 
-    /** Hold a checked declaration. */
+    /** Create a SKU from a checked declaration. */
     constructor(owner: Package, definition: SkuDefinition) {
         this.package = owner;
         this.definition = definition;
@@ -76,12 +76,5 @@ export class Sku {
     /** Serialise the SKU as its reference. */
     toJSON(): CatalogReference {
         return this.reference;
-    }
-
-    /** List the SKUs on a meter. */
-    static on(skus: readonly Sku[], meter: CatalogReference): readonly Sku[] {
-        const key = CatalogReference.key(meter);
-
-        return skus.filter((sku) => CatalogReference.key(sku.definition.meter) === key);
     }
 }

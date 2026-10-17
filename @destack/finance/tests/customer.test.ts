@@ -1,21 +1,24 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { customer, Customer } from "../src/object/index.ts";
+import { customer } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 
 test.each(TEST_DIALECTS)(
-    "keep an account's billing details, refusing a second customer and billing by a viewer on %s",
+    "store an account's billing details, refusing a second customer and billing by a viewer on %s",
     async (dialect) => {
         const finance = await Finance.open(dialect);
         onTestFinished(() => finance.close());
 
-        // keep the buyer's billing details with an empty tax list by default
-        const buyer = await finance.call("alice", customer, "create", {
-            accountId: ids.buyer,
-            email: "billing@acme.test",
-            name: "Acme",
-            address: { line1: "Main Street 1", city: "Vienna", country: "AT" },
-        });
+        // store the buyer's billing details with an empty tax list by default
+        const buyer = await finance.call(
+            "alice",
+            customer.call("create", {
+                accountId: ids.buyer,
+                email: "billing@acme.test",
+                name: "Acme",
+                address: { line1: "Main Street 1", city: "Vienna", country: "AT" },
+            }),
+        );
         expect([buyer.address, buyer.taxIds]).toEqual([
             { line1: "Main Street 1", city: "Vienna", country: "AT" },
             [],
@@ -24,19 +27,21 @@ test.each(TEST_DIALECTS)(
         // refuse a second customer of the account, a field outside the billing details, and billing by a viewer
         expect([
             await refusal(
-                finance.call("alice", customer, "create", {
-                    accountId: ids.buyer,
-                    email: "other@acme.test",
-                    name: "Acme",
-                }),
+                finance.call(
+                    "alice",
+                    customer.call("create", {
+                        accountId: ids.buyer,
+                        email: "other@acme.test",
+                        name: "Acme",
+                    }),
+                ),
             ),
             await refusal(
-                finance.call("alice", customer, "update", {
-                    id: buyer.id,
-                    providerId: "cus_1",
-                }),
+                finance.send("alice", customer, "update", { id: buyer.id, providerId: "cus_1" }),
             ),
-            await refusal(finance.call("bob", customer, "update", { id: buyer.id, name: "Bob" })),
+            await refusal(
+                finance.call("bob", customer.call("update", { id: buyer.id, name: "Bob" })),
+            ),
         ]).toEqual([
             ["CONFLICT", "another customer has the same account"],
             ["BAD_REQUEST", 'invalid input: unrecognized key: "providerId"'],

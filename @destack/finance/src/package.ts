@@ -1,5 +1,41 @@
-import { definePackage } from "@destack/package/declare";
-import { stripeSecretKey } from "./stripe/secret.ts";
+import { entitlement } from "@destack/account/object";
+import { defineAdapter, definePackage } from "@destack/runtime";
+import {
+    charge,
+    checkoutSession,
+    customer,
+    invoice,
+    price,
+    product,
+    productFeature,
+    seller,
+    subscription,
+    subscriptionItem,
+    usage,
+} from "./object/index.ts";
+import { stripeSecretKey } from "./provider/stripe/secret.ts";
 
-/** The handle stacks import to install finance, with its Stripe secret. */
-export default definePackage({ secrets: { "stripe-secret-key": stripeSecretKey } });
+/** The name the platform stack installs finance under in each residency home. */
+export const FINANCE_INSTALLATION = "finance";
+
+/** The handle stacks install finance by, and clients call its products and prices by. */
+export default definePackage({
+    objects: {
+        customer,
+        seller,
+        product,
+        productFeature,
+        price,
+        subscription,
+        subscriptionItem,
+        checkoutSession,
+        entitlement,
+        charge,
+        invoice,
+        usage,
+    },
+    adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
+    secrets: { "stripe-secret-key": stripeSecretKey },
+    // derive each account's entitlements
+    permissions: { installation: { space: [entitlement.permission("provide")] } },
+});
