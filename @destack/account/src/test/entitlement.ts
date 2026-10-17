@@ -2,22 +2,17 @@ import { and, type DatabaseConnection, eq } from "@destack/db";
 import { PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/runtime";
 import { Identifier } from "@destack/schema";
-import { type Publisher, replica, replicaPosition, type Subscription } from "@destack/sync";
+import { type Publisher, replica, replicaPosition, Scope, type Subscription } from "@destack/sync";
 import { until } from "@destack/runtime/timer";
-import { Shape } from "@destack/object";
 import {
     entitlement,
     type Entitlement,
     type EntitlementResource,
     entitlementShape,
 } from "../object/entitlement.ts";
-import { space } from "../object/space.ts";
 
 /** The package declaring the features a test entitles accounts to. */
 const TEST_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");
-
-/** The home space storing the entitlements a test writes. */
-const TEST_HOME = space.identifier("space-019f5530-8000-7000-8000-0000000000f8");
 
 /** Accounts' entitlements as a test writes them into a follower's replica. */
 export const TestEntitlement = {
@@ -40,8 +35,11 @@ export const TestEntitlement = {
         // mark the account's replica complete once
         const now = Date.now();
         const key = {
-            name: Shape.replicaName(entitlementShape, { scope: TEST_HOME, account: accountId }),
-            scope: TEST_HOME,
+            name: entitlementShape.replicaName({
+                scope: Scope.universe.id,
+                account: accountId,
+            }),
+            scope: Scope.universe.id,
         };
         await database
             .insert(replica)
@@ -61,15 +59,14 @@ export const TestEntitlement = {
             .delete(entitlement.table)
             .where(
                 and(
-                    eq(entitlement.table.accountId, accountId),
+                    eq(entitlement.table.scope, accountId),
                     eq(entitlement.table.packageId, feature.packageId),
                     eq(entitlement.table.feature, feature.name),
                 ),
             );
         await database.insert(entitlement.table).values({
             id: Identifier.create("entitlement"),
-            scope: TEST_HOME,
-            accountId,
+            scope: accountId,
             packageId: feature.packageId,
             feature: feature.name,
             resource: feature.resource,

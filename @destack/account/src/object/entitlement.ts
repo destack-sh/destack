@@ -8,15 +8,13 @@ import {
     field,
     Follow,
     ObjectWatch,
-    Shape,
 } from "@destack/object";
 import { PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/runtime";
-import { defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Replica, Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
-import { residency } from "./residency.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
 
 /** The platform resources a feature allows, which machines and spaces enforce. */
@@ -36,7 +34,7 @@ export type EntitlementResource = (typeof ENTITLEMENT_RESOURCES)[number];
 export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
 
 /** Where a space's work runs: shared or dedicated cloud machines, or its people's own. */
-export const Tenancy = defineSchema(schema.enum(["shared", "dedicated", "own"]));
+export const Tenancy = schema.enum(["shared", "dedicated", "own"]);
 /** Where a space's work runs. */
 export type Tenancy = schema.Infer<typeof Tenancy>;
 
@@ -49,19 +47,13 @@ export type UsageState = (typeof USAGE_STATES)[number];
 /** The name of the shape replicating one account's entitlements. */
 const ENTITLEMENT_SHAPE = "entitlement";
 
-/** The name of the shape replicating every account's entitlements a publisher stores. */
-const UNIVERSE_ENTITLEMENT_SHAPE = "entitlement:universe";
-
 /** What an account may use of a feature across every product granting it. */
 export const entitlement = defineObject(
     {
         name: "entitlement",
         plural: "entitlements",
-        scope: space,
-        owner: "account",
+        scope: account,
         fields: {
-            /** The account entitled. */
-            account: field.reference(account).relate("account"),
             /** The package declaring the feature. */
             packageId: field.string(PackageId),
             /** The feature's name in its package. */
@@ -83,16 +75,16 @@ export const entitlement = defineObject(
         },
         permissions: {
             // let the account's readers and its residency's servers read
-            read: union(through("account", "read"), through("account", "serve")),
+            read: union(through("scope", "read"), through("scope", "serve")),
             // let its residency's servers derive it
-            provide: through("account", "serve"),
+            provide: through("scope", "serve"),
         },
         reserved: ["provide"],
         constraints: {
-            feature: { kind: "index", on: ["accountId", "packageId", "feature"], unique: true },
+            feature: { kind: "index", on: ["scope", "packageId", "feature"], unique: true },
             resource: {
                 kind: "index",
-                on: ["accountId", "resource"],
+                on: ["scope", "resource"],
                 unique: true,
                 where: { resource: { isNotNull: true } },
             },
@@ -142,20 +134,14 @@ const EntitlementParameters = schema.object({
     account: schema.identifier("account"),
 });
 
-/** The shape replicating one account's entitlements from the home space storing them. */
+/** The shape replicating one account's entitlements from the universe, their home. */
 export const entitlementShape = defineShape({
     name: ENTITLEMENT_SHAPE,
     parameters: EntitlementParameters,
     objects: [entitlement],
-    queries: ({ account: accountId }) => [entitlement.query({ where: { account: accountId } })],
-});
-
-/** The shape replicating every account's entitlements a residency's home stores. */
-export const universeEntitlementShape = defineShape({
-    name: UNIVERSE_ENTITLEMENT_SHAPE,
-    parameters: schema.object({}),
-    objects: [entitlement],
-    queries: () => [entitlement.query()],
+    queries: ({ account: accountId }) => [
+        entitlement.query({ scopes: "every", where: { scope: accountId } }),
+    ],
 });
 
 /** The condition of a use before an account's entitlements finish replicating. */
@@ -173,15 +159,6 @@ export type EntitlementUse =
 
 /** Account entitlements as their followers replicate and enforce them. */
 export const Entitlement = {
-    /** Follow every account's entitlements from each residency's home, as the universe does. */
-    universe: Follow.of(universeEntitlementShape, {
-        from: residency.query(),
-        key: async (row) =>
-            typeof row["home"] === "string" ? { key: { scope: row["home"] } } : undefined,
-        // serve while the entitlements arrive, deciding uses pending until they do
-        isReadinessGate: false,
-    }),
-
     /** Read an account's replicated entitlement to a resource or feature, absent without a plan. */
     async read(
         reader: Pick<Snapshot, "read">,
@@ -190,9 +167,9 @@ export const Entitlement = {
     ): Promise<Entitlement | undefined> {
         const where =
             typeof granted === "string"
-                ? { accountId, resource: granted }
+                ? { scope: accountId, resource: granted }
                 : {
-                      accountId,
+                      scope: accountId,
                       packageId: granted.feature.packageId,
                       feature: granted.feature.name,
                   };
@@ -207,7 +184,7 @@ export const Entitlement = {
         use: EntitlementUse,
     ): Promise<Condition> {
         // wait for the replica's first complete snapshot of the account's entitlements, wherever it lives
-        const [replicated] = await Shape.replicas(database, entitlementShape, {
+        const [replicated] = await entitlementShape.replicas(database, {
             account: accountId,
         });
         if (
@@ -266,32 +243,17 @@ export const Entitlement = {
                 return undefined;
             }
 
-            // follow its account's entitlements from the home of the account's residency
+            // follow its account's entitlements from the universe, their home
             const accountId = account.identifier(schema.string().parse(row["scope"]));
-            const owner = present(
-                await view.read(account.table).findFirst({ where: { id: accountId } }),
-                `the account ${accountId}`,
-            );
-            const residing = present(
-                await view.read(residency.table).findFirst({ where: { id: owner.residencyId } }),
-                `the residency ${owner.residencyId}`,
-            );
 
-            return {
-                key: {
-                    scope: present(residing.home, `the home of the residency ${residing.id}`),
-                    account: accountId,
-                },
-            };
+            return { key: { scope: Scope.universe.id, account: accountId } };
         },
     }),
 
     /** Watch the replicated entitlements, selecting the spaces of the account they limit. */
     watches(): readonly ObjectWatch[] {
         return [
-            ObjectWatch.of(entitlement.table, (row, database) =>
-                Space.within(database, row.accountId),
-            ),
+            ObjectWatch.of(entitlement.table, (row, database) => Space.within(database, row.scope)),
         ];
     },
 

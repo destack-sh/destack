@@ -1,17 +1,13 @@
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { replica, replicaPosition } from "@destack/sync";
+import { replica, replicaPosition, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Shape } from "@destack/object";
 import { Identifier } from "@destack/schema";
-import { account, entitlement, Entitlement, entitlementShape, space } from "../src/object/index.ts";
+import { account, entitlement, Entitlement, entitlementShape } from "../src/object/index.ts";
 import { PackageId } from "@destack/package";
 
 /** The account whose entitlements a machine checks. */
 const ACCOUNT = account.identifier("account-019f5530-8000-7000-8000-000000000501");
-
-/** The home space storing the account's entitlements. */
-const HOME = space.identifier("space-019f5530-8000-7000-8000-000000000502");
 
 /** The package declaring the platform's features. */
 const PRICING = PackageId.parse("package-019f5530-8000-7000-8000-000000000503");
@@ -58,8 +54,11 @@ test.for(TEST_DIALECTS)(
         // replicate blocked database and network entitlements, storage within its limit, and the shared tenancy
         const now = Date.now();
         const key = {
-            name: Shape.replicaName(entitlementShape, { scope: HOME, account: ACCOUNT }),
-            scope: HOME,
+            name: entitlementShape.replicaName({
+                scope: Scope.universe.id,
+                account: ACCOUNT,
+            }),
+            scope: Scope.universe.id,
         };
         await database.insert(replica).values({ ...key, tables: [] });
         await database
@@ -75,8 +74,7 @@ test.for(TEST_DIALECTS)(
             await database.insert(entitlement.table).values({
                 ...row,
                 id: Identifier.create("entitlement"),
-                scope: HOME,
-                accountId: ACCOUNT,
+                scope: ACCOUNT,
                 packageId: PRICING,
                 feature: row.resource,
                 createdAt: now,
