@@ -32,6 +32,8 @@ export class Access {
     readonly scope: string;
     /** The caller. */
     readonly context: AccessContext;
+    /** What the caller's chain of grants gives it, absent for its whole authority. */
+    readonly permissions: readonly GrantPermission[] | undefined;
     /** The represented subject's identities and subject sets. */
     readonly authority: Authority;
     /** The objects of the scope and every scope enclosing it, nearest first. */
@@ -69,6 +71,7 @@ export class Access {
         resolved: {
             readonly scope: string;
             readonly context: AccessContext;
+            readonly permissions: readonly GrantPermission[] | undefined;
             readonly authority: Authority;
             readonly links: readonly ScopeLink[];
             readonly grants: ReadonlyMap<string, RoleGrant>;
@@ -81,6 +84,7 @@ export class Access {
         this.#authorizer = authorizer;
         this.scope = resolved.scope;
         this.context = resolved.context;
+        this.permissions = resolved.permissions;
         this.authority = resolved.authority;
         this.#links = resolved.links;
         this.scopes = resolved.links.map((link) => link.object);
@@ -159,14 +163,9 @@ export class Access {
             );
         }
 
-        // refuse delegates acting under a local grant of their chain that is no longer live
+        // read what the chain's live grants give, refusing a link whose grant is gone
         Caller.requireChain(context);
-        for (const { grant, delegator, delegate } of Caller.links(context)) {
-            if (await authorizer.isHome(snapshot, grant.scope)) {
-                const stored = await Grant.read(snapshot, grant.id);
-                Grant.require(stored, grant.id, { delegator, delegate }, context.now);
-            }
-        }
+        const permissions = await Grant.permissions(snapshot, context);
 
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
         const [, represented, chained] = await Promise.all([
@@ -195,6 +194,7 @@ export class Access {
         return new Access(authorizer, {
             scope,
             context,
+            permissions,
             authority: new Authority(represented.subjects),
             links,
             grants: roles.grants,
@@ -353,6 +353,7 @@ export class Access {
         return new Access(this.#authorizer, {
             scope,
             context: this.context,
+            permissions: this.permissions,
             authority,
             links: chain,
             grants: roles.grants,
@@ -560,13 +561,7 @@ export class Access {
         },
     ): boolean {
         // allow a permission the credential lists
-        if (
-            GrantPermission.allows(
-                permission,
-                { scope: this.scope, id },
-                AccessContext.permissions(this.context),
-            )
-        ) {
+        if (GrantPermission.allows(permission, { scope: this.scope, id }, this.permissions)) {
             return true;
         }
 

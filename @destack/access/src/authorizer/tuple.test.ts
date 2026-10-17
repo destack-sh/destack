@@ -1,4 +1,4 @@
-import { nth, Identifier, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
@@ -29,6 +29,7 @@ import {
     teamTable,
 } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
+import { AccessFixture } from "../test/access.ts";
 import { TupleTree } from "./tuple.ts";
 import { relationship } from "../declare/principal.ts";
 
@@ -137,6 +138,20 @@ test.for(TEST_DIALECTS)(
 
         // call as users, members, anonymous callers, presenters of link secrets and actors under grants
         const agent = principal.installation.reference("personal", "agent");
+        const client = principal.client.reference(Scope.universe.id, "client-bob");
+        const granting = new AccessFixture(database);
+        const toAgent = await granting.replicateGrant(
+            user("bob"),
+            agent,
+            [{ ...node.permission("edit"), scope: "personal" }],
+            1,
+        );
+        const toClient = await granting.replicateGrant(
+            user("bob"),
+            client,
+            [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
+            1,
+        );
         const contexts: AccessContext[] = [
             {
                 grants: [],
@@ -207,13 +222,7 @@ test.for(TEST_DIALECTS)(
                 groups: [],
                 subject: user("bob"),
                 actors: [agent],
-                grants: [
-                    {
-                        id: Identifier.create("grant"),
-                        scope: "bob",
-                        permissions: [{ ...node.permission("edit"), scope: "personal" }],
-                    },
-                ],
+                grants: [{ id: toAgent, scope: "bob" }],
                 now: NOW,
                 attributes,
                 contacts: [],
@@ -222,18 +231,10 @@ test.for(TEST_DIALECTS)(
             {
                 groups: [],
                 subject: user("bob"),
-                actors: [principal.client.reference(Scope.universe.id, "client-bob")],
+                actors: [client],
                 now: NOW,
                 attributes,
-                grants: [
-                    {
-                        id: Identifier.create("grant"),
-                        scope: "bob",
-                        permissions: [
-                            { ...node.permission("read"), scope: "personal", objectId: "b" },
-                        ],
-                    },
-                ],
+                grants: [{ id: toClient, scope: "bob" }],
                 contacts: [],
                 linkSecrets: [],
             },

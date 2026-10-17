@@ -4,7 +4,6 @@ import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { ANONYMOUS, principal } from "../declare/principal.ts";
-import { GrantPermission } from "../grant/permission.ts";
 import { Attribute } from "../declare/expression.ts";
 
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
@@ -75,14 +74,12 @@ export interface Caller {
     readonly grants: readonly GrantClaim[];
 }
 
-/** The grant a delegated caller acts under: its identifier, the scope storing it, what it gives. */
+/** The grant a delegated caller acts under: its identifier and the scope storing it. */
 export const GrantClaim = schema.object({
     /** The grant's identifier. */
     id: schema.identifier("grant"),
     /** The scope storing the grant: its delegator's. */
     scope: schema.string().min(1),
-    /** The permissions the grant gives (RFC 9396 authorization details). */
-    permissions: schema.array(GrantPermission.schema),
 });
 /** The grant a delegated caller acts under. */
 export type GrantClaim = schema.Infer<typeof GrantClaim>;
@@ -243,14 +240,6 @@ export const Caller = {
         return caller.grants.length > 0 && caller.actors.length > 0;
     },
 
-    /** Read what a delegated caller may use: its chain's grants intersected, all when none. */
-    permissions(caller: Pick<Caller, "grants">): GrantPermission[] | undefined {
-        return caller.grants.reduce<GrantPermission[] | undefined>(
-            (given, grant) => GrantPermission.intersect(given, grant.permissions),
-            undefined,
-        );
-    },
-
     /** Read each grant of a chain with its delegator, the actor before it, and its delegate. */
     links(caller: Pick<Caller, "subject" | "actors" | "grants">): {
         readonly grant: GrantClaim;
@@ -319,15 +308,6 @@ export interface AccessContext extends Caller {
 
 /** Build access contexts and read their request attributes. */
 export const AccessContext = {
-    /** Read what a delegated call may use: its chain's grants, approval-mode ones once approved. */
-    permissions(context: AccessContext): GrantPermission[] | undefined {
-        const permissions = Caller.permissions(context);
-
-        return context.approval === undefined || permissions === undefined
-            ? permissions
-            : permissions.map(({ mode: _mode, ...entry }) => entry);
-    },
-
     /** Decide for a caller at a time, with what its request presented. */
     of(
         caller: Caller,

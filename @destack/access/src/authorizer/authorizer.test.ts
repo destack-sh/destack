@@ -14,7 +14,8 @@ import {
     Policy,
     principal,
     through,
-    type AccessContext,
+    AccessContext,
+    Caller,
     type RelationshipCondition,
     ANONYMOUS,
     Invitation,
@@ -35,6 +36,7 @@ import {
 } from "../test/fixture.ts";
 import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
+import { AccessFixture } from "../test/access.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
 const databaseTest = test.extend<{
@@ -827,6 +829,66 @@ databaseTest(
             unlinked:
                 "FORBIDDEN: installation subagent acts for installation assistant under no grant",
         });
+    },
+);
+
+databaseTest(
+    "give a chain what every live grant of it gives, approval-mode permissions only to a call applying an approved change",
+    async ({ fixture }) => {
+        // let alice's agent edit a and b, share once approved, and its sub-agent edit b and c
+        const { database, alice } = fixture;
+        const agent = principal.installation.reference("personal", "agent");
+        const subagent = principal.installation.reference("personal", "subagent");
+        const sharing = {
+            ...node.permission("share"),
+            scope: "personal",
+            mode: "approval" as const,
+        };
+        const access = new AccessFixture(database);
+        const toAgent = await access.replicateGrant(
+            alice.subject,
+            agent,
+            [editing("a"), editing("b"), sharing],
+            1,
+        );
+        const toSubagent = await access.replicateGrant(
+            agent,
+            subagent,
+            [editing("b"), editing("c")],
+            1,
+        );
+        const caller = (approval?: string) =>
+            AccessContext.of(
+                {
+                    ...Caller.of(alice.subject),
+                    actors: [agent, subagent],
+                    grants: [
+                        { id: toAgent, scope: alice.subject.id },
+                        { id: toSubagent, scope: agent.id },
+                    ],
+                },
+                1000,
+                { approval },
+            );
+        const agentAlone = AccessContext.of(
+            {
+                ...Caller.of(alice.subject),
+                actors: [agent],
+                grants: [{ id: toAgent, scope: alice.subject.id }],
+            },
+            1000,
+            { approval: "change-request-019f5530-8000-7000-8000-0000000000c5" },
+        );
+
+        // give the sub-agent what both give, and the agent its sharing once applying an approved change
+        const snapshot = Snapshot.live(database);
+        expect([
+            await Grant.permissions(snapshot, caller()),
+            await Grant.permissions(snapshot, agentAlone),
+        ]).toEqual([
+            [editing("b")],
+            [editing("a"), editing("b"), { ...node.permission("share"), scope: "personal" }],
+        ]);
     },
 );
 

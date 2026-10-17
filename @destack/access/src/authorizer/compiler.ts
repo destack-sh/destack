@@ -201,11 +201,7 @@ export class Compiler {
         stored?: { readonly mapping: TableMapping; readonly table: Table },
     ): SQL {
         // match the objects the grant lists
-        const selected = GrantPermission.select(
-            permission,
-            access.scope,
-            AccessContext.permissions(access.context),
-        );
+        const selected = GrantPermission.select(permission, access.scope, access.permissions);
         if (selected === "every") {
             return sql`true`;
         }

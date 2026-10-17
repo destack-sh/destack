@@ -53,7 +53,7 @@ const context = AccessContext.of(caller, now, { credential, linkSecrets });
 const own = AccessContext.of(Caller.of(space), now);
 const applying = AccessContext.of(caller, now, { approval: changeId }); // may use approval-mode permissions
 AccessContext.assurance(context);
-AccessContext.permissions(applying); // what its chain's grants give it
+await Grant.permissions(snapshot, applying); // what its chain's live grants give it, read from their rows
 Caller.principal(caller);
 ```
 
@@ -122,7 +122,7 @@ await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, auth
 
 ## Grants
 
-A `Grant` lets a delegate act for its delegator with what both allow, one grant per pair, its RFC 9396 permissions used at once or each once approved, presented on a caller as its RFC 8693 actor chain.
+A `Grant` lets a delegate act for its delegator with what both allow, one grant per pair, its RFC 9396 permissions used at once or each once approved; a caller presents its RFC 8693 actor chain with each link's grant by reference, read where decided.
 
 ```ts
 const grant = await Grant.create(
@@ -137,8 +137,8 @@ const grant = await Grant.create(
     authorization,
 ); // replaces alice's earlier grant to the installation
 const caller = await Grant.act(snapshot, { delegator: alice, delegate: installation }, now);
-// { subject: alice, actors: [installation], grants: [claim] }, a sub-agent adding its own grant
-Caller.permissions({ grants: [toAgent, toSubagent] }); // what every grant of the chain gives
+// { subject: alice, actors: [installation], grants: [{ id, scope }] }, a sub-agent adding its own link
+await Grant.permissions(snapshot, context); // what every live grant of the chain gives
 await Grant.revoke(aliceScope, grant.id, authorization);
 ```
 

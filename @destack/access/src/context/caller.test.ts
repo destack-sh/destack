@@ -1,6 +1,6 @@
 import { expect, refusal, test } from "@destack/test";
 import { ACCESS_PACKAGE_ID, principal, ANONYMOUS } from "../declare/principal.ts";
-import { AccessContext, Caller, CALLER_HEADER, Credential, type GrantClaim } from "./context.ts";
+import { Caller, CALLER_HEADER, Credential, type GrantClaim } from "./context.ts";
 import { schema } from "@destack/schema";
 
 /** The time the caller's credential was verified at. */
@@ -83,7 +83,6 @@ test("require a grant per actor or none, and actors to act for an identified sub
     const grant: GrantClaim = {
         id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c1"),
         scope: "user-alice",
-        permissions: [],
     };
 
     // accept a grant per actor and an impersonation, refuse a chain short of grants or for no one
@@ -104,69 +103,30 @@ test("require a grant per actor or none, and actors to act for an identified sub
     ]);
 });
 
-test("intersect the grants of a chain, each actor using only what every grant before it gives", () => {
-    // let alice's agent edit notes a and b, and its sub-agent only note b
+test("link each grant of a chain to its delegator, the actor before it, and its delegate", () => {
+    // chain alice's agent and its sub-agent
     const agent = principal.installation.reference("space-1", "installation-agent");
     const subagent = principal.installation.reference("space-1", "installation-subagent");
-    const edit = {
-        packageId: alice.subject.packageId,
-        type: "note",
-        name: "edit",
-        scope: "space-1",
-    };
-    const claim = (id: string, objectIds: readonly string[]): GrantClaim => ({
-        id: schema.identifier("grant").parse(id),
-        scope: "space-1",
-        permissions: objectIds.map((objectId) => ({ ...edit, objectId })),
-    });
-    const toAgent = claim("grant-019f5530-8000-7000-8000-0000000000c2", ["a", "b"]);
-    const toSubagent = claim("grant-019f5530-8000-7000-8000-0000000000c3", ["b", "c"]);
+    const toAgent = claimOf("grant-019f5530-8000-7000-8000-0000000000c2");
+    const toSubagent = claimOf("grant-019f5530-8000-7000-8000-0000000000c3");
 
-    // give the agent its grant, and the sub-agent what both give
-    expect([
-        Caller.permissions({ grants: [] }),
-        Caller.permissions({ grants: [toAgent] }),
-        Caller.permissions({ grants: [toAgent, toSubagent] }),
+    // link alice to the agent, and the agent to the sub-agent
+    expect(
         Caller.links({ ...alice, actors: [agent, subagent], grants: [toAgent, toSubagent] }).map(
             (link) => [link.delegator.id, link.delegate.id, link.grant.id],
         ),
-    ]).toEqual([
-        undefined,
-        toAgent.permissions,
-        [{ ...edit, objectId: "b" }],
-        [
-            [alice.subject.id, agent.id, toAgent.id],
-            [agent.id, subagent.id, toSubagent.id],
-        ],
+    ).toEqual([
+        [alice.subject.id, agent.id, toAgent.id],
+        [agent.id, subagent.id, toSubagent.id],
     ]);
 });
+
+/** Claim a grant stored in the agents' space. */
+function claimOf(id: string): GrantClaim {
+    return { id: schema.identifier("grant").parse(id), scope: "space-1" };
+}
 
 /** Require a caller's delegation chain, reading its refusal. */
 function chained(caller: Caller) {
     return refusal(Promise.resolve().then(() => Caller.requireChain(caller)));
 }
-
-test("use a grant's approval-mode permission only in a call applying an approved change", () => {
-    // give alice's agent sending at once and deleting once each use is approved
-    const agent = principal.installation.reference("space-1", "installation-agent");
-    const send = { packageId: alice.subject.packageId, type: "message", name: "send" };
-    const remove = { ...send, name: "delete", mode: "approval" as const };
-    const grants: GrantClaim[] = [
-        {
-            id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c4"),
-            scope: "user-alice",
-            permissions: [send, remove],
-        },
-    ];
-    const caller = { subject: alice.subject, actors: [agent], groups: [], contacts: [], grants };
-    const context = (approval?: string) => AccessContext.of(caller, 0, { approval });
-
-    // keep deleting behind its approval, and drop the approval mode for the approved change
-    expect([
-        AccessContext.permissions(context()),
-        AccessContext.permissions(context("change-request-019f5530-8000-7000-8000-0000000000c5")),
-    ]).toEqual([
-        [send, remove],
-        [send, { ...send, name: "delete" }],
-    ]);
-});

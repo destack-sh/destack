@@ -1,4 +1,4 @@
-import { eq, Table, Transaction, type DatabaseConnection } from "@destack/db";
+import { and, eq, Table, Transaction, type DatabaseConnection } from "@destack/db";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
@@ -105,8 +105,19 @@ export class AccessFixture {
         delegate: Subject,
         permissions: readonly GrantPermission[],
         now = Date.now(),
+        id = schema.identifier("grant").parse(`grant-${v7()}`),
     ): Promise<Identifier<"grant">> {
-        const id = schema.identifier("grant").parse(`grant-${v7()}`);
+        // replace the parties' earlier grant, as the two have one grant at a time
+        await this.database
+            .delete(accessGrant)
+            .where(
+                and(
+                    eq(accessGrant.delegatorType, delegator.type),
+                    eq(accessGrant.delegatorId, delegator.id),
+                    eq(accessGrant.delegateType, delegate.type),
+                    eq(accessGrant.delegateId, delegate.id),
+                ),
+            );
         await this.database.insert(accessGrant).values(
             Table.complete(accessGrant, {
                 id,

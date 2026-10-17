@@ -7,7 +7,7 @@ import type { Select, Snapshot } from "@destack/db";
 import { defineSchema, type Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import type { GrantClaim } from "../context/context.ts";
+import type { AccessContext, GrantClaim } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
 import { accessGrant } from "./table.ts";
 
@@ -32,12 +32,34 @@ export type Grant = Select<typeof accessGrant>;
 export const Grant = {
     /** Read the claim a token carries for a grant. */
     claim(grant: Grant): GrantClaim {
-        return { id: grant.id, scope: grant.scope, permissions: [...grant.permissions] };
+        return { id: grant.id, scope: grant.scope };
     },
 
     /** Read a grant by identifier as a snapshot shows it, absent once revoked. */
-    async read(snapshot: Snapshot, id: Identifier<"grant">): Promise<Grant | undefined> {
-        return snapshot.read(accessGrant).findFirst({ where: { id } });
+    async read(
+        reader: Pick<Snapshot, "read">,
+        id: Identifier<"grant">,
+    ): Promise<Grant | undefined> {
+        return reader.read(accessGrant).findFirst({ where: { id } });
+    },
+
+    /** Read what a delegated caller may use: its chain's live grants intersected, all when none. */
+    async permissions(
+        reader: Pick<Snapshot, "read">,
+        context: AccessContext,
+    ): Promise<GrantPermission[] | undefined> {
+        // require each link's grant live, and intersect what they give
+        let given: GrantPermission[] | undefined;
+        for (const { grant, delegator, delegate } of Caller.links(context)) {
+            const stored = await Grant.read(reader, grant.id);
+            const live = Grant.require(stored, grant.id, { delegator, delegate }, context.now);
+            given = GrantPermission.intersect(given, live.permissions);
+        }
+
+        // use approval-mode permissions in a call applying an approved change
+        return context.approval === undefined || given === undefined
+            ? given
+            : given.map(({ mode: _mode, ...entry }) => entry);
     },
 
     /** Find a delegator's one grant to a delegate unexpired at a time, absent without one. */

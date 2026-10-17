@@ -9,7 +9,6 @@ import {
     Snapshot,
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import {
     accessTables,
@@ -25,6 +24,7 @@ import {
     type TableMapping,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
+import { AccessFixture } from "../test/access.ts";
 
 /** Pages with text derived from reading them. */
 const page = new Policy(module1.package, {
@@ -101,26 +101,27 @@ const mappings: TableMapping[] = [
     },
 ];
 
-/** Grant alice's token one permission, on one object or a whole scope. */
-function restricted(
+/** Grant one of alice's tokens one permission, on one object or a whole scope. */
+async function restricted(
+    database: DatabaseConnection,
+    token: string,
     source: PermissionReference,
     entry: Omit<GrantPermission, keyof PermissionReference>,
-): AccessContext {
+): Promise<AccessContext> {
+    // store alice's grant to the token
     const alice = principal.user.reference("universe", "alice");
+    const client = principal.client.reference(Scope.universe.id, token);
+    const id = await new AccessFixture(database).replicateGrant(alice, client, [
+        { ...source, ...entry },
+    ]);
 
     return {
         subject: alice,
         groups: [],
-        actors: [principal.client.reference(Scope.universe.id, "client-alice")],
+        actors: [client],
         attributes: {},
         now: 1000,
-        grants: [
-            {
-                id: Identifier.create("grant"),
-                scope: "alice",
-                permissions: [{ ...source, ...entry }],
-            },
-        ],
+        grants: [{ id, scope: "alice" }],
         contacts: [],
         linkSecrets: [],
     };
@@ -153,10 +154,16 @@ test.each(TEST_DIALECTS)(
         );
 
         // grant alice's token one permission, on one object or the whole scope
-        const everyPage = restricted(page.permission("read"), { scope: "personal" });
-        const onePage = restricted(page.permission("read"), { scope: "personal", objectId: "one" });
-        const editing = restricted(page.permission("edit"), { scope: "personal" });
-        const elsewhere = restricted(page.permission("read"), { scope: "other" });
+        const read = page.permission("read");
+        const everyPage = await restricted(database, "client-1", read, { scope: "personal" });
+        const onePage = await restricted(database, "client-2", read, {
+            scope: "personal",
+            objectId: "one",
+        });
+        const editing = await restricted(database, "client-3", page.permission("edit"), {
+            scope: "personal",
+        });
+        const elsewhere = await restricted(database, "client-4", read, { scope: "other" });
 
         // allow pieces and page text as the pages' reading is allowed, and never a sheet's
         const contexts = [everyPage, onePage, editing, elsewhere];
