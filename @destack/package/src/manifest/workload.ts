@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { DeclarationName, Entrypoint } from "../definition/package.ts";
 import { DeclarationReference } from "../declare/declaration.ts";
 import { ComputeDefinition } from "../definition/compute.ts";
-import { Capabilities, CapabilityName } from "../definition/capability.ts";
+import { Sandbox, SandboxName } from "../definition/sandbox.ts";
 
 /** A unit of deployment, as its declaration defines it. */
 export const WorkloadDefinition = defineSchema(
@@ -12,8 +12,8 @@ export const WorkloadDefinition = defineSchema(
             name: DeclarationName,
             /** Capacity and lifecycle policy for each instance. */
             compute: ComputeDefinition.exactOptional(),
-            /** The package's capabilities the workload uses, every one when omitted. */
-            capabilities: schema.array(CapabilityName).exactOptional(),
+            /** The package's sandbox abilities the workload uses, every one when omitted. */
+            sandbox: schema.array(SandboxName).exactOptional(),
         })
         .strict(),
 );
@@ -35,8 +35,8 @@ export const WorkloadDescription = defineSchema(
         secrets: schema.array(DeclarationReference),
         /** Capacity and lifecycle policy for each instance. */
         compute: ComputeDefinition,
-        /** What the workload may call beyond its sandbox, as its package declares it. */
-        capabilities: Capabilities,
+        /** What the workload may use beyond the bare sandbox. */
+        sandbox: Sandbox,
     }),
 );
 /** A workload located in a compiled output with the declarations its code imports. */

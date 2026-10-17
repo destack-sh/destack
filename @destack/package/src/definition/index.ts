@@ -6,5 +6,5 @@ export * from "./compute.ts";
 export * from "./dependency.ts";
 export * from "./metadata.ts";
 export * from "./constructor.ts";
-export * from "./capability.ts";
+export * from "./sandbox.ts";
 export * from "./declaration.ts";

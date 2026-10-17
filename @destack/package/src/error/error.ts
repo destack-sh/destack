@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { type DomainError, type CallErrorCode, type CallErrorReport } from "@destack/error";
-import type { CapabilityName } from "../definition/capability.ts";
+import type { SandboxName } from "../definition/sandbox.ts";
 
 /** Invalid package definitions and distributed files. */
 export const PackageErrorCode = defineSchema(
@@ -47,31 +47,31 @@ export class PackageError extends Error implements DomainError {
     }
 }
 
-/** Why a host cannot grant a capability: it has none of its kind, or cannot enforce it. */
-export type CapabilityErrorCode = "UNSUPPORTED" | "UNENFORCEABLE";
+/** Why a host cannot grant a sandbox ability: it has none of its kind, or cannot enforce it. */
+export type SandboxErrorCode = "UNSUPPORTED" | "UNENFORCEABLE";
 
-/** A workload's capability its host cannot grant, refused before the workload starts. */
-export class CapabilityError extends Error implements DomainError {
+/** A workload's sandbox ability its host cannot grant, refused before the workload starts. */
+export class SandboxError extends Error implements DomainError {
     /** Stable failure code. */
-    readonly code: CapabilityErrorCode;
-    /** The capability the host cannot grant. */
-    readonly capability: CapabilityName;
+    readonly code: SandboxErrorCode;
+    /** The ability the host cannot grant. */
+    readonly ability: SandboxName;
 
-    /** Create a capability error with its code, the capability and the gap. */
+    /** Create a sandbox error with its code, the ability and the gap. */
     constructor(
-        code: CapabilityErrorCode,
-        capability: CapabilityName,
+        code: SandboxErrorCode,
+        ability: SandboxName,
         message: string,
         options?: ErrorOptions,
     ) {
-        // keep the code and the capability beside the message
+        // keep the code and the ability beside the message
         super(message, options);
-        this.name = "CapabilityError";
+        this.name = "SandboxError";
         this.code = code;
-        this.capability = capability;
+        this.ability = ability;
     }
 
-    /** Report a capability no host grants as a workload the host cannot process. */
+    /** Report an ability no host grants as a workload the host cannot process. */
     toCallError(): CallErrorReport {
         return { code: "UNPROCESSABLE_CONTENT", message: this.message };
     }

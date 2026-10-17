@@ -56,20 +56,12 @@
                         ]
                     }
                 },
-                "capabilities": {
+                "sandbox": {
                     "type": "object",
                     "properties": {
                         "process": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "network": {
@@ -82,35 +74,16 @@
                                         "type": "string",
                                         "pattern": "^(?:\\*|(?:\\*\\.)?[a-z0-9-]+(?:\\.[a-z0-9-]+)*(?::\\d{1,5})?)$"
                                     }
-                                },
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "connect",
-                                "reason"
+                                "connect"
                             ],
                             "additionalProperties": false
                         },
                         "listen": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "fs": {
@@ -122,18 +95,10 @@
                                         "read",
                                         "write"
                                     ]
-                                },
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "access",
-                                "reason"
+                                "access"
                             ],
                             "additionalProperties": false
                         },
@@ -147,18 +112,10 @@
                                         "type": "string",
                                         "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                                     }
-                                },
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "names",
-                                "reason"
+                                "names"
                             ],
                             "additionalProperties": false
                         },
@@ -172,291 +129,96 @@
                                         "type": "string",
                                         "pattern": "^[A-Za-z0-9._-]+$"
                                     }
-                                },
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
                                 }
                             },
                             "required": [
-                                "commands",
-                                "reason"
+                                "commands"
                             ],
                             "additionalProperties": false
                         },
                         "camera": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "microphone": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "geolocation": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "display-capture": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "clipboard-read": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "clipboard-write": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "fullscreen": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "midi": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "usb": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "hid": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "serial": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "bluetooth": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "screen-wake-lock": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "idle-detection": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "local-fonts": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "window-management": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         },
                         "xr-spatial-tracking": {
                             "type": "object",
-                            "properties": {
-                                "reason": {
-                                    "type": "string",
-                                    "minLength": 1
-                                },
-                                "optional": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "reason"
-                            ],
+                            "properties": {},
                             "additionalProperties": false
                         }
                     },

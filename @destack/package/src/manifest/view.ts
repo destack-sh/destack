@@ -1,7 +1,7 @@
 import { defineSchema, schema, Text } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { PackagePath } from "../file/file.ts";
-import { Capabilities } from "../definition/capability.ts";
+import { Sandbox } from "../definition/sandbox.ts";
 
 /** The presentation priorities, the strongest first. */
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
@@ -40,10 +40,8 @@ export const ViewDescription = Object.assign(
             .object({
                 /** The emitted chunk mounting the view. */
                 entrypoint: PackagePath,
-                /** The permissions the view requests by scope, as a `PermissionRequest`. */
-                permissions: schema.jsonObject(),
-                /** The browser features the view may use, as its package declares them. */
-                capabilities: Capabilities,
+                /** The browser features the view may use beyond the bare sandbox. */
+                sandbox: Sandbox,
                 /** The object types the view presents, so opening an object picks its view. */
                 presents: schema.array(ViewPresentation),
                 /** The packages the view calls as its person. */

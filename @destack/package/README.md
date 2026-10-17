@@ -1,10 +1,10 @@
 # @destack/package
 
-`destack.json` is a package's `package.json` companion with Deno's permissions as `capabilities`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` keeps a build's symbols under SCIP monikers and relationships.
+`destack.json` is a package's `package.json` companion with Deno's permissions as `sandbox`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` keeps a build's symbols under SCIP monikers and relationships.
 
 ```ts
 // deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git
-const capabilities = {
+const sandbox = {
     network: { connect: ["api.github.com"] },
     env: { names: ["GITHUB_TOKEN"] },
     run: { commands: ["git"] },
@@ -38,16 +38,16 @@ export default definePackage({ resources: { main: pagesDatabase } });
 
 ## Definitions
 
-`destack.json` sets a package's id, language, runtimes, capabilities and the kinds of its declarations: its own with their functions, a dependency's with the value that kind's functions inspect.
+`destack.json` sets a package's id, language, runtimes, the sandbox abilities it always uses and the kinds of its declarations: its own with their functions, a dependency's with the value that kind's functions inspect.
 
 ```json
 {
     "id": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
-    "capabilities": {
-        "network": { "connect": ["api.github.com"], "reason": "fetches linked repositories" },
-        "fs": { "access": "read", "reason": "indexes the folders you choose", "optional": true }
+    "sandbox": {
+        "network": { "connect": ["api.github.com"] },
+        "fs": { "access": "read" }
     },
     "declarations": {
         "defineNotification": {
@@ -68,13 +68,13 @@ export default definePackage({ resources: { main: pagesDatabase } });
 }
 ```
 
-## Capabilities
+## Sandbox
 
-`Capabilities.grant` gives an installation the required capabilities and the optional ones it allows, and `defineWorkload` limits a workload to a subset.
+`Sandbox.merge` joins the abilities a package always uses with those its enabled capabilities unlock, and `defineWorkload` limits a workload to a subset.
 
 ```ts
-Capabilities.grant(workload.capabilities, ["fs"]); // required ones plus fs, never camera
-export const indexer = defineWorkload({ name: "indexer", capabilities: ["network", "run"], start });
+Sandbox.merge(definition.sandbox, { network: { connect: ["gmail.googleapis.com"] } }); // hosts united
+export const indexer = defineWorkload({ name: "indexer", sandbox: ["network", "run"], start });
 ```
 
 ## Examples

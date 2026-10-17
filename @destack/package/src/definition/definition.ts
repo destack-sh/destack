@@ -4,7 +4,7 @@ import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
 import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
-import { Capabilities } from "./capability.ts";
+import { Sandbox } from "./sandbox.ts";
 import { PackageError } from "../error/index.ts";
 
 /** The export of a package's test layer, serving its dependents' tests outside any build. */
@@ -58,8 +58,8 @@ const definition = defineSchema(
         template: TemplateDefinition.exactOptional(),
         /** The runtimes the package's exports compile for. */
         runtimes: schema.array(Runtime).min(1).exactOptional(),
-        /** What the package's workloads and views may use, each consented to at installation. */
-        capabilities: Capabilities.exactOptional(),
+        /** What the package's workloads and views always use beyond the bare sandbox. */
+        sandbox: Sandbox.exactOptional(),
         /** The declaration constructors the build describes, by name. */
         declarations: DeclarationConstructorMap.exactOptional(),
         /** The functions, tags and constructors receiving the calling module, by export path. */
@@ -85,7 +85,7 @@ const definition = defineSchema(
 
 /** The declarations authored in destack.json. */
 export const PackageDefinition = Object.assign(definition, {
-    /** Parse the text of a destack.json, refusing capabilities its runtimes cannot honour. */
+    /** Parse the text of a destack.json, refusing sandbox abilities its runtimes cannot honour. */
     read(text: string): PackageDefinition {
         return requireRuntimes(definition.parse(JSON.parse(text)));
     },
@@ -121,7 +121,7 @@ const anyDefinition = defineSchema(schema.union([definition, workspaceDefinition
 
 /** The contents of a destack.json: a package's definition, or a workspace root's. */
 export const Definition = Object.assign(anyDefinition, {
-    /** Parse a destack.json, refusing capabilities its runtimes cannot honour. */
+    /** Parse a destack.json, refusing sandbox abilities its runtimes cannot honour. */
     read(text: string): Definition {
         const value = anyDefinition.parse(JSON.parse(text));
 
@@ -136,17 +136,17 @@ export const Definition = Object.assign(anyDefinition, {
 /** The contents of a destack.json. */
 export type Definition = schema.Infer<typeof anyDefinition>;
 
-/** Refuse the process capability of a package compiling for no Bun runtime. */
+/** Refuse the process ability of a package compiling for no Bun runtime. */
 function requireRuntimes(value: PackageDefinition): PackageDefinition {
     // run workloads in a Bun process only from a package compiling for Bun
     const runtimes = [
         ...(value.runtimes ?? []),
         ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes),
     ];
-    if (value.capabilities?.process !== undefined && !runtimes.includes("bun")) {
+    if (value.sandbox?.process !== undefined && !runtimes.includes("bun")) {
         throw new PackageError(
             "INVALID_DEFINITION",
-            "the process capability requires the bun runtime",
+            "the process ability requires the bun runtime",
         );
     }
 

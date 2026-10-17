@@ -1,7 +1,7 @@
 import type { Manifest, Plugin, PluginOption } from "vite";
 import { schema } from "@destack/schema";
 import type { ModuleDescription } from "../code/index.ts";
-import type { Capabilities } from "../definition/capability.ts";
+import type { Sandbox } from "../definition/sandbox.ts";
 import type { Package } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
 import type { PackageOutput } from "../manifest/index.ts";
@@ -111,8 +111,8 @@ export interface Compilation {
     readonly exports: Readonly<Record<string, string>>;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
-    /** What the package's workloads and views may use. */
-    readonly capabilities: Capabilities;
+    /** What the package's workloads and views always use beyond the bare sandbox. */
+    readonly sandbox: Sandbox;
     /** The declarations of the package and of the dependencies its modules import. */
     readonly declarations: readonly DeclarationDescription[];
     /** The package's inspected modules. */
