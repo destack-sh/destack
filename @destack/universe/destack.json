@@ -1,0 +1,17 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a11ddd-95ad-728d-abd8-459120203e22",
+    "language": "typescript",
+    "runtimes": ["bun", "workerd"],
+    "exports": {
+        "./bun": {
+            "runtimes": ["bun"]
+        },
+        "./cloudflare": {
+            "runtimes": ["workerd"]
+        },
+        "./cloudflare/worker": {
+            "runtimes": ["workerd"]
+        }
+    }
+}

@@ -1,0 +1,45 @@
+{
+    "name": "@destack/universe",
+    "version": "2026.9.0",
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "description": "Run a universe: the account and setting packages over one store, on Bun or as a Cloudflare Worker.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./bun": "./src/bun/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts",
+        "./cloudflare/worker": "./src/cloudflare/worker.ts",
+        "./destack.json": "./destack.json"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/relay": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/runtime": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/workflow": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.2",
+        "@cloudflare/workers-types": "5.20260917.1"
+    }
+}
