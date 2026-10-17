@@ -1,20 +1,18 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { type Connector, ResourceDeclaration } from "@destack/resource";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { secretConnector } from "../secret/connector.ts";
 import { type Secret, SecretGeneration } from "../secret/secret.ts";
-import { SECRET_KIND } from "./kind.ts";
+import { SECRET_DECLARATION } from "@destack/stack/declare";
 
 /** A secret a package declares. */
 export const SecretDescription = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The package-local secret name. */
-            name: DeclarationName,
-            /** How the space generates the first version at install. */
-            generated: SecretGeneration.exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The package-local secret name. */
+        name: DeclarationName,
+        /** How the space generates the first version at install. */
+        generated: SecretGeneration.exactOptional(),
+    }),
     {
         /** Read how a declared secret's spec generates it, absent for a secret a stack binds. */
         generation(declared: {
@@ -38,7 +36,7 @@ export class SecretDeclaration extends ResourceDeclaration<
 
     /** Keep a validated secret declaration of a package. */
     constructor(owner: Package, declaration: SecretDescription) {
-        super(owner, { name: declaration.name, kind: SECRET_KIND, spec: {} });
+        super(owner, { name: declaration.name, kind: SECRET_DECLARATION, spec: {} });
         if (declaration.generated !== undefined) {
             this.generated = declaration.generated;
         }

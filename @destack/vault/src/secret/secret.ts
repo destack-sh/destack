@@ -1,5 +1,5 @@
 import { DeclarationName } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 
 /** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
@@ -19,14 +19,12 @@ const ES256 = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 /** How a space generates a secret's first version when it installs the package. */
 export const SecretGeneration = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The package's vault declaration keeping the secret. */
-            vault: DeclarationName,
-            /** The algorithm writing the first version. */
-            algorithm: schema.enum(SECRET_ALGORITHMS),
-        }),
-    ),
+    schema.object({
+        /** The package's vault declaration keeping the secret. */
+        vault: DeclarationName,
+        /** The algorithm writing the first version. */
+        algorithm: schema.enum(SECRET_ALGORITHMS),
+    }),
     {
         /** Generate a secret's first value with an algorithm: a private JSON Web Key. */
         async generate(algorithm: SecretAlgorithm): Promise<SecretValue> {
@@ -41,40 +39,34 @@ export const SecretGeneration = Object.assign(
 export type SecretGeneration = schema.Infer<typeof SecretGeneration>;
 
 /** A bounded text or binary secret value. */
-export const SecretValue = defineSchema(
-    schema.discriminatedUnion("encoding", [
-        schema.object({
-            encoding: schema.literal("text"),
-            value: schema.string().max(MAX_VALUE_BYTES),
-        }),
-        schema.object({
-            encoding: schema.literal("base64"),
-            value: schema.base64().max(MAX_BASE64_LENGTH),
-        }),
-    ]),
-);
+export const SecretValue = schema.discriminatedUnion("encoding", [
+    schema.object({
+        encoding: schema.literal("text"),
+        value: schema.string().max(MAX_VALUE_BYTES),
+    }),
+    schema.object({
+        encoding: schema.literal("base64"),
+        value: schema.base64().max(MAX_BASE64_LENGTH),
+    }),
+]);
 /** A bounded text or binary secret value. */
 export type SecretValue = schema.Infer<typeof SecretValue>;
 
 /** A value read from a secret, with the number of its version. */
-export const SecretReading = defineSchema(
-    schema.object({
-        /** The version's number within its secret. */
-        version: schema.number().int().positive(),
-        /** The decrypted value. */
-        value: SecretValue,
-    }),
-);
+export const SecretReading = schema.object({
+    /** The version's number within its secret. */
+    version: schema.number().int().positive(),
+    /** The decrypted value. */
+    value: SecretValue,
+});
 /** A value read from a secret, with the number of its version. */
 export type SecretReading = schema.Infer<typeof SecretReading>;
 
 /** The version a read selects: an exact number, or the secret's current version when absent. */
-export const SecretSelection = defineSchema(
-    schema.object({
-        /** The version's number within its secret. */
-        version: schema.number().int().positive().exactOptional(),
-    }),
-);
+export const SecretSelection = schema.object({
+    /** The version's number within its secret. */
+    version: schema.number().int().positive().exactOptional(),
+});
 /** The version a read selects: an exact number, or the secret's current version when absent. */
 export type SecretSelection = schema.Infer<typeof SecretSelection>;
 
@@ -82,12 +74,10 @@ export type SecretSelection = schema.Infer<typeof SecretSelection>;
 export const SecretDisclosure = SecretReading.pick({ version: true });
 
 /** A secret a read selects by name within its vault, at an exact version or the current one. */
-export const VaultSelection = defineSchema(
-    SecretSelection.extend({
-        /** The secret's name within the vault. */
-        name: schema.string().min(1),
-    }),
-);
+export const VaultSelection = SecretSelection.extend({
+    /** The secret's name within the vault. */
+    name: schema.string().min(1),
+});
 /** A secret a read selects by name within its vault, at an exact version or the current one. */
 export type VaultSelection = schema.Infer<typeof VaultSelection>;
 

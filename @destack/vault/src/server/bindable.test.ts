@@ -6,7 +6,8 @@ import { RequestId } from "@destack/runtime/request";
 import { binding, installation } from "@destack/stack/object";
 import type { ResourceNeed } from "@destack/stack/server";
 import { expect, refusal, single, test } from "@destack/test";
-import { SECRET_KIND, VAULT_PROVIDER } from "../declare/index.ts";
+import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { VAULT_PROVIDER } from "../declare/index.ts";
 import { secret, SecretVersion, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
 import { VaultFixture } from "../test/index.ts";
@@ -23,7 +24,7 @@ const notes = Package.parse({
 /** A declaration of a secret the space generates in the package's vault named push. */
 const generated: ResourceNeed = {
     name: "push-key",
-    kind: SECRET_KIND,
+    kind: SECRET_DECLARATION,
     spec: { generated: { vault: "push", algorithm: "ES256" } },
     package: notes,
     state: {},

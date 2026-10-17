@@ -3,7 +3,8 @@ import { present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Binding, installation } from "@destack/stack/object";
 import type { ServedBindable } from "@destack/stack/server";
-import { SECRET_KIND, VAULT_PROVIDER } from "../declare/kind.ts";
+import { VAULT_PROVIDER } from "../declare/kind.ts";
+import { SECRET_DECLARATION } from "@destack/stack/declare";
 import { SecretDescription } from "../declare/secret.ts";
 import { secret, SecretVersion, secretVersion, vault } from "../object/index.ts";
 import { SecretGeneration } from "../secret/secret.ts";
@@ -209,7 +210,7 @@ export function implementSecretVersion(): typeof secretVersion {
 export const secretBindable: ServedBindable<typeof declaredSecret> = {
     object: declaredSecret,
     used: [declaredSecret, secretVersion],
-    declaration: SECRET_KIND,
+    declaration: SECRET_DECLARATION,
     provider: VAULT_PROVIDER,
     reference: vaultPackage.name,
     provision: async (call, _target, need, bindings) => {
