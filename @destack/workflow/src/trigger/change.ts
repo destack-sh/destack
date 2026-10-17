@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
 import { type Key, type Table, type RowImage, type Row, LogPosition, Condition } from "@destack/db";
 
@@ -9,25 +9,23 @@ export const MAX_LAG_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 export const CHANGE_OPERATIONS = ["create", "update", "delete"] as const;
 
 /** A change a change trigger fires on. */
-export const ChangeOperation = defineSchema(schema.enum(CHANGE_OPERATIONS));
+export const ChangeOperation = schema.enum(CHANGE_OPERATIONS);
 /** A change a change trigger fires on. */
 export type ChangeOperation = schema.Infer<typeof ChangeOperation>;
 
 /** The changes of one object type a trigger fires on, as the manifest describes them. */
-export const ChangeOn = defineSchema(
-    schema.object({
-        /** The changed object type. */
-        object: DeclarationReference,
-        /** The condition on the object's rows. */
-        where: Condition.schema.exactOptional(),
-        /** The operations fired on. */
-        operations: schema.array(ChangeOperation).min(1),
-        /** Where a new trigger starts: at the log's head, or with every matching row as created. */
-        from: schema.enum(["now", "snapshot"]),
-        /** How long the log retains changes the trigger has not recorded, in milliseconds. */
-        maxLag: schema.number().int().positive(),
-    }),
-);
+export const ChangeOn = schema.object({
+    /** The changed object type. */
+    object: DeclarationReference,
+    /** The condition on the object's rows. */
+    where: Condition.schema.exactOptional(),
+    /** The operations fired on. */
+    operations: schema.array(ChangeOperation).min(1),
+    /** Where a new trigger starts: at the log's head, or with every matching row as created. */
+    from: schema.enum(["now", "snapshot"]),
+    /** How long the log retains changes the trigger has not recorded, in milliseconds. */
+    maxLag: schema.number().int().positive(),
+});
 /** The changes of one object type a trigger fires on, as the manifest describes them. */
 export type ChangeOn = schema.Infer<typeof ChangeOn>;
 

@@ -2,7 +2,7 @@ import type { Condition } from "@destack/db";
 import { DeclarationName } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import type { ServerContext } from "@destack/runtime/workload";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     ChangeOn,
     type ChangeOperation,
@@ -27,34 +27,32 @@ export const TRIGGER_KINDS = ["schedule", "change", "webhook"] as const;
 export type TriggerKind = (typeof TRIGGER_KINDS)[number];
 
 /** A workflow's trigger in the manifest: its name and what fires it, by the kind of event. */
-export const TriggerDescription = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** The trigger's name within its workflow. */
-            name: DeclarationName,
-            /** A trigger firing on a schedule. */
-            kind: schema.literal("schedule"),
-            /** The schedule whose occurrences fire. */
-            schedule: ScheduleOn,
-        }),
-        schema.object({
-            /** The trigger's name within its workflow. */
-            name: DeclarationName,
-            /** A trigger firing on an object type's changes. */
-            kind: schema.literal("change"),
-            /** The changes that fire. */
-            change: ChangeOn,
-        }),
-        schema.object({
-            /** The trigger's name within its workflow. */
-            name: DeclarationName,
-            /** A trigger firing on signed webhook deliveries. */
-            kind: schema.literal("webhook"),
-            /** The signed deliveries that fire. */
-            webhook: WebhookOn,
-        }),
-    ]),
-);
+export const TriggerDescription = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The trigger's name within its workflow. */
+        name: DeclarationName,
+        /** A trigger firing on a schedule. */
+        kind: schema.literal("schedule"),
+        /** The schedule whose occurrences fire. */
+        schedule: ScheduleOn,
+    }),
+    schema.object({
+        /** The trigger's name within its workflow. */
+        name: DeclarationName,
+        /** A trigger firing on an object type's changes. */
+        kind: schema.literal("change"),
+        /** The changes that fire. */
+        change: ChangeOn,
+    }),
+    schema.object({
+        /** The trigger's name within its workflow. */
+        name: DeclarationName,
+        /** A trigger firing on signed webhook deliveries. */
+        kind: schema.literal("webhook"),
+        /** The signed deliveries that fire. */
+        webhook: WebhookOn,
+    }),
+]);
 /** A workflow's trigger in the manifest. */
 export type TriggerDescription = schema.Infer<typeof TriggerDescription>;
 

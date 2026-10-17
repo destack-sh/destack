@@ -1,4 +1,4 @@
-import { defineSchema, Instant, schema, TimeZone } from "@destack/schema";
+import { Instant, schema, TimeZone } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
 import { Failure } from "@destack/sync";
 import { CallError } from "@destack/runtime/error";
@@ -44,21 +44,19 @@ const ONCE = schema.object({
 });
 
 /** When a schedule's occurrences fall. */
-export const ScheduleTiming = defineSchema(schema.union([CRON, INTERVAL, ONCE]));
+export const ScheduleTiming = schema.union([CRON, INTERVAL, ONCE]);
 /** When a schedule's occurrences fall. */
 export type ScheduleTiming = schema.Infer<typeof ScheduleTiming>;
 
 /** A schedule a trigger fires on. */
-export const ScheduleOn = defineSchema(
-    schema.object({
-        /** When the occurrences fall. */
-        timing: ScheduleTiming,
-        /** Whether occurrences may overlap. */
-        concurrency: schema.enum(CONCURRENCIES),
-        /** How late an occurrence may start, in milliseconds. */
-        deadline: schema.number().int().nonnegative(),
-    }),
-);
+export const ScheduleOn = schema.object({
+    /** When the occurrences fall. */
+    timing: ScheduleTiming,
+    /** Whether occurrences may overlap. */
+    concurrency: schema.enum(CONCURRENCIES),
+    /** How late an occurrence may start, in milliseconds. */
+    deadline: schema.number().int().nonnegative(),
+});
 /** A schedule a trigger fires on. */
 export type ScheduleOn = schema.Infer<typeof ScheduleOn>;
 
@@ -66,18 +64,16 @@ export type ScheduleOn = schema.Infer<typeof ScheduleOn>;
 export const SCHEDULE_SKIP_REASONS = ["missed", "late", "superseded", "overlap"] as const;
 
 /** A skipped occurrence of a schedule and why. */
-export const ScheduleSkip = defineSchema(
-    schema.object({
-        /** The occurrence's time, in UTC epoch milliseconds. */
-        at: Instant,
-        /** Why it was skipped. */
-        reason: schema.enum(SCHEDULE_SKIP_REASONS),
-        /** The occurrences missed before it uncounted, absent when none. */
-        earlier: schema
-            .union([schema.number().int().positive(), schema.literal("many")])
-            .exactOptional(),
-    }),
-);
+export const ScheduleSkip = schema.object({
+    /** The occurrence's time, in UTC epoch milliseconds. */
+    at: Instant,
+    /** Why it was skipped. */
+    reason: schema.enum(SCHEDULE_SKIP_REASONS),
+    /** The occurrences missed before it uncounted, absent when none. */
+    earlier: schema
+        .union([schema.number().int().positive(), schema.literal("many")])
+        .exactOptional(),
+});
 /** A skipped occurrence of a schedule and why. */
 export type ScheduleSkip = schema.Infer<typeof ScheduleSkip>;
 

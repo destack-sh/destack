@@ -1,5 +1,5 @@
 import type { ServerContext } from "@destack/runtime/workload";
-import { nth, defineSchema, Instant, schema, type JsonValue } from "@destack/schema";
+import { nth, Instant, schema, type JsonValue } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { RequestBody } from "@destack/runtime/request";
 
@@ -16,39 +16,33 @@ const STANDARD_SECRET_PREFIX = "whsec_";
 const STANDARD_SIGNATURE_VERSION = "v1";
 
 /** The values of a webhook path's parameters, by name. */
-export const WebhookParameters = defineSchema(
-    schema.record(schema.string(), schema.string().min(1)),
-);
+export const WebhookParameters = schema.record(schema.string(), schema.string().min(1));
 /** The values of a webhook path's parameters, by name. */
 export type WebhookParameters = schema.Infer<typeof WebhookParameters>;
 
 /** One verified webhook delivery. */
-export const WebhookDelivery = defineSchema(
-    schema.object({
-        /** The sender's delivery identifier. */
-        id: schema.string().min(1),
-        /** The event type, such as push. */
-        event: schema.string().min(1),
-        /** The decoded body. */
-        payload: schema.json(),
-        /** The path's parameters. */
-        parameters: WebhookParameters,
-        /** The receiving time, in UTC epoch milliseconds. */
-        receivedAt: Instant,
-    }),
-);
+export const WebhookDelivery = schema.object({
+    /** The sender's delivery identifier. */
+    id: schema.string().min(1),
+    /** The event type, such as push. */
+    event: schema.string().min(1),
+    /** The decoded body. */
+    payload: schema.json(),
+    /** The path's parameters. */
+    parameters: WebhookParameters,
+    /** The receiving time, in UTC epoch milliseconds. */
+    receivedAt: Instant,
+});
 /** One verified webhook delivery. */
 export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
-const shape = defineSchema(
-    schema.object({
-        /** The name of the signature scheme, such as standard. */
-        verification: schema.string().min(1),
-        /** The path template below the trigger, such as `/{repository}`. */
-        path: schema.string().regex(PATH_PATTERN),
-    }),
-);
+const shape = schema.object({
+    /** The name of the signature scheme, such as standard. */
+    verification: schema.string().min(1),
+    /** The path template below the trigger, such as `/{repository}`. */
+    path: schema.string().regex(PATH_PATTERN),
+});
 /** The signed webhook deliveries a trigger fires on, as the manifest describes them. */
 export type WebhookOn = schema.Infer<typeof shape>;
 
