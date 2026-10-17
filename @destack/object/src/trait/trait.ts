@@ -33,6 +33,8 @@ export interface TraitObject {
     readonly key: schema.Schema<string> | undefined;
     /** Whether each object represents a principal, which acts on its own row. */
     readonly isPrincipal: boolean;
+    /** Whether the objects live only in the universe, where no code is contained. */
+    readonly isUniverseOnly: boolean;
 }
 
 /** The table options a trait adds. */

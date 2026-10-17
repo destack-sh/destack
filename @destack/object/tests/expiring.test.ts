@@ -1,11 +1,12 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { principal, relation } from "@destack/access";
+import { contained, none, principal, relation } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
+import { Scope } from "@destack/sync";
 import { v7 } from "uuid";
 
 import { RequestId } from "@destack/runtime/request";
@@ -156,4 +157,22 @@ test("leave the expired rows a database replicates to the deletes their home sen
     );
     const left = await database.select({ title: alert.table.title }).from(alert.table);
     expect([left, delay, controller.watches]).toEqual([[{ title: "Replicated" }], undefined, []]);
+});
+
+test("let the code serving an expiring type remove its objects, and leave a universe-only type to declare who does", () => {
+    // declare one expiring type in spaces and one in the universe alone, neither naming expire
+    const universal = defineObject({
+        name: "token",
+        plural: "tokens",
+        scope: Scope.universe.id,
+        fields: { expiresAt: field.time() },
+        expiring: [{ after: { days: 1 }, from: "expiresAt" }],
+        permissions: ["read"],
+    });
+
+    // expect the space type's expiry contained, and the universe type's granted to no one
+    expect([
+        alert.policy.definition.permissions["expire"],
+        universal.policy.definition.permissions["expire"],
+    ]).toEqual([contained(), none()]);
 });

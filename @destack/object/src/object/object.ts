@@ -736,6 +736,22 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.scope;
     }
 
+    /** Whether the objects live only in the universe, being no scopes themselves. */
+    get isUniverseOnly(): boolean {
+        return ObjectType.isUniverseOnly(this.definition);
+    }
+
+    /** Report whether a definition's objects live only in the universe, being no scopes. */
+    static isUniverseOnly(
+        definition: Pick<ObjectDefinition, "scope" | "isScope" | "represents">,
+    ): boolean {
+        return (
+            definition.scope === Scope.universe.id &&
+            definition.isScope !== true &&
+            definition.represents?.definition.scope !== true
+        );
+    }
+
     /** The reference relation to each object's owner, absent if the scope is the owner. */
     get owner(): string | undefined {
         return this.definition.owner;
@@ -2055,12 +2071,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Require readable scope types and valid local object scopes. */
     #requireScopes(): void {
         // refuse a containment grant on a type that lives only in the universe, without principals
-        const definition = this.policy.definition;
-        const isUniversal = this.scope === Scope.universe.id && definition.scope !== true;
-        const contained = Object.entries(definition.permissions).find(([, expression]) =>
-            ObjectType.#grantsContainment(expression),
+        const contained = Object.entries(this.policy.definition.permissions).find(
+            ([, expression]) => ObjectType.#grantsContainment(expression),
         );
-        if (isUniversal && contained !== undefined) {
+        if (this.isUniverseOnly && contained !== undefined) {
             throw new TypeError(
                 `object ${this.name} lives in the universe without principals: contained() in its ${contained[0]} permission allows no one`,
             );

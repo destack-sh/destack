@@ -1,8 +1,9 @@
+import { contained, none } from "@destack/access";
 import { Duration } from "@destack/schema";
 import { TABLE, Condition } from "@destack/db";
 import type { ObjectType } from "../object/object.ts";
 import { expiry } from "../method/expiring.ts";
-import { derivePermissions, type Trait } from "./trait.ts";
+import { type Trait } from "./trait.ts";
 
 /** A rule expiring matching objects a window after a time field. */
 export interface ExpiryRule {
@@ -14,7 +15,7 @@ export interface ExpiryRule {
     readonly where?: Condition;
 }
 
-/** Objects their server removes once a rule's window passes. */
+/** Objects the code serving them removes once a rule's window passes. */
 export const expiring: Trait<readonly ExpiryRule[]> & {
     /** Replicate an expiring object type with the rules its host sets. */
     readonly after: <Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]) => Self;
@@ -26,7 +27,11 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     options: (definition) => definition.expiring,
     columns: () => ({}),
     constraints: () => [],
-    policy: (_options, _object, permissions) => derivePermissions(permissions, ["expire"]),
+    // let the code serving the type expire its objects, where code is contained outside the universe
+    policy: (_options, object, permissions) =>
+        permissions.includes("expire")
+            ? {}
+            : { permissions: { expire: object.isUniverseOnly ? none() : contained() } },
     methods: () => ({ expire: expiry }),
     validate: (rules, object) => expiring.requireRules(object, rules),
     after(object, rules) {

@@ -503,6 +503,7 @@ export const ObjectPolicy = {
             key: type.keyed,
             storage: type.storage,
             isPrincipal: type.represents !== undefined,
+            isUniverseOnly: type.isUniverseOnly,
         };
     },
 };

@@ -163,6 +163,7 @@ export const ObjectTable = {
             storage: ObjectType.storageKind(definition.storage),
             key: definition.key,
             isPrincipal: definition.represents !== undefined,
+            isUniverseOnly: ObjectType.isUniverseOnly(definition),
         };
 
         // build the columns and gather the dependents, aggregates and tree the traits add
