@@ -17,7 +17,7 @@ export class GitHubController implements Controller {
     /** The forge's object store, recording the identifiers as the forge. */
     readonly #objects: Pick<
         ObjectStore,
-        "database" | "principal" | "self" | "mutate" | "clock" | "query"
+        "database" | "principal" | "serving" | "mutate" | "clock" | "query"
     >;
     /** The repositories the forge hosts at GitHub. */
     readonly #hosting: GitHubHosting;
@@ -26,7 +26,7 @@ export class GitHubController implements Controller {
     constructor(
         objects: Pick<
             ObjectStore,
-            "database" | "principal" | "self" | "mutate" | "clock" | "query"
+            "database" | "principal" | "serving" | "mutate" | "clock" | "query"
         >,
         hosting: GitHubHosting,
     ) {
@@ -98,7 +98,7 @@ export class GitHubController implements Controller {
         if (installation !== undefined) {
             const now = this.#objects.clock.now();
             await this.#objects.mutate(
-                this.#objects.self,
+                this.#objects.serving(repository),
                 {
                     id: RequestId.create(now),
                     calls: [repository.call("identify", repository.target(row))],

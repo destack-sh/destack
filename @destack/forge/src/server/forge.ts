@@ -274,7 +274,7 @@ export class Forge {
         // refresh them, observing references as they are now
         request.signal.throwIfAborted();
         await objects.mutate(
-            objects.self,
+            objects.serving(repository),
             {
                 id: RequestId.create(now),
                 calls: changed.map((row) => repository.call("refresh", repository.target(row))),
