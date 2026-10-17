@@ -52,7 +52,7 @@ export type Follow<Parameters extends object = object> = {
           readonly key: (
               row: Readonly<Record<string, unknown>>,
               view: Snapshot,
-              self: Subject,
+              space: string | undefined,
           ) => Promise<FollowKey<Parameters> | undefined>;
       }
     | {

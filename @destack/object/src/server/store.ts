@@ -830,6 +830,19 @@ export class ObjectStore {
             : new Journal(options.database, callKey, { events, clock: options.clock });
     }
 
+    /** The space the store serves, absent for a machine's or the universe's store. */
+    get space(): string | undefined {
+        // a space's store serves the space, a sandboxed installation's store its installation's space
+        const { principal: own } = this;
+        if (principal.space.is(own)) {
+            return own.id;
+        } else if (principal.installation.is(own)) {
+            return own.scope;
+        }
+
+        return undefined;
+    }
+
     /** Read the caller serving a type: the installation serving it, else the store's principal. */
     serving(object: ObjectType, now = this.clock.now()): AccessContext {
         const served = this.readServer(object);
@@ -3707,7 +3720,7 @@ export class ObjectStore {
         const rows = await view.read(type.table).findMany({ where: query.where ?? {} });
 
         // read each row's key
-        const found = await Promise.all(rows.map((row) => follow.key(row, view, store.principal)));
+        const found = await Promise.all(rows.map((row) => follow.key(row, view, store.space)));
 
         return found.filter((key) => key !== undefined);
     }
