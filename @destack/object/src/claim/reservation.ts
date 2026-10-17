@@ -10,14 +10,6 @@ import { Claim, type Claimant, ClaimRefusal, claimTable, Expiry } from "./claim.
 import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
 
-/** A principal signing calls to a store elsewhere, with the connection reading its keys. */
-export interface Signer {
-    /** The signing principal. */
-    readonly subject: sync.Subject;
-    /** The connection reading the principal's keys. */
-    readonly database: DatabaseConnection;
-}
-
 /** A store serving object types elsewhere, called as the claiming store. */
 export interface RemoteStore {
     /** Run a mutation's calls there in one transaction, answering their results in order. */
