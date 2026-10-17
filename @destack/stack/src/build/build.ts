@@ -1,7 +1,7 @@
 import {
-    Capabilities,
+    Sandbox,
     ComputeDefinition,
-    HOST_CAPABILITIES,
+    HOST_SANDBOX,
     type DeclarationDescription,
 } from "@destack/package";
 import type {
@@ -153,7 +153,7 @@ function hasHooks(declaration: DeclarationDescription): boolean {
     return Object.values(objects).some((routed) => Object.keys(routed.hooks).length > 0);
 }
 
-/** Describe the hooks workload: no packages, triggers or bindings, and no capabilities. */
+/** Describe the hooks workload: no packages, triggers, bindings or sandbox abilities. */
 function describeHooks(workload: Runnable, compilation: Compilation): WorkloadDescription {
     return WorkloadDescription.parse({
         entrypoint: workload.entrypoint,
@@ -162,8 +162,7 @@ function describeHooks(workload: Runnable, compilation: Compilation): WorkloadDe
         resources: [],
         secrets: [],
         compute: ComputeDefinition.merge(),
-        capabilities: Capabilities.select(compilation.capabilities, []),
-        permissions: {},
+        sandbox: Sandbox.select(compilation.sandbox, []),
     });
 }
 
@@ -198,7 +197,7 @@ function describe(
         selections[kind].push(DeclarationReference.of({ package: owner, name: declaration.name }));
     }
 
-    // grant the workload the package's capabilities it lists and carry the permissions it requests
+    // grant the workload the package's sandbox abilities it lists
     const definition = WorkloadDefinition.parse(workload.definition);
 
     return WorkloadDescription.parse({
@@ -208,12 +207,11 @@ function describe(
         resources: selections.resource,
         secrets: selections.secret,
         compute: ComputeDefinition.merge(definition.compute),
-        capabilities: Capabilities.select(
-            compilation.capabilities,
-            definition.capabilities ??
-                HOST_CAPABILITIES.filter((name) => compilation.capabilities[name] !== undefined),
+        sandbox: Sandbox.select(
+            compilation.sandbox,
+            definition.sandbox ??
+                HOST_SANDBOX.filter((name) => compilation.sandbox[name] !== undefined),
         ),
-        permissions: definition.permissions ?? {},
     });
 }
 

@@ -1,5 +1,4 @@
 import {
-    CapabilityName,
     ComputeDefinition,
     DeclarationName,
     DirectoryGrant,
@@ -131,8 +130,8 @@ export const InstallationDefinition = defineSchema(
         bindings: schema.record(PackageId, schema.record(DeclarationName, StackBinding)),
         /** Workload compute settings checked against package and machine policy. */
         compute: schema.record(DeclarationName, ComputeDefinition),
-        /** The optional capabilities the installation allows. */
-        capabilities: schema.array(CapabilityName),
+        /** The package's optional capabilities the installation allows. */
+        capabilities: schema.array(DeclarationName),
         /** The directories granted to the package's `fs` capability, each with its access. */
         directories: schema.array(DirectoryGrant),
         /** User-defined labels. */
@@ -159,7 +158,7 @@ export interface InstallOptions {
     /** Workload compute settings. */
     readonly compute?: InstallationDefinition["compute"];
     /** The optional capabilities allowed, none by default. */
-    readonly capabilities?: readonly CapabilityName[];
+    readonly capabilities?: readonly DeclarationName[];
     /** The directories granted to the package's `fs` capability, none by default. */
     readonly directories?: readonly DirectoryGrant[];
     /** User-defined labels. */

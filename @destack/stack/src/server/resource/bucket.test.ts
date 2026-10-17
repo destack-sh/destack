@@ -732,16 +732,16 @@ function errorDocument(
     return `<?xml version="1.0" encoding="UTF-8"?><Error><Code>${code}</Code><Message>${message}</Message><Resource>${resource}</Resource><RequestId>${requestId}</RequestId></Error>`;
 }
 
-/** Refuse writes once the space's storage allowance is exceeded, while reads and removals go on. */
+/** Refuse writes once the space's storage entitlement is exceeded, allowing reads and removals. */
 test.for(TEST_DIALECTS)(
-    "refuse writes into a space whose storage exceeds its allowance, keeping reads and removals on %s",
+    "refuse writes into a space whose storage exceeds its entitlement, allowing reads and removals on %s",
     async (dialect) => {
         await using fixture = await BucketFixture.open(
             present(databases.get(dialect), "dialect").database,
         );
         const { client, bucket } = fixture;
 
-        // cap the space's storage, as its machine records the account's blocked allowance
+        // cap the space's storage, as its machine records the account's blocked entitlement
         const capped = {
             status: "false",
             observedGeneration: 1,
@@ -780,7 +780,7 @@ test.for(TEST_DIALECTS)(
             keys: ["a.txt"],
         });
 
-        const message = `space ${fixture.spaceId} exceeds its allowance: storage used 1100 of 1000`;
+        const message = `space ${fixture.spaceId} exceeds its entitlement: storage used 1100 of 1000`;
         expect({ refused, multipart, listed: listed.files, removed }).toEqual({
             refused: ["QUOTA_EXCEEDED", message],
             multipart: ["QUOTA_EXCEEDED", message],

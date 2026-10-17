@@ -403,8 +403,7 @@ test("retry a provisioning that failed, and keep a deleted resource while its in
             resources: [],
             secrets: [],
             compute: {},
-            capabilities: {},
-            permissions: {},
+            sandbox: {},
         },
         createdAt: now,
         updatedAt: now,
@@ -429,7 +428,7 @@ test("retry a provisioning that failed, and keep a deleted resource while its in
     // relate the installation as consumer of what its live deployment captured, as its deploy does
     const consumer = principal.installation.reference(ids.space, named.installation);
     const relate = (consumed: readonly string[]) =>
-        store.mutate(store.self, {
+        store.mutate(store.serving(object.database), {
             id: RequestId.create(Date.now()),
             calls: [
                 object.database.call("bind", {

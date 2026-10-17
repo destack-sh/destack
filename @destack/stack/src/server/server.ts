@@ -14,7 +14,7 @@ import {
     residentShape,
     space,
     spaceShape,
-    SpaceAllowance,
+    Entitlement,
 } from "@destack/account/object";
 import {
     type ClaimHome,
@@ -98,8 +98,8 @@ export interface SpaceOptions {
     readonly machine: Identifier<"machine">;
     /** The machine running the spaces' commit builds. */
     readonly buildRunner: Identifier<"machine"> | null;
-    /** Whether the machine checks its spaces' use against their accounts' allowances. */
-    readonly isEnforcingAllowances: boolean;
+    /** Whether the machine checks its spaces' use against their accounts' entitlements. */
+    readonly isEnforcingEntitlements: boolean;
     /** Open the publisher at the home of a space a follow reads, such as a residency's home. */
     readonly publisherAt: ((scope: string) => Publisher) | null;
     /** The providers with the spaces' resources. */
@@ -167,7 +167,7 @@ function stackServer(
         providers: listed,
         follows: [
             ...spaceFollows(options),
-            ...(options.isEnforcingAllowances ? [SpaceAllowance.follow] : []),
+            ...(options.isEnforcingEntitlements ? [Entitlement.follow] : []),
             ...options.follows,
         ],
         // answer moving spaces' targets and installations' hook sessions
@@ -293,7 +293,7 @@ function ownObjects(
             keystore: options.keystore,
             scheduler,
             publisher: options.publisher,
-            isEnforcingAllowances: options.isEnforcingAllowances,
+            isEnforcingEntitlements: options.isEnforcingEntitlements,
         }),
         ...providers.provided(),
         implementInstallation({
@@ -305,6 +305,8 @@ function ownObjects(
             accounts: options.accounts,
             repositories: options.repositories,
             issuer: options.keystore.issuer(options.database, options.principal.id),
+            isEnforcingEntitlements: options.isEnforcingEntitlements,
+            database: options.database,
         }),
         implementInstallationRevision(builds, registry),
         binder.declare(),

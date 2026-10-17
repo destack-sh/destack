@@ -250,7 +250,7 @@ export class PlacementController implements Controller {
         await Transaction.run(this.#database, async (transaction) => {
             // create the main database as the space
             await this.#store.mutate(
-                this.#store.self,
+                this.#store.serving(database),
                 {
                     id: RequestId.create(now),
                     calls: [
@@ -294,7 +294,7 @@ export class PlacementController implements Controller {
         const selection = { kind: "release" as const, version: stacked.version };
         const [created] =
             installed === null
-                ? await this.#store.mutate(this.#store.self, {
+                ? await this.#store.mutate(this.#store.serving(installation), {
                       id: RequestId.create(now),
                       calls: [
                           installation.call("create", {
@@ -311,7 +311,7 @@ export class PlacementController implements Controller {
                 : [installed];
 
         // submit its pinned build in a mutation of its own, whose preparation reads the created stack
-        await this.#store.mutate(this.#store.self, {
+        await this.#store.mutate(this.#store.serving(installation), {
             id: RequestId.create(now),
             calls: [
                 installation.call("submit", {

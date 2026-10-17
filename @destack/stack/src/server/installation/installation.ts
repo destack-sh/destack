@@ -1,7 +1,7 @@
 import { ObjectReference, Subject } from "@destack/sync";
 import { nth, canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { principal } from "@destack/access";
-import { and, eq } from "@destack/db";
+import { and, eq, inArray } from "@destack/db";
 import {
     type MethodContext,
     type MethodContextOf,
@@ -10,7 +10,7 @@ import {
     type ResultOf,
 } from "@destack/object";
 import { CallError } from "@destack/runtime/error";
-import { Space, space } from "@destack/account/object";
+import { entitlement, Space, space } from "@destack/account/object";
 import {
     binding,
     deployment,
@@ -146,7 +146,19 @@ function handleInstallations(options: InstallationOptions) {
                     ),
                 handle: (context) => submit(context, context.prepared, options),
             },
-            deploy: async (call) => ({ requested: await new Application(call, options).deploy() }),
+            allow: (call) =>
+                call.update({
+                    allowed: [...new Set([...call.target.allowed, call.input.capability])],
+                }),
+            disallow: (call) =>
+                call.update({
+                    allowed: call.target.allowed.filter((name) => name !== call.input.capability),
+                }),
+            deploy: async (call) => {
+                await new Application(call, options).deploy();
+
+                return {};
+            },
             finalize: async (call, next) => {
                 // remove an application's deployments, resources and grants before the installation
                 await finalizeApplication(call, options);
@@ -319,6 +331,23 @@ function installationWatches(resources: readonly ResourceType<typeof space>[]) {
         ),
         ObjectWatch.of(deployment.table, (row) => [{ id: row.installationId }]),
         ObjectWatch.of(binding.table, (row) => [{ id: row.installationId }]),
+        // wake the applications of the account's spaces refused for an unentitled capability
+        ObjectWatch.of(entitlement.table, async (row, database) => {
+            const spaces = await Space.within(database, row.accountId);
+            const refused = await database
+                .select({ id: installation.table.id, conditions: installation.table.conditions })
+                .from(installation.table)
+                .where(
+                    inArray(
+                        installation.table.scope,
+                        spaces.map((each) => schema.string().parse(each["id"])),
+                    ),
+                );
+
+            return refused
+                .filter((each) => each.conditions["ready"]?.reason === "UnentitledCapability")
+                .map((each) => ({ id: each.id }));
+        }),
         // wake the space's stack and applications once its placement changes
         Space.watch(async (spaceId, database) => {
             const rows = await database

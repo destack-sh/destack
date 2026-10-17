@@ -2,7 +2,7 @@ import type { MethodContext, MethodContextOf, ResultOf } from "@destack/object";
 import { Caller } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { SpaceAllowance } from "@destack/account/object";
+import { Space } from "@destack/account/object";
 import { CallError } from "@destack/runtime/error";
 import {
     BucketCustomMetadata,
@@ -253,9 +253,9 @@ function requireWriter(context: BucketContext): void {
     }
 }
 
-/** Refuse a write into a space whose storage allowance is exceeded. */
+/** Refuse a write into a space whose storage entitlement is exceeded. */
 async function requireStorage(context: BucketContext): Promise<void> {
-    SpaceAllowance.require(await SpaceAllowance.read(context, context.scope), "storage");
+    Space.requireWithin(await Space.read(context, context.scope), "storage");
 }
 
 /** Work on the bucket a call targets. */

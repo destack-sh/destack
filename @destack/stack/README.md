@@ -34,7 +34,7 @@ import { files } from "@template/stack";
 
 export const personal = defineStack({
     resources: { files: { declaration: files, retention: { within: { days: 30 } }, tags: {} } },
-    installations: { pages: install(pages, { files: "files" }, { capabilities: ["network"] }) },
+    installations: { pages: install(pages, { files: "files" }, { capabilities: ["publishing"] }) // allow its optional publishing capability },
     roles: { editor: { description: "Edit pages", permissions: [page.permission("update")] } },
     relationships: { pages: { subject: { installation: "pages" }, role: "editor" } },
 });
@@ -85,6 +85,9 @@ const retained = await BuildStore.sweep(builds, objects, retention, now, before)
 
 ```ts
 import { serveSpace } from "@destack/stack/server";
+
+// each installation: a role with its package's `space` permissions, and the space's `grant`
+// with its `account` and `universe` ones; a package requesting `home` permissions is refused
 
 const { store, packages } = serveSpace({
     servers: [vaultServer, messageServer],
@@ -139,7 +142,7 @@ await move.place({ publisher, keystore }, database, now);
 A `Runtime` starts, stops and serves the instances a machine runs on one server runtime, keeping them in an `InstanceRegistry`, as the machine's Bun and Cloudflare runtimes do.
 
 ```ts
-import { InstanceRegistry, InstanceSpec, RUNTIME_CAPABILITIES } from "@destack/stack/runtime";
+import { InstanceRegistry, InstanceSpec, RUNTIME_SUPPORT } from "@destack/stack/runtime";
 
 const registry = new InstanceRegistry<Running>();
 await registry.start(spec, async (identify) => {
@@ -147,7 +150,7 @@ await registry.start(spec, async (identify) => {
     identify(start.secret); // its requests prove the secret while it starts
     return { spec, secret: start.secret, process: await spawn(start) };
 });
-RUNTIME_CAPABILITIES.workerd.hasFilesystem; // false
+RUNTIME_SUPPORT.workerd.hasFilesystem; // false
 ```
 
 ## Settings

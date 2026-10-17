@@ -87,7 +87,7 @@ export interface TransferOptions {
 }
 
 /** The space's object store a move runs its calls through as its principal. */
-export type TransferStore = Pick<ObjectStore, "database" | "self" | "mutate" | "clock">;
+export type TransferStore = Pick<ObjectStore, "database" | "serving" | "mutate" | "clock">;
 
 /** A resource of the space whose provider fences its content, with its record. */
 interface ResourceFence {
@@ -861,7 +861,7 @@ export class SpaceTransfer {
 
             // complete the transfer
             await store.mutate(
-                store.self,
+                store.serving(transfer),
                 {
                     id: RequestId.create(now),
                     calls: [transfer.call("complete", { id: record.id })],

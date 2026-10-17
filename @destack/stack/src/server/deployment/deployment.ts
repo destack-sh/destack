@@ -12,20 +12,13 @@ import {
     Snapshot,
     Condition,
 } from "@destack/db";
-import { CapabilityError, type PackageId } from "@destack/package";
-import {
-    nth,
-    type JsonValue,
-    schema,
-    type Identifier,
-    present,
-    Version,
-} from "@destack/schema";
+import { SandboxError, type PackageId } from "@destack/package";
+import { nth, type JsonValue, schema, type Identifier, present, Version } from "@destack/schema";
 import { type ObjectReconciliation, ObjectWatch, type StatusCondition } from "@destack/object";
 import { RetryPolicy } from "@destack/runtime/timer";
 import { Scope, Failure } from "@destack/sync";
 import {
-    RUNTIME_CAPABILITIES,
+    RUNTIME_SUPPORT,
     type Runtime,
     type WorkloadInstallation,
     type WorkloadResource,
@@ -496,7 +489,8 @@ class Rollout {
                 manifest: build.manifest,
                 output: current.output,
                 workload: current.workload,
-                capabilities: current.description.capabilities,
+                sandbox: current.description.sandbox,
+                enabled: current.enabled,
                 directories: current.directories,
                 served: this.#served(captures),
                 installations: await Rollout.#installations(captures, reader),
@@ -516,9 +510,9 @@ class Rollout {
     #refuseUnsupported(running: Runtime): void {
         // refuse fs on a runtime without a filesystem to grant
         const current = this.#current;
-        const granted = RUNTIME_CAPABILITIES[running.name];
-        if (current.description.capabilities.fs !== undefined && !granted.hasFilesystem) {
-            throw new CapabilityError(
+        const granted = RUNTIME_SUPPORT[running.name];
+        if (current.description.sandbox.fs !== undefined && !granted.hasFilesystem) {
+            throw new SandboxError(
                 "UNSUPPORTED",
                 "fs",
                 `the ${current.runtime} runtime has no filesystem to grant`,

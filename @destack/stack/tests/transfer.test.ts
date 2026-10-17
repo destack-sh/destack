@@ -927,7 +927,7 @@ function cancelling(publisher: Uplink, cancel: () => Promise<unknown>): Uplink {
                 await running();
             }
 
-            await publisher.receive(mutation, signer);
+            return publisher.receive(mutation, signer);
         },
     };
 }

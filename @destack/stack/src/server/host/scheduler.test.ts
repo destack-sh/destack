@@ -1,4 +1,4 @@
-import { TestAllowance, TestDirectory } from "@destack/account/test";
+import { TestEntitlement, TestDirectory } from "@destack/account/test";
 import { principal } from "@destack/access";
 import { Tenancy, machine, space } from "@destack/account/object";
 import { eq } from "@destack/db";
@@ -52,17 +52,17 @@ async function open(classes: readonly Tenancy[]) {
     });
 
     // grant the account the plan's tenancies and refuse the others
-    await TestAllowance.set(fixture.database, ids.account, "tenancy", {
-        kind: "listed",
-        values: [...classes],
+    await TestEntitlement.set(fixture.database, ids.account, "tenancy", {
+        kind: "static",
+        value: [...classes],
     });
 
     // reconcile each space as the space controller does after a change
     const objects = serveSpace(
         await fixture.options({
             ...opened,
-            isEnforcingAllowances: true,
-            publisherAt: () => TestAllowance.publisher,
+            isEnforcingEntitlements: true,
+            publisherAt: () => TestEntitlement.publisher,
         }),
     ).store;
     const controller = present(

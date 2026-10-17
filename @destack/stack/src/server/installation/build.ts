@@ -123,7 +123,7 @@ export const BuildStore = {
     /** Expire the builds retention drops, keep the rest as the store's root, and sweep. */
     async sweep(
         builds: BuildStore,
-        objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate">,
         retention: (space: string) => Promise<number>,
         now: number,
         before: Date,
@@ -133,7 +133,7 @@ export const BuildStore = {
         const { retained, expired } = await Build.retention(database, retention);
         if (expired.length > 0) {
             await objects.mutate(
-                objects.self,
+                objects.serving(build),
                 {
                     id: RequestId.create(now),
                     calls: expired.map((row) =>

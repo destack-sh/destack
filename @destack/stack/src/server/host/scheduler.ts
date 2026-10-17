@@ -1,6 +1,6 @@
 import {
     account,
-    Allowance,
+    Entitlement,
     type Tenancy,
     machine,
     ResidencyCode,
@@ -24,8 +24,8 @@ export interface SchedulerOptions {
     readonly machine: Identifier<"machine">;
     /** The account package, which lists the cloud machines serving each residency. */
     readonly accounts: Pick<SpaceAccounts, "residency">;
-    /** Whether the machine decides its spaces' tenancies by their accounts' allowances. */
-    readonly isEnforcingAllowances: boolean;
+    /** Whether the machine decides its spaces' tenancies by their accounts' entitlements. */
+    readonly isEnforcingEntitlements: boolean;
 }
 
 /** Where a tenancy runs a space: the machine to move it to, or the condition refusing all. */
@@ -38,7 +38,7 @@ export class Scheduler {
     /** What the machine schedules its spaces with. */
     readonly #options: SchedulerOptions;
 
-    /** Schedule a machine's spaces through the residencies' cloud machines and the allowances. */
+    /** Schedule a machine's spaces through the residencies' cloud machines and the entitlements. */
     constructor(options: SchedulerOptions) {
         this.#options = options;
     }
@@ -68,7 +68,7 @@ export class Scheduler {
     /** Decide where a served space belongs and start its move there. */
     async schedule(
         row: Space,
-        store: Pick<ObjectStore, "database" | "self" | "mutate">,
+        store: Pick<ObjectStore, "database" | "serving" | "mutate">,
         now: number,
     ): Promise<Condition> {
         // wait for a running move, the account's plan or a person's choice, or keep a space where its tenancy asks
@@ -85,7 +85,7 @@ export class Scheduler {
             return target.condition;
         }
         const { machine: moving } = target;
-        await store.mutate(store.self, {
+        await store.mutate(store.serving(transfer), {
             id: RequestId.create(now),
             calls: [
                 transfer.call("create", {
@@ -195,19 +195,19 @@ export class Scheduler {
         };
     }
 
-    /** Decide whether the account's allowance unlocks a tenancy. */
+    /** Decide whether the account's entitlement unlocks a tenancy. */
     async #allowed(
         database: DatabaseConnection,
         accountId: Identifier<"account">,
         asked: Tenancy,
     ): Promise<Condition> {
-        return !this.#options.isEnforcingAllowances
+        return !this.#options.isEnforcingEntitlements
             ? {
                   status: "true",
                   reason: "Unenforced",
-                  message: "this machine enforces no allowance",
+                  message: "this machine enforces no entitlement",
               }
-            : Allowance.check(database, accountId, { tenancy: asked });
+            : Entitlement.check(database, accountId, { tenancy: asked });
     }
 
     /** Find the machine that runs a tenancy for a space. */

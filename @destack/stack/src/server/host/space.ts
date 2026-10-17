@@ -1,4 +1,4 @@
-import { Placement, placement, Space, space, SpaceAllowance } from "@destack/account/object";
+import { Entitlement, Placement, placement, Space, space } from "@destack/account/object";
 import { eq, Snapshot } from "@destack/db";
 import { IdentityKeystore } from "@destack/account/identity";
 import {
@@ -14,7 +14,7 @@ import { Scope, type Uplink } from "@destack/sync";
 import { installation } from "../../object/index.ts";
 import type { Scheduler } from "./scheduler.ts";
 
-/** The condition a space records its placement under, beside its allowances' conditions. */
+/** The condition a space records its placement under, beside its entitlements' conditions. */
 const PLACEMENT_CONDITION = "placement";
 
 /** Control the replicas of the spaces this machine serves: place, limit and delete each. */
@@ -25,21 +25,21 @@ export function implementSpace(options: {
     readonly scheduler: Scheduler;
     /** The universe's uplink, receiving the space's status as the space. */
     readonly publisher: Uplink;
-    /** Whether the machine checks its spaces' use against their accounts' allowances. */
-    readonly isEnforcingAllowances: boolean;
+    /** Whether the machine checks its spaces' use against their accounts' entitlements. */
+    readonly isEnforcingEntitlements: boolean;
 }) {
     return space.implement({ methods: {}, controller: control(options) });
 }
 
 /** Control each served space. */
 function control(options: Parameters<typeof implementSpace>[0]): ObjectController<typeof space> {
-    const { scheduler, isEnforcingAllowances } = options;
+    const { scheduler, isEnforcingEntitlements } = options;
 
     return {
         pending: {},
         watches: [
             ...scheduler.watches,
-            ...(isEnforcingAllowances ? SpaceAllowance.watches() : []),
+            ...(isEnforcingEntitlements ? Entitlement.watches() : []),
             // look again at a deleting space as each of its deleting installations changes
             ObjectWatch.of(installation.table, (row) =>
                 row.deletedAt === null ? [] : [{ id: row.scope }],
@@ -59,9 +59,9 @@ function control(options: Parameters<typeof implementSpace>[0]): ObjectControlle
                 return undefined;
             }
 
-            // decide the allowances' conditions and schedule the space
-            const allowed = isEnforcingAllowances
-                ? await SpaceAllowance.enforce(row, database, now)
+            // decide the entitlements' conditions and schedule the space
+            const allowed = isEnforcingEntitlements
+                ? await Entitlement.enforce(row, database, now)
                 : {};
             const placed = await scheduler.schedule(row, store, now);
             const conditions = { ...allowed, [PLACEMENT_CONDITION]: placed };

@@ -39,6 +39,8 @@ export const deployment = defineObject(
             description: field.json(WorkloadDescription),
             /** The directories the workload's `fs` capability was granted at preparation. */
             directories: field.json(schema.array(DirectoryGrant)).default([]),
+            /** The package's capabilities the workload runs with, enabled at preparation. */
+            enabled: field.json(schema.array(schema.string().min(1))).default([]),
             /** An explicitly selected machine running the workload. */
             machine: field.reference(principal.machine).optional(),
             /** The desired deployment availability. */

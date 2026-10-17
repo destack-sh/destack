@@ -110,7 +110,7 @@ test("serve two installed packages from one store, writing both in one mutation 
         { others: "keep" },
     );
     const [notebook, task] = [nth(types, 0), nth(types, 1)];
-    const caller = store.self;
+    const caller = store.serving(notebook);
 
     // write a notebook and a task in one mutation
     await store.mutate(caller, {

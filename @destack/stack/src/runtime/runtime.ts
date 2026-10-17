@@ -1,5 +1,5 @@
 import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
-import type { Capabilities, DirectoryGrant, PackageId } from "@destack/package";
+import type { DirectoryGrant, PackageId, Sandbox } from "@destack/package";
 import type { BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { BucketKind, S3_PROVIDER } from "@destack/bucket";
@@ -15,7 +15,7 @@ import { InstallationRoot, type WorkloadStart } from "@destack/runtime/workload"
 const SECRET_BYTES = 32;
 
 /** What each server runtime grants its workloads. */
-export const RUNTIME_CAPABILITIES: Readonly<
+export const RUNTIME_SUPPORT: Readonly<
     Record<ServerRuntime, { readonly hasFilesystem: boolean; readonly hasCertificates: boolean }>
 > = {
     bun: { hasFilesystem: true, hasCertificates: true },
@@ -70,8 +70,10 @@ export interface InstanceSpec {
     readonly output: string;
     /** The package-local workload. */
     readonly workload: string;
-    /** What the workload may use beyond its sandbox. */
-    readonly capabilities: Capabilities;
+    /** What the workload may use beyond the bare sandbox. */
+    readonly sandbox: Sandbox;
+    /** The package's capabilities the installation runs with. */
+    readonly enabled: readonly string[];
     /** The directories its installation grants the `fs` capability. */
     readonly directories: readonly DirectoryGrant[];
     /** The resources the workload's declarations are bound to. */
@@ -109,6 +111,7 @@ export const InstanceSpec = {
             name: spec.name,
             bindings: bindings(spec, options.egress, secret),
             settings: spec.settings,
+            capabilities: [...spec.enabled],
             secret,
             egress: options.egress,
             url: options.url,

@@ -1,5 +1,6 @@
 import { testEvents, serversOf } from "@destack/object/test";
 import { principal, relation } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
 import { space } from "@destack/account/object";
 import { defineDatabase, eq, TABLE } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -10,7 +11,7 @@ import { subjectContext, testCallKey } from "@destack/runtime/test";
 import type { Call } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { ids, spaceDatabase, StackFixture } from "../test/index.ts";
-import { approval, changeRequest } from "@destack/workflow";
+import { approval, change, changeRequest } from "@destack/workflow";
 import { ControlLoop } from "@destack/runtime/control";
 import { setting } from "@destack/setting/object";
 import { branchApprovals } from "../setting/index.ts";
@@ -70,7 +71,21 @@ async function serveBranches() {
         origin: { package: note.package },
         branch: branchType,
     });
-    const owner = subjectContext(principal.user.reference("universe", ids.owner), ids.space);
+    // let the owner's changes run as the space's code, as the owner consents on first use
+    const ownerSubject = principal.user.reference("universe", ids.owner);
+    const consented = [note, branch, changeRequest, ...Object.values(change.objects)].flatMap(
+        (type) =>
+            Object.keys(type.policy.definition.permissions).map((name) => ({
+                ...type.policy.permission(name),
+                scope: ids.space,
+            })),
+    );
+    await new AccessFixture(fixture.database).replicateGrant(
+        ownerSubject,
+        principal.space.reference("universe", ids.space),
+        consented,
+    );
+    const owner = subjectContext(ownerSubject, ids.space);
     const reviewer = subjectContext(REVIEWER, ids.space);
     const call = async <const Calls extends readonly Call[]>(calls: Calls) =>
         store.mutate(owner.access(), { id: RequestId.create(Date.now()), calls });
@@ -122,7 +137,7 @@ test("draft a note on a branch over the main line, then merge it into the main l
     const table = note.table[TABLE].sqlName;
     const after = present(drafted.changes[0], "the drafted change").after;
     expect({
-        drafted: { ...drafted, changes: drafted.changes.map((change) => change.table) },
+        drafted: { ...drafted, changes: drafted.changes.map((entry) => entry.table) },
         merged: { ...merged, notes: merged.notes.map(replayed) },
     }).toEqual({
         drafted: { branch: { state: "open", tables: [table] }, changes: [table], notes: [] },

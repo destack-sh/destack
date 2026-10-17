@@ -110,8 +110,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         view: "home",
         definition: {
             entrypoint: "view.js",
-            permissions: {},
-            capabilities: {},
+            sandbox: {},
             presents: [],
             packages: [],
             output: "browser",
@@ -227,8 +226,7 @@ test("install an application from a checkout by submitting its build, following 
         view: "home",
         definition: {
             entrypoint: "view.js",
-            permissions: {},
-            capabilities: {},
+            sandbox: {},
             presents: [],
             packages: [],
             output: "browser",

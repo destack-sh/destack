@@ -1,11 +1,12 @@
-import { Space, space } from "@destack/account/object";
-import { and, DatabaseKind, DatabaseState, eq } from "@destack/db";
+import { account, Entitlement, Space, space } from "@destack/account/object";
+import { and, type DatabaseConnection, DatabaseKind, DatabaseState, eq } from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
 import accountPackage from "@destack/account/package";
-import { type MethodContextOf, type ObjectReconciliation, type ResultOf } from "@destack/object";
+import { type MethodContextOf, type ObjectReconciliation } from "@destack/object";
 import { declareInstalled } from "@destack/object/inspect";
 import {
-    Capabilities,
+    HOST_SANDBOX,
+    Sandbox,
     DeclarationName,
     type DirectoryGrant,
     type graph,
@@ -47,7 +48,6 @@ import type { InstallationBuild } from "../../declare/installation.ts";
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
-import { InstallationGrant } from "./grant.ts";
 
 /** The description of a declaration of a kind other than resource: its name and specification. */
 const OtherDescription = schema.object({ name: DeclarationName }).catchall(schema.json());
@@ -62,6 +62,10 @@ export interface ApplicationOptions {
     readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */
     readonly runtimes: readonly ServerRuntime[];
+    /** Whether the machine checks capabilities' features against their accounts' entitlements. */
+    readonly isEnforcingEntitlements: boolean;
+    /** The space's database, with the replicas of its account's entitlements. */
+    readonly database: DatabaseConnection;
 }
 
 /** What a revision rolls out. */
@@ -76,10 +80,9 @@ interface RolloutPlan {
     readonly replaced: readonly Deployment[];
     /** The declarations the installation's workloads bind. */
     readonly needs: readonly ResourceNeed[];
+    /** The package its build declares: requests and capabilities, absent for workloads alone. */
+    readonly description: PackageDescription | undefined;
 }
-
-/** The permissions a fresh deploy's workloads request in the submitter's home and account. */
-type Requested = NonNullable<ResultOf<typeof installation, "deploy">["requested"]>;
 
 /** The releases a rollout's deployments run and call. */
 interface Releases {
@@ -97,10 +100,12 @@ interface BuildWorkload {
     readonly name: string;
     /** The output's server runtime. */
     readonly runtime: ServerRuntime;
-    /** The workload's description, with the capabilities it runs with. */
+    /** The workload's description, with the sandbox it runs with. */
     readonly description: (typeof deployment.table.$inferSelect)["description"];
     /** The directories its `fs` capability runs with, none without the capability. */
     readonly directories: readonly DirectoryGrant[];
+    /** The package's capabilities it runs with. */
+    readonly enabled: readonly string[];
 }
 
 /** Why an application refuses to deploy a build, as its ready condition reports it. */
@@ -109,6 +114,7 @@ interface Refusal {
     readonly reason:
         | "NoRuntime"
         | "UndeclaredCapability"
+        | "UnentitledCapability"
         | "DeclaredDatabase"
         | "MissingBinding"
         | "NoUpgrade";
@@ -133,7 +139,7 @@ export class Application {
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
-    async deploy(): Promise<Requested | null> {
+    async deploy(): Promise<void> {
         // read the revision it follows and its live deployments
         const call = this.#context;
         const target = this.#context.target;
@@ -151,7 +157,6 @@ export class Application {
         });
 
         // drain every deployment of a deleted or suspended application or of one following no revision
-        let requested: Requested | null = null;
         const isDeleted = target.deletedAt !== null;
         if (isDeleted || target.status !== "enabled" || revision === undefined) {
             const active = live.filter((entry) => entry.status === "active");
@@ -165,18 +170,16 @@ export class Application {
                 await this.#relate();
                 await call.mutate(call.self, [installation.call("finalize", { id: target.id })]);
 
-                return null;
+                return;
             }
         }
         // deploy the revision until each workload runs from the output the machine chooses
         else {
-            requested = await this.#deploy(revision, live);
+            await this.#deploy(revision, live);
         }
 
         // relate the application as consumer of exactly what its live deployments captured
         await this.#relate();
-
-        return requested;
     }
 
     /** Relate the application as consumer of exactly what its live deployments captured. */
@@ -201,27 +204,28 @@ export class Application {
     }
 
     /** Deploy each new workload output of a revision's build and drain the replaced deployments. */
-    async #deploy(
-        revision: InstallationRevision,
-        live: readonly Deployment[],
-    ): Promise<Requested | null> {
+    async #deploy(revision: InstallationRevision, live: readonly Deployment[]): Promise<void> {
         // read the workloads the machine runs
         const target = this.#context.target;
         const build = await this.#open(revision.build.manifest);
-        const { workloads, stranded } = this.#selectWorkloads(build);
+        const [handle] = await ownDeclarations(build, "package", PackageDescription);
+        const description = handle?.description;
+        const { workloads, stranded } = this.#selectWorkloads(build, description);
 
-        // refuse an unrunnable workload, an undeclared capability or directory, or a database
+        // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
-            this.#describeRefusal(build, stranded) ?? (await this.#describeDatabases(build));
+            this.#describeRefusal(build, stranded, description) ??
+            (await this.#describeUnentitled(description)) ??
+            (await this.#describeDatabases(build));
         if (refusal !== undefined) {
             await this.#refuse(refusal);
 
-            return null;
+            return;
         }
 
         // hold for a broken upgrade chain or an approval of the upgrade from the applied release
         if (await this.#holdForUpgrade(revision, build)) {
-            return null;
+            return;
         }
 
         // keep the active deployments that run a chosen output of the revision with the bindings and grants as they are
@@ -231,7 +235,7 @@ export class Application {
             fresh.length === 0 &&
             replaced.length === 0
         ) {
-            return null;
+            return;
         }
 
         // refuse installation needs without a bound address
@@ -240,22 +244,19 @@ export class Application {
         if (unbound !== undefined) {
             await this.#refuse(unbound);
 
-            return null;
+            return;
         }
 
         // attach, drain the replaced deployments and activate the fresh ones
-        return this.#rollOut(revision, { build, workloads, fresh, replaced, needs });
+        await this.#rollOut(revision, { build, workloads, fresh, replaced, needs, description });
     }
 
     /** Attach the application's needs, then drain the replaced deployments. */
-    async #rollOut(
-        revision: InstallationRevision,
-        rollout: RolloutPlan,
-    ): Promise<Requested | null> {
+    async #rollOut(revision: InstallationRevision, rollout: RolloutPlan): Promise<void> {
         // attach what the installation owns and wait for targets not ready to capture
         const call = this.#context;
         const target = this.#context.target;
-        const { build, workloads, fresh, replaced, needs } = rollout;
+        const { build, workloads, fresh, replaced, needs, description } = rollout;
         await this.#options.binder.attach(call, target, needs);
         if (!(await this.#options.binder.ready(call, target, needs))) {
             const message = "bound targets wait for their resources";
@@ -265,13 +266,11 @@ export class Application {
                 },
             });
 
-            return null;
+            return;
         }
 
-        // grant the installation exactly the space permissions its workloads request
-        const descriptions = workloads.map((workload) => workload.description);
-        const requested = InstallationGrant.requested(descriptions, "space");
-        await InstallationGrant.keep(call, target, requested);
+        // grant the installation exactly what its package and its enabled capabilities request
+        await Installation.upsertAccess(call, target, description);
 
         // drain the replaced deployments down to one active deployment per workload
         await call.mutate(
@@ -303,15 +302,14 @@ export class Application {
                 approvedPlan: null,
             },
         });
-
-        return {
-            home: InstallationGrant.requested(descriptions, "home"),
-            account: InstallationGrant.requested(descriptions, "account"),
-        };
     }
 
     /** Describe why a build cannot deploy. */
-    #describeRefusal(build: BuildReader, stranded: readonly string[]): Refusal | undefined {
+    #describeRefusal(
+        build: BuildReader,
+        stranded: readonly string[],
+        description: PackageDescription | undefined,
+    ): Refusal | undefined {
         // refuse a build with an unrunnable workload
         if (stranded.length > 0) {
             const runtimes = this.#options.runtimes.join(", ");
@@ -321,11 +319,49 @@ export class Application {
         }
 
         // refuse allowing a capability or granting a directory the build does not declare
-        const undeclared = this.#describeUndeclaredGrants(build);
+        const undeclared = this.#describeUndeclaredGrants(build, description);
 
         return undeclared === undefined
             ? undefined
             : { reason: "UndeclaredCapability", message: undeclared };
+    }
+
+    /** Describe an enabled capability needing a feature the space's account lacks. */
+    async #describeUnentitled(
+        description: PackageDescription | undefined,
+    ): Promise<Refusal | undefined> {
+        // check nothing on a machine enforcing no entitlements
+        if (!this.#options.isEnforcingEntitlements) {
+            return undefined;
+        }
+
+        // list the features the enabled capabilities need
+        const call = this.#context;
+        const enabled = Installation.enabled(call.target, description);
+        const needed = enabled.flatMap((name) =>
+            (description?.capabilities[name]?.requires ?? []).map((feature) => ({ name, feature })),
+        );
+
+        // refuse the first feature the account's entitlements leave out
+        const placed = present(
+            await call
+                .read(space)
+                .findFirst({ where: { id: space.identifier(call.target.scope) } }),
+            `the space ${call.target.scope}`,
+        );
+        const accountId = account.identifier(placed.scope);
+        for (const { name, feature } of needed) {
+            const database = this.#options.database;
+            const condition = await Entitlement.check(database, accountId, { feature });
+            if (condition.status === "false" || condition.reason === "Pending") {
+                return {
+                    reason: "UnentitledCapability",
+                    message: `capability ${name} needs ${feature.name}: ${condition.message}`,
+                };
+            }
+        }
+
+        return undefined;
     }
 
     /** Describe the databases a build declares, which the space's main database refuses. */
@@ -459,6 +495,7 @@ export class Application {
                 ...releases.served,
                 description: workload.description,
                 directories: [...workload.directories],
+                enabled: [...workload.enabled],
                 activatedAt: call.now,
             }),
         ]);
@@ -567,26 +604,33 @@ export class Application {
     }
 
     /** Select each workload of a build from the server output of the machine's first runtime. */
-    #selectWorkloads(build: BuildReader): {
+    #selectWorkloads(
+        build: BuildReader,
+        declaration: PackageDescription | undefined,
+    ): {
         readonly workloads: BuildWorkload[];
         readonly stranded: string[];
     } {
-        // list the workloads of the emitted server outputs with their required and allowed capabilities
+        // list the workloads of the emitted server outputs, each sandbox joined with what the enabled capabilities unlock
         const target = this.#context.target;
+        const enabled = Installation.enabled(target, declaration);
+        const unlocked = Installation.sandbox(target, declaration);
+        const host = Sandbox.select(
+            unlocked,
+            HOST_SANDBOX.filter((name) => unlocked[name] !== undefined),
+        );
         const offered = Object.entries(build.manifest.outputs).flatMap(([output, described]) =>
             described.runtime !== "browser" && described.emit
                 ? Object.entries(described.workloads).map(([name, description]) => {
-                      const capabilities = Capabilities.grant(
-                          description.capabilities,
-                          target.capabilities,
-                      );
+                      const sandbox = Sandbox.merge(description.sandbox, host);
 
                       return {
                           output,
                           name,
                           runtime: ServerRuntime.parse(described.runtime),
-                          description: { ...description, capabilities },
-                          directories: capabilities.fs === undefined ? [] : target.directories,
+                          description: { ...description, sandbox },
+                          directories: sandbox.fs === undefined ? [] : target.directories,
+                          enabled,
                       };
                   })
                 : [],
@@ -615,43 +659,38 @@ export class Application {
     }
 
     /** Describe what the application allows or grants beyond what its build declares. */
-    #describeUndeclaredGrants(build: BuildReader): string | undefined {
-        // collect the capabilities the build's workloads and views declare
+    #describeUndeclaredGrants(
+        build: BuildReader,
+        description: PackageDescription | undefined,
+    ): string | undefined {
+        // refuse allowing a capability the package does not declare
         const target = this.#context.target;
-        const outputs = Object.values(build.manifest.outputs);
-        const workloads = outputs.flatMap((output) =>
-            Object.values(output.workloads).map((description) => description.capabilities),
-        );
-        const views = outputs.flatMap((output) =>
-            Object.values(output.views).map((description) => description.capabilities),
-        );
-        const declared = new Set<string>(
-            [...workloads, ...views].flatMap((capabilities) =>
-                Object.entries(capabilities).flatMap(([name, entry]) =>
-                    entry === undefined ? [] : [name],
-                ),
-            ),
-        );
         const release = `${target.name} ${build.manifest.package.version}`;
-
-        // refuse allowing a capability no workload or view declares
-        const undeclared = target.capabilities.filter((name) => !declared.has(name));
+        const declared = Object.keys(description?.capabilities ?? {});
+        const undeclared = Installation.capabilities(target).filter(
+            (name) => !declared.includes(name),
+        );
         if (undeclared.length > 0) {
             return `${release} declares no capabilities ${undeclared.join(", ")} to allow`;
         }
 
-        // refuse granting directories without fs and writing directories fs declares for reading
-        const access = workloads.flatMap((capabilities) =>
-            capabilities.fs === undefined ? [] : [capabilities.fs.access],
+        // read the directory access of the workloads' sandboxes joined with what the enabled capabilities unlock
+        const unlocked = Installation.sandbox(target, description);
+        const access = Object.values(build.manifest.outputs).flatMap((output) =>
+            Object.values(output.workloads).flatMap((workload) => {
+                const fs = Sandbox.merge(workload.sandbox, unlocked).fs;
+
+                return fs === undefined ? [] : [fs.access];
+            }),
         );
         const written = target.directories.filter((grant) => grant.access === "write");
         // refuse granting directories without fs
         if (target.directories.length > 0 && access.length === 0) {
-            return `${release} declares no fs capability to grant directories ${joinPaths(target.directories)}`;
+            return `${release} enables no fs ability to grant directories ${joinPaths(target.directories)}`;
         }
         // refuse writing directories fs declares for reading
         else if (written.length > 0 && !access.includes("write")) {
-            return `${release} declares fs for reading only, refusing to grant writing ${joinPaths(written)}`;
+            return `${release} enables fs for reading only, refusing to grant writing ${joinPaths(written)}`;
         }
 
         return undefined;
@@ -795,7 +834,7 @@ export async function finalizeApplication(
     ]);
 
     // drop its grant
-    await InstallationGrant.keep(context, target, []);
+    await Installation.upsertAccess(context, target, undefined);
 }
 
 /** Report whether an active deployment runs a chosen output of the revision. */
@@ -810,9 +849,10 @@ function isChosen(
             (workload) =>
                 workload.name === entry.workload &&
                 workload.output === entry.output &&
-                canonicalize(workload.description.capabilities) ===
-                    canonicalize(entry.description.capabilities) &&
-                canonicalize(workload.directories) === canonicalize(entry.directories),
+                canonicalize(workload.description.sandbox) ===
+                    canonicalize(entry.description.sandbox) &&
+                canonicalize(workload.directories) === canonicalize(entry.directories) &&
+                canonicalize(workload.enabled) === canonicalize(entry.enabled),
         )
     );
 }

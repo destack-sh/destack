@@ -205,7 +205,7 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
         const { installed, revision } = await stack();
         const evaluation = { export: "home", parameters: {} };
         const definition = present(revision.definition, "the definition");
-        await store.mutate(store.self, {
+        await store.mutate(store.serving(installation), {
             id: RequestId.create(Date.now()),
             calls: [
                 installation.call("submit", {

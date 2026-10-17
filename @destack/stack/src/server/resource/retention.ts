@@ -18,7 +18,7 @@ export class RetentionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "retention";
     /** The object store. */
-    readonly #objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate" | "clock">;
+    readonly #objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate" | "clock">;
     /** The machine's store of every build. */
     readonly #builds: BuildStore;
     /** Delete what retention drops from the machine's pull cache, null on a machine without one. */
@@ -28,7 +28,7 @@ export class RetentionController implements Controller {
 
     /** Sweep a machine's stores by the retention of the spaces in its object store's database. */
     constructor(
-        objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate" | "clock">,
+        objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate" | "clock">,
         builds: BuildStore,
         sweepCache: SweepCache | null,
         store: ContentStore,

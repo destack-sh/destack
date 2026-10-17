@@ -7,19 +7,27 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type DatabaseConnection, Snapshot, eq, Expression, DatabaseState } from "@destack/db";
-import { nth, found, Identifier, present, schema } from "@destack/schema";
+import { nth, Identifier, present, schema } from "@destack/schema";
 import { databaseProvider, type LogPosition } from "@destack/db";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import {
-    BROWSER_CAPABILITIES,
-    HOST_CAPABILITIES,
-    Capabilities,
-    type CapabilityName,
+    BROWSER_SANDBOX,
+    HOST_SANDBOX,
+    Sandbox,
     type DirectoryGrant,
     Package,
+    PackageId,
 } from "@destack/package";
-import { AccessContext, accessRole, Caller, principal } from "@destack/access";
-import { client, space } from "@destack/account/object";
+import { TestEntitlement } from "@destack/account/test";
+import {
+    AccessContext,
+    accessGrant,
+    accessRole,
+    Caller,
+    type PermissionRequest,
+    principal,
+} from "@destack/access";
+import { space } from "@destack/account/object";
 import { defineObject, type Field, field, type ObjectDefinition } from "@destack/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import type { BuildReader } from "@destack/package/manifest";
@@ -121,17 +129,34 @@ const tasks: Declared = {
     },
 };
 
+/** The notes package's declaration, requesting permissions by scope. */
+function requesting(permissions: PermissionRequest): Declared {
+    return {
+        kind: "package",
+        definer: runtimePackage,
+        name: "notes",
+        description: {
+            api: { name: "notes", procedures: [] },
+            objects: {},
+            adapters: {},
+            views: [],
+            permissions,
+            capabilities: {},
+        },
+    };
+}
+
 /** Write the notes build: its main workload in bun and workerd outputs, and a home view. */
 async function notesBuild(
     declared: readonly Declared[],
-    capabilities: Capabilities = {},
+    sandbox: Sandbox = {},
 ): Promise<BuildReader> {
     // keep the workload using every declared resource in both server outputs
     const used = {
         ...workload,
-        capabilities: Capabilities.select(
-            capabilities,
-            HOST_CAPABILITIES.filter((name) => capabilities[name] !== undefined),
+        sandbox: Sandbox.select(
+            sandbox,
+            HOST_SANDBOX.filter((name) => sandbox[name] !== undefined),
         ),
         resources: declared
             .filter((entry) => (entry.kind ?? "resource") === "resource")
@@ -140,7 +165,7 @@ async function notesBuild(
                 name: entry.name,
             })),
     };
-    const browser = BROWSER_CAPABILITIES.filter((name) => capabilities[name] !== undefined);
+    const browser = BROWSER_SANDBOX.filter((name) => sandbox[name] !== undefined);
     const output = (runtime: string) => ({
         runtime,
         emit: true,
@@ -151,8 +176,7 @@ async function notesBuild(
                 : {
                       home: {
                           entrypoint: "view.js",
-                          permissions: {},
-                          capabilities: Capabilities.select(capabilities, browser),
+                          sandbox: Sandbox.select(sandbox, browser),
                           presents: [],
                           packages: [],
                       },
@@ -271,6 +295,7 @@ async function serveControllers(
         readonly opened?: Awaited<ReturnType<typeof openUniverse>>;
         readonly accounts?: SpaceOptions["accounts"];
         readonly clock?: SpaceOptions["clock"];
+        readonly isEnforcingEntitlements?: boolean;
     } = {},
 ) {
     // provision the machine's databases as files in a temporary directory
@@ -293,6 +318,9 @@ async function serveControllers(
             ...options.opened,
             ...(options.accounts === undefined ? {} : { accounts: options.accounts }),
             ...(options.clock === undefined ? {} : { clock: options.clock }),
+            ...(options.isEnforcingEntitlements === true
+                ? { isEnforcingEntitlements: true, publisherAt: () => TestEntitlement.publisher }
+                : {}),
             runtimes: runtimes.map((name) =>
                 name === runtime.name ? runtime : new TestRuntime(name),
             ),
@@ -336,7 +364,7 @@ async function approvePlan(
     const digest = await Plan.digest(approval.plan());
 
     // approve it as the system
-    const [granted] = await store.mutate(store.self, {
+    const [granted] = await store.mutate(store.serving(object.installation), {
         id: RequestId.create(Date.now()),
         calls: [
             object.installation.call("approve", {
@@ -790,21 +818,36 @@ test("deploy nothing of a build declaring its own database, and report why", asy
     });
 });
 
-test("run each workload with the capabilities and directories its build declares and its installation allows", async () => {
-    // install notes whose workload runs git and optionally calls an issue tracker or reads chosen directories and whose view may use the camera
+test("run each workload with its build's sandbox, what its allowed capabilities unlock, and its directories", async () => {
+    // install notes whose workload runs git, and whose optional capabilities call an issue tracker, index chosen directories or scan receipts
     const fixture = await StackFixture.open();
     const { database } = fixture;
-    const declared = Capabilities.parse({
-        run: { commands: ["git"], reason: "reads history" },
-        network: { connect: ["api.github.com"], reason: "fetches issues", optional: true },
-        fs: { access: "read", reason: "indexes your notes", optional: true },
-        camera: { reason: "scans receipts", optional: true },
-    });
-    const notes = await installNotes(fixture, ids.notes, await notesBuild([main], declared));
+    const base = Sandbox.parse({ run: { commands: ["git"] } });
+    const declared = requesting({});
+    const request: Declared = {
+        ...declared,
+        description: {
+            ...declared.description,
+            capabilities: {
+                issues: {
+                    reason: "Link issues",
+                    optional: true,
+                    sandbox: { network: { connect: ["api.github.com"] } },
+                },
+                index: {
+                    reason: "Index your notes",
+                    optional: true,
+                    sandbox: { fs: { access: "read" } },
+                },
+                scanning: { reason: "Scan receipts", optional: true, sandbox: { camera: {} } },
+            },
+        },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request], base));
     const { runtime, deployments, instances, resources } = await serveControllers(fixture);
     const notesDirectory = { path: "/Users/person/Notes", access: "read" as const };
     const grant = async (
-        capabilities: readonly CapabilityName[],
+        capabilities: readonly string[],
         directories: readonly DirectoryGrant[] = [],
     ) => {
         await database
@@ -828,31 +871,33 @@ test("run each workload with the capabilities and directories its build declares
                 .select()
                 .from(object.deployment.table)
                 .orderBy(object.deployment.table.createdAt, object.deployment.table.id)
-        ).map((entry) => [entry.status, entry.description.capabilities, entry.directories]);
+        ).map((entry) => [entry.status, entry.description.sandbox, entry.directories]);
 
-    // refuse allowing an undeclared capability and granting a directory for writing that fs reads
+    // refuse allowing an undeclared capability, a directory without fs, and writing a directory fs reads
     await grant(["microphone"]);
     const undeclared = await readiness();
-    await grant(["fs"], [{ ...notesDirectory, access: "write" }]);
+    await grant([], [notesDirectory]);
+    const unreadable = await readiness();
+    await grant(["index"], [{ ...notesDirectory, access: "write" }]);
     const overreaching = await readiness();
     const refusedDeployments = await deployed();
 
-    // deploy without allowances with only the required capability and no directory
-    await grant([], [notesDirectory]);
+    // deploy with the build's sandbox alone
+    await grant([]);
     await resources.reconcile(ids.space);
     const first = nth(await database.select().from(object.deployment.table), 0);
     await instances.reconcile(first.id);
     const unallowed = await deployed();
 
-    // allow the network, fs and the view's camera and redeploy the workload with the directory but without the camera
-    await grant(["network", "fs", "camera"], [notesDirectory]);
+    // allow the issues, indexing and scanning, and redeploy the workload with their host abilities and the directory
+    await grant(["issues", "index", "scanning"], [notesDirectory]);
     const allowed = await deployed();
-    const required = { run: declared.run };
     expect({
         undeclared,
+        unreadable,
         overreaching,
         refusedDeployments,
-        started: runtime.started.map((started) => [started.capabilities, started.directories]),
+        started: runtime.started.map((started) => [started.sandbox, started.directories]),
         unallowed,
         allowed,
     }).toEqual({
@@ -860,22 +905,22 @@ test("run each workload with the capabilities and directories its build declares
             "UndeclaredCapability",
             "notes 2026.9.0 declares no capabilities microphone to allow",
         ],
+        unreadable: [
+            "UndeclaredCapability",
+            "notes 2026.9.0 enables no fs ability to grant directories /Users/person/Notes",
+        ],
         overreaching: [
             "UndeclaredCapability",
-            "notes 2026.9.0 declares fs for reading only, refusing to grant writing /Users/person/Notes",
+            "notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
         ],
         refusedDeployments: [],
-        started: [[required, []]],
-        unallowed: [["active", required, []]],
+        started: [[base, []]],
+        unallowed: [["active", base, []]],
         allowed: [
-            ["draining", required, []],
+            ["draining", base, []],
             [
                 "active",
-                {
-                    ...required,
-                    network: declared.network,
-                    fs: declared.fs,
-                },
+                { ...base, network: { connect: ["api.github.com"] }, fs: { access: "read" } },
                 [notesDirectory],
             ],
         ],
@@ -886,7 +931,7 @@ test("fail an instance granted fs on a runtime without a filesystem to grant", a
     // deploy notes requiring fs on a machine running workerd only
     const fixture = await StackFixture.open();
     const { database } = fixture;
-    const fs = Capabilities.parse({ fs: { access: "read", reason: "indexes your notes" } });
+    const fs = Sandbox.parse({ fs: { access: "read" } });
     const notes = await installNotes(fixture, ids.notes, await notesBuild([main], fs));
     const { deployments, instances, resources } = await serveControllers(fixture, {
         runtimes: ["workerd"],
@@ -1260,6 +1305,8 @@ test("keep a release serving while a caller pins it, and retire it once the call
                 objects: {},
                 adapters: {},
                 views: [],
+                permissions: {},
+                capabilities: {},
             },
         },
     ];
@@ -1302,37 +1349,15 @@ test("keep a release serving while a caller pins it, and retire it once the call
     });
 });
 
-test("grant an applied application exactly the space permissions its workloads request, and drop the grant once it is uninstalled", async () => {
-    // install notes whose workload requests reading the space and forgetting push subscriptions
+test("grant an applied application exactly the space permissions its package requests, its space's grant beyond the space, and drop both once it is uninstalled", async () => {
+    // install notes requesting reading the space and reading where people receive notifications
     const fixture = await StackFixture.open();
     const { database } = fixture;
-    const requesting = await MemoryBuild.write(new Map(), {
-        package: notesPackage,
-        outputs: fixtureOutputs({
-            server: {
-                runtime: "bun",
-                emit: true,
-                workloads: {
-                    main: {
-                        ...workload,
-                        permissions: {
-                            space: [accountObject.space.permission("read")],
-                            home: [client.permission("unsubscribe")],
-                        },
-                    },
-                },
-                views: {},
-            },
-        }),
+    const recipient = accountObject.user.permission("recipient");
+    const request = requesting({
+        installation: { space: [space.permission("read")], universe: [recipient] },
     });
-    const notes = await installNotes(fixture, ids.notes, requesting);
-    const owner = principal.user.reference(
-        Scope.universe.id,
-        "user-01996ab0-0000-7000-8000-0000000000a1",
-    );
-    await database
-        .update(object.installation.table)
-        .set(ObjectReference.columns("submittedBy", owner));
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request]));
 
     // apply it on a bun machine
     const opened = await openUniverse();
@@ -1340,11 +1365,11 @@ test("grant an applied application exactly the space permissions its workloads r
     await deployments.reconcile(notes.id);
     const deployed = nth(await database.select().from(object.deployment.table), 0);
 
-    // decide the installation's reading and managing of its space
+    // decide the installation's reading and managing of its space, and read the space's grants
     const spaceObject = await Scope.object(Snapshot.live(database), ids.space);
+    const installed = principal.installation.reference(ids.space, notes.id);
     const decide = async () => {
         const snapshot = Snapshot.live(database);
-        const installed = principal.installation.reference(ids.space, notes.id);
         const access = await authorizer.resolve(
             snapshot,
             ids.space,
@@ -1352,13 +1377,19 @@ test("grant an applied application exactly the space permissions its workloads r
         );
 
         return Promise.all(
-            [accountObject.space.permission("read"), accountObject.space.permission("manage")].map(
+            [space.permission("read"), space.permission("manage")].map(
                 async (permission) =>
                     (await authorizer.check(snapshot, permission, spaceObject, access)).isAllowed,
             ),
         );
     };
-    const granted = await decide();
+    const grants = async () =>
+        (await database.select().from(accessGrant)).map((row) => ({
+            delegator: ObjectReference.at("delegator", row),
+            delegate: ObjectReference.at("delegate", row),
+            permissions: row.permissions,
+        }));
+    const granted = { space: await decide(), grants: await grants() };
 
     // uninstall it
     await database
@@ -1371,11 +1402,139 @@ test("grant an applied application exactly the space permissions its workloads r
     const roles = await database.select({ name: accessRole.name }).from(accessRole);
     expect({
         granted,
-        dropped: await decide(),
+        dropped: { space: await decide(), grants: await grants() },
         roles: roles.filter((role) => role.name.startsWith("installation/")),
     }).toEqual({
-        granted: [true, false],
-        dropped: [false, false],
+        granted: {
+            space: [true, false],
+            grants: [
+                {
+                    delegator: principal.space.reference(Scope.universe.id, ids.space),
+                    delegate: installed,
+                    permissions: [{ ...recipient }],
+                },
+            ],
+        },
+        dropped: { space: [false, false], grants: [] },
         roles: [],
+    });
+});
+
+test("let an application ask for its optional capability in approval mode, and grant the capability's permissions once allowed", async () => {
+    // install notes declaring an optional push capability needing to unsubscribe people's browsers
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const unsubscribe = accountObject.client.permission("unsubscribe");
+    const declared = requesting({});
+    const request: Declared = {
+        ...declared,
+        description: {
+            ...declared.description,
+            capabilities: {
+                push: {
+                    reason: "Push notifications",
+                    optional: true,
+                    permissions: { installation: { universe: [unsubscribe] } },
+                },
+            },
+        },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request]));
+    const opened = await openUniverse();
+    const { deployments } = await serveControllers(fixture, { opened });
+    const installed = principal.installation.reference(ids.space, notes.id);
+    const grants = async () =>
+        (await database.select().from(accessGrant)).map((row) => row.permissions);
+
+    // deploy it, then allow push as its space would once it approves the request
+    await deployments.reconcile(notes.id);
+    const asking = await grants();
+    await database
+        .update(object.installation.table)
+        .set({ allowed: ["push"] })
+        .where(eq(object.installation.table.id, notes.id));
+    await deployments.reconcile(notes.id);
+    const enabled = (
+        await database
+            .select({
+                enabled: object.deployment.table.enabled,
+                status: object.deployment.table.status,
+            })
+            .from(object.deployment.table)
+    ).toSorted((left, right) => left.status.localeCompare(right.status));
+
+    // ask for push in approval mode on its own row, then grant push's permissions and run with it
+    const allow = {
+        ...object.installation.permission("allow"),
+        scope: ids.space,
+        objectId: notes.id,
+        mode: "approval",
+    };
+    expect({ installed: installed.id, asking, allowed: await grants(), enabled }).toEqual({
+        installed: notes.id,
+        asking: [[allow]],
+        allowed: [[{ ...unsubscribe }, allow]],
+        enabled: [
+            { enabled: ["push"], status: "active" },
+            { enabled: [], status: "draining" },
+        ],
+    });
+});
+
+test("refuse deploying a capability whose feature the account lacks, and deploy it once the account is entitled", async () => {
+    // install notes requiring a sync capability that needs the plan's sync feature
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const feature = {
+        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1"),
+        name: "sync",
+    };
+    const declared = requesting({});
+    const request: Declared = {
+        ...declared,
+        description: {
+            ...declared.description,
+            capabilities: { sync: { reason: "Sync across devices", requires: [feature] } },
+        },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request]));
+    const opened = await openUniverse();
+    const { deployments } = await serveControllers(fixture, {
+        opened,
+        isEnforcingEntitlements: true,
+    });
+    const ready = async () => {
+        const [row] = await database
+            .select({ conditions: object.installation.table.conditions })
+            .from(object.installation.table)
+            .where(eq(object.installation.table.id, notes.id));
+        const condition = present(row, "the installation").conditions["ready"];
+
+        return [condition?.reason, condition?.message];
+    };
+    const deployed = async () =>
+        (
+            await database
+                .select({ enabled: object.deployment.table.enabled })
+                .from(object.deployment.table)
+        ).map((row) => row.enabled);
+
+    // deploy with the account replicated without the feature, then once it is entitled to it
+    await TestEntitlement.set(database, ids.account, "database", { kind: "boolean" });
+    await deployments.reconcile(notes.id);
+    const refused = { ready: await ready(), deployed: await deployed() };
+    await TestEntitlement.set(database, ids.account, { feature }, { kind: "boolean" });
+    await deployments.reconcile(notes.id);
+
+    // refuse naming the missing feature, then run with the capability
+    expect({ refused, entitled: await deployed() }).toEqual({
+        refused: {
+            ready: [
+                "UnentitledCapability",
+                "capability sync needs sync: no plan of the account grants feature sync",
+            ],
+            deployed: [],
+        },
+        entitled: [["sync"]],
     });
 });

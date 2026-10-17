@@ -27,7 +27,7 @@ export class ConsumerController implements Controller {
     /** The tables of the consumers, the spaces and their placements, and every kind's resources. */
     readonly watches: readonly Table[];
     /** The object store writing the resources and stopping deployments as its principal. */
-    readonly #store: Pick<ObjectStore, "database" | "self" | "mutate" | "clock">;
+    readonly #store: Pick<ObjectStore, "database" | "serving" | "mutate" | "clock">;
     /** The objects of every kind whose resources the spaces use, kept here or replicated. */
     readonly #objects: readonly ResourceType<typeof space>[];
     /** The main database declaring the platform's tables every space's main database keeps. */
@@ -37,7 +37,7 @@ export class ConsumerController implements Controller {
 
     /** Reconcile the resources of some kinds in the spaces a machine serves. */
     constructor(
-        store: Pick<ObjectStore, "database" | "self" | "mutate" | "clock">,
+        store: Pick<ObjectStore, "database" | "serving" | "mutate" | "clock">,
         objects: readonly ResourceType<typeof space>[],
         main: Database,
     ) {
@@ -150,7 +150,7 @@ export class ConsumerController implements Controller {
                     ...draining.values(),
                 ]);
                 await this.#store.mutate(
-                    this.#store.self,
+                    this.#store.serving(object),
                     { id: RequestId.create(now), calls: [object.call("specify", input)] },
                     { scope: row.scope, component: this.name, transaction },
                 );
@@ -192,7 +192,7 @@ export class ConsumerController implements Controller {
                 ),
             );
         await this.#store.mutate(
-            this.#store.self,
+            this.#store.serving(deployment),
             {
                 id: RequestId.create(now),
                 calls: draining.map((entry) =>

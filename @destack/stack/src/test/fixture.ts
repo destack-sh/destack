@@ -64,7 +64,7 @@ import { spaceReplicated, stackTables } from "../stack/index.ts";
 import stackPackage from "../package.ts";
 import type { EventStore } from "@destack/event";
 import { testEvents, serversOf } from "@destack/object/test";
-import { allowance } from "@destack/account/object";
+import { entitlement } from "@destack/account/object";
 import { TestRegistry } from "./build.ts";
 import { TestRuntime } from "./runtime.ts";
 import { Clock } from "@destack/environment";
@@ -73,7 +73,7 @@ import { Clock } from "@destack/environment";
 export const spaceDatabase = defineDatabase({
     name: "main",
     tables: [...stackTables, identityKey],
-    replicated: [...spaceReplicated, allowance.table],
+    replicated: [...spaceReplicated, entitlement.table],
 });
 
 /** The fixture's space on its cloud machine, owned by the owner, with its main database. */
@@ -261,7 +261,7 @@ export class StackFixture implements AsyncDisposable {
             runtimes: [new TestRuntime()],
             events: overrides.events ?? (await openEvents(this.database)),
             sockets,
-            isEnforcingAllowances: false,
+            isEnforcingEntitlements: false,
             publisherAt: null,
             sweepCache: null,
             repositories: null,
@@ -296,14 +296,17 @@ export class StackFixture implements AsyncDisposable {
 
                 // run a placement call at the directory
                 if (isPlacement) {
-                    await directory.receive(mutation);
+                    return directory.receive(mutation);
                 }
                 // run a space call at its home and replicate the space back
                 else {
-                    await home.uplink.receive(mutation, signer);
+                    const results = await home.uplink.receive(mutation, signer);
                     await this.replicate(home);
+
+                    return results;
                 }
             },
+            call: (call, scope, signer) => home.uplink.call(call, scope, signer),
         };
     }
 
@@ -785,7 +788,10 @@ export async function reconcile(
 
 /** Reconcile every resource of a space as the control loops do once it changes. */
 export async function reconcileResources(
-    store: Pick<ObjectStore, "controllers" | "database" | "objects" | "self" | "mutate" | "clock">,
+    store: Pick<
+        ObjectStore,
+        "controllers" | "database" | "objects" | "serving" | "mutate" | "clock"
+    >,
     spaceId: string,
 ): Promise<void> {
     // reconcile each served kind's resources in the space
@@ -864,6 +870,9 @@ const idle: Pick<SpaceOptions, "publisher" | "handoff"> = {
             throw new TypeError(
                 `the fixture's universe receives no ${mutation.calls.map((entry) => Call.label(entry)).join(", ")}`,
             );
+        },
+        call: async (call) => {
+            throw new TypeError(`the fixture's universe answers no ${Call.label(call)}`);
         },
     },
     handoff: async (source) => {

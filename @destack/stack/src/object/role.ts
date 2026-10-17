@@ -20,6 +20,9 @@ export const relationship = defineObject(
     Intrinsic.relationship.methods,
 );
 
+/** A space's grant of some of its authority to a delegate, such as one of its installations. */
+export const grant = defineObject(Intrinsic.grant.definition(space), Intrinsic.grant.methods);
+
 /** A pending grant on an object of a space. */
 export const invitation = defineObject(
     Intrinsic.invitation.definition(space),

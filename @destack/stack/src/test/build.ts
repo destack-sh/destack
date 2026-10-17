@@ -20,8 +20,7 @@ export const workload = {
     resources: [],
     secrets: [],
     compute: {},
-    capabilities: {},
-    permissions: {},
+    sandbox: {},
 };
 
 /** The upgrades of the fixture's later releases by release. */
@@ -127,8 +126,7 @@ export async function fixtureBuild(packageId: PackageId, version: string): Promi
                     views: {
                         home: {
                             entrypoint: "view.js",
-                            permissions: {},
-                            capabilities: {},
+                            sandbox: {},
                             presents: [],
                             packages: [],
                         },

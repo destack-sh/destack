@@ -1,6 +1,14 @@
 import { Catalog } from "@destack/locale";
-import { none, PermissionReference, principal, self } from "@destack/access";
-import { InstallationName } from "@destack/runtime";
+import {
+    Grant,
+    type GrantPermission,
+    none,
+    PermissionReference,
+    PermissionSet,
+    principal,
+    self,
+} from "@destack/access";
+import { InstallationName, type PackageDescription } from "@destack/runtime";
 import {
     and,
     type DatabaseConnection,
@@ -11,23 +19,31 @@ import {
     type SQL,
     type Transaction,
 } from "@destack/db";
-import { type ObjectOf, defineObject, field, ObjectError } from "@destack/object";
+import {
+    type MethodContext,
+    type ObjectOf,
+    defineObject,
+    field,
+    ObjectError,
+} from "@destack/object";
 import type { Stack } from "@destack/object/server";
 import {
-    CapabilityName,
     ComputeDefinition,
     DeclarationName,
     DirectoryGrant,
     PackageId,
+    Sandbox,
 } from "@destack/package";
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
 import { Plan } from "@destack/resource";
 import {
+    canonicalize,
     defineSchema,
     Digest,
     type Identifier,
     Instant,
     type JsonValue,
+    present,
     schema,
 } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -42,6 +58,10 @@ import {
 import { StackDefinition } from "../declare/stack.ts";
 import { space, Space } from "@destack/account/object";
 import { Submission } from "./stack.ts";
+import { grant, role } from "./role.ts";
+
+/** The name managing an installation's grant, beside the declarations of its stack. */
+const GRANT_NAME = "permissions";
 
 /** The account owning the repository of a written selection, null for any other selection. */
 export const SelectedAccount = schema.identifier("account").nullable();
@@ -127,8 +147,10 @@ export const installation = defineObject(
             name: field.string(InstallationName),
             /** Workload compute settings checked against package and machine policy. */
             compute: field.json(schema.record(DeclarationName, ComputeDefinition)).default({}),
-            /** The optional capabilities the installation allows. */
-            capabilities: field.json(schema.array(CapabilityName)).default([]),
+            /** The optional capabilities the space's stack declares the installation allows. */
+            capabilities: field.json(schema.array(DeclarationName)).default([]),
+            /** The optional capabilities allowed at the installation's request, once approved. */
+            allowed: field.json(schema.array(DeclarationName)).default([]),
             /** The directories granted to the package's `fs` capability, each with its access. */
             directories: field.json(schema.array(DirectoryGrant)).default([]),
             /** The digest of the objects the installation last related as their consumer. */
@@ -150,6 +172,7 @@ export const installation = defineObject(
             observe: none(),
             analyze: none(),
             unmask: none(),
+            allow: none(),
         },
         reserved: ["replicate", "run", "token"],
         // bind roles on an installation directly
@@ -221,6 +244,17 @@ export const installation = defineObject(
         }),
         delete: method.delete("delete"),
 
+        /** Allow one of the package's optional capabilities, as the installation asked for it. */
+        allow: method.mutation({
+            permission: "allow",
+            input: schema.object({ capability: DeclarationName }),
+        }),
+        /** Withdraw an optional capability allowed at the installation's request. */
+        disallow: method.mutation({
+            permission: "allow",
+            input: schema.object({ capability: DeclarationName }),
+        }),
+
         /** Read the plan waiting for approval. */
         plan: method.query({ permission: "read", output: Plan }),
 
@@ -267,17 +301,7 @@ export const installation = defineObject(
         deploy: method.mutation({
             permission: "deploy",
             isInternal: true,
-            output: schema.object({
-                /** The permissions the deployed workloads request. */
-                requested: schema
-                    .object({
-                        /** The permissions requested in the submitter's home. */
-                        home: schema.array(PermissionReference),
-                        /** The permissions requested in the space's account. */
-                        account: schema.array(PermissionReference),
-                    })
-                    .nullable(),
-            }),
+            output: schema.object({}),
         }),
 
         /** Grant the installation a token of its space, as Kubernetes' TokenRequest. */
@@ -396,6 +420,118 @@ export type Installation = Select<typeof installation.table>;
 
 /** Reads of installations that other packages resolve references by. */
 export const Installation = {
+    /** List the optional capabilities an installation allows: declared ones and requested ones. */
+    capabilities(row: Pick<Installation, "capabilities" | "allowed">): string[] {
+        return [...new Set([...row.capabilities, ...row.allowed])];
+    },
+
+    /** List the package's capabilities an installation has: required and allowed optional ones. */
+    enabled(
+        row: Pick<Installation, "capabilities" | "allowed">,
+        description: PackageDescription | undefined,
+    ): string[] {
+        const allowed = Installation.capabilities(row);
+
+        return Object.entries(description?.capabilities ?? {})
+            .filter(([name, capability]) => capability.optional !== true || allowed.includes(name))
+            .map(([name]) => name);
+    },
+
+    /** Join the sandbox abilities an installation's enabled capabilities unlock. */
+    sandbox(
+        row: Pick<Installation, "capabilities" | "allowed">,
+        description: PackageDescription | undefined,
+    ): Sandbox {
+        return Sandbox.merge(
+            ...Installation.enabled(row, description).map(
+                (name) => description?.capabilities[name]?.sandbox ?? {},
+            ),
+        );
+    },
+
+    /** Merge what an installation's space lends it: its package's and capabilities' sets. */
+    permissions(
+        row: Pick<Installation, "capabilities" | "allowed">,
+        description: PackageDescription | undefined,
+    ): PermissionSet {
+        // gather the package's set and each enabled capability's
+        const enabled = Installation.enabled(row, description);
+        const sets = [
+            description?.permissions.installation ?? {},
+            ...Object.entries(description?.capabilities ?? {})
+                .filter(([name]) => enabled.includes(name))
+                .map(([, capability]) => capability.permissions?.installation ?? {}),
+        ];
+
+        // merge them scope by scope, each permission once
+        return Object.fromEntries(
+            (["space", "account", "universe"] as const).flatMap((scope) => {
+                const merged = sets.flatMap((set) => set[scope] ?? []);
+                const once = merged.filter(
+                    (permission, index) =>
+                        merged.findIndex(
+                            (other) =>
+                                PermissionReference.key(other) ===
+                                PermissionReference.key(permission),
+                        ) === index,
+                );
+
+                return once.length === 0 ? [] : [[scope, once]];
+            }),
+        );
+    },
+
+    /** Upsert an installation's role in its space and its space's grant to what it may do. */
+    async upsertAccess(
+        context: MethodContext,
+        target: Installation,
+        description: PackageDescription | undefined,
+    ): Promise<void> {
+        // upsert the role with exactly the space permissions, bound to the installation
+        const set = Installation.permissions(target, description);
+        const installed = principal.installation.reference(target.scope, target.id);
+        const manager = {
+            installationId: target.id,
+            packageId: target.packageId,
+            name: GRANT_NAME,
+        };
+        await context.mutate(context.self, [
+            role.call("upsertBinding", {
+                ...role.in(target.scope),
+                name: `installation/${target.id}`,
+                description: `What ${target.name} requests in this space`,
+                permissions: [...(set.space ?? [])],
+                subject: installed,
+                manager,
+            }),
+        ]);
+
+        // upsert the space's grant with exactly the permissions beyond the space
+        const [link] = await Scope.read({ read: (table) => context.read(table) }, [target.scope]);
+        const found = present(link, `the scope of space ${target.scope}`);
+        const permissions: GrantPermission[] = PermissionSet.grant(set, {
+            space: target.scope,
+            home: [],
+            account: found.parent,
+        }).filter((permission) => permission.scope !== target.scope);
+
+        // let the installation ask for its package's optional capabilities, each once its space approves
+        const isAsking = Object.values(description?.capabilities ?? {}).some(
+            (capability) => capability.optional === true,
+        );
+        const asking = isAsking
+            ? [
+                  {
+                      ...installation.permission("allow"),
+                      scope: target.scope,
+                      objectId: target.id,
+                      mode: "approval" as const,
+                  },
+              ]
+            : [];
+        await upsertGrant(context, installed, [...permissions, ...asking]);
+    },
+
     /** Resolve an installation's value of each space setting its build declares, by setting key. */
     async settings(
         database: DatabaseConnection,
@@ -667,4 +803,32 @@ async function identify(
     else {
         return undefined;
     }
+}
+
+/** Upsert the space's one grant to its installation giving exactly some permissions. */
+async function upsertGrant(
+    context: MethodContext,
+    installed: ReturnType<typeof principal.installation.reference>,
+    permissions: readonly GrantPermission[],
+): Promise<void> {
+    // leave a grant giving exactly the permissions
+    const delegator = principal.space.reference(Scope.universe.id, installed.scope);
+    const parties = { delegator, delegate: installed };
+    const current = await Grant.find(
+        { read: (table) => context.read(table) },
+        parties,
+        context.now,
+    );
+    if (current !== undefined && canonicalize(current.permissions) === canonicalize(permissions)) {
+        return;
+    }
+
+    // replace the outdated grant with the exact one, or revoke it once nothing is requested
+    const create = grant.call("create", {
+        ...grant.in(installed.scope),
+        delegate: installed,
+        permissions: [...permissions],
+    });
+    const revoke = current === undefined ? [] : [grant.call("revoke", grant.target(current))];
+    await context.mutate(context.self, permissions.length === 0 ? revoke : [create]);
 }

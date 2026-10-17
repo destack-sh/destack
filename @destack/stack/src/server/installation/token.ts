@@ -23,7 +23,7 @@ import { proof } from "../../object/proof.ts";
 export const InstallationAssertion = {
     /** Verify the assertions a store's installations sign for a package, spending each once. */
     verifier(
-        objects: Pick<ObjectStore, "database" | "principal" | "self" | "mutate">,
+        objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate">,
         audience: PackageId,
     ): AssertionVerifier {
         return new AssertionVerifier({
@@ -31,7 +31,7 @@ export const InstallationAssertion = {
             audience,
             keys: (id, _issuer, now) => InstallationAssertion.key(objects.database, id, now),
             spend: async (digest, expiresAt, now) => {
-                await objects.mutate(objects.self, {
+                await objects.mutate(objects.serving(proof), {
                     id: RequestId.create(now),
                     calls: [
                         proof.call("create", {

@@ -1,7 +1,6 @@
 export * from "./application.ts";
 export * from "./approval.ts";
 export * from "./build.ts";
-export * from "./grant.ts";
 export * from "./installation.ts";
 export * from "./revision.ts";
 export * from "./selection.ts";
