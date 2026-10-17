@@ -17,14 +17,14 @@ import {
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectType } from "@destack/object";
-import { announcement, notification } from "@destack/notification";
+import { announcement, notification, scheduled } from "@destack/notification";
 import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
 import { declaration, installation, installationRevision } from "@destack/stack/object";
 import { user } from "@destack/account/object";
 import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
-import { callTables, TestRunClient, testEvents } from "@destack/object/test";
+import { callTables, testEvents } from "@destack/object/test";
 import { nth, type Identifier, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
@@ -57,6 +57,7 @@ const INSTALLATION = "installation-019f5530-8000-7000-8000-0000000000e1";
 const silent: Uplink = {
     stream: () => (async function* () {})(),
     receive: () => Promise.reject(new Error("the fixture's uplink receives no changes")),
+    call: () => Promise.reject(new Error("the fixture's uplink answers no queries")),
 };
 
 /** A row a change carries, read for its identifier. */
@@ -127,7 +128,7 @@ export async function serveArticles(dialect: Dialect) {
         },
         /** Expand the space's announcements batch by batch, as their controller does. */
         expand: () => expand(store, storage.database, spaceId),
-        /** Run the calls the space's mutations sent, as the machine runs them. */
+        /** Run the calls the space's actions scheduled, as their workflow's controller does. */
         send: () => send(store),
         /** Follow the space's presence as the current actor's client, reading every page. */
         follow: () => follow(store, spaceId, current),
@@ -194,7 +195,6 @@ async function serveInstallation(
         callKey: testCallKey,
         events: await testEvents(database),
         origin: { package: space.package },
-        runs: new TestRunClient(() => store),
         server: {
             installation: INSTALLATION,
             name: "social",
@@ -263,21 +263,21 @@ async function expand(
 
     // expand them until none waits
     for (let rows = await waiting(); rows.length > 0; rows = await waiting()) {
-        await store.mutate(store.self, {
+        await store.mutate(store.serving(announcement), {
             id: RequestId.create(Date.now()),
             calls: rows.map((row) => announcement.call("expand", announcement.target(row))),
         });
     }
 }
 
-/** Run the calls the store's mutations sent, as the machine runs them. */
+/** Run the calls the store's actions scheduled, as their workflow's controller does. */
 async function send(store: ObjectStore): Promise<void> {
-    const sends = present(
-        store.controllers().find((controller) => controller.name === "sends"),
-        "the store's sends",
+    const runs = present(
+        store.controllers().find((controller) => controller.name === scheduled.run.name),
+        "the scheduled calls' runs",
     );
-    for (const listed of await sends.list()) {
-        await sends.reconcile(listed, reconciliation(new AbortController().signal));
+    for (const listed of await runs.list()) {
+        await runs.reconcile(listed, reconciliation(new AbortController().signal));
     }
 }
 
