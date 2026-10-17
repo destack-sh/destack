@@ -26,7 +26,7 @@ import {
 } from "@destack/db";
 import { EventFilter, type EventStore, FilterText, Fold, SERIES_FOLDS } from "@destack/event";
 import { ObjectReference, ObjectTypeReference } from "@destack/sync";
-import { Digest, Duration, defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { Digest, Duration, type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { installation } from "@destack/stack/object";
 import type { Step } from "@destack/workflow";
@@ -48,45 +48,43 @@ export const NO_DATA = ["ok", "alerting"] as const;
 export const ISSUE_CHANGES = ["open", "regress", "escalate"] as const;
 
 /** What fires an alert. */
-export const AlertCondition = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** An issue the filter selects opens, regresses or escalates. */
-            kind: schema.literal("issue"),
-            /** The issue change. */
-            on: schema.enum(ISSUE_CHANGES),
-            /** The issues considered, as a filter over their fields, every issue when absent. */
-            filter: FilterText.exactOptional(),
-        }),
-        schema.object({
-            /** A fold of the events a filter selects crosses a threshold over a window. */
-            kind: schema.literal("events"),
-            /** The events type, such as observability's log, span or metric, or object's call. */
-            event: ObjectTypeReference,
-            /** The events folded, as a filter over their keys, every event when absent. */
-            where: FilterText.exactOptional(),
-            /** The numeric key folded, needed by every fold but count. */
-            measure: schema.string().min(1).exactOptional(),
-            /** The fold. */
-            fold: schema.enum(SERIES_FOLDS),
-            /** The keys whose values each get an alert of their own. */
-            group: schema.array(schema.string().min(1)).max(4),
-            /** The events the fold is a ratio of. */
-            per: schema
-                .object({
-                    /** The events of the denominator, every event of the kind when absent. */
-                    where: FilterText.exactOptional(),
-                })
-                .exactOptional(),
-            /** The window the fold covers, at least a minute. */
-            window: Duration.schema,
-            /** Whether the alert fires above or below the threshold. */
-            comparison: schema.enum(["above", "below"]),
-            /** The threshold. */
-            threshold: schema.number(),
-        }),
-    ]),
-);
+export const AlertCondition = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** An issue the filter selects opens, regresses or escalates. */
+        kind: schema.literal("issue"),
+        /** The issue change. */
+        on: schema.enum(ISSUE_CHANGES),
+        /** The issues considered, as a filter over their fields, every issue when absent. */
+        filter: FilterText.exactOptional(),
+    }),
+    schema.object({
+        /** A fold of the events a filter selects crosses a threshold over a window. */
+        kind: schema.literal("events"),
+        /** The events type, such as observability's log, span or metric, or object's call. */
+        event: ObjectTypeReference,
+        /** The events folded, as a filter over their keys, every event when absent. */
+        where: FilterText.exactOptional(),
+        /** The numeric key folded, needed by every fold but count. */
+        measure: schema.string().min(1).exactOptional(),
+        /** The fold. */
+        fold: schema.enum(SERIES_FOLDS),
+        /** The keys whose values each get an alert of their own. */
+        group: schema.array(schema.string().min(1)).max(4),
+        /** The events the fold is a ratio of. */
+        per: schema
+            .object({
+                /** The events of the denominator, every event of the kind when absent. */
+                where: FilterText.exactOptional(),
+            })
+            .exactOptional(),
+        /** The window the fold covers, at least a minute. */
+        window: Duration.schema,
+        /** Whether the alert fires above or below the threshold. */
+        comparison: schema.enum(["above", "below"]),
+        /** The threshold. */
+        threshold: schema.number(),
+    }),
+]);
 /** What fires an alert. */
 export type AlertCondition = schema.Infer<typeof AlertCondition>;
 
@@ -102,40 +100,36 @@ const InstallationMethod = schema.enum([
 ]);
 
 /** What a firing alert does. */
-export const AlertAction = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** Notify the people and endpoints subscribed to the rule. */
-            kind: schema.literal("notify"),
-        }),
-        schema.object({
-            /** Call a method of the alert's installation. */
-            kind: schema.literal("call"),
-            /** The installation method, such as `rollBack`. */
-            method: InstallationMethod,
-        }),
-    ]),
-);
+export const AlertAction = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** Notify the people and endpoints subscribed to the rule. */
+        kind: schema.literal("notify"),
+    }),
+    schema.object({
+        /** Call a method of the alert's installation. */
+        kind: schema.literal("call"),
+        /** The installation method, such as `rollBack`. */
+        method: InstallationMethod,
+    }),
+]);
 /** What a firing alert does. */
 export type AlertAction = schema.Infer<typeof AlertAction>;
 
 /** An alert rule as a stack declares it. */
-export const AlertRuleDefinition = defineSchema(
-    schema.object({
-        /** The rule's title, shown to people. */
-        title: schema.string().min(1).max(100),
-        /** What fires the rule. */
-        condition: AlertCondition,
-        /** What a firing alert does. */
-        actions: schema.array(AlertAction).min(1).max(10),
-        /** The least time between two alerts of the rule for the same subject. */
-        interval: Duration.schema.exactOptional(),
-        /** How long an events condition stays crossed before its alert fires. */
-        pending: Duration.schema.exactOptional(),
-        /** Whether an events condition with no events in its window fires. */
-        noData: schema.enum(NO_DATA).exactOptional(),
-    }),
-);
+export const AlertRuleDefinition = schema.object({
+    /** The rule's title, shown to people. */
+    title: schema.string().min(1).max(100),
+    /** What fires the rule. */
+    condition: AlertCondition,
+    /** What a firing alert does. */
+    actions: schema.array(AlertAction).min(1).max(10),
+    /** The least time between two alerts of the rule for the same subject. */
+    interval: Duration.schema.exactOptional(),
+    /** How long an events condition stays crossed before its alert fires. */
+    pending: Duration.schema.exactOptional(),
+    /** Whether an events condition with no events in its window fires. */
+    noData: schema.enum(NO_DATA).exactOptional(),
+});
 /** An alert rule as a stack declares it. */
 export type AlertRuleDefinition = schema.Infer<typeof AlertRuleDefinition>;
 

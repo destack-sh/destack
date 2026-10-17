@@ -1,15 +1,15 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** A primitive attribute value, as OpenTelemetry attributes carry them. */
 const Primitive = schema.union([schema.string(), schema.number(), schema.boolean()]);
 
 /** An attribute value: a primitive or a list of primitives. */
-export const AttributeValue = defineSchema(schema.union([Primitive, schema.array(Primitive)]));
+export const AttributeValue = schema.union([Primitive, schema.array(Primitive)]);
 /** An attribute value. */
 export type AttributeValue = schema.Infer<typeof AttributeValue>;
 
 /** The attributes of an event, by key. */
-export const Attributes = defineSchema(schema.record(schema.string(), AttributeValue));
+export const Attributes = schema.record(schema.string(), AttributeValue);
 /** The attributes of an event. */
 export type Attributes = schema.Infer<typeof Attributes>;
 
@@ -19,14 +19,12 @@ export const AttributeKey = schema.record(schema.string(), Primitive);
 export type AttributeKey = schema.Infer<typeof AttributeKey>;
 
 /** The library or package that recorded an event. */
-export const Instrumentation = defineSchema(
-    schema.object({
-        /** The library or package name. */
-        name: schema.string(),
-        /** Its version. */
-        version: schema.string(),
-    }),
-);
+export const Instrumentation = schema.object({
+    /** The library or package name. */
+    name: schema.string(),
+    /** Its version. */
+    version: schema.string(),
+});
 /** The library or package that recorded an event. */
 export type Instrumentation = schema.Infer<typeof Instrumentation>;
 

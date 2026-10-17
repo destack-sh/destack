@@ -5,7 +5,7 @@ import { activity, announcement, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { graph } from "@destack/package";
-import { defineSchema, Digest, Instant, schema } from "@destack/schema";
+import { Digest, Instant, schema } from "@destack/schema";
 import { comment } from "@destack/social";
 import { installation, installationRevision } from "@destack/stack/object";
 
@@ -63,33 +63,31 @@ export const resolvedIssue = defineNotification({
 });
 
 /** What reopens a resolved or ignored issue. */
-export const Until = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** Any further exception. */
-            kind: schema.literal("event"),
-        }),
-        schema.object({
-            /** An exception of a revision of the installation after the given one. */
-            kind: schema.literal("revision"),
-            after: RevisionId,
-        }),
-        schema.object({
-            /** Any exception after a time. */
-            kind: schema.literal("time"),
-            at: Instant,
-        }),
-        schema.object({
-            /** The issue's exceptions reaching a total count. */
-            kind: schema.literal("count"),
-            count: schema.number().int().min(1),
-        }),
-        schema.object({
-            /** Nothing. */
-            kind: schema.literal("never"),
-        }),
-    ]),
-);
+export const Until = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** Any further exception. */
+        kind: schema.literal("event"),
+    }),
+    schema.object({
+        /** An exception of a revision of the installation after the given one. */
+        kind: schema.literal("revision"),
+        after: RevisionId,
+    }),
+    schema.object({
+        /** Any exception after a time. */
+        kind: schema.literal("time"),
+        at: Instant,
+    }),
+    schema.object({
+        /** The issue's exceptions reaching a total count. */
+        kind: schema.literal("count"),
+        count: schema.number().int().min(1),
+    }),
+    schema.object({
+        /** Nothing. */
+        kind: schema.literal("never"),
+    }),
+]);
 /** What reopens a resolved or ignored issue. */
 export type Until = schema.Infer<typeof Until>;
 

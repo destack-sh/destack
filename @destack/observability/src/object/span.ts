@@ -1,7 +1,7 @@
 import { through, union } from "@destack/access";
 import { machine, space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import {
     AttributeKey,
@@ -15,38 +15,34 @@ import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
 export const SPAN_STATUSES = ["unset", "ok", "error"] as const;
 
 /** Something that happened during a span, such as an exception it recorded. */
-export const SpanAnnotation = defineSchema(
-    schema.object({
-        /** The event's name, such as exception. */
-        name: schema.string(),
-        /** When it happened, in Unix microseconds. */
-        time: schema.number().int(),
-        /** Its attributes. */
-        attributes: Attributes,
-    }),
-);
+export const SpanAnnotation = schema.object({
+    /** The event's name, such as exception. */
+    name: schema.string(),
+    /** When it happened, in Unix microseconds. */
+    time: schema.number().int(),
+    /** Its attributes. */
+    attributes: Attributes,
+});
 /** Something that happened during a span. */
 export type SpanAnnotation = schema.Infer<typeof SpanAnnotation>;
 
 /** What a span keeps beside its keys. */
-export const SpanData = defineSchema(
-    schema.object({
-        /** The span, as 16 hexadecimal digits. */
-        span: schema.string(),
-        /** The span's kind, such as server or client. */
-        kind: schema.number().int().exactOptional(),
-        /** The annotations it recorded, such as exceptions. */
-        annotations: schema.array(SpanAnnotation),
-        /** The spans it links to. */
-        links: schema.array(schema.object({ trace: schema.string(), span: schema.string() })),
-        /** The workload instance that emitted it. */
-        instance: schema.string().exactOptional(),
-        /** The library that recorded it. */
-        instrumentation: Instrumentation,
-        /** The attributes the emitter marked personal. */
-        personal: PersonalAttributes.exactOptional(),
-    }),
-);
+export const SpanData = schema.object({
+    /** The span, as 16 hexadecimal digits. */
+    span: schema.string(),
+    /** The span's kind, such as server or client. */
+    kind: schema.number().int().exactOptional(),
+    /** The annotations it recorded, such as exceptions. */
+    annotations: schema.array(SpanAnnotation),
+    /** The spans it links to. */
+    links: schema.array(schema.object({ trace: schema.string(), span: schema.string() })),
+    /** The workload instance that emitted it. */
+    instance: schema.string().exactOptional(),
+    /** The library that recorded it. */
+    instrumentation: Instrumentation,
+    /** The attributes the emitter marked personal. */
+    personal: PersonalAttributes.exactOptional(),
+});
 
 /** A span an installation or a machine emitted, one wide event each. */
 export const span = defineObject(

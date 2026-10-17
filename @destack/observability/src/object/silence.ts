@@ -1,7 +1,7 @@
 import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { type Alert } from "./alert.ts";
 import { alertRule } from "./alert-rule.ts";
 
@@ -15,16 +15,14 @@ const MATCHERS = 20;
 const ENDED_RETENTION = { hours: 120 };
 
 /** A condition on one label of an alert: equal to a value, or not. */
-export const LabelMatcher = defineSchema(
-    schema.object({
-        /** The label. */
-        label: schema.string().min(1),
-        /** Whether the label equals the value, or differs from it. */
-        operator: schema.enum(["=", "!="]),
-        /** The value. */
-        value: schema.string(),
-    }),
-);
+export const LabelMatcher = schema.object({
+    /** The label. */
+    label: schema.string().min(1),
+    /** Whether the label equals the value, or differs from it. */
+    operator: schema.enum(["=", "!="]),
+    /** The value. */
+    value: schema.string(),
+});
 /** A condition on one label of an alert. */
 export type LabelMatcher = schema.Infer<typeof LabelMatcher>;
 

@@ -1,28 +1,26 @@
 import { through, union } from "@destack/access";
 import { machine, space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { AttributeKey, Instrumentation, PersonalAttributes } from "../event/attribute.ts";
 import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
 
 /** What a log record keeps beside its keys. */
-export const LogData = defineSchema(
-    schema.object({
-        /** The body, as text or JSON. */
-        body: schema.string().exactOptional(),
-        /** The span it was emitted in, as 16 hexadecimal digits. */
-        span: schema.string().exactOptional(),
-        /** The workload instance that emitted it. */
-        instance: schema.string().exactOptional(),
-        /** The library that recorded it. */
-        instrumentation: Instrumentation,
-        /** When the collector observed it, in Unix microseconds. */
-        observed: schema.number().int().exactOptional(),
-        /** The attributes the emitter marked personal. */
-        personal: PersonalAttributes.exactOptional(),
-    }),
-);
+export const LogData = schema.object({
+    /** The body, as text or JSON. */
+    body: schema.string().exactOptional(),
+    /** The span it was emitted in, as 16 hexadecimal digits. */
+    span: schema.string().exactOptional(),
+    /** The workload instance that emitted it. */
+    instance: schema.string().exactOptional(),
+    /** The library that recorded it. */
+    instrumentation: Instrumentation,
+    /** When the collector observed it, in Unix microseconds. */
+    observed: schema.number().int().exactOptional(),
+    /** The attributes the emitter marked personal. */
+    personal: PersonalAttributes.exactOptional(),
+});
 
 /** A log record an installation or a machine emitted. */
 export const log = defineObject(

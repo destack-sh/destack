@@ -1,21 +1,19 @@
 import { through, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { SESSION_STATUSES } from "@destack/telemetry/otlp";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
 
 /** What a session keeps beside its keys. */
-export const SessionData = defineSchema(
-    schema.object({
-        /** The instance that ran it. */
-        instance: schema.string().exactOptional(),
-        /** The attributes the emitter marked personal. */
-        personal: PersonalAttributes.exactOptional(),
-    }),
-);
+export const SessionData = schema.object({
+    /** The instance that ran it. */
+    instance: schema.string().exactOptional(),
+    /** The attributes the emitter marked personal. */
+    personal: PersonalAttributes.exactOptional(),
+});
 
 /** One run of an application a person used, such as a page load, recorded as it ended. */
 export const session = defineObject(

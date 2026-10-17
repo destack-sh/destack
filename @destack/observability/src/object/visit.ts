@@ -1,26 +1,24 @@
 import { through, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { ANALYTICS_RETENTION, TELEMETRY_FLUSH } from "../event/policy.ts";
 
 /** What a visit keeps beside its keys. */
-export const VisitData = defineSchema(
-    schema.object({
-        /** The path opened. */
-        path: schema.string().exactOptional(),
-        /** The host the visitor came from. */
-        referrer: schema.string().exactOptional(),
-        /** The page's title. */
-        title: schema.string().exactOptional(),
-        /** The visitor's locale. */
-        locale: schema.string().exactOptional(),
-        /** The attributes the emitter marked personal. */
-        personal: PersonalAttributes.exactOptional(),
-    }),
-);
+export const VisitData = schema.object({
+    /** The path opened. */
+    path: schema.string().exactOptional(),
+    /** The host the visitor came from. */
+    referrer: schema.string().exactOptional(),
+    /** The page's title. */
+    title: schema.string().exactOptional(),
+    /** The visitor's locale. */
+    locale: schema.string().exactOptional(),
+    /** The attributes the emitter marked personal. */
+    personal: PersonalAttributes.exactOptional(),
+});
 
 /** A view a person opened. */
 export const visit = defineObject(

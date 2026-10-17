@@ -1,18 +1,16 @@
 import { through, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { AttributeKey, PersonalAttributes } from "../event/attribute.ts";
 import { ANALYTICS_RETENTION, TELEMETRY_FLUSH } from "../event/policy.ts";
 
 /** What an action keeps beside its keys. */
-export const ActionData = defineSchema(
-    schema.object({
-        /** The properties the emitter marked personal. */
-        personal: PersonalAttributes.exactOptional(),
-    }),
-);
+export const ActionData = schema.object({
+    /** The properties the emitter marked personal. */
+    personal: PersonalAttributes.exactOptional(),
+});
 
 /** Something a person did in an application, as the application tracks it by a literal name. */
 export const action = defineObject(

@@ -1,43 +1,35 @@
 import { type Package, PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** How a meter folds a period's events into one usage. */
-export const MeterAggregation = defineSchema(
-    schema.enum(["sum", "count", "max", "last", "average"]),
-);
+export const MeterAggregation = schema.enum(["sum", "count", "max", "last", "average"]);
 /** How a meter folds the events of a period into one usage. */
 export type MeterAggregation = schema.Infer<typeof MeterAggregation>;
 
 /** A meter's package-local name, dotted like OpenTelemetry instrument names. */
-export const MeterName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
-);
+export const MeterName = schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u);
 
 /** The identity of a meter across package renames and releases: its package and name. */
-export const MeterReference = defineSchema(
-    schema.object({
-        /** The declaring package. */
-        packageId: PackageId,
-        /** The package-local name. */
-        name: MeterName,
-    }),
-);
+export const MeterReference = schema.object({
+    /** The declaring package. */
+    packageId: PackageId,
+    /** The package-local name. */
+    name: MeterName,
+});
 /** The identity of a meter across package renames and releases. */
 export type MeterReference = schema.Infer<typeof MeterReference>;
 
 /** The fields of a meter declaration. */
-export const MeterMetadata = defineSchema(
-    schema.object({
-        /** The package-local name. */
-        name: MeterName,
-        /** What the meter counts. */
-        description: schema.string().min(1),
-        /** How the meter folds a period's events. */
-        aggregation: MeterAggregation,
-        /** The unit of an event's value, such as request or byte. */
-        unit: schema.string().min(1),
-    }),
-);
+export const MeterMetadata = schema.object({
+    /** The package-local name. */
+    name: MeterName,
+    /** What the meter counts. */
+    description: schema.string().min(1),
+    /** How the meter folds a period's events. */
+    aggregation: MeterAggregation,
+    /** The unit of an event's value, such as request or byte. */
+    unit: schema.string().min(1),
+});
 /** The fields of a meter declaration. */
 export type MeterDefinition = schema.Infer<typeof MeterMetadata>;
 

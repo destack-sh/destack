@@ -291,11 +291,11 @@ export async function reconcile(observed: ObservedSpace, name: string): Promise<
 
 /** Write a package's build declaring its notifications, as its release describes them. */
 function declaring(owner: Package, declared: readonly NotificationType[]) {
-    return MemoryBuild.declaring(
+    return MemoryBuild.of(
         owner,
         declared.map((each) => ({
             kind: "notification",
-            package: notification.package.id,
+            kindPackageId: notification.package.id,
             name: each.name,
             description: each.describe(),
         })),
