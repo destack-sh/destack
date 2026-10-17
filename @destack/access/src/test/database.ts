@@ -24,6 +24,7 @@ export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
 
     // authenticate two independent users
     const alice: AccessContext = {
+        grants: [],
         subject: principal.user.reference("universe", "alice"),
         groups: [],
         now: 1000,

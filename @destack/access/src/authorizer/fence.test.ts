@@ -27,6 +27,7 @@ test.for(TEST_DIALECTS)(
             actors: [],
             contacts: [],
             linkSecrets: [],
+            grants: [],
         };
         const moved = async () =>
             await Promise.all(

@@ -1,6 +1,6 @@
 import { expect, refusal, test } from "@destack/test";
 import { ACCESS_PACKAGE_ID, principal, ANONYMOUS } from "../declare/principal.ts";
-import { Caller, CALLER_HEADER, Credential, type GrantClaim } from "./context.ts";
+import { AccessContext, Caller, CALLER_HEADER, Credential, type GrantClaim } from "./context.ts";
 import { schema } from "@destack/schema";
 
 /** The time the caller's credential was verified at. */
@@ -76,24 +76,68 @@ function refusedHeader(header: string) {
     );
 }
 
-test("require actors to act for an identified subject, and a grant to have the actors acting under it", async () => {
-    // build a delegate acting for alice, with and without the grant it acts under
+test("require a grant per actor or none, and actors to act for an identified subject", async () => {
+    // build an agent and its sub-agent acting for alice, with and without their grants
     const agent = principal.installation.reference("space-1", "installation-agent");
+    const subagent = principal.installation.reference("space-1", "installation-subagent");
     const grant: GrantClaim = {
         id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c1"),
         scope: "user-alice",
         permissions: [],
     };
 
-    // accept an actor under its grant, and refuse a grant without actors or a chain for an anonymous subject
+    // accept a grant per actor and an impersonation, refuse a chain short of grants or for no one
     expect([
-        await chained({ ...alice, actors: [agent], grant }),
-        await chained({ ...alice, grant }),
-        await chained({ ...alice, subject: ANONYMOUS, actors: [agent], grant }),
+        await chained({ ...alice, actors: [agent], grants: [grant] }),
+        await chained({ ...alice, actors: [agent, subagent], grants: [grant, grant] }),
+        await chained({ ...alice, actors: [agent] }),
+        await chained({ ...alice, grants: [grant] }),
+        await chained({ ...alice, actors: [agent, subagent], grants: [grant] }),
+        await chained({ ...alice, subject: ANONYMOUS, actors: [agent], grants: [grant] }),
     ]).toEqual([
         "done",
-        ["INVALID_CONTEXT", "a grant needs actors"],
+        "done",
+        "done",
+        ["INVALID_CONTEXT", "a delegation chain needs a grant per actor"],
+        ["INVALID_CONTEXT", "a delegation chain needs a grant per actor"],
         ["INVALID_CONTEXT", "delegation chain is inconsistent"],
+    ]);
+});
+
+test("intersect the grants of a chain, each actor using only what every grant before it gives", () => {
+    // let alice's agent edit notes a and b, and its sub-agent only note b
+    const agent = principal.installation.reference("space-1", "installation-agent");
+    const subagent = principal.installation.reference("space-1", "installation-subagent");
+    const edit = {
+        packageId: alice.subject.packageId,
+        type: "note",
+        name: "edit",
+        scope: "space-1",
+    };
+    const claim = (id: string, objectIds: readonly string[]): GrantClaim => ({
+        id: schema.identifier("grant").parse(id),
+        scope: "space-1",
+        permissions: objectIds.map((objectId) => ({ ...edit, objectId })),
+    });
+    const toAgent = claim("grant-019f5530-8000-7000-8000-0000000000c2", ["a", "b"]);
+    const toSubagent = claim("grant-019f5530-8000-7000-8000-0000000000c3", ["b", "c"]);
+
+    // give the agent its grant, and the sub-agent what both give
+    expect([
+        Caller.permissions({ grants: [] }),
+        Caller.permissions({ grants: [toAgent] }),
+        Caller.permissions({ grants: [toAgent, toSubagent] }),
+        Caller.links({ ...alice, actors: [agent, subagent], grants: [toAgent, toSubagent] }).map(
+            (link) => [link.delegator.id, link.delegate.id, link.grant.id],
+        ),
+    ]).toEqual([
+        undefined,
+        toAgent.permissions,
+        [{ ...edit, objectId: "b" }],
+        [
+            [alice.subject.id, agent.id, toAgent.id],
+            [agent.id, subagent.id, toSubagent.id],
+        ],
     ]);
 });
 
@@ -101,3 +145,28 @@ test("require actors to act for an identified subject, and a grant to have the a
 function chained(caller: Caller) {
     return refusal(Promise.resolve().then(() => Caller.requireChain(caller)));
 }
+
+test("use a grant's approval-mode permission only in a call applying an approved change", () => {
+    // give alice's agent sending at once and deleting once each use is approved
+    const agent = principal.installation.reference("space-1", "installation-agent");
+    const send = { packageId: alice.subject.packageId, type: "message", name: "send" };
+    const remove = { ...send, name: "delete", mode: "approval" as const };
+    const grants: GrantClaim[] = [
+        {
+            id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c4"),
+            scope: "user-alice",
+            permissions: [send, remove],
+        },
+    ];
+    const caller = { subject: alice.subject, actors: [agent], groups: [], contacts: [], grants };
+    const context = (approval?: string) => AccessContext.of(caller, 0, { approval });
+
+    // keep deleting behind its approval, and drop the approval mode for the approved change
+    expect([
+        AccessContext.permissions(context()),
+        AccessContext.permissions(context("change-request-019f5530-8000-7000-8000-0000000000c5")),
+    ]).toEqual([
+        [send, remove],
+        [send, { ...send, name: "delete" }],
+    ]);
+});

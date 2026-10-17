@@ -87,7 +87,7 @@ export class Compiler {
         const predicates = [
             this.#permission(permission, mapping, table, Compiler.#compilation(access)),
         ];
-        if (access.context.grant !== undefined) {
+        if (access.context.grants.length > 0) {
             predicates.push(
                 this.#restricted(permission, TableMapping.column(table, mapping.id), access, {
                     mapping,
@@ -204,7 +204,7 @@ export class Compiler {
         const selected = GrantPermission.select(
             permission,
             access.scope,
-            access.context.grant?.permissions,
+            AccessContext.permissions(access.context),
         );
         if (selected === "every") {
             return sql`true`;

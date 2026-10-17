@@ -10,6 +10,7 @@ import {
 } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier } from "@destack/schema";
+import { Scope } from "@destack/sync";
 import {
     accessTables,
     Authorizer,
@@ -110,14 +111,16 @@ function restricted(
     return {
         subject: alice,
         groups: [],
-        actors: [principal.personalAccessToken.reference("alice", "token-alice")],
+        actors: [principal.client.reference(Scope.universe.id, "client-alice")],
         attributes: {},
         now: 1000,
-        grant: {
-            id: Identifier.create("grant"),
-            scope: "alice",
-            permissions: [{ ...source, ...entry }],
-        },
+        grants: [
+            {
+                id: Identifier.create("grant"),
+                scope: "alice",
+                permissions: [{ ...source, ...entry }],
+            },
+        ],
         contacts: [],
         linkSecrets: [],
     };

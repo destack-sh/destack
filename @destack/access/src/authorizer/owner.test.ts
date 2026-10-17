@@ -90,6 +90,7 @@ async function openOwned() {
     const readable = async () => {
         const snapshot = Snapshot.live(database);
         const context: AccessContext = {
+            grants: [],
             subject: carol,
             groups: [],
             now: Date.now(),

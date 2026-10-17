@@ -106,6 +106,7 @@ test.for(TEST_DIALECTS)(
         const target = card.reference("personal", "c1");
         const decide = async (caller: string) => {
             const resolved = await authorizer.resolve(snapshot, "personal", {
+                grants: [],
                 subject: principal.user.reference("universe", caller),
                 groups: [],
                 now: 1000,

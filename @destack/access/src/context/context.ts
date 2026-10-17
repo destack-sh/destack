@@ -1,4 +1,4 @@
-import { defineSchema, type Identifier, Instant, JsonValue, schema } from "@destack/schema";
+import { defineSchema, type Identifier, Instant, JsonValue, nth, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
@@ -71,8 +71,8 @@ export interface Caller {
     readonly groups: readonly Subject[];
     /** The contacts, such as an email address, the subject proved control of. */
     readonly contacts: readonly Contact[];
-    /** The grant limiting the actors to what the subject gave, absent for its whole authority. */
-    readonly grant?: GrantClaim;
+    /** The grants each actor acts under, from the one before it, none for an impersonation. */
+    readonly grants: readonly GrantClaim[];
 }
 
 /** The grant a delegated caller acts under: its identifier, the scope storing it, what it gives. */
@@ -183,8 +183,8 @@ const callerSchema = schema.object({
     groups: schema.array(Subject),
     /** The contacts the subject proved control of. */
     contacts: schema.array(contactSchema),
-    /** The grant limiting the actors to what the subject gave. */
-    grant: GrantClaim.exactOptional(),
+    /** The grants each actor acts under, from the one before it. */
+    grants: schema.array(GrantClaim),
 });
 
 /** A verified caller with the credential it presented, as a verifier returns them. */
@@ -210,7 +210,7 @@ export const Caller = {
 
     /** The caller of a principal running its own code, proven by its server's key. */
     of(subject: Subject): Caller {
-        return { subject, actors: [], groups: [], contacts: [] };
+        return { subject, actors: [], groups: [], contacts: [], grants: [] };
     },
 
     /** The caller who proves no identity. */
@@ -233,20 +233,41 @@ export const Caller = {
         return caller.actors.at(-1) ?? caller.subject;
     },
 
-    /** Read the principal whose authority decides: the sender under a grant, else the subject. */
-    principal(caller: Pick<Caller, "subject" | "actors" | "grant">): Subject {
-        return caller.grant === undefined ? caller.subject : Caller.sender(caller);
+    /** Read the principal whose authority decides: the sender under grants, else the subject. */
+    principal(caller: Pick<Caller, "subject" | "actors" | "grants">): Subject {
+        return caller.grants.length === 0 ? caller.subject : Caller.sender(caller);
     },
 
-    /** Report whether a caller's actors act for its subject under a grant. */
-    isDelegated(caller: Pick<Caller, "actors" | "grant">): boolean {
-        return caller.grant !== undefined && caller.actors.length > 0;
+    /** Report whether a caller's actors act for its subject under grants. */
+    isDelegated(caller: Pick<Caller, "actors" | "grants">): boolean {
+        return caller.grants.length > 0 && caller.actors.length > 0;
     },
 
-    /** Require a grant to have actors, and actors to act for an identified subject. */
+    /** Read what a delegated caller may use: its chain's grants intersected, all when none. */
+    permissions(caller: Pick<Caller, "grants">): GrantPermission[] | undefined {
+        return caller.grants.reduce<GrantPermission[] | undefined>(
+            (given, grant) => GrantPermission.intersect(given, grant.permissions),
+            undefined,
+        );
+    },
+
+    /** Read each grant of a chain with its delegator, the actor before it, and its delegate. */
+    links(caller: Pick<Caller, "subject" | "actors" | "grants">): {
+        readonly grant: GrantClaim;
+        readonly delegator: Subject;
+        readonly delegate: Subject;
+    }[] {
+        return caller.grants.map((grant, index) => ({
+            grant,
+            delegator: index === 0 ? caller.subject : nth(caller.actors, index - 1),
+            delegate: nth(caller.actors, index),
+        }));
+    },
+
+    /** Require a grant per actor or none, and actors to act for an identified subject. */
     requireChain(caller: Caller): void {
-        if (caller.grant !== undefined && caller.actors.length === 0) {
-            throw new AccessError("INVALID_CONTEXT", "a grant needs actors");
+        if (caller.grants.length > 0 && caller.grants.length !== caller.actors.length) {
+            throw new AccessError("INVALID_CONTEXT", "a delegation chain needs a grant per actor");
         } else if (caller.actors.length > 0 && Caller.isAnonymous(caller)) {
             throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
         }
@@ -290,12 +311,23 @@ export interface AccessContext extends Caller {
     readonly attributes: Readonly<Record<string, Attribute>>;
     /** The request's identifier, for conditions bound to one request. */
     readonly request?: string;
+    /** The approved change the call applies, which lets it use approval-mode grant permissions. */
+    readonly approval?: string;
     /** Trusted time of the decision in UTC epoch milliseconds. */
     readonly now: number;
 }
 
 /** Build access contexts and read their request attributes. */
 export const AccessContext = {
+    /** Read what a delegated call may use: its chain's grants, approval-mode ones once approved. */
+    permissions(context: AccessContext): GrantPermission[] | undefined {
+        const permissions = Caller.permissions(context);
+
+        return context.approval === undefined || permissions === undefined
+            ? permissions
+            : permissions.map(({ mode: _mode, ...entry }) => entry);
+    },
+
     /** Decide for a caller at a time, with what its request presented. */
     of(
         caller: Caller,
@@ -307,13 +339,16 @@ export const AccessContext = {
             readonly linkSecrets?: readonly string[];
             /** The request's identifier. */
             readonly request?: string | undefined;
+            /** The approved change the call applies. */
+            readonly approval?: string | undefined;
         } = {},
     ): AccessContext {
-        const { credential, linkSecrets = [], request } = presented;
+        const { credential, linkSecrets = [], request, approval } = presented;
 
         return {
             ...caller,
             ...(credential === undefined ? {} : { credential }),
+            ...(approval === undefined ? {} : { approval }),
             linkSecrets,
             attributes: credential?.attributes ?? {},
             now,

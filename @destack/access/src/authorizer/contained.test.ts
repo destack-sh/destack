@@ -115,6 +115,7 @@ test.for(TEST_DIALECTS)(
                 actors: [],
                 contacts: [],
                 linkSecrets: [],
+                grants: [],
             };
             const isScope = target.type === realm.name || target.type === district.name;
             const holder = isScope ? target.id : target.scope;
@@ -215,6 +216,7 @@ test.for(TEST_DIALECTS)(
             actors: [],
             contacts: [],
             linkSecrets: [],
+            grants: [],
         };
         const snapshot = Snapshot.live(database);
         const resolved = await Promise.all(
@@ -291,6 +293,7 @@ test.for(TEST_DIALECTS)(
                 actors: [],
                 contacts: [],
                 linkSecrets: [],
+                grants: [],
             };
             const resolved = await authorizer.resolve(snapshot, "universe", caller);
             const permission = { ...target, name: "contact" };
@@ -365,6 +368,7 @@ test.for(TEST_DIALECTS)(
                 groups: [],
                 contacts: [],
                 linkSecrets: [],
+                grants: [],
                 now: 1000,
                 attributes: {},
             };

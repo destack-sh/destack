@@ -40,6 +40,7 @@ const carolMembership = { ...account.reference("universe", "account-1"), relatio
 
 /** A member of an account who has roles through the membership. */
 const carol: AccessContext = {
+    grants: [],
     subject: principal.user.reference("universe", "carol"),
     groups: [carolMembership],
     now: 1000,
@@ -467,6 +468,7 @@ test("let owners have everything in their scope, make owners, and never remove t
             ),
     );
     const dave: AccessContext = {
+        grants: [],
         subject: principal.user.reference("universe", "dave"),
         groups: [],
         now: 1000,
@@ -642,6 +644,7 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
         actors: [],
         contacts: [],
         linkSecrets: [],
+        grants: [],
     };
 
     // let bob share note a through a role, and offer dave a view of it
@@ -655,6 +658,7 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
         query,
         database,
         () => ({
+            grants: [],
             subject: bob,
             groups: [],
             now: 1000,

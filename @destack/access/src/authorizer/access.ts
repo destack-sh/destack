@@ -159,17 +159,13 @@ export class Access {
             );
         }
 
-        // refuse delegates acting under a local grant that is no longer live
+        // refuse delegates acting under a local grant of their chain that is no longer live
         Caller.requireChain(context);
-        const { subject, grant } = context;
-        const sender = Caller.sender(context);
-        if (
-            Caller.isDelegated(context) &&
-            grant !== undefined &&
-            (await authorizer.isHome(snapshot, grant.scope))
-        ) {
-            const stored = await Grant.read(snapshot, grant.id);
-            Grant.require(stored, grant.id, { delegator: subject, delegate: sender }, context.now);
+        for (const { grant, delegator, delegate } of Caller.links(context)) {
+            if (await authorizer.isHome(snapshot, grant.scope)) {
+                const stored = await Grant.read(snapshot, grant.id);
+                Grant.require(stored, grant.id, { delegator, delegate }, context.now);
+            }
         }
 
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
@@ -568,7 +564,7 @@ export class Access {
             GrantPermission.allows(
                 permission,
                 { scope: this.scope, id },
-                this.context.grant?.permissions,
+                AccessContext.permissions(this.context),
             )
         ) {
             return true;

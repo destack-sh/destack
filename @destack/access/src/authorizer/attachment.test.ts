@@ -149,6 +149,7 @@ test.for(TEST_DIALECTS)(
 
         // decide each remark in memory and by query
         const alice: AccessContext = {
+            grants: [],
             subject: principal.user.reference("universe", "alice"),
             actors: [],
             groups: [],

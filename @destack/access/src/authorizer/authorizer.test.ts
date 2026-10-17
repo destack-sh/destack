@@ -499,7 +499,7 @@ databaseTest(
                     ...carol,
                     subject: userSubject("carol"),
                     actors: [agent],
-                    grant: { id: Identifier.create("grant"), scope: "carol", permissions: [] },
+                    grants: [{ id: Identifier.create("grant"), scope: "carol", permissions: [] }],
                 }),
                 (authorization) =>
                     Invitation.accept(offered.relationship.object, offered.id, authorization),
@@ -730,7 +730,7 @@ databaseTest(
             ...context,
             subject: context.subject,
             actors: [assistant],
-            grant: Grant.claim(granted),
+            grants: [Grant.claim(granted)],
         });
         await expectEditable(database, authorizer, node, delegated(alice, forAlice), ["a", "b"]);
         await expectEditable(database, authorizer, node, delegated(bob, forBob), ["b"]);
@@ -747,7 +747,7 @@ databaseTest(
             outcome(authorizer.resolve(Snapshot.live(database), "personal", context));
         const elsewhere = await resolve({
             ...delegated(alice, forAlice),
-            grant: Grant.claim(forBob),
+            grants: [Grant.claim(forBob)],
         });
         const lapsed = await resolve({ ...delegated(alice, forAlice), now: 2000 });
         await Authorization.run(
@@ -778,7 +778,7 @@ databaseTest(
 );
 
 databaseTest(
-    "act for a delegator under its one grant to a delegate, replaced by a later grant and refused once lapsed",
+    "act for a delegator under its one grant to a delegate, replaced by a later grant, refused once lapsed and for a chain link without a grant",
     async ({ fixture }) => {
         const { database, authorizer, alice } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
@@ -809,18 +809,23 @@ databaseTest(
         await grant("a");
         const later = await grant("b");
 
-        // act for alice under the one live grant, and under none once it lapsed
+        // act for alice under the one live grant, under none once it lapsed, and not through a sub-agent the assistant never granted
         const parties = { delegator: alice.subject, delegate: assistant };
         const caller = await Grant.act(Snapshot.live(database), parties, 1000);
         const grants = await database.select().from(accessGrant);
+        const subagent = principal.installation.reference("personal", "subagent");
+        const chain = { subject: alice.subject, actors: [assistant, subagent] };
         expect({
             grants: grants.map((row) => row.id),
-            caller: [caller.subject, caller.actors, caller.grant],
+            caller: [caller.subject, caller.actors, caller.grants],
             lapsed: await outcome(Grant.act(Snapshot.live(database), parties, 2000)),
+            unlinked: await outcome(Grant.chain(Snapshot.live(database), chain, 1000)),
         }).toEqual({
             grants: [later.id],
-            caller: [alice.subject, [assistant], Grant.claim(later)],
+            caller: [alice.subject, [assistant], [Grant.claim(later)]],
             lapsed: "FORBIDDEN: installation assistant acts for user alice under no grant",
+            unlinked:
+                "FORBIDDEN: installation subagent acts for installation assistant under no grant",
         });
     },
 );

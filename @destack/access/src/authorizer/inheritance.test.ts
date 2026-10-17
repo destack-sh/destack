@@ -136,6 +136,7 @@ test.for(TEST_DIALECTS)(
         // list the documents each reads and edits, in SQL and in memory alike
         const allowed = async (person: keyof typeof people, name: "read" | "edit") => {
             const context: AccessContext = {
+                grants: [],
                 subject: people[person],
                 groups: [],
                 now: 1000,
@@ -253,6 +254,7 @@ test.for(TEST_DIALECTS)(
         // let the team's editor and viewer read the note, and nobody else, in SQL and in memory alike
         const reads = async (person: keyof typeof people) => {
             const context: AccessContext = {
+                grants: [],
                 subject: people[person],
                 actors: [],
                 groups: [],

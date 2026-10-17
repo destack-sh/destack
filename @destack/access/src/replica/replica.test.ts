@@ -34,6 +34,7 @@ const TYPES = policies.map((each) => each.typeReference);
 
 /** The owner of the account and the space. */
 const alice: AccessContext = {
+    grants: [],
     subject: principal.user.reference("universe", "alice"),
     groups: [],
     now: 1000,
@@ -45,6 +46,7 @@ const alice: AccessContext = {
 
 /** A member of the account who has roles through the membership. */
 const carol: AccessContext = {
+    grants: [],
     subject: principal.user.reference("universe", "carol"),
     groups: [{ ...account.reference("universe", "account-1"), relation: "member" }],
     now: 1000,

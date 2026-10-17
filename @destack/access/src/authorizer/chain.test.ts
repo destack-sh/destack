@@ -175,6 +175,7 @@ test("replicate a space's chain up to the universe from a relay, with the polici
     expect(authorizer.global.map((type) => type.type)).toEqual([
         "machine",
         "client",
+        "device",
         "space",
         "anonymous",
         "user",

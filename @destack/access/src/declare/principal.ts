@@ -9,18 +9,18 @@ const OWNER = import.meta.destack.package;
 /** The identity of the package declaring access's own types. */
 export const ACCESS_PACKAGE_ID = OWNER.id;
 
-/** The kinds of principal: authenticating people, machines, clients and software, and groups. */
+/** The kinds of principal: people, machines, clients, devices, software and groups. */
 export const principal = {
     /** A person, identified globally, and the scope with their own objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running spaces, identified globally, and the scope of its local operations. */
     machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true, isGlobal: true }),
-    /** A program a person signs in through, such as a browser profile, global by its key. */
-    client: new Policy(OWNER, { name: "client", permissions: {}, scope: true, isGlobal: true }),
+    /** A person's registration of a program acting for them, such as a browser or a token. */
+    client: new Policy(OWNER, { name: "client", permissions: {}, isGlobal: true }),
+    /** A program instance on a computer, the scope of its local objects for everyone using it. */
+    device: new Policy(OWNER, { name: "device", permissions: {}, scope: true, isGlobal: true }),
     /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
-    /** A bearer token a person issues, acting for them under its grant. */
-    personalAccessToken: new Policy(OWNER, { name: "personal-access-token", permissions: {} }),
     /** A space, which signs with its own key and stores replicas for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
@@ -114,13 +114,7 @@ export const grant = new Policy(OWNER, {
     relations: {
         delegator: { subjects: [principal.user, principal.machine, principal.installation] },
         delegate: {
-            subjects: [
-                principal.user,
-                principal.machine,
-                principal.client,
-                principal.installation,
-                principal.personalAccessToken,
-            ],
+            subjects: [principal.user, principal.machine, principal.client, principal.installation],
             onDelete: "cascade",
         },
         space: { subjects: [principal.space], onDelete: "cascade" },
@@ -138,8 +132,8 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     principal.user,
     principal.machine,
     principal.client,
+    principal.device,
     principal.installation,
-    principal.personalAccessToken,
     principal.space,
     principal.contact,
     principal.anonymous,

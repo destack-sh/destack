@@ -120,6 +120,7 @@ async function decide(
     const snapshot = Snapshot.live(database);
     const [subject, ...groups] = subjects;
     const access = await authorizer.resolve(snapshot, "universe", {
+        grants: [],
         subject: present(subject, "the caller"),
         actors: [],
         groups,

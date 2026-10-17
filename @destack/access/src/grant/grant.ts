@@ -4,7 +4,7 @@ import { Caller } from "../context/context.ts";
 import { isPrincipal } from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import type { Select, Snapshot } from "@destack/db";
-import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
+import { defineSchema, type Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { GrantClaim } from "../context/context.ts";
@@ -60,23 +60,36 @@ export const Grant = {
     },
 
     /** Act for a delegator as its delegate within the delegator's live grant. */
-    async act(
+    act(
         reader: Pick<Snapshot, "read">,
         parties: { readonly delegator: Subject; readonly delegate: Subject },
         now: number,
     ): Promise<Caller> {
-        // read the delegator's live grant to the delegate
-        const { delegator, delegate } = parties;
-        const live = await Grant.find(reader, parties, now);
-        if (live === undefined) {
-            throw new AccessError(
-                "FORBIDDEN",
-                `${delegate.type} ${delegate.id} acts for ${delegator.type} ${delegator.id} under no grant`,
-            );
+        return Grant.chain(reader, { subject: parties.delegator, actors: [parties.delegate] }, now);
+    },
+
+    /** Act for a subject through a chain of actors, each within the prior one's live grant. */
+    async chain(
+        reader: Pick<Snapshot, "read">,
+        chain: { readonly subject: Subject; readonly actors: readonly Subject[] },
+        now: number,
+    ): Promise<Caller> {
+        // read each link's live grant, refusing a link without one
+        const grants: GrantClaim[] = [];
+        for (const [index, delegate] of chain.actors.entries()) {
+            const delegator = index === 0 ? chain.subject : nth(chain.actors, index - 1);
+            const live = await Grant.find(reader, { delegator, delegate }, now);
+            if (live === undefined) {
+                throw new AccessError(
+                    "FORBIDDEN",
+                    `${delegate.type} ${delegate.id} acts for ${delegator.type} ${delegator.id} under no grant`,
+                );
+            }
+            grants.push(Grant.claim(live));
         }
 
-        // act as the delegator with the delegate acting for it, within the grant
-        return { ...Caller.of(delegator), actors: [delegate], grant: Grant.claim(live) };
+        // act as the subject with the actors acting for it, within every grant of the chain
+        return { ...Caller.of(chain.subject), actors: [...chain.actors], grants };
     },
 
     /** Require a grant between a delegator and a delegate unrevoked and unexpired at a time. */

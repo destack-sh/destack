@@ -1,6 +1,12 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
 
+/** How a grant permission's uses run: at once, or each once its delegator approves the call. */
+export const GRANT_MODES = ["allowed", "approval"] as const;
+
+/** How a grant permission's uses run. */
+export type GrantMode = (typeof GRANT_MODES)[number];
+
 /** The schema of a grant permission: a permission in a scope, on an object or through a method. */
 const grantPermissionSchema = defineSchema(
     PermissionReference.extend({
@@ -10,6 +16,8 @@ const grantPermissionSchema = defineSchema(
         objectId: schema.string().min(1).exactOptional(),
         /** The one method the permission is used through, absent for every method. */
         method: schema.string().min(1).exactOptional(),
+        /** How each use runs: at once by default, or once its delegator approves the call. */
+        mode: schema.enum(GRANT_MODES).exactOptional(),
     }),
 );
 /** A permission a grant gives, in the shape of an RFC 9396 authorization detail. */
@@ -82,16 +90,19 @@ export const GrantPermission = {
                         GrantPermission.overlaps(entry.method, other.method),
                 )
                 .map((other) => {
-                    // keep the narrower of each selection
+                    // keep the narrower of each selection, and approval when either side asks for it
                     const scope = entry.scope ?? other.scope;
                     const objectId = entry.objectId ?? other.objectId;
                     const method = entry.method ?? other.method;
+                    const isOnApproval =
+                        GrantPermission.isOnApproval(entry) || GrantPermission.isOnApproval(other);
 
                     return {
                         ...entry,
                         ...(scope === undefined ? {} : { scope }),
                         ...(objectId === undefined ? {} : { objectId }),
                         ...(method === undefined ? {} : { method }),
+                        ...(isOnApproval ? { mode: "approval" as const } : {}),
                     };
                 }),
         );
@@ -119,8 +130,34 @@ export const GrantPermission = {
         );
     },
 
-    /** Report whether an entry gives a permission in a scope. */
+    /** Report whether grant permissions give a permission on an object, each use once approved. */
+    allowsOnApproval(
+        permission: PermissionReference,
+        object: { readonly scope: string; readonly id?: string },
+        permissions: readonly GrantPermission[] | undefined,
+    ): boolean {
+        return (permissions ?? []).some(
+            (entry) =>
+                GrantPermission.isOnApproval(entry) &&
+                GrantPermission.covers(entry, permission, object.scope) &&
+                GrantPermission.overlaps(entry.objectId, object.id),
+        );
+    },
+
+    /** Report whether an entry's uses each wait for its delegator's approval. */
+    isOnApproval(entry: GrantPermission): boolean {
+        return entry.mode === "approval";
+    },
+
+    /** Report whether an entry gives a permission in a scope at once, without approval. */
     gives(entry: GrantPermission, permission: PermissionReference, scope: string): boolean {
+        return (
+            !GrantPermission.isOnApproval(entry) && GrantPermission.covers(entry, permission, scope)
+        );
+    },
+
+    /** Report whether an entry names a permission in a scope, whatever its mode. */
+    covers(entry: GrantPermission, permission: PermissionReference, scope: string): boolean {
         return (
             entry.packageId === permission.packageId &&
             entry.type === permission.type &&

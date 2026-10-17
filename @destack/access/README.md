@@ -51,7 +51,9 @@ A `Caller` is who calls, a `Credential` is what its request presented, a verifie
 const { caller, credential } = await verifier.verify(token, now);
 const context = AccessContext.of(caller, now, { credential, linkSecrets });
 const own = AccessContext.of(Caller.of(space), now);
+const applying = AccessContext.of(caller, now, { approval: changeId }); // may use approval-mode permissions
 AccessContext.assurance(context);
+AccessContext.permissions(applying); // what its chain's grants give it
 Caller.principal(caller);
 ```
 
@@ -120,22 +122,39 @@ await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, auth
 
 ## Grants
 
-A `Grant` lets a delegate act for its delegator with what both allow: the delegator's access intersected with the grant's RFC 9396 permissions, each in one scope or every scope the delegator reaches, presented on a caller as its RFC 8693 actor chain.
+A `Grant` lets a delegate act for its delegator with what both allow, one grant per pair, its RFC 9396 permissions used at once or each once approved, presented on a caller as its RFC 8693 actor chain.
 
 ```ts
 const grant = await Grant.create(
     aliceScope,
     {
         delegate: installation,
-        permissions: [{ ...note.permission("read"), scope: spaceId, method: "get" }],
+        permissions: [
+            { ...note.permission("read"), scope: spaceId, method: "get" },
+            { ...message.permission("send"), mode: "approval" }, // every scope alice reaches, each send approved
+        ],
     },
     authorization,
-);
-const caller = {
-    ...Caller.of(alice),
-    actors: [installation],
-    grant: Grant.claim(grant),
-};
-await Grant.find(snapshot, { delegator: alice, delegate: installation }, now); // the live grant
+); // replaces alice's earlier grant to the installation
+const caller = await Grant.act(snapshot, { delegator: alice, delegate: installation }, now);
+// { subject: alice, actors: [installation], grants: [claim] }, a sub-agent adding its own grant
+Caller.permissions({ grants: [toAgent, toSubagent] }); // what every grant of the chain gives
 await Grant.revoke(aliceScope, grant.id, authorization);
+```
+
+## Requests
+
+A `PermissionRequest` asks each delegator for a `PermissionSet`: its installation's space at install and each user on use, for a package or one of its capabilities (GitHub App installation and user permissions).
+
+```ts
+definePackage({
+    permissions: {
+        installation: {
+            space: [note.permission("write")],
+            universe: [user.permission("recipient")],
+        },
+        user: { home: [notification.permission("read")] },
+    },
+});
+PermissionSet.grant(set, { space, home: [userId, homeId], account }); // the grant permissions in a context
 ```

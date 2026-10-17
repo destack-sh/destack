@@ -65,6 +65,7 @@ test.for(TEST_DIALECTS)(
         // let a stranger who signed in read it in its own scope
         const snapshot = Snapshot.live(database);
         const stranger = await authorizer.resolve(snapshot, "personal", {
+            grants: [],
             subject: principal.user.reference("universe", "erin"),
             actors: [],
             groups: [],
