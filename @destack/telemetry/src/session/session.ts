@@ -5,6 +5,12 @@ import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
 /** The attribute of the session a signal belongs to, from OpenTelemetry semantic conventions. */
 export const SESSION_ATTRIBUTE = "session.id";
 
+/** The event names of the log records starting and ending a session. */
+export const SESSION_EVENTS = { start: "session.start", end: "session.end" } as const;
+
+/** The attribute of a session's end recording how it ended. */
+export const SESSION_STATUS_ATTRIBUTE = "session.status";
+
 /** How a session ended: without failures, with handled ones, or by an escaped one. */
 export const SESSION_STATUSES = ["ok", "errored", "crashed"] as const;
 

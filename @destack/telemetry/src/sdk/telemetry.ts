@@ -28,7 +28,12 @@ import {
     type TelemetryScope,
 } from "../scope/index.ts";
 import { TraceIdGenerator } from "../trace/generator.ts";
-import { type Session, SessionProcessor } from "../session/index.ts";
+import {
+    SESSION_EVENTS,
+    SESSION_STATUS_ATTRIBUTE,
+    type Session,
+    SessionProcessor,
+} from "../session/index.ts";
 
 /** Configure one application's identity and its three telemetry providers. */
 export interface TelemetryOptions {
@@ -133,7 +138,7 @@ export class Telemetry {
         this.endSession();
         const session = this.#sessionProcessor.start(Date.now());
         this.#logger.emit({
-            eventName: "session.start",
+            eventName: SESSION_EVENTS.start,
             severityNumber: SeverityNumber.INFO,
             severityText: "INFO",
         });
@@ -149,12 +154,12 @@ export class Telemetry {
             return undefined;
         }
         this.#logger.emit({
-            eventName: "session.end",
+            eventName: SESSION_EVENTS.end,
             severityNumber: SeverityNumber.INFO,
             severityText: "INFO",
-            attributes: { "session.status": session.status },
+            attributes: { [SESSION_STATUS_ATTRIBUTE]: session.status },
         });
-        this.#sessionCount.add(1, { "session.status": session.status });
+        this.#sessionCount.add(1, { [SESSION_STATUS_ATTRIBUTE]: session.status });
 
         return this.#sessionProcessor.end();
     }
