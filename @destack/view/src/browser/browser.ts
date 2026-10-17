@@ -4,7 +4,6 @@ import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
-import { PermissionScope } from "@destack/access";
 import type { ClientOptions } from "@destack/runtime/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
@@ -20,6 +19,7 @@ import {
     ViewLaunch,
 } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
+import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
 import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
@@ -51,11 +51,11 @@ export async function mount(view: View): Promise<() => Promise<void>> {
         exporter.options({ name: view.package.name, version: release }),
     );
 
-    // open the view's scopes as this browser's client over the launch's endpoint while fetching its catalogs
-    const client = await new BrowserClient({ path: CLIENT_PATH }).subject();
+    // open the view's scopes on this browser's device over the launch's endpoint while fetching its catalogs
+    const device = await new BrowserClient({ path: CLIENT_PATH }).device();
     const origin = pageOrigin();
     const [tabs, translations] = await Promise.all([
-        openTabs(context, endpoint, view, client, origin),
+        openTabs(context, endpoint, view, device, origin),
         fetchCatalogs(catalogs),
     ]);
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
@@ -287,17 +287,17 @@ async function fetchCatalogs(references: readonly CatalogReference[]): Promise<C
     );
 }
 
-/** Open a tab for each scope a view requests permissions in, once its tables exist. */
+/** Open a tab for each scope a view's context opens, once its tables exist. */
 async function openTabs(
     context: ViewContext,
     endpoint: string,
     view: View,
-    client: Subject,
+    device: Subject,
     origin: (path: string) => ClientOptions,
 ): Promise<Map<string, BrowserTab>> {
-    // group the object types by the scope each opens in, merging a home that is the view's space
+    // group the object types by the scope each lives in, merging a home that is the view's space
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>();
-    for (const name of PermissionScope.options) {
+    for (const name of CONTEXT_SCOPES) {
         const scope = context[name];
         const objects = view.opens(name);
         if (scope !== undefined && objects.length > 0) {
@@ -317,7 +317,7 @@ async function openTabs(
                     objects,
                     scope,
                     caller: context.user,
-                    client,
+                    device,
                     endpoint: { url },
                     // reopen the same endpoint
                     reconnect: () => ({ url }),

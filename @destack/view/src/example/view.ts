@@ -1,11 +1,11 @@
-import { PermissionScope, principal } from "@destack/access";
+import { principal } from "@destack/access";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import type { ExampleObjects } from "@destack/package/declare";
 import { Scope } from "@destack/sync";
-import type { ViewContext } from "../declare/context.ts";
+import { CONTEXT_SCOPES, type ViewContext } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 import { type Component, type JSX, createComponent } from "../solid/component.ts";
 import { Loading } from "../solid/flow.ts";
@@ -73,9 +73,9 @@ async function openSample(
         user: principal.user.reference(Scope.universe.id, SAMPLE_USER),
     };
 
-    // open each scope the view opens objects in, and make the example's calls there
+    // open each scope the context opens, and make the example's calls there
     const clients = new Map<string, ObjectClient>();
-    for (const name of PermissionScope.options) {
+    for (const name of CONTEXT_SCOPES) {
         const opened = view.opens(name);
         const scope = context[name];
         if (opened.length > 0 && scope !== undefined) {

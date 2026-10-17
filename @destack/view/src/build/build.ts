@@ -4,7 +4,7 @@ import type {
     DeclarationModule,
     Plugin,
 } from "@destack/package/build";
-import { BROWSER_CAPABILITIES, Capabilities } from "@destack/package";
+import { BROWSER_SANDBOX, Sandbox } from "@destack/package";
 import { ViewDescription } from "@destack/package/manifest";
 import { SolidApplication } from "./application.ts";
 import { fontPlugin } from "./font.ts";
@@ -39,11 +39,11 @@ export const viewExtension: BuildExtension = {
         return [mountPlugin(views)];
     },
     describe(compilation, compiled) {
-        // describe each view by its emitted chunk, permissions, browser capabilities and presented types
-        const declared = compilation.capabilities;
-        const capabilities = Capabilities.select(
+        // describe each view by its emitted chunk, browser abilities and presented types
+        const declared = compilation.sandbox;
+        const sandbox = Sandbox.select(
             declared,
-            BROWSER_CAPABILITIES.filter((name) => declared[name] !== undefined),
+            BROWSER_SANDBOX.filter((name) => declared[name] !== undefined),
         );
         const views: Record<string, ViewDescription> = {};
         const located = compilation.runtime === "browser" ? locate(compilation) : [];
@@ -55,8 +55,7 @@ export const viewExtension: BuildExtension = {
             }
             views[view.name] = {
                 entrypoint,
-                permissions: view.permissions,
-                capabilities,
+                sandbox,
                 presents: view.presents,
                 packages: view.packages,
             };
@@ -84,8 +83,6 @@ function requireOneTheme(compilation: Compilation, views: number): void {
 interface LocatedView extends DeclarationModule {
     /** The view's name. */
     readonly name: string;
-    /** The permissions the view requests, by the scope they apply in. */
-    readonly permissions: ViewDescription["permissions"];
     /** The object types the view presents. */
     readonly presents: ViewDescription["presents"];
     /** The packages the view calls. */
@@ -110,15 +107,13 @@ function locate(compilation: Compilation): LocatedView[] {
             throw new TypeError(`duplicate view: ${declaration.name}`);
         }
 
-        // keep the module exporting the view, its permissions, the types it presents and the packages it calls
+        // keep the module exporting the view, the types it presents and the packages it calls
         const { description } = declaration;
-        const permissions = ViewDescription.shape.permissions.parse(description["permissions"]);
         const presents = ViewDescription.shape.presents.parse(description["presents"]);
         const packages = ViewDescription.shape.packages.parse(description["packages"]);
         views.push({
             name: declaration.name,
             ...compilation.locate(declaration),
-            permissions,
             presents,
             packages,
         });

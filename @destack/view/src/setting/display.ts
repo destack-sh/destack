@@ -15,7 +15,7 @@ import {
 /** Where a display preference lives, applied at once. */
 const PREFERENCE = {
     scope: "user",
-    overrides: ["package", "space", "installation", "client"],
+    overrides: ["package", "space", "installation", "device"],
     apply: "immediate",
 } satisfies Pick<SettingDefinition, "scope" | "overrides" | "apply">;
 

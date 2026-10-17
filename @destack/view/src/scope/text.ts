@@ -1,13 +1,14 @@
 import { type Undo, type ObjectType, TextChange } from "@destack/object";
 import { LiveText, type Submission } from "@destack/object/client";
-import { type PermissionScope } from "@destack/access";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
-import { requireScope, useClient, useView } from "../page/view.ts";
+import type { ContextScope } from "../declare/context.ts";
+import { useClient, useView } from "../page/view.ts";
+import { ViewContext } from "../declare/context.ts";
 
 /** Where a text field is followed. */
 export interface ScopeOptions {
     /** The view's scope with the object, its space by default. */
-    readonly scope?: PermissionScope;
+    readonly scope?: ContextScope;
 }
 
 /** A text field followed live and replaced by whole values. */
@@ -26,7 +27,7 @@ export function useText(
     options: ScopeOptions = {},
 ): TextField {
     // open the field in the object's scope for the component's lifetime
-    const client = useClient(requireScope(useView(), options.scope ?? "space"));
+    const client = useClient(ViewContext.scope(useView(), options.scope ?? "space"));
     const live = LiveText.open(client, object, id, field);
     onCleanup(() => void live.close());
 

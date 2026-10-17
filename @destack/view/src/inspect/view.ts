@@ -3,24 +3,14 @@ import { ViewPresentation, type ViewDescription } from "@destack/package/manifes
 import { schema } from "@destack/schema";
 import type { View } from "../declare/view.ts";
 
-/** Describe a view by its name and the permissions it requests by scope. */
+/** Describe a view by its name, the types it presents and the packages it calls. */
 export function describeView(view: View): {
     readonly name: string;
-    readonly permissions: ViewDescription["permissions"];
     readonly presents: readonly ViewPresentation[];
     readonly packages: ViewDescription["packages"];
 } {
-    // describe the permissions of each scope as plain references
-    const permissions: ViewDescription["permissions"] = Object.fromEntries(
-        Object.entries(view.permissions).map(([scope, requested]) => [
-            scope,
-            requested.map(({ packageId, type, name }) => ({ packageId, type, name })),
-        ]),
-    );
-
     return {
         name: view.name,
-        permissions,
         presents: view.presents.map(({ object, priority }) => ({
             packageId: object.package.id,
             type: object.name,

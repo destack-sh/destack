@@ -31,12 +31,7 @@ import { defineView } from "@destack/view/declare";
 
 export const notes = defineView({
     name: "notes",
-    objects: [notebook, note, notification, member],
-    permissions: {
-        space: [notebook.permission("read"), note.permission("read")],
-        home: [notification.permission("read")],
-        account: [member.permission("read")],
-    },
+    objects: [notebook, note, notification, member], // each opened where it lives
     presents: [{ object: note, priority: "default" }],
     component: () => import("./app.tsx"),
 });
@@ -232,7 +227,6 @@ import { useHome } from "@destack/view";
 export const inbox = defineView({
     name: "inbox",
     objects: [notification],
-    permissions: { home: [notification.permission("read")] },
     component,
 });
 const home = useHome({ notification });

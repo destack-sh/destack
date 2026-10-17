@@ -1,8 +1,8 @@
 import { expect, test } from "@destack/test";
-import { none, Policy } from "@destack/access";
+import { none } from "@destack/access";
 import { defineObject } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
-import { Scope } from "@destack/sync";
+import { account, space } from "@destack/account/object";
 import { describeCommand, describeView } from "../inspect/index.ts";
 import { defineCommand } from "./command.ts";
 import { PackageHandle } from "@destack/runtime";
@@ -15,22 +15,20 @@ const notes = Package.parse({
     version: "2026.9.0",
 });
 
-/** The notes a view opens. */
+/** The notes of a space a view opens. */
 const note = defineObject({
     name: "note",
     plural: "notes",
-    scope: Scope.universe.id,
-    isScope: true,
+    scope: space,
     fields: {},
     permissions: { read: none() },
 });
 
-/** The reminders a view opens in the person's home. */
-const reminder = defineObject({
-    name: "reminder",
-    plural: "reminders",
-    scope: Scope.universe.id,
-    isScope: true,
+/** The budgets of an account a view opens. */
+const budget = defineObject({
+    name: "budget",
+    plural: "budgets",
+    scope: account,
     fields: {},
     permissions: { read: none() },
 });
@@ -42,7 +40,6 @@ test("describe a declared view by its name, permissions, presented types and pac
         {
             name: "notes",
             objects: [note],
-            permissions: { space: [note.permission("read")] },
             presents: [{ object: note, priority: "default" }],
             packages: [counter],
             component: () => Promise.reject(new Error("loaded")),
@@ -50,37 +47,33 @@ test("describe a declared view by its name, permissions, presented types and pac
         { package: notes },
     );
 
-    // describe the name, permissions, presented types and packages, and keep the package and object types
+    // describe the name, presented types and packages, and keep the package and opened object types
     expect([view.package, view.objects, describeView(view)]).toEqual([
         notes,
         [note],
         {
             name: "notes",
-            permissions: { space: [{ packageId: note.package.id, type: "note", name: "read" }] },
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
             packages: [notes.id],
         },
     ]);
 });
 
-test("open each object type in the scopes the view requests its permissions in", () => {
-    // read notes in the view's space and reminders in the person's home
+test("open each object type in the scopes it lives in: space types in the space and home, account types in the account", () => {
+    // read the space's notes and the account's budgets
     const view = defineView(
         {
             name: "inbox",
-            objects: [note, reminder],
-            permissions: {
-                space: [note.permission("read")],
-                home: [reminder.permission("read")],
-            },
+            objects: [note, budget],
             component: () => Promise.reject(new Error("loaded")),
         },
         { package: notes },
     );
+
     expect([view.opens("space"), view.opens("home"), view.opens("account")]).toEqual([
         [note],
-        [reminder],
-        [],
+        [note],
+        [budget],
     ]);
 });
 
@@ -106,35 +99,4 @@ test("describe a declared command by the method it calls and its key combination
             keybinding: "mod+l",
         },
     ]);
-});
-
-test("accept a view requesting a permission of an opened object representing another package's policy", () => {
-    // open devices whose access another package declares
-    const devices = new Policy(
-        {
-            id: PackageId.parse("package-019f7480-0000-7000-8000-000000000002"),
-            name: "@example/access",
-            version: "2026.9.0",
-        },
-        { name: "device", relations: {}, permissions: { read: none() } },
-    );
-    const device = defineObject({
-        name: "device",
-        plural: "devices",
-        scope: Scope.universe.id,
-        isScope: true,
-        represents: devices,
-        fields: {},
-        permissions: devices.definition.permissions,
-    });
-    const view = defineView(
-        {
-            name: "devices",
-            objects: [device],
-            permissions: { account: [device.permission("read")] },
-            component: () => Promise.reject(new Error("loaded")),
-        },
-        { package: notes },
-    );
-    expect(view.opens("account")).toEqual([device]);
 });

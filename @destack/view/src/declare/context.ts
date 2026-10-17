@@ -59,28 +59,48 @@ export const LAUNCH_PARAMETER = "launch";
 /** A path every browser resolves on the page's own origin. */
 const SameOriginPath = schema.string().regex(/^\/(?:[^/\t\n\r\\][^\t\n\r\\]*)?$/u);
 
+/** The scopes a host opens for a view, by their key in its context. */
+export const CONTEXT_SCOPES = ["space", "account", "home"] as const;
+
+/** A scope a host opens for a view. */
+export type ContextScope = (typeof CONTEXT_SCOPES)[number];
+
 /** What the host gives a view: where and for whom it runs. */
-export const ViewContext = defineSchema(
-    schema.object({
-        /** The installation serving the view, absent for the machine's command palette. */
-        installation: schema.string().min(1).exactOptional(),
-        /** The space of the installation. */
-        space: schema.string().min(1),
-        /** The account of the space. */
-        account: schema.string().min(1),
-        /** The declared view's name. */
-        view: DeclarationName,
-        /** The person using the view. */
-        user: Subject,
-        /** The person's home space, absent where the host opens none for the view. */
-        home: schema.string().min(1).exactOptional(),
-        /** The computer's native client whose local objects the page reaches, absent for none. */
-        client: schema.string().min(1).exactOptional(),
-        /** The object the view opens for, from its address. */
-        target: ObjectReference.exactOptional(),
-        /** The language and region the person reads. */
-        locale: LocaleTag.exactOptional(),
-    }),
+export const ViewContext = Object.assign(
+    defineSchema(
+        schema.object({
+            /** The installation serving the view, absent for the machine's command palette. */
+            installation: schema.string().min(1).exactOptional(),
+            /** The space of the installation. */
+            space: schema.string().min(1),
+            /** The account of the space. */
+            account: schema.string().min(1),
+            /** The declared view's name. */
+            view: DeclarationName,
+            /** The person using the view. */
+            user: Subject,
+            /** The person's home space, absent where the host opens none for the view. */
+            home: schema.string().min(1).exactOptional(),
+            /** The computer's device whose local objects the page reaches, absent for none. */
+            device: schema.string().min(1).exactOptional(),
+            /** The object the view opens for, from its address. */
+            target: ObjectReference.exactOptional(),
+            /** The language and region the person reads. */
+            locale: LocaleTag.exactOptional(),
+        }),
+    ),
+    {
+        /** Read one of a context's scopes, refusing one the host opens none for. */
+        scope(context: ViewContext, name: ContextScope): string {
+            // require a scope the host opens
+            const found = context[name];
+            if (found === undefined) {
+                throw new TypeError(`the host does not open ${name} for this view`);
+            }
+
+            return found;
+        },
+    },
 );
 /** What the host gives a view. */
 export type ViewContext = schema.Infer<typeof ViewContext>;

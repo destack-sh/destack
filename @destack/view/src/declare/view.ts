@@ -1,8 +1,8 @@
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { type ViewPresentationPriority } from "@destack/package/manifest";
-import { PermissionScope } from "@destack/access";
-import { type Permission, PermissionReference } from "@destack/access";
+import { account, space } from "@destack/account/object";
 import type { ObjectType } from "@destack/object";
+import type { ContextScope } from "./context.ts";
 import type { PackageHandle } from "@destack/runtime";
 import type { Component } from "solid-js";
 
@@ -10,13 +10,11 @@ import type { Component } from "solid-js";
 export interface ViewDefinition {
     /** The name, unique among the package's views. */
     readonly name: string;
-    /** The object types the view reads and changes. */
+    /** The object types the view reads and changes, wherever its context opens them. */
     readonly objects?: readonly ObjectType[];
-    /** The permissions the view requests, by the scope they apply in relative to its context. */
-    readonly permissions?: { readonly [Scope in PermissionScope]?: readonly Permission[] };
     /** The object types the view presents, and how strongly. */
     readonly presents?: readonly Presentation[];
-    /** The packages the view calls as its person, such as observability. */
+    /** The packages the view calls as its user, such as observability. */
     readonly packages?: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
@@ -30,41 +28,40 @@ export interface Presentation {
     readonly priority: ViewPresentationPriority;
 }
 
-/** A view a package declares. */
+/** A view a package declares, acting under its user's grant to the package's installation. */
 export class View {
     /** The declaring package. */
     readonly package: Package;
     /** The name. */
     readonly name: string;
-    /** The object types the view reads and changes. */
+    /** The object types the view reads and changes, wherever its context opens them. */
     readonly objects: readonly ObjectType[];
-    /** The permissions the view requests, by the scope they apply in. */
-    readonly permissions: NonNullable<ViewDefinition["permissions"]>;
     /** The object types the view presents. */
     readonly presents: readonly Presentation[];
-    /** The packages the view calls as its person. */
+    /** The packages the view calls as its user. */
     readonly packages: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
 
-    /** Keep a declared view. */
+    /** Create a view from its package and definition. */
     constructor(owner: Package, definition: ViewDefinition) {
-        // keep the package and the definition
+        // copy the package and the definition
         this.package = owner;
         this.name = definition.name;
         this.objects = definition.objects ?? [];
-        this.permissions = definition.permissions ?? {};
         this.presents = definition.presents ?? [];
         this.packages = definition.packages ?? [];
         this.component = definition.component;
     }
 
-    /** List the object types the view opens in a scope: those it requests permissions on there. */
-    opens(scope: PermissionScope): ObjectType[] {
-        const permissions = this.permissions[scope] ?? [];
+    /** List the object types the view opens in one of its context's scopes, by where each lives. */
+    opens(scope: ContextScope): readonly ObjectType[] {
+        // open space types in the space and the home, account types in the account, others anywhere
+        const lives = scope === "account" ? account : space;
 
-        return this.objects.filter((object) =>
-            permissions.some((permission) => isPermissionOf(permission, object)),
+        return this.objects.filter(
+            (object) =>
+                object.scopes.length === 0 || object.scopes.some((each) => each.same(lives)),
         );
     }
 }
@@ -75,52 +72,10 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     const owner = ModuleMetadata.require(module, "defineView").package;
     DeclarationName.parse(definition.name);
 
-    // list each requested permission with its scope
-    const objects = definition.objects ?? [];
-    const requested = PermissionScope.options.flatMap((scope) =>
-        (definition.permissions?.[scope] ?? []).map((permission) => ({ scope, permission })),
-    );
-
-    // refuse a permission requested in two scopes
-    const twice = requested.find((entry) =>
-        requested.some(
-            (other) =>
-                other.scope !== entry.scope &&
-                PermissionReference.key(other.permission) ===
-                    PermissionReference.key(entry.permission),
-        ),
-    );
-    if (twice !== undefined) {
-        const { type, name } = twice.permission;
-        throw new TypeError(
-            `view ${definition.name} requests ${type} ${name} in more than one scope`,
-        );
-    }
-
-    // require each permission to be one of an object type the view opens
-    const unopened = requested.find(
-        ({ permission }) => !objects.some((object) => isPermissionOf(permission, object)),
-    );
-    if (unopened !== undefined) {
-        const { type, name } = unopened.permission;
-        throw new TypeError(
-            `view ${definition.name} requests ${type} ${name} but does not open ${type} objects`,
-        );
-    }
-
-    // require each opened object type to have a permission placing it in a scope
-    const unplaced = objects.find(
-        (object) => !requested.some(({ permission }) => isPermissionOf(permission, object)),
-    );
-    if (unplaced !== undefined) {
-        throw new TypeError(
-            `view ${definition.name} opens ${unplaced.name} but requests no ${unplaced.name} permission`,
-        );
-    }
-
     // require each presented object type to be one the view opens
+    const opened = definition.objects ?? [];
     const unpresentable = (definition.presents ?? []).find(
-        ({ object }) => !objects.some((opened) => opened.same(object)),
+        ({ object }) => !opened.some((each) => each.same(object)),
     );
     if (unpresentable !== undefined) {
         throw new TypeError(
@@ -129,12 +84,4 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     }
 
     return new View(owner, definition);
-}
-
-/** Report whether a permission is one of an object type's. */
-function isPermissionOf(permission: Permission, object: ObjectType): boolean {
-    return (
-        object.typeReference.packageId === permission.packageId &&
-        object.typeReference.type === permission.type
-    );
 }

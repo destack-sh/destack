@@ -12,7 +12,7 @@ export const shortcut = defineSetting({
     schema: Accelerator,
     default: "alt+space",
     scope: "user",
-    overrides: ["client"],
+    overrides: ["device"],
     apply: "restart",
 });
 
@@ -24,7 +24,7 @@ export const keybindings = defineSetting({
     schema: schema.record(CommandReference.key, Accelerator.nullable()),
     default: {},
     scope: "user",
-    overrides: ["client"],
+    overrides: ["device"],
     apply: "immediate",
     merge: "key",
 });
@@ -38,7 +38,7 @@ export const sources = defineSetting({
     schema: schema.partialRecord(PaletteSource, schema.boolean()),
     default: {},
     scope: "user",
-    overrides: ["client"],
+    overrides: ["device"],
     apply: "immediate",
     merge: "key",
 });

@@ -1,6 +1,5 @@
 import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
-import { type PermissionScope } from "@destack/access";
 import type { ObjectReference } from "@destack/sync";
 import {
     type Client,
@@ -35,17 +34,6 @@ export const ViewMountContext = createContext<ViewMount>();
 /** Read what the host gives the mounted view. */
 export function useView(): ViewContext {
     return useContext(ViewMountContext).context;
-}
-
-/** Read the identifier of one of a view's scopes, refusing a home the host opens none for. */
-export function requireScope(context: ViewContext, scope: PermissionScope): string {
-    // require a scope the host opens
-    const found = context[scope];
-    if (found === undefined) {
-        throw new TypeError(`the host does not open ${scope} for this view`);
-    }
-
-    return found;
 }
 
 /** Read how the mounted view calls a path below its page's origin with the page's credential. */

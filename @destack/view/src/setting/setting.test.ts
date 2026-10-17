@@ -6,7 +6,7 @@ import { accent, appearance, contrast, density, motion, textSize } from "./index
 /** The fields every display preference shares. */
 const preference = {
     scope: "user",
-    overrides: ["package", "space", "installation", "client"],
+    overrides: ["package", "space", "installation", "device"],
     apply: "immediate",
 };
 

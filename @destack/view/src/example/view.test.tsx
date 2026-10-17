@@ -44,7 +44,6 @@ function Cards() {
 const cards = defineView({
     name: "cards",
     objects: [card],
-    permissions: { space: [card.permission("read"), card.permission("edit")] },
     component: async () => ({ default: Cards }),
 });
 

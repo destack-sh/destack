@@ -12,6 +12,6 @@ export const start = defineSetting({
     schema: LinkText.nullable(),
     default: null,
     scope: "user",
-    overrides: ["client"],
+    overrides: ["device"],
     apply: "immediate",
 });

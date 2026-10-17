@@ -127,7 +127,6 @@ test("generate the module mounting a view from the export declaring it, and desc
         symbol: { package: owner, symbol: { module: "src/view.ts", name: "main" } },
         source: { file: "src/view.ts", line: 0, column: 0 },
         description: {
-            permissions: {},
             presents: [{ packageId: owner.id, type: "note", priority: "default" }],
             packages: [],
         },
@@ -138,10 +137,7 @@ test("generate the module mounting a view from the export declaring it, and desc
         directory: "/package",
         exports: {},
         runtime: "browser",
-        capabilities: {
-            network: { connect: ["api.github.com"], reason: "fetches issues" },
-            camera: { reason: "scans receipts", optional: true },
-        },
+        sandbox: { network: { connect: ["api.github.com"] }, camera: {} },
         declarations: [view],
         modules: [],
         locate: () => ({ file: "/package/src/view.ts", export: "main" }),
@@ -178,8 +174,7 @@ test("generate the module mounting a view from the export declaring it, and desc
             views: {
                 main: {
                     entrypoint: "output/browser/view-main.js",
-                    permissions: {},
-                    capabilities: { camera: { reason: "scans receipts", optional: true } },
+                    sandbox: { camera: {} },
                     presents: [{ packageId: owner.id, type: "note", priority: "default" }],
                     packages: [],
                 },
