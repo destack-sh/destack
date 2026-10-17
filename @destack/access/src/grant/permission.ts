@@ -109,7 +109,7 @@ export const GrantPermission = {
     },
 
     /** Report whether grant permissions allow a method of a type in a scope. */
-    reaches(
+    allowsMethod(
         type: Pick<PermissionReference, "packageId" | "type">,
         scope: string,
         method: string,

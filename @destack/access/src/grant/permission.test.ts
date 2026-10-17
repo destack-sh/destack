@@ -261,19 +261,19 @@ test("intersect two grants on the narrower object and method, taking either side
     ]);
 });
 
-test("reach every method of a type a grant binds no method of, else only its bound methods", () => {
+test("allow every method of a type a grant ties to no method, else only its tied methods", () => {
     const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
     const pages = { packageId: module1.package.id, type: "page" };
     const sheets = { packageId: module1.package.id, type: "sheet" };
     const loan: GrantPermission[] = [{ ...read, method: "get" }];
 
     expect([
-        GrantPermission.reaches(pages, "space-1", "get", loan),
-        GrantPermission.reaches(pages, "space-1", "list", loan),
-        GrantPermission.reaches(pages, "space-2", "get", loan),
-        GrantPermission.reaches(sheets, "space-1", "get", loan),
-        GrantPermission.reaches(pages, "space-1", "list", [read]),
-        GrantPermission.reaches(pages, "space-1", "list", undefined),
+        GrantPermission.allowsMethod(pages, "space-1", "get", loan),
+        GrantPermission.allowsMethod(pages, "space-1", "list", loan),
+        GrantPermission.allowsMethod(pages, "space-2", "get", loan),
+        GrantPermission.allowsMethod(sheets, "space-1", "get", loan),
+        GrantPermission.allowsMethod(pages, "space-1", "list", [read]),
+        GrantPermission.allowsMethod(pages, "space-1", "list", undefined),
     ]).toEqual([true, false, true, true, true, true]);
 });
 
@@ -286,7 +286,7 @@ test("give a scope-less grant permission in every scope, and narrow it to the ot
         GrantPermission.gives(anywhere, anywhere, "space-1"),
         GrantPermission.gives(anywhere, anywhere, "space-2"),
         GrantPermission.gives(here, anywhere, "space-2"),
-        GrantPermission.reaches(pages, "space-2", "get", [anywhere]),
+        GrantPermission.allowsMethod(pages, "space-2", "get", [anywhere]),
         GrantPermission.intersect([anywhere], [here]),
         GrantPermission.intersect([here], [{ ...anywhere, scope: "space-2" }]),
     ]).toEqual([true, true, false, true, [here], []]);
