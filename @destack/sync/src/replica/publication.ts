@@ -1,5 +1,5 @@
 import { LogPosition } from "@destack/db";
-import { defineSchema, Duration, schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
@@ -9,30 +9,28 @@ import type { Replica } from "./replica.ts";
 const PARAMETERS = schema.jsonObject();
 
 /** A follower's subscription to a publication over a scope, from the position it reached. */
-export const Subscription = defineSchema(
-    schema.object({
-        /** The replica's name, shared with a relaying source's own replica. */
-        name: schema.string().min(1),
-        /** The publication the replica follows. */
-        publication: schema.string().min(1),
-        /** The replicated scope. */
-        scope: schema.string().min(1),
-        /** The scope the follower serves, whose principal the source decides for. */
-        below: schema.string().min(1),
-        /** The principal the source decides the rows for on the follower's behalf. */
-        subject: Subject.exactOptional(),
-        /** The publication's parameters, which its declaration parses. */
-        parameters: PARAMETERS,
-        /** The log position the replica reached, absent before its first snapshot. */
-        after: LogPosition.exactOptional(),
-        /** The parameters the replica reflects at its position, if other than the subscribed. */
-        previous: PARAMETERS.exactOptional(),
-        /** How often merged pages arrive, absent for one page per change. */
-        refresh: schema.object({ every: Duration.schema }).exactOptional(),
-        /** The follower's origin, its log epoch, whose writes the source never sends back. */
-        origin: schema.string().min(1).exactOptional(),
-    }),
-);
+export const Subscription = schema.object({
+    /** The replica's name, shared with a relaying source's own replica. */
+    name: schema.string().min(1),
+    /** The publication the replica follows. */
+    publication: schema.string().min(1),
+    /** The replicated scope. */
+    scope: schema.string().min(1),
+    /** The scope the follower serves, whose principal the source decides for. */
+    below: schema.string().min(1),
+    /** The principal the source decides the rows for on the follower's behalf. */
+    subject: Subject.exactOptional(),
+    /** The publication's parameters, which its declaration parses. */
+    parameters: PARAMETERS,
+    /** The log position the replica reached, absent before its first snapshot. */
+    after: LogPosition.exactOptional(),
+    /** The parameters the replica reflects at its position, if other than the subscribed. */
+    previous: PARAMETERS.exactOptional(),
+    /** How often merged pages arrive, absent for one page per change. */
+    refresh: schema.object({ every: Duration.schema }).exactOptional(),
+    /** The follower's origin, its log epoch, whose writes the source never sends back. */
+    origin: schema.string().min(1).exactOptional(),
+});
 /** A follower's subscription to a publication over one scope, from the position it reached. */
 export type Subscription = schema.Infer<typeof Subscription>;
 

@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { NAME_PATTERN, PackageId } from "@destack/package";
 
 /** A stable declaration-local name of an object type, relation or permission, in kebab case. */
@@ -14,20 +14,18 @@ const SubjectKey = schema.tuple([
 ]);
 
 /** The shape of a subject. */
-const shape = defineSchema(
-    schema.object({
-        /** The package declaring the subject type. */
-        packageId: PackageId,
-        /** The declaration-local subject type name. */
-        type: AccessName,
-        /** The scope containing the subject, or `*` for every scope. */
-        scope: schema.string().min(1),
-        /** The subject identifier, or `*` for every object of the type in the scope. */
-        id: schema.string().min(1),
-        /** The relation whose members are the subjects, for a subject set. */
-        relation: AccessName.exactOptional(),
-    }),
-);
+const shape = schema.object({
+    /** The package declaring the subject type. */
+    packageId: PackageId,
+    /** The declaration-local subject type name. */
+    type: AccessName,
+    /** The scope containing the subject, or `*` for every scope. */
+    scope: schema.string().min(1),
+    /** The subject identifier, or `*` for every object of the type in the scope. */
+    id: schema.string().min(1),
+    /** The relation whose members are the subjects, for a subject set. */
+    relation: AccessName.exactOptional(),
+});
 /** A subject: a principal or object, a subject set of a relation's members, or a type's objects. */
 export type Subject = schema.Infer<typeof shape>;
 

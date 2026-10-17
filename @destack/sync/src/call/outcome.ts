@@ -1,21 +1,19 @@
-import { defineSchema, JsonValue, schema } from "@destack/schema";
+import { JsonValue, schema } from "@destack/schema";
 
 /** The HTTP status of a failure thrown without one. */
 const INTERNAL_STATUS = 500;
 
 /** The schema of a call's failure. */
-const failureSchema = defineSchema(
-    schema.object({
-        /** The error code, such as CONFLICT. */
-        code: schema.string().min(1),
-        /** The HTTP status. */
-        status: schema.number().int(),
-        /** The readable message. */
-        message: schema.string(),
-        /** The structured details. */
-        data: schema.json().exactOptional(),
-    }),
-);
+const failureSchema = schema.object({
+    /** The error code, such as CONFLICT. */
+    code: schema.string().min(1),
+    /** The HTTP status. */
+    status: schema.number().int(),
+    /** The readable message. */
+    message: schema.string(),
+    /** The structured details. */
+    data: schema.json().exactOptional(),
+});
 /** How a call failed, as the wire sends a call error. */
 export type Failure = schema.Infer<typeof failureSchema>;
 
@@ -44,21 +42,19 @@ export const Failure = Object.assign(failureSchema, {
 });
 
 /** How a call ended. */
-export const Outcome = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** The call succeeded. */
-            kind: schema.literal("success"),
-            /** The result a retry of the request replays, kept only while it may retry. */
-            value: schema.json().exactOptional(),
-        }),
-        schema.object({
-            /** The call failed, was denied or was cancelled. */
-            kind: schema.enum(["failure", "denied", "cancelled"]),
-            /** The failure. */
-            error: failureSchema,
-        }),
-    ]),
-);
+export const Outcome = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The call succeeded. */
+        kind: schema.literal("success"),
+        /** The result a retry of the request replays, kept only while it may retry. */
+        value: schema.json().exactOptional(),
+    }),
+    schema.object({
+        /** The call failed, was denied or was cancelled. */
+        kind: schema.enum(["failure", "denied", "cancelled"]),
+        /** The failure. */
+        error: failureSchema,
+    }),
+]);
 /** How a call ended. */
 export type Outcome = schema.Infer<typeof Outcome>;
