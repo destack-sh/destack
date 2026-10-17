@@ -1,6 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { StepUp } from "@destack/access";
-import type { Select } from "@destack/db";
 import type { ObjectClient } from "@destack/object/client";
 import { Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -9,7 +8,7 @@ import { until } from "@destack/runtime/timer";
 import { client, type ClientRegistration } from "../object/client.ts";
 import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer.ts";
 import type { Residency } from "../object/residency.ts";
-import { type Login, login } from "./login.ts";
+import { type LoginRow, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionKeychain } from "./session-keychain.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
@@ -58,7 +57,7 @@ export interface DeviceSignIn {
     /** The code the person enters there. */
     readonly userCode: string;
     /** Poll the issuer once, and return the delay before the next poll or the granted login. */
-    readonly poll: () => Promise<number | Login>;
+    readonly poll: () => Promise<number | LoginRow>;
 }
 
 /** An email sign-in in progress: a code mailed to the person. */
@@ -66,7 +65,7 @@ export interface EmailSignIn {
     /** The email the code was mailed to. */
     readonly email: string;
     /** Sign the person in with the mailed code. */
-    readonly verify: (code: string) => Promise<Login>;
+    readonly verify: (code: string) => Promise<LoginRow>;
 }
 
 /** Sign people in on a native device, each sign-in registering a new client for the person. */
@@ -84,7 +83,7 @@ export class NativeSignIn {
         open: (url: string) => Promise<void>,
         stepUp?: StepUp,
         signal?: AbortSignal,
-    ): Promise<Login> {
+    ): Promise<LoginRow> {
         // listen for the redirect on a free loopback port
         const { issuer, clock } = this.#options;
         await using redirect = await LoopbackRedirect.listen();
@@ -142,7 +141,7 @@ export class NativeSignIn {
     async device(
         show: (started: Pick<DeviceSignIn, "url" | "userCode">) => Promise<void>,
         signal?: AbortSignal,
-    ): Promise<Login> {
+    ): Promise<LoginRow> {
         // show the code
         const deviceSignIn = await this.startDevice();
         await show(deviceSignIn);
@@ -177,7 +176,7 @@ export class NativeSignIn {
 
         // poll at the issuer's pace, slowing down when asked
         let interval = POLL_MILLISECONDS;
-        const poll = async (): Promise<number | Login> => {
+        const poll = async (): Promise<number | LoginRow> => {
             // sign the person in once granted
             const result = await this.#poll(clientId, authorization);
             if (result.status === "granted") {
@@ -207,7 +206,7 @@ export class NativeSignIn {
         email: string,
         ask: (started: EmailSignIn) => Promise<string>,
         signUp?: schema.Input<typeof SignUp>,
-    ): Promise<Login> {
+    ): Promise<LoginRow> {
         const started = await this.startEmail(email, signUp);
 
         return started.verify(await ask(started));
@@ -233,14 +232,13 @@ export class NativeSignIn {
     }
 
     /** Sign a person out: revoke and forget their refresh token, and remove their login. */
-    async signOut(current: Login): Promise<void> {
+    async signOut(current: LoginRow): Promise<void> {
         // revoke the refresh token at its issuer and forget it
         const { sessions, logins, issuer } = this.#options;
-        const person = { issuer: current.issuer, subject: current.subjectId };
-        const token = await sessions.load(person);
+        const token = await sessions.load(current);
         if (token !== undefined) {
             await issuer.revoke(client.identifier(current.clientId), token);
-            await sessions.remove(person, token);
+            await sessions.remove(current, token);
         }
 
         // remove the login
@@ -258,13 +256,13 @@ export class NativeSignIn {
     }
 
     /** Sign in the person a new client's tokens act for, replacing their earlier client here. */
-    async #complete(clientId: Identifier<"client">, signedIn: SignedIn): Promise<Login> {
+    async #complete(clientId: Identifier<"client">, signedIn: SignedIn): Promise<LoginRow> {
         // read the ID token's person, and their name as they read it
         const { issuer, sessions, logins } = this.#options;
         const { tokens, userId: sub } = signedIn;
         const accounts = issuer.accounts(tokens.accessToken);
         const { name } = await accounts.user.get({ id: sub });
-        const person = { issuer: issuer.url, subject: sub };
+        const person = { issuer: issuer.url, subjectId: sub };
 
         // store the refresh token, or adopt a racing sign-in's and revoke this one
         const stored = await sessions.replace(person, tokens.refreshToken);
@@ -275,7 +273,7 @@ export class NativeSignIn {
         // report the client's details, and withdraw the client an earlier sign-in here registered
         await this.#describe(accounts, sub, clientId);
         const existing = await logins.query.login.findFirst({
-            where: { issuer: person.issuer, subjectId: person.subject },
+            where: { issuer: person.issuer, subjectId: person.subjectId },
         });
         if (existing !== undefined && existing.clientId !== clientId) {
             const withdrawn = client.identifier(existing.clientId);
@@ -288,7 +286,7 @@ export class NativeSignIn {
 
         return this.#upsert(existing, {
             issuer: person.issuer,
-            subjectId: person.subject,
+            subjectId: person.subjectId,
             name,
             status: "authenticated",
             clientId,
@@ -331,12 +329,9 @@ export class NativeSignIn {
 
     /** Create the person's login, or update the one an earlier sign-in wrote. */
     async #upsert(
-        existing: Login | undefined,
-        fields: Pick<
-            Select<typeof login.table>,
-            "issuer" | "subjectId" | "name" | "status" | "clientId"
-        >,
-    ): Promise<Login> {
+        existing: LoginRow | undefined,
+        fields: Pick<LoginRow, "issuer" | "subjectId" | "name" | "status" | "clientId">,
+    ): Promise<LoginRow> {
         // update it or create the first
         const { logins } = this.#options;
         const { issuer, subjectId, ...changed } = fields;

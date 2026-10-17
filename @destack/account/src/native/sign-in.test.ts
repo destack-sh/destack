@@ -12,9 +12,8 @@ import { SignUp } from "../better-auth/sign-up.ts";
 import { AccountFixture, type Browser, ISSUER, outcome, type Person } from "../test/index.ts";
 import { Issuer } from "./issuer.ts";
 import { ClientKey } from "./client-key.ts";
-import { login } from "./login.ts";
 import { SessionKeychain } from "./session-keychain.ts";
-import { PersonClient } from "./person.ts";
+import { login, Login } from "./login.ts";
 import { NativeSignIn } from "./sign-in.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
@@ -68,7 +67,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
     });
 
     // expect a login of the new client, storing its refresh token in the keychain
-    const person = { issuer: ISSUER, subject: owner.id };
+    const person = { issuer: ISSUER, subjectId: owner.id };
     const refreshToken = await sessions.load(person);
     expect({
         page: [answered?.status, await answered?.text()],
@@ -238,7 +237,7 @@ test("act as a person a mailed code signed in, refreshing their client's tokens 
     // sign in with the mailed code and read the person's account through a refreshed token
     const started = await signIn.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = await PersonClient.open(
+    const person = new Login(
         signedIn,
         sessions,
         (request) => accounts.fetch(request),

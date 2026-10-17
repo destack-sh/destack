@@ -1,5 +1,5 @@
 import { MemoryKeychain } from "@destack/identity";
-import { present } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { SessionKeychain } from "./session-keychain.ts";
 
@@ -7,7 +7,10 @@ test("save the first of two racing sign-ins' sessions for both, and replace it o
     // store two sessions of one person at once and a third after both settled
     const keychain = new MemoryKeychain();
     const sessions = new SessionKeychain(keychain);
-    const person = { issuer: "https://accounts.destack.test", subject: "user-1" };
+    const person = {
+        issuer: "https://accounts.destack.test",
+        subjectId: Identifier.create("user"),
+    };
     const raced = await Promise.all([
         sessions.replace(person, "session-a"),
         sessions.replace(person, "session-b"),
@@ -25,7 +28,10 @@ test("save the first of two racing sign-ins' sessions for both, and replace it o
 test("forget a signed-out person's session, leaving the session a racing sign-in saved after sign-out read it", async () => {
     // read the session as sign-out does and store a new one as a racing sign-in does
     const sessions = new SessionKeychain(new MemoryKeychain());
-    const person = { issuer: "https://accounts.destack.test", subject: "user-1" };
+    const person = {
+        issuer: "https://accounts.destack.test",
+        subjectId: Identifier.create("user"),
+    };
     await sessions.replace(person, "session-a");
     const signedOut = present(await sessions.load(person), "the session sign-out read");
     await sessions.replace(person, "session-b");
