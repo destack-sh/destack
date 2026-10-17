@@ -6,6 +6,9 @@ import { Histogram } from "./histogram.ts";
 /** The microseconds in a millisecond, the unit of event times. */
 const MICROSECONDS_PER_MILLISECOND = 1000;
 
+/** The digest bytes of an event's identity: 128 bits, as unlikely to collide as a UUID. */
+const IDENTITY_BYTES = 16;
+
 /** The query keys of an event kind: a schema per key. */
 export type EventKeyShape = Readonly<Record<string, schema.Schema>>;
 
@@ -52,7 +55,7 @@ export const EventTime = {
 };
 
 /** An event of any kind as it is kept, its personal values sealed. */
-export const Event = defineSchema(
+const EventSchema = defineSchema(
     schema.object({
         /** The scope the event happened in, its home. */
         scope: schema.string().min(1),
@@ -75,6 +78,17 @@ export const Event = defineSchema(
         data: schema.json(),
     }),
 );
+
+/** Events of any kind, and identities for events without one. */
+export const Event = Object.assign(EventSchema, {
+    /** Identify an event by a digest of its scope and contents, the same on every retry. */
+    async identity(scope: string, contents: readonly unknown[]): Promise<string> {
+        const bytes = new TextEncoder().encode(JSON.stringify([scope, ...contents]));
+        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+
+        return digest.slice(0, IDENTITY_BYTES).toHex();
+    },
+});
 
 /** How an event is kept: exactly once in the caller's transaction, or at most once outside it. */
 export const Delivery = defineSchema(schema.enum(["exactly-once", "at-most-once"]));
