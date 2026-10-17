@@ -148,7 +148,7 @@ test.each(TEST_DIALECTS)(
             spaceId,
             Identifier.create("installation"),
         );
-        await store.mutate(store.self, {
+        await store.mutate(store.serving(vault), {
             id: RequestId.create(Date.now()),
             calls: [vault.call("bind", { ...vault.in(spaceId), consumer: bound, ids: [vaultId] })],
         });

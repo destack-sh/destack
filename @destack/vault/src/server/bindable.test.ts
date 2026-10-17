@@ -53,7 +53,7 @@ async function within<Result>(
             .where(eq(vault.table.id, fixture.vaultId)),
     );
     const now = Date.now();
-    await store.mutate(store.self, {
+    await store.mutate(store.serving(vault), {
         id: RequestId.create(now),
         calls: [vault.call("update", { ...vault.target(row), revision: row.revision })],
     });

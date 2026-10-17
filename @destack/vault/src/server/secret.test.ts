@@ -462,7 +462,7 @@ test("put a consumer's secret as one live version through its vault, read it as 
     const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
     const id = secret.generateId();
     const write = (mutation: Call) =>
-        objects.mutate(objects.self, {
+        objects.mutate(objects.serving(vault), {
             id: RequestId.create(Date.now()),
             calls: [mutation],
         });
