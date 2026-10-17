@@ -10,8 +10,11 @@ const CI_MINUTES = 4_400;
 /** The CI minutes each further developer adds a month: 7 runs a day of 10 minutes, 22 days. */
 const CI_MINUTES_PER_DEVELOPER = 1_540;
 
-/** The memory a CI run holds while it runs, in GB, well under the 7 GB runner GitHub reserves. */
+/** The memory a CI run holds in GB, its GB-hours above a 4 vCPU, 8 GB machine's hourly price. */
 const CI_MEMORY = 2;
+
+/** The build minutes a person's deploys take a month: five deploys a workday of three minutes. */
+const BUILD_MINUTES = 330;
 
 /** GitHub Team's price for a seat a month in US dollars, as listed for its first 12 months. */
 const SEAT_GITHUB = 4;
@@ -31,8 +34,20 @@ const EMAILS_PER_USER = 3;
 /** The analytics events each user sends a month: about two sessions a week of six events. */
 const EVENTS_PER_USER = 50;
 
+/** The sessions each user records a month: every session of the two a week. */
+const RECORDINGS_PER_USER = 8;
+
+/** The size of a session recording: five minutes of compressed page changes at 1 KB a second. */
+const RECORDING_SIZE = 0.3 * MB;
+
+/** WorkOS's price for a custom sign-in domain a month in US dollars. */
+const CUSTOM_DOMAIN_WORKOS = 99;
+
 /** The workflow actions each user starts a month: a few jobs of about five steps. */
 const ACTIONS_PER_USER = 20;
+
+/** The requests a page load makes. */
+const REQUESTS_PER_PAGE = 7;
 
 /** The requests each user makes a month: about forty page loads of seven requests. */
 const REQUESTS_PER_USER = 300;
@@ -85,54 +100,87 @@ const FILE_SIZE = MB;
 /** The reads each file write brings, as @platform/pricing's storage workload. */
 const FILE_READS_PER_WRITE = 10;
 
+/** A volume tier: the amount it prices up to, and its rate for each unit. */
+type Tier = readonly [upTo: number, rate: number];
+
+/** PostHog's tiers for analytics events a month, a free million first. */
+const POSTHOG_EVENTS: readonly Tier[] = [
+    [1_000_000, 0],
+    [2_000_000, 0.000_05],
+    [15_000_000, 0.000_034_3],
+    [50_000_000, 0.000_029_5],
+    [100_000_000, 0.000_021_8],
+    [250_000_000, 0.000_015],
+    [Number.POSITIVE_INFINITY, 0.000_009],
+];
+
+/** PostHog's tiers for web session recordings a month, 5,000 free first. */
+const POSTHOG_RECORDINGS: readonly Tier[] = [
+    [5_000, 0],
+    [15_000, 0.005],
+    [50_000, 0.003_5],
+    [150_000, 0.002],
+    [500_000, 0.001_7],
+    [Number.POSITIVE_INFINITY, 0.001_5],
+];
+
 /** The size of a team and of its app's audience a bill is read for. */
 export type Scale = { people: number; users: number };
 
 /** What an item costs a month. */
 export type Price =
-    | { kind: "fee"; monthlyAt: (scale: Scale) => number; basis: string }
+    | { kind: "fee"; monthlyAt: (scale: Scale) => number; basis: string; listed: string }
     | { kind: "bundled"; basis: string }
     | { kind: "included" };
 
 /** Return a monthly fee charged for every person on the plan. */
 function seat(monthly: number, basis: string): Price {
-    return { kind: "fee", monthlyAt: (scale) => monthly * scale.people, basis };
+    const listed = `$${amountOf(monthly)}/seat/mo`;
+
+    return { kind: "fee", monthlyAt: (scale) => monthly * scale.people, basis, listed };
 }
 
 /** Return a monthly fee charged once, however many people use it. */
 export function flat(monthly: number, basis: string): Price {
-    return { kind: "fee", monthlyAt: () => monthly, basis };
+    return { kind: "fee", monthlyAt: () => monthly, basis, listed: `$${amountOf(monthly)}/mo` };
 }
 
 /** Return a fee that follows the team and its audience, by a vendor's published meters. */
-function metered(basis: string, monthlyAt: (scale: Scale) => number): Price {
-    return { kind: "fee", monthlyAt, basis };
+function metered(basis: string, listed: string, monthlyAt: (scale: Scale) => number): Price {
+    return { kind: "fee", monthlyAt, basis, listed };
 }
 
-/** The list prices of the tools the figures rent on 2026-10-16, billed annually where offered. */
+/** Return a list price's amount as a vendor states it: whole dollars, or to the cent. */
+function amountOf(monthly: number): string {
+    return Number.isInteger(monthly) ? String(monthly) : monthly.toFixed(2);
+}
+
+/** The list prices on 2026-10-17 of each tool's least plan with private spaces and guests. */
 export const prices: Readonly<Record<string, Price>> = {
     // per seat, billed annually
-    Notion: seat(10, "Plus, annual"),
-    Linear: seat(10, "Basic, annual"),
+    Notion: seat(20, "Business, annual"),
+    Linear: seat(16, "Business, annual"),
     Slack: seat(7.25, "Pro, annual"),
-    Calendly: seat(10, "Standard, annual"),
-    Replit: seat(18, "Core, annual"),
-    "Google Workspace": seat(7, "Business Starter, annual"),
+    Calendly: seat(16, "Teams, annual"),
+    "Google Workspace": seat(14, "Business Standard, annual"),
     "Microsoft 365": seat(7, "Business Basic, annual"),
-    Superhuman: seat(25, "Mail Starter, annual"),
+    Superhuman: seat(33, "Business, annual"),
     Obsidian: seat(4, "Sync, annual"),
     ClickUp: seat(7, "Unlimited, annual"),
     Excalidraw: seat(6, "Excalidraw+, annual"),
     FigJam: seat(3, "Professional, annual"),
     Mural: seat(9.99, "Team+, annual"),
-    Lucid: seat(7.95, "Lucidspark Individual, annual"),
+    Lucid: seat(10, "Lucidspark Team, annual"),
     "Cal.com": seat(12, "Teams, annual"),
-    "Proton Mail": seat(3.99, "Mail Plus, annual"),
-    Coda: seat(12, "Pro, annual"),
+    "Proton Mail": seat(9.99, "Mail Professional, annual"),
+    Coda: seat(30, "Team, annual"),
     Trello: seat(5, "Standard, annual"),
     Asana: seat(10.99, "Starter, annual"),
     Airtable: seat(20, "Team, annual"),
-    Miro: seat(8, "Starter, annual"),
+    Miro: seat(16, "Business, annual"),
+    Dropbox: seat(15, "Standard, annual"),
+    Figma: seat(16, "Professional, annual"),
+    Granola: seat(14, "Business, monthly"),
 
     // per seat, with one price however billed
     Confluence: seat(5.78, "Standard"),
@@ -140,35 +188,61 @@ export const prices: Readonly<Record<string, Price>> = {
     Doppler: seat(21, "Team"),
 
     // flat, billed annually where offered
-    Framer: flat(10, "Basic site, annual"),
-    Make: flat(9, "Core, annual"),
-    Zapier: flat(19.99, "Professional, annual"),
     n8n: flat(20, "Starter, annual, in euros"),
+    Typeform: flat(56, "Plus, annual"),
     Discord: flat(0, "Free"),
     Thunderbird: flat(0, "Free"),
     WhatsApp: flat(0, "Free"),
 
+    // one person's plan, or the team plan from a second person on, billed annually
+    Framer: metered(
+        "Pro site + editors, annual",
+        "$30/site/mo + $20/editor/mo",
+        ({ people }) => 30 + 20 * (people - 1),
+    ),
+    Replit: metered("Core, or Pro, annual", "$20/mo, or $100/mo for a team", ({ people }) =>
+        people === 1 ? 20 : 100,
+    ),
+    Make: metered("Core, or Teams, annual", "$9/mo, or $29/mo for a team", ({ people }) =>
+        people === 1 ? 9 : 29,
+    ),
+    Zapier: metered(
+        "Professional, or Team, annual",
+        "$19.99/mo, or $69/mo for a team",
+        ({ people }) => (people === 1 ? 19.99 : 69),
+    ),
+
     // metered, by each vendor's published meters
-    GitHub: metered("Team + Actions", ({ people }) => {
+    GitHub: metered("Team + Actions", "$4/seat/mo + Actions", ({ people }) => {
         const minutes = ciMinutesAt(people);
 
         return SEAT_GITHUB * people + Math.max(0, minutes - ACTIONS_INCLUDED) * ACTIONS_RATE;
     }),
-    WorkOS: metered("Free to 1M users", ({ users }) =>
-        users <= 1_000_000 ? 0 : Math.ceil((users - 1_000_000) / 1_000_000) * 2_500,
-    ),
-    Supabase: metered("Pro + usage", ({ users }) => {
+    WorkOS: metered("AuthKit + custom domain", "$99/mo + $2,500/1M users", ({ users }) => {
+        const extra = Math.ceil(Math.max(0, users - 1_000_000) / 1_000_000);
+
+        return CUSTOM_DOMAIN_WORKOS + extra * 2_500;
+    }),
+    Supabase: metered("Pro + Small compute", "$30/mo + usage", ({ users }) => {
         const database = (users * workloadOf("Supabase").perUser.database) / GB;
 
-        return 25 + Math.max(0, users - 100_000) * 0.003_25 + Math.max(0, database - 8) * 0.125;
+        return 30 + Math.max(0, users - 100_000) * 0.003_25 + Math.max(0, database - 8) * 0.125;
     }),
-    Resend: metered("Pro or Scale", ({ users }) => resendAt(users * EMAILS_PER_USER)),
-    Temporal: metered("Actions", ({ users }) =>
+    Resend: metered("Pro or Scale", "from $20/mo", ({ users }) =>
+        resendAt(users * EMAILS_PER_USER),
+    ),
+    Temporal: metered("Essentials", "from $100/mo", ({ users }) =>
         temporalAt(users * ACTIONS_PER_USER * STEPS_PER_ACTION),
     ),
-    PostHog: metered("Free to 1M events", ({ users }) => postHogAt(users * EVENTS_PER_USER)),
+    PostHog: metered("Analytics + replay", "by use, free to 1M events", ({ users }) => {
+        const events = tieredAt(users * EVENTS_PER_USER, POSTHOG_EVENTS);
+        const recordings = tieredAt(users * RECORDINGS_PER_USER, POSTHOG_RECORDINGS);
+
+        return events + recordings;
+    }),
     Vercel: metered(
         "Pro + CDN",
+        "$20/seat/mo + usage",
         ({ people, users }) => 20 * people + cdnAt(users * REQUESTS_PER_USER),
     ),
 };
@@ -283,10 +357,10 @@ const mail = personal({
     files: 7.6 * GB,
 });
 
-/** Calendar: open half an hour a workday at 60 requests an hour, and a year of events. */
+/** Calendar: open half an hour a workday, and invitees loading 2 booking pages a workday. */
 const calendar = personal({
     hours: 0.5,
-    requests: 30,
+    requests: 30 + 2 * REQUESTS_PER_PAGE,
     // 100 events a month of 2 KB, kept a year
     database: 2.4 * MB,
     files: 0,
@@ -300,6 +374,9 @@ const canvas = personal({ hours: 1, requests: 600, database: 30 * MB, files: 30 
 
 /** Automation: 750 runs a month of 5 steps, and a year of run history at 2 KB a step. */
 const automation = personal({ hours: 0.5, requests: 170, database: 90 * MB, files: 0 });
+
+/** Connection: a personal app synced every 15 minutes, 10 seconds a sync, and a year of rows. */
+const connection = personal({ hours: 0.35, requests: 131, database: 10 * MB, files: 0 });
 
 /** The work each tool's job takes after a year of use, by tool. */
 export const workloads: Readonly<Record<string, Workload>> = {
@@ -356,6 +433,14 @@ export const workloads: Readonly<Record<string, Workload>> = {
     n8n: automation,
     "Power Automate": automation,
 
+    // personal apps connected to your space
+    Strava: connection,
+    Monzo: connection,
+    Goodreads: connection,
+    Fitbit: connection,
+    Steam: connection,
+    Letterboxd: connection,
+
     // code: a repository, each developer's work, and CI runs
     GitHub: workloadFrom({
         shared: { database: 100 * MB, files: 2.85 * GB },
@@ -394,12 +479,19 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Temporal: workloadFrom({
         perUser: { database: 0.2 * MB, requests: ACTIONS_PER_USER * STEPS_PER_ACTION },
     }),
-    // analytics: a year of 50 events a month at 1.5 KB
-    PostHog: workloadFrom({ perUser: { database: 0.9 * MB, requests: EVENTS_PER_USER } }),
-    // hosting: the app's build and assets, and each user's page loads
+    // analytics: a year of 50 events a month at 1.5 KB, and a month of session recordings
+    PostHog: workloadFrom({
+        perUser: {
+            database: 0.9 * MB,
+            files: RECORDINGS_PER_USER * RECORDING_SIZE,
+            requests: EVENTS_PER_USER,
+        },
+    }),
+    // hosting: the app's builds and assets, and each user's page loads
     Vercel: workloadFrom({
         shared: { database: 40 * MB, files: 1.96 * GB },
         perUser: { requests: REQUESTS_PER_USER },
+        batch: ({ people }) => ((BUILD_MINUTES * people) / 60) * CI_MEMORY,
         isAtLeast: true,
     }),
 };
@@ -500,12 +592,12 @@ function resendAt(emails: number): number {
     return plan === undefined ? 1_150 + (emails - 2_500_000) * 0.000_46 : plan[1];
 }
 
-/** Return what Temporal Cloud charges for a month's actions: $50 a million to 5M, then $25. */
+/** Return what Temporal Cloud Essentials charges a month: $100 for 1M actions, then by use. */
 function temporalAt(actions: number): number {
-    const first = Math.min(actions, 5_000_000);
+    const middle = Math.min(Math.max(0, actions - 1_000_000), 4_000_000);
     const rest = Math.max(0, actions - 5_000_000);
 
-    return first * 0.000_05 + rest * 0.000_025;
+    return 100 + middle * 0.000_05 + rest * 0.000_025;
 }
 
 /** Return what Vercel's flat rate CDN charges for a month's requests: free to 1M, then by tier. */
@@ -525,24 +617,13 @@ function cdnAt(requests: number): number {
     return tier === undefined ? 300 * Math.ceil(requests / 150_000_000) : tier[1];
 }
 
-/** Return what PostHog charges for a month's events: a free million, then falling rates. */
-function postHogAt(events: number): number {
-    // read the tiers, each priced up to its top
-    const tiers: readonly (readonly [upTo: number, rate: number])[] = [
-        [1_000_000, 0],
-        [2_000_000, 0.000_05],
-        [15_000_000, 0.000_034_3],
-        [50_000_000, 0.000_029_5],
-        [100_000_000, 0.000_021_8],
-        [250_000_000, 0.000_015],
-        [Number.POSITIVE_INFINITY, 0.000_009],
-    ];
-
-    // add each tier's share of the events at its rate
+/** Return what volume tiers charge for an amount, each tier's share at its own rate. */
+function tieredAt(amount: number, tiers: readonly Tier[]): number {
+    // add each tier's share of the amount at its rate
     let from = 0;
     let cost = 0;
     for (const [upTo, rate] of tiers) {
-        cost += Math.max(0, Math.min(events, upTo) - from) * rate;
+        cost += Math.max(0, Math.min(amount, upTo) - from) * rate;
         from = upTo;
     }
 
@@ -575,6 +656,16 @@ export function usageCostOf(usage: Usage, rates: Rates): number {
         usage.fileWrites * rates.fileWrites;
 
     return kept + memory + counted / MILLION;
+}
+
+/** Return a subscription's list price as its vendor states it, or refuse one without a fee. */
+export function listedOf(subscription: string): string {
+    const price = priceOf(subscription);
+    if (price.kind !== "fee") {
+        throw new Error(`no list price for ${subscription}`);
+    }
+
+    return price.listed;
 }
 
 /** Return the price of a subscription by its name, or refuse a name the price list lacks. */

@@ -18,6 +18,22 @@ export const replit = style.defineConsts({
     snow: "light-dark(#0e1525, #f5f7fb)",
 });
 
+/** The colours of a personal app's plain site. */
+export const personal = style.defineConsts({
+    /** The page background. */
+    surface: "light-dark(#ffffff, #18181b)",
+    /** The text. */
+    ink: "light-dark(#242428, #ececf0)",
+    /** Secondary text. */
+    muted: "light-dark(#7b7b85, #a1a1aa)",
+    /** The figures beside each row. */
+    figure: "light-dark(#4a4a52, #d4d4d8)",
+    /** The rules and card borders. */
+    line: "light-dark(#ececf0, #2e2e33)",
+    /** The avatar's fill. */
+    face: "light-dark(#dde3ea, #3f3f46)",
+});
+
 /** The colours of the chat workspace. */
 export const slack = style.defineConsts({
     /** The page background. */

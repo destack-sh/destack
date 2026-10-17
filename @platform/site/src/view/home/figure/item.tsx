@@ -37,6 +37,7 @@ export type Lighting = {
     lit: number | undefined;
     onLight: (number: number | undefined) => void;
     onChoose: (number: number | undefined) => void;
+    chosen: number | undefined;
 };
 
 /** The colour a vendor's block wears in a bill, for vendors whose mark is black or a logo. */

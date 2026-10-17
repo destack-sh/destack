@@ -16,7 +16,7 @@ const destackable: Form = {
     sense: {
         definition: "open, transparent, and hackable",
         highlight: ["transparent", "hackable"],
-        sentence: "See everything every app and agent does, and change it.",
+        sentence: "Trace everything every app and agent does, and change any of it.",
     },
 };
 
@@ -36,8 +36,8 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="seven consoles, seven slivers"
-                destacked="one data plane, one control plane"
+                stacked="seven vendors, seven partial views"
+                destacked="one space, one full view"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

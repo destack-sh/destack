@@ -44,6 +44,8 @@ import { AppHeader, appStyles, appText } from "../figure/app";
 import { AgentAvatar } from "../figure/agent";
 import { coverOf, messages, posts, signups, sources, type TaskState, tasks, week } from "./corner";
 import { ServiceGlyph } from "../figure/tile";
+import type { Source } from "./source";
+import { Favicon } from "../figure/glyph";
 
 /** An app narrower than a phone screen, which then drops what only fits wide. */
 const NARROW = "@container (max-width: 479px)";
@@ -86,24 +88,145 @@ const signupInvites: Readonly<Record<string, string>> = {
 };
 
 /** Draw a section of your own space by its ledger row, changed by a call when one lands on it. */
-export function sectionOf(row: number, isChanged: boolean): JSX.Element {
+export function sectionOf(
+    row: number,
+    isChanged: boolean,
+    source: Source,
+    isRemixed: boolean,
+): JSX.Element {
     if (row === 1) {
-        return <Launch isChanged={isChanged} />;
+        return <Launch isChanged={isChanged} isRemixed={isRemixed} />;
     } else if (row === 2) {
-        return <Tasks isChanged={isChanged} />;
+        return <Tasks isChanged={isChanged} isRemixed={isRemixed} />;
     } else if (row === 3) {
-        return <Chat />;
+        return <Chat isRemixed={isRemixed} />;
     } else if (row === 4) {
-        return <Code />;
+        return <Code isRemixed={isRemixed} />;
     } else if (row === 5) {
-        return <Website />;
+        return <Website isRemixed={isRemixed} />;
     } else if (row === 6) {
-        return <Week />;
+        return <Week isRemixed={isRemixed} />;
     } else if (row === 7) {
-        return <Signups isChanged={isChanged} />;
+        return <Mail isChanged={isChanged} isRemixed={isRemixed} />;
+    } else if (row === 8) {
+        return <Signups isChanged={isChanged} isRemixed={isRemixed} />;
     }
 
-    return <Mail isChanged={isChanged} />;
+    return <Connection source={source} isRemixed={isRemixed} />;
+}
+
+/** A change your agent makes to an app of yours: what you ask for, and what it did. */
+type Remix = { ask: string; done: string };
+
+/** Return the change your agent makes to the app on a row, or none for an app without one. */
+export function remixOf(row: number, source: Source): Remix | undefined {
+    if (row === 1) {
+        return { ask: "Count down to the launch", done: "Added a countdown to the launch page" };
+    } else if (row === 2) {
+        return { ask: "Add a priority to every task", done: "Added Priority to Tasks" };
+    } else if (row === 3) {
+        return { ask: "Pin the launch checklist in #launch", done: "Pinned the checklist" };
+    } else if (row === 4) {
+        return { ask: "Deploy every merge to main", done: "Added deploys on merge" };
+    } else if (row === 5) {
+        return { ask: "Add a newsletter signup to my site", done: "Added a signup form" };
+    } else if (row === 6) {
+        return { ask: "Keep my mornings free for focus", done: "Blocked 9–11 every weekday" };
+    } else if (row === 7) {
+        return {
+            ask: "Add a P.S. with each person's referral link",
+            done: "Added a referral P.S.",
+        };
+    } else if (row === 8) {
+        return { ask: "Show who referred each signup", done: "Added Referred by to Signups" };
+    } else if (row === 9) {
+        return { ask: `Chart my ${source.data} by week`, done: `Charted ${source.table} by week` };
+    }
+
+    return undefined;
+}
+
+/** The priority your agent gives each task once you ask it to add one. */
+const priorities: Readonly<Record<string, string>> = {
+    "DST-14": "P1",
+    "DST-16": "P1",
+    "DST-13": "P2",
+    "DST-15": "P2",
+    "DST-17": "P3",
+    "DST-12": "P3",
+};
+
+/** Who referred each signup, which your agent reads from the launch post's links. */
+const referrals: Readonly<Record<string, string>> = {
+    "maya@northwind.io": "sam@quietly.so",
+    "tara@fieldnotes.co": "noor@papertrail.fm",
+    "sam@quietly.so": "Launch post",
+};
+
+/** The weekly totals of a connected app's chart, as shares of the busiest week. */
+const weeks: readonly number[] = [0.45, 0.7, 0.35, 0.85, 0.6, 1, 0.75, 0.55];
+
+/** Draw a personal app's data synced into a table of yours, its latest rows first. */
+function Connection(properties: { source: Source; isRemixed: boolean }) {
+    return (
+        <Paned>
+            <Toolbar
+                title={properties.source.table}
+                actions={
+                    <>
+                        <span {...style.attrs(appStyles.action)}>Synced 4 min ago</span>
+                        <span {...style.attrs(appStyles.primary)}>Chart it</span>
+                    </>
+                }
+            >
+                <span {...style.attrs(appStyles.property, styles.on)}>
+                    <Favicon icon={properties.source.icon} tint={properties.source.tint} />
+                    From {properties.source.name}
+                </span>
+                <span {...style.attrs(appStyles.property)}>
+                    <ServiceGlyph icon="sync" />
+                    Every 15 minutes
+                </span>
+                <span {...style.attrs(appStyles.property)}>Connected by your agent</span>
+            </Toolbar>
+            {/* the weekly chart your agent adds when asked */}
+            {properties.isRemixed ? (
+                <div {...style.attrs(styles.chart, styles.changed)}>
+                    {weeks.map((share) => (
+                        <span
+                            style={{
+                                height: `${String(share * 100)}%`,
+                                "background-color": properties.source.tint,
+                            }}
+                            {...style.attrs(styles.bar)}
+                        />
+                    ))}
+                </div>
+            ) : undefined}
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        {properties.source.columns.map((column) => (
+                            <TableHead>{column}</TableHead>
+                        ))}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {properties.source.rows.map((cells) => (
+                        <TableRow>
+                            {cells.map((cell) => (
+                                <TableCell xstyle={appText.body}>{cell}</TableCell>
+                            ))}
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+            <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
+                <Icon icon={dotsThree} />
+                {`A year of your ${properties.source.data}, in your space, for every app and agent`}
+            </span>
+        </Paned>
+    );
 }
 
 /** Lay out an app's page beside the shared rail, its header first. */
@@ -179,7 +302,7 @@ function StateMark(properties: { state: TaskState }) {
 }
 
 /** Draw the launch plan: a page you and your agent edit, made of your other apps' parts. */
-function Launch(properties: { isChanged: boolean }) {
+function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -213,6 +336,11 @@ function Launch(properties: { isChanged: boolean }) {
                     >
                         Demo · Wed 11:00
                     </span>
+                    {properties.isRemixed ? (
+                        <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                            3 days to launch
+                        </span>
+                    ) : undefined}
                 </div>
                 <p {...style.attrs(appText.body)}>
                     Ship to the waitlist on Thursday, then open signups on Friday. Pricing goes live
@@ -333,7 +461,7 @@ function isCommented(item: string): boolean {
 }
 
 /** Draw the launch tasks: your list grouped by state, your agent working through its share. */
-function Tasks(properties: { isChanged: boolean }) {
+function Tasks(properties: { isChanged: boolean; isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -356,6 +484,11 @@ function Tasks(properties: { isChanged: boolean }) {
                     <ServiceGlyph icon="sync" />
                     When done, post in #launch
                 </span>
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        By priority
+                    </span>
+                ) : undefined}
             </Toolbar>
             <div data-xray="Database" {...style.attrs(styles.list)}>
                 {STATES.map(([state, name]) => (
@@ -392,6 +525,16 @@ function Tasks(properties: { isChanged: boolean }) {
                                                 shown === "done" && styles.struck,
                                             )}
                                         >
+                                            {properties.isRemixed ? (
+                                                <span
+                                                    {...style.attrs(
+                                                        styles.priority,
+                                                        styles.changed,
+                                                    )}
+                                                >
+                                                    {priorities[id] ?? "P3"}
+                                                </span>
+                                            ) : undefined}
                                             {title}
                                             {id === "DST-15" ? (
                                                 <span
@@ -417,7 +560,7 @@ function Tasks(properties: { isChanged: boolean }) {
 }
 
 /** Draw the launch channel: its topic and members, a day of messages, and the composer. */
-function Chat() {
+function Chat(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <div {...style.attrs(styles.channelHead)}>
@@ -434,6 +577,12 @@ function Chat() {
                     <span {...style.attrs(appText.meta, styles.quiet)}>4</span>
                 </span>
             </div>
+            {/* the checklist your agent pins when asked */}
+            {properties.isRemixed ? (
+                <div {...style.attrs(appText.meta, styles.pinned, styles.changed)}>
+                    <b>Pinned</b> Launch checklist · 4 of 6 done
+                </div>
+            ) : undefined}
             <div {...style.attrs(appText.meta, styles.divider)}>
                 <Separator />
                 Today
@@ -506,7 +655,7 @@ function Chat() {
 }
 
 /** Draw the code behind your apps. */
-function Code() {
+function Code(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -524,6 +673,11 @@ function Code() {
                 </span>
                 <span {...style.attrs(appStyles.property)}>2 branches</span>
                 <span {...style.attrs(appStyles.property)}>48 commits</span>
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        Deploys on merge
+                    </span>
+                ) : undefined}
             </Toolbar>
             <Item data-xray="Jobs" variant="outline" size="sm" xstyle={styles.pull}>
                 <ItemMedia xstyle={styles.green}>
@@ -578,7 +732,7 @@ function Code() {
 }
 
 /** Draw your website. */
-function Website() {
+function Website(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -603,6 +757,11 @@ function Website() {
                     florian.dev
                     <Icon icon={arrowSquareOut} />
                 </span>
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        Newsletter signup
+                    </span>
+                ) : undefined}
             </Toolbar>
             <div {...style.attrs(styles.preview)}>
                 <div {...style.attrs(appText.body, styles.siteBar)}>
@@ -637,7 +796,7 @@ function Website() {
 }
 
 /** Draw your week: the events your apps put there and the free times your booking page offers. */
-function Week() {
+function Week(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -652,7 +811,13 @@ function Week() {
                         </span>
                     </>
                 }
-            />
+            >
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        Focus 9–11 every weekday
+                    </span>
+                ) : undefined}
+            </Toolbar>
             <div data-xray="Database" {...style.attrs(appText.meta, styles.week)}>
                 {DAYS.map((day, index) => (
                     <span
@@ -733,7 +898,7 @@ function rowOf(hour: number): number {
 }
 
 /** Draw the launch mail. */
-function Mail(properties: { isChanged: boolean }) {
+function Mail(properties: { isChanged: boolean; isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -757,6 +922,11 @@ function Mail(properties: { isChanged: boolean }) {
                 <span data-xray="Messaging" {...style.attrs(appStyles.property)}>
                     From hello@destack.sh
                 </span>
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        P.S. with referral link
+                    </span>
+                ) : undefined}
             </Toolbar>
             {/* the agent's send, held for your approval */}
             <div {...style.attrs(styles.approval, properties.isChanged && styles.approved)}>
@@ -816,7 +986,7 @@ function Mail(properties: { isChanged: boolean }) {
 }
 
 /** Draw your waitlist's signups. */
-function Signups(properties: { isChanged: boolean }) {
+function Signups(properties: { isChanged: boolean; isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -839,7 +1009,7 @@ function Signups(properties: { isChanged: boolean }) {
                     Waiting
                 </span>
                 <span {...style.attrs(appStyles.property, properties.isChanged && styles.on)}>
-                    {properties.isChanged ? "Source: Launch post · with messages" : "Source: any"}
+                    {properties.isChanged ? "Asked about pricing · didn't open" : "Source: any"}
                 </span>
             </Toolbar>
             <Table data-xray="Database">
@@ -850,11 +1020,15 @@ function Signups(properties: { isChanged: boolean }) {
                         </TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Source</TableHead>
-                        <TableHead>
-                            <span {...style.attrs(styles.joined)}>
-                                <ServiceGlyph icon="chat" />
-                                Messages
-                            </span>
+                        <TableHead xstyle={properties.isRemixed && styles.changed}>
+                            {properties.isRemixed ? (
+                                "Referred by"
+                            ) : (
+                                <span {...style.attrs(styles.joined)}>
+                                    <ServiceGlyph icon="chat" />
+                                    Messages
+                                </span>
+                            )}
                         </TableHead>
                         <TableHead>
                             <span {...style.attrs(styles.joined)}>
@@ -867,13 +1041,9 @@ function Signups(properties: { isChanged: boolean }) {
                 </TableHeader>
                 <TableBody>
                     {signups
-                        .filter(
-                            ([, source, , state]) =>
-                                !properties.isChanged ||
-                                (source === "Launch post" && state === "waiting"),
-                        )
+                        .filter(([, , , state]) => !properties.isChanged || state === "waiting")
                         .map(([email, source, , state], index) => (
-                            <TableRow>
+                            <TableRow xstyle={properties.isChanged && styles.changed}>
                                 <TableCell xstyle={styles.select}>
                                     <Checkbox checked={index < 4} aria-label={email} />
                                 </TableCell>
@@ -882,20 +1052,31 @@ function Signups(properties: { isChanged: boolean }) {
                                     <span {...style.attrs(appStyles.property)}>{source}</span>
                                 </TableCell>
                                 <TableCell xstyle={[appText.body, styles.quiet]}>
-                                    {signupMessages[email] ?? "–"}
+                                    {properties.isRemixed
+                                        ? (referrals[email] ?? "–")
+                                        : properties.isChanged
+                                          ? "#launch · pricing"
+                                          : (signupMessages[email] ?? "–")}
                                 </TableCell>
                                 <TableCell xstyle={[appText.body, styles.quiet]}>
-                                    {signupInvites[email] ?? (index < 4 ? "Batch 1" : "Next batch")}
+                                    {properties.isChanged
+                                        ? "Sent"
+                                        : (signupInvites[email] ??
+                                          (index < 4 ? "Batch 1" : "Next batch"))}
                                 </TableCell>
                                 <TableCell xstyle={appText.body}>
                                     <span {...style.attrs(appStyles.property)}>
                                         <span
                                             {...style.attrs(
                                                 styles.dot,
-                                                state === "invited" ? styles.live : styles.amber,
+                                                state === "invited" || properties.isChanged
+                                                    ? styles.live
+                                                    : styles.amber,
                                             )}
                                         />
-                                        {state === "invited" ? "Invited" : "Waiting"}
+                                        {state === "invited" || properties.isChanged
+                                            ? "Invited"
+                                            : "Waiting"}
                                     </span>
                                 </TableCell>
                             </TableRow>
@@ -905,7 +1086,7 @@ function Signups(properties: { isChanged: boolean }) {
             <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
                 <Icon icon={dotsThree} />
                 {properties.isChanged
-                    ? "1 of 1,840 · joined from the launch post and wrote in #launch"
+                    ? "7 of 1,840 · asked about pricing in #launch and didn't open the last mail"
                     : "1,833 more · filled by your public waitlist form"}
             </span>
         </Paned>
@@ -1123,6 +1304,32 @@ const styles = style.create({
     },
     agentNote: {
         color: palette.violet,
+    },
+    pinned: {
+        borderRadius: "6px",
+        display: "flex",
+        gap: "0.5rem",
+        paddingBlock: "0.5rem",
+        paddingInline: "0.75rem",
+    },
+    priority: {
+        borderRadius: "4px",
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        marginInlineEnd: "0.375rem",
+        paddingInline: "0.25rem",
+    },
+    chart: {
+        alignItems: "end",
+        borderRadius: "6px",
+        display: "flex",
+        gap: "0.375rem",
+        height: "5rem",
+        padding: "0.5rem",
+    },
+    bar: {
+        borderRadius: "3px",
+        flexGrow: 1,
     },
     changed: {
         backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,

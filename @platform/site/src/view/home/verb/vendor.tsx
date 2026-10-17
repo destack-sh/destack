@@ -16,8 +16,19 @@ import {
     type TaskState,
 } from "./corner";
 import { Favicon, Glyph } from "../figure/glyph";
-import { calendly, framer, github, gmail, linear, notion, replit, slack } from "./vendor.stylex";
+import {
+    calendly,
+    framer,
+    github,
+    gmail,
+    linear,
+    notion,
+    personal,
+    replit,
+    slack,
+} from "./vendor.stylex";
 import { palette } from "../../palette.stylex";
+import type { Source } from "./source";
 
 /** A window narrower than a phone screen, where each site takes its own phone layout. */
 const NARROW = "@container (max-width: 479px)";
@@ -38,7 +49,7 @@ const faces = {
 };
 
 /** Draw the rented site that holds a ledger row, at the size of a real window. */
-export function rentedPageOf(row: number): JSX.Element {
+export function rentedPageOf(row: number, source: Source): JSX.Element {
     if (row === 1) {
         return <Notion />;
     } else if (row === 2) {
@@ -52,10 +63,38 @@ export function rentedPageOf(row: number): JSX.Element {
     } else if (row === 6) {
         return <Calendly />;
     } else if (row === 7) {
+        return <Gmail />;
+    } else if (row === 8) {
         return <Replit />;
     }
 
-    return <Gmail />;
+    return <SourceApp source={source} />;
+}
+
+/** Draw a personal app as its own site: your latest rows, and an export to ask for. */
+function SourceApp(properties: { source: Source }) {
+    return (
+        <div data-component="SourcePage" {...style.attrs(styles.source)}>
+            <nav {...style.attrs(styles.sourceNav)}>
+                <Favicon icon={properties.source.icon} tint={properties.source.tint} size={22} />
+                <b>{properties.source.name}</b>
+                <span {...style.attrs(styles.sourceAvatar)}>F</span>
+            </nav>
+            <b {...style.attrs(styles.sourceTitle)}>Your {properties.source.data}</b>
+            <ul {...style.attrs(styles.sourceList)}>
+                {properties.source.rows.map(([when, what, amount]) => (
+                    <li {...style.attrs(styles.sourceItem)}>
+                        <span {...style.attrs(styles.sourceWhen)}>{when}</span>
+                        <b>{what}</b>
+                        <span {...style.attrs(styles.sourceAmount)}>{amount}</span>
+                    </li>
+                ))}
+            </ul>
+            <span {...style.attrs(styles.sourceExport)}>
+                Settings › Privacy › Request your data archive
+            </span>
+        </div>
+    );
 }
 
 /** Draw your waitlist as an app built by prompt and hosted on the builder's own domain. */
@@ -996,6 +1035,73 @@ const styles = style.create({
         gap: "16px",
         paddingBlockEnd: "14px",
         paddingInline: "16px",
+    },
+    source: {
+        alignContent: "start",
+        backgroundColor: personal.surface,
+        color: personal.ink,
+        display: "grid",
+        fontFamily: system,
+        gap: "20px",
+        minHeight: "100%",
+        paddingBlockEnd: "32px",
+        paddingInline: { default: "40px", [NARROW]: "20px" },
+    },
+    sourceNav: {
+        alignItems: "center",
+        borderBottomColor: personal.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        fontSize: "16px",
+        gap: "10px",
+        height: "56px",
+    },
+    sourceAvatar: {
+        alignItems: "center",
+        backgroundColor: personal.face,
+        borderRadius: "50%",
+        display: "flex",
+        fontSize: "12px",
+        height: "28px",
+        justifyContent: "center",
+        marginInlineStart: "auto",
+        width: "28px",
+    },
+    sourceTitle: {
+        fontSize: "24px",
+    },
+    sourceList: {
+        display: "grid",
+        gap: "10px",
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+    },
+    sourceItem: {
+        alignItems: "baseline",
+        borderColor: personal.line,
+        borderRadius: "10px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "grid",
+        fontSize: "14px",
+        gap: "14px",
+        gridTemplateColumns: "56px minmax(0, 1fr) auto",
+        paddingBlock: "14px",
+        paddingInline: "16px",
+    },
+    sourceWhen: {
+        color: personal.muted,
+        fontSize: "12px",
+    },
+    sourceAmount: {
+        color: personal.figure,
+        fontVariantNumeric: "tabular-nums",
+    },
+    sourceExport: {
+        color: personal.muted,
+        fontSize: "12px",
     },
     replit: {
         backgroundColor: replit.night,

@@ -48,11 +48,19 @@ type GlyphName =
     | "dislike"
     | "microphone"
     | "up"
-    | "open";
+    | "open"
+    | "remix";
 
 /** The strokes of each glyph, on a 24-unit grid. */
 const glyphs: Record<GlyphName, readonly string[]> = {
     back: ["m15 18-6-6 6-6"],
+    remix: [
+        "M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0",
+        "M20 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0",
+        "M14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0",
+        "M6 8v1a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8",
+        "M12 12v4",
+    ],
     forward: ["m9 18 6-6-6-6"],
     reload: ["M21 12a9 9 0 1 1-3-6.7L21 8", "M21 3v5h-5"],
     lock: ["M7 11V7a5 5 0 0 1 10 0v4", "M5 11h14v10H5z"],

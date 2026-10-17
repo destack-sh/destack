@@ -6,11 +6,11 @@ import * as style from "@destack/style";
 export const teams = [1, 5, 25, 100] as const;
 
 /** The monthly active users a bill can be read for. */
-export const audiences = [1_000, 10_000, 100_000] as const;
+export const audiences = [100, 1_000, 10_000, 100_000] as const;
 
-/** Return a count of users as the dial shows it, in thousands. */
+/** Return a count of users as the dial shows it, in thousands from a thousand up. */
 export function audienceOf(users: number): string {
-    return `${users / 1_000}k`;
+    return users < 1_000 ? String(users) : `${users / 1_000}k`;
 }
 
 /** Draw a small dial of set values, one chosen, sized to sit in a figure's label row. */

@@ -1,5 +1,7 @@
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { createSignal } from "@destack/view";
+import { createTimer } from "@destack/view/primitives/timer";
 
 import { palette } from "../../palette.stylex";
 import { AgentAvatar, MODEL } from "../figure/agent";
@@ -19,6 +21,12 @@ const SHORT = "@container (max-height: 599px)";
 
 /** The seconds the invite's trace spans. */
 const SPAN = 30;
+
+/** The milliseconds the issue shows before your agent fixes it once on its own. */
+const FIX_AT = 3200;
+
+/** The milliseconds your agent takes to change the code and rerun the trace. */
+const FIX_TIME = 1600;
 
 /** The apps of your space on the rail, Observability open. */
 const rail: readonly (readonly [icon: string, label: string])[] = [
@@ -42,12 +50,48 @@ const sections: readonly (readonly [name: string, count: string])[] = [
 
 /** The issue's figures: caption and value. */
 const figures: readonly (readonly [caption: string, value: string])[] = [
-    ["Events", "12"],
-    ["People", "400"],
-    ["Agent", MODEL.name],
-    ["First seen", "09:40:51"],
-    ["Resolved", "09:40:58"],
+    ["Duration", "30.0 s"],
+    ["Cost", "$0.004"],
+    ["Rows written", "400"],
+    ["Mails", "400"],
+    ["Approved by", "Florian"],
 ];
+
+/** The services the invite passed through, in order, as the map draws them. */
+const path: readonly (readonly [icon: string, service: string])[] = [
+    ["sync", "Workflows"],
+    ["search", "Search"],
+    ["user", "Florian"],
+    ["accounts", "Accounts"],
+    ["storage", "Database"],
+    ["vault", "Vault"],
+    ["notify", "Notifications"],
+    ["mail", "Mail"],
+];
+
+/** The services of the run, the provider's marked as the fault. */
+const faultPath = path.map(([icon, service]) => [icon, service, service === "Mail"] as const);
+
+/** The services of the rerun, none at fault. */
+const pacedPath = path.map(([icon, service]) => [icon, service, false] as const);
+
+/** The rows the invite changed in your waitlist: email, before and after. */
+const changes: readonly (readonly [email: string, before: string, after: string])[] = [
+    ["maya@northwind.io", "waiting", "invited"],
+    ["jonas@kettle.dev", "waiting", "invited"],
+    ["tara@fieldnotes.co", "waiting", "invited"],
+    ["leo@brightpath.app", "waiting", "invited"],
+];
+
+/** The code behind the sends in Forge: line number and code, before your agent's change. */
+const source: readonly (readonly [line: number, code: string])[] = [
+    [41, "for (const batch of chunks(invites, 100)) {"],
+    [42, "  await provider.send(batch);"],
+    [43, "}"],
+];
+
+/** The line your agent changed, as it reads after the change. */
+const pacedLine = "  await pace(30).each(batch, provider.send);";
 
 /** The mails sent each second of the run, from its start at 09:40:31. */
 const sends = [
@@ -101,6 +145,39 @@ const run: readonly (readonly [kind: "you" | "agent" | "tool", text: string, det
     ],
 ];
 
+/** The mails sent each second of the rerun, paced at 30 a second from 09:58:12. */
+const pacedSends = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+    10, 0, 0,
+];
+
+/** The rerun's trace once your agent paces the sends: every batch through, nothing retried. */
+const pacedSpans: readonly Span[] = [
+    [0, "sync", "Workflows", "invite-400 · rerun", 0, 28, "ok"],
+    [1, "search", "Search", "find 400 waiting", 1, 4, "ok"],
+    [1, "user", "Florian", "approve invite-400", 6, 6, "decision"],
+    [1, "accounts", "Accounts", "create 400", 8, 12, "ok"],
+    [1, "storage", "Database", "mark 400 invited", 8, 12, "ok"],
+    [1, "vault", "Vault", "read mail key", 13, 13.4, "ok"],
+    [1, "notify", "Notifications", "send 400 · 30 a second", 14, 28, "ok"],
+    [2, "mail", "Mail", "batch 1 of 4", 14, 17.5, "ok"],
+    [2, "mail", "Mail", "batch 2 of 4", 17.5, 21, "ok"],
+    [2, "mail", "Mail", "batch 3 of 4", 21, 24.5, "ok"],
+    [2, "mail", "Mail", "batch 4 of 4", 24.5, 28, "ok"],
+];
+
+/** The bars of the run's sends a second, each marked where the provider throttled it. */
+const bars = sends.map((count, second) => [count, throttled.has(second)] as const);
+
+/** The bars of the rerun's sends a second, none throttled. */
+const pacedBars = pacedSends.map((count) => [count, false] as const);
+
+/** Your agent's change to Notifications in Forge: each line, added or removed. */
+const diff: readonly (readonly [change: "+" | "-", code: string])[] = [
+    ["-", "await provider.send(batch);"],
+    ["+", "await pace(30).each(batch, provider.send);"],
+];
+
 /** The selected span's attributes: key and value. */
 const attributes: readonly (readonly [key: string, value: string])[] = [
     ["status", "429 Too Many Requests"],
@@ -109,11 +186,12 @@ const attributes: readonly (readonly [key: string, value: string])[] = [
     ["delivered", "100 of 100"],
 ];
 
-/** The selected span's log: time, level and line. */
-const lines: readonly (readonly [time: string, level: "info" | "warn", text: string])[] = [
-    ["09:40:52.104", "info", "sending batch 3 of 4, 100 mails"],
-    ["09:40:55.871", "warn", "provider throttled 12 sends, retry after 5 s"],
-    ["09:40:57.902", "info", "retried 12 of 12, all accepted"],
+/** The selected span's attributes in the rerun: key and value. */
+const pacedAttributes: readonly (readonly [key: string, value: string])[] = [
+    ["status", "202 Accepted"],
+    ["pace", "30 a second"],
+    ["attempts", "1"],
+    ["delivered", "100 of 100"],
 ];
 
 /** The issue's activity: what happened, and when. */
@@ -126,6 +204,15 @@ const activity: readonly (readonly [text: string, time: string])[] = [
 
 /** Draw your Observability app on the invite's issue: what happened, its trace, its run. */
 export function ObservabilityIssue() {
+    // fix the issue once your agent is asked, or once on its own a moment after it shows
+    const [phase, setPhase] = createSignal<"open" | "fixing" | "fixed">("open");
+    const fix = () => {
+        setPhase("fixing");
+        setTimeout(() => setPhase("fixed"), FIX_TIME);
+    };
+    createTimer(fix, () => (phase() === "open" ? FIX_AT : false), setTimeout);
+    const isFixed = () => phase() === "fixed";
+
     return (
         <div data-component="ObservabilityIssue" {...style.attrs(appStyles.app, styles.app)}>
             <AppRail open="telemetry" apps={rail} />
@@ -153,17 +240,31 @@ export function ObservabilityIssue() {
                 <span {...style.attrs(styles.titleRow)}>
                     <span {...style.attrs(styles.chip, styles.resolved)}>
                         <Glyph name="check" size={10} weight={3} />
-                        Resolved
+                        {isFixed() ? "Fixed" : "Resolved"}
                     </span>
                     <b {...style.attrs(styles.title)}>Mail provider throttled invite-400</b>
                     <span {...style.attrs(styles.actions)}>
-                        <span {...style.attrs(styles.button)}>Reopen</span>
+                        {/* ask your agent to fix the cause in the code */}
+                        <button
+                            type="button"
+                            disabled={phase() !== "open"}
+                            onClick={fix}
+                            {...style.attrs(styles.button, styles.fix)}
+                        >
+                            <Glyph name="remix" size={11} />
+                            {phase() === "open"
+                                ? "Fix with agent"
+                                : phase() === "fixing"
+                                  ? "Fixing…"
+                                  : "Fixed in Forge"}
+                        </button>
                         <span {...style.attrs(styles.button)}>Share</span>
                     </span>
                 </span>
                 <span {...style.attrs(styles.summary)}>
-                    Batch 3 hit the provider's rate limit after 230 sends. Workflows waited out the
-                    limit and retried the 12, and every invite was delivered.
+                    {isFixed()
+                        ? "Your agent paced Notifications to 30 sends a second, and the rerun delivered all 400 with nothing throttled."
+                        : "Batch 3 hit the provider's rate limit after 230 sends. Workflows waited out the limit and retried the 12, and every invite was delivered."}
                 </span>
 
                 {/* figures and the sends over the run */}
@@ -177,19 +278,29 @@ export function ObservabilityIssue() {
                     <span {...style.attrs(styles.figure, styles.histogram)}>
                         <span {...style.attrs(styles.caption)}>Sends a second</span>
                         <span {...style.attrs(styles.bars)}>
-                            {sends.map((count, second) => (
+                            {(isFixed() ? pacedBars : bars).map(([count, isFault]) => (
                                 <span
                                     style={{
                                         height: `${String(Math.max(2, (count / 34) * 100))}%`,
                                     }}
-                                    {...style.attrs(
-                                        styles.bar,
-                                        throttled.has(second) && styles.barFault,
-                                    )}
+                                    {...style.attrs(styles.bar, isFault && styles.barFault)}
                                 />
                             ))}
                         </span>
                     </span>
+                </span>
+
+                {/* the services the invite passed through, the faulty one marked until fixed */}
+                <span {...style.attrs(styles.path)}>
+                    {(isFixed() ? pacedPath : faultPath).map(([icon, service, isFault], index) => (
+                        <>
+                            {index > 0 ? <span {...style.attrs(styles.pathLink)} /> : undefined}
+                            <span {...style.attrs(styles.pathNode, isFault && styles.pathFault)}>
+                                <ServiceGlyph icon={icon} />
+                                {service}
+                            </span>
+                        </>
+                    ))}
                 </span>
 
                 {/* trace */}
@@ -199,36 +310,63 @@ export function ObservabilityIssue() {
                     ))}
                 </span>
                 <div {...style.attrs(styles.trace)}>
-                    {spans.map((span) => (
+                    {(isFixed() ? pacedSpans : spans).map((span) => (
                         <SpanRow span={span} />
                     ))}
                 </div>
 
-                {/* the selected span */}
-                <section {...style.attrs(styles.detail)}>
-                    <span {...style.attrs(styles.detailHead)}>
-                        <ServiceGlyph icon="mail" />
-                        <b>Mail</b>
-                        <span {...style.attrs(styles.muted)}>batch 3 of 4 · 4.0 s</span>
-                    </span>
-                    <span {...style.attrs(styles.attributes)}>
-                        {attributes.map(([key, value]) => (
-                            <span {...style.attrs(styles.attribute)}>
-                                <span {...style.attrs(styles.caption)}>{key}</span>
-                                <code {...style.attrs(styles.attributeValue)}>{value}</code>
+                {/* the selected span, the rows it changed, and the code behind it */}
+                <div {...style.attrs(styles.panels)}>
+                    <section {...style.attrs(styles.detail)}>
+                        <span {...style.attrs(styles.detailHead)}>
+                            <ServiceGlyph icon="mail" />
+                            <b>Mail</b>
+                            <span {...style.attrs(styles.muted)}>
+                                {isFixed() ? "batch 3 of 4 · 3.5 s" : "batch 3 of 4 · 4.0 s"}
                             </span>
-                        ))}
-                    </span>
-                    <span {...style.attrs(styles.log)}>
-                        {lines.map(([time, level, text]) => (
-                            <code {...style.attrs(styles.logLine, level === "warn" && styles.warn)}>
-                                <span {...style.attrs(styles.muted)}>{time}</span>
-                                <span>{level}</span>
-                                <span>{text}</span>
+                        </span>
+                        <span {...style.attrs(styles.attributes)}>
+                            {(isFixed() ? pacedAttributes : attributes).map(([key, value]) => (
+                                <span {...style.attrs(styles.attribute)}>
+                                    <span {...style.attrs(styles.caption)}>{key}</span>
+                                    <code {...style.attrs(styles.attributeValue)}>{value}</code>
+                                </span>
+                            ))}
+                        </span>
+                    </section>
+                    <section {...style.attrs(styles.detail)}>
+                        <span {...style.attrs(styles.detailHead)}>
+                            <ServiceGlyph icon="storage" />
+                            <b>Rows</b>
+                            <span {...style.attrs(styles.muted)}>signups · 400 changed</span>
+                        </span>
+                        {changes.map(([email, before, after]) => (
+                            <code {...style.attrs(styles.rowChange)}>
+                                <span {...style.attrs(styles.email)}>{email}</span>
+                                <span {...style.attrs(styles.muted)}>{before} →</span>
+                                <span {...style.attrs(styles.after)}>{after}</span>
                             </code>
                         ))}
-                    </span>
-                </section>
+                    </section>
+                    <section {...style.attrs(styles.detail)}>
+                        <span {...style.attrs(styles.detailHead)}>
+                            <ServiceGlyph icon="source" />
+                            <b>Code</b>
+                            <span {...style.attrs(styles.muted)}>notifications/send.ts</span>
+                        </span>
+                        {source.map(([line, code]) => (
+                            <code {...style.attrs(styles.codeLine, line === 42 && styles.codeHot)}>
+                                <span {...style.attrs(styles.muted)}>{line}</span>
+                                <span>{line === 42 && isFixed() ? pacedLine : code}</span>
+                            </code>
+                        ))}
+                        <span {...style.attrs(styles.muted, styles.blame)}>
+                            {isFixed()
+                                ? `${MODEL.name} · 09:58 · pace sends`
+                                : "Florian · Oct 3 · send invites"}
+                        </span>
+                    </section>
+                </div>
             </main>
 
             {/* the run behind it */}
@@ -259,6 +397,31 @@ export function ObservabilityIssue() {
                             {text}
                         </span>
                     ),
+                )}
+
+                {/* your agent's change to the code, once asked */}
+                {phase() === "open" ? undefined : (
+                    <span {...style.attrs(styles.change)}>
+                        <span {...style.attrs(styles.messageHead)}>
+                            <ServiceGlyph icon="source" />
+                            <b>Forge</b>
+                            <span {...style.attrs(styles.muted)}>notifications/send.ts</span>
+                        </span>
+                        {diff.map(([change, code]) => (
+                            <code
+                                {...style.attrs(
+                                    styles.diffLine,
+                                    change === "+" && styles.added,
+                                    change === "-" && styles.removed,
+                                )}
+                            >
+                                {change} {code}
+                            </code>
+                        ))}
+                        <span {...style.attrs(styles.muted)}>
+                            {isFixed() ? "Merged and rerun · 09:58" : "Writing the change…"}
+                        </span>
+                    </span>
                 )}
 
                 {/* activity */}
@@ -412,6 +575,40 @@ const styles = style.create({
         gap: "0.375rem",
         marginLeft: "auto",
     },
+    fix: {
+        alignItems: "center",
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
+        borderColor: `color-mix(in srgb, ${palette.signal} 45%, transparent)`,
+        color: color.foreground,
+        cursor: "pointer",
+        display: "inline-flex",
+        gap: "0.3125rem",
+    },
+    change: {
+        borderColor: `color-mix(in srgb, ${palette.signal} 45%, transparent)`,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "grid",
+        fontSize: "0.75rem",
+        gap: "0.375rem",
+        paddingBlock: "0.625rem",
+        paddingInline: "0.75rem",
+    },
+    diffLine: {
+        borderRadius: "3px",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        paddingInline: "0.375rem",
+        whiteSpace: "pre-wrap",
+    },
+    added: {
+        backgroundColor: `color-mix(in srgb, ${palette.green} 16%, transparent)`,
+    },
+    removed: {
+        backgroundColor: `color-mix(in srgb, ${palette.ember} 14%, transparent)`,
+        textDecoration: "line-through",
+    },
     button: {
         borderColor: color.border,
         borderRadius: "6px",
@@ -501,7 +698,9 @@ const styles = style.create({
     trace: {
         alignContent: "start",
         display: "grid",
+        maskImage: "linear-gradient(to bottom, black calc(100% - 1.5rem), transparent)",
         minHeight: 0,
+        overflow: "hidden",
     },
     span: {
         alignItems: "center",
@@ -636,12 +835,86 @@ const styles = style.create({
         color: color.mutedForeground,
         fontSize: "0.6875rem",
     },
+    panels: {
+        display: { default: "grid", [SHORT]: "none" },
+        gap: "0.75rem",
+        gridTemplateColumns: {
+            default: "minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr)",
+            [MEDIUM]: "minmax(0, 1fr) minmax(0, 1fr)",
+        },
+    },
+    path: {
+        alignItems: "center",
+        display: { default: "flex", [SMALL]: "none" },
+        flexWrap: "nowrap",
+        minWidth: 0,
+        overflow: "hidden",
+    },
+    pathNode: {
+        alignItems: "center",
+        borderColor: color.border,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "inline-flex",
+        flexShrink: 0,
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        gap: "0.3125rem",
+        paddingBlock: "0.25rem",
+        paddingInline: "0.4375rem",
+    },
+    pathFault: {
+        backgroundColor: `color-mix(in srgb, ${palette.ember} 12%, transparent)`,
+        borderColor: palette.ember,
+        color: palette.ember,
+    },
+    pathLink: {
+        backgroundColor: color.border,
+        flexGrow: 1,
+        height: "1px",
+        minWidth: "0.5rem",
+    },
+    rowChange: {
+        columnGap: "0.5rem",
+        display: "grid",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        gridTemplateColumns: "minmax(0, 1fr) auto auto",
+    },
+    email: {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    after: {
+        color: palette.green,
+        fontWeight: 600,
+    },
+    codeLine: {
+        borderRadius: "3px",
+        columnGap: "0.625rem",
+        display: "grid",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        gridTemplateColumns: "1.25rem minmax(0, 1fr)",
+        overflow: "hidden",
+        paddingInline: "0.25rem",
+        whiteSpace: "pre",
+    },
+    codeHot: {
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
+    },
+    blame: {
+        fontSize: "0.6875rem",
+    },
     detail: {
+        alignContent: "start",
         borderColor: color.border,
         borderRadius: "8px",
         borderStyle: "solid",
         borderWidth: stroke.border,
-        display: { default: "grid", [SHORT]: "none" },
+        display: "grid",
         gap: "0.625rem",
         paddingBlock: "0.75rem",
         paddingInline: "0.875rem",
@@ -654,8 +927,9 @@ const styles = style.create({
     },
     attributes: {
         display: "grid",
-        gap: "0.75rem",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        columnGap: "0.75rem",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        rowGap: "0.5rem",
     },
     attribute: {
         display: "grid",
@@ -667,25 +941,6 @@ const styles = style.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-    },
-    log: {
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
-        display: "grid",
-        paddingTop: "0.5rem",
-    },
-    logLine: {
-        columnGap: "0.875rem",
-        display: "grid",
-        fontFamily: font.code,
-        fontSize: "0.6875rem",
-        gridTemplateColumns: "6.5rem 2.5rem minmax(0, 1fr)",
-        lineHeight: 1.8,
-        whiteSpace: "nowrap",
-    },
-    warn: {
-        color: palette.ember,
     },
     sideLabel: {
         borderTopColor: color.border,

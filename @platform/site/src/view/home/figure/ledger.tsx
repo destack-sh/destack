@@ -49,6 +49,8 @@ export type Cell = {
     isQuiet: boolean;
     /** Whether the value is a floor, marked with a leading `>`. */
     isFloor: boolean;
+    /** The line set above the value, level with the row's label, such as a saving. */
+    caption: string | undefined;
 };
 
 /** One row of a ledger: what it is, its marks, its colour, and its figures. */
@@ -192,10 +194,20 @@ export function Ledger(properties: {
     );
 }
 
-/** Draw one figure of a row. */
+/** Draw one figure of a row, its value level with the row's name and its caption with the label. */
 function Figure(properties: { cell: Cell }) {
     return (
         <span {...style.attrs(styles.cell)}>
+            {/* caption, kept as an empty line where there is none */}
+            <span {...style.attrs(styles.captionLine)}>
+                {properties.cell.caption !== undefined && (
+                    <span {...style.attrs(styles.caption)}>
+                        <Digits text={properties.cell.caption} />
+                    </span>
+                )}
+            </span>
+
+            {/* value */}
             <span {...style.attrs(styles.value, properties.cell.isQuiet && styles.valueQuiet)}>
                 <Digits text={`${properties.cell.isFloor ? ">" : ""}${properties.cell.value}`} />
             </span>
@@ -424,6 +436,19 @@ const styles = style.create({
         alignSelf: "center",
         display: "grid",
         justifyItems: "end",
+    },
+    captionLine: {
+        display: "flex",
+        height: "0.875rem",
+        marginBottom: "0.125rem",
+    },
+    caption: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: `${QUIET_SIZE}rem`,
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: 400,
+        lineHeight: "0.875rem",
     },
     value: {
         fontFamily: font.code,

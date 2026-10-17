@@ -47,7 +47,7 @@ export function Bill(properties: {
         if (properties.onToggle !== undefined) {
             properties.onToggle(row);
         } else if (properties.lighting !== undefined) {
-            properties.lighting.onChoose(properties.lighting.lit === row ? undefined : row);
+            properties.lighting.onChoose(properties.lighting.chosen === row ? undefined : row);
         }
     };
 
@@ -106,29 +106,42 @@ export function Bill(properties: {
 function meterOf(amount: number, isFloor: boolean): Cell {
     // mark nothing with a dash and a trace with a floor
     if (amount === 0) {
-        return { value: "—", isQuiet: true, isFloor: false };
+        return { value: "—", isQuiet: true, isFloor: false, caption: undefined };
     } else if (amount < 0.01) {
-        return { value: "<0.01", isQuiet: true, isFloor: false };
+        return { value: "<0.01", isQuiet: true, isFloor: false, caption: undefined };
     }
 
-    return { value: decimalOf(amount), isQuiet: true, isFloor };
+    return { value: decimalOf(amount), isQuiet: true, isFloor, caption: undefined };
 }
 
 /** Return a line's figures for a team and audience, as rented or as run in your space. */
 function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
     // price the line's work at your space's rates, or at the vendor's list price
     const usage = usageAt(line.workload, scale);
-    const cost = isOwned ? usageCostOf(usage, rates) : costOf(line.entry.stacked, scale);
+    const rent = costOf(line.entry.stacked, scale);
+    const cost = isOwned ? usageCostOf(usage, rates) : rent;
 
     // leave the cost blank where nothing does the job or another subscription bills it
     const isBlank = isEmptyOf(line.entry.stacked.mark) || cost === undefined;
+
+    // set the change against the rent above an owned cost, where there is a rent to compare
+    const caption =
+        isOwned && !isBlank && rent !== undefined && rent > 0 ? changeOf(cost, rent) : undefined;
 
     return [
         meterOf(usage.database / GB, false),
         meterOf(usage.files / GB, false),
         meterOf(usage.memory, line.workload.isAtLeast),
-        { value: isBlank ? "—" : decimalOf(cost), isQuiet: false, isFloor: false },
+        { value: isBlank ? "—" : decimalOf(cost), isQuiet: false, isFloor: false, caption },
     ];
+}
+
+/** Return a cost's change against the rent as a whole percent, a saving rounded toward none. */
+function changeOf(cost: number, rent: number): string {
+    // floor the saving, so a saving short of everything never reads as a hundred percent
+    const saving = Math.floor((1 - cost / rent) * 100);
+
+    return saving >= 0 ? `\u2212${saving}%` : `+${-saving}%`;
 }
 
 /** Return the characters a figure takes, its floor mark included. */
@@ -153,9 +166,14 @@ function decimalOf(amount: number): string {
 
 /** Return the plan a rented item is on, set as the start of a sentence. */
 function planOf(item: Item): string {
-    // read the plan's basis, or say the item comes with the rest
+    // read the plan's basis and list price, or say the item comes with the rest
     const price = item.price;
-    const basis = price.kind === "included" ? "included" : price.basis;
+    const basis =
+        price.kind === "included"
+            ? "included"
+            : price.kind === "fee"
+              ? `${price.basis}, ${price.listed}`
+              : price.basis;
 
     return `${basis.charAt(0).toUpperCase()}${basis.slice(1)}`;
 }

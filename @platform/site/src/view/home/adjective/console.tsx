@@ -54,21 +54,43 @@ const events: readonly (readonly [id: number, type: string, detail: string, isFa
         [8, "WorkflowExecutionFailed", "activity sendInvites failed", true],
     ];
 
-/** The mail service's API log for the batch: time, method, path, status, and how long it took. */
-const requests: readonly (readonly [time: string, path: string, status: number, took: string])[] = [
-    ["09:41:03.412", "/emails", 429, "38 ms"],
-    ["09:41:03.388", "/emails", 429, "41 ms"],
-    ["09:41:03.361", "/emails", 429, "36 ms"],
-    ["09:41:03.340", "/emails", 429, "40 ms"],
-    ["09:41:03.102", "/emails", 200, "212 ms"],
-    ["09:41:02.874", "/emails", 200, "198 ms"],
-    ["09:41:02.651", "/emails", 200, "205 ms"],
-    ["09:41:02.430", "/emails", 200, "221 ms"],
-    ["09:41:02.207", "/emails", 200, "201 ms"],
+/** One request in the mail service's API log: time, method, path, status, and how long it took. */
+type ResendRequest = readonly [
+    time: string,
+    method: "GET" | "POST",
+    path: string,
+    status: number,
+    took: string,
 ];
 
-/** Draw the mail service's API log: the batch's sends, and the run of rejections after 230. */
-export function ResendLogs() {
+/** The mail service's API log for the batch, newest first: the sends, then the rejections. */
+export const batchRequests: readonly ResendRequest[] = [
+    ["09:41:03.412", "POST", "/emails", 429, "38 ms"],
+    ["09:41:03.388", "POST", "/emails", 429, "41 ms"],
+    ["09:41:03.361", "POST", "/emails", 429, "36 ms"],
+    ["09:41:03.340", "POST", "/emails", 429, "40 ms"],
+    ["09:41:03.102", "POST", "/emails", 200, "212 ms"],
+    ["09:41:02.874", "POST", "/emails", 200, "198 ms"],
+    ["09:41:02.651", "POST", "/emails", 200, "205 ms"],
+    ["09:41:02.430", "POST", "/emails", 200, "221 ms"],
+    ["09:41:02.207", "POST", "/emails", 200, "201 ms"],
+];
+
+/** An agent reading the last mail's opens one email at a time, newest first, over 2 a second. */
+export const opensRequests: readonly ResendRequest[] = [
+    ["10:05:41.902", "POST", "/emails/batch", 200, "312 ms"],
+    ["10:05:38.517", "GET", "/emails/4f1c…", 200, "64 ms"],
+    ["10:05:38.011", "GET", "/emails/9a07…", 200, "58 ms"],
+    ["10:05:37.996", "GET", "/emails/2b8e…", 429, "12 ms"],
+    ["10:05:37.984", "GET", "/emails/c41d…", 429, "11 ms"],
+    ["10:05:37.502", "GET", "/emails/7e93…", 200, "61 ms"],
+    ["10:05:37.004", "GET", "/emails/d0a2…", 200, "57 ms"],
+    ["10:05:36.991", "GET", "/emails/18f6…", 429, "13 ms"],
+    ["10:05:36.503", "GET", "/emails/5c3b…", 200, "62 ms"],
+];
+
+/** Draw the mail service's API log, its requests newest first. */
+export function ResendLogs(properties: { requests: readonly ResendRequest[] }) {
     return (
         <div data-component="ResendLogs" {...style.attrs(styles.resend)}>
             {/* navigation */}
@@ -114,7 +136,7 @@ export function ResendLogs() {
                         <span>Duration</span>
                         <span>Created</span>
                     </span>
-                    {requests.map(([time, path, status, took]) => (
+                    {properties.requests.map(([time, method, path, status, took]) => (
                         <span {...style.attrs(styles.resendRow)}>
                             <span
                                 {...style.attrs(
@@ -124,7 +146,9 @@ export function ResendLogs() {
                             >
                                 {status}
                             </span>
-                            <code {...style.attrs(styles.resendCode)}>POST {path}</code>
+                            <code {...style.attrs(styles.resendCode)}>
+                                {method} {path}
+                            </code>
                             <span {...style.attrs(styles.resendMuted)}>{took}</span>
                             <span {...style.attrs(styles.resendMuted)}>{time}</span>
                         </span>

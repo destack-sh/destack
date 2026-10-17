@@ -1,6 +1,6 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createSignal } from "@destack/view";
+import { createEffect, createSignal } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { createTimer } from "@destack/view/primitives/timer";
@@ -10,21 +10,33 @@ import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
-import { pages, SpaceBrowser, type Viewer } from "../verb/space";
+import { pages, SpaceBrowser, type Vendor, type Viewer } from "../verb/space";
+import { opensRequests, ResendLogs } from "../adjective/console";
 import { AgentChat, assistants } from "./chat";
-import { turns } from "./scene";
+import { destacked, stacked } from "./scene";
+import { sources } from "../verb/source";
 
 /** The milliseconds a beat takes. */
 const BEAT = 500;
 
-/** The beats each scene stays open: the call, its result landing, then time to read both. */
-const SCENE_BEATS = 12;
+/** The beats each step of the task stays before the next one lands. */
+const STEP_BEATS = 3;
 
-/** The beat within a scene at which your space's call lands. */
-const LANDING = 5;
+/** The beats the finished task holds before it runs again. */
+const HOLD_BEATS = 12;
 
-/** The beat within a scene at which the chat takes the next assistant's look. */
-const RESKIN = 9;
+/** The rows of fig. 1 the task touches: Chat, Mail and the waitlist. */
+const ROWS: readonly number[] = [3, 7, 8];
+
+/** The mail service the agent reaches through its connector, in place of fig. 1's mail. */
+const resend: Vendor = {
+    row: 7,
+    icon: "resend",
+    tint: "#000000",
+    title: "Logs · Resend",
+    site: "resend.com/logs",
+    page: () => <ResendLogs requests={opensRequests} />,
+};
 
 /** The command every app answers to, as an imperative. */
 const command: Form = {
@@ -32,8 +44,8 @@ const command: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "imperative",
     sense: {
-        definition: "every app, fully programmable",
-        highlight: ["fully programmable"],
+        definition: "every app, programmable and composable",
+        highlight: ["programmable", "composable"],
         sentence: "One API across your whole space, for you and your agents, within your rules.",
     },
 };
@@ -45,37 +57,61 @@ export function Command(properties: { isOpen: boolean }) {
     const isReduced = createReducedMotion(section);
     const isShown = createVisibilityObserver(section, { initialValue: true });
 
-    // count beats, held while still or off screen, landing each scene's call partway through
+    // count beats, held while still or off screen, and start the task again on every switch
     const [beat, setBeat] = createSignal(0);
     createTimer(
         () => setBeat((current) => current + 1),
         () => (!isReduced() && isShown() ? BEAT : false),
         setInterval,
     );
-    const isLanded = () => isReduced() || beat() % SCENE_BEATS >= LANDING;
+    createEffect(
+        () => properties.isOpen,
+        () => {
+            setBeat(0);
+        },
+    );
 
-    // open each scene in turn, until the reader opens one
-    const [chosen, setChosen] = createSignal<number>();
-    const scene = () => chosen() ?? Math.floor(beat() / SCENE_BEATS) % turns.length;
+    // run the task in the state the stack is in, a step every few beats, then hold and run again
+    const steps = () => (properties.isOpen ? destacked : stacked);
+    const run = () => steps().length * STEP_BEATS + HOLD_BEATS;
+    const shown = () =>
+        isReduced()
+            ? steps().length
+            : Math.min(steps().length, Math.floor((beat() % run()) / STEP_BEATS) + 1);
+    const step = () => present(steps()[shown() - 1], "shown step");
 
-    // take each assistant's look in turn, a few beats before each new turn
-    const look = () =>
-        assistants[Math.floor((beat() + SCENE_BEATS - RESKIN) / SCENE_BEATS) % assistants.length] ??
-        "Claude";
+    // show the chat up to the step reached, an approval replaced once its outcome lands
+    const items = () => {
+        const reached = steps()
+            .slice(0, shown())
+            .map((candidate) => candidate.item);
+        const isApproved = reached.some((item) => item.kind === "approval" && item.isApproved);
 
-    // show the open scene's app as fig. 1 shows it, and choose a scene from its tabs
+        return reached.filter(
+            (item) => !(item.kind === "approval" && !item.isApproved && isApproved),
+        );
+    };
+
+    // take the next assistant's look each time the task runs again
+    const look = () => assistants[Math.floor(beat() / run()) % assistants.length] ?? "Claude";
+
+    // show the page the reader opens from a tab, or else the page of fig. 1 the step touches
     const [viewer, setViewer] = createSignal<Viewer>("Me");
+    const [opened, setOpened] = createSignal<number | undefined>(undefined);
+    const row = () => opened() ?? step().row;
     const page = () =>
         present(
-            pages.find((candidate) => candidate.row === turns[scene()]?.row),
-            "scene page",
+            pages.find((candidate) => candidate.row === row()),
+            "step page",
         );
-    const chooseRow = (row: number | undefined) => {
-        const index = turns.findIndex((candidate) => candidate.row === row);
-        if (index >= 0) {
-            setChosen(index);
-        }
-    };
+
+    // let the task take the page back when it runs again
+    createEffect(
+        () => Math.floor(beat() / run()),
+        () => {
+            setOpened(undefined);
+        },
+    );
 
     return (
         <section
@@ -92,8 +128,8 @@ export function Command(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={5}
                 isOpen={properties.isOpen}
-                stacked="four apps, four APIs"
-                destacked="every app, one API"
+                stacked="three apps, three connectors"
+                destacked="three apps, one space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -103,27 +139,25 @@ export function Command(properties: { isOpen: boolean }) {
                 </Label>
                 <SpaceBrowser
                     name="interface"
-                    rows={turns.map((candidate) => candidate.row)}
-                    isChanged={properties.isOpen && isLanded()}
+                    rows={ROWS}
+                    isChanged={step().isChanged && row() === step().row}
+                    source={present(sources[0], "first source")}
+                    vendor={resend}
+                    remix={undefined}
                     isOpenAt={() => properties.isOpen}
                     page={page()}
                     viewer={viewer()}
                     onViewer={setViewer}
-                    onChoose={chooseRow}
+                    onChoose={setOpened}
                 />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.console)}>
                 <Label>
                     {properties.isOpen
-                        ? "Your agent, one universal integration"
+                        ? "Your agent, one integration for everything"
                         : "Your agent, one connector per app"}
                 </Label>
-                <AgentChat
-                    isOpen={properties.isOpen}
-                    turn={scene()}
-                    isLanded={isLanded()}
-                    assistant={look()}
-                />
+                <AgentChat isOpen={properties.isOpen} items={items()} assistant={look()} />
             </div>
         </section>
     );

@@ -1,12 +1,17 @@
 import * as style from "@destack/style";
+import { present } from "@destack/schema";
+import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { createSignal, type JSX } from "@destack/view";
+import { createTimer } from "@destack/view/primitives/timer";
 
 import { palette } from "../../palette.stylex";
+import { screen } from "../../layout/screen.stylex";
+import { chrome } from "../figure/chrome.stylex";
 import { browserStyles } from "../figure/browser";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import { ObservabilityIssue } from "./observability";
-import { ResendLogs, SentryIssue, SupabaseQuery, TemporalRun } from "./console";
+import { batchRequests, ResendLogs, SentryIssue, SupabaseQuery, TemporalRun } from "./console";
 import { ChatGPTTasks, GitHubRun, NotionAutomations } from "./rented";
 
 /** A rented console you open to look at launch day. */
@@ -29,7 +34,13 @@ const consoles: readonly (readonly [
         "symbol.sentry.io/issues/4812/",
         SentryIssue,
     ],
-    ["resend", "resend.svg", "Logs · Resend", "resend.com/logs", ResendLogs],
+    [
+        "resend",
+        "resend.svg",
+        "Logs · Resend",
+        "resend.com/logs",
+        () => <ResendLogs requests={batchRequests} />,
+    ],
     [
         "temporal",
         "temporal.png",
@@ -53,6 +64,23 @@ const consoles: readonly (readonly [
     ],
 ];
 
+/** The milliseconds each console shows before the browser turns to the next. */
+const TURN_TIME = 2400;
+
+/** What each console tells you about launch day, in a line. */
+const findings: Readonly<Record<Console, string>> = {
+    chatgpt: "a task can't reach the waitlist database",
+    notion: "Maya asks who approved this batch",
+    sentry: "ResendError 429 at batch 3",
+    resend: "170 sends rejected with 429",
+    temporal: "sendInvites failed at 230",
+    supabase: "1,840 still waiting",
+    github: "a test wants batches to wait out the limit",
+};
+
+/** The questions none of the consoles answers. */
+const questions: readonly string[] = ["Who approved batch 3?", "Did the waitlist get marked?"];
+
 /** The colours of the vendor icons drawn from the glyph set. */
 const tints: Readonly<Record<string, string>> = {
     openai: "#10a37f",
@@ -74,11 +102,28 @@ export function Inspector(properties: { isOpen: boolean }) {
     );
 }
 
-/** Draw the rented consoles in a browser, a tab each, as each vendor draws its page. */
+/** Draw the rented consoles in a browser, a tab each turning on its own, and what each told you. */
 function RentedConsoles() {
-    // hold the console open
-    const [open, setOpen] = createSignal<Console>("sentry");
-    const shown = () => consoles.find(([key]) => key === open()) ?? consoles[0];
+    // turn to the next console every page time until the reader opens one
+    const [turned, setTurned] = createSignal(0);
+    const [opened, setOpened] = createSignal<Console>();
+    createTimer(
+        () => setTurned((current) => current + 1),
+        () => (opened() === undefined ? TURN_TIME : false),
+        setInterval,
+    );
+    const index = () => {
+        const chosen = opened();
+
+        return chosen === undefined
+            ? turned() % consoles.length
+            : consoles.findIndex(([key]) => key === chosen);
+    };
+    const shown = () => present(consoles[index()], "shown console");
+
+    // collect what every console seen so far told you
+    const seen = () =>
+        consoles.filter(([key], position) => position <= turned() || key === opened());
 
     return (
         <div data-component="Browser" {...style.attrs(browserStyles.browser, styles.browser)}>
@@ -88,11 +133,11 @@ function RentedConsoles() {
                     <span
                         data-component="Tab"
                         title={title}
-                        onClick={() => setOpen(key)}
+                        onClick={() => setOpened(key)}
                         {...style.attrs(
                             browserStyles.tab,
                             browserStyles.tabEven,
-                            key === open() && browserStyles.tabOn,
+                            key === shown()[0] && browserStyles.tabOn,
                             browserStyles.tabSteady,
                         )}
                     >
@@ -101,9 +146,33 @@ function RentedConsoles() {
                     </span>
                 ))}
             </div>
-            <Address url={shown()?.[3] ?? ""} />
+            <Address url={shown()[3]} />
             <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                <div {...style.attrs(styles.scaled)}>{shown()?.[4]()}</div>
+                <div {...style.attrs(styles.scaled)}>{shown()[4]()}</div>
+
+                {/* what each console told you, and what none of them answers */}
+                <aside data-component="Investigation" {...style.attrs(styles.investigation)}>
+                    <span {...style.attrs(styles.found)}>
+                        <span {...style.attrs(styles.investigationLabel)}>
+                            Found in {seen().length} of {consoles.length} tabs
+                        </span>
+                        {seen().map(([key, logo]) => (
+                            <span {...style.attrs(styles.finding)}>
+                                <TabMark logo={logo} />
+                                {findings[key]}
+                            </span>
+                        ))}
+                    </span>
+                    <span {...style.attrs(styles.open)}>
+                        <span {...style.attrs(styles.investigationLabel)}>Still open</span>
+                        {questions.map((question) => (
+                            <span {...style.attrs(styles.question)}>
+                                <span {...style.attrs(styles.questionMark)}>?</span>
+                                {question}
+                            </span>
+                        ))}
+                    </span>
+                </aside>
             </div>
         </div>
     );
@@ -178,6 +247,78 @@ const styles = style.create({
     browser: {
         boxShadow: "none",
         height: "100%",
+    },
+    investigation: {
+        backgroundColor: color.card,
+        borderColor: color.border,
+        borderRadius: chrome.radius,
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        bottom: "0.75rem",
+        boxShadow: shadow.raised,
+        display: "grid",
+        fontSize: "0.75rem",
+        gap: "1.25rem",
+        gridTemplateColumns: {
+            default: "minmax(0, 2fr) minmax(0, 1fr)",
+            [screen.belowDesktop]: "1fr",
+        },
+        insetInline: "0.75rem",
+        paddingBlock: "0.75rem",
+        paddingInline: "1rem",
+        position: "absolute",
+        zIndex: 1,
+    },
+    found: {
+        alignContent: "start",
+        columnGap: "1rem",
+        display: "grid",
+        gridTemplateColumns: { default: "repeat(2, minmax(0, 1fr))", [screen.belowDesktop]: "1fr" },
+        rowGap: "0.375rem",
+    },
+    investigationLabel: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: "0.625rem",
+        gridColumn: "1 / -1",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+    },
+    finding: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.4375rem",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    open: {
+        alignContent: "start",
+        borderInlineStartColor: color.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: { default: stroke.border, [screen.belowDesktop]: 0 },
+        display: "grid",
+        paddingInlineStart: { default: "1.25rem", [screen.belowDesktop]: 0 },
+        rowGap: "0.375rem",
+    },
+    question: {
+        alignItems: "center",
+        display: "flex",
+        fontWeight: 600,
+        gap: "0.4375rem",
+    },
+    questionMark: {
+        alignItems: "center",
+        backgroundColor: `color-mix(in srgb, ${palette.ember} 14%, transparent)`,
+        borderRadius: "50%",
+        color: palette.ember,
+        display: "flex",
+        flexShrink: 0,
+        fontSize: "0.6875rem",
+        height: "1.125rem",
+        justifyContent: "center",
+        width: "1.125rem",
     },
     favicon: {
         borderRadius: "3px",

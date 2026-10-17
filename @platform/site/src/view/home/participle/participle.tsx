@@ -25,7 +25,7 @@ const participle: Form = {
     sense: {
         definition: "making all your software work as one",
         highlight: ["work as one"],
-        sentence: "Pick the tools you already use, and see what they could become.",
+        sentence: "Begin with the tools you already know.",
     },
 };
 
@@ -42,7 +42,7 @@ export function Participle(properties: {
     const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, stepTime, isReduced);
 
     // read the bill for a team of the size the reader dials
-    const [people, setPeople] = createSignal<number>(1);
+    const [people, setPeople] = createSignal<number>(5);
 
     return (
         <>
@@ -66,9 +66,7 @@ export function Participle(properties: {
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>
                 <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                    <Label>
-                        {properties.isOpen ? "Your own space in the cloud" : "Your tools"}
-                    </Label>
+                    <Label>{properties.isOpen ? "Your tools, owned" : "Your tools, rented"}</Label>
                     <ToolWall
                         picks={properties.picks}
                         isOpen={properties.isOpen}
@@ -87,10 +85,10 @@ export function Participle(properties: {
                             />
                         }
                     >
-                        <Label>{properties.isOpen ? "Your space" : "Your stack"}</Label>
+                        <Label>{properties.isOpen ? "Your space, by use" : "Rent, per seat"}</Label>
                     </LabelRow>
                     <Bill
-                        isWindow={false}
+                        isWindow
                         lines={tallyOf(properties.picks)}
                         scale={{ people: people(), users: BASE_USERS }}
                         scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
@@ -100,7 +98,10 @@ export function Participle(properties: {
             </section>
 
             {/* install in one of three ways, the agent's prompt naming the picked tools */}
-            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}>
+            <section
+                id="install"
+                {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}
+            >
                 <InstallWays prompt={properties.prompt} />
             </section>
         </>

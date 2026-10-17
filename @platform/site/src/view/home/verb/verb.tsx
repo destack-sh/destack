@@ -15,7 +15,7 @@ import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import {
     everyRow,
-    holdings,
+    holdingsWith,
     pages,
     Presence,
     PresenceAnchor,
@@ -25,6 +25,7 @@ import {
 import type { Stagger } from "../figure/stagger";
 import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
+import { sources } from "./source";
 import { screen } from "../../layout/screen.stylex";
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
@@ -36,6 +37,15 @@ const settleOut = 300;
 /** The milliseconds each page of your corner holds before the browser turns to the next. */
 const pageTime = 5200;
 
+/** The milliseconds your agent takes to make a change you asked for. */
+const remixTime = 1400;
+
+/** The milliseconds an owned Tasks page shows before your agent remixes it once on its own. */
+const firstRemixAt = 1800;
+
+/** The row of Tasks, which your agent remixes once on its own. */
+const TASKS_ROW = 2;
+
 /** The verb, which titles the page. */
 const verb: Form = {
     syllables: ["de", "stack"],
@@ -44,7 +54,13 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence: "Own your apps and agents in one personal superapp.",
+        sentence: undefined,
+        points: [
+            { label: "Own your apps", href: "#verb" },
+            { label: "Keep your context", href: "#past-participle" },
+            { label: "Integrate your agents", href: "#imperative" },
+        ],
+        link: { label: "Build your personal superapp", href: "#present-participle" },
     },
 };
 
@@ -67,6 +83,9 @@ export function Verb(properties: { isOpen: boolean }) {
             return lit() ?? chosen();
         },
         onChoose: setChosen,
+        get chosen() {
+            return chosen();
+        },
         onLight: (row: number | undefined) => {
             // light the row at once, and turn the browser only once the pointer rests
             setLit(row);
@@ -76,7 +95,7 @@ export function Verb(properties: { isOpen: boolean }) {
     };
 
     // read the bill for a team of the size the reader dials
-    const [people, setPeople] = createSignal<number>(1);
+    const [people, setPeople] = createSignal<number>(5);
 
     // follow the motion the section shows, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
@@ -95,6 +114,21 @@ export function Verb(properties: { isOpen: boolean }) {
         setViewer(next);
     };
 
+    // ask your agent to change an app, which it does a moment later
+    const [remixed, setRemixed] = createSignal<readonly number[]>([]);
+    const [asking, setAsking] = createSignal<number | undefined>(undefined);
+    const remix = (row: number) => {
+        setAsking(row);
+        setTimeout(() => {
+            setRemixed((rows) => (rows.includes(row) ? rows : [...rows, row]));
+            setAsking(undefined);
+        }, remixTime);
+    };
+
+    // turn to the next personal app each time the browser comes round
+    const source = () =>
+        present(sources[Math.floor(turned() / pages.length) % sources.length], "turned source");
+
     // show the page of the pointed or chosen holding, or else the page the window has turned to
     const page = () =>
         present(
@@ -102,6 +136,20 @@ export function Verb(properties: { isOpen: boolean }) {
                 pages[turned() % pages.length],
             "shown page",
         );
+
+    // remix Tasks once on its own the first time its owned page shows
+    createTimer(
+        () => remix(TASKS_ROW),
+        () =>
+            isOpenAt(1) &&
+            page().row === TASKS_ROW &&
+            remixed().length === 0 &&
+            asking() === undefined &&
+            !isReduced()
+                ? firstRemixAt
+                : false,
+        setTimeout,
+    );
 
     // turn to the next page the viewer may see every page time, held while still or off screen
     createTimer(
@@ -142,16 +190,14 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="eight separate apps, eight separate stacks"
-                destacked="eight unified apps, one integrated space"
+                stacked="eight apps, rented as silos"
+                destacked="eight apps, owned as one space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
-                    {isOpenAt(0)
-                        ? "Your space, and your agent sees all of it"
-                        : "Eight rented apps, none truly yours"}
+                    {isOpenAt(0) ? "Your work, in your space" : "Your work, on their servers"}
                 </Label>
                 <SpaceBrowser
                     name="space"
@@ -162,6 +208,9 @@ export function Verb(properties: { isOpen: boolean }) {
                     viewer={viewer()}
                     onViewer={chooseViewer}
                     onChoose={setChosen}
+                    source={source()}
+                    vendor={undefined}
+                    remix={{ remixed: remixed(), asking: asking(), onRemix: remix }}
                 />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
@@ -177,18 +226,14 @@ export function Verb(properties: { isOpen: boolean }) {
                     }
                 >
                     <Fade isOpen={isOpenAt(0)}>
-                        <Label>
-                            {isOpenAt(0)
-                                ? "One cloud, one invoice"
-                                : "Eight clouds, eight invoices"}
-                        </Label>
+                        <Label>{isOpenAt(0) ? "Your space, by use" : "Rent, per seat"}</Label>
                     </Fade>
                 </LabelRow>
                 <Bill
                     isWindow
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
-                    lines={holdings.map((entry) => ({
+                    lines={holdingsWith(source()).map((entry) => ({
                         entry,
                         workload: workloadOf(entry.stacked.name),
                         tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),

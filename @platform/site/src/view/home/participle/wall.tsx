@@ -2,13 +2,14 @@ import { media } from "@destack/style/media.stylex";
 import {
     flat,
     monthlyOf,
+    listedOf,
     priceOf,
     type Price,
     sumOf,
     type Workload,
     workloadOf,
 } from "../figure/price";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createEffect } from "@destack/view";
@@ -16,8 +17,11 @@ import { createEffect } from "@destack/view";
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
+import { Glyph } from "../figure/glyph";
+import { palette } from "../../palette.stylex";
 import { accentOf, type Entry, type Line } from "../figure/item";
 import { chrome } from "../figure/chrome.stylex";
+import { browserStyles } from "../figure/browser";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 
@@ -293,6 +297,7 @@ function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price 
         kind: "fee",
         monthlyAt: (scale) => monthlyOf(added.map(priceOf), scale),
         basis: `${added.length} subscriptions`,
+        listed: added.map(listedOf).join(" + "),
     };
 }
 
@@ -326,6 +331,23 @@ const rows: readonly Row[] = [...spaceJobs, "workflows" as const].map((job) => (
     app: apps[job],
     tools: tools.filter((tool) => tool.job === job),
 }));
+
+/** An app you could make in your space by joining the apps of several jobs. */
+type Make = { name: string; icon: string; jobs: readonly Job[] };
+
+/** The apps you could make, each joining the apps of the jobs it needs. */
+const makes: readonly Make[] = [
+    { name: "Launch room", icon: "chat", jobs: ["pages", "chat"] },
+    { name: "Roadmap", icon: "tasks", jobs: ["pages", "tasks"] },
+    { name: "Client portal", icon: "pages", jobs: ["pages", "tasks", "chat"] },
+    { name: "CRM", icon: "table", jobs: ["tables", "mail", "calendar"] },
+    { name: "Booking page", icon: "calendar", jobs: ["calendar", "mail"] },
+    { name: "Standups", icon: "sync", jobs: ["tasks", "chat"] },
+    { name: "Reading list", icon: "table", jobs: ["tables", "pages"] },
+];
+
+/** The most apps to make the wall offers at once, as many as fit beside each other. */
+const MAKE_COUNT = 2;
 
 /** The milliseconds a mark takes to move to its new place. */
 const moveTime = 560;
@@ -365,40 +387,79 @@ export function ToolWall(properties: {
     );
 
     return (
-        <ol ref={wall} data-component="ToolWall" {...style.attrs(styles.wall)}>
-            {/* column heads, as tall as the bill's beside it so the rows line up */}
-            <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
-                <span {...style.attrs(styles.label)}>Job</span>
-                <span {...style.attrs(styles.heading)}>
-                    <span {...style.attrs(styles.label)}>Tools</span>
-                    <span {...style.attrs(styles.label)}>
-                        {properties.isOpen ? "In your space" : "Pick the ones you use"}
-                    </span>
-                </span>
-            </li>
-            {rows.map((row) => (
-                <li {...style.attrs(styles.row)}>
-                    <span {...style.attrs(styles.label)}>{row.label}</span>
-                    <span {...style.attrs(styles.marks)}>
+        <div data-component="ToolWall" {...style.attrs(styles.window)}>
+            {/* window strip, level with the bill's beside it */}
+            <div aria-hidden="true" {...style.attrs(styles.strip)}>
+                <span {...style.attrs(browserStyles.lights)} />
+            </div>
+
+            <ol ref={wall} {...style.attrs(styles.wall)}>
+                {/* column heads, as tall as the bill's beside it so the rows line up */}
+                <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
+                    <span {...style.attrs(styles.label)}>Job</span>
+                    <span {...style.attrs(styles.headLine)}>
+                        <span {...style.attrs(styles.heading)}>
+                            <span {...style.attrs(styles.label)}>Tools</span>
+                            <span {...style.attrs(styles.label)}>
+                                {properties.isOpen ? "In your space" : "Pick the ones you use"}
+                            </span>
+                        </span>
+
+                        {/* the apps you could make from the jobs your picks cover */}
                         {properties.isOpen ? (
-                            <>
-                                <AppMark row={row} picked={pickedOf(row)} />
-                                <Note picked={pickedOf(row)} />
-                            </>
-                        ) : (
-                            row.tools.map((tool) => (
-                                <ToolButton
-                                    tool={tool}
-                                    isPicked={properties.picks.includes(tool.name)}
-                                    onPick={properties.onPick}
-                                />
-                            ))
-                        )}
+                            <span {...style.attrs(styles.makes)}>
+                                <span {...style.attrs(styles.label)}>Make</span>
+                                {makesOf(properties.picks).map((make) => (
+                                    <span
+                                        title={make.jobs.map((job) => apps[job].name).join(" + ")}
+                                        {...style.attrs(styles.chip, styles.make)}
+                                    >
+                                        <Tile icon={make.icon} size="small" />
+                                        <span {...style.attrs(styles.appName)}>{make.name}</span>
+                                        <Glyph name="remix" size={11} />
+                                    </span>
+                                ))}
+                            </span>
+                        ) : undefined}
                     </span>
                 </li>
-            ))}
-        </ol>
+                {rows.map((row) => (
+                    <li {...style.attrs(styles.row)}>
+                        <span {...style.attrs(styles.label)}>{row.label}</span>
+                        <span {...style.attrs(styles.marks)}>
+                            {properties.isOpen ? (
+                                <>
+                                    <AppMark row={row} picked={pickedOf(row)} />
+                                    <Note picked={pickedOf(row)} />
+                                </>
+                            ) : (
+                                row.tools.map((tool) => (
+                                    <ToolButton
+                                        tool={tool}
+                                        isPicked={properties.picks.includes(tool.name)}
+                                        onPick={properties.onPick}
+                                    />
+                                ))
+                            )}
+                        </span>
+                    </li>
+                ))}
+            </ol>
+        </div>
     );
+}
+
+/** Return the apps you could make from the jobs your picks cover, the fullest first. */
+function makesOf(picks: readonly string[]): readonly Make[] {
+    // read the jobs some pick covers, and keep the apps whose jobs all are
+    const covered = new Set(
+        tools.filter((tool) => picks.includes(tool.name)).map((tool) => tool.job),
+    );
+    const ready = makes.filter((make) => make.jobs.every((job) => covered.has(job)));
+
+    return ready
+        .toSorted((first, second) => second.jobs.length - first.jobs.length)
+        .slice(0, MAKE_COUNT);
 }
 
 /** Draw a tool to pick: its mark and its name, underlined once picked. */
@@ -645,13 +706,49 @@ const styles = style.create({
         flexShrink: 0,
         objectFit: "cover",
     },
+    window: {
+        backgroundColor: color.card,
+        borderColor: color.border,
+        borderRadius: chrome.radius,
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        boxShadow: shadow.raised,
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
+        overflow: "hidden",
+    },
+    headLine: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.75rem",
+        justifyContent: "space-between",
+        minWidth: 0,
+    },
+    makes: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.375rem",
+        minWidth: 0,
+        overflow: "hidden",
+    },
+    make: {
+        color: palette.signal,
+    },
+    strip: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        boxSizing: "border-box",
+        display: "flex",
+        height: chrome.strip,
+        paddingInline: "0.875rem",
+    },
     wall: {
         display: "flex",
         flexDirection: "column",
-        height: "100%",
         listStyle: "none",
         margin: 0,
-        minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
+        minHeight: 0,
         padding: 0,
     },
     row: {
@@ -669,6 +766,8 @@ const styles = style.create({
         },
         minHeight: "2.25rem",
         paddingBlock: { default: 0, [media.maxMd]: "0.375rem" },
+        paddingInline: "0.75rem",
+        ":last-child": { borderBottomWidth: 0 },
     },
     label: {
         color: color.mutedForeground,
@@ -679,13 +778,12 @@ const styles = style.create({
         textTransform: "uppercase",
     },
     head: {
-        alignItems: "start",
-        borderBottomWidth: 0,
+        alignItems: "center",
         boxSizing: "border-box",
         flexBasis: "auto",
         flexGrow: 0,
-        height: chrome.strip,
-        paddingBlock: "0.375rem",
+        height: chrome.toolbar,
+        paddingBlock: 0,
     },
     heading: {
         display: "grid",

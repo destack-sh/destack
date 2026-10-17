@@ -14,6 +14,7 @@ import {
     rowCells,
 } from "./board";
 import { Card, type Entity } from "./card";
+import { listedOf } from "../figure/price";
 import { palette } from "../../palette.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
@@ -52,35 +53,50 @@ export const entities: Record<string, Entity> = {
     chatgpt: { label: "ChatGPT", icon: "openai", role: "Agent", tint: "#10a37f" },
     claude: { label: "Claude", icon: "claude", role: "Agent", tint: "#d97757" },
 
-    // silos, at the list price of their entry team plan, billed yearly
+    // silos, at the list price of the plan a team buys
     notion: {
         label: "Notion",
         icon: "notion",
-        role: "$10/seat/mo + credits",
+        role: `${listedOf("Notion")} + credits`,
         tint: "#ffffff",
         glyph: "#191919",
     },
     airtable: {
         label: "Airtable",
         icon: "airtable",
-        role: "$20/seat/mo",
+        role: listedOf("Airtable"),
         tint: "#18bfff",
     },
-    typeform: { label: "Typeform", icon: "typeform", role: "$28/mo", tint: "#262627" },
-    dropbox: { label: "Dropbox", icon: "dropbox", role: "$15/seat/mo", tint: "#0061ff" },
-    figma: { label: "Figma", icon: "figma", role: "$16/seat/mo + credits", tint: "#f24e1e" },
-    slack: { label: "Slack", icon: "slack", role: "$7.25/seat/mo", tint: "#4a154b" },
+    typeform: { label: "Typeform", icon: "typeform", role: listedOf("Typeform"), tint: "#262627" },
+    dropbox: { label: "Dropbox", icon: "dropbox", role: listedOf("Dropbox"), tint: "#0061ff" },
+    figma: {
+        label: "Figma",
+        icon: "figma",
+        role: `${listedOf("Figma")} + credits`,
+        tint: "#f24e1e",
+    },
+    slack: { label: "Slack", icon: "slack", role: listedOf("Slack"), tint: "#4a154b" },
     granola: {
         label: "Granola",
         icon: "file",
-        role: "$14/seat/mo",
+        role: listedOf("Granola"),
         tint: "#9cbb3c",
         logos: ["granola.png"],
     },
-    gdocs: { label: "Google Docs", icon: "googledocs", role: "$7/seat/mo", tint: "#4285f4" },
-    calendly: { label: "Calendly", icon: "calendly", role: "$10/seat/mo", tint: "#006bff" },
-    linear: { label: "Linear", icon: "linear", role: "$10/seat/mo + credits", tint: "#5e6ad2" },
-    github: { label: "GitHub", icon: "github", role: "$4/seat/mo", tint: "#24292f" },
+    gdocs: {
+        label: "Google Docs",
+        icon: "googledocs",
+        role: listedOf("Google Workspace"),
+        tint: "#4285f4",
+    },
+    calendly: { label: "Calendly", icon: "calendly", role: listedOf("Calendly"), tint: "#006bff" },
+    linear: {
+        label: "Linear",
+        icon: "linear",
+        role: listedOf("Linear"),
+        tint: "#5e6ad2",
+    },
+    github: { label: "GitHub", icon: "github", role: listedOf("GitHub"), tint: "#24292f" },
     // homemade apps, each built with an app builder on rented services
     tracker: {
         label: "Launch tracker",
@@ -97,10 +113,16 @@ export const entities: Record<string, Entity> = {
         label: "Launch tracker",
         icon: "tasks",
         role: "Built on Destack",
+        isRemix: true,
     },
-    ownPortal: { label: "Client portal", icon: "pages", role: "Built on Destack" },
-    ownPipeline: { label: "Hiring board", icon: "accounts", role: "Built on Destack" },
-    ownBudget: { label: "Family budget", icon: "table", role: "Built on Destack" },
+    ownPortal: { label: "Client portal", icon: "pages", role: "Built on Destack", isRemix: true },
+    ownPipeline: {
+        label: "Hiring board",
+        icon: "accounts",
+        role: "Built on Destack",
+        isRemix: true,
+    },
+    ownBudget: { label: "Family budget", icon: "table", role: "Built on Destack", isRemix: true },
 
     // apps
     pages: { label: "Pages", icon: "pages", role: "App" },
@@ -116,20 +138,21 @@ export const entities: Record<string, Entity> = {
     canvas: { label: "Canvas", icon: "canvas", role: "App" },
 
     // remixes, each named after the apps it joins
-    room: { label: "Launch room", icon: "chat", role: "Pages + Chat" },
-    roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks" },
-    issues: { label: "Issues", icon: "notify", role: "Source + Tasks" },
-    review: { label: "Design review", icon: "canvas", role: "Canvas + Notes" },
-    research: { label: "User research", icon: "template", role: "Forms + Notes" },
+    room: { label: "Launch room", icon: "chat", role: "Pages + Chat", isRemix: true },
+    roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks", isRemix: true },
+    issues: { label: "Issues", icon: "notify", role: "Source + Tasks", isRemix: true },
+    review: { label: "Design review", icon: "canvas", role: "Canvas + Notes", isRemix: true },
+    research: { label: "User research", icon: "template", role: "Forms + Notes", isRemix: true },
     interviews: {
         label: "Interviews",
         icon: "calendar",
         role: "Forms + Calendar",
+        isRemix: true,
     },
-    bookings: { label: "Bookings", icon: "calendar", role: "Sheets + Calendar" },
-    report: { label: "Report", icon: "table", role: "Sheets + Pages" },
-    handbook: { label: "Handbook", icon: "pages", role: "Files + Pages" },
-    hub: { label: "Family hub", icon: "storage", role: "Files + Chat" },
+    bookings: { label: "Bookings", icon: "calendar", role: "Sheets + Calendar", isRemix: true },
+    report: { label: "Report", icon: "table", role: "Sheets + Pages", isRemix: true },
+    handbook: { label: "Handbook", icon: "pages", role: "Files + Pages", isRemix: true },
+    hub: { label: "Family hub", icon: "storage", role: "Files + Chat", isRemix: true },
 };
 
 /** The apps each remix joins, in the order its role names them. */

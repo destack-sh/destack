@@ -6,6 +6,7 @@ import { createMemo, For } from "@destack/view";
 import { cardVariables, tape } from "./card.stylex";
 import { palette } from "../../palette.stylex";
 import { AgentAvatar, isAgent } from "../figure/agent";
+import { Glyph } from "../figure/glyph";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 
@@ -36,6 +37,8 @@ export type Entity = {
     glyph?: string;
     /** The logos under `/logos` of the products the entity rents, shown in place of its tile. */
     logos?: readonly string[];
+    /** Whether the entity is an app you made or remixed in your space, marked as remixable. */
+    isRemix?: boolean;
 };
 
 /** Render an entity as a card with an icon chip and a label. */
@@ -68,6 +71,11 @@ export function Card(properties: {
                 <span {...style.attrs(styles.role)}>{properties.entity.role}</span>
                 <span {...style.attrs(styles.label)}>{properties.entity.label}</span>
             </span>
+            {properties.entity.isRemix === true ? (
+                <span title="Remix" {...style.attrs(styles.remix)}>
+                    <Glyph name="remix" size={12} />
+                </span>
+            ) : undefined}
         </div>
     );
 }
@@ -239,6 +247,11 @@ const peel = style.keyframes({
 
 /** The card styles. */
 const styles = style.create({
+    remix: {
+        color: palette.signal,
+        display: "flex",
+        marginInlineStart: "0.125rem",
+    },
     card: {
         alignItems: "center",
         backgroundColor: palette.cream,

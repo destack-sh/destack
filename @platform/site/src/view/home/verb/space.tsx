@@ -2,14 +2,15 @@ import { Icon } from "@destack/icon";
 import { priceOf } from "../figure/price";
 import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
-import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createEffect, createSignal, type JSX, onSettled } from "@destack/view";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Entry } from "../figure/item";
+import { entryOf, type Source } from "./source";
 import type { Stagger } from "../figure/stagger";
-import { sectionOf } from "./apps";
+import { remixOf, sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
 import { browserStyles } from "../figure/browser";
 import { AgentAvatar } from "../figure/agent";
@@ -27,8 +28,8 @@ export type Viewer = "Me" | "Agent" | "Public";
 /** Everyone who can look at your space, in the order the switcher offers them. */
 export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 
-/** What you keep, numbered as the browser marks them. */
-export const holdings: readonly Entry[] = [
+/** What you keep, numbered as the browser marks them, before your personal app's data. */
+const holdings: readonly Entry[] = [
     {
         stacked: {
             label: "Docs",
@@ -127,22 +128,6 @@ export const holdings: readonly Entry[] = [
     },
     {
         stacked: {
-            label: "Waitlist",
-            mark: { icon: "replit", tint: "#f26207" },
-            name: "Replit",
-            note: "signups in a database of its own",
-            price: priceOf("Replit"),
-        },
-        destacked: {
-            label: "Waitlist",
-            mark: { app: "table" },
-            name: "Waitlist",
-            note: "signups in the tables you already have",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
             label: "Mail",
             mark: { icon: "gmail", tint: "#ea4335" },
             name: "Gmail",
@@ -157,7 +142,38 @@ export const holdings: readonly Entry[] = [
             price: { kind: "included" },
         },
     },
+    {
+        stacked: {
+            label: "Custom",
+            mark: { icon: "replit", tint: "#f26207" },
+            name: "Replit",
+            note: "a waitlist built on Replit, its signups in a database of its own",
+            price: priceOf("Replit"),
+        },
+        destacked: {
+            label: "Custom",
+            mark: { app: "table" },
+            name: "Waitlist",
+            note: "a waitlist built in your space, its signups in your tables",
+            price: { kind: "included" },
+        },
+    },
 ];
+
+/** The row of the personal app your agent connects, after every app of yours. */
+const DATA_ROW = 9;
+
+/** Return what you keep with a personal app's data on its row, after your own app. */
+export function holdingsWith(source: Source): readonly Entry[] {
+    return holdings.toSpliced(DATA_ROW - 1, 0, entryOf(source));
+}
+
+/** The changes your agent makes to your apps: those done, the one asked for, and how to ask. */
+type Remixing = {
+    remixed: readonly number[];
+    asking: number | undefined;
+    onRemix: (row: number) => void;
+};
 
 /** One page the browser shows. */
 export type Page = {
@@ -165,8 +181,11 @@ export type Page = {
     app: number;
     path: string;
     viewers: readonly Viewer[];
-    site: string;
+    site: Site;
 };
+
+/** Where a page's rented site is: a fixed address, or the personal app turning on the data row. */
+type Site = { kind: "rented"; address: string } | { kind: "personal" };
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
@@ -175,61 +194,96 @@ export const pages: readonly Page[] = [
         app: 1,
         path: "/launch",
         viewers: ["Me", "Agent"],
-        site: "florian.notion.site/Destack-launch",
+        site: { kind: "rented", address: "florian.notion.site/Destack-launch" },
     },
-    { row: 2, app: 2, path: "/tasks", viewers: ["Me"], site: "linear.app/symbol/team/DST/all" },
+    {
+        row: 2,
+        app: 2,
+        path: "/tasks",
+        viewers: ["Me"],
+        site: { kind: "rented", address: "linear.app/symbol/team/DST/all" },
+    },
     {
         row: 3,
         app: 3,
         path: "/chat",
         viewers: ["Me", "Agent"],
-        site: "symbol.slack.com/archives/launch",
+        site: { kind: "rented", address: "symbol.slack.com/archives/launch" },
     },
     {
         row: 4,
         app: 4,
         path: "/code",
         viewers: ["Me", "Agent"],
-        site: "github.com/destack-sh/destack",
+        site: { kind: "rented", address: "github.com/destack-sh/destack" },
     },
     {
         row: 5,
         app: 1,
         path: "/",
         viewers: ["Me", "Agent", "Public"],
-        site: "destack.framer.website",
+        site: { kind: "rented", address: "destack.framer.website" },
     },
     {
         row: 6,
         app: 6,
         path: "/book",
         viewers: ["Me", "Agent", "Public"],
-        site: "calendly.com/florian/destack-demo",
+        site: { kind: "rented", address: "calendly.com/florian/destack-demo" },
     },
     {
         row: 7,
         app: 7,
+        path: "/mail",
+        viewers: ["Me", "Agent"],
+        site: { kind: "rented", address: "mail.google.com/mail/u/0" },
+    },
+    {
+        row: 8,
+        app: 8,
         path: "/waitlist",
         viewers: ["Me", "Agent", "Public"],
-        site: "destack-waitlist.replit.app",
+        site: { kind: "rented", address: "destack-waitlist.replit.app" },
     },
-    { row: 8, app: 8, path: "/mail", viewers: ["Me", "Agent"], site: "mail.google.com/mail/u/0" },
+    { row: 9, app: 9, path: "/data", viewers: ["Me", "Agent"], site: { kind: "personal" } },
 ];
 
-/** The sites you rent, as the browser's tabs while rented. */
-const tabs: readonly (readonly [row: number, icon: string, tint: string, title: string])[] = [
+/** The sites you rent, as the browser's tabs while rented, with the personal app's in its row. */
+function tabsOf(source: Source, vendor: Vendor | undefined): readonly Tab[] {
+    const all = tabs.toSpliced(DATA_ROW - 1, 0, [DATA_ROW, source.icon, source.tint, source.name]);
+
+    return all.map((tab) =>
+        vendor?.row === tab[0] ? [vendor.row, vendor.icon, vendor.tint, vendor.title] : tab,
+    );
+}
+
+/** A rented site a figure shows on a row in place of fig. 1's: its tab, address and page. */
+export type Vendor = {
+    row: number;
+    icon: string;
+    tint: string;
+    title: string;
+    site: string;
+    page: () => JSX.Element;
+};
+
+/** A tab of the browser: its row, mark, colour and title. */
+type Tab = readonly [row: number, icon: string, tint: string, title: string];
+
+/** The sites you rent, before the personal app's. */
+const tabs: readonly Tab[] = [
     [1, "notion", "#191919", "Destack launch"],
     [2, "linear", "#5e6ad2", "Destack › All issues"],
     [3, "slack", "#4a154b", "launch (Channel) - Symbol - Slack"],
     [4, "github", "#181717", "destack-sh/destack"],
     [5, "framer", "#0a0a0a", "Destack · Reconquer your software"],
     [6, "calendly", "#006bff", "Destack demo | Florian | Calendly"],
-    [7, "replit", "#f26207", "Join the waitlist"],
-    [8, "gmail", "#ea4335", "Inbox (2) - Gmail"],
+    [7, "gmail", "#ea4335", "Inbox (2) - Gmail"],
+    [8, "replit", "#f26207", "Join the waitlist"],
 ];
 
 /** Every app's row, for a browser that shows them all. */
-export const everyRow: readonly number[] = tabs.map(([row]) => row);
+export const everyRow: readonly number[] = pages.map((page) => page.row);
 
 /** The apps of your own space on its rail. */
 const sections: readonly (readonly [
@@ -244,8 +298,9 @@ const sections: readonly (readonly [
     [3, "Chat", "chat", "#4f8a5b", ["Me", "Agent"]],
     [4, "Forge", "source", "#c64a17", ["Me", "Agent"]],
     [6, "Calendar", "calendar", "#c64a17", ["Me", "Agent", "Public"]],
-    [7, "Tables", "table", "#4f8a5b", ["Me", "Agent", "Public"]],
-    [8, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
+    [7, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
+    [8, "Tables", "table", "#4f8a5b", ["Me", "Agent", "Public"]],
+    [9, "Connections", "sync", "#3d6fb0", ["Me", "Agent"]],
 ];
 
 /** Draw your space in the cloud in a browser, one page at a time. */
@@ -258,14 +313,26 @@ export function SpaceBrowser(properties: {
     viewer: Viewer;
     onViewer: (viewer: Viewer) => void;
     onChoose: (row: number | undefined) => void;
+    source: Source;
+    vendor: Vendor | undefined;
+    remix: Remixing | undefined;
 }) {
+    // read the change your agent can make to the page shown, and whether it has
+    const remix = () => remixOf(properties.page.row, properties.source);
+    const isRemixed = () => properties.remix?.remixed.includes(properties.page.row) === true;
+    const isAsking = () => properties.remix?.asking === properties.page.row;
+
     // show the page when the viewer may see it, or say who may
     const isOpen = () => properties.isOpenAt(properties.page.row);
     const isAllowed = () => !isOpen() || properties.page.viewers.includes(properties.viewer);
-    const host = () => properties.page.site.split("/")[0] ?? "";
+    const site = () => siteOf(properties.page, properties.source, properties.vendor);
+    const host = () => site().split("/")[0] ?? "";
 
     // show only the apps the browser can turn to, as tabs and on the rail
-    const shown = () => tabs.filter(([row]) => properties.rows.includes(row));
+    const shown = () =>
+        tabsOf(properties.source, properties.vendor).filter(([row]) =>
+            properties.rows.includes(row),
+        );
 
     // open the tab overview from the tab count, and choose a tab from it
     const [isOverview, setIsOverview] = createSignal(false);
@@ -347,7 +414,7 @@ export function SpaceBrowser(properties: {
                         <span {...style.attrs(browserStyles.url)}>
                             <span {...style.attrs(browserStyles.host)}>{host()}</span>
                             <span {...style.attrs(browserStyles.path)}>
-                                {properties.page.site.slice(host().length)}
+                                {site().slice(host().length)}
                             </span>
                         </span>
                     )}
@@ -416,7 +483,9 @@ export function SpaceBrowser(properties: {
                                     <Favicon icon={icon} tint={tint} />
                                     {title}
                                 </span>
-                                <span {...style.attrs(styles.cardHost)}>{hostOf(row)}</span>
+                                <span {...style.attrs(styles.cardHost)}>
+                                    {hostOf(row, properties.source, properties.vendor)}
+                                </span>
                             </button>
                         ))
                     )}
@@ -444,7 +513,12 @@ export function SpaceBrowser(properties: {
                             {...style.attrs(appStyles.main)}
                         >
                             {isAllowed() ? (
-                                sectionOf(properties.page.row, properties.isChanged)
+                                sectionOf(
+                                    properties.page.row,
+                                    properties.isChanged,
+                                    properties.source,
+                                    isRemixed(),
+                                )
                             ) : (
                                 <p data-component="AccessNote" {...style.attrs(styles.private)}>
                                     <Glyph name="lock" size={20} />
@@ -454,10 +528,18 @@ export function SpaceBrowser(properties: {
                                 </p>
                             )}
                         </main>
+                        {/* your agent's change to the page, asked and then done */}
+                        {remix() !== undefined && (isAsking() || isRemixed()) ? (
+                            <p data-component="RemixNote" {...style.attrs(styles.remixNote)}>
+                                <AgentAvatar size="small" />
+                                {isRemixed() ? remix()?.done : remix()?.ask}
+                            </p>
+                        ) : undefined}
                         <SpaceStatus
                             page={properties.page}
                             viewer={properties.viewer}
                             onViewer={properties.onViewer}
+                            remix={remix() === undefined ? undefined : properties.remix}
                         />
                     </div>
                 ) : (
@@ -465,7 +547,9 @@ export function SpaceBrowser(properties: {
                         style={{ "view-transition-name": `${properties.name}-page` }}
                         {...style.attrs(styles.window)}
                     >
-                        {rentedPageOf(properties.page.row)}
+                        {properties.vendor?.row === properties.page.row
+                            ? properties.vendor.page()
+                            : rentedPageOf(properties.page.row, properties.source)}
                     </div>
                 )}
             </div>
@@ -482,13 +566,25 @@ function rowOfApp(icon: string): number {
 }
 
 /** Return the address host of the rented site on a ledger row. */
-function hostOf(row: number): string {
-    const site = present(
-        pages.find((page) => page.row === row),
+function hostOf(row: number, source: Source, vendor: Vendor | undefined): string {
+    const page = present(
+        pages.find((candidate) => candidate.row === row),
         "page of a tab",
-    ).site;
+    );
 
-    return present(site.split("/")[0], "host of a site");
+    return present(siteOf(page, source, vendor).split("/")[0], "host of a site");
+}
+
+/** Return the address of the rented site a page shows: its own, or the personal app's. */
+function siteOf(page: Page, source: Source, vendor: Vendor | undefined): string {
+    // read the figure's own vendor, the personal app's, or fig. 1's site
+    if (vendor?.row === page.row) {
+        return vendor.site;
+    } else if (page.site.kind === "personal") {
+        return source.site;
+    }
+
+    return page.site.address;
 }
 
 /** Return the glyph of the app a page opens in your space. */
@@ -501,6 +597,7 @@ function SpaceStatus(properties: {
     page: Page;
     viewer: Viewer;
     onViewer: (viewer: Viewer) => void;
+    remix: Remixing | undefined;
 }) {
     return (
         <div data-component="StatusBar" {...style.attrs(appStyles.statusBar)}>
@@ -509,6 +606,18 @@ function SpaceStatus(properties: {
                 {audienceOf(properties.page)}
             </span>
             <span {...style.attrs(appStyles.statusEnd)}>
+                {/* ask your agent to change the app on the page */}
+                {properties.remix === undefined ? undefined : (
+                    <button
+                        type="button"
+                        data-component="Remix"
+                        onClick={() => properties.remix?.onRemix(properties.page.row)}
+                        {...style.attrs(appText.small, styles.remix)}
+                    >
+                        <Glyph name="remix" size={12} />
+                        Remix
+                    </button>
+                )}
                 <span>View as</span>
                 <ToggleGroup
                     data-component="ViewAs"
@@ -639,6 +748,40 @@ const styles = style.create({
     viewer: {
         height: "1.5rem",
         paddingInline: "0.5rem",
+    },
+    remix: {
+        alignItems: "center",
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
+        borderColor: `color-mix(in srgb, ${palette.signal} 45%, transparent)`,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        color: color.foreground,
+        cursor: "pointer",
+        display: "inline-flex",
+        gap: "0.3125rem",
+        height: "1.5rem",
+        paddingInline: "0.5rem",
+    },
+    remixNote: {
+        alignItems: "center",
+        backgroundColor: color.card,
+        borderColor: color.border,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        bottom: "3rem",
+        boxShadow: "0 4px 16px color-mix(in srgb, black 12%, transparent)",
+        display: "flex",
+        fontSize: "0.8125rem",
+        gap: "0.5rem",
+        insetInlineEnd: "1rem",
+        margin: 0,
+        paddingBlock: "0.375rem",
+        paddingInlineEnd: "0.875rem",
+        paddingInlineStart: "0.5rem",
+        position: "absolute",
+        zIndex: 2,
     },
     face: {
         alignItems: "center",

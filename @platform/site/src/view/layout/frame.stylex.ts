@@ -16,8 +16,14 @@ const SECTION = `clamp(720px, calc(100svh - ${BAR}), 1080px)`;
 /** The height of every dictionary entry on desktop, so the sections line up. */
 const ENTRY = "12.5rem";
 
-/** The stack figure's row on desktop. */
-const STAGE = `calc((${SECTION} - ${ENTRY} - 50px) / 6)`;
+/** The stack figure window's inner width: the frame less an inset and a border each side. */
+const WINDOW_WIDTH = `calc(${WIDTH} - 50px)`;
+
+/** The stack figure window's inner width on phones, with their narrower inset. */
+const PHONE_WINDOW_WIDTH = `calc(${PHONE_WIDTH} - 42px)`;
+
+/** The stack figure's row on desktop, after its labels and its window's strip and margins. */
+const STAGE = `calc((${SECTION} - ${ENTRY} - 50px - 72px) / 6)`;
 
 /** The stack figure's row below the desktop width, which carries only the cards. */
 const NARROW_STAGE = `clamp(112px, calc(${WIDTH} / 88 * 13), 134px)`;
@@ -59,10 +65,10 @@ export const frame = style.defineVars({
     },
     /** The breadboard hole pitch across. */
     cell: {
-        default: `calc(${WIDTH} / 12 * 8 / 88)`,
-        [screen.tablet]: `calc(${WIDTH} / 88)`,
-        [screen.phone]: `calc(${PHONE_WIDTH} / 88)`,
-        [screen.smallPhone]: `calc(${PHONE_WIDTH} / 88)`,
+        default: `calc(${WINDOW_WIDTH} / 12 * 8 / 88)`,
+        [screen.tablet]: `calc(${WINDOW_WIDTH} / 88)`,
+        [screen.phone]: `calc(${PHONE_WINDOW_WIDTH} / 88)`,
+        [screen.smallPhone]: `calc(${PHONE_WINDOW_WIDTH} / 88)`,
     },
     /** The breadboard hole pitch down: nine cells to a stage row. */
     cellRow: {

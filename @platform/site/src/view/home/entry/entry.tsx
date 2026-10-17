@@ -2,7 +2,7 @@ import { frame } from "../../layout/frame.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
-import { type JSX, onSettled } from "@destack/view";
+import { For, type JSX, onSettled } from "@destack/view";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
@@ -17,7 +17,14 @@ type Sense = {
     highlight: readonly string[];
     /** The plain phrase under the definition that says what it means. */
     sentence: JSX.Element;
+    /** The numbered senses the phrase lists, each linking to the figure that shows it. */
+    points?: readonly Link[];
+    /** The link that ends the phrase, such as the hero's way in. */
+    link?: Link;
 };
+
+/** A labelled link to a section of the page. */
+type Link = { label: string; href: string };
 
 /** One dictionary form of the word: its syllables, pronunciation, part of speech and sense. */
 export type Form = {
@@ -52,7 +59,7 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 /** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
     return (
-        <header {...style.attrs(lattice.cell, styles.entry)}>
+        <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
             <p {...style.attrs(styles.kicker)}>
                 <b {...style.attrs(styles.headword)}>
                     <Syllables syllables={properties.form.syllables} />
@@ -69,9 +76,58 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                     <Definition sense={properties.form.sense} />
                 </h2>
             )}
-            <p {...style.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
+            <p {...style.attrs(styles.sentence)}>
+                {properties.form.sense.points === undefined ? (
+                    properties.form.sense.sentence
+                ) : (
+                    <For each={properties.form.sense.points}>
+                        {(point, index) => (
+                            <>
+                                {index() > 0 && (
+                                    <>
+                                        {" "}
+                                        <Dot />{" "}
+                                    </>
+                                )}
+                                <a href={point.href} {...style.attrs(styles.point)}>
+                                    {point.label}
+                                </a>
+                            </>
+                        )}
+                    </For>
+                )}
+                {properties.form.sense.link === undefined ? undefined : (
+                    <>
+                        {properties.form.sense.points === undefined ? (
+                            " "
+                        ) : (
+                            <>
+                                {" "}
+                                <Dot />{" "}
+                            </>
+                        )}
+                        <a href={properties.form.sense.link.href} {...style.attrs(styles.link)}>
+                            {properties.form.sense.link.label}
+                        </a>
+                    </>
+                )}
+            </p>
         </header>
     );
+}
+
+/** Set the dot between the senses of a phrase, as between a headword's syllables. */
+function Dot() {
+    return (
+        <span aria-hidden="true" {...style.attrs(styles.dot)}>
+            ·
+        </span>
+    );
+}
+
+/** Return the anchor of a form's section: its part of speech, such as verb or past-participle. */
+function anchorOf(form: Form): string {
+    return form.partOfSpeech.replaceAll(" ", "-");
 }
 
 /** Label the figure under an entry with its number and a usage example, as a dictionary does. */
@@ -161,6 +217,7 @@ const styles = style.create({
         paddingBlockEnd: { default: "2rem", [media.maxMd]: "1.75rem" },
         paddingInline: frame.inset,
         rowGap: "0.75rem",
+        scrollMarginTop: frame.bar,
     },
     title: {
         display: "inline-block",
@@ -228,6 +285,32 @@ const styles = style.create({
         margin: 0,
         maxWidth: "64rem",
         textWrap: "pretty",
+    },
+    point: {
+        color: "inherit",
+        textDecorationColor: {
+            default: color.border,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        textDecorationLine: "underline",
+        textDecorationThickness: "0.08em",
+        textUnderlineOffset: "0.22em",
+        whiteSpace: "nowrap",
+    },
+    dot: {
+        color: color.primary,
+        fontWeight: 700,
+        marginInline: "0.3em",
+    },
+    link: {
+        color: color.foreground,
+        fontWeight: 600,
+        textDecorationColor: color.primary,
+        textDecorationLine: "underline",
+        textDecorationSkipInk: "none",
+        textDecorationThickness: "0.12em",
+        textUnderlineOffset: "0.18em",
+        whiteSpace: "nowrap",
     },
     highlight: {
         textDecorationColor: color.primary,

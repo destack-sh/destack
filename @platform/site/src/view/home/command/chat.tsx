@@ -6,7 +6,7 @@ import { createSignal, type JSX } from "@destack/view";
 import { browserStyles } from "../figure/browser";
 import { Favicon, Glyph } from "../figure/glyph";
 import { assistant, chat, chatgpt, claude, gemini } from "./chat.stylex";
-import { type Item, turns } from "./scene";
+import type { Item } from "./scene";
 
 /** The sans the assistants' chrome and your messages set in. */
 const SANS = 'ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif';
@@ -17,8 +17,8 @@ const serverNames: Readonly<Record<string, string>> = {
     linear: "Linear",
     notion: "Notion",
     slack: "Slack",
-    googlesheets: "Google Sheets",
-    gmail: "Gmail",
+    supabase: "Supabase",
+    resend: "Resend",
 };
 
 /** The assistants the chat takes the look of, in turn. */
@@ -30,35 +30,9 @@ export type Assistant = (typeof assistants)[number];
 /** Draw an assistant's desktop app a turn at a time: through connectors, or with your space. */
 export function AgentChat(properties: {
     isOpen: boolean;
-    turn: number;
-    isLanded: boolean;
+    items: readonly Item[];
     assistant: Assistant;
 }) {
-    // show the turn before the open one as it ended, then the open turn as it stands
-    const items = (): readonly Item[] => {
-        const earlier = (properties.turn - 1 + turns.length) % turns.length;
-
-        return [...itemsOf(earlier, true), ...itemsOf(properties.turn, properties.isLanded)];
-    };
-
-    // read a turn's items in the state the stack is in, your space's results once they land
-    const itemsOf = (index: number, isLanded: boolean): readonly Item[] => {
-        // read the turn, and its side in the state the stack is in
-        const turn = turns[index];
-        if (turn === undefined) {
-            return [];
-        } else if (!properties.isOpen) {
-            return turn.stacked;
-        }
-
-        // replace a pending approval with its outcome once it lands
-        const before = isLanded
-            ? turn.destacked.before.filter((item) => item.kind !== "approval")
-            : turn.destacked.before;
-
-        return [...before, ...(isLanded ? turn.destacked.after : [])];
-    };
-
     // tell each assistant's chrome apart, so the shown one fades in over the rest
     const isShown = (candidate: Assistant) => candidate === properties.assistant;
 
@@ -118,7 +92,7 @@ export function AgentChat(properties: {
                         : styles.settleOdd,
                 )}
             >
-                {items().map((item) => (
+                {properties.items.map((item) => (
                     <ItemView item={item} assistant={properties.assistant} />
                 ))}
 
@@ -207,10 +181,9 @@ export function AgentChat(properties: {
 
 /** The connectors the assistant reaches your apps through, by mark and colour. */
 const vendors = [
-    ["linear", "#5e6ad2"],
-    ["notion", "#191919"],
     ["slack", "#4a154b"],
-    ["gmail", "#ea4335"],
+    ["supabase", "#3ecf8e"],
+    ["resend", "#000000"],
 ] as const;
 
 /** Draw the connectors the composer has on: one per vendor, or your space alone. */
@@ -274,13 +247,22 @@ function ItemView(properties: { item: Item; assistant: Assistant }) {
         );
     }
 
+    // the run's tally under the reply, marked where the answer came out wrong
+    else if (item.kind === "tally") {
+        return (
+            <span {...style.attrs(styles.tally, item.isWrong && styles.tallyWrong)}>
+                {item.text}
+            </span>
+        );
+    }
+
     // the assistant's reply, in its type
     return <span {...style.attrs(styles.reply)}>{item.text}</span>;
 }
 
 /** Draw a tool the assistant ran: its summary line, and its request and response once opened. */
 function ToolCall(properties: { item: Extract<Item, { kind: "call" }> }) {
-    const [isOpen, setIsOpen] = createSignal(false);
+    const [isOpen, setIsOpen] = createSignal(properties.item.isExpanded);
     const item = () => properties.item;
 
     return (
@@ -575,6 +557,23 @@ const styles = style.create({
         fontSize: "0.6875rem",
         lineHeight: 1.5,
         overflowWrap: "anywhere",
+        whiteSpace: "pre-wrap",
+    },
+    tally: {
+        alignSelf: "flex-start",
+        backgroundColor: `color-mix(in srgb, ${assistant.passed} 12%, transparent)`,
+        borderRadius: "6px",
+        color: assistant.passed,
+        flexShrink: 0,
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        paddingBlock: "0.25rem",
+        paddingInline: "0.5rem",
+    },
+    tallyWrong: {
+        backgroundColor: `color-mix(in srgb, ${assistant.failed} 12%, transparent)`,
+        color: assistant.failed,
     },
     passed: {
         color: assistant.passed,
@@ -712,7 +711,7 @@ const styles = style.create({
     hint: {
         alignItems: "center",
         color: chat.muted,
-        display: "inline-flex",
+        display: { default: "inline-flex", [media.maxMd]: "none" },
         fontSize: "0.75rem",
         gap: "0.25rem",
         whiteSpace: "nowrap",

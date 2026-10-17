@@ -74,8 +74,8 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={3}
                 isOpen={properties.isOpen}
-                stacked="your apps, glued to eight vendors"
-                destacked="your apps, built on one engine"
+                stacked="your app, on eight rented services"
+                destacked="your app, on one engine you own"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -113,7 +113,7 @@ export function Noun(properties: { isOpen: boolean }) {
                         tint: accentOf(entry.stacked.name, color.mutedForeground),
                     }))}
                     isOpenAt={isOpenAt}
-                    lighting={{ lit: lit(), onLight: setLit, onChoose: setLit }}
+                    lighting={{ lit: lit(), onLight: setLit, onChoose: setLit, chosen: undefined }}
                     onToggle={toggle}
                 />
             </div>
@@ -124,12 +124,12 @@ export function Noun(properties: { isOpen: boolean }) {
 /** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
 function keyOf(rented: number) {
     if (rented === services.length) {
-        return "Eight services, eight vendors";
+        return "Eight services, eight rents";
     } else if (rented === 0) {
-        return "Eight services, one engine";
+        return "Eight services, no rent";
     }
 
-    return "Eight services, fewer vendors";
+    return "Eight services, less rent";
 }
 
 /** The noun section styles. */

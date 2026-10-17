@@ -13,6 +13,8 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
+import { sources } from "../verb/source";
+import { present } from "@destack/schema";
 import { services } from "./service";
 
 /** A browser narrower than a phone, where each tag shows only its mark. */
@@ -46,8 +48,8 @@ const apps: readonly (readonly [
     [4, "source", "destack", "code", "/code"],
     [5, "pages", "Notes", "site", "/"],
     [6, "calendar", "October 20 – 24", "calendar", "/book"],
-    [7, "table", "Signups", "waitlist", "/waitlist"],
-    [8, "mail", "Destack opens Friday", "mail", "/mail"],
+    [7, "mail", "Destack opens Friday", "mail", "/mail"],
+    [8, "table", "Signups", "waitlist", "/waitlist"],
 ];
 
 /** The apps of your space on its rail, by the page each opens. */
@@ -280,7 +282,7 @@ export function XRay(properties: {
                         />
                     ) : undefined}
                     <main {...style.attrs(appStyles.main, styles.page)}>
-                        {sectionOf(row(), false)}
+                        {sectionOf(row(), false, present(sources[0], "first source"), false)}
                     </main>
                     <p {...style.attrs(appStyles.statusBar)}>
                         <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>
