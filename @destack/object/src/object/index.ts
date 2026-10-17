@@ -37,4 +37,4 @@ export {
 } from "./controller.ts";
 export { INTRINSIC, Intrinsic } from "./intrinsic.ts";
 export { ObjectPolicy } from "./access.ts";
-export { client } from "./client.ts";
+export { device } from "./device.ts";

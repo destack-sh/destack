@@ -347,7 +347,7 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`context.mutate` runs calls inside a handler's transaction, as the same caller or as the code itself (`context.self`: the installation serving the type, else the store's principal); `context.space()` acts for the space, as its installation under the space's grant.
+`context.mutate` runs calls inside a handler's transaction, as the same caller or as the code itself (`context.self`: the installation serving the type, else the store's principal); `context.space()` acts for the space, as its installation under the space's grant; `context.enabled("push")` reads whether it has that capability.
 
 ```ts
 export const shelf = base.shelf.implement({
@@ -362,6 +362,7 @@ export const shelf = base.shelf.implement({
     },
 });
 const recipient = await context.query(await context.space(), user.call("recipient", { id }));
+if (context.enabled("push")) await deliverPush(recipient);
 ```
 
 ## Descriptions

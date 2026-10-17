@@ -962,19 +962,10 @@ export const grant = {
         revoke: Execution.handle(
             method.delete("revoke", { isPredicted: false }),
             async (call, execution) => {
-                // refuse a personal access token's grant: revoking the token revokes it
-                const { id } = call.target;
-                const delegate = ObjectReference.at("delegate", call.target);
-                if (access.principal.personalAccessToken.is(delegate)) {
-                    throw new CallError("CONFLICT", {
-                        message: `grant ${id} belongs to personal access token ${delegate.id}: revoke the token`,
-                    });
-                }
-
                 // revoke the grant as its delegator
                 await Grant.revoke(
                     await ObjectPolicy.scopeObject(call, execution),
-                    id,
+                    call.target.id,
                     Execution.store(execution, call).authorization,
                 );
 

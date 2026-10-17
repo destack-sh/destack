@@ -327,15 +327,27 @@ export class Authorization extends access.Authorization {
     ): Promise<void> {
         // pass a caller under no grant
         const { object, scope } = context;
-        const { grant, ...subject } = { ...governing.context, actors: [] };
+        const { grants } = governing.context;
+        const grant = grants.at(-1);
         if (grant === undefined) {
             return;
         }
+        const subject = { ...governing.context, actors: [], grants: [] };
 
-        // refuse the grant when only the subject can access the target
+        // ask for approval where the grant gives the permission once approved, else refuse the grant
         const governingScope = this.authorizer.governingScope(object.reference(scope, id));
         const alone = await this.authorizer.resolve(this.snapshot, governingScope, subject);
-        if ((await select(alone)).length > 0) {
+        const isSubjects = (await select(alone)).length > 0;
+        const permissions = governing.permissions;
+        if (
+            isSubjects &&
+            access.GrantPermission.allowsOnApproval(permission, { scope, id }, permissions)
+        ) {
+            throw new CallError("APPROVAL_REQUIRED", {
+                message: `grant ${grant.id} gives ${permission.name} on ${object.name} ${id} once approved`,
+                data: { permission, object: object.reference(scope, id), grant: grant.id },
+            });
+        } else if (isSubjects) {
             throw new CallError("INSUFFICIENT_GRANT", {
                 message: `grant ${grant.id} does not give ${permission.name} on ${object.name} ${id}`,
                 data: { permission, object: object.reference(scope, id), grant: grant.id },
@@ -375,14 +387,17 @@ export class Authorization extends access.Authorization {
 
         // decide for the caller, or only for its subject where its grant gives something in the scope
         const own = this.access.scopes[0];
-        const { grant, ...subject } = { ...this.access.context, actors: [] };
+        const permissions = this.access.permissions;
+        const subject = { ...this.access.context, actors: [], grants: [] };
         const isScope = own?.id === scope && objects.some((object) => object.livesIn(own));
 
         return (
             isScope &&
-            (grant === undefined
+            (permissions === undefined
                 ? await this.#sees(own, (bound) => this.in(bound))
-                : grant.permissions.some((entry) => entry.scope === scope) &&
+                : permissions.some((entry) =>
+                      access.GrantPermission.overlaps(entry.scope, scope),
+                  ) &&
                   (await this.#sees(own, (bound) =>
                       this.authorizer.resolve(this.snapshot, bound, subject),
                   )))
@@ -473,6 +488,61 @@ export class Authorization extends access.Authorization {
             throw new CallError("MISDIRECTED_REQUEST", {
                 message: `${scope} is served by partition ${partition}`,
                 data: { scope, partition },
+            });
+        }
+    }
+
+    /** Refuse a method the caller's grants tie to other methods of its type. */
+    requireMethods(calls: readonly { readonly object: ObjectType; readonly name: string }[]): void {
+        // pass a caller under no grant
+        const grant = this.access.context.grants.at(-1);
+        if (grant === undefined) {
+            return;
+        }
+
+        // refuse the first method a grant entry on its type leaves out
+        const { scope, permissions } = this.access;
+        const refused = calls.find(({ object, name }) => {
+            const type = {
+                packageId: object.policy.definition.packageId,
+                type: object.policy.name,
+            };
+
+            return !access.GrantPermission.allowsMethod(type, scope, name, permissions);
+        });
+        if (refused !== undefined) {
+            throw new CallError("FORBIDDEN", {
+                message: `grant ${grant.id} does not allow ${refused.object.name}.${refused.name} in ${scope}`,
+            });
+        }
+    }
+
+    /** Refuse a call the caller's grants do not give, for a home that checks only the subject. */
+    requireGranted(call: {
+        readonly object: ObjectType;
+        readonly name: string;
+        readonly id?: string;
+    }): void {
+        // require the grants to allow the method
+        this.requireMethods([call]);
+        const grant = this.access.context.grants.at(-1);
+        const { permission } = call.object.method(call.name);
+        if (grant === undefined || permission === undefined) {
+            return;
+        }
+
+        // require them to give its permission on the target
+        const { scope, permissions } = this.access;
+        const target = { scope, ...(call.id === undefined ? {} : { id: call.id }) };
+        if (
+            !access.GrantPermission.allows(
+                call.object.policy.permission(permission),
+                target,
+                permissions,
+            )
+        ) {
+            throw new CallError("FORBIDDEN", {
+                message: `grant ${grant.id} does not give ${call.object.name}.${permission} in ${scope}`,
             });
         }
     }

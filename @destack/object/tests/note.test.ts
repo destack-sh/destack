@@ -468,7 +468,7 @@ test("share one browser database between tabs, handing it over when the owning t
             objects: { notebook, note },
             scope: spaceId,
             caller: principal.user.reference("universe", users.alice),
-            client: principal.client.reference("universe", "client-browser"),
+            device: principal.device.reference("universe", "device-browser"),
             endpoint: endpoint(users.alice),
             reconnect: unmoved,
             host: host(),

@@ -54,6 +54,7 @@ async function serveInstalledNotes() {
             call: () => Promise.reject(new TypeError("the fixture answers no queries")),
         },
         settings: {},
+        capabilities: [],
         keys: await testKeys(),
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");

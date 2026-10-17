@@ -89,7 +89,7 @@ export class AuditRecorder {
         requestId?: string,
     ): AuditRecorder {
         // record the subject and its actors, and read who acted
-        const { subject, actors, credential, grant } = caller;
+        const { subject, actors, credential, grants } = caller;
         const recorded: AuditCaller = {
             subject,
             ...(actors.length === 0 ? {} : { actors: [...actors] }),
@@ -103,7 +103,8 @@ export class AuditRecorder {
         const presented = schema.identifier("token").safeParse(credential?.id);
         const span = trace.getSpanContext(context.active());
 
-        // read the caller's session, token and trace
+        // read the caller's session, token, trace and the grant its sender acts under
+        const grant = grants.at(-1);
         const sessionId = session.success ? session.data : origin.sessionId;
         const clientId = credential?.client ?? origin.clientId;
         const tokenId = presented.success ? presented.data : origin.tokenId;

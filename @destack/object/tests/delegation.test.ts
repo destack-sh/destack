@@ -37,19 +37,22 @@ const probe = defineObject(
                 subject: schema.string(),
                 actors: schema.array(schema.string()),
                 grant: schema.string().nullable(),
+                capabilities: schema.array(schema.boolean()),
             }),
         }),
     }),
 ).implement({
     methods: {
         acting: async (context) => {
-            // act for the space, and answer the caller's subject, actors and grant
+            // act for the space, and answer the caller's subject, actors and grant, and two capabilities
             const acting = await context.space();
+            const capabilities = [context.enabled("push"), context.enabled("sms")];
 
             return {
                 subject: acting.subject.id,
                 actors: acting.actors.map((actor) => actor.id),
-                grant: acting.grant?.id ?? null,
+                grant: acting.grants.at(-1)?.id ?? null,
+                capabilities,
             };
         },
     },
@@ -58,7 +61,7 @@ const probe = defineObject(
 /** The package of the probes. */
 const probes = definePackage({ objects: { probe } });
 
-test("act for the space as its installation within the space's grant, refusing without one", async () => {
+test("act for the space as its installation within the space's grant, refusing without one, and read its capabilities", async () => {
     // serve the probes in a public space as its installation
     const storage = await TestDatabase.create(
         "sqlite",
@@ -84,6 +87,7 @@ test("act for the space as its installation within the space's grant, refusing w
             call: () => Promise.reject(new TypeError("the fixture answers no queries")),
         },
         settings: {},
+        capabilities: ["push"],
         keys: await testKeys(),
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
@@ -123,6 +127,6 @@ test("act for the space as its installation within the space's grant, refusing w
     // refuse acting for the space without a grant, then act as the space with the installation acting
     expect([before, await ask()]).toEqual([
         `FORBIDDEN: installation ${INSTALLATION} acts for space ${spaceId} under no grant`,
-        { subject: spaceId, actors: [INSTALLATION], grant },
+        { subject: spaceId, actors: [INSTALLATION], grant, capabilities: [true, false] },
     ]);
 });

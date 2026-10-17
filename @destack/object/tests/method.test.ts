@@ -25,6 +25,7 @@ import {
     none,
     principal,
 } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -380,13 +381,13 @@ test.each(TEST_DIALECTS)(
 
         // challenge an agent whose grant gives too little, and allow what it gives
         const agent = principal.installation.reference(spaceId, "assistant");
-        delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
+        await delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
         await expect(execute("get", { id: created.id })).rejects.toMatchObject({
             code: "INSUFFICIENT_GRANT",
             message: `grant ${grantId} does not give read on task ${created.id}`,
             data: { grant: grantId, object: task.reference(spaceId, created.id) },
         });
-        delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
+        await delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
         expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
         await expect(
             execute("update", {
@@ -399,7 +400,7 @@ test.each(TEST_DIALECTS)(
             code: "INSUFFICIENT_GRANT",
             message: `grant ${grantId} does not give write on task ${created.id}`,
         });
-        delegate(undefined, []);
+        await delegate(undefined, []);
 
         // audit each change once
         expect(await events()).toEqual([
@@ -1269,7 +1270,6 @@ async function serveTasks(dialect: Dialect) {
     let current = users.frank;
     let level = 1;
     let agent: Subject | undefined;
-    let granted: GrantPermission[] = [];
     const sign = () =>
         userContext(current, spaceId, {
             assurance: { level, authenticatedAt: Date.now() },
@@ -1277,7 +1277,7 @@ async function serveTasks(dialect: Dialect) {
                 ? {}
                 : {
                       actors: [agent],
-                      grant: { id: grantId, scope: current, permissions: granted },
+                      grants: [{ id: grantId, scope: current }],
                   }),
         });
     let context = sign();
@@ -1322,10 +1322,20 @@ async function serveTasks(dialect: Dialect) {
             level = assurance;
             context = sign();
         },
-        /** Act through a delegate under a grant of some permissions, or directly. */
-        delegate: (delegate: Subject | undefined, permissions: GrantPermission[]) => {
+        /** Act through a delegate under a stored grant of some permissions, or directly. */
+        delegate: async (delegate: Subject | undefined, permissions: GrantPermission[]) => {
+            // store the current user's grant to the delegate
             agent = delegate;
-            granted = permissions;
+            if (delegate !== undefined) {
+                const delegator = principal.user.reference("universe", current);
+                await new AccessFixture(database).replicateGrant(
+                    delegator,
+                    delegate,
+                    permissions,
+                    Date.now(),
+                    grantId,
+                );
+            }
             context = sign();
         },
     };

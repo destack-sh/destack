@@ -767,6 +767,25 @@ export class MethodContext<
         throw new TypeError(`${this.object.name}.${this.name} acts as itself only in its store`);
     }
 
+    /** Report whether the installation serving the call's type has a capability of its package. */
+    enabled(capability: string): boolean {
+        // read the capabilities of the installation serving the type, in its store or its sandbox
+        const location = this.#location;
+        const server =
+            location.kind === "store"
+                ? location.store.readServer(this.object)
+                : location.kind === "sandbox"
+                  ? location.server
+                  : undefined;
+        if (server === undefined) {
+            throw new TypeError(
+                `${this.object.name}.${this.name} runs in no installation with capabilities`,
+            );
+        }
+
+        return server.capabilities.includes(capability);
+    }
+
     /** Act for the call's space: as the space, or as its installation under the space's grant. */
     async space(): Promise<AccessContext> {
         // act as the space when the call's code runs as it

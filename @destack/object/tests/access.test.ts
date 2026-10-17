@@ -183,14 +183,13 @@ test("authorize an object type that the objects and the policies list several ti
     expect(store.authorizer.requireMapping({ packageId, type: name }).table).toBe(role.table);
 });
 
-/** A space's tokens, each a personal access token principal. */
-const token = defineObject(
+/** A space's installations, each an installation principal. */
+const installed = defineObject(
     {
-        name: "personal-access-token",
-        identity: "token",
-        plural: "tokens",
+        name: "installation",
+        plural: "installations",
         scope: space,
-        represents: principal.personalAccessToken,
+        represents: principal.installation,
         fields: { name: field.string() },
         permissions: ["read", "write"],
     },
@@ -200,13 +199,13 @@ const token = defineObject(
     }),
 );
 
-test("delete the grants of a token as the token is deleted", async () => {
-    // serve a space's tokens to its owner
+test("delete the grants of an installation as the installation is deleted", async () => {
+    // serve a space's installations to its owner
     const storage = await TestDatabase.create(
         "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...token.tables, ...role.tables, space.table, ...callTables],
+            tables: [...installed.tables, ...role.tables, space.table, ...callTables],
         }),
         { isMigrated: true },
     );
@@ -216,12 +215,12 @@ test("delete the grants of a token as the token is deleted", async () => {
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(SPACE_ID),
-        servers: serversOf([token]),
+        servers: serversOf([installed]),
         policies: [space],
         database,
         callKey: testCallKey,
         events: await testEvents(database),
-        origin: { package: token.package },
+        origin: { package: installed.package },
     });
     await database
         .insert(space.table)
@@ -233,13 +232,13 @@ test("delete the grants of a token as the token is deleted", async () => {
     ).create(space.reference("universe", SPACE_ID), { owner });
     await creating.commit();
 
-    // create a token, and a grant of the owner to it beside another delegate's
+    // create an installation, and a grant of the owner to it beside another delegate's
     const caller = subjectContext(owner, SPACE_ID).access();
     const [created] = await store.mutate(caller, {
         id: RequestId.create(Date.now()),
-        calls: [token.call("create", { spaceId: SPACE_ID, name: "deploy" })],
+        calls: [installed.call("create", { spaceId: SPACE_ID, name: "deploy" })],
     });
-    const delegate = token.reference(
+    const delegate = installed.reference(
         SPACE_ID,
         schema.looseObject({ id: schema.string() }).parse(created).id,
     );
@@ -260,10 +259,10 @@ test("delete the grants of a token as the token is deleted", async () => {
             grant("grant-01996ab0-0000-7000-8000-000000000002", other),
         ]);
 
-    // delete the token
+    // delete the installation
     await store.mutate(caller, {
         id: RequestId.create(Date.now()),
-        calls: [token.call("delete", { spaceId: SPACE_ID, id: delegate.id })],
+        calls: [installed.call("delete", { spaceId: SPACE_ID, id: delegate.id })],
     });
 
     // leave only the other delegate's grant

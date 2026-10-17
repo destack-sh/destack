@@ -24,7 +24,7 @@ test("persist verified caller identities with their delegates and grant, record 
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-000000000001");
         const requests: (Pick<Caller, "subject"> &
-            Partial<Pick<Caller, "actors" | "grant"> & Pick<Credential, "deployments">>)[] = [
+            Partial<Pick<Caller, "actors" | "grants"> & Pick<Credential, "deployments">>)[] = [
             { subject: represented },
             { subject: { ...represented, scope: "machine-example" } },
             {
@@ -39,7 +39,7 @@ test("persist verified caller identities with their delegates and grant, record 
                     { subject: actor, id: deploymentId },
                 ],
                 actors: [actor],
-                grant: { id: grantId, scope: represented.id, permissions: [] },
+                grants: [{ id: grantId, scope: represented.id }],
             },
             { subject: principal.installation.reference("space-example", "share") },
         ];

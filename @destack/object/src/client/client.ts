@@ -292,8 +292,8 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly scope: string;
     /** The calling principal. */
     readonly caller: Subject;
-    /** The client the database lives on, whose partition stores local objects scoped to clients. */
-    readonly client?: Subject;
+    /** The device the database lives on, whose partition stores local objects scoped to devices. */
+    readonly device?: Subject;
     /** Where and how to reach the package serving the objects. */
     readonly endpoint: ClientOptions;
     /** The client's clock for log compaction, query time to live and access decisions. */
@@ -437,7 +437,7 @@ export class ObjectClient<
         this.query = ObjectClient.#queries(this, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
-        this.#owners = [options.caller, ...(options.client === undefined ? [] : [options.client])];
+        this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
 
         // reach the package serving the replicated objects
         const replicated = this.objects.filter((object) => object.storage !== "local");

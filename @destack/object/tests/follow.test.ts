@@ -232,22 +232,23 @@ test.each(TEST_DIALECTS)(
         // create through tokens whose grants give the space, another one or everything, and list as alice
         const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
             // limit the caller's token to one scope by its grant when asked
+            const token = principal.client.reference(Scope.universe.id, `client-${user}`);
+            const grantId =
+                restricted === undefined
+                    ? undefined
+                    : await new AccessFixture(installed.database).replicateGrant(
+                          principal.user.reference("universe", user),
+                          token,
+                          [document.permission("read"), document.permission("write")].map(
+                              (permission) => ({ ...permission, scope: restricted }),
+                          ),
+                      );
             const context = userContext(
                 user,
                 spaceId,
-                restricted === undefined
+                grantId === undefined
                     ? {}
-                    : {
-                          actors: [principal.personalAccessToken.reference(user, `token-${user}`)],
-                          grant: {
-                              id: Identifier.create("grant"),
-                              scope: user,
-                              permissions: [
-                                  document.permission("read"),
-                                  document.permission("write"),
-                              ].map((permission) => ({ ...permission, scope: restricted })),
-                          },
-                      },
+                    : { actors: [token], grants: [{ id: grantId, scope: user }] },
             );
 
             const created = store

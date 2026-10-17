@@ -154,13 +154,15 @@ test.each(TEST_DIALECTS)(
         ]);
 
         // show a delegate granted no reading what alice sees, asking her for the grant it lacks
+        const delegate = principal.installation.reference(spaceId, `installation-${v7()}`);
+        const grantId = await new AccessFixture(storage.database).replicateGrant(
+            principal.user.reference("universe", users.alice),
+            delegate,
+            [{ ...document.permission("write"), scope: spaceId }],
+        );
         context = userContext(users.alice, spaceId, {
-            actors: [principal.installation.reference(spaceId, `installation-${v7()}`)],
-            grant: {
-                id: Identifier.create("grant"),
-                scope: "alice",
-                permissions: [{ ...document.permission("write"), scope: spaceId }],
-            },
+            actors: [delegate],
+            grants: [{ id: grantId, scope: users.alice }],
         });
         expect((await attempts()).slice(0, 3)).toEqual(["INSUFFICIENT_GRANT", [], "NOT_FOUND"]);
     },

@@ -12,7 +12,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
-import { client, defineObject, field } from "../src/index.ts";
+import { defineObject, device, field } from "../src/index.ts";
 import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal } from "./fixture/space.ts";
@@ -34,7 +34,7 @@ test("read a local object one tab writes in another tab over the shared database
             objects: { notebook, note, draft },
             scope: spaceId,
             caller: principal.user.reference("universe", alice),
-            client: principal.client.reference("universe", Identifier.create("client")),
+            device: principal.device.reference("universe", Identifier.create("device")),
             endpoint: endpoint(alice),
             reconnect: unmoved,
             host: host(),
@@ -67,23 +67,23 @@ test("read a local object one tab writes in another tab over the shared database
     await first.close();
 });
 
-test("hide a user's local objects from another user on the same client, and the client's own from another client", async () => {
+test("hide a user's local objects from another user on the same device, and the device's own from another device", async () => {
     const { endpoint } = await serveNotes("sqlite");
     const [alice, bob] = [Identifier.create("user"), Identifier.create("user")];
-    const [laptop, phone] = [Identifier.create("client"), Identifier.create("client")];
+    const [laptop, phone] = [Identifier.create("device"), Identifier.create("device")];
 
-    // open the users' clients over one local database, as the laptop and as the phone
+    // open the users' object clients over one local database, as the laptop and as the phone
     const objects = { notebook, note, draft, panel };
     const storage = await TestDatabase.create("sqlite", []);
     await ObjectClient.migrate(storage.database, objects);
-    const openClient = (person: Identifier<"user">, device: string) =>
+    const openClient = (person: Identifier<"user">, on: string) =>
         ObjectClient.open({
             clock: Clock.system,
             database: storage.database,
             objects,
             scope: spaceId,
             caller: principal.user.reference("universe", person),
-            client: principal.client.reference("universe", device),
+            device: principal.device.reference("universe", on),
             endpoint: endpoint(person),
             reconnect: unmoved,
             isMigrated: true,
@@ -96,7 +96,7 @@ test("hide a user's local objects from another user on the same client, and the 
     await aliceLaptop.mutate(draft).create({ text: "Alice's draft" }).confirmed;
     await aliceLaptop.mutate(panel).create({ width: 320 }).confirmed;
 
-    // read both types as each user on each client
+    // read both types as each user on each device
     const local = { draft, panel };
     const read = {
         aliceLaptop: await readLocal(aliceLaptop.of(local)),
@@ -111,9 +111,9 @@ test("hide a user's local objects from another user on the same client, and the 
     await storage.close();
 });
 
-test("refuse to serve local objects at another principal's store, and refuse local definitions reaching beyond the client", async () => {
+test("refuse to serve local objects at another principal's store, and refuse local definitions reaching beyond the device", async () => {
     const { database } = await serveNotes("sqlite");
-    const local = { scope: client, storage: "local", fields: {}, permissions: [] } as const;
+    const local = { scope: device, storage: "local", fields: {}, permissions: [] } as const;
     const events = await testEvents(database);
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
@@ -182,10 +182,10 @@ function newCaller(id: string, inside: readonly Subject[]): AccessContext {
     return AccessContext.of({ ...person, groups: [...person.groups, ...inside] }, Date.now());
 }
 
-test("serve a client's local objects at its own store to the people signed in on it alone", async () => {
+test("serve a device's local objects at its own store to the people signed in on it alone", async () => {
     // store a laptop's stickies
     const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
-    const laptop = client.reference(Scope.universe.id, Identifier.create("client"));
+    const laptop = device.reference(Scope.universe.id, Identifier.create("device"));
     const storage = await TestDatabase.create(
         "sqlite",
         [...accessTables, sticky.table, ...callTables],
@@ -200,7 +200,7 @@ test("serve a client's local objects at its own store to the people signed in on
     const store = new ObjectStore({
         chain: async () => undefined,
         clock: Clock.system,
-        principal: principal.client.reference(Scope.universe.id, laptop.id),
+        principal: principal.device.reference(Scope.universe.id, laptop.id),
         servers: serversOf([sticky]),
         database: storage.database,
         callKey: testCallKey,
@@ -217,11 +217,11 @@ test("serve a client's local objects at its own store to the people signed in on
         refusal(
             store.mutate(caller, {
                 id: RequestId.create(Date.now()),
-                calls: [sticky.call("create", { clientId: laptop.id, text })],
+                calls: [sticky.call("create", { deviceId: laptop.id, text })],
             }),
         );
     const list = async (caller: AccessContext) => {
-        const listed = store.query(caller, sticky.call("list", { clientId: laptop.id }));
+        const listed = store.query(caller, sticky.call("list", { deviceId: laptop.id }));
 
         return listed.then((page) => page.items.map((row) => row.text), readRefusal);
     };
@@ -240,7 +240,7 @@ test("serve a client's local objects at its own store to the people signed in on
     });
 });
 
-/** Read the drafts and panel widths a client shows its caller. */
+/** Read the drafts and panel widths a device shows its caller. */
 async function readLocal(access: ObjectAccess<{ draft: typeof draft; panel: typeof panel }>) {
     // follow both types until read
     const drafts = access.query.draft.findMany().subscribe();

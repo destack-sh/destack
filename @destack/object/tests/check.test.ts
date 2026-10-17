@@ -4,7 +4,7 @@ import { principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Subject } from "@destack/sync";
@@ -66,15 +66,11 @@ test("check the caller's own access under its grant, and another subject's for g
     });
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
-    const token = principal.personalAccessToken.reference(users.alice, "token-alice");
-    const delegated = {
-        actors: [token],
-        grant: {
-            id: Identifier.create("grant"),
-            scope: users.alice,
-            permissions: [{ ...space.permission("read"), scope: SPACE_ID }],
-        },
-    };
+    const token = principal.client.reference(Scope.universe.id, "client-alice");
+    const grantId = await new AccessFixture(storage.database).replicateGrant(alice, token, [
+        { ...space.permission("read"), scope: SPACE_ID },
+    ]);
+    const delegated = { actors: [token], grants: [{ id: grantId, scope: users.alice }] };
     const check = async (
         caller: Subject,
         subject: Subject,

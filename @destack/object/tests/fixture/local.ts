@@ -1,6 +1,6 @@
 import { principal, through } from "@destack/access";
 import { schema } from "@destack/schema";
-import { client, defineObject, field } from "../../src/index.ts";
+import { defineObject, device, field } from "../../src/index.ts";
 
 /** People, the user principal local drafts belong to. */
 export const user = defineObject({
@@ -12,7 +12,7 @@ export const user = defineObject({
     permissions: [],
 });
 
-/** A draft one client stores only for its signed-in user. */
+/** A draft one device stores only for its signed-in user. */
 export const draft = defineObject(
     {
         name: "draft",
@@ -28,12 +28,12 @@ export const draft = defineObject(
     }),
 );
 
-/** A panel width one client stores for every person using it. */
+/** A panel width one device stores for every person using it. */
 export const panel = defineObject(
     {
         name: "panel",
         plural: "panels",
-        scope: client,
+        scope: device,
         storage: "local",
         fields: { width: field.number() },
         permissions: ["read", "edit"],
@@ -44,15 +44,15 @@ export const panel = defineObject(
     }),
 );
 
-/** A note a client stores for the people signed in on it. */
+/** A note a device stores for the people signed in on it. */
 export const sticky = defineObject(
     {
         name: "sticky",
         plural: "stickies",
-        scope: client,
+        scope: device,
         storage: "local",
         fields: { text: field.string(schema.string().max(1000)) },
-        permissions: { use: through("client", "use") },
+        permissions: { use: through("device", "use") },
     },
     (method) => ({
         list: method.list("use"),

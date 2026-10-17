@@ -11,7 +11,6 @@ import {
     type TableMapping,
     Caller,
     CONTAINED,
-    GrantPermission,
     principal,
     accessRelationship,
 } from "@destack/access";
@@ -1167,22 +1166,6 @@ export class ObjectStore {
         });
     }
 
-    /** Refuse a method of a type in a scope that the caller's grant binds to other methods. */
-    static #requireReached(
-        caller: AccessContext,
-        object: ObjectType,
-        scope: string,
-        name: string,
-    ): void {
-        const { grant } = caller;
-        const type = { packageId: object.policy.definition.packageId, type: object.policy.name };
-        if (grant !== undefined && !GrantPermission.reaches(type, scope, name, grant.permissions)) {
-            throw new CallError("FORBIDDEN", {
-                message: `grant ${grant.id} does not allow ${object.name}.${name} in ${scope}`,
-            });
-        }
-    }
-
     /** Read a request's caller for its audit: anonymous when its credential failed. */
     static #requestCaller(context: RequestContext): AccessContext {
         return context.authenticationError === undefined
@@ -1244,7 +1227,6 @@ export class ObjectStore {
         const { object, name, input } = this.#resolve(call, false, site);
         const method = object.method(name);
         const scope = object.readScope(name, input);
-        ObjectStore.#requireReached(caller, object, scope, name);
         await this.#limit([{ object, name, input }], scope, caller);
         const database = await this.#databaseOf(object, scope);
         const read = async () => {
@@ -1354,7 +1336,7 @@ export class ObjectStore {
         // run a change of rows replicated here at their home as the caller's subject, within its grant
         if (this.#isForwarded(mutation)) {
             for (const call of mutation.calls) {
-                this.#requireGranted(caller, call);
+                await this.#requireForwardable(caller, call);
             }
             const forwarded = await this.#forward(mutation, caller.subject);
             if (forwarded !== undefined) {
@@ -1366,9 +1348,6 @@ export class ObjectStore {
         const site = options.site ?? CallSite.of(caller);
         const originals = mutation.calls.map((entry) => this.#resolve(entry, true, site));
         const scope = this.#mutationScope(originals);
-        for (const { object, name } of originals) {
-            ObjectStore.#requireReached(caller, object, scope, name);
-        }
         await this.#limit(originals, scope, caller);
 
         // write ephemeral objects apart
@@ -1899,32 +1878,30 @@ export class ObjectStore {
         );
     }
 
-    /** Refuse a forwarded call outside the caller's grant, which its home cannot check. */
-    #requireGranted(caller: AccessContext, call: sync.Call): void {
-        // check a delegated caller alone
-        const { grant } = caller;
-        if (grant === undefined) {
+    /** Refuse a forwarded call outside the caller's grants, as its home checks only the subject. */
+    async #requireForwardable(caller: AccessContext, call: sync.Call): Promise<void> {
+        // check a delegated caller alone, in the scope of the call's replicated rows
+        if (caller.grants.length === 0) {
             return;
         }
-
-        // require the grant to reach the method and give its permission on the target
         const object = present(
             ObjectType.find(this.replicated, call),
             `the type of ${call.method}`,
         );
         const scope = object.readScope(call.method, call.input);
-        ObjectStore.#requireReached(caller, object, scope, call.method);
-        const { permission } = object.method(call.method);
+        const authorization = await this.authorize(
+            Transaction.reading(this.database),
+            scope,
+            caller,
+        );
+
+        // require the grants to give the call
         const id = typeof call.input["id"] === "string" ? call.input["id"] : undefined;
-        const target = { scope, ...(id === undefined ? {} : { id }) };
-        if (
-            permission !== undefined &&
-            !GrantPermission.allows(object.policy.permission(permission), target, grant.permissions)
-        ) {
-            throw new CallError("FORBIDDEN", {
-                message: `grant ${grant.id} does not give ${object.name}.${permission} in ${scope}`,
-            });
-        }
+        authorization.requireGranted({
+            object,
+            name: call.method,
+            ...(id === undefined ? {} : { id }),
+        });
     }
 
     /** Report whether an unhandled custom query of a replicated type runs at its rows' home. */
@@ -2178,6 +2155,7 @@ export class ObjectStore {
             this.#partition,
             calls.length === 0 ? undefined : ObjectStore.#below(undefined, this.principal),
         );
+        authorization.requireMethods(calls);
 
         return authorization;
     }

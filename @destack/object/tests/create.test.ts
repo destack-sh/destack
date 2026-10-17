@@ -1,5 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
 
 import { Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -204,17 +205,18 @@ test("run only the one method a one-method grant reaches, refusing every other m
     });
 
     // create through a token granted only the create method, then read
-    const grantId = Identifier.create("grant");
+    const token = principal.client.reference(Scope.universe.id, "client-alice");
+    const grantId = await new AccessFixture(storage.database).replicateGrant(
+        principal.user.reference("universe", users.alice),
+        token,
+        [
+            { ...team.permission("update"), scope: spaceId, method: "create" },
+            { ...team.permission("read"), scope: spaceId, method: "create" },
+        ],
+    );
     const granted = userContext(users.alice, spaceId, {
-        actors: [principal.personalAccessToken.reference(users.alice, "token-alice")],
-        grant: {
-            id: grantId,
-            scope: users.alice,
-            permissions: [
-                { ...team.permission("update"), scope: spaceId, method: "create" },
-                { ...team.permission("read"), scope: spaceId, method: "create" },
-            ],
-        },
+        actors: [token],
+        grants: [{ id: grantId, scope: users.alice }],
     });
     const created = await store
         .mutate(granted.access(), {

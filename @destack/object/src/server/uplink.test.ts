@@ -2,7 +2,7 @@ import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase, eq } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
 import { CallError } from "@destack/runtime/error";
@@ -55,19 +55,31 @@ const label = defineObject({
     permissions: { read: none() },
 });
 
+/** The space's grant to its installation. */
+const GRANT_ID = schema.identifier("grant").parse("grant-01996ab0-0000-7000-8000-000000000043");
+
 /** The space acting as itself. */
 const space = principal.space.reference(Scope.universe.id, spaceId);
 
-/** The space's installation acting for the space under a grant giving some permissions. */
-function delegated(permissions: readonly ("read" | "write")[]): AccessContext {
-    const grant = {
-        id: schema.identifier("grant").parse("grant-01996ab0-0000-7000-8000-000000000043"),
-        scope: spaceId,
-        permissions: permissions.map((name) => person.permission(name)),
-    };
+/** The space's installation acting for the space under a stored grant giving some permissions. */
+async function delegated(
+    database: DatabaseConnection,
+    permissions: readonly ("read" | "write")[],
+): Promise<AccessContext> {
+    // store the space's grant to its installation
     const installation = principal.installation.reference(spaceId, "installation-a");
+    const id = await new AccessFixture(database).replicateGrant(
+        space,
+        installation,
+        permissions.map((name) => person.permission(name)),
+        Date.now(),
+        GRANT_ID,
+    );
 
-    return AccessContext.of({ ...Caller.of(space), actors: [installation], grant }, Date.now());
+    return AccessContext.of(
+        { ...Caller.of(space), actors: [installation], grants: [{ id, scope: spaceId }] },
+        Date.now(),
+    );
 }
 
 /** Serve ada at the universe, and a space store replicating her without serving people. */
@@ -163,7 +175,7 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
         return present(row, "ada at home").name;
     };
 
-    return { store, name };
+    return { store, name, database: replicating.database };
 }
 
 /** Read how a promise settles: its value, or its refusal's code and message. */
@@ -182,7 +194,7 @@ async function outcome(promise: Promise<unknown>): Promise<unknown> {
 test.each(TEST_DIALECTS)(
     "answer a query nothing here handles at its rows' home, and send a write there within the caller's grant, on %s",
     async (dialect) => {
-        const { store, name } = await serveHome(dialect);
+        const { store, name, database } = await serveHome(dialect);
         const rename = (value: string) => ({
             id: RequestId.create(Date.now()),
             calls: [person.call("update", { id: adaId, name: value })],
@@ -191,12 +203,17 @@ test.each(TEST_DIALECTS)(
         // greet ada at home, as the space and as its installation reading for it
         const greeting = person.call("greeting", { id: adaId });
         const asSpace = await store.query(AccessContext.of(Caller.of(space), Date.now()), greeting);
-        const asInstallation = await store.query(delegated(["read"]), greeting);
+        const asInstallation = await store.query(await delegated(database, ["read"]), greeting);
 
         // rename her under a grant giving reading alone, then under one giving writing
-        const refused = await outcome(store.mutate(delegated(["read"]), rename("Ada Lovelace")));
+        const refused = await outcome(
+            store.mutate(await delegated(database, ["read"]), rename("Ada Lovelace")),
+        );
         const unchanged = await name();
-        const [renamed] = await store.mutate(delegated(["read", "write"]), rename("Ada L."));
+        const [renamed] = await store.mutate(
+            await delegated(database, ["read", "write"]),
+            rename("Ada L."),
+        );
 
         // greet at home, refuse the write the grant does not give, and answer the given one's row
         expect({
