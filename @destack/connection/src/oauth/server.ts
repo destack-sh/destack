@@ -1,4 +1,4 @@
-import { nth, defineSchema, Duration, schema } from "@destack/schema";
+import { nth, Duration, schema } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -82,18 +82,16 @@ export interface Client {
 }
 
 /** A started device authorization (RFC 8628 3.2). */
-export const DeviceAuthorization = defineSchema(
-    schema.object({
-        /** The device code the client polls with. */
-        deviceCode: schema.string().min(1),
-        /** The code the person enters. */
-        userCode: schema.string().min(1),
-        /** The page the person enters the code on, with the code when the server includes it. */
-        url: schema.httpUrl(),
-        /** The seconds between polls. */
-        interval: schema.number().int().positive(),
-    }),
-);
+export const DeviceAuthorization = schema.object({
+    /** The device code the client polls with. */
+    deviceCode: schema.string().min(1),
+    /** The code the person enters. */
+    userCode: schema.string().min(1),
+    /** The page the person enters the code on, with the code when the server includes it. */
+    url: schema.httpUrl(),
+    /** The seconds between polls. */
+    interval: schema.number().int().positive(),
+});
 /** A started device authorization. */
 export type DeviceAuthorization = schema.Infer<typeof DeviceAuthorization>;
 

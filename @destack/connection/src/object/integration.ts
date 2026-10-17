@@ -1,7 +1,7 @@
 import { anyone, contained, none, principal, relation, through, union } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Package } from "@destack/package";
 import { InstallationName } from "@destack/runtime";
@@ -22,47 +22,43 @@ export const CLIENT_AUTHENTICATIONS = [
 export type ClientAuthentication = (typeof CLIENT_AUTHENTICATIONS)[number];
 
 /** The endpoints of an authorization server (RFC 8414 2), and its installation page. */
-export const AuthorizationEndpoints = defineSchema(
-    schema.object({
-        /** The authorization endpoint, for the authorization code grant. */
-        authorization: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The token endpoint. */
-        token: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The revocation endpoint (RFC 7009). */
-        revocation: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The device authorization endpoint (RFC 8628). */
-        deviceAuthorization: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The dynamic client registration endpoint (RFC 7591). */
-        registration: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** The page where a person installs the integration, for app installations. */
-        installation: schema.url({ protocol: /^https$/u }).exactOptional(),
-        /** Whether the server returns its issuer in authorization responses (RFC 9207). */
-        isIssuerReturned: schema.boolean(),
-    }),
-);
+export const AuthorizationEndpoints = schema.object({
+    /** The authorization endpoint, for the authorization code grant. */
+    authorization: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** The token endpoint. */
+    token: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** The revocation endpoint (RFC 7009). */
+    revocation: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** The device authorization endpoint (RFC 8628). */
+    deviceAuthorization: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** The dynamic client registration endpoint (RFC 7591). */
+    registration: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** The page where a person installs the integration, for app installations. */
+    installation: schema.url({ protocol: /^https$/u }).exactOptional(),
+    /** Whether the server returns its issuer in authorization responses (RFC 9207). */
+    isIssuerReturned: schema.boolean(),
+});
 /** The endpoints of an authorization server. */
 export type AuthorizationEndpoints = schema.Infer<typeof AuthorizationEndpoints>;
 
 /** Who issues an integration's tokens: its authorization server, or a package's installation. */
 export const IntegrationIssuer = Object.assign(
-    defineSchema(
-        schema.discriminatedUnion("kind", [
-            schema.object({
-                kind: schema.literal("server"),
-                /** The authorization server's issuer identifier (RFC 8414 2). */
-                url: schema.url({ protocol: /^https$/u }),
-            }),
-            schema.object({
-                kind: schema.literal("installation"),
-                /** The package whose installation issues the tokens, at its registered release. */
-                package: Package,
-                /** The issuing installation's name in its space. */
-                name: InstallationName,
-                /** The issuer object in the installation's space. */
-                issuer: ObjectReference,
-            }),
-        ]),
-    ),
+    schema.discriminatedUnion("kind", [
+        schema.object({
+            kind: schema.literal("server"),
+            /** The authorization server's issuer identifier (RFC 8414 2). */
+            url: schema.url({ protocol: /^https$/u }),
+        }),
+        schema.object({
+            kind: schema.literal("installation"),
+            /** The package whose installation issues the tokens, at its registered release. */
+            package: Package,
+            /** The issuing installation's name in its space. */
+            name: InstallationName,
+            /** The issuer object in the installation's space. */
+            issuer: ObjectReference,
+        }),
+    ]),
     {
         /** Read the authorization server's issuer identifier, refusing an installation's issuer. */
         url(issuer: IntegrationIssuer): string {
@@ -81,22 +77,20 @@ export const IntegrationIssuer = Object.assign(
 export type IntegrationIssuer = schema.Infer<typeof IntegrationIssuer>;
 
 /** A dynamically registered client (RFC 7591 3.2.1), with the vault of an issued secret. */
-export const Registration = defineSchema(
-    schema.object({
-        /** The authorization server issuing its tokens. */
-        issuer: IntegrationIssuer,
-        /** The authorization server's endpoints. */
-        endpoints: AuthorizationEndpoints,
-        /** The client identifier the server assigned. */
-        clientId: schema.string().min(1),
-        /** How the client authenticates at the token endpoint. */
-        authentication: schema.enum(CLIENT_AUTHENTICATIONS),
-        /** The redirect URIs the client registered. */
-        redirectUris: schema.array(schema.httpUrl()),
-        /** The vault storing the secret the server issued, absent for a public client. */
-        vault: ObjectReference.exactOptional(),
-    }),
-);
+export const Registration = schema.object({
+    /** The authorization server issuing its tokens. */
+    issuer: IntegrationIssuer,
+    /** The authorization server's endpoints. */
+    endpoints: AuthorizationEndpoints,
+    /** The client identifier the server assigned. */
+    clientId: schema.string().min(1),
+    /** How the client authenticates at the token endpoint. */
+    authentication: schema.enum(CLIENT_AUTHENTICATIONS),
+    /** The redirect URIs the client registered. */
+    redirectUris: schema.array(schema.httpUrl()),
+    /** The vault storing the secret the server issued, absent for a public client. */
+    vault: ObjectReference.exactOptional(),
+});
 /** A client an authorization server registered dynamically. */
 export type Registration = schema.Infer<typeof Registration>;
 

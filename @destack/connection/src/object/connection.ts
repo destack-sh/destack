@@ -2,7 +2,7 @@ import { type Select } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
 import { type MethodContextOf, CONSUMER, defineObject, field } from "@destack/object";
 import { CallError } from "@destack/runtime/error";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Credential, Material } from "../credential/credential.ts";
 
@@ -10,80 +10,76 @@ import { Credential, Material } from "../credential/credential.ts";
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 
 /** How a connection authenticates at its external system, with what each kind needs. */
-export const ConnectionProtocol = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** An API key sent in a header. */
-            kind: schema.literal("key"),
-            /** The header sending the key, such as authorization or x-api-key. */
-            header: schema.string().min(1),
-            /** The scheme before the key, such as Bearer, absent to send the key alone. */
-            scheme: schema.string().min(1).exactOptional(),
-        }),
-        schema.object({
-            /** HTTP message signatures (RFC 9421). */
-            kind: schema.literal("signature"),
-            /** The signature algorithm (RFC 9421 6.2.2). */
-            algorithm: schema.enum(["hmac-sha256", "ed25519"]),
-            /** The key identifier the verifier looks the key up by. */
-            keyId: schema.string().min(1),
-        }),
-        schema.object({
-            /** AWS Signature Version 4. */
-            kind: schema.literal("sigv4"),
-            /** The AWS region, such as eu-central-1. */
-            region: schema.string().min(1),
-            /** The service's signing name, such as s3 or execute-api. */
-            service: schema.string().min(1),
-        }),
-        schema.object({
-            /** A JWT assertion exchanged for an access token (RFC 7523 2.1). */
-            kind: schema.literal("jwt"),
-            /** The assertion's issuer, such as a service account's address. */
-            issuer: schema.string().min(1),
-            /** The assertion's subject, the issuer itself for a service account. */
-            subject: schema.string().min(1),
-        }),
-        schema.object({
-            /** The authorization code grant with PKCE (RFC 6749 4.1, RFC 7636). */
-            kind: schema.literal("authorization-code"),
-        }),
-        schema.object({
-            /** The client credentials grant (RFC 6749 4.4). */
-            kind: schema.literal("client-credentials"),
-        }),
-        schema.object({
-            /** An integration installed on an external account, whose issuer issues its tokens. */
-            kind: schema.literal("installation"),
-        }),
-        schema.object({
-            /** The device authorization grant (RFC 8628). */
-            kind: schema.literal("device-code"),
-        }),
-        schema.object({
-            /** A token exchanged for another connection's token (RFC 8693). */
-            kind: schema.literal("token-exchange"),
-            /** The connection whose current access token is the subject token. */
-            source: ObjectReference,
-        }),
-        schema.object({
-            /** A TLS client certificate (RFC 8705). */
-            kind: schema.literal("mtls"),
-        }),
-    ]),
-);
+export const ConnectionProtocol = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** An API key sent in a header. */
+        kind: schema.literal("key"),
+        /** The header sending the key, such as authorization or x-api-key. */
+        header: schema.string().min(1),
+        /** The scheme before the key, such as Bearer, absent to send the key alone. */
+        scheme: schema.string().min(1).exactOptional(),
+    }),
+    schema.object({
+        /** HTTP message signatures (RFC 9421). */
+        kind: schema.literal("signature"),
+        /** The signature algorithm (RFC 9421 6.2.2). */
+        algorithm: schema.enum(["hmac-sha256", "ed25519"]),
+        /** The key identifier the verifier looks the key up by. */
+        keyId: schema.string().min(1),
+    }),
+    schema.object({
+        /** AWS Signature Version 4. */
+        kind: schema.literal("sigv4"),
+        /** The AWS region, such as eu-central-1. */
+        region: schema.string().min(1),
+        /** The service's signing name, such as s3 or execute-api. */
+        service: schema.string().min(1),
+    }),
+    schema.object({
+        /** A JWT assertion exchanged for an access token (RFC 7523 2.1). */
+        kind: schema.literal("jwt"),
+        /** The assertion's issuer, such as a service account's address. */
+        issuer: schema.string().min(1),
+        /** The assertion's subject, the issuer itself for a service account. */
+        subject: schema.string().min(1),
+    }),
+    schema.object({
+        /** The authorization code grant with PKCE (RFC 6749 4.1, RFC 7636). */
+        kind: schema.literal("authorization-code"),
+    }),
+    schema.object({
+        /** The client credentials grant (RFC 6749 4.4). */
+        kind: schema.literal("client-credentials"),
+    }),
+    schema.object({
+        /** An integration installed on an external account, whose issuer issues its tokens. */
+        kind: schema.literal("installation"),
+    }),
+    schema.object({
+        /** The device authorization grant (RFC 8628). */
+        kind: schema.literal("device-code"),
+    }),
+    schema.object({
+        /** A token exchanged for another connection's token (RFC 8693). */
+        kind: schema.literal("token-exchange"),
+        /** The connection whose current access token is the subject token. */
+        source: ObjectReference,
+    }),
+    schema.object({
+        /** A TLS client certificate (RFC 8705). */
+        kind: schema.literal("mtls"),
+    }),
+]);
 /** How a connection authenticates at its external system. */
 export type ConnectionProtocol = schema.Infer<typeof ConnectionProtocol>;
 
 /** A connection leased to a consumer's call: its protocol and current credential. */
-export const Lease = defineSchema(
-    schema.object({
-        /** How requests carry the credential. */
-        protocol: ConnectionProtocol,
-        /** The current credential. */
-        credential: Credential,
-    }),
-);
+export const Lease = schema.object({
+    /** How requests carry the credential. */
+    protocol: ConnectionProtocol,
+    /** The current credential. */
+    credential: Credential,
+});
 /** A connection leased to a consumer's call. */
 export type Lease = schema.Infer<typeof Lease>;
 
@@ -91,82 +87,76 @@ export type Lease = schema.Infer<typeof Lease>;
 export type ConnectionKind = ConnectionProtocol["kind"];
 
 /** A started authorization: the page the person approves it on, and the request's state. */
-export const AuthorizationStart = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** An authorization page with code grant and PKCE (RFC 6749 4.1, RFC 7636). */
-            kind: schema.literal("page"),
-            /** The page the person approves the authorization on. */
-            url: schema.httpUrl(),
-            /** The state the authorization server returns. */
-            state: schema.string().min(1),
-            /** The redirect URI the authorization server returns to. */
-            redirectUri: schema.httpUrl(),
-            /** The PKCE code verifier. */
-            verifier: schema.string().min(1),
-            /** The client of a dynamic registration, then used by the connection, if any. */
-            registered: ObjectReference.nullable(),
-        }),
-        schema.object({
-            /** An integration's installation page. */
-            kind: schema.literal("installation"),
-            /** The page the person installs the integration on. */
-            url: schema.httpUrl(),
-            /** The state the installation page returns. */
-            state: schema.string().min(1),
-            /** The redirect URI the installation page returns to. */
-            redirectUri: schema.httpUrl(),
-        }),
-        schema.object({
-            /** The device authorization grant (RFC 8628). */
-            kind: schema.literal("device"),
-            /** The verification page the person enters the user code on. */
-            url: schema.httpUrl(),
-            /** The device code the controller polls with. */
-            deviceCode: schema.string().min(1),
-            /** The code the person enters. */
-            userCode: schema.string().min(1),
-            /** The seconds between polls. */
-            interval: schema.number().int().positive(),
-        }),
-    ]),
-);
+export const AuthorizationStart = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** An authorization page with code grant and PKCE (RFC 6749 4.1, RFC 7636). */
+        kind: schema.literal("page"),
+        /** The page the person approves the authorization on. */
+        url: schema.httpUrl(),
+        /** The state the authorization server returns. */
+        state: schema.string().min(1),
+        /** The redirect URI the authorization server returns to. */
+        redirectUri: schema.httpUrl(),
+        /** The PKCE code verifier. */
+        verifier: schema.string().min(1),
+        /** The client of a dynamic registration, then used by the connection, if any. */
+        registered: ObjectReference.nullable(),
+    }),
+    schema.object({
+        /** An integration's installation page. */
+        kind: schema.literal("installation"),
+        /** The page the person installs the integration on. */
+        url: schema.httpUrl(),
+        /** The state the installation page returns. */
+        state: schema.string().min(1),
+        /** The redirect URI the installation page returns to. */
+        redirectUri: schema.httpUrl(),
+    }),
+    schema.object({
+        /** The device authorization grant (RFC 8628). */
+        kind: schema.literal("device"),
+        /** The verification page the person enters the user code on. */
+        url: schema.httpUrl(),
+        /** The device code the controller polls with. */
+        deviceCode: schema.string().min(1),
+        /** The code the person enters. */
+        userCode: schema.string().min(1),
+        /** The seconds between polls. */
+        interval: schema.number().int().positive(),
+    }),
+]);
 /** A started authorization. */
 export type AuthorizationStart = schema.Infer<typeof AuthorizationStart>;
 
 /** What a completed authorization granted, its credential already in the vault. */
-export const AuthorizationGrant = defineSchema(
-    schema.object({
-        /** The request the completion used. */
-        request: schema.identifier("authorization-request"),
-        /** The external account's identifier, where the server gives it. */
-        subject: schema.string().min(1).exactOptional(),
-        /** The scopes granted. */
-        scopes: schema.array(schema.string().min(1)),
-        /** The access token's expiry, absent for a token that does not expire. */
-        expiresAt: schema.number().int().exactOptional(),
-    }),
-);
+export const AuthorizationGrant = schema.object({
+    /** The request the completion used. */
+    request: schema.identifier("authorization-request"),
+    /** The external account's identifier, where the server gives it. */
+    subject: schema.string().min(1).exactOptional(),
+    /** The scopes granted. */
+    scopes: schema.array(schema.string().min(1)),
+    /** The access token's expiry, absent for a token that does not expire. */
+    expiresAt: schema.number().int().exactOptional(),
+});
 /** What a completed authorization granted. */
 export type AuthorizationGrant = schema.Infer<typeof AuthorizationGrant>;
 
 /** A revoked connection's credential, withdrawn at its server and destroyed after commit. */
-export const Withdrawal = defineSchema(
-    schema.object({
-        /** The connection. */
-        id: schema.identifier("connection"),
-        /** How the connection authenticated. */
-        protocol: ConnectionProtocol,
-        /** The integration whose client the tokens were issued to. */
-        integration: ObjectReference.nullable(),
-        /** The external account, the installation of an installed integration. */
-        subject: schema.string().min(1).nullable(),
-        /** The vault storing the credential. */
-        vault: ObjectReference,
-        /** When the vault last stored the credential, null while it stores none. */
-        storedAt: schema.number().int().nullable(),
-    }),
-);
+export const Withdrawal = schema.object({
+    /** The connection. */
+    id: schema.identifier("connection"),
+    /** How the connection authenticated. */
+    protocol: ConnectionProtocol,
+    /** The integration whose client the tokens were issued to. */
+    integration: ObjectReference.nullable(),
+    /** The external account, the installation of an installed integration. */
+    subject: schema.string().min(1).nullable(),
+    /** The vault storing the credential. */
+    vault: ObjectReference,
+    /** When the vault last stored the credential, null while it stores none. */
+    storedAt: schema.number().int().nullable(),
+});
 /** A revoked connection's credential. */
 export type Withdrawal = schema.Infer<typeof Withdrawal>;
 

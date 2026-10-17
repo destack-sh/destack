@@ -3,33 +3,29 @@ import type { Table } from "@destack/db";
 import { space } from "@destack/account/object";
 import { MethodBuilder, ObjectType } from "@destack/object";
 import type { Package } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Token } from "../credential/credential.ts";
 
 /** What an installation token opens: some of the installation's resources and permissions. */
-export const InstallationGrant = defineSchema(
-    schema.object({
-        /** The resources the token opens, such as repositories, by identifier or name. */
-        resources: schema
-            .union([
-                schema.object({ ids: schema.array(schema.string().min(1)) }),
-                schema.object({ names: schema.array(schema.string().min(1)) }),
-            ])
-            .exactOptional(),
-        /** The permissions the token has, by name, such as contents read. */
-        permissions: schema.record(schema.string().min(1), schema.string().min(1)).exactOptional(),
-    }),
-);
+export const InstallationGrant = schema.object({
+    /** The resources the token opens, such as repositories, by identifier or name. */
+    resources: schema
+        .union([
+            schema.object({ ids: schema.array(schema.string().min(1)) }),
+            schema.object({ names: schema.array(schema.string().min(1)) }),
+        ])
+        .exactOptional(),
+    /** The permissions the token has, by name, such as contents read. */
+    permissions: schema.record(schema.string().min(1), schema.string().min(1)).exactOptional(),
+});
 /** What an installation token opens. */
 export type InstallationGrant = schema.Infer<typeof InstallationGrant>;
 
 /** The installation a completed installation page redirects back with. */
-export const IssuedInstallation = defineSchema(
-    schema.object({
-        /** The app's installation on an external account. */
-        installation: schema.string().min(1),
-    }),
-);
+export const IssuedInstallation = schema.object({
+    /** The app's installation on an external account. */
+    installation: schema.string().min(1),
+});
 
 /** The apps a package installs on external accounts, whose tokens it issues to connections. */
 export const Issuer = {
