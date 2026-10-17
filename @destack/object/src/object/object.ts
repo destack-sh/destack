@@ -149,7 +149,7 @@ import { storeTables } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
 import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
-import { DeclarationIndex, type KnownDeclaration, ObjectDescription } from "./description.ts";
+import { ObjectDescription } from "./description.ts";
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
@@ -665,6 +665,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     private readonly events: Configuration["events"];
     /** The schemas, procedures and mapping derived from the definition, built lazily. */
     private derived: Derived = ObjectType.#underived();
+    /** Whether the authored members and traits were validated, which copies inherit. */
+    private isValid = false;
 
     /** Retain a definition with its table and methods, and assemble its policy. */
     constructor(owner: Package, definition: ObjectTypeDefinition<Configuration>) {
@@ -700,10 +702,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.permissions = assembly.permissions;
         this.policy = assembly.policy;
 
-        // take the event log's kind, list the tables, then require valid members and traits
+        // take the event log's kind and list the tables
         this.events = definition.events;
         this.tables = this.#databaseTables();
-        this.#requireValid(definition);
     }
 
     /** The definition as written, its methods built, which descriptions encode. */
@@ -1718,56 +1719,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Describe the type as data: its package and written definition, refusing intrinsic types. */
     describe(): ObjectDescription {
+        this.requireValid();
+
         return ObjectDescription.of(this);
     }
 
-    /** Declare an object type from its description against the known declarations. */
-    static of(description: ObjectDescription, known: Iterable<KnownDeclaration>): ObjectType {
-        return ObjectType.#declare(description, DeclarationIndex.of(known));
-    }
-
-    /** Declare object types from descriptions against the known declarations. */
-    static ofAll(
-        descriptions: readonly ObjectDescription[],
-        known: Iterable<KnownDeclaration>,
-    ): ObjectType[] {
-        // declare each type once the ones it refers to now are known
-        const index = DeclarationIndex.of(known);
-        const pending = new Map(descriptions.map((each) => [ObjectDescription.key(each), each]));
-        const declared = new Map<string, ObjectType>();
-        while (pending.size > 0) {
-            const ready = [...pending].filter(([, each]) =>
-                ObjectDescription.dependencies(each, index).every((key) => !pending.has(key)),
-            );
-            if (ready.length === 0) {
-                throw new TypeError(
-                    `object types ${[...pending.keys()].join(", ")} refer to each other now; refer to one lazily`,
-                );
-            }
-            for (const [key, each] of ready) {
-                declared.set(key, ObjectType.#declare(each, index));
-                pending.delete(key);
-            }
+    /** Require valid members and traits once, as describing or serving the type does. */
+    requireValid(): void {
+        if (!this.isValid) {
+            this.#requireValid(this.definition);
+            this.isValid = true;
         }
-
-        return descriptions.map((each) =>
-            present(declared.get(ObjectDescription.key(each)), "the declared type"),
-        );
-    }
-
-    /** Declare an object type from its description and add it to its lazy references' index. */
-    static #declare(description: ObjectDescription, index: DeclarationIndex): ObjectType {
-        // decode the definition and declare the type, its methods built
-        const { methods, ...definition } = ObjectDescription.decode(description, index);
-        const declared = ObjectType.declare(
-            { ...definition, ...(methods === undefined ? {} : { methods }) },
-            { package: description.package },
-        );
-
-        // add the type for the lazy references that read it
-        index.add(declared);
-
-        return declared;
     }
 
     /** Replicate the object type with some members changed, sharing its table. */
@@ -1785,6 +1747,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         changes: Partial<Pick<Type, "methods" | "controller" | "declaration" | "definition">>,
         derived: Derived,
     ): Type {
+        // validate the authored type before a copy changes its definition
+        type.requireValid();
+
         return Object.assign(inherit(readPrototype(type)), type, changes, { derived });
     }
 
@@ -2490,7 +2455,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 .map(({ trait }) => present(trait.key, "the key of a trait some storages refuse")),
             ...(storage === "durable"
                 ? []
-                : keys.filter((key) => definition[key] !== undefined && definition[key] !== false)),
+                : keys.filter((key) => {
+                      // count a declared key, a defaulted map only with entries
+                      const declared = definition[key];
+                      const isDefaulted = key === "aggregates" || key === "indexes";
+
+                      return isDefaulted
+                          ? Object.keys(declared ?? {}).length > 0
+                          : declared !== undefined && declared !== false;
+                  })),
         ];
     }
 

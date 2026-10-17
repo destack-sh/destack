@@ -312,7 +312,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 
     // count books every shelf reader lists, and refuse books only their owners list
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
-    expect(() => book(union(relation("owner")))).toThrow(
+    expect(() => book(union(relation("owner"))).describe()).toThrow(
         new TypeError(
             "aggregate bookCount of book counts rows that readers of shelf may not list: list them through parent read",
         ),
@@ -322,7 +322,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 test("refuse a containment grant on a type living in the universe alone, and allow it on a scope type there", () => {
     // declare the scope type, deciding by its own row's containment, and refuse the record
     expect(ledger(true).name).toBe("ledger");
-    expect(() => ledger(false)).toThrow(
+    expect(() => ledger(false).describe()).toThrow(
         new TypeError(
             "object ledger lives in the universe without principals: contained() in its read permission allows no one",
         ),
@@ -495,7 +495,7 @@ test("refuse two methods answering one route, which a router would send to one o
                 update: method.update("write", { fields: ["title"] }),
                 retitle: method.update("write", { fields: ["title"] }),
             }),
-        ),
+        ).describe(),
     ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
 });
 

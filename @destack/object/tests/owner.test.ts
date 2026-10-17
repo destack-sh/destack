@@ -139,7 +139,7 @@ test("refuse an owner that no reference relates", () => {
             scope: space,
             owner: "holder",
             fields: { name: field.string() },
-        }),
+        }).describe(),
     ).toThrow("object orphan is owned through holder, but no reference relates it");
 });
 

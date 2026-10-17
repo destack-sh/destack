@@ -28,7 +28,12 @@ export {
     type ObjectStorage,
 } from "./object.ts";
 export { ObjectConstraint } from "./constraint.ts";
-export { ObjectDescription, type BuilderCall, type KnownDeclaration } from "./description.ts";
+export {
+    DeclarationIndex,
+    ObjectDescription,
+    type BuilderCall,
+    type KnownDeclaration,
+} from "./description.ts";
 export {
     type KeyFields,
     ObjectController,

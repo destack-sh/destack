@@ -6,7 +6,7 @@ import { schema, type JsonValue } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ServerContext } from "@destack/runtime/workload";
 import { type ObjectReference, Subject } from "@destack/sync";
-import type { InstalledDeclaration } from "../inspect/object.ts";
+import type { Declaration } from "../inspect/object.ts";
 import type { MethodContext, PhasedHandler } from "../method/context.ts";
 import { PHASES, type Phase } from "../method/method.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -39,7 +39,7 @@ export class HookSandbox {
     /** The server context of the installation the sandbox runs as. */
     readonly server: ServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
-    readonly declarations: readonly InstalledDeclaration[];
+    readonly declarations: readonly Declaration[];
     /** Send a request to run a hook to the sandbox. */
     readonly #send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     /** The types the installation serves, whose rows its hooks read, by their tables' SQL names. */
@@ -52,7 +52,7 @@ export class HookSandbox {
         /** The server context of the installation the sandbox runs as. */
         readonly server: ServerContext;
         /** The declarations of the installation's followed build. */
-        readonly declarations: readonly InstalledDeclaration[];
+        readonly declarations: readonly Declaration[];
         /** Send a request to run a hook to the sandbox. */
         readonly send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     }) {

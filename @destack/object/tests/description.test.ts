@@ -3,8 +3,14 @@ import { principal } from "@destack/access";
 import { declareState } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
-import { schema, toJsonSchema } from "@destack/schema";
-import { defineObject, field, type FileBucket, ObjectType } from "../src/index.ts";
+import { nth, schema, toJsonSchema } from "@destack/schema";
+import {
+    DeclarationIndex,
+    defineObject,
+    field,
+    type FileBucket,
+    ObjectType,
+} from "../src/index.ts";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "./fixture/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
@@ -130,7 +136,7 @@ const TYPES = [
 test("describe every field and method as its builder calls, and declare the same type from them", () => {
     // describe the type, declare it again and describe that
     const described = sample.describe();
-    const declared = ObjectType.of(described, TYPES);
+    const declared = nth(DeclarationIndex.of(TYPES).declare([described]), 0);
     expect(declared.describe()).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
@@ -262,7 +268,7 @@ test("encode a message field's package, identifier and source text, and refuse p
 test("describe every test type as data, and declare the same types, routes and tables from it", () => {
     // describe each type, declare them all again only from the descriptions, and describe them
     const described = TYPES.map((type) => type.describe());
-    const declared = ObjectType.ofAll(described, []);
+    const declared = DeclarationIndex.of([]).declare(described);
     expect(declared.map((type) => type.describe())).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
@@ -308,7 +314,7 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
             "coded.methods.rename.mutation[0].inverse is code: a description cannot store it",
         ),
     );
-    expect(() => ObjectType.of(sample.describe(), [space])).toThrow(
+    expect(() => DeclarationIndex.of([space]).declare([sample.describe()])).toThrow(
         new TypeError(
             `a description refers to unknown object type ${JSON.stringify([note.package.id, "note"])}`,
         ),

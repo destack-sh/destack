@@ -11,8 +11,7 @@ import {
 } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Package, PackageId } from "@destack/package";
-import { definePackage } from "@destack/runtime";
+import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
@@ -25,13 +24,7 @@ import {
     desiredState,
     type ResourceRow,
 } from "../src/index.ts";
-import {
-    defineServer,
-    DRAINING,
-    ObjectStore,
-    type ServedPackage,
-    type ServerDefinition,
-} from "../src/server/index.ts";
+import { DRAINING, ObjectStore } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { RequestId } from "@destack/runtime/request";
@@ -559,42 +552,3 @@ test("name a resource after another kind's resource in its space, refusing a sec
 function conditions(row: { readonly conditions: ResourceRow["conditions"] }) {
     return [row.conditions["ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }
-
-test("route another package's provisioned type to the package whose provider provisions it, refusing one without", async () => {
-    // host the boxes in another package, with and without their provider
-    const host = definePackage(
-        { objects: { box } },
-        {
-            package: Package.parse({
-                id: "package-01996ab0-0000-7000-8000-000000000057",
-                name: "@example/host",
-                version: "2026.9.0",
-            }),
-        },
-    );
-    const storage = await TestDatabase.create("sqlite", boxDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const events = await testEvents(storage.database);
-    const hostPackage: ServedPackage = host;
-    const serveHost = (definition: ServerDefinition) =>
-        new ObjectStore({
-            servers: [defineServer(hostPackage, definition)],
-            machine: machineId,
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            database: storage.database,
-            callKey: testCallKey,
-            events,
-            origin: { package: host },
-        });
-
-    // implement the boxes in the providing package alone
-    const hosting = serveHost({ providers: [new Boxes().provider()] });
-    expect(Object.keys(hosting.package(host).router)).toEqual(["store", "box"]);
-    expect(() => serveHost({})).toThrow(
-        new TypeError(
-            `package @example/host routes box objects of ${box.package.id}, but nothing here implements or replicates them`,
-        ),
-    );
-});

@@ -209,6 +209,6 @@ test("derive the roles of a shared partition without sharing methods on its row,
             () => ({
                 explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
             }),
-        ),
+        ).describe(),
     ).toThrow(new TypeError("object room: share a partitioned scope through its relationships"));
 });

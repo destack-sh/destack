@@ -2,7 +2,6 @@ import { INTRINSIC_POLICIES, Policy, PolicySubject } from "@destack/access";
 import { DeclarationName, Package, PackageId } from "@destack/package";
 import { NO_STATE, ResourceDeclaration, ResourceKind } from "@destack/resource";
 import {
-    defineSchema,
     fromJsonSchema,
     present,
     schema,
@@ -17,6 +16,7 @@ import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
 import { INTRINSIC } from "./intrinsic.ts";
+import { type Declaration, OBJECT_DECLARATION } from "../inspect/object.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -74,21 +74,19 @@ const DescribedBucket = schema.object({
 });
 
 /** An object type as data: its package and its definition as written, its special values tagged. */
-const objectDescription = defineSchema(
-    schema.object({
-        /** The declaring package. */
-        package: schema.object({
-            /** The package's identifier. */
-            id: PackageId,
-            /** The package's name. */
-            name: schema.string().min(1),
-            /** The package's version. */
-            version: schema.string().min(1),
-        }),
-        /** The definition as written, special values tagged. */
-        definition: schema.jsonObject(),
+const objectDescription = schema.object({
+    /** The declaring package. */
+    package: schema.object({
+        /** The package's identifier. */
+        id: PackageId,
+        /** The package's name. */
+        name: schema.string().min(1),
+        /** The package's version. */
+        version: schema.string().min(1),
     }),
-);
+    /** The definition as written, special values tagged. */
+    definition: schema.jsonObject(),
+});
 
 /** A declaration value as description data: tagged, encoded and decoded. */
 const DescribedValue = {
@@ -484,6 +482,15 @@ export const ObjectDescription = Object.assign(objectDescription, {
         return [...new Map(references).values()];
     },
 
+    /** Read the object descriptions among an installation's declarations. */
+    installed(
+        declarations: readonly Pick<Declaration, "kind" | "description">[],
+    ): ObjectDescription[] {
+        return declarations
+            .filter((entry) => entry.kind === OBJECT_DECLARATION)
+            .map((entry) => ObjectDescription.parse(entry.description));
+    },
+
     /** Decode a description's definition against the known declarations, its methods built. */
     decode(description: ObjectDescription, known: DeclarationIndex): ObjectDefinition {
         return readDefinition(DescribedValue.decode(description.definition, known));
@@ -518,6 +525,47 @@ export class DeclarationIndex {
         } else {
             this.policies.set(ObjectTypeReference.key(declaration.typeReference), declaration);
         }
+    }
+
+    /** Declare object types from descriptions and add them, each once its references are known. */
+    declare(descriptions: readonly ObjectDescription[]): ObjectType[] {
+        // declare each type once the ones it refers to now are known, adding it here
+        const pending = new Map(descriptions.map((each) => [ObjectDescription.key(each), each]));
+        const declared = new Map<string, ObjectType>();
+        while (pending.size > 0) {
+            const ready = [...pending].filter(([, each]) =>
+                ObjectDescription.dependencies(each, this).every((key) => !pending.has(key)),
+            );
+            if (ready.length === 0) {
+                throw new TypeError(
+                    `object types ${[...pending.keys()].join(", ")} refer to each other now; refer to one lazily`,
+                );
+            }
+            for (const [key, each] of ready) {
+                const { methods, ...definition } = ObjectDescription.decode(each, this);
+                const type = ObjectType.declare(
+                    { ...definition, ...(methods === undefined ? {} : { methods }) },
+                    { package: each.package },
+                );
+                this.add(type);
+                declared.set(key, type);
+                pending.delete(key);
+            }
+        }
+
+        return descriptions.map((each) =>
+            present(declared.get(ObjectDescription.key(each)), "the declared type"),
+        );
+    }
+
+    /** List the types descriptions refer to that neither the index nor the descriptions declare. */
+    missing(descriptions: readonly ObjectDescription[]): ObjectTypeReference[] {
+        const described = new Set(descriptions.map((each) => ObjectDescription.key(each)));
+        const missing = descriptions
+            .flatMap((each) => ObjectDescription.references(each, this))
+            .filter((reference) => !described.has(ObjectTypeReference.key(reference)));
+
+        return [...new Map(missing.map((each) => [ObjectTypeReference.key(each), each])).values()];
     }
 
     /** Read a declaration by key, refusing one the index lacks. */

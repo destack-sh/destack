@@ -1,14 +1,14 @@
 import { TABLE } from "@destack/db";
 import { graph, type PackageId } from "@destack/package";
 import { schema, type JsonValue } from "@destack/schema";
-import { ObjectDescription, type KnownDeclaration } from "../object/description.ts";
+import { ObjectDescription } from "../object/description.ts";
 import { ObjectType } from "../object/object.ts";
 
 /** The kind of the declarations `defineObject` makes, as manifests list them. */
 export const OBJECT_DECLARATION = "object";
 
-/** A declaration an installation's release makes, as the space stores it. */
-export interface InstalledDeclaration {
+/** A package's declaration, as a space stores it for its installation's revision. */
+export interface Declaration {
     /** The declaration's kind. */
     readonly kind: string;
     /** The declaring package. */
@@ -20,18 +20,6 @@ export interface InstalledDeclaration {
 /** Describe an object type for the manifest, as the data it is declared from. */
 export function describeObject(object: ObjectType): ObjectDescription {
     return object.describe();
-}
-
-/** Declare the object types an installation describes, against the declarations known here. */
-export function declareInstalled(
-    declarations: readonly InstalledDeclaration[],
-    known: Iterable<KnownDeclaration>,
-): ObjectType[] {
-    const descriptions = declarations
-        .filter((entry) => entry.kind === OBJECT_DECLARATION)
-        .map((entry) => ObjectDescription.parse(entry.description));
-
-    return ObjectType.ofAll(descriptions, known);
 }
 
 /** List an object type's terms: its name, relations, permissions and methods. */

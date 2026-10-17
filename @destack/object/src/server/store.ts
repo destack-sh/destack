@@ -79,7 +79,7 @@ import {
     type ProcedureRouter,
 } from "@destack/runtime";
 import * as sync from "@destack/sync";
-import { type Follow, type FollowKey, Shape } from "../replica/shape.ts";
+import { type Follow, type FollowKey } from "../replica/shape.ts";
 import { followKey } from "../replica/key.ts";
 import { QueriesParameters } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
@@ -124,7 +124,6 @@ import { telemetry } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
-import { declareInstalled } from "../inspect/object.ts";
 import type { AdapterFetch, PackageServer, ServedPackage, ServerDefinition } from "./server.ts";
 import { Clock } from "@destack/environment";
 
@@ -489,6 +488,10 @@ export class ObjectStore {
         this.#declared = options.objects;
         this.objects = ObjectType.served(this.#declared);
         this.replicas = parts.replicas ?? [];
+        // validate each served type once, as describing it at build would
+        for (const type of options.objects) {
+            type.requireValid();
+        }
         ObjectStore.#requireRoutes(options.objects);
         ObjectStore.#requireStores(this.objects, options);
 
@@ -1025,8 +1028,7 @@ export class ObjectStore {
         }
 
         // wait on commits until the synced replica follows the key's queries
-        const wanted = Shape.demanded(
-            shape,
+        const wanted = shape.onDemandSubscription(
             scope,
             [parameters],
             ObjectStore.#below(this.#partition, this.principal),
@@ -3237,7 +3239,7 @@ export class ObjectStore {
         ];
 
         // route every package's types, answering queries of replicated types nothing here serves
-        const routes = ObjectStore.#routes(served, (type) => given.database.replicates(type.table));
+        const routes = ObjectStore.#routes(served);
         const replicas = known
             .filter((type) => type instanceof ObjectType)
             .filter(
@@ -3258,11 +3260,10 @@ export class ObjectStore {
 
         // serve each type at its package's installation, else at the store's installation
         const installed = new Map(
-            [...routes].flatMap(([key, { type, entry }]) => {
+            [...routes].flatMap(([key, { entry }]) => {
                 const serving = entry.server ?? server;
-                const isOwned = type.package.id === entry.package.id;
 
-                return serving === undefined || !isOwned ? [] : [[key, serving] as const];
+                return serving === undefined ? [] : [[key, serving] as const];
             }),
         );
 
@@ -3331,24 +3332,17 @@ export class ObjectStore {
         };
     }
 
-    /** Route each package's types to their implementation, else to the replica here. */
+    /** Route each package's own types to it, refusing two packages implementing one. */
     static #routes(
         served: readonly StorePackage[],
-        isReplicated: (type: ObjectType) => boolean,
     ): ReadonlyMap<string, { readonly type: ObjectType; readonly entry: StorePackage }> {
-        // implement the types of each package and the types its providers provision, once
+        // implement each package's own types, once
         const routes = new Map<
             string,
             { readonly type: ObjectType; readonly entry: StorePackage }
         >();
         for (const entry of served) {
-            const provisioned = (entry.definition.providers ?? []).map((each) => each.object);
-            const own = entry.objects.filter(
-                (type) =>
-                    type.package.id === entry.package.id ||
-                    provisioned.some((each) => each.same(type)),
-            );
-            for (const type of own) {
+            for (const type of entry.objects) {
                 const key = ObjectTypeReference.key(type.typeReference);
                 const earlier = routes.get(key);
                 if (earlier !== undefined) {
@@ -3357,25 +3351,6 @@ export class ObjectStore {
                     );
                 }
                 routes.set(key, { type, entry });
-            }
-        }
-
-        // route another package's type to its replica here
-        for (const entry of served) {
-            for (const type of entry.objects) {
-                const key = ObjectTypeReference.key(type.typeReference);
-                const isRouted = routes.has(key);
-
-                // route a replicated type to the package
-                if (!isRouted && isReplicated(type)) {
-                    routes.set(key, { type, entry });
-                }
-                // refuse a type nothing here implements or replicates
-                else if (!isRouted) {
-                    throw new TypeError(
-                        `${ObjectStore.#servedBy(entry)} routes ${type.name} objects of ${type.package.id}, but nothing here implements or replicates them`,
-                    );
-                }
             }
         }
 
@@ -3397,7 +3372,9 @@ export class ObjectStore {
         // declare the installation's types and index them beside the known ones by reference
         const { declarations, server } = sandbox;
         const platform = [...known];
-        const types = declareInstalled(declarations, platform);
+        const types = DeclarationIndex.of(platform).declare(
+            ObjectDescription.installed(declarations),
+        );
         const byReference = new Map(
             [...platform, ...types]
                 .filter((declared) => declared instanceof ObjectType)
@@ -3600,10 +3577,10 @@ export class ObjectStore {
         },
     ): Promise<SubscriberEntry[]> {
         // subscribe to the acquired keys of each on-demand follow, one replica per scope and subject
-        const demanded = await Promise.all(
+        const onDemand = await Promise.all(
             follows
                 .filter((follow) => "onDemand" in follow)
-                .map((follow) => ObjectStore.#demandedSubscriptions(store, follow, options)),
+                .map((follow) => ObjectStore.#onDemandSubscriptions(store, follow, options)),
         );
 
         // read each other follow's keys, fixed or from the store's own rows
@@ -3626,7 +3603,7 @@ export class ObjectStore {
                 const { shape } = follow;
                 const isReadinessGate = follow.isReadinessGate ?? true;
                 const derived = keys.map(({ key, subject }) => ({
-                    subscription: Shape.subscription(shape, key, options.below, subject),
+                    subscription: shape.subscription(key, options.below, subject),
                     home: key.scope,
                 }));
 
@@ -3637,7 +3614,7 @@ export class ObjectStore {
                 }));
             }),
         );
-        const entries = [...demanded.flat(), ...subscribed.flat()];
+        const entries = [...onDemand.flat(), ...subscribed.flat()];
 
         return [
             ...new Map(
@@ -3650,7 +3627,7 @@ export class ObjectStore {
     }
 
     /** List an on-demand follow's live keys as one subscription per scope and subject. */
-    static async #demandedSubscriptions(
+    static async #onDemandSubscriptions(
         store: ObjectStore,
         follow: Extract<Follow, { readonly onDemand: unknown }>,
         options: { readonly below: string; readonly publisher: (scope: string) => sync.Publisher },
@@ -3681,12 +3658,11 @@ export class ObjectStore {
 
         // subscribe to each group toward its scope's home, never gating the store's readiness
         return [...groups.values()].map(({ scope, subject, keys }) => ({
-            subscription: Shape.demanded(
-                follow.shape,
+            subscription: follow.shape.onDemandSubscription(
                 scope,
                 keys,
                 options.below,
-                ObjectStore.#demandedSubject(store, subject),
+                ObjectStore.#onDemandSubject(store, subject),
             ),
             publisher: options.publisher(scope),
             isReadinessGate: false,
@@ -3694,7 +3670,7 @@ export class ObjectStore {
     }
 
     /** Read a followed key's subject, none for the store's own principal. */
-    static #demandedSubject(store: ObjectStore, subject: string): Subject | undefined {
+    static #onDemandSubject(store: ObjectStore, subject: string): Subject | undefined {
         const parsed = Subject.parse(JSON.parse(subject));
 
         return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;

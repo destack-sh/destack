@@ -139,7 +139,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                 name: "shared",
                 plural: "shared",
                 scope: "universe",
-            }),
+            }).describe(),
         ),
         failure(() =>
             defineObject({
@@ -147,10 +147,15 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                 name: "spread",
                 plural: "spreads",
                 scope: [user, notebook],
-            }),
+            }).describe(),
         ),
         failure(() =>
-            defineObject({ ...local, name: "sticky", plural: "stickies", inherited: {} }),
+            defineObject({
+                ...local,
+                name: "sticky",
+                plural: "stickies",
+                inherited: {},
+            }).describe(),
         ),
         failure(() =>
             defineObject(
@@ -164,7 +169,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                 (method) => ({
                     create: method.create("edit", { isPredicted: false }),
                 }),
-            ),
+            ).describe(),
         ),
     ]).toEqual([
         "local object draft lives only in its scope's own store",

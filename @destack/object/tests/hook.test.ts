@@ -4,7 +4,7 @@ import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { schema, present, type Identifier, type JsonValue } from "@destack/schema";
+import { schema, present, type JsonValue } from "@destack/schema";
 import type { Package } from "@destack/package";
 import { definePackage, PACKAGE_DECLARATION, type PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
@@ -12,6 +12,7 @@ import { RequestId } from "@destack/runtime/request";
 import { testCallKey, testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import {
+    DeclarationIndex,
     defineObject,
     field,
     type FileBucket,
@@ -23,8 +24,8 @@ import {
     HookSandbox,
     SessionRequest,
 } from "../src/index.ts";
-import { defineServer, ObjectStore, type PackageServer } from "../src/server/index.ts";
-import type { InstalledDeclaration } from "../src/inspect/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
+import type { Declaration } from "../src/inspect/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -177,7 +178,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
 }
 
 /** Describe the card type and the package routing it, as the cards' build declares them. */
-function declared(cards: PackageHandle): InstalledDeclaration[] {
+function declared(cards: PackageHandle): Declaration[] {
     return [
         ...Object.values(cards.objects)
             .filter((routed) => routed instanceof ObjectType)
@@ -195,10 +196,7 @@ function declared(cards: PackageHandle): InstalledDeclaration[] {
 }
 
 /** Move the card type of a declaration into another package, its scope left in the platform's. */
-function moved(
-    entry: InstalledDeclaration,
-    packageId: Identifier<"package">,
-): InstalledDeclaration {
+function moved(entry: Declaration, installed: Package): Declaration {
     // rewrite the declaration's own package and every reference to the card type
     const reference = schema.looseObject({
         packageId: schema.literal(card.package.id),
@@ -212,14 +210,14 @@ function moved(
             const owned = owner.safeParse(value);
 
             return referenced.success
-                ? { ...referenced.data, packageId }
+                ? { ...referenced.data, packageId: installed.id }
                 : owned.success
-                  ? { ...owned.data, id: packageId }
+                  ? { ...owned.data, id: installed.id, name: installed.name }
                   : value;
         },
     );
 
-    return { ...entry, packageId, description: schema.json().parse(description) };
+    return { ...entry, packageId: installed.id, description: schema.json().parse(description) };
 }
 
 /** Summarize an answer: a result's card name, else the failure's code. */
@@ -666,70 +664,6 @@ test("refuse serving the cards of two installations of one package from one stor
     );
 });
 
-test("route the platform's cards from an installed package to their one implementation, and refuse a route nothing implements", async () => {
-    // let an installed board package route the platform's cards, which it does not implement
-    const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({
-            name: "main",
-            tables: [...callTables, ...card.tables, ...note.tables, ...space.tables],
-        }),
-        { isMigrated: true },
-    );
-    onTestFinished(() => storage.close());
-    const cards = definePackage({ objects: { card } });
-    const board = { ...card.package, id: OTHER_PACKAGE, name: "@app/board" };
-    const boards = definePackage({ objects: { card } }, { package: board });
-    const context = await testServerContext(board, spaceId);
-    const sandbox = new HookSandbox({
-        server: context,
-        declarations: [
-            {
-                kind: PACKAGE_DECLARATION,
-                packageId: board.id,
-                description: describePackage(boards),
-            },
-        ],
-        send: () => Promise.reject(new TypeError("the board has no hooks")),
-    });
-    const events = await testEvents(storage.database);
-    const serve = (servers: readonly PackageServer[]) =>
-        new ObjectStore({
-            servers,
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            database: storage.database,
-            callKey: testCallKey,
-            events,
-            origin: { package: card.package },
-            policies: [space],
-            sandboxes: [sandbox],
-        });
-
-    // serve the cards once, as the platform's, under both packages
-    const store = serve([defineServer(cards, {})]);
-    expect({
-        routed: store.objects.map((type) => type.typeReference),
-        installed: store.readServer(card)?.installation,
-        routes: store.packages.map((served) => Object.keys(served.router)),
-    }).toEqual({
-        routed: [{ packageId: card.package.id, type: "card" }],
-        installed: undefined,
-        routes: [
-            ["store", "card"],
-            ["store", "card"],
-        ],
-    });
-
-    // refuse the board's route of cards without the platform's implementation
-    expect(() => serve([])).toThrow(
-        new TypeError(
-            `installation ${context.installation} routes card objects of ${card.package.id}, but nothing here implements or replicates them`,
-        ),
-    );
-});
-
 test("serve the cards of the platform and of an installed package from one store, each under its own package", async () => {
     // declare an installed package's own card type beside the platform's
     const storage = await TestDatabase.create(
@@ -745,7 +679,7 @@ test("serve the cards of the platform and of an installed package from one store
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId),
-        declarations: declared(cards).map((entry) => moved(entry, installed.id)),
+        declarations: declared(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
 
@@ -790,7 +724,7 @@ test("describe the platform's and an installed package's types from one store, d
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId),
-        declarations: declared(cards).map((entry) => moved(entry, installed.id)),
+        declarations: declared(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
     const store = new ObjectStore({
@@ -807,7 +741,7 @@ test("describe the platform's and an installed package's types from one store, d
     });
 
     // declare every type the store describes, the photo's image stored in the platform's bucket
-    const types = ObjectType.ofAll(store.describe(), []);
+    const types = DeclarationIndex.of([]).declare(store.describe());
     const described = present(
         types.find((type) => type.name === "photo"),
         "the described photo type",

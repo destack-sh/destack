@@ -132,7 +132,7 @@ test("refuse many updates at once of guarded fields", () => {
             (method) => ({
                 finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
             }),
-        ),
+        ).describe(),
     ).toThrow(
         new TypeError(
             "object secret-chore guards field done, so it cannot apply many updates at once",

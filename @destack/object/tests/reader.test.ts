@@ -103,7 +103,7 @@ test("refuse a reader per scope that starts at the latest commit", () => {
             fields: { name: field.string() },
             permissions: ["read", "write"],
             readers: { space: { by: "scope", start: "latest", hold: { minutes: 1 } } },
-        }),
+        }).describe(),
     ).toThrow(
         new TypeError("reader space of feed starts each scope once: start it at the earliest"),
     );

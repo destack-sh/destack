@@ -5,7 +5,7 @@ import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { ObjectType } from "../src/index.ts";
+import { DeclarationIndex } from "../src/index.ts";
 import { space } from "./fixture/space.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook, notesPackage } from "./fixture/note.ts";
@@ -19,7 +19,7 @@ async function reachNotes(
     endpoint: ReturnType<Awaited<ReturnType<typeof serveNotes>>["endpoint"]>,
 ) {
     // declare the types from their descriptions, as a manifest lists them
-    const objects = ObjectType.ofAll([notebook.describe(), note.describe()], [space]);
+    const objects = DeclarationIndex.of([space]).declare([notebook.describe(), note.describe()]);
 
     return new DynamicObjectClient({
         clock: Clock.system,
@@ -29,6 +29,17 @@ async function reachNotes(
         endpoint,
     });
 }
+
+test("list the types descriptions refer to that neither the index nor they declare", () => {
+    // index the platform's space, then describe the note alone and beside its notebook
+    const index = DeclarationIndex.of([space]);
+
+    // miss the notebook a note nests in, and nothing once the notebook is described too
+    expect([
+        index.missing([note.describe()]),
+        index.missing([notebook.describe(), note.describe()]),
+    ]).toEqual([[notebook.typeReference], []]);
+});
 
 test.for(TEST_DIALECTS)(
     "call and list objects by their descriptions, refusing input their methods' schemas reject on %s",
@@ -119,7 +130,7 @@ test.for(TEST_DIALECTS)(
         const client = await reachNotes(endpoint(users.alice));
 
         // describe every served type through the store, then declare each from the descriptions
-        const declared = ObjectType.ofAll(await client.describe(), []);
+        const declared = DeclarationIndex.of([]).declare(await client.describe());
         const unknown = { packageId: note.package.id, type: "page" };
 
         expect(declared.map((type) => [type.name, type.table[TABLE].sqlName])).toEqual([

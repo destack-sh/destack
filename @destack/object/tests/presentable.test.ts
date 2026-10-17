@@ -117,7 +117,7 @@ function declare(definition: Record<string, unknown>) {
             scope: space,
             fields: { body: field.json(schema.json()) },
             ...definition,
-        });
+        }).describe();
 }
 
 test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {

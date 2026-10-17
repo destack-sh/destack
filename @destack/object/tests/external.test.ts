@@ -172,7 +172,7 @@ function declareMark(isInternal: boolean) {
 test("refuse public writes on external objects, taking internal writes their store code runs", () => {
     // declare an external type with an internal write, and one with a public write
     expect(declareMark(true).storage).toBe("external");
-    expect(() => declareMark(false)).toThrow(
+    expect(() => declareMark(false).describe()).toThrow(
         new TypeError("external object mark writes in method receive"),
     );
 });
