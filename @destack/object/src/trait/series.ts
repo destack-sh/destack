@@ -1,6 +1,6 @@
 import { Condition, type JsonCondition, type Row } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { MethodContext } from "../method/context.ts";
 import { ObjectType } from "../object/object.ts";
 import { method } from "../method/record.ts";
@@ -15,51 +15,47 @@ const MAX_GROUP_KEYS = 4;
 const MIN_STEP_MILLISECONDS = 60_000;
 
 /** A fold of the scope's events in a time range, per step and group of key values. */
-export const SeriesQuery = defineSchema(
-    schema.object({
-        /** The events folded, every event in the range when absent. */
-        where: Condition.schema.exactOptional(),
-        /** The fold. */
-        fold: schema.enum(SERIES_FOLDS),
-        /** The key folded, needed by every fold but count and quantiles. */
-        measure: schema.string().min(1).exactOptional(),
-        /** The keys whose values each get a series of their own. */
-        group: schema.array(schema.string().min(1)).max(MAX_GROUP_KEYS),
-        /** The step width in milliseconds, one step over the range when absent. */
-        step: schema.number().int().min(MIN_STEP_MILLISECONDS).exactOptional(),
-        /** The earliest time, in Unix microseconds. */
-        from: schema.number().int(),
-        /** The time the events come before, in Unix microseconds. */
-        before: schema.number().int(),
-    }),
-);
+export const SeriesQuery = schema.object({
+    /** The events folded, every event in the range when absent. */
+    where: Condition.schema.exactOptional(),
+    /** The fold. */
+    fold: schema.enum(SERIES_FOLDS),
+    /** The key folded, needed by every fold but count and quantiles. */
+    measure: schema.string().min(1).exactOptional(),
+    /** The keys whose values each get a series of their own. */
+    group: schema.array(schema.string().min(1)).max(MAX_GROUP_KEYS),
+    /** The step width in milliseconds, one step over the range when absent. */
+    step: schema.number().int().min(MIN_STEP_MILLISECONDS).exactOptional(),
+    /** The earliest time, in Unix microseconds. */
+    from: schema.number().int(),
+    /** The time the events come before, in Unix microseconds. */
+    before: schema.number().int(),
+});
 
 /** The folded series, each group's steps oldest first. */
-export const SeriesResult = defineSchema(
-    schema.object({
-        /** The series, one per group of key values. */
-        series: schema.array(
-            schema.object({
-                /** The value of each grouping key. */
-                group: schema.record(
-                    schema.string(),
-                    schema.union([schema.string(), schema.number()]).nullable(),
-                ),
-                /** The steps with events. */
-                steps: schema.array(
-                    schema.object({
-                        /** The step's start, in Unix microseconds. */
-                        start: schema.number(),
-                        /** The folded value. */
-                        value: schema.number(),
-                        /** The events folded. */
-                        events: schema.number().int(),
-                    }),
-                ),
-            }),
-        ),
-    }),
-);
+export const SeriesResult = schema.object({
+    /** The series, one per group of key values. */
+    series: schema.array(
+        schema.object({
+            /** The value of each grouping key. */
+            group: schema.record(
+                schema.string(),
+                schema.union([schema.string(), schema.number()]).nullable(),
+            ),
+            /** The steps with events. */
+            steps: schema.array(
+                schema.object({
+                    /** The step's start, in Unix microseconds. */
+                    start: schema.number(),
+                    /** The folded value. */
+                    value: schema.number(),
+                    /** The events folded. */
+                    events: schema.number().int(),
+                }),
+            ),
+        }),
+    ),
+});
 
 /** Fold the events a condition selects by keys the caller may read, per step and group. */
 const seriesMethod = Execution.handle(

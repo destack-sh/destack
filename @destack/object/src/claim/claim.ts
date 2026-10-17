@@ -23,7 +23,7 @@ import {
     combine,
     textEnum,
 } from "@destack/db";
-import { canonicalize, defineSchema, Identifier, Instant, present, schema } from "@destack/schema";
+import { canonicalize, Identifier, Instant, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { CallError } from "@destack/runtime/error";
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
@@ -32,7 +32,7 @@ import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
 export const RESERVATION_MILLISECONDS = 60_000;
 
 /** The state of an object's committed names: active, or trashed while the object is trashed. */
-export const ClaimState = defineSchema(schema.enum(["active", "trashed"]));
+export const ClaimState = schema.enum(["active", "trashed"]);
 /** The state an object's committed names take. */
 export type ClaimState = schema.Infer<typeof ClaimState>;
 
@@ -40,33 +40,29 @@ export type ClaimState = schema.Infer<typeof ClaimState>;
 const CLAIM_STATES = ["pending", ...ClaimState.options] as const;
 
 /** A name an object claims in a unique index across databases. */
-const claim = defineSchema(
-    schema.object({
-        /** The index: the type's package, type and index name, or a shared namespace. */
-        index: schema.string().min(1),
-        /** The indexed values, with the scope they are unique within, as canonical JSON. */
-        key: schema.string(),
-        /** The package of the claiming object's type. */
-        packageId: schema.string().min(1),
-        /** The object claiming the name. */
-        objectId: schema.string().min(1),
-        /** The scope owning the name: the object's own, or its owner's for an owned object. */
-        owner: schema.string().min(1),
-    }),
-);
+const claim = schema.object({
+    /** The index: the type's package, type and index name, or a shared namespace. */
+    index: schema.string().min(1),
+    /** The indexed values, with the scope they are unique within, as canonical JSON. */
+    key: schema.string(),
+    /** The package of the claiming object's type. */
+    packageId: schema.string().min(1),
+    /** The object claiming the name. */
+    objectId: schema.string().min(1),
+    /** The scope owning the name: the object's own, or its owner's for an owned object. */
+    owner: schema.string().min(1),
+});
 
 /** The object an active name resolves to, with the scope owning the name. */
-export const ClaimOwner = defineSchema(claim.pick({ objectId: true, owner: true }));
+export const ClaimOwner = claim.pick({ objectId: true, owner: true });
 /** The object an active name resolves to, with the scope owning the name. */
 export type ClaimOwner = schema.Infer<typeof ClaimOwner>;
 
 /** The answer of a claim call writing names: the names other objects own. */
-export const ClaimRefusal = defineSchema(
-    schema.object({
-        /** The names other objects own. */
-        refused: schema.array(claim),
-    }),
-);
+export const ClaimRefusal = schema.object({
+    /** The names other objects own. */
+    refused: schema.array(claim),
+});
 /** The answer of a claim call writing names: the names other objects own. */
 export type ClaimRefusal = schema.Infer<typeof ClaimRefusal>;
 
@@ -446,20 +442,18 @@ export type ClaimRow = RowImage<typeof claimTable>;
 export type Claim = schema.Infer<typeof claim>;
 
 /** An object and the names it claims in its type's indexes after a write. */
-const claimant = defineSchema(
-    schema.object({
-        /** The indexes the object's type declares. */
-        indexes: schema.array(schema.string().min(1)),
-        /** The object. */
-        objectId: schema.string().min(1),
-        /** The scope owning the object's names. */
-        owner: schema.string().min(1),
-        /** The names it claims. */
-        claims: schema.array(claim),
-        /** The state its names take. */
-        state: ClaimState,
-    }),
-);
+const claimant = schema.object({
+    /** The indexes the object's type declares. */
+    indexes: schema.array(schema.string().min(1)),
+    /** The object. */
+    objectId: schema.string().min(1),
+    /** The scope owning the object's names. */
+    owner: schema.string().min(1),
+    /** The names it claims. */
+    claims: schema.array(claim),
+    /** The state its names take. */
+    state: ClaimState,
+});
 /** An object and its claimed names after a write, with the verbs reading them. */
 export const Claimant = Object.assign(claimant, {
     /** Read an object's claimed names after a write: active, trashed, or none once purged. */
@@ -521,14 +515,12 @@ export const Claimant = Object.assign(claimant, {
 export type Claimant = schema.Infer<typeof claimant>;
 
 /** The expired reservations of some indexes and the next deadline. */
-export const Expiry = defineSchema(
-    schema.object({
-        /** The expired reservations. */
-        claims: schema.array(claim),
-        /** When the next reservation expires, in UTC epoch milliseconds. */
-        next: Instant.exactOptional(),
-    }),
-);
+export const Expiry = schema.object({
+    /** The expired reservations. */
+    claims: schema.array(claim),
+    /** When the next reservation expires, in UTC epoch milliseconds. */
+    next: Instant.exactOptional(),
+});
 /** The expired reservations of some indexes and the next deadline. */
 export type Expiry = schema.Infer<typeof Expiry>;
 

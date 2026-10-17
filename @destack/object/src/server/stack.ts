@@ -85,9 +85,6 @@ const DECLARED_RESOURCE = schema.looseObject({
     }),
 });
 
-/** The columns a declaration determines. */
-type DeclaredValues = Partial<Insert<Table>>;
-
 /** A table of declared records, a derived object's or another package's. */
 export type ManagedTable = Table<string, ManagedColumns> & ManagedColumns;
 
@@ -668,7 +665,7 @@ export class Stack {
     }
 
     /** Read the columns the stack supplies a type declared from its create input. */
-    async #supplied(object: ObjectType, name: string): Promise<DeclaredValues> {
+    async #supplied(object: ObjectType, name: string): Promise<Partial<Insert<Table>>> {
         // supply nothing to a type declaring its own schema
         const options = object.definition.declarable;
         if (options === undefined || "schema" in options) {
@@ -694,7 +691,7 @@ export class Stack {
         declaration: TypeDeclaration,
         name: string,
         resolved: unknown,
-        values: DeclaredValues,
+        values: Partial<Insert<Table>>,
     ): Promise<Step> {
         // plan the creation
         const { transaction, manager } = this;
@@ -726,7 +723,7 @@ export class Stack {
         name: string,
         resolved: unknown,
         row: Select<ManagedTable>,
-        values: DeclaredValues,
+        values: Partial<Insert<Table>>,
     ): Promise<Step[]> {
         // skip a detached or unchanged record
         const { transaction } = this;
@@ -786,7 +783,7 @@ export class Stack {
     async #applyRecord(
         object: ObjectType,
         name: string,
-        values: DeclaredValues,
+        values: Partial<Insert<Table>>,
         id?: string,
     ): Promise<void> {
         const table = object.table;

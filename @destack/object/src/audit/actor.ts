@@ -1,29 +1,25 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 
 /** The principal that performed a call. */
-export const AuditActor = defineSchema(
-    schema.object({
-        /** The principal that acted, the anonymous one for a caller proving no identity. */
-        subject: Subject,
-        /** The display name captured when recording. */
-        name: schema.string().exactOptional(),
-    }),
-);
+export const AuditActor = schema.object({
+    /** The principal that acted, the anonymous one for a caller proving no identity. */
+    subject: Subject,
+    /** The display name captured when recording. */
+    name: schema.string().exactOptional(),
+});
 /** The principal that performed a call. */
 export type AuditActor = schema.Infer<typeof AuditActor>;
 
 /** The schema of a recorded caller. */
-const auditCaller = defineSchema(
-    schema.object({
-        /** Who the call was for, the anonymous principal for a caller proving no identity. */
-        subject: Subject,
-        /** The principals acting for the subject in order, the last one sending the call. */
-        actors: schema.array(Subject).exactOptional(),
-        /** The represented subject's display name captured when recording. */
-        name: schema.string().exactOptional(),
-    }),
-);
+const auditCaller = schema.object({
+    /** Who the call was for, the anonymous principal for a caller proving no identity. */
+    subject: Subject,
+    /** The principals acting for the subject in order, the last one sending the call. */
+    actors: schema.array(Subject).exactOptional(),
+    /** The represented subject's display name captured when recording. */
+    name: schema.string().exactOptional(),
+});
 /** The caller of a call as the history records it. */
 export type AuditCaller = schema.Infer<typeof auditCaller>;
 

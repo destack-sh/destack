@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "@destack/runtime";
 import { Watermark } from "@destack/runtime/bookmark";
@@ -114,22 +114,18 @@ export const EXTERNAL_PUBLICATION = "external";
 export const ACCESS_PUBLICATION = "access";
 
 /** The parameters of the durable objects publication: named queries, else every listed type. */
-export const QueriesParameters = defineSchema(
-    schema.object({
-        /** The named queries, every durable table without them. */
-        queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
-    }),
-);
+export const QueriesParameters = schema.object({
+    /** The named queries, every durable table without them. */
+    queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
+});
 /** The parameters of the durable objects publication. */
 export type QueriesParameters = schema.Infer<typeof QueriesParameters>;
 
 /** The parameters of the ephemeral objects publication: queries, and the rows' writer. */
-export const EphemeralParameters = defineSchema(
-    schema.object({
-        queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
-        writerId: WriterId,
-    }),
-);
+export const EphemeralParameters = schema.object({
+    queries: schema.record(schema.string(), ObjectQuery).exactOptional(),
+    writerId: WriterId,
+});
 
 /** The outcomes of a push and the watermark with their changes. */
 export const PushResult = schema.object({

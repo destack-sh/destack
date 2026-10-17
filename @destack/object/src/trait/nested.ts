@@ -1,6 +1,6 @@
 import { ObjectReference } from "@destack/sync";
 import { Field } from "../field/field.ts";
-import { defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { type Method } from "../method/method.ts";
@@ -22,7 +22,7 @@ import { NestedMethod } from "../method/nested.ts";
 export const PARENT = schema.string().nullable();
 
 /** A parent of any type, in the scope of the object referring to it. */
-export const ParentReference = defineSchema(ObjectReference.omit({ scope: true }));
+export const ParentReference = ObjectReference.omit({ scope: true });
 /** A parent of any type, in the scope of the object referring to it. */
 export type ParentReference = schema.Infer<typeof ParentReference>;
 

@@ -6,22 +6,20 @@ import {
     type TableConstraint,
 } from "@destack/db";
 import { CHUNKS } from "../text/chunk.ts";
-import { defineSchema, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 
 /** How callers find a type's objects. */
-const ObjectSearchSchema = defineSchema(
-    schema.object({
-        /** The fields the space's full-text index covers, the most significant first. */
-        searchable: schema.array(schema.string().min(1)),
-        /** The fields lists filter and count facets by, each indexed. */
-        filterable: schema.array(schema.string().min(1)),
-        /** The fields lists order by, each indexed. */
-        sortable: schema.array(schema.string().min(1)),
-    }),
-);
+const ObjectSearchSchema = schema.object({
+    /** The fields the space's full-text index covers, the most significant first. */
+    searchable: schema.array(schema.string().min(1)),
+    /** The fields lists filter and count facets by, each indexed. */
+    filterable: schema.array(schema.string().min(1)),
+    /** The fields lists order by, each indexed. */
+    sortable: schema.array(schema.string().min(1)),
+});
 /** How callers find an object type's objects. */
 export type ObjectSearch = schema.Infer<typeof ObjectSearchSchema>;
 

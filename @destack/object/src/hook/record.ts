@@ -2,7 +2,7 @@ import { Caller, PermissionReference } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { Condition, LogPosition, OrderBy, Row, Table, TABLE } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
-import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import { schema, type JsonValue } from "@destack/schema";
 import { errorOf } from "@destack/runtime/error";
 import * as sync from "@destack/sync";
 import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
@@ -54,38 +54,36 @@ export const CreationRecord = schema.object({
 });
 
 /** The schema of a call as a sandbox runs its hook. */
-const callRecord = defineSchema(
-    schema.object({
-        /** The object type. */
-        type: ObjectTypeReference,
-        /** The method's name. */
-        method: schema.string().min(1),
-        /** The scope containing the object. */
-        scope: schema.string().min(1),
-        /** The scope and the scopes containing it, nearest first. */
-        chain: schema.array(schema.string().min(1)),
-        /** The method's own input fields. */
-        input: JsonObject,
-        /** The target's or created object's identifier. */
-        id: schema.string().min(1).exactOptional(),
-        /** The target at the start of the call, its columns as JSON. */
-        target: JsonObject.exactOptional(),
-        /** The caller. */
-        caller: Caller.schema,
-        /** The time of the call in UTC epoch milliseconds. */
-        now: schema.number(),
-        /** The request a durable mutation replays under. */
-        requestId: schema.string().min(1).exactOptional(),
-        /** The value the prepare phase produced, as JSON. */
-        prepared: schema.json().exactOptional(),
-        /** The idempotency key of the call's external work. */
-        idempotencyKey: schema.string().min(1).exactOptional(),
-        /** The calls the method's expansion ran before it in its mutation. */
-        expansion: schema.array(BranchEntry).exactOptional(),
-        /** The log position the call's mutation started at, absent for a query. */
-        base: LogPosition.exactOptional(),
-    }),
-);
+const callRecord = schema.object({
+    /** The object type. */
+    type: ObjectTypeReference,
+    /** The method's name. */
+    method: schema.string().min(1),
+    /** The scope containing the object. */
+    scope: schema.string().min(1),
+    /** The scope and the scopes containing it, nearest first. */
+    chain: schema.array(schema.string().min(1)),
+    /** The method's own input fields. */
+    input: JsonObject,
+    /** The target's or created object's identifier. */
+    id: schema.string().min(1).exactOptional(),
+    /** The target at the start of the call, its columns as JSON. */
+    target: JsonObject.exactOptional(),
+    /** The caller. */
+    caller: Caller.schema,
+    /** The time of the call in UTC epoch milliseconds. */
+    now: schema.number(),
+    /** The request a durable mutation replays under. */
+    requestId: schema.string().min(1).exactOptional(),
+    /** The value the prepare phase produced, as JSON. */
+    prepared: schema.json().exactOptional(),
+    /** The idempotency key of the call's external work. */
+    idempotencyKey: schema.string().min(1).exactOptional(),
+    /** The calls the method's expansion ran before it in its mutation. */
+    expansion: schema.array(BranchEntry).exactOptional(),
+    /** The log position the call's mutation started at, absent for a query. */
+    base: LogPosition.exactOptional(),
+});
 /** A call as a sandbox runs its hook: its type, method, scope, input, target and caller. */
 export type CallRecord = schema.Infer<typeof callRecord>;
 
@@ -122,40 +120,36 @@ export const CallRecord = Object.assign(callRecord, {
 });
 
 /** A store's request to an installation's sandbox to run one hook of a call. */
-export const HandlerRequest = defineSchema(
-    schema.object({
-        /** The session of the hook's mutation, which its requests to the store present. */
-        mutation: schema.string().min(1),
-        /** The call the hook runs for. */
-        call: CallRecord,
-        /** The phase the hook runs, with the phase's own arguments. */
-        hook: schema.discriminatedUnion("phase", [
-            schema.object({ phase: schema.literal("authorize") }),
-            schema.object({ phase: schema.literal("creation"), object: ObjectReference }),
-            schema.object({ phase: schema.literal("expand") }),
-            schema.object({ phase: schema.literal("prepare") }),
-            schema.object({ phase: schema.literal("handle") }),
-        ]),
-    }),
-);
+export const HandlerRequest = schema.object({
+    /** The session of the hook's mutation, which its requests to the store present. */
+    mutation: schema.string().min(1),
+    /** The call the hook runs for. */
+    call: CallRecord,
+    /** The phase the hook runs, with the phase's own arguments. */
+    hook: schema.discriminatedUnion("phase", [
+        schema.object({ phase: schema.literal("authorize") }),
+        schema.object({ phase: schema.literal("creation"), object: ObjectReference }),
+        schema.object({ phase: schema.literal("expand") }),
+        schema.object({ phase: schema.literal("prepare") }),
+        schema.object({ phase: schema.literal("handle") }),
+    ]),
+});
 /** A store's request to an installation's sandbox to run one hook of a call. */
 export type HandlerRequest = schema.Infer<typeof HandlerRequest>;
 
 /** The schema of an answer to a request. */
-const handlerAnswer = defineSchema(
-    schema.union([
-        schema.object({
-            /** The result as JSON, null for none. */
-            result: schema.json(),
-        }),
-        schema.object({
-            /** The failure. */
-            error: Failure,
-            /** The stack the failure was thrown at, the cause of the asking side's error. */
-            stack: schema.string().exactOptional(),
-        }),
-    ]),
-);
+const handlerAnswer = schema.union([
+    schema.object({
+        /** The result as JSON, null for none. */
+        result: schema.json(),
+    }),
+    schema.object({
+        /** The failure. */
+        error: Failure,
+        /** The stack the failure was thrown at, the cause of the asking side's error. */
+        stack: schema.string().exactOptional(),
+    }),
+]);
 /** The answer to a request: its result as JSON, or its failure. */
 export type HandlerAnswer = schema.Infer<typeof handlerAnswer>;
 
@@ -294,83 +288,81 @@ export const LookupRequest = schema.object({
 export type LookupRequest = schema.Infer<typeof LookupRequest>;
 
 /** A hook's request to its store in its mutation's session. */
-export const SessionRequest = defineSchema(
-    schema.object({
-        /** The session of the mutation the hook runs in. */
-        mutation: schema.string().min(1),
-        /** What the hook asks of its store. */
-        request: schema.discriminatedUnion("kind", [
-            schema.object({
-                /** Run a call in the mutation. */
-                kind: schema.literal("call"),
-                /** Who the call runs as: the hook's own caller, or its installation. */
-                as: schema.enum(["caller", "installation"]),
-                /** The call. */
-                call: sync.Call,
-                /** Whether the call changes objects. */
-                mutates: schema.boolean(),
-            }),
-            schema.object({
-                /** Read the first row meeting a query, as the hook's package. */
-                kind: schema.literal("findFirst"),
-                ...FIND,
-            }),
-            schema.object({
-                /** Read the rows meeting a query, as the hook's package. */
-                kind: schema.literal("findMany"),
-                ...FIND,
-            }),
-            schema.object({
-                /** Read events of a type of the hook's package. */
-                kind: schema.literal("events"),
-                /** The event type's table SQL name. */
-                table: schema.string().min(1),
-                /** The read. */
-                read: EventRequest,
-            }),
-            schema.object({
-                /** Decide whether the hook's caller has a permission on an object. */
-                kind: schema.literal("check"),
-                /** The permission. */
-                permission: PermissionReference,
-                /** The object. */
-                object: ObjectReference,
-            }),
-            schema.object({
-                /** Require the hook's caller to have a permission on an object. */
-                kind: schema.literal("require"),
-                /** The permission. */
-                permission: PermissionReference,
-                /** The object. */
-                object: ObjectReference,
-            }),
-            schema.object({
-                /** Run calls as their authors over some rows and undo them. */
-                kind: schema.literal("rehearse"),
-                /** The rows written first. */
-                over: schema.array(RehearsedRow),
-                /** The calls run as their authors. */
-                calls: schema.array(BranchEntry),
-            }),
-            schema.object({
-                /** List a page of the subjects of a type with a permission on an object. */
-                kind: schema.literal("lookup"),
-                /** The lookup. */
-                lookup: LookupRequest,
-            }),
-            schema.object({
-                /** Take the position of the mutation's next derived identifier. */
-                kind: schema.literal("position"),
-            }),
-            schema.object({
-                /** Run the behaviour the hook wraps with the call's input. */
-                kind: schema.literal("next"),
-                /** The input. */
-                input: JsonObject,
-            }),
-        ]),
-    }),
-);
+export const SessionRequest = schema.object({
+    /** The session of the mutation the hook runs in. */
+    mutation: schema.string().min(1),
+    /** What the hook asks of its store. */
+    request: schema.discriminatedUnion("kind", [
+        schema.object({
+            /** Run a call in the mutation. */
+            kind: schema.literal("call"),
+            /** Who the call runs as: the hook's own caller, or its installation. */
+            as: schema.enum(["caller", "installation"]),
+            /** The call. */
+            call: sync.Call,
+            /** Whether the call changes objects. */
+            mutates: schema.boolean(),
+        }),
+        schema.object({
+            /** Read the first row meeting a query, as the hook's package. */
+            kind: schema.literal("findFirst"),
+            ...FIND,
+        }),
+        schema.object({
+            /** Read the rows meeting a query, as the hook's package. */
+            kind: schema.literal("findMany"),
+            ...FIND,
+        }),
+        schema.object({
+            /** Read events of a type of the hook's package. */
+            kind: schema.literal("events"),
+            /** The event type's table SQL name. */
+            table: schema.string().min(1),
+            /** The read. */
+            read: EventRequest,
+        }),
+        schema.object({
+            /** Decide whether the hook's caller has a permission on an object. */
+            kind: schema.literal("check"),
+            /** The permission. */
+            permission: PermissionReference,
+            /** The object. */
+            object: ObjectReference,
+        }),
+        schema.object({
+            /** Require the hook's caller to have a permission on an object. */
+            kind: schema.literal("require"),
+            /** The permission. */
+            permission: PermissionReference,
+            /** The object. */
+            object: ObjectReference,
+        }),
+        schema.object({
+            /** Run calls as their authors over some rows and undo them. */
+            kind: schema.literal("rehearse"),
+            /** The rows written first. */
+            over: schema.array(RehearsedRow),
+            /** The calls run as their authors. */
+            calls: schema.array(BranchEntry),
+        }),
+        schema.object({
+            /** List a page of the subjects of a type with a permission on an object. */
+            kind: schema.literal("lookup"),
+            /** The lookup. */
+            lookup: LookupRequest,
+        }),
+        schema.object({
+            /** Take the position of the mutation's next derived identifier. */
+            kind: schema.literal("position"),
+        }),
+        schema.object({
+            /** Run the behaviour the hook wraps with the call's input. */
+            kind: schema.literal("next"),
+            /** The input. */
+            input: JsonObject,
+        }),
+    ]),
+});
 /** A hook's request to its store in its mutation's session. */
 export type SessionRequest = schema.Infer<typeof SessionRequest>;
 

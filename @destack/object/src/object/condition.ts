@@ -1,23 +1,21 @@
-import { canonicalize, defineSchema, Instant, schema } from "@destack/schema";
+import { canonicalize, Instant, schema } from "@destack/schema";
 import type { Call } from "@destack/sync";
 import type { ObjectType } from "./object.ts";
 
 /** A controller's observation of a record. */
 export const StatusCondition = Object.assign(
-    defineSchema(
-        schema.object({
-            /** Whether the condition is true, or has not been established. */
-            status: schema.enum(["true", "false", "unknown"]),
-            /** The desired generation the controller evaluated. */
-            observedGeneration: schema.number().int().min(1),
-            /** The machine-readable explanation. */
-            reason: schema.string().min(1),
-            /** The human-readable explanation. */
-            message: schema.string(),
-            /** The last change of condition status, in UTC epoch milliseconds. */
-            lastTransitionAt: Instant,
-        }),
-    ),
+    schema.object({
+        /** Whether the condition is true, or has not been established. */
+        status: schema.enum(["true", "false", "unknown"]),
+        /** The desired generation the controller evaluated. */
+        observedGeneration: schema.number().int().min(1),
+        /** The machine-readable explanation. */
+        reason: schema.string().min(1),
+        /** The human-readable explanation. */
+        message: schema.string(),
+        /** The last change of condition status, in UTC epoch milliseconds. */
+        lastTransitionAt: Instant,
+    }),
     {
         /** Record an observed condition, its last transition time unchanged while stable. */
         observe(
@@ -37,14 +35,12 @@ export const StatusCondition = Object.assign(
 export type StatusCondition = schema.Infer<typeof StatusCondition>;
 
 /** A controller's condition: whether it applies and why, before generation and time stamps. */
-export const Condition = defineSchema(
-    StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true }),
-);
+export const Condition = StatusCondition.omit({ observedGeneration: true, lastTransitionAt: true });
 /** A condition a controller decides. */
 export type Condition = schema.Infer<typeof Condition>;
 
 /** Status conditions keyed by their unique domain-specific names. */
-export const ConditionMap = defineSchema(schema.record(schema.string().min(1), StatusCondition));
+export const ConditionMap = schema.record(schema.string().min(1), StatusCondition);
 
 /** A record a controller observes: desired and observed generations and named conditions. */
 export interface ObservedRecord {
@@ -62,16 +58,14 @@ export interface ObservedRecord {
 
 /** A controller's report on one record: the evaluated generation, conditions and fields. */
 export const Observation = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The desired generation the controller evaluated. */
-            observedGeneration: schema.number().int().min(0),
-            /** The conditions by name, their transition times fixed while their status stays. */
-            conditions: schema.record(schema.string().min(1), Condition),
-            /** The observed fields the controller writes. */
-            fields: schema.jsonObject().exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The desired generation the controller evaluated. */
+        observedGeneration: schema.number().int().min(0),
+        /** The conditions by name, their transition times fixed while their status stays. */
+        conditions: schema.record(schema.string().min(1), Condition),
+        /** The observed fields the controller writes. */
+        fields: schema.jsonObject().exactOptional(),
+    }),
     {
         /** Describe the call recording an observation of a row at its current generation. */
         call(

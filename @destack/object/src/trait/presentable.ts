@@ -1,6 +1,6 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme";
-import { defineSchema, type JsonValue, present, schema } from "@destack/schema";
+import { type JsonValue, present, schema } from "@destack/schema";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
@@ -37,27 +37,23 @@ const ChosenIcon = [
 ] as const;
 
 /** An object's icon: an emoji, an icon set's icon, or an image in the bucket its type sets. */
-export const Icon = defineSchema(
-    schema.union([
-        ...ChosenIcon,
-        schema.object({
-            /** The image. */
-            file: ObjectFile,
-        }),
-    ]),
-);
+export const Icon = schema.union([
+    ...ChosenIcon,
+    schema.object({
+        /** The image. */
+        file: ObjectFile,
+    }),
+]);
 /** An object's icon. */
 export type Icon = schema.Infer<typeof Icon>;
 
 /** An object's cover: an image in its type's bucket, and the banner's vertical centre. */
-export const Cover = defineSchema(
-    schema.object({
-        /** The image. */
-        file: ObjectFile,
-        /** The point the banner centres on, from 0 at the top to 1 at the bottom. */
-        focus: schema.number().min(0).max(1),
-    }),
-);
+export const Cover = schema.object({
+    /** The image. */
+    file: ObjectFile,
+    /** The point the banner centres on, from 0 at the top to 1 at the bottom. */
+    focus: schema.number().min(0).max(1),
+});
 /** An object's cover. */
 export type Cover = schema.Infer<typeof Cover>;
 
@@ -101,30 +97,28 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
     : {};
 
 /** The presentation of an object type, its pieces resolved to the fields storing them. */
-const PresentationSchema = defineSchema(
-    schema.object({
-        /** The field titling each object. */
-        title: schema.string().min(1),
-        /** The field shown under the title. */
-        subtitle: schema.string().min(1).exactOptional(),
-        /** The icon field and uploaded icon bucket, or the icon of every object. */
-        icon: schema
-            .union([
-                schema.object({
-                    field: schema.string().min(1),
-                    bucket: DeclarationReference.exactOptional(),
-                }),
-                schema.object({ fixed: IconName }),
-            ])
-            .exactOptional(),
-        /** The field storing each object's accent. */
-        color: schema.object({ field: schema.string().min(1) }).exactOptional(),
-        /** The field storing each object's cover, and its bucket. */
-        cover: schema
-            .object({ field: schema.string().min(1), bucket: DeclarationReference })
-            .exactOptional(),
-    }),
-);
+const PresentationSchema = schema.object({
+    /** The field titling each object. */
+    title: schema.string().min(1),
+    /** The field shown under the title. */
+    subtitle: schema.string().min(1).exactOptional(),
+    /** The icon field and uploaded icon bucket, or the icon of every object. */
+    icon: schema
+        .union([
+            schema.object({
+                field: schema.string().min(1),
+                bucket: DeclarationReference.exactOptional(),
+            }),
+            schema.object({ fixed: IconName }),
+        ])
+        .exactOptional(),
+    /** The field storing each object's accent. */
+    color: schema.object({ field: schema.string().min(1) }).exactOptional(),
+    /** The field storing each object's cover, and its bucket. */
+    cover: schema
+        .object({ field: schema.string().min(1), bucket: DeclarationReference })
+        .exactOptional(),
+});
 /** The presentation of an object type. */
 export type Presentation = schema.Infer<typeof PresentationSchema>;
 
