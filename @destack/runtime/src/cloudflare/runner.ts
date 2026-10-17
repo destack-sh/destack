@@ -7,7 +7,7 @@ import {
     durableObjectConnector,
 } from "@destack/db/cloudflare";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { defineSchema, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
@@ -46,24 +46,20 @@ const START_KEY = "start";
 const EPHEMERAL_NAMESPACE = "ephemeral";
 
 /** The start a partition's object hands its workload. */
-export const DurableObjectStart = defineSchema(
-    schema.object({
-        /** The machine's start of the workload. */
-        start: WorkloadStart,
-        /** The manifest of the build the workload runs. */
-        manifest: PackageManifest,
-    }),
-);
+export const DurableObjectStart = schema.object({
+    /** The machine's start of the workload. */
+    start: WorkloadStart,
+    /** The manifest of the build the workload runs. */
+    manifest: PackageManifest,
+});
 /** The start a partition's object hands its workload. */
 export type DurableObjectStart = schema.Infer<typeof DurableObjectStart>;
 
 /** A ring of an instance's alarm, or a move of its wake-up. */
-export const DurableObjectAlarm = defineSchema(
-    schema.object({
-        /** When the ring's run ends or the wake-up rings next, in UTC epoch milliseconds. */
-        at: schema.number().int().nullable(),
-    }),
-);
+export const DurableObjectAlarm = schema.object({
+    /** When the ring's run ends or the wake-up rings next, in UTC epoch milliseconds. */
+    at: schema.number().int().nullable(),
+});
 /** A ring of an instance's alarm, or a move of its wake-up. */
 export type DurableObjectAlarm = schema.Infer<typeof DurableObjectAlarm>;
 

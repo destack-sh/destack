@@ -1,4 +1,4 @@
-import { defineSchema, schema, type JsonValue } from "@destack/schema";
+import { schema, type JsonValue } from "@destack/schema";
 import type { Listener, ServerSocket, ServerSocketHandler } from "@destack/environment";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -21,37 +21,33 @@ const MESSAGE_BYTES = 1024 * 1024;
 const instruments = telemetry.scope(import.meta.destack.package);
 
 /** A hibernated socket as a host describes it: its identifier and the value stored beside it. */
-export const SocketDescription = defineSchema(
-    schema.object({
-        /** The socket's identifier, unique among the instance's hibernated sockets. */
-        id: schema.string().min(1),
-        /** The value the instance stored beside the socket when it accepted it. */
-        attachment: schema.json(),
-    }),
-);
+export const SocketDescription = schema.object({
+    /** The socket's identifier, unique among the instance's hibernated sockets. */
+    id: schema.string().min(1),
+    /** The value the instance stored beside the socket when it accepted it. */
+    attachment: schema.json(),
+});
 /** A hibernated socket as a host describes it. */
 export type SocketDescription = schema.Infer<typeof SocketDescription>;
 
 /** An instance's acceptance of a WebSocket upgrade. */
-export const SocketAcceptance = defineSchema(
-    schema.object({
-        /** The socket's identifier, the instance's pick, unique among its hibernated sockets. */
-        id: schema.string().min(1),
-        /** The value stored beside the socket. */
-        attachment: schema.json(),
-        /** The subprotocol the upgrade answers with, among those the client offered. */
-        protocol: schema.string().min(1).exactOptional(),
-        /** A text message and the answer the host sends to it, such as a liveness ping. */
-        respond: schema
-            .object({
-                /** The message. */
-                request: schema.string().min(1),
-                /** The answer. */
-                response: schema.string().min(1),
-            })
-            .exactOptional(),
-    }),
-);
+export const SocketAcceptance = schema.object({
+    /** The socket's identifier, the instance's pick, unique among its hibernated sockets. */
+    id: schema.string().min(1),
+    /** The value stored beside the socket. */
+    attachment: schema.json(),
+    /** The subprotocol the upgrade answers with, among those the client offered. */
+    protocol: schema.string().min(1).exactOptional(),
+    /** A text message and the answer the host sends to it, such as a liveness ping. */
+    respond: schema
+        .object({
+            /** The message. */
+            request: schema.string().min(1),
+            /** The answer. */
+            response: schema.string().min(1),
+        })
+        .exactOptional(),
+});
 /** An instance's acceptance of a WebSocket upgrade. */
 export type SocketAcceptance = schema.Infer<typeof SocketAcceptance>;
 

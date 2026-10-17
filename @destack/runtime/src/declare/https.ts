@@ -6,15 +6,13 @@ import {
     ResourceDeclaration,
 } from "@destack/resource";
 import { ModuleMetadata } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** An HTTPS API's specification: the URL its calls go below. */
-export const HttpsSpec = defineSchema(
-    schema.object({
-        /** The API's base URL, such as https://api.github.com. */
-        url: schema.url({ protocol: /^https$/u }),
-    }),
-);
+export const HttpsSpec = schema.object({
+    /** The API's base URL, such as https://api.github.com. */
+    url: schema.url({ protocol: /^https$/u }),
+});
 /** An HTTPS API's specification. */
 export type HttpsSpec = schema.Infer<typeof HttpsSpec>;
 

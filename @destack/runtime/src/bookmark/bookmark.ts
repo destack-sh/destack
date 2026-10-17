@@ -1,20 +1,18 @@
 import { LogPosition } from "@destack/db";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The header with watermarks on requests and responses. */
 export const BOOKMARK_HEADER = "Destack-Bookmark";
 
 /** A position in one scope's log. */
-export const Watermark = defineSchema(
-    schema.object({
-        /** The scope whose database has the log. */
-        scope: schema.string().min(1),
-        /** The log's epoch, renewed when the database is restored. */
-        epoch: schema.string().min(1),
-        /** The log sequence reached within the epoch. */
-        sequence: schema.number().int().nonnegative(),
-    }),
-);
+export const Watermark = schema.object({
+    /** The scope whose database has the log. */
+    scope: schema.string().min(1),
+    /** The log's epoch, renewed when the database is restored. */
+    epoch: schema.string().min(1),
+    /** The log sequence reached within the epoch. */
+    sequence: schema.number().int().nonnegative(),
+});
 /** A position in one scope's log. */
 export type Watermark = schema.Infer<typeof Watermark>;
 
