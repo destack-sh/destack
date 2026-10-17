@@ -109,7 +109,7 @@ test("claim names of objects in its residency's accounts as a platform installat
     ]);
 });
 
-test("find an account's residency, the residencies' homes and the enabled shared cloud machines serving them with their endpoints", async () => {
+test("read an account's residency home, the residencies' homes and the enabled shared cloud machines serving them with their endpoints", async () => {
     // store an eu and a us account, and cloud machines of the platform's account serving each residency
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
@@ -146,23 +146,21 @@ test("find an account's residency, the residencies' homes and the enabled shared
         ],
     });
 
-    // find each account's residency, each residency's home, and the machines answering at a URL
+    // read each account's residency home, each residency's home, and the machines answering at a URL
     const residencies = unpublished.client.residency;
-    const found = async (asked: Identifier<"account">) =>
-        (await residencies.find({ account: asked }))?.id;
+    const accountHome = (asked: Identifier<"account">) => residencies.locate({ account: asked });
     const homeOf = async (id: ResidencyCode) => (await residencies.get({ id })).home;
     const placed = outcome(Residency.home(residencies, "us"));
     expect([
-        await found(accountId),
-        await found(american.accountId),
+        await accountHome(accountId),
+        await accountHome(american.accountId),
         await homeOf("eu"),
         await homeOf("us"),
         await residencies.machines({ id: "eu" }),
         await residencies.machines({ id: "us" }),
         await placed,
     ]).toEqual([
-        "eu",
-        "us",
+        ...homes,
         ...homes,
         // list the enabled shared machines alone, leaving out the drained one and the account's own
         [],
@@ -171,7 +169,7 @@ test("find an account's residency, the residencies' homes and the enabled shared
     ]);
 });
 
-test("find the residency and the owners of names for another account's objects as a machine", async () => {
+test("read the residency home and the owners of names for another account's objects as a machine", async () => {
     // store two accounts and a name claimed in the first
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
@@ -188,12 +186,12 @@ test("find the residency and the owners of names for another account's objects a
         state: "active",
     });
 
-    // find both as a machine of the other account
+    // read both as a machine of the other account
     const strangers = stranger.machine.client;
     expect([
-        (await strangers.residency.find({ account: named.accountId }))?.id,
+        await strangers.residency.locate({ account: named.accountId }),
         await strangers.claim.owner({ index, key }),
-    ]).toEqual(["eu", { objectId: row.id, owner: named.accountId }]);
+    ]).toEqual([await fixture.home("eu"), { objectId: row.id, owner: named.accountId }]);
 });
 
 test("relate a cloud machine as a server of its residency when declared or enrolled, as a resident of the residency's accounts, and release it when revoked", async () => {

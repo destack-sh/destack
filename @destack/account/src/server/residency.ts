@@ -18,18 +18,18 @@ export function implementResidency(): typeof residency {
                     relationships: [{ relation: "public", subject: anyone.reference("*", "*") }],
                 }),
             },
-            find,
+            locate,
             machines,
             publisher,
         },
     });
 }
 
-/** Find the residency an account stores its data in, none for an unknown account. */
-function find(
-    context: MethodContextOf<typeof residency, "find">,
-): Promise<ResultOf<typeof residency, "find">> {
-    return Account.findResidency(context, context.input.account);
+/** Locate the space serving the residency an account stores its data in. */
+function locate(
+    context: MethodContextOf<typeof residency, "locate">,
+): Promise<ResultOf<typeof residency, "locate">> {
+    return Account.locate(context, context.input.account);
 }
 
 /** List a residency's enabled shared cloud machines with their URLs, in identity order. */

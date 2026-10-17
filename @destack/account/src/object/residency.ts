@@ -3,42 +3,26 @@ import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
-import { defineSchema, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Scope, Subject } from "@destack/sync";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "./display-name.ts";
 
 /** A residency's code, a lowercase DNS label such as eu or us. */
-export const ResidencyCode = defineSchema(schema.string().regex(/^[a-z]{2,16}$/u));
+export const ResidencyCode = schema.string().regex(/^[a-z]{2,16}$/u);
 /** A residency's code. */
 export type ResidencyCode = schema.Infer<typeof ResidencyCode>;
 
 /** A cloud machine serving a residency, with the URL it answers at. */
-export const ServingMachine = defineSchema(
-    schema.object({
-        /** The cloud machine. */
-        machine: schema.identifier("machine"),
-        /** The URL it answers at. */
-        url: schema.url(),
-    }),
-);
+export const ServingMachine = schema.object({
+    /** The cloud machine. */
+    machine: schema.identifier("machine"),
+    /** The URL it answers at. */
+    url: schema.url(),
+});
 /** A cloud machine serving a residency, with the URL it answers at. */
 export type ServingMachine = schema.Infer<typeof ServingMachine>;
-
-/** A residency as an account finds it: its code, name and home. */
-export const ResidencyFound = defineSchema(
-    schema.object({
-        /** The residency's code. */
-        id: ResidencyCode,
-        /** The name people read. */
-        name: DisplayName,
-        /** The space serving the residency's platform installations. */
-        home: schema.identifier("space").nullable(),
-    }),
-);
-/** A residency as an account finds it. */
-export type ResidencyFound = schema.Infer<typeof ResidencyFound>;
 
 /** The relations of a residency's servers: cloud machines, its home and the installations in it. */
 const SERVERS = ["machine", "home", "installation"] as const;
@@ -88,15 +72,15 @@ export const residency = defineObject(
         /** Rename a residency, or give it its home. */
         update: method.update("operate", { fields: ["name", "home"], isInternal: true }),
 
-        /** Find the residency an account stores its data in. */
-        find: method.query({
+        /** Locate the space serving the residency an account stores its data in. */
+        locate: method.query({
             permission: "locate",
             target: "scope",
             input: schema.object({
                 /** The account. */
                 account: schema.identifier("account"),
             }),
-            output: ResidencyFound.nullable(),
+            output: schema.identifier("space"),
         }),
 
         /** List the residency's enabled shared cloud machines and URLs, in identity order. */

@@ -24,7 +24,7 @@ import { CallError } from "@destack/runtime/error";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organisation } from "./organisation.ts";
-import { Residency, residency, ResidencyCode, type ResidencyFound } from "./residency.ts";
+import { Residency, residency, ResidencyCode } from "./residency.ts";
 import { StackSource } from "./stack-source.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -252,11 +252,12 @@ export const Account = {
         return owned.residencyId;
     },
 
-    /** Find the residency an account stores its data in, none for an unknown account. */
-    async findResidency(
+    /** Locate the space serving an account's residency, refusing a residency without one yet. */
+    async locate(
         reader: Pick<Snapshot, "read">,
         accountId: Identifier<"account">,
-    ): Promise<ResidencyFound | null> {
+    ): Promise<Identifier<"space">> {
+        // read the account's residency
         const existing = await reader.read(account.table).findFirst({ where: { id: accountId } });
         const found =
             existing === undefined
@@ -265,7 +266,12 @@ export const Account = {
                       .read(residency.table)
                       .findFirst({ where: { id: existing.residencyId } });
 
-        return found === undefined ? null : { id: found.id, name: found.name, home: found.home };
+        // refuse an unknown account and a residency without its home yet
+        if (found?.home === undefined || found.home === null) {
+            throw new CallError("NOT_FOUND", { message: `no residency home serves ${accountId}` });
+        }
+
+        return found.home;
     },
 
     /** Read the home space of a person's or organisation's paying account, or an account's. */
