@@ -1,5 +1,5 @@
 import { combine, dialectSQL, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
-import { defineSchema, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { Column, type ColumnKind } from "../table/column.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, type Table } from "../table/table.ts";
@@ -21,7 +21,7 @@ const ORDERED_KINDS: ReadonlyMap<ColumnKind, "text" | "number" | "boolean"> = ne
 const ORDER_KEYS = 16;
 
 /** The direction a field sorts in, missing values lowest either way. */
-export const Direction = defineSchema(schema.enum(["asc", "desc"]));
+export const Direction = schema.enum(["asc", "desc"]);
 /** The direction a field sorts in, missing values lowest either way. */
 export type Direction = schema.Infer<typeof Direction>;
 
@@ -33,7 +33,7 @@ export type OrderBy<Read = Row> = string extends keyof Read
 /** How rows sort, as callers write it. */
 export const OrderBy = {
     /** The schema of an order. */
-    schema: defineSchema(schema.record(schema.string().min(1), Direction)),
+    schema: schema.record(schema.string().min(1), Direction),
 };
 
 /** One key of an order. */

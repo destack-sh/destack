@@ -424,6 +424,53 @@ test.for(TEST_DIALECTS)(
     },
 );
 
+/** Layouts whose settings name a theme. */
+const layoutOne = defineTable("layout", {
+    id: text("id").primaryKey(),
+    settings: json("settings", schema.object({ theme: schema.string() })),
+});
+
+/** Layouts in the next release, whose settings require a size the stored rows lack. */
+const layoutSized = defineTable(
+    "layout",
+    {
+        id: text("id").primaryKey(),
+        settings: json(
+            "settings",
+            schema.object({ theme: schema.string(), size: schema.number() }),
+        ),
+    },
+    {},
+    NEXT_RELEASE,
+);
+
+test.for(TEST_DIALECTS)(
+    "refuse requiring a key stored values lack without a conversion, reading rows as stored, on %s",
+    async (dialect) => {
+        const database = await open(dialect, [layoutSized]);
+        await database.migrate([layoutOne]);
+        await database.run(
+            sql`INSERT INTO ${sql.identifier(table(layoutOne))} (id, settings) VALUES ('a', '{"theme":"dark"}')`,
+        );
+
+        // refuse the key every stored row lacks, and read a row exactly as stored
+        await expect(
+            database.plan({ declared: declareState([layoutSized], dialect) }),
+        ).rejects.toMatchObject({
+            name: "PlanError",
+            problems: [
+                {
+                    target: `table/${table(layoutSized)}/column/settings`,
+                    detail: "declare a conversion for 2026.10.0",
+                },
+            ],
+        });
+        expect(await database.select().from(layoutOne)).toEqual([
+            { id: "a", settings: { theme: "dark" } },
+        ]);
+    },
+);
+
 /** Preferences in the next release, whose conversion writes a mode the column refuses. */
 const preferenceMisconverted = defineTable(
     "preference",

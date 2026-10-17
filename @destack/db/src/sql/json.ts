@@ -1,18 +1,16 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 
 /** The schema of driver values as JSON, keeping signed 64-bit integers and bytes exact. */
-const sqlValueSchema = defineSchema(
-    schema.union([
-        schema.string(),
-        schema.number(),
-        schema.boolean(),
-        schema.null(),
-        schema.object({ integer: schema.string().regex(/^-?(0|[1-9][0-9]*)$/u) }),
-        schema.object({ bytes: schema.base64() }),
-    ]),
-);
+const sqlValueSchema = schema.union([
+    schema.string(),
+    schema.number(),
+    schema.boolean(),
+    schema.null(),
+    schema.object({ integer: schema.string().regex(/^-?(0|[1-9][0-9]*)$/u) }),
+    schema.object({ bytes: schema.base64() }),
+]);
 /** A driver value in JSON form. */
 export type SQLValue = schema.Infer<typeof sqlValueSchema>;
 
@@ -54,13 +52,11 @@ export const SQLValue = Object.assign(sqlValueSchema, {
 });
 
 /** One SQL statement with its positional parameters. */
-export const SQLStatement = defineSchema(
-    schema.object({
-        /** The statement. */
-        sql: schema.string().min(1),
-        /** The positional parameters, none when absent. */
-        parameters: schema.array(SQLValue).exactOptional(),
-    }),
-);
+export const SQLStatement = schema.object({
+    /** The statement. */
+    sql: schema.string().min(1),
+    /** The positional parameters, none when absent. */
+    parameters: schema.array(SQLValue).exactOptional(),
+});
 /** One SQL statement with its positional parameters. */
 export type SQLStatement = schema.Infer<typeof SQLStatement>;

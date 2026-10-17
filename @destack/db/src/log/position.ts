@@ -1,5 +1,5 @@
 import { sql, type SQL } from "../sql/index.ts";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
@@ -72,14 +72,12 @@ export const LogColumn = {
 };
 
 /** The schema of a position in the log. */
-const logPositionSchema = defineSchema(
-    schema.object({
-        /** The log's epoch, renewed when the database is restored. */
-        epoch: schema.string().min(1),
-        /** The log sequence within the epoch. */
-        sequence: schema.number().int().nonnegative(),
-    }),
-);
+const logPositionSchema = schema.object({
+    /** The log's epoch, renewed when the database is restored. */
+    epoch: schema.string().min(1),
+    /** The log sequence within the epoch. */
+    sequence: schema.number().int().nonnegative(),
+});
 /** A position in the log: an epoch and a sequence within it. */
 export type LogPosition = schema.Infer<typeof logPositionSchema>;
 

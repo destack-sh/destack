@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { JsonOf } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
 import { SearchText } from "../search/text.ts";
@@ -22,16 +22,17 @@ const PATTERNS = [
 ] as const;
 
 /** A scalar a condition compares, in its JSON form. */
-export const Scalar = defineSchema(
-    schema.union([schema.string(), schema.number(), schema.boolean(), schema.null()]),
-);
+export const Scalar = schema.union([
+    schema.string(),
+    schema.number(),
+    schema.boolean(),
+    schema.null(),
+]);
 /** A scalar a condition compares, in its JSON form. */
 export type Scalar = schema.Infer<typeof Scalar>;
 
 /** A scalar a field compares with: any scalar but null. */
-export const Comparable = defineSchema(
-    schema.union([schema.string(), schema.number(), schema.boolean()]),
-);
+export const Comparable = schema.union([schema.string(), schema.number(), schema.boolean()]);
 /** A scalar a field compares with: any scalar but null. */
 export type Comparable = schema.Infer<typeof Comparable>;
 
@@ -51,12 +52,10 @@ const PlaceholderValue: schema.Schema<Placeholder> = schema.union([
 ]);
 
 /** Another field of the row a comparison reads. */
-export const FieldReference = defineSchema(
-    schema.object({
-        /** The field's name. */
-        field: schema.string().min(1),
-    }),
-);
+export const FieldReference = schema.object({
+    /** The field's name. */
+    field: schema.string().min(1),
+});
 /** Another field of the row a comparison reads. */
 export type FieldReference = schema.Infer<typeof FieldReference>;
 

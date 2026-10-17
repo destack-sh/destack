@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ModuleMetadata, type Package } from "@destack/package";
 import {
     defineResourceKind,
@@ -16,12 +16,10 @@ import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
 
 /** A database's resource settings. */
-export const DatabaseSpec = defineSchema(
-    schema.object({
-        /** The SQL names of the tables the database replicates from their owning package. */
-        replicated: schema.array(schema.string().min(1)),
-    }),
-);
+export const DatabaseSpec = schema.object({
+    /** The SQL names of the tables the database replicates from their owning package. */
+    replicated: schema.array(schema.string().min(1)),
+});
 /** A database's resource settings. */
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 

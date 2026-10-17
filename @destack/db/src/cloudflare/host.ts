@@ -1,4 +1,4 @@
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { type KindState, Plan, ResourceId, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
@@ -105,16 +105,14 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
 export type DurableObjectDatabaseOperation = schema.Infer<typeof DurableObjectDatabaseOperation>;
 
 /** The bytes of an object's databases, and the rows they read and wrote since last measured. */
-export const DurableObjectMeasurement = defineSchema(
-    schema.object({
-        /** The bytes of the object's SQLite storage. */
-        bytes: schema.number().int().nonnegative(),
-        /** The rows read since the last measure. */
-        rowsRead: schema.number().int().nonnegative(),
-        /** The rows written since the last measure. */
-        rowsWritten: schema.number().int().nonnegative(),
-    }),
-);
+export const DurableObjectMeasurement = schema.object({
+    /** The bytes of the object's SQLite storage. */
+    bytes: schema.number().int().nonnegative(),
+    /** The rows read since the last measure. */
+    rowsRead: schema.number().int().nonnegative(),
+    /** The rows written since the last measure. */
+    rowsWritten: schema.number().int().nonnegative(),
+});
 /** The bytes of an object's databases, and the rows they read and wrote since last measured. */
 export type DurableObjectMeasurement = schema.Infer<typeof DurableObjectMeasurement>;
 
@@ -469,10 +467,7 @@ export class DurableObjectDatabase {
         bindings: DurableObjectDatabaseBindings,
     ) {
         this.host = new DurableObjectDatabaseHost(state.storage);
-        this.#partitions = Jurisdiction.narrow(
-            bindings.PARTITION,
-            bindings.DESTACK_JURISDICTION,
-        );
+        this.#partitions = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
     }
 
     /** Answer an operation on a kept database, copying through its partition's object. */

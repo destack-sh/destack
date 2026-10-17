@@ -1,5 +1,5 @@
 import { sql } from "../sql/index.ts";
-import { canonicalize, defineSchema, present, schema, Version } from "@destack/schema";
+import { canonicalize, present, schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { Package, type PackageId } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
@@ -22,66 +22,62 @@ import { DatabaseError } from "../error/error.ts";
 export const STATE = "__destack_state";
 
 /** A managed table as declared or applied. */
-export const TableState = defineSchema(
-    schema.object({
-        /** The package release declaring the table. */
-        package: Package,
-        /** The table's columns, keys, indexes and checks. */
-        table: TableDescription,
-        /** The columns the change triggers record, absent for unlogged tables. */
-        log: ChangeDescription.exactOptional(),
-        /** The ancestor index maintained over the table, absent without a tree. */
-        tree: TreeDescription.exactOptional(),
-        /** The aggregates of this table's rows that other tables keep. */
-        aggregates: schema.array(AggregateDescription).exactOptional(),
-        /** The rows of other tables referencing this table's rows. */
-        dependents: schema.array(DependentDescription).exactOptional(),
-        /** The SQL names of the text columns the full-text index reads. */
-        fullText: schema.array(schema.string().min(1)).exactOptional(),
-        /** The predefined rows as SQL literals by column name, upserted in every database. */
-        predefined: schema.array(schema.record(schema.string(), schema.string())).exactOptional(),
-        /** The previous SQL names of the table and its columns. */
-        moved: schema
-            .object({
-                /** The table's previous SQL name. */
-                table: schema.string().min(1).exactOptional(),
-                /** The previous SQL column names by current name. */
-                columns: schema.record(schema.string(), schema.string()),
-            })
-            .exactOptional(),
-        /** The renamed columns kept equal to their previous columns. */
-        bridges: schema
-            .array(
-                schema.object({
-                    /** The previous column an older release writes. */
-                    from: schema.string().min(1),
-                    /** The renamed column the newest release writes. */
-                    to: schema.string().min(1),
-                }),
-            )
-            .exactOptional(),
-        /** The SQL assignments converting earlier rows by column, keyed by introducing release. */
-        conversions: schema
-            .record(Version, schema.record(schema.string(), schema.string()))
-            .exactOptional(),
-    }),
-);
+export const TableState = schema.object({
+    /** The package release declaring the table. */
+    package: Package,
+    /** The table's columns, keys, indexes and checks. */
+    table: TableDescription,
+    /** The columns the change triggers record, absent for unlogged tables. */
+    log: ChangeDescription.exactOptional(),
+    /** The ancestor index maintained over the table, absent without a tree. */
+    tree: TreeDescription.exactOptional(),
+    /** The aggregates of this table's rows that other tables keep. */
+    aggregates: schema.array(AggregateDescription).exactOptional(),
+    /** The rows of other tables referencing this table's rows. */
+    dependents: schema.array(DependentDescription).exactOptional(),
+    /** The SQL names of the text columns the full-text index reads. */
+    fullText: schema.array(schema.string().min(1)).exactOptional(),
+    /** The predefined rows as SQL literals by column name, upserted in every database. */
+    predefined: schema.array(schema.record(schema.string(), schema.string())).exactOptional(),
+    /** The previous SQL names of the table and its columns. */
+    moved: schema
+        .object({
+            /** The table's previous SQL name. */
+            table: schema.string().min(1).exactOptional(),
+            /** The previous SQL column names by current name. */
+            columns: schema.record(schema.string(), schema.string()),
+        })
+        .exactOptional(),
+    /** The renamed columns kept equal to their previous columns. */
+    bridges: schema
+        .array(
+            schema.object({
+                /** The previous column an older release writes. */
+                from: schema.string().min(1),
+                /** The renamed column the newest release writes. */
+                to: schema.string().min(1),
+            }),
+        )
+        .exactOptional(),
+    /** The SQL assignments converting earlier rows by column, keyed by introducing release. */
+    conversions: schema
+        .record(Version, schema.record(schema.string(), schema.string()))
+        .exactOptional(),
+});
 /** A managed table as declared or applied. */
 export type TableState = schema.Infer<typeof TableState>;
 
 /** The tables a database declaration requires in every dialect. */
 export const DatabaseState = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The declared table states per dialect. */
-            tables: schema.object({
-                /** The SQLite table states. */
-                sqlite: schema.array(TableState),
-                /** The PostgreSQL table states. */
-                postgresql: schema.array(TableState),
-            }),
+    schema.object({
+        /** The declared table states per dialect. */
+        tables: schema.object({
+            /** The SQLite table states. */
+            sqlite: schema.array(TableState),
+            /** The PostgreSQL table states. */
+            postgresql: schema.array(TableState),
         }),
-    ),
+    }),
     {
         /** Describe tables in every dialect. */
         of(tables: readonly Table[], options: DeclareOptions = {}): DatabaseState {

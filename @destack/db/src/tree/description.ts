@@ -1,23 +1,21 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** A scoped parent relationship and its ancestor index. */
-export const TreeDescription = defineSchema(
-    schema.object({
-        /** The tree's declaration name. */
-        name: schema.string().min(1),
-        /** The SQL name of the table with the nodes. */
-        table: schema.string().min(1),
-        /** The SQL column with the node identity. */
-        id: schema.string().min(1),
-        /** The SQL column with the tree scope. */
-        scope: schema.string().min(1),
-        /** The SQL column with the nullable parent identity. */
-        parent: schema.string().min(1),
-        /** The SQL name of the ancestor index table. */
-        ancestors: schema.string().min(1),
-        /** The SQL name of the table serializing hierarchy writes per scope. */
-        revision: schema.string().min(1),
-    }),
-);
+export const TreeDescription = schema.object({
+    /** The tree's declaration name. */
+    name: schema.string().min(1),
+    /** The SQL name of the table with the nodes. */
+    table: schema.string().min(1),
+    /** The SQL column with the node identity. */
+    id: schema.string().min(1),
+    /** The SQL column with the tree scope. */
+    scope: schema.string().min(1),
+    /** The SQL column with the nullable parent identity. */
+    parent: schema.string().min(1),
+    /** The SQL name of the ancestor index table. */
+    ancestors: schema.string().min(1),
+    /** The SQL name of the table serializing hierarchy writes per scope. */
+    revision: schema.string().min(1),
+});
 /** A scoped parent relationship and its ancestor index. */
 export type TreeDescription = schema.Infer<typeof TreeDescription>;

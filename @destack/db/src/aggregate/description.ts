@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Scalar } from "../query/condition.ts";
 
 /** Where an aggregate is kept and which rows it reads. */
@@ -25,21 +25,19 @@ const AGGREGATE_TARGET = {
 };
 
 /** A column aggregating the rows referencing each row: a count, or a column's sum or extreme. */
-export const AggregateDescription = defineSchema(
-    schema.discriminatedUnion("function", [
-        schema.object({
-            ...AGGREGATE_TARGET,
-            /** Count the rows. */
-            function: schema.literal("count"),
-        }),
-        schema.object({
-            ...AGGREGATE_TARGET,
-            /** Sum the values, or take their least or greatest. */
-            function: schema.enum(["sum", "min", "max"]),
-            /** The aggregated column. */
-            value: schema.string().min(1),
-        }),
-    ]),
-);
+export const AggregateDescription = schema.discriminatedUnion("function", [
+    schema.object({
+        ...AGGREGATE_TARGET,
+        /** Count the rows. */
+        function: schema.literal("count"),
+    }),
+    schema.object({
+        ...AGGREGATE_TARGET,
+        /** Sum the values, or take their least or greatest. */
+        function: schema.enum(["sum", "min", "max"]),
+        /** The aggregated column. */
+        value: schema.string().min(1),
+    }),
+]);
 /** A column with an aggregate of the rows referencing each row. */
 export type AggregateDescription = schema.Infer<typeof AggregateDescription>;

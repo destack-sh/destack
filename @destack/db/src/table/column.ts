@@ -1,6 +1,6 @@
 import { SQL, type SQLWrapper } from "../sql/index.ts";
 import { assertNever } from "../error/error.ts";
-import { defineSchema, schema, type Identifier, type JsonValue } from "@destack/schema";
+import { schema, type Identifier, type JsonValue } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 
 /** How a sensitive value is sealed: randomly, or alike for a column looked up by value. */
@@ -377,14 +377,11 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
     });
 }
 
-/** Define JSON validated on write and read back as the database stored it. */
+/** Define JSON validated on write and read back as stored, migrated as its schema changes. */
 export function json<Value extends JsonValue>(
     name: string,
     validator: schema.Schema<Value>,
 ): ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>> {
-    // require a declarative schema
-    defineSchema(validator);
-
     return new ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>>({
         name,
         kind: "json",
@@ -395,23 +392,25 @@ export function json<Value extends JsonValue>(
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
         encode: (value) => JSON.stringify(validator.parse(value)),
-        decode: (value, dialect) => storedJson(validator, value, dialect),
+        decode: (value, dialect) => {
+            // read the stored JSON as its write validated it
+            // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored JSON passed its write's validator
+            return storedJson(value, dialect) as Value;
+        },
     });
 }
 
-/** Read a JSON column's stored value by its validator, as the driver returns it. */
-function storedJson<Value extends JsonValue>(
-    validator: schema.Schema<Value>,
-    value: unknown,
-    dialect: Dialect,
-): Value {
+/** Read a JSON column's stored value as the driver returns it: SQLite's text parsed. */
+function storedJson(value: unknown, dialect: Dialect): unknown {
     // parse SQLite JSON text
     if (dialect === "sqlite") {
-        return validator.parse(JSON.parse(TEXT.parse(value)));
+        const parsed: unknown = JSON.parse(TEXT.parse(value));
+
+        return parsed;
     }
     // take parsed PostgreSQL JSON
     else if (dialect === "postgresql") {
-        return validator.parse(value);
+        return value;
     }
     // reject other dialects
     else {

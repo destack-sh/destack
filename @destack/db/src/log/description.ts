@@ -1,32 +1,30 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** How long a table's committed changes stay in the log. */
-export const ChangeRetention = defineSchema(schema.enum(["none", "window", "history"]));
+export const ChangeRetention = schema.enum(["none", "window", "history"]);
 /** How long a table's committed changes stay in the log. */
 export type ChangeRetention = schema.Infer<typeof ChangeRetention>;
 
 /** The columns a table's change triggers record. */
-export const ChangeDescription = defineSchema(
-    schema.object({
-        /** The table's SQL name. */
-        table: schema.string().min(1),
-        /** Whether changes outlive the compaction window. */
-        retention: schema.enum(["window", "history"]),
-        /** Whether rows are only ever inserted: updates are refused and deletes are not logged. */
-        appendOnly: schema.literal(true).exactOptional(),
-        /** The primary key's SQL column names in key order. */
-        key: schema.array(schema.string().min(1)).min(1),
-        /** The recorded SQL column names, without sensitive columns. */
-        columns: schema.array(schema.string().min(1)),
-        /** The recorded columns converted to text for exact precision. */
-        exact: schema.array(schema.string().min(1)),
-        /** The recorded binary columns, converted to hexadecimal text. */
-        binary: schema.array(schema.string().min(1)),
-        /** Every SQL column name, to skip updates that change nothing. */
-        compared: schema.array(schema.string().min(1)),
-        /** The SQL column of each row's scope, absent if all rows take the database's scope. */
-        scope: schema.string().min(1).exactOptional(),
-    }),
-);
+export const ChangeDescription = schema.object({
+    /** The table's SQL name. */
+    table: schema.string().min(1),
+    /** Whether changes outlive the compaction window. */
+    retention: schema.enum(["window", "history"]),
+    /** Whether rows are only ever inserted: updates are refused and deletes are not logged. */
+    appendOnly: schema.literal(true).exactOptional(),
+    /** The primary key's SQL column names in key order. */
+    key: schema.array(schema.string().min(1)).min(1),
+    /** The recorded SQL column names, without sensitive columns. */
+    columns: schema.array(schema.string().min(1)),
+    /** The recorded columns converted to text for exact precision. */
+    exact: schema.array(schema.string().min(1)),
+    /** The recorded binary columns, converted to hexadecimal text. */
+    binary: schema.array(schema.string().min(1)),
+    /** Every SQL column name, to skip updates that change nothing. */
+    compared: schema.array(schema.string().min(1)),
+    /** The SQL column of each row's scope, absent if all rows take the database's scope. */
+    scope: schema.string().min(1).exactOptional(),
+});
 /** The columns a table's change triggers record. */
 export type ChangeDescription = schema.Infer<typeof ChangeDescription>;
