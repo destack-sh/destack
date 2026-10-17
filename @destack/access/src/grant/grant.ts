@@ -4,7 +4,7 @@ import { Caller } from "../context/context.ts";
 import { isPrincipal } from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import type { Select, Snapshot } from "@destack/db";
-import { defineSchema, type Identifier, Instant, nth, schema } from "@destack/schema";
+import { type Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { AccessContext, GrantClaim } from "../context/context.ts";
@@ -12,16 +12,14 @@ import { GrantPermission } from "./permission.ts";
 import { accessGrant } from "./table.ts";
 
 /** What a delegator grants: delegate, permissions and lapse. */
-export const GrantRequest = defineSchema(
-    schema.object({
-        /** The principal acting for the delegator. */
-        delegate: Subject,
-        /** The permissions the delegate may use for the delegator. */
-        permissions: schema.array(GrantPermission.schema),
-        /** The exclusive time the grant lapses, in Unix milliseconds, absent for none. */
-        expiresAt: Instant.exactOptional(),
-    }),
-);
+export const GrantRequest = schema.object({
+    /** The principal acting for the delegator. */
+    delegate: Subject,
+    /** The permissions the delegate may use for the delegator. */
+    permissions: schema.array(GrantPermission.schema),
+    /** The exclusive time the grant lapses, in Unix milliseconds, absent for none. */
+    expiresAt: Instant.exactOptional(),
+});
 /** What a delegator grants. */
 export type GrantRequest = schema.Infer<typeof GrantRequest>;
 

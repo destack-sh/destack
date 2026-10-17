@@ -1,5 +1,5 @@
 import { AccessName, ObjectTypeReference } from "@destack/sync";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Condition } from "@destack/db";
 import { AttributeType, type AccessExpression } from "./expression.ts";
@@ -47,68 +47,66 @@ export const AccessExpressionDescription: schema.Schema<AccessExpression> = sche
 );
 
 /** A type's relations and permissions in JSON form. */
-export const PolicyDescription = defineSchema(
-    schema.object({
-        /** The stable declaring package identity. */
-        packageId: PackageId,
-        /** The declaration-local object type name. */
-        name: AccessName,
-        /** The scalar type of each object attribute that permission expressions read. */
-        attributes: schema.record(AccessName, AttributeType),
-        /** The scalar type of each request attribute that permission expressions read. */
-        context: schema.record(AccessName, AttributeType),
-        /** The relations to subjects and to other objects. */
-        relations: schema.record(
-            AccessName,
+export const PolicyDescription = schema.object({
+    /** The stable declaring package identity. */
+    packageId: PackageId,
+    /** The declaration-local object type name. */
+    name: AccessName,
+    /** The scalar type of each object attribute that permission expressions read. */
+    attributes: schema.record(AccessName, AttributeType),
+    /** The scalar type of each request attribute that permission expressions read. */
+    context: schema.record(AccessName, AttributeType),
+    /** The relations to subjects and to other objects. */
+    relations: schema.record(
+        AccessName,
+        schema.object({
+            /** The relation's own subject types, beside an open relation's contributed ones. */
+            subjects: schema.array(SubjectType),
+            /** The permission whose holders grant and revoke the relation. */
+            grantedBy: AccessName.exactOptional(),
+            /** Whether other types contribute themselves as subject types. */
+            open: schema.literal(true).exactOptional(),
+            /** Whether the relation is to each object's scope, decided by the chain. */
+            isScope: schema.literal(true).exactOptional(),
+            /** Whether relationships show only to holders of the granting permission. */
+            concealed: schema.literal(true).exactOptional(),
+            /** Whether the rows naming a deleted subject go with it. */
+            onDelete: schema.literal("cascade").exactOptional(),
+        }),
+    ),
+    /** The permission whose holders see the objects' relationships, `read` by default. */
+    relationships: schema.object({ read: AccessName }).exactOptional(),
+    /** The open relations of other types this type's objects may be subjects of. */
+    contributes: schema
+        .array(
             schema.object({
-                /** The relation's own subject types, beside an open relation's contributed ones. */
-                subjects: schema.array(SubjectType),
-                /** The permission whose holders grant and revoke the relation. */
-                grantedBy: AccessName.exactOptional(),
-                /** Whether other types contribute themselves as subject types. */
-                open: schema.literal(true).exactOptional(),
-                /** Whether the relation is to each object's scope, decided by the chain. */
-                isScope: schema.literal(true).exactOptional(),
-                /** Whether relationships show only to holders of the granting permission. */
-                concealed: schema.literal(true).exactOptional(),
-                /** Whether the rows naming a deleted subject go with it. */
-                onDelete: schema.literal("cascade").exactOptional(),
+                /** The package declaring the type with the open relation. */
+                packageId: PackageId,
+                /** The type with the open relation. */
+                type: AccessName,
+                /** The open relation. */
+                relation: AccessName,
             }),
-        ),
-        /** The permission whose holders see the objects' relationships, `read` by default. */
-        relationships: schema.object({ read: AccessName }).exactOptional(),
-        /** The open relations of other types this type's objects may be subjects of. */
-        contributes: schema
-            .array(
-                schema.object({
-                    /** The package declaring the type with the open relation. */
-                    packageId: PackageId,
-                    /** The type with the open relation. */
-                    type: AccessName,
-                    /** The open relation. */
-                    relation: AccessName,
-                }),
-            )
-            .exactOptional(),
-        /** The named permission expressions. */
-        permissions: schema.record(AccessName, AccessExpressionDescription),
-        /** The permission required to bind roles on an object. */
-        grantedBy: AccessName.exactOptional(),
-        /** Permissions owner roles leave out, granted only by expressions and listing roles. */
-        reserved: schema.array(AccessName).exactOptional(),
-        /** The permissions that apply only after the authentication each names. */
-        elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
-        /** Permissions that stay available while the scope is suspended. */
-        administration: schema.array(AccessName).exactOptional(),
-        /** Permissions that stay available while the scope moves to another machine. */
-        moving: schema.array(AccessName).exactOptional(),
-        /** Whether the objects are scopes. */
-        scope: schema.literal(true).exactOptional(),
-        /** Whether each object is a partition. */
-        partition: schema.literal(true).exactOptional(),
-        /** Whether objects live in the universe, each found by identifier only. */
-        isGlobal: schema.literal(true).exactOptional(),
-    }),
-);
+        )
+        .exactOptional(),
+    /** The named permission expressions. */
+    permissions: schema.record(AccessName, AccessExpressionDescription),
+    /** The permission required to bind roles on an object. */
+    grantedBy: AccessName.exactOptional(),
+    /** Permissions owner roles leave out, granted only by expressions and listing roles. */
+    reserved: schema.array(AccessName).exactOptional(),
+    /** The permissions that apply only after the authentication each names. */
+    elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
+    /** Permissions that stay available while the scope is suspended. */
+    administration: schema.array(AccessName).exactOptional(),
+    /** Permissions that stay available while the scope moves to another machine. */
+    moving: schema.array(AccessName).exactOptional(),
+    /** Whether the objects are scopes. */
+    scope: schema.literal(true).exactOptional(),
+    /** Whether each object is a partition. */
+    partition: schema.literal(true).exactOptional(),
+    /** Whether objects live in the universe, each found by identifier only. */
+    isGlobal: schema.literal(true).exactOptional(),
+});
 /** A type's relations and permissions in JSON form. */
 export type PolicyDescription = schema.Infer<typeof PolicyDescription>;

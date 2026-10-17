@@ -12,7 +12,7 @@ import {
     type Snapshot,
     type SQL,
 } from "@destack/db";
-import { defineSchema, type Identifier, Instant, schema } from "@destack/schema";
+import { type Identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";
 import {
@@ -23,18 +23,16 @@ import {
 import { accessInvitation, InvitationStatus } from "./table.ts";
 
 /** A relationship an invitation offers or asks for: by a declared relation, or a role binding. */
-export const InvitationRelationship = defineSchema(
-    schema.union([
-        relationshipBase.omit({ id: true, createdAt: true }).extend({
-            /** The declared relation. */
-            relation: AccessName,
-        }),
-        relationshipBase.omit({ id: true, createdAt: true }).extend({
-            /** The bound role. */
-            role: schema.string().min(1),
-        }),
-    ]),
-);
+export const InvitationRelationship = schema.union([
+    relationshipBase.omit({ id: true, createdAt: true }).extend({
+        /** The declared relation. */
+        relation: AccessName,
+    }),
+    relationshipBase.omit({ id: true, createdAt: true }).extend({
+        /** The bound role. */
+        role: schema.string().min(1),
+    }),
+]);
 /** A relationship an invitation offers or asks for. */
 export type InvitationRelationship = schema.Infer<typeof InvitationRelationship>;
 
@@ -45,24 +43,22 @@ export const INVITATION_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 export const INVITATION_PAGE = 100;
 
 /** The schema of an invitation: a pending grant of a relationship, which applies once accepted. */
-const invitationSchema = defineSchema(
-    schema.object({
-        /** The stable invitation identifier. */
-        id: schema.string().min(1),
-        /** The relationship accepting the invitation creates. */
-        relationship: InvitationRelationship,
-        /** The principal who invited, absent for the system's own invitations. */
-        inviter: Subject.nullable(),
-        /** Why the inviting principal offers or asks for the relationship. */
-        purpose: schema.string().min(1).exactOptional(),
-        /** Where the invitation stands. */
-        status: InvitationStatus,
-        /** The creation time in Unix milliseconds. */
-        createdAt: Instant,
-        /** The exclusive time the invitation lapses, in Unix milliseconds. */
-        expiresAt: Instant,
-    }),
-);
+const invitationSchema = schema.object({
+    /** The stable invitation identifier. */
+    id: schema.string().min(1),
+    /** The relationship accepting the invitation creates. */
+    relationship: InvitationRelationship,
+    /** The principal who invited, absent for the system's own invitations. */
+    inviter: Subject.nullable(),
+    /** Why the inviting principal offers or asks for the relationship. */
+    purpose: schema.string().min(1).exactOptional(),
+    /** Where the invitation stands. */
+    status: InvitationStatus,
+    /** The creation time in Unix milliseconds. */
+    createdAt: Instant,
+    /** The exclusive time the invitation lapses, in Unix milliseconds. */
+    expiresAt: Instant,
+});
 /** A pending grant: a relationship offered to a principal or contact, or asked for by one. */
 export type Invitation = schema.Infer<typeof invitationSchema>;
 

@@ -1,4 +1,4 @@
-import { defineSchema, JsonValue, schema } from "@destack/schema";
+import { JsonValue, schema } from "@destack/schema";
 import { PackageId, type Package } from "@destack/package";
 import { ObjectReference, AccessName, type ObjectTypeReference, type Subject } from "@destack/sync";
 import { Condition, type Predicate } from "@destack/db";
@@ -285,16 +285,14 @@ export class PolicySubject {
 }
 
 /** A stable reference to a declared permission, independent of a package version. */
-const permissionReference = defineSchema(
-    schema.object({
-        /** The package that declares the permission. */
-        packageId: PackageId,
-        /** The declaration-local object type name. */
-        type: AccessName,
-        /** The permission name within that object type. */
-        name: AccessName,
-    }),
-);
+const permissionReference = schema.object({
+    /** The package that declares the permission. */
+    packageId: PackageId,
+    /** The declaration-local object type name. */
+    type: AccessName,
+    /** The permission name within that object type. */
+    name: AccessName,
+});
 /** A stable reference to a declared permission, independent of a package version. */
 export type PermissionReference = schema.Infer<typeof permissionReference>;
 

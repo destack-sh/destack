@@ -1,4 +1,4 @@
-import { defineSchema, type Identifier, Instant, JsonValue, nth, schema } from "@destack/schema";
+import { type Identifier, Instant, JsonValue, nth, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { Scope, Subject } from "@destack/sync";
 import type { Scalar } from "@destack/db";
@@ -16,17 +16,15 @@ export const CLOCK_TOLERANCE_MILLISECONDS = 5000;
 export const CALLER_HEADER = "Destack-Caller";
 
 /** The schema of a contact. */
-const contactSchema = defineSchema(
-    schema.object({
-        /** The medium the address belongs to. */
-        medium: schema.literal("email"),
-        /** The address on the medium, in lowercase. */
-        address: schema
-            .email()
-            .max(320)
-            .regex(/^[^A-Z]+$/u),
-    }),
-);
+const contactSchema = schema.object({
+    /** The medium the address belongs to. */
+    medium: schema.literal("email"),
+    /** The address on the medium, in lowercase. */
+    address: schema
+        .email()
+        .max(320)
+        .regex(/^[^A-Z]+$/u),
+});
 /** A way to reach someone outside Destack that they prove control of. */
 export type Contact = schema.Infer<typeof contactSchema>;
 
@@ -49,14 +47,12 @@ export const Contact = Object.assign(contactSchema, {
 });
 
 /** How strongly and how recently a caller authenticated. */
-export const AuthenticationAssurance = defineSchema(
-    schema.object({
-        /** The assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant ones. */
-        level: schema.number().int().min(1).max(3),
-        /** The authentication time in UTC epoch milliseconds. */
-        authenticatedAt: Instant,
-    }),
-);
+export const AuthenticationAssurance = schema.object({
+    /** The assurance level: 1 for one factor, 2 for several, 3 for phishing-resistant ones. */
+    level: schema.number().int().min(1).max(3),
+    /** The authentication time in UTC epoch milliseconds. */
+    authenticatedAt: Instant,
+});
 /** How strongly and how recently a caller authenticated. */
 export type AuthenticationAssurance = schema.Infer<typeof AuthenticationAssurance>;
 
@@ -85,41 +81,39 @@ export const GrantClaim = schema.object({
 export type GrantClaim = schema.Infer<typeof GrantClaim>;
 
 /** The schema of the credential a request presented. */
-const credentialSchema = defineSchema(
-    schema.object({
-        /** The credential kind, such as session. */
-        kind: schema.string().min(1),
-        /** The credential identifier. */
-        id: schema.string().min(1),
-        /** The client whose key the credential is bound to, absent for an unbound one. */
-        client: schema.identifier("client").exactOptional(),
-        /** The package the credential was verified for. */
-        audience: PackageId,
-        /** The credential's scope with the scopes inside it, absent for an unscoped one. */
-        scope: schema.string().min(1).exactOptional(),
-        /** The verification time in UTC epoch milliseconds. */
-        verifiedAt: Instant,
-        /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
-        expiresAt: Instant,
-        /** The access token's identifier (RFC 7519 jti), absent for one presented directly. */
-        tokenId: schema.string().min(1).exactOptional(),
-        /** How strongly and how recently its subject authenticated (OIDC acr, auth_time). */
-        assurance: AuthenticationAssurance.exactOptional(),
-        /** The deployments the workload identities among the subject and actors run in. */
-        deployments: schema
-            .array(
-                schema.object({
-                    /** The workload identity. */
-                    subject: Subject,
-                    /** The deployment. */
-                    id: schema.identifier("deployment"),
-                }),
-            )
-            .exactOptional(),
-        /** Trusted attributes access policies read, such as IAM's condition keys. */
-        attributes: schema.record(schema.string(), Attribute).exactOptional(),
-    }),
-);
+const credentialSchema = schema.object({
+    /** The credential kind, such as session. */
+    kind: schema.string().min(1),
+    /** The credential identifier. */
+    id: schema.string().min(1),
+    /** The client whose key the credential is bound to, absent for an unbound one. */
+    client: schema.identifier("client").exactOptional(),
+    /** The package the credential was verified for. */
+    audience: PackageId,
+    /** The credential's scope with the scopes inside it, absent for an unscoped one. */
+    scope: schema.string().min(1).exactOptional(),
+    /** The verification time in UTC epoch milliseconds. */
+    verifiedAt: Instant,
+    /** The time the credential lapses: its expiry, capped by its audience's lifetime. */
+    expiresAt: Instant,
+    /** The access token's identifier (RFC 7519 jti), absent for one presented directly. */
+    tokenId: schema.string().min(1).exactOptional(),
+    /** How strongly and how recently its subject authenticated (OIDC acr, auth_time). */
+    assurance: AuthenticationAssurance.exactOptional(),
+    /** The deployments the workload identities among the subject and actors run in. */
+    deployments: schema
+        .array(
+            schema.object({
+                /** The workload identity. */
+                subject: Subject,
+                /** The deployment. */
+                id: schema.identifier("deployment"),
+            }),
+        )
+        .exactOptional(),
+    /** Trusted attributes access policies read, such as IAM's condition keys. */
+    attributes: schema.record(schema.string(), Attribute).exactOptional(),
+});
 /** The credential a request presented. */
 export type Credential = schema.Infer<typeof credentialSchema>;
 

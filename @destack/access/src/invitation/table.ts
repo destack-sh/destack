@@ -1,12 +1,12 @@
 import { check, defineTable, identifier, index, integer, text } from "@destack/db";
 import { accessRole } from "../role/table.ts";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** Where an invitation stands: waiting until its expiry, taken, or withdrawn. */
 export const INVITATION_STATUSES = ["pending", "accepted", "revoked"] as const;
 
 /** Where an invitation stands. */
-export const InvitationStatus = defineSchema(schema.enum(INVITATION_STATUSES));
+export const InvitationStatus = schema.enum(INVITATION_STATUSES);
 /** Where an invitation stands. */
 export type InvitationStatus = schema.Infer<typeof InvitationStatus>;
 

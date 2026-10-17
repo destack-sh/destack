@@ -1,9 +1,9 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { GrantPermission } from "../grant/permission.ts";
 import { Permission } from "./policy.ts";
 
 /** A scope relative to a delegator's context: its space, account, universe, or a user's home. */
-export const PermissionScope = defineSchema(schema.enum(["space", "account", "universe", "home"]));
+export const PermissionScope = schema.enum(["space", "account", "universe", "home"]);
 /** A scope relative to a delegator's context. */
 export type PermissionScope = schema.Infer<typeof PermissionScope>;
 
@@ -22,7 +22,7 @@ const permissionSetSchema = schema
     .strict();
 
 /** Permissions by the scope they apply in, relative to the delegator's context. */
-export const PermissionSet = Object.assign(defineSchema(permissionSetSchema), {
+export const PermissionSet = Object.assign(permissionSetSchema, {
     /** Grant a set's permissions in the context's scopes, the universe's in every scope. */
     grant(
         set: PermissionSet,
@@ -58,15 +58,13 @@ const InstallationSet = permissionSetSchema.pick({ space: true, account: true, u
 const UserSet = permissionSetSchema.pick({ space: true, account: true, home: true });
 
 /** What a package or its capability requests by delegator, consented at install or on use. */
-export const PermissionRequest = defineSchema(
-    schema
-        .object({
-            /** What the installation's space lends it at install. */
-            installation: InstallationSet.exactOptional(),
-            /** What each user lends it on use, as when they open its view or start its agent. */
-            user: UserSet.exactOptional(),
-        })
-        .strict(),
-);
+export const PermissionRequest = schema
+    .object({
+        /** What the installation's space lends it at install. */
+        installation: InstallationSet.exactOptional(),
+        /** What each user lends it on use, as when they open its view or start its agent. */
+        user: UserSet.exactOptional(),
+    })
+    .strict();
 /** What a package's installations request, by delegator. */
 export type PermissionRequest = schema.Infer<typeof PermissionRequest>;

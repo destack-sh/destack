@@ -1,17 +1,15 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 
 /** The schema of the stack declaration managing a record. */
-const ManagerSchema = defineSchema(
-    schema.object({
-        /** The installation that applied the declaration. */
-        installationId: schema.identifier("installation"),
-        /** The immutable identity of the declaring package. */
-        packageId: PackageId,
-        /** The declaration's path within the package, such as installations/notes. */
-        name: schema.string().regex(/^[a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*$/u),
-    }),
-);
+const ManagerSchema = schema.object({
+    /** The installation that applied the declaration. */
+    installationId: schema.identifier("installation"),
+    /** The immutable identity of the declaring package. */
+    packageId: PackageId,
+    /** The declaration's path within the package, such as installations/notes. */
+    name: schema.string().regex(/^[a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*$/u),
+});
 /** The stack declaration managing a record. */
 export type Manager = schema.Infer<typeof ManagerSchema>;
 

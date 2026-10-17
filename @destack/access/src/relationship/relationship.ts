@@ -23,7 +23,7 @@ import {
     type SQL,
     type Snapshot,
 } from "@destack/db";
-import { defineSchema, Instant, schema } from "@destack/schema";
+import { Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
 import {
@@ -40,23 +40,21 @@ type EncodedRelationship = Omit<
 >;
 
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
-export const RelationshipCondition = defineSchema(
-    schema.object({
-        /** Apply only to this request, and only until it commits. */
-        request: schema.string().min(1).exactOptional(),
-        /** Apply only to calls presenting this credential, as `<kind>:<id>`. */
-        credential: schema.string().min(1).exactOptional(),
-        /** Apply only when the request presents the link secret with this digest. */
-        linkSecret: schema
-            .string()
-            .regex(/^[0-9a-f]{64}$/u)
-            .exactOptional(),
-        /** Apply only when the caller authenticated at this assurance level or higher. */
-        assurance: schema.number().int().min(1).max(3).exactOptional(),
-        /** Apply only within this many milliseconds of the caller's authentication. */
-        maxAge: schema.number().int().positive().exactOptional(),
-    }),
-);
+export const RelationshipCondition = schema.object({
+    /** Apply only to this request, and only until it commits. */
+    request: schema.string().min(1).exactOptional(),
+    /** Apply only to calls presenting this credential, as `<kind>:<id>`. */
+    credential: schema.string().min(1).exactOptional(),
+    /** Apply only when the request presents the link secret with this digest. */
+    linkSecret: schema
+        .string()
+        .regex(/^[0-9a-f]{64}$/u)
+        .exactOptional(),
+    /** Apply only when the caller authenticated at this assurance level or higher. */
+    assurance: schema.number().int().min(1).max(3).exactOptional(),
+    /** Apply only within this many milliseconds of the caller's authentication. */
+    maxAge: schema.number().int().positive().exactOptional(),
+});
 /** What a request must satisfy for a relationship to apply, beyond its lifetime. */
 export type RelationshipCondition = schema.Infer<typeof RelationshipCondition>;
 
@@ -77,18 +75,16 @@ export const relationshipBase = schema.object({
 });
 
 /** The schema of a relationship: an object related to a subject by relation or role. */
-const relationshipSchema = defineSchema(
-    schema.union([
-        relationshipBase.extend({
-            /** The declared relation. */
-            relation: AccessName,
-        }),
-        relationshipBase.extend({
-            /** The bound role. */
-            role: schema.string().min(1),
-        }),
-    ]),
-);
+const relationshipSchema = schema.union([
+    relationshipBase.extend({
+        /** The declared relation. */
+        relation: AccessName,
+    }),
+    relationshipBase.extend({
+        /** The bound role. */
+        role: schema.string().min(1),
+    }),
+]);
 /** An object related to a subject through a declared relation, or a bound role. */
 export type Relationship = schema.Infer<typeof relationshipSchema>;
 

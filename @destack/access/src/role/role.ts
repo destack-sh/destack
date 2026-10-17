@@ -4,7 +4,7 @@ import type { RelationshipCondition } from "../relationship/relationship.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
-import { defineSchema, schema, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
@@ -14,36 +14,32 @@ import { accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission, OWNER_ROLE } from "./table.ts";
 
 /** The schema of a role: a named set of permissions a scope defines. */
-const roleSchema = defineSchema(
-    schema.object({
-        /** The role identifier. */
-        id: schema.identifier("role"),
-        /** The scope defining the role. */
-        scope: schema.string().min(1),
-        /** The name, unique within the scope. */
-        name: schema.string().min(1),
-        /** The purpose shown when granting the role. */
-        description: schema.string(),
-        /** The permissions the role grants itself. */
-        permissions: schema.array(PermissionReference),
-        /** The revision that conditional changes compare against. */
-        revision: schema.number().int().positive(),
-    }),
-);
+const roleSchema = schema.object({
+    /** The role identifier. */
+    id: schema.identifier("role"),
+    /** The scope defining the role. */
+    scope: schema.string().min(1),
+    /** The name, unique within the scope. */
+    name: schema.string().min(1),
+    /** The purpose shown when granting the role. */
+    description: schema.string(),
+    /** The permissions the role grants itself. */
+    permissions: schema.array(PermissionReference),
+    /** The revision that conditional changes compare against. */
+    revision: schema.number().int().positive(),
+});
 /** A named set of permissions a scope defines and relationships bind to subjects. */
 export type Role = schema.Infer<typeof roleSchema>;
 
 /** The name, purpose and permissions of a role to define or change. */
-export const RoleRequest = defineSchema(
-    schema.object({
-        /** The name, unique within the scope. */
-        name: schema.string().min(1).max(200),
-        /** The purpose shown when granting the role. */
-        description: schema.string().max(1000),
-        /** The permissions the role grants. */
-        permissions: schema.array(PermissionReference),
-    }),
-);
+export const RoleRequest = schema.object({
+    /** The name, unique within the scope. */
+    name: schema.string().min(1).max(200),
+    /** The purpose shown when granting the role. */
+    description: schema.string().max(1000),
+    /** The permissions the role grants. */
+    permissions: schema.array(PermissionReference),
+});
 /** The name, purpose and permissions of a role to define or change. */
 export type RoleRequest = schema.Infer<typeof RoleRequest>;
 

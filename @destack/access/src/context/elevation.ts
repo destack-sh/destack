@@ -1,31 +1,27 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { AuthenticationAssurance } from "./context.ts";
 
 /** The highest authentication assurance level: phishing-resistant factors. */
 export const HIGHEST_ASSURANCE = 3;
 
 /** The schema of an elevation: the assurance level a caller authenticated at, and how recently. */
-const elevationSchema = defineSchema(
-    schema.object({
-        /** The lowest assurance: 1 for one factor, 2 for several, 3 for phishing-resistant. */
-        assurance: schema.number().int().min(1).max(HIGHEST_ASSURANCE),
-        /** The longest time since the caller authenticated at that level, in milliseconds. */
-        maxAge: schema.number().int().positive(),
-    }),
-);
+const elevationSchema = schema.object({
+    /** The lowest assurance: 1 for one factor, 2 for several, 3 for phishing-resistant. */
+    assurance: schema.number().int().min(1).max(HIGHEST_ASSURANCE),
+    /** The longest time since the caller authenticated at that level, in milliseconds. */
+    maxAge: schema.number().int().positive(),
+});
 
 /** The authentication of a sensitive permission: an assurance level reached recently enough. */
 export type Elevation = schema.Infer<typeof elevationSchema>;
 
 /** The schema of a step-up challenge: assurance level, and elevation age if set (RFC 9470). */
-const stepUpSchema = defineSchema(
-    schema.object({
-        /** The lowest assurance: 1 for one factor, 2 for several, 3 for phishing-resistant. */
-        assurance: schema.number().int().min(1).max(HIGHEST_ASSURANCE),
-        /** The longest time since the caller authenticated at that level, in milliseconds. */
-        maxAge: schema.number().int().positive().exactOptional(),
-    }),
-);
+const stepUpSchema = schema.object({
+    /** The lowest assurance: 1 for one factor, 2 for several, 3 for phishing-resistant. */
+    assurance: schema.number().int().min(1).max(HIGHEST_ASSURANCE),
+    /** The longest time since the caller authenticated at that level, in milliseconds. */
+    maxAge: schema.number().int().positive().exactOptional(),
+});
 
 /** The authentication a step-up asks of a refused caller: assurance level and elevation age. */
 export type StepUp = schema.Infer<typeof stepUpSchema>;

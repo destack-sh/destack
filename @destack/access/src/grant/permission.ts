@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PermissionReference } from "../declare/policy.ts";
 
 /** How a grant permission's uses run: at once, or each once its delegator approves the call. */
@@ -8,18 +8,16 @@ export const GRANT_MODES = ["allowed", "approval"] as const;
 export type GrantMode = (typeof GRANT_MODES)[number];
 
 /** The schema of a grant permission: a permission in a scope, on an object or through a method. */
-const grantPermissionSchema = defineSchema(
-    PermissionReference.extend({
-        /** The scope the permission applies in, absent for every scope the delegator reaches. */
-        scope: schema.string().min(1).exactOptional(),
-        /** The one object the permission applies to, absent for every object of the scope. */
-        objectId: schema.string().min(1).exactOptional(),
-        /** The one method the permission is used through, absent for every method. */
-        method: schema.string().min(1).exactOptional(),
-        /** How each use runs: at once by default, or once its delegator approves the call. */
-        mode: schema.enum(GRANT_MODES).exactOptional(),
-    }),
-);
+const grantPermissionSchema = PermissionReference.extend({
+    /** The scope the permission applies in, absent for every scope the delegator reaches. */
+    scope: schema.string().min(1).exactOptional(),
+    /** The one object the permission applies to, absent for every object of the scope. */
+    objectId: schema.string().min(1).exactOptional(),
+    /** The one method the permission is used through, absent for every method. */
+    method: schema.string().min(1).exactOptional(),
+    /** How each use runs: at once by default, or once its delegator approves the call. */
+    mode: schema.enum(GRANT_MODES).exactOptional(),
+});
 /** A permission a grant gives, in the shape of an RFC 9396 authorization detail. */
 export type GrantPermission = schema.Infer<typeof grantPermissionSchema>;
 
