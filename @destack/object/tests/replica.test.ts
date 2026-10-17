@@ -26,7 +26,7 @@ import {
     Subject,
 } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, defineShape, field, QUERIES_PUBLICATION, Shape } from "../src/index.ts";
+import { defineObject, defineShape, field, QUERIES_PUBLICATION } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { definePackage } from "@destack/runtime";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -234,7 +234,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     );
 
     // read the first page of alice's mentions as a space, for the readers below it
-    const subscription = Shape.subscription(mentionShape, { scope: spaceId }, home, alice);
+    const subscription = mentionShape.subscription({ scope: spaceId }, home, alice);
     const first = async (context: RequestContext) => {
         const pages = store.source.relayed(subscription, context);
         const page = await pages.next();
@@ -294,7 +294,7 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
 
     // follow alice's mentions as her home with a token bound to the followed space, stating its sets
     const home = spacePrincipal(Identifier.create("space"));
-    const subscription = Shape.subscription(mentionShape, { scope: spaceId }, home.id, alice);
+    const subscription = mentionShape.subscription({ scope: spaceId }, home.id, alice);
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const bound = (sets: readonly Subject[]) => {
@@ -359,7 +359,7 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 
     // follow alice's mentions without a credential, then as a space she does not relate
     const alice = principal.user.reference("universe", Identifier.create("user"));
-    const subscription = Shape.subscription(mentionShape, { scope: spaceId }, spaceId, alice);
+    const subscription = mentionShape.subscription({ scope: spaceId }, spaceId, alice);
     const first = (context: RequestContext) => store.source.relayed(subscription, context).next();
     const anonymous = new RequestContext(new Request("https://test.local"), {
         audience: mention.package.id,

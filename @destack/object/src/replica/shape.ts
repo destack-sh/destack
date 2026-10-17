@@ -13,14 +13,136 @@ export type ShapeKey<Parameters extends object> = {
 };
 
 /** A named, keyed set of live object queries: a reified sync query a package's code follows. */
-export interface Shape<Parameters extends object = object> {
+export class Shape<Parameters extends object = object> {
+    /** The shape as its package declares it. */
+    readonly #definition: ShapeDefinition<Parameters>;
+
+    /** Hold a shape as its package declares it. */
+    constructor(definition: ShapeDefinition<Parameters>) {
+        this.#definition = definition;
+    }
+
     /** The shape's name, which its replicas' names start with. */
-    readonly name: string;
+    get name(): string {
+        return this.#definition.name;
+    }
+
     /** The schema of the parameters its queries take beside the scope. */
-    readonly parameters: schema.Schema<Parameters>;
+    get parameters(): schema.Schema<Parameters> {
+        return this.#definition.parameters;
+    }
+
     /** The object types its queries read, which every follower knows. */
-    readonly objects: readonly ObjectType[];
+    get objects(): readonly ObjectType[] {
+        return this.#definition.objects;
+    }
+
     /** Write the shape's queries for a key's parameters. */
+    queries(parameters: Parameters): readonly ObjectQuery[] {
+        return this.#definition.queries(parameters);
+    }
+
+    /** Name the replica of a key: the one writer of replica names. */
+    replicaName(key: ShapeKey<Parameters>): string {
+        // join the scope and the parameters' values in their names' order
+        const { scope, ...parameters } = key;
+
+        return [this.name, scope, ...Shape.#values(parameters)].join(":");
+    }
+
+    /** List the replicas a database has of the shape for some parameters, at whatever scope. */
+    async replicas(
+        database: DatabaseConnection,
+        parameters: Parameters,
+    ): Promise<{ readonly name: string; readonly scope: string }[]> {
+        // match the names the scope of each record completes
+        const suffix = Shape.#values(parameters)
+            .map((value) => `:${value}`)
+            .join("");
+
+        return await database
+            .select({ name: replica.name, scope: replica.scope })
+            .from(replica)
+            .where(eq(replica.name, sql`${`${this.name}:`} || ${replica.scope} || ${suffix}`));
+    }
+
+    /** Subscribe to a key for a follower, on behalf of a principal if given. */
+    subscription(key: ShapeKey<Parameters>, below: string, subject?: Subject): Subscription {
+        // name each query of the key's parameters by its type and position
+        const { scope, ...rest } = key;
+        const named = this.#named(this.parameters.parse(rest), "");
+
+        return {
+            name: this.replicaName(key),
+            publication: QUERIES_PUBLICATION,
+            scope,
+            below,
+            ...(subject === undefined ? {} : { subject }),
+            parameters: { queries: schema.json().parse(named) },
+        };
+    }
+
+    /** Subscribe to the keys a follower acquired at one scope, as one replica. */
+    onDemandSubscription(
+        scope: string,
+        keys: readonly Parameters[],
+        below: string,
+        subject?: Subject,
+    ): Subscription {
+        // name each key's queries by its parameter values, its type and its position
+        const named = Object.fromEntries(
+            keys.flatMap((parameters) =>
+                Object.entries(this.#named(parameters, `${Shape.#values(parameters).join(":")}:`)),
+            ),
+        );
+
+        return {
+            name: [this.name, scope, ...(subject === undefined ? [] : [Subject.key(subject)])].join(
+                ":",
+            ),
+            publication: QUERIES_PUBLICATION,
+            scope,
+            below,
+            ...(subject === undefined ? {} : { subject }),
+            parameters: { queries: schema.json().parse(named) },
+        };
+    }
+
+    /** Name the queries of some parameters by a prefix, their type and position. */
+    #named(parameters: Parameters, prefix: string): Record<string, ObjectQuery> {
+        // refuse a query of a type the shape does not list
+        const queries = this.queries(parameters);
+        const stray = queries.find(
+            (query) => !this.objects.some((object) => object.name === query.object),
+        );
+        if (stray !== undefined) {
+            throw new TypeError(
+                `shape ${this.name} queries ${stray.object}, which it does not list`,
+            );
+        }
+
+        return Object.fromEntries(
+            queries.map((query, index) => [`${prefix}${index}:${query.object}`, query]),
+        );
+    }
+
+    /** List a key's parameter values in their names' order. */
+    static #values(parameters: object): string[] {
+        return Object.entries(parameters)
+            .toSorted(([left], [right]) => left.localeCompare(right))
+            .map(([, value]) => String(value));
+    }
+}
+
+/** A shape as its package declares it: its name, key parameters, object types and queries. */
+interface ShapeDefinition<Parameters extends object> {
+    /** The shape's name. */
+    readonly name: string;
+    /** The schema of its parameters beside the scope, an empty object for a shape without any. */
+    readonly parameters: schema.Schema<Parameters>;
+    /** The object types its queries read. */
+    readonly objects: readonly ObjectType[];
+    /** Write the queries for a key's parameters. */
     queries(parameters: Parameters): readonly ObjectQuery[];
 }
 
@@ -79,131 +201,9 @@ type DistributiveOmit<Union, Key extends PropertyKey> = Union extends unknown
     ? Omit<Union, Key>
     : never;
 
-/** Shapes and their replicas. */
-export const Shape = {
-    /** Name the replica of a shape's key: the one writer of replica names. */
-    replicaName<Parameters extends object>(
-        shape: Shape<Parameters>,
-        key: ShapeKey<Parameters>,
-    ): string {
-        // join the scope and the parameters' values in their names' order
-        const { scope, ...parameters } = key;
-
-        return [shape.name, scope, ...Shape.listValues(parameters)].join(":");
-    },
-
-    /** List the replicas a database has of a shape for some parameters, at whatever scope. */
-    async replicas<Parameters extends object>(
-        database: DatabaseConnection,
-        shape: Shape<Parameters>,
-        parameters: Parameters,
-    ): Promise<{ readonly name: string; readonly scope: string }[]> {
-        // match the names the scope of each record completes
-        const suffix = Shape.listValues(parameters)
-            .map((value) => `:${value}`)
-            .join("");
-
-        return await database
-            .select({ name: replica.name, scope: replica.scope })
-            .from(replica)
-            .where(eq(replica.name, sql`${`${shape.name}:`} || ${replica.scope} || ${suffix}`));
-    },
-
-    /** Subscribe to a shape's key for a follower, on behalf of a principal if given. */
-    subscription<Parameters extends object>(
-        shape: Shape<Parameters>,
-        key: ShapeKey<Parameters>,
-        below: string,
-        subject?: Subject,
-    ): Subscription {
-        // name each query of the key's parameters by its type and position
-        const { scope, ...rest } = key;
-        const named = namedQueries(shape, shape.parameters.parse(rest), "");
-
-        return {
-            name: Shape.replicaName(shape, key),
-            publication: QUERIES_PUBLICATION,
-            scope,
-            below,
-            ...(subject === undefined ? {} : { subject }),
-            parameters: { queries: schema.json().parse(named) },
-        };
-    },
-
-    /** Subscribe to the keys a follower acquired of a shape at one scope, as one replica. */
-    demanded<Parameters extends object>(
-        shape: Shape<Parameters>,
-        scope: string,
-        keys: readonly Parameters[],
-        below: string,
-        subject?: Subject,
-    ): Subscription {
-        // name each key's queries by its parameter values, its type and its position
-        const named = Object.fromEntries(
-            keys.flatMap((parameters) =>
-                Object.entries(
-                    namedQueries(shape, parameters, `${Shape.listValues(parameters).join(":")}:`),
-                ),
-            ),
-        );
-
-        return {
-            name: [
-                shape.name,
-                scope,
-                ...(subject === undefined ? [] : [Subject.key(subject)]),
-            ].join(":"),
-            publication: QUERIES_PUBLICATION,
-            scope,
-            below,
-            ...(subject === undefined ? {} : { subject }),
-            parameters: { queries: schema.json().parse(named) },
-        };
-    },
-
-    /** List a key's parameter values in their names' order. */
-    listValues(parameters: object): string[] {
-        return Object.entries(parameters)
-            .toSorted(([left], [right]) => left.localeCompare(right))
-            .map(([, value]) => String(value));
-    },
-};
-
-/** Name a shape's queries for some parameters by a prefix, their type and position. */
-function namedQueries<Parameters extends object>(
-    shape: Shape<Parameters>,
-    parameters: Parameters,
-    prefix: string,
-): Record<string, ObjectQuery> {
-    // refuse a query of a type the shape does not list
-    const queries = shape.queries(parameters);
-    const stray = queries.find(
-        (query) => !shape.objects.some((object) => object.name === query.object),
-    );
-    if (stray !== undefined) {
-        throw new TypeError(`shape ${shape.name} queries ${stray.object}, which it does not list`);
-    }
-
-    return Object.fromEntries(
-        queries.map((query, index) => [`${prefix}${index}:${query.object}`, query]),
-    );
-}
-
 /** Declare a shape: its name, the parameters of its key, and the object queries they write. */
-export function defineShape<Parameters extends object>(definition: {
-    /** The shape's name. */
-    readonly name: string;
-    /** The schema of its parameters beside the scope, an empty object for a shape without any. */
-    readonly parameters: schema.Schema<Parameters>;
-    /** The object types its queries read. */
-    readonly objects: readonly ObjectType[];
-    /** Write the queries for a key's parameters. */
-    readonly queries: (parameters: Parameters) => readonly ObjectQuery[];
-}): Shape<Parameters> {
-    return {
-        name: definition.name,
-        parameters: definition.parameters,
-        objects: definition.objects,
-        queries: (parameters) => definition.queries(parameters),
-    };
+export function defineShape<Parameters extends object>(
+    definition: ShapeDefinition<Parameters>,
+): Shape<Parameters> {
+    return new Shape(definition);
 }

@@ -25,7 +25,7 @@ import { until } from "@destack/runtime/timer";
 import { Scope, Feed, Replica, Subject, type Page, type Subscription } from "@destack/sync";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
-import { defineObject, defineShape, field, Follow, Shape } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
@@ -692,7 +692,7 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
         keys: [{ key: { scope: spaceId }, subject: alice }],
         isReadinessGate: false,
     });
-    const brought = Shape.subscription(activity, { scope: spaceId }, followingSpaceId, alice);
+    const brought = activity.subscription({ scope: spaceId }, followingSpaceId, alice);
     await database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
