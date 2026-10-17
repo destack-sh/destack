@@ -1,6 +1,6 @@
 import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
-import { defineSchema, type Identifier, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { CommandReference } from "../declare/command.ts";
 import { OBJECT_PARAMETER, OPEN_PATH, TARGET_PARAMETER } from "../declare/context.ts";
@@ -16,96 +16,93 @@ const BOOSTS = { space: 0.25, installation: 0.5, object: 1 } as const;
 const SpaceId = schema.identifier("space");
 
 /** A source of the palette's entries, as the person turns it on or off: a kind, or a package. */
-export const PaletteSource = defineSchema(
-    schema.union([schema.enum(["windows", "spaces", "recent"]), PackageId]),
-);
+export const PaletteSource = schema.union([
+    schema.enum(["windows", "spaces", "recent"]),
+    PackageId,
+]);
 /** A source of the palette's entries. */
 export type PaletteSource = schema.Infer<typeof PaletteSource>;
 
 /** An entry the command palette offers. */
-export const PaletteEntry = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** A command calling an object type's method. */
-            kind: schema.literal("command"),
-            /** The space of the installation declaring it. */
-            space: SpaceId,
-            /** The installation declaring it, by name. */
-            installation: DeclarationName,
-            /** The declaring package. */
-            packageId: PackageId,
-            /** The command's name in its package. */
-            name: DeclarationName,
-            /** The title the palette shows. */
-            title: schema.string().min(1),
-            /** The package declaring the object type it calls. */
-            typePackageId: PackageId,
-            /** The object type it calls. */
-            type: schema.string().min(1),
-            /** The method it calls. */
-            method: schema.string().min(1),
-            /** The key combination that runs it. */
-            keybinding: Accelerator.nullable(),
-        }),
-        schema.object({
-            /** A view opening in a window. */
-            kind: schema.literal("view"),
-            /** The space of the installation declaring it. */
-            space: SpaceId,
-            /** The installation declaring it, by name. */
-            installation: DeclarationName,
-            /** The declaring package. */
-            packageId: PackageId,
-            /** The view's name. */
-            name: DeclarationName,
-            /** The title the palette shows. */
-            title: schema.string().min(1),
-        }),
-        schema.object({
-            /** A window of this computer, coming into focus. */
-            kind: schema.literal("window"),
-            /** The window's identifier. */
-            id: schema.string().min(1),
-            /** The title the palette shows. */
-            title: schema.string().min(1),
-            /** The link the window shows. */
-            link: schema.string().min(1),
-        }),
-        schema.object({
-            /** A space of the person, narrowing the palette to its entries. */
-            kind: schema.literal("space"),
-            /** The space. */
-            id: SpaceId,
-            /** The title the palette shows: the space's address. */
-            title: schema.string().min(1),
-        }),
-        schema.object({
-            /** An object the person opened lately, opening in the view presenting it. */
-            kind: schema.literal("object"),
-            /** The space keeping it. */
-            space: SpaceId,
-            /** The object. */
-            object: ObjectReference,
-            /** The title the palette shows. */
-            title: schema.string().min(1),
-        }),
-    ]),
-);
+export const PaletteEntry = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** A command calling an object type's method. */
+        kind: schema.literal("command"),
+        /** The space of the installation declaring it. */
+        space: SpaceId,
+        /** The installation declaring it, by name. */
+        installation: DeclarationName,
+        /** The declaring package. */
+        packageId: PackageId,
+        /** The command's name in its package. */
+        name: DeclarationName,
+        /** The title the palette shows. */
+        title: schema.string().min(1),
+        /** The package declaring the object type it calls. */
+        typePackageId: PackageId,
+        /** The object type it calls. */
+        type: schema.string().min(1),
+        /** The method it calls. */
+        method: schema.string().min(1),
+        /** The key combination that runs it. */
+        keybinding: Accelerator.nullable(),
+    }),
+    schema.object({
+        /** A view opening in a window. */
+        kind: schema.literal("view"),
+        /** The space of the installation declaring it. */
+        space: SpaceId,
+        /** The installation declaring it, by name. */
+        installation: DeclarationName,
+        /** The declaring package. */
+        packageId: PackageId,
+        /** The view's name. */
+        name: DeclarationName,
+        /** The title the palette shows. */
+        title: schema.string().min(1),
+    }),
+    schema.object({
+        /** A window of this computer, coming into focus. */
+        kind: schema.literal("window"),
+        /** The window's identifier. */
+        id: schema.string().min(1),
+        /** The title the palette shows. */
+        title: schema.string().min(1),
+        /** The link the window shows. */
+        link: schema.string().min(1),
+    }),
+    schema.object({
+        /** A space of the person, narrowing the palette to its entries. */
+        kind: schema.literal("space"),
+        /** The space. */
+        id: SpaceId,
+        /** The title the palette shows: the space's address. */
+        title: schema.string().min(1),
+    }),
+    schema.object({
+        /** An object the person opened lately, opening in the view presenting it. */
+        kind: schema.literal("object"),
+        /** The space keeping it. */
+        space: SpaceId,
+        /** The object. */
+        object: ObjectReference,
+        /** The title the palette shows. */
+        title: schema.string().min(1),
+    }),
+]);
 /** An entry the command palette offers. */
 export type PaletteEntry = schema.Infer<typeof PaletteEntry>;
 
 /** What the window the palette opens over shows. */
 export const PaletteFocus = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The space of the window's view or object. */
-            space: SpaceId.exactOptional(),
-            /** The installation of the window's view, by name. */
-            installation: DeclarationName.exactOptional(),
-            /** The object the window presents. */
-            object: ObjectReference.exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The space of the window's view or object. */
+        space: SpaceId.exactOptional(),
+        /** The installation of the window's view, by name. */
+        installation: DeclarationName.exactOptional(),
+        /** The object the window presents. */
+        object: ObjectReference.exactOptional(),
+    }),
     {
         /** Read what a window shows in a space from its location under a domain. */
         of(location: string | null, space: Identifier<"space">, domain: string): PaletteFocus {

@@ -1,6 +1,6 @@
 import { DeclarationName } from "@destack/package";
 import { Catalog, LocaleTag } from "@destack/locale";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { Accelerator } from "../palette/accelerator.ts";
 import { CommandReference } from "./command.ts";
@@ -67,28 +67,26 @@ export type ContextScope = (typeof CONTEXT_SCOPES)[number];
 
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The installation serving the view, absent for the machine's command palette. */
-            installation: schema.string().min(1).exactOptional(),
-            /** The space of the installation. */
-            space: schema.string().min(1),
-            /** The account of the space. */
-            account: schema.string().min(1),
-            /** The declared view's name. */
-            view: DeclarationName,
-            /** The person using the view. */
-            user: Subject,
-            /** The person's home space, absent where the host opens none for the view. */
-            home: schema.string().min(1).exactOptional(),
-            /** The computer's device whose local objects the page reaches, absent for none. */
-            device: schema.string().min(1).exactOptional(),
-            /** The object the view opens for, from its address. */
-            target: ObjectReference.exactOptional(),
-            /** The language and region the person reads. */
-            locale: LocaleTag.exactOptional(),
-        }),
-    ),
+    schema.object({
+        /** The installation serving the view, absent for the machine's command palette. */
+        installation: schema.string().min(1).exactOptional(),
+        /** The space of the installation. */
+        space: schema.string().min(1),
+        /** The account of the space. */
+        account: schema.string().min(1),
+        /** The declared view's name. */
+        view: DeclarationName,
+        /** The person using the view. */
+        user: Subject,
+        /** The person's home space, absent where the host opens none for the view. */
+        home: schema.string().min(1).exactOptional(),
+        /** The computer's device whose local objects the page reaches, absent for none. */
+        device: schema.string().min(1).exactOptional(),
+        /** The object the view opens for, from its address. */
+        target: ObjectReference.exactOptional(),
+        /** The language and region the person reads. */
+        locale: LocaleTag.exactOptional(),
+    }),
     {
         /** Read one of a context's scopes, refusing one the host opens none for. */
         scope(context: ViewContext, name: ContextScope): string {
@@ -106,52 +104,46 @@ export const ViewContext = Object.assign(
 export type ViewContext = schema.Infer<typeof ViewContext>;
 
 /** A catalog a view's launch lists. */
-export const CatalogReference = defineSchema(
-    schema.object({
-        /** The package whose messages it translates. */
-        package: Catalog.shape.package,
-        /** The language it translates into. */
-        locale: LocaleTag,
-        /** The same-origin path serving it. */
-        url: SameOriginPath,
-    }),
-);
+export const CatalogReference = schema.object({
+    /** The package whose messages it translates. */
+    package: Catalog.shape.package,
+    /** The language it translates into. */
+    locale: LocaleTag,
+    /** The same-origin path serving it. */
+    url: SameOriginPath,
+});
 /** A catalog a view's launch lists. */
 export type CatalogReference = schema.Infer<typeof CatalogReference>;
 
 /** What the host shows a view in, pushed again whenever the person changes it. */
-export const ViewDisplay = defineSchema(
-    schema.object({
-        /** The language and region the person reads. */
-        locale: LocaleTag,
-        /** The catalogs along the locale's fallback chain. */
-        catalogs: schema.array(CatalogReference),
-        /** The theme's custom properties and color scheme for the person's display. */
-        style: schema.record(schema.string(), schema.string()),
-        /** The key combinations running the commands of the view's installation, for the person. */
-        keybindings: schema.array(
-            schema.object({
-                /** The command, as `<package>/<name>`. */
-                command: CommandReference.key,
-                /** Its key combination. */
-                keybinding: Accelerator,
-            }),
-        ),
-    }),
-);
+export const ViewDisplay = schema.object({
+    /** The language and region the person reads. */
+    locale: LocaleTag,
+    /** The catalogs along the locale's fallback chain. */
+    catalogs: schema.array(CatalogReference),
+    /** The theme's custom properties and color scheme for the person's display. */
+    style: schema.record(schema.string(), schema.string()),
+    /** The key combinations running the commands of the view's installation, for the person. */
+    keybindings: schema.array(
+        schema.object({
+            /** The command, as `<package>/<name>`. */
+            command: CommandReference.key,
+            /** Its key combination. */
+            keybinding: Accelerator,
+        }),
+    ),
+});
 /** What the host shows a view in. */
 export type ViewDisplay = schema.Infer<typeof ViewDisplay>;
 
 /** What the host embeds in a view's page as JSON in the `destack-view` script element. */
-export const ViewLaunch = defineSchema(
-    ViewContext.extend({
-        /** The release of the installation's package serving the view. */
-        release: schema.string().min(1),
-        /** The same-origin path answering the replica procedures of every scope. */
-        endpoint: SameOriginPath,
-        /** The catalogs that translate the messages of the view's package and its dependencies. */
-        catalogs: schema.array(CatalogReference),
-    }),
-);
+export const ViewLaunch = ViewContext.extend({
+    /** The release of the installation's package serving the view. */
+    release: schema.string().min(1),
+    /** The same-origin path answering the replica procedures of every scope. */
+    endpoint: SameOriginPath,
+    /** The catalogs that translate the messages of the view's package and its dependencies. */
+    catalogs: schema.array(CatalogReference),
+});
 /** What the host embeds in a view's page. */
 export type ViewLaunch = schema.Infer<typeof ViewLaunch>;

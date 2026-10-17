@@ -76,6 +76,13 @@ test("render in the person's locale from the view's context with the launch's ca
     ]);
 });
 
+/** The package answering how many notes a person keeps, which declares the tallies. */
+const COUNTER = Package.parse({
+    id: "package-019f7480-0000-7000-8000-000000000002",
+    name: "@example/counter",
+    version: "2026.9.0",
+});
+
 /** Counts of a person's notes, answered by a package's query. */
 const tally = defineObject(
     {
@@ -92,19 +99,11 @@ const tally = defineObject(
             output: schema.object({ notes: schema.number() }),
         }),
     }),
+    { package: COUNTER },
 );
 
 /** A package answering how many notes a person keeps. */
-const counter = definePackage(
-    { objects: { tally } },
-    {
-        package: Package.parse({
-            id: "package-019f7480-0000-7000-8000-000000000002",
-            name: "@example/counter",
-            version: "2026.9.0",
-        }),
-    },
-);
+const counter = definePackage({ objects: { tally } }, { package: COUNTER });
 
 /** Show the note count the counter package answers. */
 function Count() {

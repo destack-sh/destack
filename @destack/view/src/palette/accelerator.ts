@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The symbols Command platforms label each modifier with. */
 const COMMAND_MODIFIERS: Readonly<Record<string, string>> = {
@@ -68,13 +68,11 @@ const COMMAND_PLATFORM = /Mac|iPhone|iPad/u;
 
 /** A key combination in the keybinding syntax editors write. */
 export const Accelerator = Object.assign(
-    defineSchema(
-        schema
-            .string()
-            .regex(
-                /^(?:(?:mod|ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\]\\`=-])$/u,
-            ),
-    ),
+    schema
+        .string()
+        .regex(
+            /^(?:(?:mod|ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\]\\`=-])$/u,
+        ),
     {
         /** Write an accelerator for people. */
         format(accelerator: string, isCommand: boolean): string {

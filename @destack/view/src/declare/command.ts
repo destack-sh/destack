@@ -1,6 +1,6 @@
 import { DeclarationName, ModuleMetadata, type Package, PackageId } from "@destack/package";
 import type { CallableName, ObjectType } from "@destack/object";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** A command as its package defines it: a named call of one object type's method. */
 export interface CommandDefinition<Object extends ObjectType = ObjectType> {
@@ -62,17 +62,15 @@ export function defineCommand<const Object extends ObjectType>(
 
 /** A command's identity across installations: its package and its name. */
 export const CommandReference = Object.assign(
-    defineSchema(
-        schema.object({
-            /** The package declaring the command. */
-            packageId: PackageId,
-            /** The command's name in its package. */
-            name: DeclarationName,
-        }),
-    ),
+    schema.object({
+        /** The package declaring the command. */
+        packageId: PackageId,
+        /** The command's name in its package. */
+        name: DeclarationName,
+    }),
     {
         /** The key of a command in settings: its package and name, as `<package>/<name>`. */
-        key: defineSchema(schema.templateLiteral([PackageId, "/", DeclarationName])),
+        key: schema.templateLiteral([PackageId, "/", DeclarationName]),
 
         /** Write the key of a command in settings. */
         format(reference: CommandReference): string {
