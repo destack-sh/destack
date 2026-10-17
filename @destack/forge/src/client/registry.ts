@@ -1,6 +1,5 @@
-import { AddressResolver } from "@destack/account/address";
+import { Directory } from "@destack/account/address";
 import { PackageClient } from "@destack/build/store";
-import type { Snapshot } from "@destack/db";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { BuildReader, type PackageLocation } from "@destack/package/manifest";
@@ -34,13 +33,12 @@ export class Registry {
 
     /** Read releases through the universe directory's replica: claims, placements, endpoints. */
     static of(
-        directory: Snapshot,
+        directory: Directory,
         home: (account: Identifier<"account">) => Promise<Identifier<"space">>,
         fetch: Fetch,
         clock: Clock,
     ): Registry {
-        const claims = ClaimLookup.of(directory.read(claimTable));
-        const resolver = new AddressResolver(directory);
+        const claims = ClaimLookup.of(directory.snapshot.read(claimTable));
 
         return new Registry(async (packageId) => {
             // find the account claiming the package's identifier
@@ -54,7 +52,7 @@ export class Registry {
             // find the machine serving the home of the account's residency
             const accountId = schema.identifier("account").parse(found.scope);
             const spaceId = await home(accountId);
-            const located = await resolver.locate(spaceId, clock.now());
+            const located = await directory.locate(spaceId, clock.now());
 
             // call the forge's package below its installation in the home
             const installation = InstallationMount.url(located.url, spaceId, FORGE_INSTALLATION);

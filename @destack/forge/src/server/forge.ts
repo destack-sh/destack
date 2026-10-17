@@ -1,5 +1,5 @@
 import { Caller, principal } from "@destack/access";
-import { AddressResolver } from "@destack/account/address";
+import { Directory } from "@destack/account/address";
 import { account, claimShape } from "@destack/account/object";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { PackageStore } from "@destack/build/store";
@@ -406,7 +406,7 @@ export class Forge {
         // resolve the account handle, refusing an unclaimed one
         const { handle, local } = PackageName.split(name);
         await acquire(Claim.key(account, "handle", [handle]));
-        const accountId = await new AddressResolver(view).account(handle);
+        const accountId = await new Directory(view).account(handle);
         if (accountId === undefined) {
             throw new CallError("NOT_FOUND", { message: "package not found" });
         }
