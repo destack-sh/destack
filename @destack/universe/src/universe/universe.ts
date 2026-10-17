@@ -120,11 +120,8 @@ export class Universe implements AsyncDisposable {
             async (request) =>
                 (await connected.promise)(audience)(request);
         const directory = new Directory(Snapshot.live(database));
-        const home = async (account: Identifier<"account">) =>
-            present(
-                (await Account.findResidency(directory.snapshot, account))?.home,
-                `the residency home of ${account}`,
-            );
+        const home = (account: Identifier<"account">) =>
+            Account.residencyHome(directory.snapshot, account);
         const registry = Registry.of(directory, home, connect(forgePackage.id), clock);
 
         // apply the residencies, then each step of the platform's declaration, once per run
