@@ -64,7 +64,7 @@ interface Connection {
 /** What a machine's tunnel runs with in its partition. */
 export interface TunnelOptions {
     /** The partition's store, with the tunnel's connection rows. */
-    readonly store: Pick<ObjectStore, "database" | "clock" | "mutate" | "self">;
+    readonly store: Pick<ObjectStore, "database" | "clock" | "mutate" | "serving">;
     /** The host of the partition's hibernated sockets. */
     readonly hibernation: Pick<Hibernation, "list" | "socket" | "accept">;
     /** The relay's tunnel URL the machine dials, which its renames come from. */
@@ -371,7 +371,10 @@ export class Tunnel implements SocketHandler {
         // run them in one mutation as the installation
         const { store } = this.#options;
 
-        return store.mutate(store.self, { id: RequestId.create(store.clock.now()), calls });
+        return store.mutate(store.serving(connection), {
+            id: RequestId.create(store.clock.now()),
+            calls,
+        });
     }
 
     /** Take a connection out of the tunnel, absent when none has the identifier. */

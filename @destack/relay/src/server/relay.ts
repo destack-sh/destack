@@ -53,7 +53,7 @@ export interface RelayOptions {
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
     readonly itself: ReturnType<ServerContext["at"]>;
     /** The relay installation's store, with a row per tunnelled machine and the replicas. */
-    readonly store: Pick<ObjectStore, "principal" | "self" | "clock" | "database" | "mutate">;
+    readonly store: Pick<ObjectStore, "principal" | "serving" | "clock" | "database" | "mutate">;
     /** The domains names resolve under. */
     readonly domains?: Domains;
     /** Call cloud machines at their published endpoints. */
@@ -203,7 +203,10 @@ export class Relay {
         }
 
         // call it as the relay installation
-        await this.#store.mutate(this.#store.self, { id: RequestId.create(now), calls: [call] });
+        await this.#store.mutate(this.#store.serving(tunnel), {
+            id: RequestId.create(now),
+            calls: [call],
+        });
     }
 
     /** Call a machine's tunnel in its partition through the relay installation itself. */
@@ -430,7 +433,7 @@ export class Relay {
 
         // call it as the relay installation
         const now = this.#store.clock.now();
-        await this.#store.mutate(this.#store.self, {
+        await this.#store.mutate(this.#store.serving(tunnel), {
             id: RequestId.create(now),
             calls: [call],
         });
