@@ -3,6 +3,7 @@ import { ListPage } from "@destack/object";
 import type { StepUp } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
+import { Subject } from "@destack/sync";
 import { createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { Pkce } from "@destack/runtime/authentication";
@@ -107,8 +108,10 @@ export type DevicePoll =
 export interface TokenBinding {
     /** The space the token acts in, absent toward a universe package. */
     readonly spaceId?: Identifier<"space">;
-    /** The grant to a delegate the token acts under. */
-    readonly grant?: Identifier<"grant">;
+    /** The person the token acts as, or for under their grants to the caller. */
+    readonly subject?: Subject;
+    /** The chain of grants the token acts under. */
+    readonly grants?: readonly Identifier<"grant">[];
 }
 
 /** The issuer a native device signs people in with, by redirect or device code. */
@@ -325,7 +328,8 @@ export class Issuer {
             subject_token_type: ACCESS_TOKEN_TYPE,
             resource: PackageId.resource(audience),
             ...(bound.spaceId === undefined ? {} : { space: bound.spaceId }),
-            ...(bound.grant === undefined ? {} : { grant: bound.grant }),
+            ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
+            ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
         });
         if (!response.ok) {
             const { error, error_description: description } = await Issuer.#read(

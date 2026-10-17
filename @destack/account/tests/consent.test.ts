@@ -37,13 +37,18 @@ test("let an installation act for a person exactly as the grant the person's own
         permissions: [{ ...client.permission("unsubscribe"), scope: owner.id }],
     });
 
-    // exchange the installation's own token for the owner's under the grant, outside any space
-    const exchange = async () =>
+    // exchange the installation's own token for the owner's under a named or the only grant
+    const exchange = async (grants?: readonly string[]) =>
         fixture.exchangeToken(await fixture.installationToken(inbox), ACCESS_TOKEN_TYPE, {
             audience: accountPackage.id,
             subject: Subject.key(owner.subject),
+            ...(grants === undefined ? {} : { grants: grants.join(" ") }),
         });
-    const acting = fixture.bearer((await exchange()).accessToken);
+    const acting = fixture.bearer((await exchange([granted.id])).accessToken);
+
+    // refuse a chain linking a grant the universe keeps no record of
+    const unknown = Identifier.create("grant");
+    const unlinked = await outcome(exchange([granted.id, unknown]));
 
     // forget the push subscription for the owner, and refuse revoking the client the grant leaves out
     await acting.client.unsubscribe({
@@ -86,12 +91,14 @@ test("let an installation act for a person exactly as the grant the person's own
             item.permissions,
         ]),
         push: forgotten?.push,
+        unlinked,
         ungranted,
         revoked,
         exchanged: await outcome(exchange()),
     }).toEqual({
         listed: [[granted.id, inbox, [{ ...client.permission("unsubscribe"), scope: owner.id }]]],
         push: null,
+        unlinked: `BAD_REQUEST: invalid_grant: grant ${unknown} is revoked`,
         ungranted: `INSUFFICIENT_GRANT: grant ${granted.id} does not give revoke on client ${browser.id}`,
         revoked: `UNAUTHORIZED: grant ${granted.id} is revoked`,
         exchanged: `BAD_REQUEST: invalid_grant: ${owner.id} has no grant to ${inbox.id}`,

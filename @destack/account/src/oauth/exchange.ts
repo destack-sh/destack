@@ -13,9 +13,9 @@ import {
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
 import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, nth, schema } from "@destack/schema";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
-import { CallError, isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/runtime/error";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
@@ -55,8 +55,13 @@ const ExchangeRequest = schema.looseObject({
     space: schema.identifier("space").exactOptional(),
     /** The person to act as, or for under their grant to the caller, as a subject key. */
     subject: schema.string().min(1).exactOptional(),
-    /** The grant to act under: the caller's, or the subject's to the caller. */
-    grant: schema.identifier("grant").exactOptional(),
+    /** The chain of grants to act under, space-delimited. */
+    grants: schema
+        .string()
+        .min(1)
+        .transform((value) => value.split(" "))
+        .pipe(schema.array(schema.identifier("grant")))
+        .exactOptional(),
 });
 
 /** What the token exchange reads and verifies with. */
@@ -91,7 +96,10 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
         const now = options.clock.now();
         const { authentication, lapse } = await describe(options, asked, audience, now).catch(
             (error: unknown) => {
-                throw isCallError(error) ? Issuance.refusal("invalid_grant", error.message) : error;
+                const refused = CallError.of(error);
+                throw refused === undefined
+                    ? error
+                    : Issuance.refusal("invalid_grant", refused.message);
             },
         );
 
@@ -120,19 +128,20 @@ async function describe(
     return options.database.transaction(async (transaction) => {
         // describe a person acting through a delegate under a grant, outside a space toward a universe package
         const isInstallation = principal.installation.is(verified.caller.subject);
-        const granted = await readGrant(
+        const granted = await readGrants(
             transaction,
             verified.caller,
             {
                 ...(subject === undefined ? {} : { subject }),
-                ...(asked.grant === undefined ? {} : { grant: asked.grant }),
+                ...(asked.grants === undefined ? {} : { grants: asked.grants }),
             },
             isInstallation,
             now,
         );
-        const lapse = Math.min(...lapses, granted?.expiresAt ?? Number.POSITIVE_INFINITY);
+        const expiries = granted.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY);
+        const lapse = Math.min(...lapses, ...expiries);
         const lapsing = Number.isFinite(lapse) ? { lapse } : {};
-        if (granted !== undefined && asked.space === undefined) {
+        if (granted.length > 0 && asked.space === undefined) {
             return {
                 authentication: describeDelegation(verified, granted, audience, now),
                 ...lapsing,
@@ -158,7 +167,7 @@ async function describe(
 
         // describe the caller in the space, a person it impersonates, or a person acting through a delegate
         const verification = new SpaceVerification(asked.space, audience, transaction, now);
-        if (granted !== undefined) {
+        if (granted.length > 0) {
             return {
                 authentication: await verification.delegation(
                     verified,
@@ -373,29 +382,29 @@ class SpaceVerification {
         return { ...represented, caller: { ...represented.caller, actors: [acting] } };
     }
 
-    /** Describe a person acting through a delegate under their grant to it in the space. */
+    /** Describe a person acting through a chain of delegates under their grants in the space. */
     async delegation(
         verified: Authentication,
-        grant: Grant,
+        chain: readonly Grant[],
         authorizer: Authorizer,
     ): Promise<Authentication> {
-        // describe the delegator within the space's account, without what it proved elsewhere
+        // describe the first delegator within the space's account, without what it proved elsewhere
         const represented = await this.authentication(
             verified,
             authorizer,
-            ObjectReference.at("delegator", grant),
+            ObjectReference.at("delegator", nth(chain, 0)),
         );
 
-        // act through the delegate under the grant, until the grant lapses
+        // act through the delegates under the grants, until the first grant lapses
         const { credential } = represented;
-        const lapse = grant.expiresAt ?? credential.expiresAt;
+        const lapse = Math.min(...chain.map((grant) => grant.expiresAt ?? credential.expiresAt));
 
         return {
             caller: {
                 ...represented.caller,
-                actors: [ObjectReference.at("delegate", grant)],
+                actors: chain.map((grant) => ObjectReference.at("delegate", grant)),
                 contacts: [],
-                grants: [Grant.claim(grant)],
+                grants: chain.map((grant) => Grant.claim(grant)),
             },
             credential: { ...credential, expiresAt: Math.min(credential.expiresAt, lapse) },
         };
@@ -456,29 +465,29 @@ class SpaceVerification {
     }
 }
 
-/** Describe a person acting through a delegate under their grant toward a universe package. */
+/** Describe a person acting through delegates under their grants toward a universe package. */
 function describeDelegation(
     verified: Authentication,
-    grant: Grant,
+    chain: readonly Grant[],
     audience: PackageId,
     now: number,
 ): Authentication {
-    // lapse at the earliest of the credential, the token lifetime and the grant
+    // lapse at the earliest of the credential, the token lifetime and the grants
     const { credential } = verified;
     const lapse = Math.min(
         credential.expiresAt,
         now + TOKEN_LIFETIME_MILLISECONDS,
-        grant.expiresAt ?? Number.POSITIVE_INFINITY,
+        ...chain.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY),
     );
 
-    // act as the grant's delegator through its delegate
-    const delegator = ObjectReference.at("delegator", grant);
+    // act as the first grant's delegator through each delegate
+    const delegator = ObjectReference.at("delegator", nth(chain, 0));
 
     return {
         caller: {
             ...Caller.of(delegator),
-            actors: [ObjectReference.at("delegate", grant)],
-            grants: [Grant.claim(grant)],
+            actors: chain.map((grant) => ObjectReference.at("delegate", grant)),
+            grants: chain.map((grant) => Grant.claim(grant)),
         },
         credential: {
             kind: credential.kind,
@@ -490,17 +499,21 @@ function describeDelegation(
     };
 }
 
-/** Read the grant an exchange acts under: the caller's, or a person's to the caller. */
-async function readGrant(
+/** Read the chain of grants an exchange acts under, from the caller or from a person to it. */
+async function readGrants(
     transaction: DatabaseConnection,
     caller: Caller,
-    input: { readonly subject?: Subject; readonly grant?: Identifier<"grant"> },
+    input: { readonly subject?: Subject; readonly grants?: readonly Identifier<"grant">[] },
     isInstallation: boolean,
     now: number,
-): Promise<Grant | undefined> {
-    // read a person's grant to the calling installation, the one named or its only live one
+): Promise<Grant[]> {
+    // require a person's named chain to the calling installation
     const snapshot = Snapshot.live(transaction);
-    if (isInstallation && input.subject !== undefined) {
+    if (isInstallation && input.subject !== undefined && input.grants !== undefined) {
+        return requireChain(snapshot, input.grants, input.subject, caller.subject, now);
+    }
+    // require the person's only live grant to the calling installation
+    else if (isInstallation && input.subject !== undefined) {
         const parties = { delegator: input.subject, delegate: caller.subject };
         const grants = await snapshot.read(accessGrant).findMany({
             where: {
@@ -511,18 +524,8 @@ async function readGrant(
         const live = grants.filter((grant) => grant.expiresAt === null || grant.expiresAt > now);
         const [only, ...others] = live;
 
-        // require the named grant
-        if (input.grant !== undefined) {
-            const named = grants.find((grant) => grant.id === input.grant);
-
-            return Grant.require(named, input.grant, parties, now);
-        }
-        // require the only live grant
-        else if (only !== undefined && others.length === 0) {
-            return Grant.require(only, only.id, parties, now);
-        }
         // refuse none or several
-        else {
+        if (only === undefined || others.length > 0) {
             throw new CallError("FORBIDDEN", {
                 message:
                     live.length === 0
@@ -530,27 +533,41 @@ async function readGrant(
                         : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
             });
         }
+
+        return [Grant.require(only, only.id, parties, now)];
     }
-    // read the caller's own grant to a delegate, as the caller acting as itself
-    else if (input.grant !== undefined) {
+    // read the caller's own chain to a delegate, as the caller acting as itself
+    else if (input.grants !== undefined) {
         if (Caller.isDelegated(caller)) {
             throw new CallError("FORBIDDEN", {
-                message: "a delegate acts under its own grant alone",
+                message: "a delegate acts under its own grants alone",
             });
         }
-        const grant = await Grant.read(snapshot, input.grant);
 
-        return Grant.require(
-            grant,
-            input.grant,
-            {
-                delegator: caller.subject,
-                delegate:
-                    grant === undefined ? caller.subject : ObjectReference.at("delegate", grant),
-            },
-            now,
-        );
+        return requireChain(snapshot, input.grants, caller.subject, undefined, now);
     }
 
-    return undefined;
+    return [];
+}
+
+/** Require a chain of live grants from a delegator, each from the prior grant's delegate. */
+async function requireChain(
+    snapshot: Snapshot,
+    ids: readonly Identifier<"grant">[],
+    delegator: Subject,
+    delegate: Subject | undefined,
+    now: number,
+): Promise<Grant[]> {
+    const chain: Grant[] = [];
+    for (const [index, id] of ids.entries()) {
+        // link each grant from the prior grant's delegate, the last one to the given delegate
+        const grant = await Grant.read(snapshot, id);
+        const from =
+            index === 0 ? delegator : ObjectReference.at("delegate", nth(chain, index - 1));
+        const last = index === ids.length - 1 ? delegate : undefined;
+        const own = grant === undefined ? from : ObjectReference.at("delegate", grant);
+        chain.push(Grant.require(grant, id, { delegator: from, delegate: last ?? own }, now));
+    }
+
+    return chain;
 }
