@@ -1,4 +1,4 @@
-import { defineSchema, type JsonObject, type JsonValue, schema } from "@destack/schema";
+import { type JsonObject, type JsonValue, schema } from "@destack/schema";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
@@ -114,71 +114,65 @@ function isProperties<Of>(properties: object): properties is PropertiesOf<Of> {
 const Option = schema.union([schema.string(), schema.number(), schema.boolean()]);
 
 /** The input a control shows for a property, from the property's type. */
-export const ControlInput = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** A switch, for a boolean. */
-            kind: schema.literal("boolean"),
-        }),
-        schema.object({
-            /** A number field, for a number. */
-            kind: schema.literal("number"),
-        }),
-        schema.object({
-            /** A text field, for a string. */
-            kind: schema.literal("text"),
-        }),
-        schema.object({
-            /** A select, for a union of literals. */
-            kind: schema.literal("select"),
-            /** The literals of the union, in declaration order. */
-            options: schema.array(Option).min(2),
-        }),
-    ]),
-);
+export const ControlInput = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** A switch, for a boolean. */
+        kind: schema.literal("boolean"),
+    }),
+    schema.object({
+        /** A number field, for a number. */
+        kind: schema.literal("number"),
+    }),
+    schema.object({
+        /** A text field, for a string. */
+        kind: schema.literal("text"),
+    }),
+    schema.object({
+        /** A select, for a union of literals. */
+        kind: schema.literal("select"),
+        /** The literals of the union, in declaration order. */
+        options: schema.array(Option).min(2),
+    }),
+]);
 /** The input a control shows for a property. */
 export type ControlInput = schema.Infer<typeof ControlInput>;
 
 /** A control an editor shows for one property of the declaration an example shows. */
-export const Control = defineSchema(
-    schema.object({
-        /** The property the control sets. */
-        property: schema.string().min(1),
-        /** The property's documentation, absent without one. */
-        label: schema.string().min(1).exactOptional(),
-        /** Whether the property can stay unset. */
-        isOptional: schema.boolean(),
-        /** The input the control shows. */
-        input: ControlInput,
-    }),
-);
+export const Control = schema.object({
+    /** The property the control sets. */
+    property: schema.string().min(1),
+    /** The property's documentation, absent without one. */
+    label: schema.string().min(1).exactOptional(),
+    /** Whether the property can stay unset. */
+    isOptional: schema.boolean(),
+    /** The input the control shows. */
+    input: ControlInput,
+});
 /** A control an editor shows for one property of the declaration an example shows. */
 export type Control = schema.Infer<typeof Control>;
 
 /** The description of an example declaration in the graph. */
-export const ExampleDescription = defineSchema(
-    schema.object({
-        /** One sentence saying what the example shows. */
-        description: schema.string().min(1),
-        /** The property values the example sets, by property. */
-        properties: schema.jsonObject(),
-        /** The controls of the properties the declaration's package declares, by property. */
-        controls: schema.array(Control),
-        /** The calls bringing objects into the example's state, by scope and type moniker. */
-        objects: schema.record(
-            schema.string(),
-            schema.array(
-                schema.object({
-                    /** The object type. */
-                    object: Moniker,
-                    /** The method. */
-                    method: schema.string().min(1),
-                    /** The method's input. */
-                    input: schema.jsonObject(),
-                }),
-            ),
+export const ExampleDescription = schema.object({
+    /** One sentence saying what the example shows. */
+    description: schema.string().min(1),
+    /** The property values the example sets, by property. */
+    properties: schema.jsonObject(),
+    /** The controls of the properties the declaration's package declares, by property. */
+    controls: schema.array(Control),
+    /** The calls bringing objects into the example's state, by scope and type moniker. */
+    objects: schema.record(
+        schema.string(),
+        schema.array(
+            schema.object({
+                /** The object type. */
+                object: Moniker,
+                /** The method. */
+                method: schema.string().min(1),
+                /** The method's input. */
+                input: schema.jsonObject(),
+            }),
         ),
-    }),
-);
+    ),
+});
 /** The description of an example declaration in the graph. */
 export type ExampleDescription = schema.Infer<typeof ExampleDescription>;

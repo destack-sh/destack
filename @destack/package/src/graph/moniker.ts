@@ -1,11 +1,11 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** The pattern of a moniker: package and module path, then optional symbol, member and kind. */
 const MONIKER_PATTERN =
     /^(?:package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|npm:(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)\/[^#\x00-\x1f\x7f]+(?:#[^\x00-\x1f\x7f]+)?$/u;
 
 /** The schema of a moniker. */
-const monikerSchema = defineSchema(schema.string().regex(MONIKER_PATTERN));
+const monikerSchema = schema.string().regex(MONIKER_PATTERN);
 
 /** A stable moniker of a module, symbol or declaration across builds. */
 export type Moniker = schema.Infer<typeof monikerSchema>;

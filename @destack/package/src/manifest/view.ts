@@ -1,4 +1,4 @@
-import { defineSchema, schema, Text } from "@destack/schema";
+import { schema, Text } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { PackagePath } from "../file/file.ts";
 import { Sandbox } from "../definition/sandbox.ts";
@@ -7,48 +7,41 @@ import { Sandbox } from "../definition/sandbox.ts";
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
 
 /** How strongly a view presents an object type: its default view, or one offered beside it. */
-export const ViewPresentationPriority = Object.assign(
-    defineSchema(schema.enum(PRESENTATION_PRIORITIES)),
-    {
-        /** Compare two priorities, ordering the stronger first. */
-        compare(left: ViewPresentationPriority, right: ViewPresentationPriority): number {
-            return PRESENTATION_PRIORITIES.indexOf(left) - PRESENTATION_PRIORITIES.indexOf(right);
-        },
+export const ViewPresentationPriority = Object.assign(schema.enum(PRESENTATION_PRIORITIES), {
+    /** Compare two priorities, ordering the stronger first. */
+    compare(left: ViewPresentationPriority, right: ViewPresentationPriority): number {
+        return PRESENTATION_PRIORITIES.indexOf(left) - PRESENTATION_PRIORITIES.indexOf(right);
     },
-);
+});
 /** How strongly a view presents an object type. */
 export type ViewPresentationPriority = schema.Infer<typeof ViewPresentationPriority>;
 
 /** An object type a view presents, as its declaration describes it. */
-export const ViewPresentation = defineSchema(
-    schema.object({
-        /** The package declaring the object type. */
-        packageId: PackageId,
-        /** The object type. */
-        type: schema.string().min(1),
-        /** How strongly the view presents it. */
-        priority: ViewPresentationPriority,
-    }),
-);
+export const ViewPresentation = schema.object({
+    /** The package declaring the object type. */
+    packageId: PackageId,
+    /** The object type. */
+    type: schema.string().min(1),
+    /** How strongly the view presents it. */
+    priority: ViewPresentationPriority,
+});
 /** An object type a view presents, as its declaration describes it. */
 export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
 
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(
-    defineSchema(
-        schema
-            .object({
-                /** The emitted chunk mounting the view. */
-                entrypoint: PackagePath,
-                /** The browser features the view may use beyond the bare sandbox. */
-                sandbox: Sandbox,
-                /** The object types the view presents, so opening an object picks its view. */
-                presents: schema.array(ViewPresentation),
-                /** The packages the view calls as its person. */
-                packages: schema.array(PackageId),
-            })
-            .strict(),
-    ),
+    schema
+        .object({
+            /** The emitted chunk mounting the view. */
+            entrypoint: PackagePath,
+            /** The browser features the view may use beyond the bare sandbox. */
+            sandbox: Sandbox,
+            /** The object types the view presents, so opening an object picks its view. */
+            presents: schema.array(ViewPresentation),
+            /** The packages the view calls as its person. */
+            packages: schema.array(PackageId),
+        })
+        .strict(),
     {
         /** List view names by rank: views of no type first, then by strength and name. */
         rank(views: Readonly<Record<string, Pick<ViewDescription, "presents">>>): string[] {
@@ -67,20 +60,18 @@ export const ViewDescription = Object.assign(
 export type ViewDescription = schema.Infer<typeof ViewDescription>;
 
 /** A call of an object type's method as a command the shell offers. */
-export const CommandDescription = defineSchema(
-    schema.object({
-        /** The command's title, shown in the command menu. */
-        title: schema.string().min(1),
-        /** The package declaring the object type. */
-        packageId: PackageId,
-        /** The object type the command calls. */
-        type: schema.string().min(1),
-        /** The method the command calls. */
-        method: schema.string().min(1),
-        /** The key combination running it, in VS Code's keybinding syntax. */
-        keybinding: schema.string().min(1).exactOptional(),
-    }),
-);
+export const CommandDescription = schema.object({
+    /** The command's title, shown in the command menu. */
+    title: schema.string().min(1),
+    /** The package declaring the object type. */
+    packageId: PackageId,
+    /** The object type the command calls. */
+    type: schema.string().min(1),
+    /** The method the command calls. */
+    method: schema.string().min(1),
+    /** The key combination running it, in VS Code's keybinding syntax. */
+    keybinding: schema.string().min(1).exactOptional(),
+});
 /** A named call of an object type's method the shell offers, as its declaration describes it. */
 export type CommandDescription = schema.Infer<typeof CommandDescription>;
 

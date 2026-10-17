@@ -1,18 +1,16 @@
-import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import { ModuleGraph } from "./graph.ts";
 import { ModuleDescription } from "./module.ts";
 
 /** The schema of the JSON document exchanged with package inspection entrypoints. */
-const packageInspectionSchema = defineSchema(
-    schema.object({
-        /** The inspection format name. */
-        name: schema.string().min(1),
-        /** The package's source modules. */
-        code: schema.array(ModuleDescription),
-        /** Descriptions defined by the package's libraries. */
-        descriptions: schema.json(),
-    }),
-);
+const packageInspectionSchema = schema.object({
+    /** The inspection format name. */
+    name: schema.string().min(1),
+    /** The package's source modules. */
+    code: schema.array(ModuleDescription),
+    /** Descriptions defined by the package's libraries. */
+    descriptions: schema.json(),
+});
 
 /** A validated package inspection. */
 export type PackageInspection<Description = JsonValue> = Omit<

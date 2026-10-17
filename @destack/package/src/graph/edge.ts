@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Moniker } from "./moniker.ts";
 
 /** The kinds of edges. */
@@ -23,15 +23,13 @@ export const EDGE_KINDS = [
 ] as const;
 
 /** A directed relation from a module, symbol or declaration to another. */
-export const Edge = defineSchema(
-    schema.object({
-        /** The source moniker, in the module with the edge. */
-        from: Moniker,
-        /** The target moniker, in any build. */
-        to: Moniker,
-        /** The relation. */
-        kind: schema.enum(EDGE_KINDS),
-    }),
-);
+export const Edge = schema.object({
+    /** The source moniker, in the module with the edge. */
+    from: Moniker,
+    /** The target moniker, in any build. */
+    to: Moniker,
+    /** The relation. */
+    kind: schema.enum(EDGE_KINDS),
+});
 /** A directed relation between monikers. */
 export type Edge = schema.Infer<typeof Edge>;

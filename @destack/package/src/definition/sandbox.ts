@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** A host a workload may connect to: a name or `*.` wildcard with an optional port, or `*`. */
@@ -10,74 +10,72 @@ const HostPattern = schema
 const Access = schema.enum(["read", "write"]);
 
 /** What a package's workloads and views may use beyond the bare sandbox, by name. */
-const sandboxSchema = defineSchema(
-    schema
-        .object({
-            /** Running the workloads in a full Bun process instead of a workerd isolate. */
-            process: schema.object({}).strict().exactOptional(),
-            /** Outbound connections to the listed hosts. */
-            network: schema
-                .object({ connect: schema.array(HostPattern).min(1) })
-                .strict()
-                .exactOptional(),
-            /** Listening for connections on loopback. */
-            listen: schema.object({}).strict().exactOptional(),
-            /** The directories a person grants, read or written as the package declares. */
-            fs: schema.object({ access: Access }).strict().exactOptional(),
-            /** The host environment variables it may read. */
-            env: schema
-                .object({
-                    names: schema.array(schema.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/u)).min(1),
-                })
-                .strict()
-                .exactOptional(),
-            /** The commands its processes may spawn. */
-            run: schema
-                .object({
-                    commands: schema.array(schema.string().regex(/^[A-Za-z0-9._-]+$/u)).min(1),
-                })
-                .strict()
-                .exactOptional(),
-            /** Video from the person's cameras. */
-            camera: schema.object({}).strict().exactOptional(),
-            /** Audio from the person's microphones. */
-            microphone: schema.object({}).strict().exactOptional(),
-            /** The device's position. */
-            geolocation: schema.object({}).strict().exactOptional(),
-            /** Capturing the person's screen, a window or a tab. */
-            "display-capture": schema.object({}).strict().exactOptional(),
-            /** Reading the clipboard. */
-            "clipboard-read": schema.object({}).strict().exactOptional(),
-            /** Writing the clipboard. */
-            "clipboard-write": schema.object({}).strict().exactOptional(),
-            /** Showing an element full screen. */
-            fullscreen: schema.object({}).strict().exactOptional(),
-            /** MIDI devices. */
-            midi: schema.object({}).strict().exactOptional(),
-            /** USB devices. */
-            usb: schema.object({}).strict().exactOptional(),
-            /** Human interface devices. */
-            hid: schema.object({}).strict().exactOptional(),
-            /** Serial ports. */
-            serial: schema.object({}).strict().exactOptional(),
-            /** Bluetooth devices. */
-            bluetooth: schema.object({}).strict().exactOptional(),
-            /** Keeping the screen awake. */
-            "screen-wake-lock": schema.object({}).strict().exactOptional(),
-            /** Noticing when the person is idle or locks the screen. */
-            "idle-detection": schema.object({}).strict().exactOptional(),
-            /** The fonts installed on the device. */
-            "local-fonts": schema.object({}).strict().exactOptional(),
-            /** Placing windows across the person's screens. */
-            "window-management": schema.object({}).strict().exactOptional(),
-            /** Virtual and augmented reality sessions. */
-            "xr-spatial-tracking": schema.object({}).strict().exactOptional(),
-        })
-        .strict(),
-);
+const sandboxSchema = schema
+    .object({
+        /** Running the workloads in a full Bun process instead of a workerd isolate. */
+        process: schema.object({}).strict().exactOptional(),
+        /** Outbound connections to the listed hosts. */
+        network: schema
+            .object({ connect: schema.array(HostPattern).min(1) })
+            .strict()
+            .exactOptional(),
+        /** Listening for connections on loopback. */
+        listen: schema.object({}).strict().exactOptional(),
+        /** The directories a person grants, read or written as the package declares. */
+        fs: schema.object({ access: Access }).strict().exactOptional(),
+        /** The host environment variables it may read. */
+        env: schema
+            .object({
+                names: schema.array(schema.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/u)).min(1),
+            })
+            .strict()
+            .exactOptional(),
+        /** The commands its processes may spawn. */
+        run: schema
+            .object({
+                commands: schema.array(schema.string().regex(/^[A-Za-z0-9._-]+$/u)).min(1),
+            })
+            .strict()
+            .exactOptional(),
+        /** Video from the person's cameras. */
+        camera: schema.object({}).strict().exactOptional(),
+        /** Audio from the person's microphones. */
+        microphone: schema.object({}).strict().exactOptional(),
+        /** The device's position. */
+        geolocation: schema.object({}).strict().exactOptional(),
+        /** Capturing the person's screen, a window or a tab. */
+        "display-capture": schema.object({}).strict().exactOptional(),
+        /** Reading the clipboard. */
+        "clipboard-read": schema.object({}).strict().exactOptional(),
+        /** Writing the clipboard. */
+        "clipboard-write": schema.object({}).strict().exactOptional(),
+        /** Showing an element full screen. */
+        fullscreen: schema.object({}).strict().exactOptional(),
+        /** MIDI devices. */
+        midi: schema.object({}).strict().exactOptional(),
+        /** USB devices. */
+        usb: schema.object({}).strict().exactOptional(),
+        /** Human interface devices. */
+        hid: schema.object({}).strict().exactOptional(),
+        /** Serial ports. */
+        serial: schema.object({}).strict().exactOptional(),
+        /** Bluetooth devices. */
+        bluetooth: schema.object({}).strict().exactOptional(),
+        /** Keeping the screen awake. */
+        "screen-wake-lock": schema.object({}).strict().exactOptional(),
+        /** Noticing when the person is idle or locks the screen. */
+        "idle-detection": schema.object({}).strict().exactOptional(),
+        /** The fonts installed on the device. */
+        "local-fonts": schema.object({}).strict().exactOptional(),
+        /** Placing windows across the person's screens. */
+        "window-management": schema.object({}).strict().exactOptional(),
+        /** Virtual and augmented reality sessions. */
+        "xr-spatial-tracking": schema.object({}).strict().exactOptional(),
+    })
+    .strict();
 
 /** The names of the sandbox's abilities. */
-export const SandboxName = defineSchema(sandboxSchema.keyof());
+export const SandboxName = sandboxSchema.keyof();
 /** The name of one of the sandbox's abilities. */
 export type SandboxName = schema.Infer<typeof SandboxName>;
 
@@ -139,14 +137,12 @@ export const Sandbox = Object.assign(sandboxSchema, {
 export type Sandbox = schema.Infer<typeof sandboxSchema>;
 
 /** A directory a person grants an installation's `fs` capability, by absolute path. */
-export const DirectoryGrant = defineSchema(
-    schema.object({
-        /** The directory's absolute path on the host: POSIX, a Windows drive or a UNC share. */
-        path: schema.string().regex(/^(?:\/|[A-Za-z]:[\\/]|\\\\)[^\0]*$/u),
-        /** Whether the installation reads it, or reads and writes it. */
-        access: Access,
-    }),
-);
+export const DirectoryGrant = schema.object({
+    /** The directory's absolute path on the host: POSIX, a Windows drive or a UNC share. */
+    path: schema.string().regex(/^(?:\/|[A-Za-z]:[\\/]|\\\\)[^\0]*$/u),
+    /** Whether the installation reads it, or reads and writes it. */
+    access: Access,
+});
 /** A directory a person grants an installation's `fs` capability. */
 export type DirectoryGrant = schema.Infer<typeof DirectoryGrant>;
 

@@ -100,14 +100,17 @@ export class BuildReader {
 
     /** Read one kind's declarations from a package's constructors, parsing each description. */
     async declared<Item extends schema.Schema>(
-        owner: PackageId,
+        kindPackageId: PackageId,
         kind: DeclarationName,
         item: Item,
     ): Promise<Declared<schema.Output<Item>>[]> {
         const declarations = await this.declarations();
 
         return declarations
-            .filter((declaration) => declaration.package === owner && declaration.kind === kind)
+            .filter(
+                (declaration) =>
+                    declaration.kindPackageId === kindPackageId && declaration.kind === kind,
+            )
             .map((declaration) => ({
                 ...declaration,
                 description: item.parse(declaration.description),

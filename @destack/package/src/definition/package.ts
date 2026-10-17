@@ -1,10 +1,10 @@
-import { nth, defineSchema, Digest, schema, Version } from "@destack/schema";
+import { nth, Digest, schema, Version } from "@destack/schema";
 
 /** The pattern of a package-local name: lowercase words and hyphens, such as role-permission. */
 export const NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 /** A concrete package export containing runnable code. */
-export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$/u));
+export const Entrypoint = schema.string().regex(/^\.(?:\/[^\s*]+)?$/u);
 
 /** The URI scheme prefix of a package as an OAuth resource (RFC 8707 asks an absolute URI). */
 const RESOURCE_PREFIX = "urn:destack:package:";
@@ -20,18 +20,16 @@ export const PackageId = Object.assign(schema.identifier("package"), {
 export type PackageId = schema.Infer<typeof PackageId>;
 
 /** A declaration name within a package. */
-export const DeclarationName = defineSchema(schema.string().regex(NAME_PATTERN));
+export const DeclarationName = schema.string().regex(NAME_PATTERN);
 /** A declaration name within a package. */
 export type DeclarationName = schema.Infer<typeof DeclarationName>;
 
 /** A scoped Destack package name: `@<account handle>/<name>`. */
 export const PackageName = Object.assign(
-    defineSchema(
-        schema
-            .string()
-            .max(214)
-            .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u),
-    ),
+    schema
+        .string()
+        .max(214)
+        .regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u),
     {
         /** Read the account handle scoping a package name and the name within the account. */
         split(name: string): { readonly handle: string; readonly local: string } {
@@ -44,12 +42,10 @@ export const PackageName = Object.assign(
 
 /** A scoped or unscoped dependency name. */
 export const DependencyName = Object.assign(
-    defineSchema(
-        schema
-            .string()
-            .max(214)
-            .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u),
-    ),
+    schema
+        .string()
+        .max(214)
+        .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u),
     {
         /** Read the dependency of a bare import specifier: its scope and name, or its name. */
         of(specifier: string): string {
@@ -62,9 +58,10 @@ export const DependencyName = Object.assign(
 );
 
 /** A named dependency version, including packages from external registries. */
-export const DependencyPackage = defineSchema(
-    schema.object({ name: DependencyName, version: schema.string().min(1) }),
-);
+export const DependencyPackage = schema.object({
+    name: DependencyName,
+    version: schema.string().min(1),
+});
 /** A named dependency version. */
 export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
 
@@ -72,16 +69,14 @@ export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
 export const PACKAGE = Symbol.for("destack.package");
 
 /** The schema of a package's identity. */
-const packageSchema = defineSchema(
-    schema.object({
-        /** The identity retained across renames and releases. */
-        id: PackageId,
-        /** The package name, qualified by its owner. */
-        name: PackageName,
-        /** The package version. */
-        version: Version,
-    }),
-);
+const packageSchema = schema.object({
+    /** The identity retained across renames and releases. */
+    id: PackageId,
+    /** The package name, qualified by its owner. */
+    name: PackageName,
+    /** The package version. */
+    version: Version,
+});
 
 /** The immutable identity, current name and version declared by a Destack package. */
 export const Package = Object.assign(packageSchema, {
@@ -109,13 +104,11 @@ export const Package = Object.assign(packageSchema, {
 export type Package = Readonly<schema.Infer<typeof packageSchema>>;
 
 /** An immutable Destack release and the manifest identifying its distributed contents. */
-export const PackageRelease = defineSchema(
-    schema.object({
-        /** The released package name and version. */
-        package: Package,
-        /** The digest of its immutable build manifest. */
-        manifest: Digest,
-    }),
-);
+export const PackageRelease = schema.object({
+    /** The released package name and version. */
+    package: Package,
+    /** The digest of its immutable build manifest. */
+    manifest: Digest,
+});
 /** An immutable Destack package release. */
 export type PackageRelease = schema.Infer<typeof PackageRelease>;

@@ -1,43 +1,39 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** CPU and memory capacity assigned to one running instance. */
-export const ComputeCapacity = defineSchema(
-    schema.object({
-        /** CPU capacity in cores. */
-        cpu: schema.number().positive().exactOptional(),
-        /** Memory capacity in MiB. */
-        memory: schema.number().int().positive().exactOptional(),
-    }),
-);
+export const ComputeCapacity = schema.object({
+    /** CPU capacity in cores. */
+    cpu: schema.number().positive().exactOptional(),
+    /** Memory capacity in MiB. */
+    memory: schema.number().int().positive().exactOptional(),
+});
 
 /** CPU and memory capacity assigned to one running instance. */
 export type ComputeCapacity = schema.Infer<typeof ComputeCapacity>;
 
 /** The schema of a workload's capacity and lifecycle policy. */
-const computeDefinitionSchema = defineSchema(
-    schema.object({
-        /** Minimum capacity requested when scheduling an instance. */
-        requests: ComputeCapacity.exactOptional(),
-        /** Maximum capacity allowed for an instance. */
-        limits: ComputeCapacity.exactOptional(),
-        /** Instance scaling bounds. */
-        scaling: schema
-            .object({
-                /** Minimum warm instances, zero to stop every idle instance. */
-                minInstances: schema.number().int().nonnegative().exactOptional(),
-                /** Maximum simultaneous instances. */
-                maxInstances: schema.number().int().positive().exactOptional(),
-            })
-            .exactOptional(),
-        /** Time in milliseconds to retain an idle instance. */
-        idleTimeout: schema.number().int().nonnegative().exactOptional(),
-        /** Time in milliseconds allowed for graceful shutdown. */
-        shutdownTimeout: schema.number().int().positive().exactOptional(),
-        /** CPU time allowed per invocation in milliseconds. */
-        cpuTime: schema.number().int().positive().exactOptional(),
-    }),
-);
+const computeDefinitionSchema = schema.object({
+    /** Minimum capacity requested when scheduling an instance. */
+    requests: ComputeCapacity.exactOptional(),
+    /** Maximum capacity allowed for an instance. */
+    limits: ComputeCapacity.exactOptional(),
+    /** Instance scaling bounds. */
+    scaling: schema
+        .object({
+            /** Minimum warm instances, zero to stop every idle instance. */
+            minInstances: schema.number().int().nonnegative().exactOptional(),
+            /** Maximum simultaneous instances. */
+            maxInstances: schema.number().int().positive().exactOptional(),
+        })
+        .exactOptional(),
+    /** Time in milliseconds to retain an idle instance. */
+    idleTimeout: schema.number().int().nonnegative().exactOptional(),
+    /** Time in milliseconds allowed for graceful shutdown. */
+    shutdownTimeout: schema.number().int().positive().exactOptional(),
+    /** CPU time allowed per invocation in milliseconds. */
+    cpuTime: schema.number().int().positive().exactOptional(),
+});
 
 /** Capacity and lifecycle policy for a workload. */
 export type ComputeDefinition = schema.Infer<typeof computeDefinitionSchema>;

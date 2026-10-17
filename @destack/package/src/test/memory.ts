@@ -9,21 +9,7 @@ import { type BuildContents, BuildWriter } from "../manifest/writer.ts";
 /** The module declarations live in unless they name one, the package's entry. */
 const ENTRY_MODULE = "src/index.ts";
 
-/** A value a build declares, as its kind describes it, in its module, the entry when absent. */
-export interface DeclaredValue {
-    /** The declaration kind. */
-    readonly kind: string;
-    /** The package defining the kind. */
-    readonly package: string;
-    /** The declaration's name, also its symbol's. */
-    readonly name: string;
-    /** The kind's description, JSON its kind parses. */
-    readonly description: Readonly<Record<string, unknown>>;
-    /** The declaring module. */
-    readonly module?: string;
-}
-
-/** The parts of a declaration a declared value gives. */
+/** The parts of a declaration a fixture gives, its moniker and symbol filled from its module. */
 const Declared = Declaration.omit({ moniker: true, symbol: true });
 
 /** Builds in memory: written with `BuildWriter`, read with a digest-checking `BuildReader`. */
@@ -50,10 +36,17 @@ export const MemoryBuild = {
         );
     },
 
-    /** Write a build declaring values, with extra files and contents. */
-    async declaring(
+    /** Write a package's build declaring some declarations, each in its module. */
+    async of(
         owner: Package,
-        declared: readonly DeclaredValue[],
+        declared: readonly (Pick<Declaration, "kind" | "name"> & {
+            /** The package defining the kind, parsed as an identifier. */
+            readonly kindPackageId: string;
+            /** The description, parsed as JSON its kind takes. */
+            readonly description: Readonly<Record<string, unknown>>;
+            /** The declaring module, the entry module when absent. */
+            readonly module?: string;
+        })[],
         contents: Omit<BuildContents, "package" | "graph"> & {
             /** Further files by package path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;

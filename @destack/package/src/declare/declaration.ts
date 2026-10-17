@@ -1,4 +1,4 @@
-import { defineSchema, schema, type JsonObject } from "@destack/schema";
+import { schema, type JsonObject } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "../definition/package.ts";
 
 /** A declared thing of a package with a name: a resource, secret, service, setting and so on. */
@@ -19,14 +19,12 @@ export interface ResourceRequirement extends Declaration {
 }
 
 /** The schema of a declaration qualified by its declaring package. */
-const declarationReferenceSchema = defineSchema(
-    schema.object({
-        /** The immutable identity of the declaring package. */
-        packageId: PackageId,
-        /** The package-local declaration name. */
-        name: DeclarationName,
-    }),
-);
+const declarationReferenceSchema = schema.object({
+    /** The immutable identity of the declaring package. */
+    packageId: PackageId,
+    /** The package-local declaration name. */
+    name: DeclarationName,
+});
 /** A declaration qualified by its declaring package. */
 export type DeclarationReference = schema.Infer<typeof declarationReferenceSchema>;
 

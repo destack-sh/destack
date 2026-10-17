@@ -1,28 +1,24 @@
-import { defineSchema, Digest, schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** A canonical package-relative path using slash separators. */
-export const PackagePath = defineSchema(
-    schema
-        .string()
-        .regex(
-            /^(?:[^./\\A-Za-z\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|[A-Za-z](?:[^:/\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*)?|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+)(?:\/(?:[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+))*$/u,
-        ),
-);
+export const PackagePath = schema
+    .string()
+    .regex(
+        /^(?:[^./\\A-Za-z\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|[A-Za-z](?:[^:/\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*)?|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+)(?:\/(?:[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+))*$/u,
+    );
 
 /** The schema of a source or generated file in a package. */
-const packageFileSchema = defineSchema(
-    schema.object({
-        /** The path relative to the source or build root. */
-        path: PackagePath,
-        /** The SHA-256 digest of the file bytes. */
-        digest: Digest,
-        /** The file size in bytes. */
-        size: schema.number().int().min(0),
-        /** The file's media type. */
-        mediaType: schema.string().min(1),
-    }),
-);
+const packageFileSchema = schema.object({
+    /** The path relative to the source or build root. */
+    path: PackagePath,
+    /** The SHA-256 digest of the file bytes. */
+    digest: Digest,
+    /** The file size in bytes. */
+    size: schema.number().int().min(0),
+    /** The file's media type. */
+    mediaType: schema.string().min(1),
+});
 /** A source or generated file in a package. */
 export type PackageFile = schema.Infer<typeof packageFileSchema>;
 

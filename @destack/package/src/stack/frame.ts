@@ -1,28 +1,26 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Declaration } from "../graph/declaration.ts";
 import { Moniker } from "../graph/moniker.ts";
 
 /** One frame of a stack trace. */
-const stackFrame = defineSchema(
-    schema.object({
-        /** The function's name, absent for an anonymous one. */
-        function: schema.string().exactOptional(),
-        /** The file or URL the code ran from. */
-        file: schema.string(),
-        /** The one-based line, in the source once symbolicated. */
-        line: schema.number().int(),
-        /** The one-based column, in the source once symbolicated. */
-        column: schema.number().int(),
-        /** Whether the frame runs the package's own code, not a dependency's or the runtime's. */
-        isInApp: schema.boolean(),
-        /** The package-relative source path, absent until a source map covers the frame. */
-        path: schema.string().exactOptional(),
-        /** The innermost graph symbol the frame ran, absent outside the package's graph. */
-        moniker: Moniker.exactOptional(),
-        /** The declaration the symbol is or belongs to, such as an object method. */
-        declaration: Declaration.pick({ moniker: true, kind: true, name: true }).exactOptional(),
-    }),
-);
+const stackFrame = schema.object({
+    /** The function's name, absent for an anonymous one. */
+    function: schema.string().exactOptional(),
+    /** The file or URL the code ran from. */
+    file: schema.string(),
+    /** The one-based line, in the source once symbolicated. */
+    line: schema.number().int(),
+    /** The one-based column, in the source once symbolicated. */
+    column: schema.number().int(),
+    /** Whether the frame runs the package's own code, not a dependency's or the runtime's. */
+    isInApp: schema.boolean(),
+    /** The package-relative source path, absent until a source map covers the frame. */
+    path: schema.string().exactOptional(),
+    /** The innermost graph symbol the frame ran, absent outside the package's graph. */
+    moniker: Moniker.exactOptional(),
+    /** The declaration the symbol is or belongs to, such as an object method. */
+    declaration: Declaration.pick({ moniker: true, kind: true, name: true }).exactOptional(),
+});
 /** One frame of a stack trace. */
 export type StackFrame = schema.Infer<typeof stackFrame>;
 

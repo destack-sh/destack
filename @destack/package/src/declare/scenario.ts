@@ -1,4 +1,4 @@
-import { defineSchema, type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
@@ -19,16 +19,14 @@ export interface Interaction<Step = unknown, Observation = unknown, Environment 
 }
 
 /** The step every interaction shares: change example properties, as the user or a control would. */
-export const SetStep = defineSchema(
-    schema.object({
-        /** Change properties an example declares. */
-        action: schema.literal("set"),
-        /** The new values, by property. */
-        properties: schema.jsonObject(),
-        /** The example by name, the scenario's only example when absent. */
-        example: DeclarationName.exactOptional(),
-    }),
-);
+export const SetStep = schema.object({
+    /** Change properties an example declares. */
+    action: schema.literal("set"),
+    /** The new values, by property. */
+    properties: schema.jsonObject(),
+    /** The example by name, the scenario's only example when absent. */
+    example: DeclarationName.exactOptional(),
+});
 /** The step every interaction shares: change properties an example declares. */
 export type SetStep = schema.Infer<typeof SetStep>;
 
@@ -36,7 +34,7 @@ export type SetStep = schema.Infer<typeof SetStep>;
 const SetAction = schema.looseObject({ action: schema.literal("set") });
 
 /** The observations a scenario expects, after Gherkin's Then: after each step, or at the end. */
-export const Then = Object.assign(defineSchema(thenOf(schema.json())), {
+export const Then = Object.assign(thenOf(schema.json()), {
     /** Build the schema of the observations a scenario expects, each an interaction's. */
     of: thenOf,
 });
@@ -179,21 +177,19 @@ function thenOf<Observe extends schema.Schema>(observation: Observe) {
 }
 
 /** The graph description of a scenario, its steps and observations as JSON for its interaction. */
-export const ScenarioDescription = defineSchema(
-    schema.object({
-        /** One sentence saying what the scenario shows. */
-        description: schema.string().min(1),
-        /** The interaction the steps and observations speak, by symbol moniker. */
-        interaction: Moniker,
-        /** The examples the scenario starts from, by declaration moniker. */
-        examples: schema.array(Moniker),
-        /** The environment of the examples as JSON for the interaction, the host's when absent. */
-        environment: schema.json().exactOptional(),
-        /** The steps, taken in order. */
-        when: schema.array(schema.json()).min(1),
-        /** The observations expected after each step or once at the end. */
-        then: Then,
-    }),
-);
+export const ScenarioDescription = schema.object({
+    /** One sentence saying what the scenario shows. */
+    description: schema.string().min(1),
+    /** The interaction the steps and observations speak, by symbol moniker. */
+    interaction: Moniker,
+    /** The examples the scenario starts from, by declaration moniker. */
+    examples: schema.array(Moniker),
+    /** The environment of the examples as JSON for the interaction, the host's when absent. */
+    environment: schema.json().exactOptional(),
+    /** The steps, taken in order. */
+    when: schema.array(schema.json()).min(1),
+    /** The observations expected after each step or once at the end. */
+    then: Then,
+});
 /** The description of a scenario declaration in the graph. */
 export type ScenarioDescription = schema.Infer<typeof ScenarioDescription>;

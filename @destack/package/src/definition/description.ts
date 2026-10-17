@@ -1,4 +1,4 @@
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DependencyName, Package } from "./package.ts";
 import { PackageDefinition } from "./definition.ts";
 
@@ -25,32 +25,30 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
 );
 
 /** Package declarations combined from package.json and destack.json. */
-export const PackageDescription = defineSchema(
-    schema.object({
-        /** The stable package ID, current name, and version. */
-        package: Package,
-        /** Destack language, targets, workloads, and compute settings. */
-        definition: PackageDefinition,
-        /** Authored exports, retaining conditional order and fallback lists. */
-        exports: PackageExport.exactOptional(),
-        /** Required runtime dependencies. */
-        dependencies: REQUIREMENTS,
-        /** Dependencies supplied by the consuming package. */
-        peerDependencies: REQUIREMENTS,
-        /** Optional peer declarations keyed by dependency name. */
-        peerDependenciesMeta: schema.record(
-            DependencyName,
-            schema.object({
-                /** Whether consumers may omit this peer. */
-                optional: schema.boolean().exactOptional(),
-            }),
-        ),
-        /** Optional runtime dependencies, overriding matching dependencies. */
-        optionalDependencies: REQUIREMENTS,
-        /** Dependencies used to develop and build the package. */
-        devDependencies: REQUIREMENTS,
-    }),
-);
+export const PackageDescription = schema.object({
+    /** The stable package ID, current name, and version. */
+    package: Package,
+    /** Destack language, targets, workloads, and compute settings. */
+    definition: PackageDefinition,
+    /** Authored exports, retaining conditional order and fallback lists. */
+    exports: PackageExport.exactOptional(),
+    /** Required runtime dependencies. */
+    dependencies: REQUIREMENTS,
+    /** Dependencies supplied by the consuming package. */
+    peerDependencies: REQUIREMENTS,
+    /** Optional peer declarations keyed by dependency name. */
+    peerDependenciesMeta: schema.record(
+        DependencyName,
+        schema.object({
+            /** Whether consumers may omit this peer. */
+            optional: schema.boolean().exactOptional(),
+        }),
+    ),
+    /** Optional runtime dependencies, overriding matching dependencies. */
+    optionalDependencies: REQUIREMENTS,
+    /** Dependencies used to develop and build the package. */
+    devDependencies: REQUIREMENTS,
+});
 
 /** Package declarations consumed by build and registry tooling. */
 export type PackageDescription = schema.Infer<typeof PackageDescription>;
