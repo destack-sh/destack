@@ -685,34 +685,6 @@ test("delay a request while starting and answer it once ready, and refuse it wit
     ]).toEqual([503, "1", { text: "hello" }, "serving"]);
 });
 
-test("refuse starting a server whose procedures carry payloads the HTTP layer cannot describe", () => {
-    // declare a procedure with a custom input check
-    const readiness = new Health("reader");
-    const procedures = {
-        health,
-        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
-            .route({ method: "GET", path: "/read" })
-            .input(schema.object({ name: schema.string().refine((name) => name !== "latest") }))
-            .output(schema.string()),
-    };
-    const implementation = implement(procedures);
-    const router = implementation.router({
-        health: implementHealth(readiness),
-        read: implementation.read.handler(async () => "read"),
-    });
-
-    // refuse it at start instead of answering every request with a failure
-    expect(() =>
-        Server.start({
-            clock: Clock.system,
-            ...hosting,
-            router,
-            health: readiness,
-            drainTimeout: 1000,
-        }),
-    ).toThrow("unsupported schema check: custom");
-});
-
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
     // serve an audited procedure to a caller with a credential for another package
     const procedures = {

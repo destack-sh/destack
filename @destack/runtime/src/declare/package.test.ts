@@ -92,7 +92,7 @@ test("refuse a declaration listed under another name, and a name taken twice", (
 
 test("refuse routing an object type under the name of shared procedures, and route each name once", () => {
     // refuse a type taking the shared name
-    expect(() => definePackage({ objects: { replica: note } })).toThrow(
+    expect(() => definePackage({ objects: { replica: note } }).router).toThrow(
         new TypeError("package @destack/runtime routes two procedures under replica"),
     );
 
@@ -111,7 +111,7 @@ test("bundle what a capability needs: its sandbox abilities, permissions and fea
         reason: "Import contacts from Gmail",
         optional: true,
         sandbox: { network: { connect: ["gmail.googleapis.com"] } },
-        requires: [
+        features: [
             { packageId: PackageId.parse(note.typeReference.packageId), name: "integrations" },
         ],
     };

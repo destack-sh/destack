@@ -121,6 +121,15 @@ export const PackageHandle = {
             names.add(key);
         }
 
+        // refuse an object type another package defines, by its package's name
+        const foreign = Object.values(objects).find((object) => object.package.name !== owner.name);
+        if (foreign !== undefined) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                `${owner.name} lists object ${foreign.name} of ${foreign.package.name}, which ${foreign.package.name} alone serves`,
+            );
+        }
+
         // refuse an adapter answering at or below another's path
         const paths = Object.values(adapters).map((adapter) => adapter.path);
         const overlap = paths.find((path, index) =>
@@ -135,14 +144,21 @@ export const PackageHandle = {
             );
         }
 
+        // route the objects' procedures on first use, keeping a package's import free of the work
+        let router: PackageRoutes<Input> | undefined;
+
         return Object.freeze({
             [PACKAGE]: owner,
             ...owner,
             ...(input.since === undefined ? {} : { since: Version.parse(input.since) }),
-            router: mapValues<Record<string, unknown>, PackageRoutes<Input>>(
-                routeObjects(owner, objects),
-                (procedures) => procedures,
-            ),
+            get router(): PackageRoutes<Input> {
+                router ??= mapValues<Record<string, unknown>, PackageRoutes<Input>>(
+                    routeObjects(owner, objects),
+                    (procedures) => procedures,
+                );
+
+                return router;
+            },
             objects: mapValues<typeof objects, Declared<Input["objects"]>>(objects, (each) => each),
             views: mapValues<typeof views, Declared<Input["views"]>>(views, (each) => each),
             adapters: mapValues<typeof adapters, Declared<Input["adapters"]>>(

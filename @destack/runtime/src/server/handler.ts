@@ -40,15 +40,15 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
     /** Create the handler. */
     constructor(router: Router<ProcedureRouter, State>, options: HandlerOptions<State>) {
-        // reject missing enforcement, and describe every payload once
-        const described = new Map(RequestHandler.#checkAccess(router, options, new Set()));
+        // reject missing enforcement, and collect the payloads the HTTP layer decodes
+        const payloads = new Set(RequestHandler.#checkAccess(router, options, new Set()));
 
         // report failures and extract trace context
         super(router, {
             ...options,
             plugins: [
                 new SmartCoercionPlugin({
-                    schemaConverters: [RequestHandler.#converter(described)],
+                    schemaConverters: [RequestHandler.#converter(payloads)],
                 }),
                 RequestHandler.#releasePlugin<State>(options.package),
                 ...(options.plugins ?? []),
@@ -66,20 +66,17 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         this.health = options.health;
     }
 
-    /** Convert the described payload schemas for HTTP decoding, refusing any other schema. */
-    static #converter(
-        described: ReadonlyMap<schema.Schema, JsonSchema>,
-    ): ConditionalSchemaConverter {
+    /** Convert a procedure's payload schema for HTTP decoding once a request needs it. */
+    static #converter(payloads: ReadonlySet<schema.Schema>): ConditionalSchemaConverter {
         return {
             condition: (validator) => validator instanceof schema.Schema,
             convert: (validator) => {
-                const description =
-                    validator instanceof schema.Schema ? described.get(validator) : undefined;
-                if (description === undefined) {
+                // refuse a schema none of the procedures takes or answers
+                if (!(validator instanceof schema.Schema) || !payloads.has(validator)) {
                     throw new TypeError("the handler converts only its procedures' payloads");
                 }
 
-                return [true, toOpenApiSchema(description)];
+                return [true, toOpenApiSchema(toJsonSchema(validator))];
             },
         };
     }
@@ -228,12 +225,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             : Object.fromEntries(Object.entries(converted).filter(([field]) => field in shape));
     }
 
-    /** Require enforcement for every procedure, answering each payload schema's description. */
+    /** Require enforcement for every procedure, answering the payload schemas it decodes. */
     static #checkAccess<State extends Context>(
         router: Lazyable<AnyRouter>,
         options: Pick<HandlerOptions<State>, "authorize" | "audit">,
         ancestors: Set<object>,
-    ): (readonly [schema.Schema, JsonSchema])[] {
+    ): schema.Schema[] {
         // reject lazy routers
         if (isLazy(router)) {
             throw new TypeError("procedures must be declared before hosting");
@@ -257,12 +254,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 throw new TypeError("audited procedures require audit recording");
             }
 
-            // describe the payloads the HTTP layer decodes, refusing others at start
+            // collect the payloads the HTTP layer decodes
             const { inputSchema, outputSchema } = router["~orpc"];
 
-            return [inputSchema, outputSchema]
-                .filter((payload) => payload instanceof schema.Schema)
-                .map((payload) => [payload, toJsonSchema(payload)] as const);
+            return [inputSchema, outputSchema].filter(
+                (payload) => payload instanceof schema.Schema,
+            );
         }
         // check nested routers
         else {

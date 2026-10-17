@@ -240,18 +240,13 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters, views, requested permissions and capabilities, with hooks of its own types alone", () => {
-    // route the package's own query with hooks beside another package's type with hooks
-    const foreign: ObjectDeclaration = {
-        ...query({}),
-        typeReference: { packageId: "package-01996ab0-0000-7000-8000-00000000c002", type: "card" },
-        hooks: { create: ["prepare"] },
-    };
+test("describe a package's routes, adapters, views, requested permissions and capabilities, with its own types' hooks", () => {
+    // route the package's own query with hooks
     const own = { ...query({}), hooks: { create: ["authorize"] } };
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
     const handle = definePackage(
         {
-            objects: { query: own, card: foreign },
+            objects: { query: own },
             adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
             permissions: { installation: { universe: [user.permission("recipient")] } },
             capabilities: {
@@ -259,7 +254,7 @@ test("describe a package's routes, adapters, views, requested permissions and ca
                     reason: "Drop the browsers push services forgot",
                     optional: true,
                     permissions: { user: { home: [user.permission("recipient")] } },
-                    requires: [{ packageId: MODULE.package.id, name: "push" }],
+                    features: [{ packageId: MODULE.package.id, name: "push" }],
                 },
             },
         },
@@ -270,7 +265,6 @@ test("describe a package's routes, adapters, views, requested permissions and ca
         api: { name: handle.name, procedures: [] },
         objects: {
             query: { type: own.typeReference, hooks: { create: ["authorize"] } },
-            card: { type: foreign.typeReference, hooks: {} },
         },
         adapters: { npm: { path: "/npm" } },
         views: [],
@@ -288,8 +282,34 @@ test("describe a package's routes, adapters, views, requested permissions and ca
                         home: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],
                     },
                 },
-                requires: [{ packageId: MODULE.package.id, name: "push" }],
+                features: [{ packageId: MODULE.package.id, name: "push" }],
             },
         },
     });
+});
+
+test("refuse describing a procedure whose payload JSON Schema cannot describe, as a build does", () => {
+    // describe a query whose input checks its name by code
+    const refined = query({
+        read: procedure().input(
+            schema.object({ name: schema.string().refine((name) => name !== "latest") }),
+        ),
+    });
+
+    expect(() => describePackage(definePackage({ objects: { read: refined } }, MODULE))).toThrow(
+        "unsupported schema check: custom",
+    );
+});
+
+test("refuse a package listing an object type another package defines, which that package alone serves", () => {
+    const foreign: ObjectDeclaration = {
+        ...query({}),
+        package: { name: "@destack/board" },
+        name: "card",
+        typeReference: { packageId: "package-01996ab0-0000-7000-8000-00000000c002", type: "card" },
+    };
+
+    expect(() => definePackage({ objects: { card: foreign } }, MODULE)).toThrow(
+        `${PACKAGE.name} lists object card of @destack/board, which @destack/board alone serves`,
+    );
 });
