@@ -1,4 +1,5 @@
-import type { SettingReference, SettingSelection } from "@destack/setting";
+import { DeclarationReference } from "@destack/package/declare";
+import type { SettingSelection } from "@destack/setting";
 import { defineSetting, type SettingDefinition } from "@destack/setting/declare";
 import type { SettingValue } from "@destack/setting/object";
 import {
@@ -89,7 +90,7 @@ export interface Display {
 }
 
 /** The settings a person's display comes from. */
-export const DISPLAY_SETTINGS: readonly SettingReference[] = [
+export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
     appearance,
     accent,
     contrast,
