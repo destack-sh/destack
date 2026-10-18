@@ -103,12 +103,12 @@ export class TestRegistry implements Registry {
 export async function fixtureBuild(packageId: PackageId, version: string): Promise<BuildReader> {
     // build the version with its upgrade
     const upgrade = UPGRADES[version];
-    const built = await MemoryBuild.declaring(
+    const built = await MemoryBuild.of(
         Package.parse({ id: packageId, name: "@test/package", version }),
         [
             {
                 kind: "command",
-                package: viewPackage,
+                kindPackageId: viewPackage,
                 module: "src/command.ts",
                 name: "archive",
                 description: ARCHIVE,

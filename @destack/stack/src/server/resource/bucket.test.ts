@@ -746,7 +746,7 @@ test.for(TEST_DIALECTS)(
             status: "false",
             observedGeneration: 1,
             reason: "Blocked",
-            message: "storage used 1100 of 1000",
+            message: "storage reached its limit of 1000",
             lastTransitionAt: NOW,
         } as const;
         await fixture.database
@@ -780,7 +780,7 @@ test.for(TEST_DIALECTS)(
             keys: ["a.txt"],
         });
 
-        const message = `space ${fixture.spaceId} exceeds its entitlement: storage used 1100 of 1000`;
+        const message = `space ${fixture.spaceId} exceeds its entitlement: storage reached its limit of 1000`;
         expect({ refused, multipart, listed: listed.files, removed }).toEqual({
             refused: ["QUOTA_EXCEEDED", message],
             multipart: ["QUOTA_EXCEEDED", message],

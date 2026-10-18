@@ -1,5 +1,5 @@
 import { ModuleMetadata, type Package } from "@destack/package";
-import { defineSchema, type JsonObject, JsonValue, schema } from "@destack/schema";
+import { type JsonObject, JsonValue, schema } from "@destack/schema";
 import { InstallationDefinition } from "./installation.ts";
 import { ResourceDefinition } from "@destack/resource";
 import type { RelationshipDefinition, RoleDefinition } from "./permission.ts";
@@ -39,7 +39,7 @@ const StackCollections = schema.looseObject({
 });
 
 /** A stack definition as JSON, keyed by collection and validated by each object when applied. */
-export const StackDefinition = Object.assign(defineSchema(schema.jsonObject()), {
+export const StackDefinition = Object.assign(schema.jsonObject(), {
     /** Read the collections the stack package applies itself. */
     collections(definition: Readonly<Record<string, unknown>>) {
         return StackCollections.parse(definition);

@@ -1,13 +1,13 @@
 import { principal } from "@destack/access";
 import { and, eq, type DatabaseConnection, type Select } from "@destack/db";
 import { type ObjectOf, defineObject, field, StatusCondition } from "@destack/object";
-import { defineSchema, schema, type Identifier, type Version } from "@destack/schema";
+import { schema, type Identifier, type Version } from "@destack/schema";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { deployment } from "./deployment.ts";
 import { space } from "@destack/account/object";
 
 /** A condition of an instance, as a pod's conditions are. */
-export const InstanceCondition = defineSchema(StatusCondition.omit({ observedGeneration: true }));
+export const InstanceCondition = StatusCondition.omit({ observedGeneration: true });
 /** A condition of an instance. */
 export type InstanceCondition = schema.Infer<typeof InstanceCondition>;
 

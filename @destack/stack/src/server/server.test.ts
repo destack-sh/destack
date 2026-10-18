@@ -5,7 +5,6 @@ import { ObjectTypeReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { serveSpace } from "./server.ts";
 import { ids, placeSpace, StackFixture } from "../test/index.ts";
-import { Shape } from "@destack/object";
 
 /** The rows a universe replica requests, by type. */
 const UniverseRows = schema.object({
@@ -33,13 +32,7 @@ test("replicate the served space's own placement alone, leaving placements out o
 
     // follow the space's placement by its identifier, and the space's universe rows without placements
     expect({ own, requested }).toEqual({
-        own: [
-            Shape.subscription(
-                spaceShape,
-                { scope: Scope.universe.id, space: ids.space },
-                ids.space,
-            ),
-        ],
+        own: [spaceShape.subscription({ scope: Scope.universe.id, space: ids.space }, ids.space)],
         requested: [false],
     });
 });
