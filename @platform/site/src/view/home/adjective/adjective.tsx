@@ -16,7 +16,11 @@ const destackable: Form = {
     sense: {
         definition: "open, transparent, and hackable",
         highlight: ["transparent", "hackable"],
-        sentence: "Trace everything every app and agent does, and change any of it.",
+        sentence: (
+            <>
+                One obvious way to do, change, and observe <em>everything</em>.
+            </>
+        ),
     },
 };
 

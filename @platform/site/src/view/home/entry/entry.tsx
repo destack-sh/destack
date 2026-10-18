@@ -2,12 +2,20 @@ import { frame } from "../../layout/frame.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
-import { For, type JSX, onSettled } from "@destack/view";
-import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
+import { createSignal, For, type JSX, onSettled } from "@destack/view";
+import { createReducedMotion } from "@destack/view/motion";
+import {
+    createVisibilityObserver,
+    makeIntersectionObserver,
+} from "@destack/view/primitives/intersection-observer";
+import { createTimer } from "@destack/view/primitives/timer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
+
+/** The milliseconds each sense of a phrase stays lit before the light moves to the next. */
+const LIGHT_TIME = 2600;
 
 /** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
 type Sense = {
@@ -17,10 +25,8 @@ type Sense = {
     highlight: readonly string[];
     /** The plain phrase under the definition that says what it means. */
     sentence: JSX.Element;
-    /** The numbered senses the phrase lists, each linking to the figure that shows it. */
+    /** The senses the phrase lists, each linking to the figure that shows it, lit one at a time. */
     points?: readonly Link[];
-    /** The link that ends the phrase, such as the hero's way in. */
-    link?: Link;
 };
 
 /** A labelled link to a section of the page. */
@@ -58,6 +64,23 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 
 /** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
+    // follow the phrase, the motion it may show, and whether it is on screen
+    const [phrase, setPhrase] = createSignal<HTMLElement>();
+    const isReduced = createReducedMotion(phrase);
+    const isShown = createVisibilityObserver(phrase, { initialValue: true });
+
+    // light the pointed sense, or else turn the light through the senses while the phrase shows
+    const [pointed, setPointed] = createSignal<number | undefined>(undefined);
+    const [turned, setTurned] = createSignal(0);
+    const count = properties.form.sense.points?.length ?? 0;
+    createTimer(
+        () => setTurned((current) => (current + 1) % count),
+        () =>
+            count > 1 && !isReduced() && isShown() && pointed() === undefined ? LIGHT_TIME : false,
+        setInterval,
+    );
+    const lit = () => pointed() ?? turned();
+
     return (
         <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
             <p {...style.attrs(styles.kicker)}>
@@ -76,7 +99,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                     <Definition sense={properties.form.sense} />
                 </h2>
             )}
-            <p {...style.attrs(styles.sentence)}>
+            <p ref={setPhrase} {...style.attrs(styles.sentence)}>
                 {properties.form.sense.points === undefined ? (
                     properties.form.sense.sentence
                 ) : (
@@ -89,30 +112,40 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                                         <Dot />{" "}
                                     </>
                                 )}
-                                <a href={point.href} {...style.attrs(styles.point)}>
-                                    {point.label}
-                                </a>
+                                <Point
+                                    link={point}
+                                    isLit={lit() === index()}
+                                    onPoint={(isPointed) =>
+                                        setPointed(isPointed ? index() : undefined)
+                                    }
+                                />
                             </>
                         )}
                     </For>
                 )}
-                {properties.form.sense.link === undefined ? undefined : (
-                    <>
-                        {properties.form.sense.points === undefined ? (
-                            " "
-                        ) : (
-                            <>
-                                {" "}
-                                <Dot />{" "}
-                            </>
-                        )}
-                        <a href={properties.form.sense.link.href} {...style.attrs(styles.link)}>
-                            {properties.form.sense.link.label}
-                        </a>
-                    </>
-                )}
             </p>
         </header>
+    );
+}
+
+/** Set one sense of a phrase as a link, set bold while lit, in the room its bold face takes. */
+function Point(properties: { link: Link; isLit: boolean; onPoint: (isPointed: boolean) => void }) {
+    return (
+        <a
+            href={properties.link.href}
+            onPointerEnter={() => properties.onPoint(true)}
+            onPointerLeave={() => properties.onPoint(false)}
+            onFocus={() => properties.onPoint(true)}
+            onBlur={() => properties.onPoint(false)}
+            {...style.attrs(styles.point)}
+        >
+            <span {...style.attrs(styles.pointText, properties.isLit && styles.pointLit)}>
+                {properties.link.label}
+            </span>
+            <span aria-hidden="true" {...style.attrs(styles.pointRoom)}>
+                {properties.link.label}
+            </span>
+        </a>
     );
 }
 
@@ -288,29 +321,39 @@ const styles = style.create({
     },
     point: {
         color: "inherit",
+        display: "inline-grid",
+        textDecorationLine: "none",
+        whiteSpace: "nowrap",
+    },
+    pointText: {
+        gridArea: "1 / 1",
         textDecorationColor: {
             default: color.border,
             ":hover": { default: null, [media.hover]: color.primary },
         },
         textDecorationLine: "underline",
+        textDecorationSkipInk: "none",
         textDecorationThickness: "0.08em",
-        textUnderlineOffset: "0.22em",
-        whiteSpace: "nowrap",
+        textUnderlineOffset: "0.2em",
+        transitionDuration: { default: "420ms", [media.motionReduce]: "0ms" },
+        transitionProperty: "color, font-weight, text-decoration-color, text-decoration-thickness",
+        transitionTimingFunction: "ease",
+    },
+    pointLit: {
+        color: color.foreground,
+        fontWeight: 600,
+        textDecorationColor: color.primary,
+        textDecorationThickness: "0.12em",
+    },
+    pointRoom: {
+        fontWeight: 600,
+        gridArea: "1 / 1",
+        visibility: "hidden",
     },
     dot: {
         color: color.primary,
         fontWeight: 700,
         marginInline: "0.3em",
-    },
-    link: {
-        color: color.foreground,
-        fontWeight: 600,
-        textDecorationColor: color.primary,
-        textDecorationLine: "underline",
-        textDecorationSkipInk: "none",
-        textDecorationThickness: "0.12em",
-        textUnderlineOffset: "0.18em",
-        whiteSpace: "nowrap",
     },
     highlight: {
         textDecorationColor: color.primary,

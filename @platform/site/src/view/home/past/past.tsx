@@ -13,8 +13,7 @@ const destacked: Form = {
     sense: {
         definition: "unified into one standardised stack",
         highlight: ["unified", "standardised"],
-        sentence:
-            "One account, one API and one database under every app, including the ones you build.",
+        sentence: "One account, one data plane and one UI system under every app, ours and yours.",
     },
 };
 

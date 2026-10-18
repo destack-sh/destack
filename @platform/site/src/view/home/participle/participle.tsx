@@ -25,7 +25,7 @@ const participle: Form = {
     sense: {
         definition: "making all your software work as one",
         highlight: ["work as one"],
-        sentence: "Begin with the tools you already know.",
+        sentence: "Begin with the tools you know, then remix them your way.",
     },
 };
 
@@ -85,7 +85,9 @@ export function Participle(properties: {
                             />
                         }
                     >
-                        <Label>{properties.isOpen ? "Your space, by use" : "Rent, per seat"}</Label>
+                        <Label>
+                            {properties.isOpen ? "Your space, per usage" : "Rent, per seat"}
+                        </Label>
                     </LabelRow>
                     <Bill
                         isWindow
