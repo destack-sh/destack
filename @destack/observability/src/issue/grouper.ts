@@ -3,7 +3,7 @@ import { EventTime } from "@destack/event";
 import { and, eq, inArray, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { type Digest, type Identifier, present } from "@destack/schema";
-import { installation, installationRevision } from "@destack/stack/object";
+import { build, installation, installationRevision } from "@destack/stack/object";
 import { ISSUE_LEVELS, issue, type Issue, issuePerson } from "../object/index.ts";
 import type { Exception } from "./exception.ts";
 import { RequestId } from "@destack/runtime/request";
@@ -180,13 +180,14 @@ export class Grouper {
                 id: installationRevision.table.id,
                 createdAt: installationRevision.table.createdAt,
                 installationId: installationRevision.table.installationId,
-                build: installationRevision.table.build,
+                manifest: build.table.manifest,
             })
             .from(installationRevision.table)
             .innerJoin(
                 installation.table,
                 eq(installation.table.id, installationRevision.table.installationId),
             )
+            .innerJoin(build.table, eq(build.table.id, installationRevision.table.buildId))
             .where(
                 and(
                     eq(installation.table.scope, scope),
@@ -196,7 +197,7 @@ export class Grouper {
 
         return new Map(
             rows.map((row) => [
-                `${row.installationId} ${row.build.manifest}`,
+                `${row.installationId} ${row.manifest}`,
                 { id: row.id, createdAt: row.createdAt },
             ]),
         );

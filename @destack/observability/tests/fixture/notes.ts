@@ -6,6 +6,7 @@ import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, type Identifier, present } from "@destack/schema";
 import { installationRevision } from "@destack/stack/object";
+import { insertRelease } from "@destack/stack/test";
 import { EMITTER_ATTRIBUTES } from "../../src/otlp/index.ts";
 import { ids, notes } from "./space.ts";
 
@@ -132,15 +133,15 @@ export async function recordNotesRevision(
     database: DatabaseConnection,
     now: number,
 ): Promise<Identifier<"installation-revision">> {
+    // keep the release as the space's build, and the revision following it
+    const release = { package: notes.id, version: notes.version, manifest: NOTES_MANIFEST };
+    const pulled = await insertRelease(database, ids.space, release, [], now);
     const id = installationRevision.generateId();
     await database.insert(installationRevision.table).values({
         id,
         scope: ids.space,
         installationId: ids.notes,
-        build: { kind: "release", version: notes.version, manifest: NOTES_MANIFEST },
-        views: {},
-        settings: [],
-        catalogs: [],
+        buildId: pulled.id,
         dependencies: [],
         digest: String(now).padStart(64, "c"),
         createdAt: now,

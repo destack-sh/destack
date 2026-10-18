@@ -26,7 +26,8 @@ import { mention, reply, thread } from "@destack/social";
 import socialPackage from "@destack/social/package";
 import socialServer from "@destack/social/server";
 import { socialTables } from "@destack/social/stack";
-import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { build, installation, installationRevision } from "@destack/stack/object";
+import { buildIndexServers } from "@destack/stack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
 import { OBSERVABILITY_TYPES } from "../../src/event/index.ts";
@@ -108,7 +109,7 @@ export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpa
         journal,
         ...call.tables,
         ...observabilityTables,
-        ...[...OBSERVABILITY_TYPES, installation, installationRevision, declaration, user].flatMap(
+        ...[...OBSERVABILITY_TYPES, installation, installationRevision, build, user].flatMap(
             (object) => object.tables,
         ),
         account.table,
@@ -151,7 +152,13 @@ export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpa
     );
     onTestFinished(() => ephemeral[Symbol.asyncDispose]());
     const store = new ObjectStore({
-        servers: [observabilityServer.at(observability), notificationServer, socialServer],
+        // serve the space's packages, and the index of the builds declaring notifications
+        servers: [
+            observabilityServer.at(observability),
+            notificationServer,
+            socialServer,
+            ...(await buildIndexServers(database, DECLARING)),
+        ],
         chain: async () => undefined,
         clock,
         database,
