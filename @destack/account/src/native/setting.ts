@@ -1,4 +1,4 @@
-import { SettingCatalog } from "@destack/setting";
+import type { Setting } from "@destack/setting";
 import { defineSetting } from "@destack/setting/declare";
 import { schema } from "@destack/schema";
 import { SpaceAddress } from "../address/index.ts";
@@ -28,4 +28,4 @@ export const currentLogin = defineSetting({
 });
 
 /** The settings of a computer's native device, which it stores as local objects. */
-export const NATIVE_SETTINGS = new SettingCatalog([currentSpace, currentLogin]);
+export const NATIVE_SETTINGS: readonly Setting[] = [currentSpace, currentLogin];

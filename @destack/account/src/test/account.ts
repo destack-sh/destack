@@ -42,7 +42,7 @@ import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
 import { createClient, type ClientOf } from "@destack/runtime/client";
-import { SettingCatalog } from "@destack/setting";
+import { Setting } from "@destack/setting";
 import settingPackage from "@destack/setting/package";
 import { settingServer } from "@destack/setting/server";
 import {
@@ -1059,7 +1059,7 @@ export class AccountFixture implements AsyncDisposable {
                     signIn: signIn.promise,
                 }),
                 settingServer({
-                    declared: SettingCatalog.cached((value) =>
+                    declared: Setting.declared((value) =>
                         opening(value.packageId, value.release),
                     ),
                     after: [],
