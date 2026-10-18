@@ -1,6 +1,7 @@
 import { schema, Version } from "@destack/schema";
 import { PermissionRequest } from "@destack/access";
 import { DeclarationName, PackageId, Sandbox } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
 /** A JSON Schema. */
@@ -116,7 +117,7 @@ export const PACKAGE_DECLARATION = DeclarationName.parse("package");
 export const PACKAGE_KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
 
 /** A declared package: the API its objects derive, its adapters and its views. */
-export const PackageDescription = schema.object({
+const packageDescription = schema.object({
     /** The oldest caller release the package serves, every release when absent. */
     since: Version.exactOptional(),
     /** The procedures its objects derive. */
@@ -137,6 +138,22 @@ export const PackageDescription = schema.object({
     permissions: PermissionRequest,
     /** What its installations can do beyond its own request, by name. */
     capabilities: schema.record(DeclarationName, Capability),
+});
+
+/** A declared package: the API its objects derive, its adapters and its views. */
+export const PackageDescription = Object.assign(packageDescription, {
+    /** Read the package a build declares, absent for a library. */
+    async of(
+        build: Pick<BuildReader, "declared">,
+    ): Promise<schema.Infer<typeof packageDescription> | undefined> {
+        const [declared] = await build.declared(
+            PACKAGE_KIND_PACKAGE_ID,
+            PACKAGE_DECLARATION,
+            packageDescription,
+        );
+
+        return declared?.description;
+    },
 });
 /** A declared package: its API, objects, adapters, views and requested permissions. */
 export type PackageDescription = schema.Infer<typeof PackageDescription>;
