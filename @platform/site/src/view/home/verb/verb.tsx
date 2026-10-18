@@ -15,7 +15,10 @@ import { Bill } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import {
     everyRow,
+    categoryAt,
+    DATA_ROW,
     holdingsWith,
+    rowOf,
     pages,
     Presence,
     PresenceAnchor,
@@ -26,6 +29,8 @@ import type { Stagger } from "../figure/stagger";
 import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { sources } from "./source";
+import { type Lineup, lineupAt, toolsOf } from "../tool/tool";
+import type { Option } from "../figure/picker";
 import { screen } from "../../layout/screen.stylex";
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
@@ -44,7 +49,7 @@ const remixTime = 1400;
 const firstRemixAt = 1800;
 
 /** The row of Tasks, which your agent remixes once on its own. */
-const TASKS_ROW = 2;
+const TASKS_ROW = rowOf("tasks");
 
 /** The verb, which titles the page. */
 const verb: Form = {
@@ -59,10 +64,18 @@ const verb: Form = {
             { label: "Own your apps", href: "#verb" },
             { label: "Keep your context", href: "#past-participle" },
             { label: "Integrate your agents", href: "#imperative" },
+            { label: "Build your personal superapp", href: "#present-participle" },
         ],
-        link: { label: "Build your personal superapp", href: "#present-participle" },
     },
 };
+
+/** Return the apps a row offers: its category's tools, or the personal apps on the data row. */
+function optionsOf(row: number): readonly Option[] {
+    const category = categoryAt(row);
+    const offered = category === undefined ? sources : toolsOf(category);
+
+    return offered.map((app) => ({ name: app.name, mark: { icon: app.icon, tint: app.tint } }));
+}
 
 /** Return the tint of an item's first mark, or the muted tone where it has none. */
 function tintOf(item: Item): string {
@@ -72,17 +85,28 @@ function tintOf(item: Item): string {
 }
 
 /** Open the page with the verb, illustrated by your space in the cloud. */
-export function Verb(properties: { isOpen: boolean }) {
+export function Verb(properties: {
+    isOpen: boolean;
+    picks: readonly string[];
+    onChoose: (name: string) => void;
+}) {
     // hold the holding pointed at, the one the browser settles on a moment later, and the one chosen
     const [lit, setLit] = createSignal<number | undefined>(undefined);
     const [settled, setSettled] = createSignal<number | undefined>(undefined);
     const [chosen, setChosen] = createSignal<number | undefined>(undefined);
+
+    // hold the figure still once the reader has touched any of it
+    const [isTouched, setIsTouched] = createSignal(false);
+    const choose = (row: number | undefined) => {
+        setIsTouched(true);
+        setChosen(row);
+    };
     let settling: ReturnType<typeof setTimeout> | undefined;
     const lighting = {
         get lit() {
             return lit() ?? chosen();
         },
-        onChoose: setChosen,
+        onChoose: choose,
         get chosen() {
             return chosen();
         },
@@ -110,6 +134,7 @@ export function Verb(properties: { isOpen: boolean }) {
     const [isViewerChosen, setIsViewerChosen] = createSignal(false);
     const [turned, setTurned] = createSignal(0);
     const chooseViewer = (next: Viewer) => {
+        setIsTouched(true);
         setIsViewerChosen(true);
         setViewer(next);
     };
@@ -125,9 +150,39 @@ export function Verb(properties: { isOpen: boolean }) {
         }, remixTime);
     };
 
-    // turn to the next personal app each time the browser comes round
+    // turn each row to its next app each time the browser leaves its page, one row at a time
+    const turnsOf = (row: number) =>
+        turned() >= row ? Math.floor((turned() - row) / pages.length) + 1 : 0;
+
+    // show the personal app the reader chose, or else the one the data row has turned to
+    const [chosenSource, setChosenSource] = createSignal<string | undefined>(undefined);
     const source = () =>
-        present(sources[Math.floor(turned() / pages.length) % sources.length], "turned source");
+        present(
+            sources.find((candidate) => candidate.name === chosenSource()) ??
+                sources[turnsOf(DATA_ROW) % sources.length],
+            "shown source",
+        );
+
+    // show the tool the reader picked last for a row, or else the one the row has turned to
+    const lineup = (): Lineup => (category) => {
+        const picked = toolsOf(category).filter((tool) => properties.picks.includes(tool.name));
+        const latest = picked.toSorted(
+            (left, right) =>
+                properties.picks.indexOf(left.name) - properties.picks.indexOf(right.name),
+        )[picked.length - 1];
+
+        return latest ?? lineupAt(turnsOf(rowOf(category)))(category);
+    };
+
+    // show a chosen app's page: a tool every figure shares, or a personal app of this one
+    const pick = (row: number, name: string) => {
+        if (categoryAt(row) === undefined) {
+            setChosenSource(name);
+        } else {
+            properties.onChoose(name);
+        }
+        choose(row);
+    };
 
     // show the page of the pointed or chosen holding, or else the page the window has turned to
     const page = () =>
@@ -142,6 +197,7 @@ export function Verb(properties: { isOpen: boolean }) {
         () => remix(TASKS_ROW),
         () =>
             isOpenAt(1) &&
+            !isTouched() &&
             page().row === TASKS_ROW &&
             remixed().length === 0 &&
             asking() === undefined &&
@@ -155,9 +211,9 @@ export function Verb(properties: { isOpen: boolean }) {
     createTimer(
         () => {
             // look as your agent every other round once owned, until the reader picks a viewer
-            const round = Math.floor((turned() + 1) / pages.length);
+            const nextRound = Math.floor((turned() + 1) / pages.length);
             if (isOpenAt(1) && !isViewerChosen()) {
-                setViewer(round % 2 === 1 ? "Agent" : "Me");
+                setViewer(nextRound % 2 === 1 ? "Agent" : "Me");
             }
 
             // skip the pages the viewer may not see once owned
@@ -171,7 +227,7 @@ export function Verb(properties: { isOpen: boolean }) {
             }
             setTurned(next);
         },
-        () => (isReduced() || chosen() !== undefined || !isShown() ? false : pageTime),
+        () => (isReduced() || isTouched() || !isShown() ? false : pageTime),
         setInterval,
     );
 
@@ -190,8 +246,8 @@ export function Verb(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="eight apps, rented as silos"
-                destacked="eight apps, owned as one space"
+                stacked="nine apps, rented as silos"
+                destacked="nine apps, owned as one space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -202,15 +258,23 @@ export function Verb(properties: { isOpen: boolean }) {
                 <SpaceBrowser
                     name="space"
                     rows={everyRow}
-                    isChanged={false}
+                    change="start"
                     isOpenAt={isOpenAt}
                     page={page()}
                     viewer={viewer()}
                     onViewer={chooseViewer}
-                    onChoose={setChosen}
+                    onChoose={choose}
                     source={source()}
+                    lineup={lineup()}
                     vendor={undefined}
-                    remix={{ remixed: remixed(), asking: asking(), onRemix: remix }}
+                    remix={{
+                        remixed: remixed(),
+                        asking: asking(),
+                        onRemix: (row) => {
+                            setIsTouched(true);
+                            remix(row);
+                        },
+                    }}
                 />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
@@ -221,19 +285,22 @@ export function Verb(properties: { isOpen: boolean }) {
                             options={teams}
                             value={people()}
                             format={String}
-                            onChange={setPeople}
+                            onChange={(next) => {
+                                setIsTouched(true);
+                                setPeople(next);
+                            }}
                         />
                     }
                 >
                     <Fade isOpen={isOpenAt(0)}>
-                        <Label>{isOpenAt(0) ? "Your space, by use" : "Rent, per seat"}</Label>
+                        <Label>{isOpenAt(0) ? "Your space, per usage" : "Rent, per seat"}</Label>
                     </Fade>
                 </LabelRow>
                 <Bill
                     isWindow
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
-                    lines={holdingsWith(source()).map((entry) => ({
+                    lines={holdingsWith(source(), lineup()).map((entry) => ({
                         entry,
                         workload: workloadOf(entry.stacked.name),
                         tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
@@ -241,6 +308,8 @@ export function Verb(properties: { isOpen: boolean }) {
                     lighting={lighting}
                     isOpenAt={isOpenAt}
                     badgeOf={(row) => <PresenceAnchor row={row} />}
+                    optionsOf={optionsOf}
+                    onChoose={pick}
                 />
                 <Presence row={page().row} isShown={isOpenAt(1)} />
             </div>

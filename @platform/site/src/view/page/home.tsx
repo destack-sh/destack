@@ -27,10 +27,14 @@ export function Home() {
                 : [...current, name],
         );
 
+    // choose a tool from the first figure: pick it, last, so that figure shows it
+    const choose = (name: string) =>
+        setPicks((current) => [...current.filter((picked) => picked !== name), name]);
+
     return (
         <>
             <Metadata alternates={{ canonical: "/" }} />
-            <Verb isOpen={isOpen()} />
+            <Verb isOpen={isOpen()} picks={picks()} onChoose={choose} />
             <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
             <Noun isOpen={isOpen()} />
             <Adjective isOpen={isOpen()} />

@@ -3,6 +3,7 @@ import type { JSX } from "@destack/view";
 
 import { isEmptyOf, type Item, type Lighting, type Line, marksOf } from "./item";
 import { type Cell, type Column, Ledger, type LedgerRow } from "./ledger";
+import type { Option } from "./picker";
 import { type Scale, usageAt, usageCostOf } from "./price";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
@@ -40,6 +41,8 @@ export function Bill(properties: {
     lighting?: Lighting;
     onToggle?: (row: number) => void;
     badgeOf?: (row: number) => JSX.Element;
+    optionsOf?: (row: number) => readonly Option[];
+    onChoose?: (row: number, name: string) => void;
 }) {
     // press a block: destack its line alone, or choose it, or let it go when it is the one lit
     const press = (index: number) => {
@@ -66,9 +69,10 @@ export function Bill(properties: {
                 marks: marksOf(item.mark),
                 tint: isOwned(index) ? palette.signal : line.tint,
                 note: item.note,
-                plan: isOwned(index) ? "Billed by use" : planOf(item),
+                plan: isOwned(index) ? "Billed per usage" : planOf(item),
                 isEmpty: isEmptyOf(line.entry.stacked.mark) && !isOwned(index),
                 badge: isOwned(index) ? properties.badgeOf?.(index + 1) : undefined,
+                options: isOwned(index) ? [] : (properties.optionsOf?.(index + 1) ?? []),
                 cells: cellsOf(line, properties.scale, isOwned(index)),
             };
         });
@@ -98,6 +102,7 @@ export function Bill(properties: {
             isPressable={properties.lighting !== undefined || properties.onToggle !== undefined}
             onPoint={(index) => properties.lighting?.onLight(rowOf(index))}
             onPress={press}
+            onChoose={(index, name) => properties.onChoose?.(index + 1, name)}
         />
     );
 }

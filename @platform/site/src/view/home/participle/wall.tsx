@@ -10,7 +10,6 @@ import {
     workloadOf,
 } from "../figure/price";
 import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
-import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createEffect } from "@destack/view";
 
@@ -24,13 +23,14 @@ import { chrome } from "../figure/chrome.stylex";
 import { browserStyles } from "../figure/browser";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
+import { type Category, type Tool, tools } from "../tool/tool";
 
 /** An app every space comes with: its name and its icon. */
 type App = { name: string; icon: string };
 
 /** The apps a space comes with, by the job they do. */
 const apps = {
-    pages: { name: "Pages", icon: "pages" },
+    documents: { name: "Pages", icon: "pages" },
     tasks: { name: "Tasks", icon: "tasks" },
     calendar: { name: "Calendar", icon: "calendar" },
     tables: { name: "Tables", icon: "table" },
@@ -42,7 +42,7 @@ const apps = {
 
 /** The job each app does, as the tally labels its row. */
 const jobLabels: Record<Job, string> = {
-    pages: "Docs",
+    documents: "Docs",
     tables: "Databases",
     tasks: "Tasks",
     calendar: "Calendar",
@@ -52,12 +52,12 @@ const jobLabels: Record<Job, string> = {
     workflows: "Automation",
 };
 
-/** A job a space's app does. */
-type Job = keyof typeof apps;
+/** A job a space's app does, by the category of tools it replaces or connects to. */
+type Job = keyof typeof apps & Category;
 
 /** The apps every space holds, one to each kind of thing it keeps, in the space's order. */
 const spaceJobs: readonly Job[] = [
-    "pages",
+    "documents",
     "tables",
     "tasks",
     "calendar",
@@ -69,210 +69,15 @@ const spaceJobs: readonly Job[] = [
 /** The lines of the bill. */
 export const lineCount = spaceJobs.length + 1;
 
-/** A tool's face on the wall: its icon, its name, and its tint. */
-type Face = { icon: string; name: string; tint: string };
-
-/** A tool you may use today and what your space does with it. */
-type Tool =
-    | (Face & { kind: "replace"; job: Job })
-    | (Face & { kind: "both"; job: Job; status: string });
-
-/** The tools your space replaces with its own apps. */
-const replaced: readonly Tool[] = [
-    { icon: "notion", name: "Notion", tint: "#000000", kind: "replace", job: "pages" },
-    { icon: "googledocs", name: "Docs", tint: "#4285f4", kind: "replace", job: "pages" },
-    { icon: "confluence", name: "Confluence", tint: "#172b4d", kind: "replace", job: "pages" },
-    { icon: "linear", name: "Linear", tint: "#5e6ad2", kind: "replace", job: "tasks" },
-    { icon: "jira", name: "Jira", tint: "#0052cc", kind: "replace", job: "tasks" },
-    { icon: "asana", name: "Asana", tint: "#f06a6a", kind: "replace", job: "tasks" },
-    { icon: "trello", name: "Trello", tint: "#0052cc", kind: "replace", job: "tasks" },
-    { icon: "clickup", name: "ClickUp", tint: "#7b68ee", kind: "replace", job: "tasks" },
-    { icon: "calendly", name: "Calendly", tint: "#006bff", kind: "replace", job: "calendar" },
-    { icon: "caldotcom", name: "Cal.com", tint: "#292929", kind: "replace", job: "calendar" },
-    { icon: "airtable", name: "Airtable", tint: "#18bfff", kind: "replace", job: "tables" },
-    { icon: "googlesheets", name: "Sheets", tint: "#34a853", kind: "replace", job: "tables" },
-    { icon: "coda", name: "Coda", tint: "#f46a54", kind: "replace", job: "tables" },
-    { icon: "excel", name: "Excel", tint: "#107c41", kind: "replace", job: "tables" },
-    { icon: "superhuman", name: "Superhuman", tint: "#000000", kind: "replace", job: "mail" },
-    { icon: "thunderbird", name: "Thunderbird", tint: "#0a84ff", kind: "replace", job: "mail" },
-    { icon: "miro", name: "Miro", tint: "#050038", kind: "replace", job: "canvas" },
-    { icon: "excalidraw", name: "Excalidraw", tint: "#6965db", kind: "replace", job: "canvas" },
-    { icon: "figma", name: "FigJam", tint: "#a259ff", kind: "replace", job: "canvas" },
-    { icon: "mural", name: "Mural", tint: "#ff0b47", kind: "replace", job: "canvas" },
-    { icon: "lucid", name: "Lucid", tint: "#282c33", kind: "replace", job: "canvas" },
-    { icon: "obsidian", name: "Obsidian", tint: "#7c3aed", kind: "replace", job: "pages" },
-    { icon: "word", name: "Word", tint: "#185abd", kind: "replace", job: "pages" },
-    { icon: "n8n", name: "n8n", tint: "#ea4b71", kind: "replace", job: "workflows" },
-    { icon: "zapier", name: "Zapier", tint: "#ff4f00", kind: "replace", job: "workflows" },
-    { icon: "make", name: "Make", tint: "#6d00cc", kind: "replace", job: "workflows" },
-    {
-        icon: "powerautomate",
-        name: "Power Automate",
-        tint: "#0066ff",
-        kind: "replace",
-        job: "workflows",
-    },
-];
-
-/** The tools your space can replace or keep connected. */
-const either: readonly Tool[] = [
-    {
-        icon: "gmail",
-        name: "Gmail",
-        tint: "#ea4335",
-        kind: "both",
-        job: "mail",
-        status: "inbox synced",
-    },
-    {
-        icon: "googlecalendar",
-        name: "Calendar",
-        tint: "#4285f4",
-        kind: "both",
-        job: "calendar",
-        status: "two-way sync",
-    },
-    {
-        icon: "outlook",
-        name: "Outlook",
-        tint: "#0078d4",
-        kind: "both",
-        job: "mail",
-        status: "inbox synced",
-    },
-    {
-        icon: "outlook",
-        name: "Outlook Calendar",
-        tint: "#0078d4",
-        kind: "both",
-        job: "calendar",
-        status: "two-way sync",
-    },
-    {
-        icon: "slack",
-        name: "Slack",
-        tint: "#4a154b",
-        kind: "both",
-        job: "chat",
-        status: "messages bridged",
-    },
-    {
-        icon: "discord",
-        name: "Discord",
-        tint: "#5865f2",
-        kind: "both",
-        job: "chat",
-        status: "messages bridged",
-    },
-    {
-        icon: "teams",
-        name: "Teams",
-        tint: "#5059c9",
-        kind: "both",
-        job: "chat",
-        status: "messages bridged",
-    },
-    {
-        icon: "googlechat",
-        name: "Google Chat",
-        tint: "#00ac47",
-        kind: "both",
-        job: "chat",
-        status: "messages bridged",
-    },
-    {
-        icon: "whatsapp",
-        name: "WhatsApp",
-        tint: "#25d366",
-        kind: "both",
-        job: "chat",
-        status: "messages bridged",
-    },
-    {
-        icon: "protonmail",
-        name: "Proton Mail",
-        tint: "#6d4aff",
-        kind: "both",
-        job: "mail",
-        status: "inbox synced",
-    },
-];
-
-/** The order the wall sets its tools in, within each row. */
-const order: readonly string[] = [
-    "Notion",
-    "Docs",
-    "Word",
-    "Confluence",
-    "Obsidian",
-    "Airtable",
-    "Sheets",
-    "Excel",
-    "Coda",
-    "Linear",
-    "Jira",
-    "Asana",
-    "Trello",
-    "ClickUp",
-    "Calendar",
-    "Outlook Calendar",
-    "Calendly",
-    "Cal.com",
-    "Slack",
-    "Teams",
-    "Discord",
-    "Google Chat",
-    "WhatsApp",
-    "Gmail",
-    "Outlook",
-    "Superhuman",
-    "Thunderbird",
-    "Proton Mail",
-    "Miro",
-    "FigJam",
-    "Mural",
-    "Lucid",
-    "Excalidraw",
-    "Zapier",
-    "Make",
-    "n8n",
-    "Power Automate",
-];
-
-/** Every tool on the wall, in the wall's order. */
-const tools: readonly Tool[] = order.map((name) =>
-    present(
-        [...replaced, ...either].find((tool) => tool.name === name),
-        `wall tool ${name}`,
-    ),
-);
+/** The tools the wall offers: every tool of a job a space's app does. */
+const offered: readonly Tool[] = tools.filter((tool) => tool.category in apps);
 
 /** The tools picked before the reader picks any. */
 export const firstPicks: readonly string[] = ["Notion", "Calendly", "Linear", "Airtable", "Slack"];
 
-/** The subscription each tool bills under when it shares one. */
-const billedUnder: Readonly<Record<string, string>> = {
-    Docs: "Google Workspace",
-    Sheets: "Google Workspace",
-    Calendar: "Google Workspace",
-    Gmail: "Google Workspace",
-    "Google Chat": "Google Workspace",
-    Teams: "Microsoft 365",
-    Outlook: "Microsoft 365",
-    "Power Automate": "Microsoft 365",
-    "Outlook Calendar": "Microsoft 365",
-    Word: "Microsoft 365",
-    Excel: "Microsoft 365",
-};
-
-/** The tools whose mark is a picture from the vendor, by name. */
-const pictures: Record<string, string> = {
-    Superhuman: "/logos/superhuman.png",
-};
-
 /** Return the subscriptions a set of tools bills under, each once. */
 function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
-    return [...new Set(picked.map((tool) => billedUnder[tool.name] ?? tool.name))];
+    return [...new Set(picked.map((tool) => tool.subscription))];
 }
 
 /** Price one tally row: the subscriptions its tools add to those billed in the rows above it. */
@@ -301,25 +106,9 @@ function rowPriceOf(doers: readonly Tool[], billed: ReadonlySet<string>): Price 
     };
 }
 
-/** Draw a tool's mark: its picture from the vendor, or its shape from the icon set in its tint. */
-function ToolMark(properties: { tool: Tool; size: number }) {
-    const picture = () => pictures[properties.tool.name];
-
-    return picture() === undefined ? (
-        <Favicon icon={properties.tool.icon} tint={properties.tool.tint} size={properties.size} />
-    ) : (
-        <img
-            alt=""
-            src={picture()}
-            style={{ height: `${properties.size}px`, width: `${properties.size}px` }}
-            {...style.attrs(styles.picture)}
-        />
-    );
-}
-
 /** Return the status line of a tool your space stays connected to, or none when replaced. */
 function statusOf(tool: Tool): string | undefined {
-    return tool.kind === "replace" ? undefined : tool.status;
+    return tool.relation.kind === "bridge" ? tool.relation.status : undefined;
 }
 
 /** One row of the wall and the bill: a job, your space's app for it, and the tools that do it. */
@@ -329,7 +118,7 @@ type Row = { label: string; app: App; tools: readonly Tool[] };
 const rows: readonly Row[] = [...spaceJobs, "workflows" as const].map((job) => ({
     label: jobLabels[job],
     app: apps[job],
-    tools: tools.filter((tool) => tool.job === job),
+    tools: offered.filter((tool) => tool.category === job),
 }));
 
 /** An app you could make in your space by joining the apps of several jobs. */
@@ -337,13 +126,13 @@ type Make = { name: string; icon: string; jobs: readonly Job[] };
 
 /** The apps you could make, each joining the apps of the jobs it needs. */
 const makes: readonly Make[] = [
-    { name: "Launch room", icon: "chat", jobs: ["pages", "chat"] },
-    { name: "Roadmap", icon: "tasks", jobs: ["pages", "tasks"] },
-    { name: "Client portal", icon: "pages", jobs: ["pages", "tasks", "chat"] },
+    { name: "Launch room", icon: "chat", jobs: ["documents", "chat"] },
+    { name: "Roadmap", icon: "tasks", jobs: ["documents", "tasks"] },
+    { name: "Client portal", icon: "pages", jobs: ["documents", "tasks", "chat"] },
     { name: "CRM", icon: "table", jobs: ["tables", "mail", "calendar"] },
     { name: "Booking page", icon: "calendar", jobs: ["calendar", "mail"] },
     { name: "Standups", icon: "sync", jobs: ["tasks", "chat"] },
-    { name: "Reading list", icon: "table", jobs: ["tables", "pages"] },
+    { name: "Reading list", icon: "table", jobs: ["tables", "documents"] },
 ];
 
 /** The most apps to make the wall offers at once, as many as fit beside each other. */
@@ -453,7 +242,7 @@ export function ToolWall(properties: {
 function makesOf(picks: readonly string[]): readonly Make[] {
     // read the jobs some pick covers, and keep the apps whose jobs all are
     const covered = new Set(
-        tools.filter((tool) => picks.includes(tool.name)).map((tool) => tool.job),
+        offered.filter((tool) => picks.includes(tool.name)).map((tool) => tool.category),
     );
     const ready = makes.filter((make) => make.jobs.every((job) => covered.has(job)));
 
@@ -473,7 +262,7 @@ function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (name: 
             onClick={() => properties.onPick(properties.tool.name)}
             {...style.attrs(styles.chip, styles.tool, properties.isPicked && styles.picked)}
         >
-            <ToolMark tool={properties.tool} size={16} />
+            <Favicon icon={properties.tool.icon} tint={properties.tool.tint} size={16} />
             <span {...style.attrs(styles.name)}>{properties.tool.name}</span>
         </button>
     );
@@ -510,7 +299,7 @@ function Note(properties: { picked: readonly Tool[] }) {
                           {verb}
                           {related.map((tool) => (
                               <span {...style.attrs(styles.source)}>
-                                  <ToolMark tool={tool} size={12} />
+                                  <Favicon icon={tool.icon} tint={tool.tint} size={12} />
                                   {tool.name}
                               </span>
                           ))}
@@ -523,8 +312,8 @@ function Note(properties: { picked: readonly Tool[] }) {
 /** Split picked tools into the ones your space replaces and the ones it stays connected to. */
 function relationsOf(picked: readonly Tool[]) {
     return [
-        ["replaces", picked.filter((tool) => tool.kind === "replace")],
-        ["connects to", picked.filter((tool) => tool.kind !== "replace")],
+        ["replaces", picked.filter((tool) => tool.relation.kind === "replace")],
+        ["connects to", picked.filter((tool) => tool.relation.kind === "bridge")],
     ] as const;
 }
 
@@ -677,9 +466,9 @@ function workloadOfRow(doers: readonly Tool[]): Workload {
 /** Write the prompt that sets up a space, brings in replaced tools and connects the rest. */
 export function promptOf(picks: readonly string[]) {
     // split the picks into what moves in and what stays connected
-    const picked = tools.filter((tool) => picks.includes(tool.name));
-    const moved = listOf(picked.filter((tool) => tool.kind === "replace"));
-    const linked = listOf(picked.filter((tool) => tool.kind !== "replace"));
+    const picked = offered.filter((tool) => picks.includes(tool.name));
+    const moved = listOf(picked.filter((tool) => tool.relation.kind === "replace"));
+    const linked = listOf(picked.filter((tool) => tool.relation.kind === "bridge"));
     const asks = [
         ...(moved === "" ? [] : [`bring in my ${moved}`]),
         ...(linked === "" ? [] : [`connect my ${linked}`]),

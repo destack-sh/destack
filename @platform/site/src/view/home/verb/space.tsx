@@ -2,19 +2,19 @@ import { Icon } from "@destack/icon";
 import { priceOf } from "../figure/price";
 import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
-import { createEffect, createSignal, type JSX, onSettled } from "@destack/view";
+import { createEffect, createSignal, onSettled } from "@destack/view";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Favicon, Glyph } from "../figure/glyph";
-import type { Entry } from "../figure/item";
+import type { Entry, Item } from "../figure/item";
 import { entryOf, type Source } from "./source";
 import type { Stagger } from "../figure/stagger";
-import { remixOf, sectionOf } from "./apps";
+import { type Change, remixOf, sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
 import { browserStyles } from "../figure/browser";
 import { AgentAvatar } from "../figure/agent";
-import { rentedPageOf } from "./vendor";
+import type { Category, Lineup, Tool } from "../tool/tool";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
@@ -28,16 +28,21 @@ export type Viewer = "Me" | "Agent" | "Public";
 /** Everyone who can look at your space, in the order the switcher offers them. */
 export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 
+/** One row of what you keep: what a team rents for it, and the app of your space that does it. */
+type Holding = {
+    /** What a team rents for the row. */
+    category: Category;
+    /** What renting it means for you, shown as its title. */
+    note: string;
+    /** The app of your space that does the job. */
+    destacked: Item;
+};
+
 /** What you keep, numbered as the browser marks them, before your personal app's data. */
-const holdings: readonly Entry[] = [
+const holdings: readonly Holding[] = [
     {
-        stacked: {
-            label: "Docs",
-            mark: { icon: "notion", tint: "#191919" },
-            name: "Notion",
-            note: "anyone with the link can read it",
-            price: priceOf("Notion"),
-        },
+        category: "documents",
+        note: "anyone with the link can read it",
         destacked: {
             label: "Docs",
             mark: { app: "pages" },
@@ -47,13 +52,19 @@ const holdings: readonly Entry[] = [
         },
     },
     {
-        stacked: {
-            label: "Tasks",
-            mark: { icon: "linear", tint: "#5e6ad2" },
-            name: "Linear",
-            note: "a paid seat for every viewer",
-            price: priceOf("Linear"),
+        category: "tables",
+        note: "rows copied in from every other app",
+        destacked: {
+            label: "Databases",
+            mark: { app: "table" },
+            name: "Tables",
+            note: "rows read live from every app",
+            price: { kind: "included" },
         },
+    },
+    {
+        category: "tasks",
+        note: "a paid seat for every viewer",
         destacked: {
             label: "Tasks",
             mark: { app: "tasks" },
@@ -63,13 +74,19 @@ const holdings: readonly Entry[] = [
         },
     },
     {
-        stacked: {
-            label: "Chat",
-            mark: { icon: "slack", tint: "#4a154b" },
-            name: "Slack",
-            note: "a guest invite for every channel",
-            price: priceOf("Slack"),
+        category: "calendar",
+        note: "free times copied, never live",
+        destacked: {
+            label: "Calendar",
+            mark: { app: "calendar" },
+            name: "Calendar",
+            note: "free times read live, never copied",
+            price: { kind: "included" },
         },
+    },
+    {
+        category: "chat",
+        note: "a guest invite for every channel",
         destacked: {
             label: "Chat",
             mark: { app: "chat" },
@@ -79,61 +96,8 @@ const holdings: readonly Entry[] = [
         },
     },
     {
-        stacked: {
-            label: "Code",
-            mark: { icon: "github", tint: "#181717" },
-            name: "GitHub",
-            note: "code kept apart from the apps",
-            price: priceOf("GitHub"),
-        },
-        destacked: {
-            label: "Code",
-            mark: { app: "source" },
-            name: "Forge",
-            note: "code kept beside the apps",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
-            label: "Website",
-            mark: { icon: "framer", tint: "#0a0a0a" },
-            name: "Framer",
-            note: "edited only in their builder",
-            price: priceOf("Framer"),
-        },
-        destacked: {
-            label: "Website",
-            mark: { app: "pages" },
-            name: "Pages",
-            note: "edited like any other page",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
-            label: "Booking",
-            mark: { icon: "calendly", tint: "#006bff" },
-            name: "Calendly",
-            note: "free times copied, never live",
-            price: priceOf("Calendly"),
-        },
-        destacked: {
-            label: "Booking",
-            mark: { app: "calendar" },
-            name: "Calendar",
-            note: "free times read live, never copied",
-            price: { kind: "included" },
-        },
-    },
-    {
-        stacked: {
-            label: "Mail",
-            mark: { icon: "gmail", tint: "#ea4335" },
-            name: "Gmail",
-            note: "the waitlist pasted in by hand",
-            price: priceOf("Google Workspace"),
-        },
+        category: "mail",
+        note: "the waitlist pasted in by hand",
         destacked: {
             label: "Mail",
             mark: { app: "mail" },
@@ -143,16 +107,33 @@ const holdings: readonly Entry[] = [
         },
     },
     {
-        stacked: {
-            label: "Custom",
-            mark: { icon: "replit", tint: "#f26207" },
-            name: "Replit",
-            note: "a waitlist built on Replit, its signups in a database of its own",
-            price: priceOf("Replit"),
+        category: "canvas",
+        note: "plans drawn apart from the work",
+        destacked: {
+            label: "Whiteboard",
+            mark: { app: "canvas" },
+            name: "Canvas",
+            note: "plans linked to the tasks they draw",
+            price: { kind: "included" },
         },
+    },
+    {
+        category: "workflows",
+        note: "a zap for every pair of apps, billed by the task",
+        destacked: {
+            label: "Automation",
+            mark: { app: "sync" },
+            name: "Workflows",
+            note: "workflows on your own data, billed by use",
+            price: { kind: "included" },
+        },
+    },
+    {
+        category: "builder",
+        note: "a waitlist built on Replit, its signups in a database of its own",
         destacked: {
             label: "Custom",
-            mark: { app: "table" },
+            mark: { app: "build" },
             name: "Waitlist",
             note: "a waitlist built in your space, its signups in your tables",
             price: { kind: "included" },
@@ -161,11 +142,33 @@ const holdings: readonly Entry[] = [
 ];
 
 /** The row of the personal app your agent connects, after every app of yours. */
-const DATA_ROW = 9;
+export const DATA_ROW = 10;
 
-/** Return what you keep with a personal app's data on its row, after your own app. */
-export function holdingsWith(source: Source): readonly Entry[] {
-    return holdings.toSpliced(DATA_ROW - 1, 0, entryOf(source));
+/** Return the category a team rents a tool for on a row, or none on the personal app's row. */
+export function categoryAt(row: number): Category | undefined {
+    const job = present(pages[row - 1], "row page").job;
+
+    return job === "data" ? undefined : job;
+}
+
+/** Return what you keep, each row rented from its tool in the lineup, the personal app's last. */
+export function holdingsWith(source: Source, lineup: Lineup): readonly Entry[] {
+    const rented = holdings.map((holding): Entry => {
+        const tool = lineup(holding.category);
+
+        return {
+            stacked: {
+                label: holding.destacked.label,
+                mark: { icon: tool.icon, tint: tool.tint },
+                name: tool.name,
+                note: holding.note,
+                price: priceOf(tool.subscription),
+            },
+            destacked: holding.destacked,
+        };
+    });
+
+    return rented.toSpliced(DATA_ROW - 1, 0, entryOf(source));
 }
 
 /** The changes your agent makes to your apps: those done, the one asked for, and how to ask. */
@@ -175,112 +178,59 @@ type Remixing = {
     onRemix: (row: number) => void;
 };
 
-/** One page the browser shows. */
+/** The job a row does: what a team rents a tool for, or your personal app's data. */
+export type Job = Category | "data";
+
+/** One page the browser shows: its row, its job, its path in your space, and who sees it. */
 export type Page = {
     row: number;
-    app: number;
+    job: Job;
     path: string;
     viewers: readonly Viewer[];
-    site: Site;
 };
-
-/** Where a page's rented site is: a fixed address, or the personal app turning on the data row. */
-type Site = { kind: "rented"; address: string } | { kind: "personal" };
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
-    {
-        row: 1,
-        app: 1,
-        path: "/launch",
-        viewers: ["Me", "Agent"],
-        site: { kind: "rented", address: "florian.notion.site/Destack-launch" },
-    },
-    {
-        row: 2,
-        app: 2,
-        path: "/tasks",
-        viewers: ["Me"],
-        site: { kind: "rented", address: "linear.app/symbol/team/DST/all" },
-    },
-    {
-        row: 3,
-        app: 3,
-        path: "/chat",
-        viewers: ["Me", "Agent"],
-        site: { kind: "rented", address: "symbol.slack.com/archives/launch" },
-    },
-    {
-        row: 4,
-        app: 4,
-        path: "/code",
-        viewers: ["Me", "Agent"],
-        site: { kind: "rented", address: "github.com/destack-sh/destack" },
-    },
-    {
-        row: 5,
-        app: 1,
-        path: "/",
-        viewers: ["Me", "Agent", "Public"],
-        site: { kind: "rented", address: "destack.framer.website" },
-    },
-    {
-        row: 6,
-        app: 6,
-        path: "/book",
-        viewers: ["Me", "Agent", "Public"],
-        site: { kind: "rented", address: "calendly.com/florian/destack-demo" },
-    },
-    {
-        row: 7,
-        app: 7,
-        path: "/mail",
-        viewers: ["Me", "Agent"],
-        site: { kind: "rented", address: "mail.google.com/mail/u/0" },
-    },
-    {
-        row: 8,
-        app: 8,
-        path: "/waitlist",
-        viewers: ["Me", "Agent", "Public"],
-        site: { kind: "rented", address: "destack-waitlist.replit.app" },
-    },
-    { row: 9, app: 9, path: "/data", viewers: ["Me", "Agent"], site: { kind: "personal" } },
+    { row: 1, job: "documents", path: "/launch", viewers: ["Me", "Agent"] },
+    { row: 2, job: "tables", path: "/press", viewers: ["Me", "Agent"] },
+    { row: 3, job: "tasks", path: "/tasks", viewers: ["Me"] },
+    { row: 4, job: "calendar", path: "/book", viewers: ["Me", "Agent", "Public"] },
+    { row: 5, job: "chat", path: "/chat", viewers: ["Me", "Agent"] },
+    { row: 6, job: "mail", path: "/mail", viewers: ["Me", "Agent"] },
+    { row: 7, job: "canvas", path: "/plan", viewers: ["Me", "Agent"] },
+    { row: 8, job: "workflows", path: "/workflows", viewers: ["Me", "Agent"] },
+    { row: 9, job: "builder", path: "/waitlist", viewers: ["Me", "Agent", "Public"] },
+    { row: 10, job: "data", path: "/data", viewers: ["Me", "Agent"] },
 ];
 
-/** The sites you rent, as the browser's tabs while rented, with the personal app's in its row. */
-function tabsOf(source: Source, vendor: Vendor | undefined): readonly Tab[] {
-    const all = tabs.toSpliced(DATA_ROW - 1, 0, [DATA_ROW, source.icon, source.tint, source.name]);
-
-    return all.map((tab) =>
-        vendor?.row === tab[0] ? [vendor.row, vendor.icon, vendor.tint, vendor.title] : tab,
-    );
+/** Return the row of the page that does a job. */
+export function rowOf(job: Job): number {
+    return present(
+        pages.find((page) => page.job === job),
+        `page for ${job}`,
+    ).row;
 }
 
 /** A rented site a figure shows on a row in place of fig. 1's: its tab, address and page. */
-export type Vendor = {
-    row: number;
-    icon: string;
-    tint: string;
-    title: string;
-    site: string;
-    page: () => JSX.Element;
-};
+export type Vendor = Pick<Tool, "icon" | "tint" | "tab" | "site" | "page"> & { row: number };
 
 /** A tab of the browser: its row, mark, colour and title. */
 type Tab = readonly [row: number, icon: string, tint: string, title: string];
 
-/** The sites you rent, before the personal app's. */
-const tabs: readonly Tab[] = [
-    [1, "notion", "#191919", "Destack launch"],
-    [2, "linear", "#5e6ad2", "Destack › All issues"],
-    [3, "slack", "#4a154b", "launch (Channel) - Symbol - Slack"],
-    [4, "github", "#181717", "destack-sh/destack"],
-    [5, "framer", "#0a0a0a", "Destack · Reconquer your software"],
-    [6, "calendly", "#006bff", "Destack demo | Florian | Calendly"],
-    [7, "gmail", "#ea4335", "Inbox (2) - Gmail"],
-    [8, "replit", "#f26207", "Join the waitlist"],
-];
+/** Return the browser's tabs while rented: the figure's vendor, the personal app, or the tool. */
+function tabsOf(source: Source, vendor: Vendor | undefined, lineup: Lineup): readonly Tab[] {
+    return pages.map((page): Tab => {
+        // show the figure's vendor, the personal app, or the lineup's tool
+        if (vendor?.row === page.row) {
+            return [page.row, vendor.icon, vendor.tint, vendor.tab];
+        } else if (page.job === "data") {
+            return [page.row, source.icon, source.tint, source.name];
+        }
+        const tool = lineup(page.job);
+
+        return [page.row, tool.icon, tool.tint, tool.tab];
+    });
+}
 
 /** Every app's row, for a browser that shows them all. */
 export const everyRow: readonly number[] = pages.map((page) => page.row);
@@ -294,43 +244,47 @@ const sections: readonly (readonly [
     seen: readonly Viewer[],
 ])[] = [
     [1, "Pages", "pages", "#3d6fb0", ["Me", "Agent", "Public"]],
-    [2, "Tasks", "tasks", "#c64a17", ["Me"]],
-    [3, "Chat", "chat", "#4f8a5b", ["Me", "Agent"]],
-    [4, "Forge", "source", "#c64a17", ["Me", "Agent"]],
-    [6, "Calendar", "calendar", "#c64a17", ["Me", "Agent", "Public"]],
-    [7, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
-    [8, "Tables", "table", "#4f8a5b", ["Me", "Agent", "Public"]],
-    [9, "Connections", "sync", "#3d6fb0", ["Me", "Agent"]],
+    [2, "Tables", "table", "#4f8a5b", ["Me", "Agent"]],
+    [3, "Tasks", "tasks", "#c64a17", ["Me"]],
+    [4, "Calendar", "calendar", "#c64a17", ["Me", "Agent", "Public"]],
+    [5, "Chat", "chat", "#4f8a5b", ["Me", "Agent"]],
+    [6, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
+    [7, "Canvas", "canvas", "#c64a17", ["Me", "Agent"]],
+    [8, "Workflows", "sync", "#3d6fb0", ["Me", "Agent"]],
+    [9, "Waitlist", "build", "#4f8a5b", ["Me", "Agent", "Public"]],
+    [10, "Connections", "cloud", "#3d6fb0", ["Me", "Agent"]],
 ];
 
 /** Draw your space in the cloud in a browser, one page at a time. */
 export function SpaceBrowser(properties: {
     name: string;
     rows: readonly number[];
-    isChanged: boolean;
+    change: Change;
     isOpenAt: Stagger;
     page: Page;
     viewer: Viewer;
     onViewer: (viewer: Viewer) => void;
     onChoose: (row: number | undefined) => void;
     source: Source;
+    lineup: Lineup;
     vendor: Vendor | undefined;
     remix: Remixing | undefined;
 }) {
     // read the change your agent can make to the page shown, and whether it has
-    const remix = () => remixOf(properties.page.row, properties.source);
+    const remix = () => remixOf(properties.page.job, properties.source);
     const isRemixed = () => properties.remix?.remixed.includes(properties.page.row) === true;
     const isAsking = () => properties.remix?.asking === properties.page.row;
 
     // show the page when the viewer may see it, or say who may
     const isOpen = () => properties.isOpenAt(properties.page.row);
     const isAllowed = () => !isOpen() || properties.page.viewers.includes(properties.viewer);
-    const site = () => siteOf(properties.page, properties.source, properties.vendor);
+    const site = () =>
+        siteOf(properties.page, properties.source, properties.vendor, properties.lineup);
     const host = () => site().split("/")[0] ?? "";
 
     // show only the apps the browser can turn to, as tabs and on the rail
     const shown = () =>
-        tabsOf(properties.source, properties.vendor).filter(([row]) =>
+        tabsOf(properties.source, properties.vendor, properties.lineup).filter(([row]) =>
             properties.rows.includes(row),
         );
 
@@ -484,7 +438,12 @@ export function SpaceBrowser(properties: {
                                     {title}
                                 </span>
                                 <span {...style.attrs(styles.cardHost)}>
-                                    {hostOf(row, properties.source, properties.vendor)}
+                                    {hostOf(
+                                        row,
+                                        properties.source,
+                                        properties.vendor,
+                                        properties.lineup,
+                                    )}
                                 </span>
                             </button>
                         ))
@@ -514,8 +473,8 @@ export function SpaceBrowser(properties: {
                         >
                             {isAllowed() ? (
                                 sectionOf(
-                                    properties.page.row,
-                                    properties.isChanged,
+                                    properties.page.job,
+                                    properties.change,
                                     properties.source,
                                     isRemixed(),
                                 )
@@ -549,7 +508,9 @@ export function SpaceBrowser(properties: {
                     >
                         {properties.vendor?.row === properties.page.row
                             ? properties.vendor.page()
-                            : rentedPageOf(properties.page.row, properties.source)}
+                            : properties.page.job === "data"
+                              ? properties.source.page()
+                              : properties.lineup(properties.page.job).page()}
                     </div>
                 )}
             </div>
@@ -566,30 +527,33 @@ function rowOfApp(icon: string): number {
 }
 
 /** Return the address host of the rented site on a ledger row. */
-function hostOf(row: number, source: Source, vendor: Vendor | undefined): string {
+function hostOf(row: number, source: Source, vendor: Vendor | undefined, lineup: Lineup): string {
     const page = present(
         pages.find((candidate) => candidate.row === row),
         "page of a tab",
     );
 
-    return present(siteOf(page, source, vendor).split("/")[0], "host of a site");
+    return present(siteOf(page, source, vendor, lineup).split("/")[0], "host of a site");
 }
 
 /** Return the address of the rented site a page shows: its own, or the personal app's. */
-function siteOf(page: Page, source: Source, vendor: Vendor | undefined): string {
-    // read the figure's own vendor, the personal app's, or fig. 1's site
+function siteOf(page: Page, source: Source, vendor: Vendor | undefined, lineup: Lineup): string {
+    // read the figure's own vendor, the personal app's, or the lineup's tool
     if (vendor?.row === page.row) {
         return vendor.site;
-    } else if (page.site.kind === "personal") {
+    } else if (page.job === "data") {
         return source.site;
     }
 
-    return page.site.address;
+    return lineup(page.job).site;
 }
 
 /** Return the glyph of the app a page opens in your space. */
 function openApp(page: Page): string {
-    return sections.find(([row]) => row === page.app)?.[2] ?? "pages";
+    return present(
+        sections.find(([row]) => row === page.row),
+        "rail app of a page",
+    )[2];
 }
 
 /** Draw the status bar every app of your space shares. */

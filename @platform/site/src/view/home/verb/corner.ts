@@ -1,16 +1,3 @@
-/** Your posts: the title, the topic, the date, and the two tints of the cover. */
-export const posts: readonly (readonly [
-    title: string,
-    topic: string,
-    date: string,
-    from: string,
-    to: string,
-])[] = [
-    ["Introducing Destack", "Product", "Oct 18, 2025", "#e9b384", "#c4683a"],
-    ["Notes from demo day", "Events", "Oct 9, 2025", "#9fc3c9", "#3f7d88"],
-    ["Why I moved my tools home", "Tools", "Sep 30, 2025", "#c9c39f", "#6f7a3f"],
-];
-
 /** What the waitlist promises: a short title and its line. */
 export const perks: readonly (readonly [title: string, line: string])[] = [
     ["Early pricing", "Lock in the launch rate"],
@@ -25,18 +12,6 @@ export const joiners: readonly (readonly [initial: string, tint: string])[] = [
     ["T", "#6f7a3f"],
     ["L", "#6b5ca5"],
 ];
-
-/** The pattern each post's cover lays over its tints, one per post. */
-const patterns: readonly string[] = [
-    "repeating-radial-gradient(circle at 78% 30%, rgb(255 255 255 / 22%) 0 2px, transparent 2px 16px)",
-    "linear-gradient(90deg, rgb(255 255 255 / 16%) 1px, transparent 1px) 0 0 / 22px 22px, linear-gradient(rgb(255 255 255 / 16%) 1px, transparent 1px) 0 0 / 22px 22px",
-    "repeating-linear-gradient(-28deg, rgb(255 255 255 / 18%) 0 2px, transparent 2px 13px)",
-];
-
-/** Paint a post's cover: its pattern over a gradient between its two tints. */
-export function coverOf(index: number, from: string, to: string) {
-    return `${patterns[index % patterns.length] ?? ""}, radial-gradient(circle at 20% 85%, rgb(255 255 255 / 25%), transparent 45%), linear-gradient(135deg, ${from}, ${to})`;
-}
 
 /** The month the booking page shows, October 2025, with its free and chosen days. */
 export const month = {
@@ -76,6 +51,8 @@ export const tasks: readonly (readonly [
     ["DST-13", "Turn on pricing", "todo", "F", "#2f7d8c", "Oct 24"],
     ["DST-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 23"],
     ["DST-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
+    ["DST-18", "Find out who owns the Zapier account", "todo", "A", "#6b5ca5", "Oct 24"],
+    ["DST-19", "Cancel the other nine subscriptions", "todo", "F", "#2f7d8c", "Oct 27"],
 ];
 
 /** The launch channel's messages: who wrote it, when, and what they said. */
@@ -84,23 +61,10 @@ export const messages: readonly (readonly [
     time: string,
     text: string,
 ])[] = [
-    ["Florian", "09:12", "Can we move the demo to Wednesday? Thursday is the waitlist send."],
-    ["Agent", "09:13", "Moved it to Wed 11:00 and updated DST-14 and the launch plan."],
-    [
-        "Agent",
-        "09:40",
-        "First invite batch is drafted. 1,840 on the list, sending 400 on Thursday.",
-    ],
-    ["Florian", "10:02", "Ship it. Hold back anyone who signed up today."],
-];
-
-/** The source of your apps: the path, its last change, and when. */
-export const sources: readonly (readonly [name: string, change: string, when: string])[] = [
-    ["@platform/waitlist", "Mail the first batch on Thursday", "2h ago"],
-    ["@platform/site", "Add the waitlist section", "yesterday"],
-    ["@app/tasks", "Add the launch board", "Oct 22"],
-    ["destack.json", "Share Code with the agent", "Oct 18"],
-    ["README.md", "Launch checklist", "Oct 14"],
+    ["Florian", "09:12", "Ines from Orbit Labs booked the demo. Wednesday at 11, apparently."],
+    ["Agent", "09:13", "Added it to DST-14 and the launch page: Wed 11:00."],
+    ["Agent", "09:40", "Drafted the Hacker News post. Two titles, the second one is spicier."],
+    ["Florian", "10:02", "The first one. We have a reputation to build."],
 ];
 
 /** A block of your week. */
@@ -118,12 +82,13 @@ export const week: readonly WeekBlock[] = [
     [0, 14, 15, "Pricing review", false],
     [1, 10, 11, "Bookable", true],
     [1, 15, 16.5, "Bookable", true],
-    [2, 11, 12, "Demo · DST-14", false],
+    [2, 11, 12, "Demo · Ines", false],
     [2, 13, 14, "Bookable", true],
     [3, 9, 10, "Invites · 400", false],
     [3, 16, 17, "Bookable", true],
     [4, 9, 10, "Go live · DST-17", false],
     [4, 11, 12, "Bookable", true],
+    [4, 16, 17, "Retro · why it took nine apps", false],
 ];
 
 /** A signup's state, invited or still waiting. */
@@ -155,15 +120,15 @@ export const mails: readonly (readonly [
     isUnread: boolean,
 ])[] = [
     [
-        "Maya Chen",
+        "Ines Ferreira",
         "#a0485f",
         "Re: Destack demo",
-        "Wednesday at 11:00 works, see you then",
+        "Wednesday at 11 works. Will you be demoing it from Notion?",
         "10:14",
         true,
     ],
     [
-        "Jonas Weber",
+        "Kai Brandt",
         "#2f7d8c",
         "Press kit?",
         "Could you send the logo and a screenshot before Friday?",
@@ -182,15 +147,15 @@ export const mails: readonly (readonly [
         "Calendly",
         "#006bff",
         "New event: Destack demo",
-        "Maya Chen booked Wed 22 Oct, 11:00 to 11:30",
+        "Ines Ferreira booked Wed 22 Oct, 11:00 to 11:30",
         "Oct 20",
         false,
     ],
     [
-        "Replit",
-        "#f26207",
-        "Your export is ready",
-        "waitlist-signups.csv, 1,840 rows",
+        "Zapier",
+        "#ff4f00",
+        "Your Zap was turned off",
+        "Welcome new signups hit an error too many times in a row",
         "Oct 20",
         false,
     ],
@@ -202,4 +167,49 @@ export const mails: readonly (readonly [
         "Oct 19",
         false,
     ],
+];
+
+/** A press contact's state, from pitched to scheduled. */
+export type PressState = "pitched" | "replied" | "scheduled";
+
+/** The press list: each person, their outlet, the pitch's state, the last contact, and a tint. */
+export const press: readonly (readonly [
+    name: string,
+    outlet: string,
+    state: PressState,
+    last: string,
+    tint: string,
+])[] = [
+    ["Ines Ferreira", "Orbit Labs Weekly", "scheduled", "Oct 22", "#a0485f"],
+    ["Kai Brandt", "Kettle Podcast", "replied", "Oct 21", "#2f7d8c"],
+    ["Lena Okoye", "Fieldnotes", "pitched", "Oct 20", "#4f8a5b"],
+    ["Ravi Patel", "Brightpath Daily", "pitched", "Oct 19", "#6b5ca5"],
+    ["Mia Sørensen", "Quietly", "replied", "Oct 18", "#c4683a"],
+];
+
+/** The launch plan's columns: each name and its notes, a task's id or a plain note. */
+export const board: readonly (readonly [column: string, notes: readonly string[]])[] = [
+    ["Before", ["DST-12", "DST-14", "DST-16"]],
+    ["Launch day", ["DST-17", "Post on Hacker News", "DST-15"]],
+    ["After", ["DST-19", "Delete this board"]],
+];
+
+/** The welcome workflow's steps: the app it runs in, what it does, and the detail it shows. */
+export const welcome: readonly (readonly [app: string, step: string, detail: string])[] = [
+    ["Waitlist", "New signup", "When someone joins the waitlist"],
+    ["Slack", "Post in #launch", "“New signup: {email} from {source}”"],
+    ["Gmail", "Send welcome mail", "To {email}: “You're on the list”"],
+];
+
+/** Your space's workflows: each name, what starts it, its runs this month, and its last run. */
+export const workflows: readonly (readonly [
+    name: string,
+    trigger: string,
+    runs: string,
+    last: string,
+])[] = [
+    ["welcome-signup", "on signup.create", "1,840", "2 min ago"],
+    ["invite-400", "Thu 09:00", "4", "Oct 23"],
+    ["press-followup", "on mail.reply from press", "12", "Oct 21"],
+    ["friday-digest", "Fri 17:00", "3", "Oct 17"],
 ];

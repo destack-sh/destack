@@ -7,6 +7,7 @@ import { For, type JSX, onSettled } from "@destack/view";
 import { browserStyles } from "./browser";
 import { Digits } from "./digits";
 import { ItemBadge, type ItemMark } from "./item";
+import { InlinePicker, type Option, PickerName } from "./picker";
 import { chrome } from "./chrome.stylex";
 import { ledgerVariables } from "./ledger.stylex";
 import { screen } from "../../layout/screen.stylex";
@@ -73,6 +74,8 @@ export type LedgerRow = {
     cells: readonly Cell[];
     /** What sits beside the name, such as the faces in the page. */
     badge: JSX.Element;
+    /** The products the row can show instead, its own among them, or none to choose from. */
+    options: readonly Option[];
 };
 
 /** Draw a ledger: a stack of blocks, one per row, joined into one band once every row is owned. */
@@ -86,6 +89,7 @@ export function Ledger(properties: {
     isPressable: boolean;
     onPoint: (row: number | undefined) => void;
     onPress: (row: number) => void;
+    onChoose: (row: number, name: string) => void;
 }) {
     // light a block while a mouse or pen points at it, since a touch lights it by pressing
     const point = (event: PointerEvent, row: number | undefined) => {
@@ -170,16 +174,20 @@ export function Ledger(properties: {
                                     )}
                                 >
                                     <span {...style.attrs(styles.claim)}>
-                                        <Marks marks={row().marks} />
-                                        <span {...style.attrs(styles.names)}>
-                                            <span {...style.attrs(styles.label)}>
-                                                {row().label}
-                                            </span>
-                                            <span {...style.attrs(styles.nameLine)}>
-                                                <b {...style.attrs(styles.name)}>{row().name}</b>
-                                                {row().badge}
-                                            </span>
-                                        </span>
+                                        {row().options.length > 1 ? (
+                                            <InlinePicker
+                                                label={row().label}
+                                                options={row().options}
+                                                shown={row().name}
+                                                onChoose={(name) =>
+                                                    properties.onChoose(index, name)
+                                                }
+                                            >
+                                                <Claim row={row()} isPicked />
+                                            </InlinePicker>
+                                        ) : (
+                                            <Claim row={row()} isPicked={false} />
+                                        )}
                                     </span>
                                     <For each={row().cells} keyed={false}>
                                         {(cell) => <Figure cell={cell()} />}
@@ -212,6 +220,31 @@ function Figure(properties: { cell: Cell }) {
                 <Digits text={`${properties.cell.isFloor ? ">" : ""}${properties.cell.value}`} />
             </span>
         </span>
+    );
+}
+
+/** Draw a row's mark, label and name, the name as a picker's when the row offers options. */
+function Claim(properties: { row: LedgerRow; isPicked: boolean }) {
+    return (
+        <>
+            <Marks marks={properties.row.marks} />
+            <span {...style.attrs(styles.names)}>
+                <span {...style.attrs(styles.label)}>{properties.row.label}</span>
+                <span {...style.attrs(styles.nameLine)}>
+                    <b {...style.attrs(styles.name)}>
+                        {properties.isPicked ? (
+                            <PickerName
+                                options={properties.row.options}
+                                shown={properties.row.name}
+                            />
+                        ) : (
+                            properties.row.name
+                        )}
+                    </b>
+                    {properties.row.badge}
+                </span>
+            </span>
+        </>
     );
 }
 
@@ -324,6 +357,7 @@ const styles = style.create({
     },
     block: {
         alignItems: "stretch",
+        position: "relative",
         backgroundColor: ledgerVariables.fill,
         borderRadius: "4px",
         boxShadow: `inset 0 1.5px 0 ${color.background}, inset 0 -1.5px 0 ${color.background}`,

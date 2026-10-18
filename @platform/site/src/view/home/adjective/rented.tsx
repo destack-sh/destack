@@ -3,7 +3,8 @@ import { For } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
 import { Favicon, Glyph } from "../figure/glyph";
-import { github, notion } from "../verb/vendor.stylex";
+import { github } from "../tool/github.stylex";
+import { notion } from "../tool/notion.stylex";
 import { chatgpt, marks, notionTable } from "./rented.stylex";
 
 /** A page narrower than a laptop window, where each tool folds its sidebars away. */

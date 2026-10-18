@@ -100,6 +100,72 @@ const FILE_SIZE = MB;
 /** The reads each file write brings, as @platform/pricing's storage workload. */
 const FILE_READS_PER_WRITE = 10;
 
+/** Auth0 B2C Essentials' price for a monthly active user, its $35 for 500 MAU tier spread out. */
+const AUTH0_MAU = 0.07;
+
+/** Clerk Pro's price for each monthly active user past its first 10,000. */
+const CLERK_MAU = 0.02;
+
+/** The monthly active users Clerk Pro includes. */
+const CLERK_INCLUDED = 10_000;
+
+/** Neon Launch's price for a compute unit hour, 1 vCPU and 4 GB, in US dollars. */
+const NEON_COMPUTE_HOUR = 0.106;
+
+/** Neon's price for a GB of storage a month in US dollars. */
+const NEON_STORAGE = 0.35;
+
+/** Firestore's price for 100,000 document reads in US dollars. */
+const FIRESTORE_READS = 0.06;
+
+/** Firestore's price for 100,000 document writes in US dollars. */
+const FIRESTORE_WRITES = 0.18;
+
+/** Firestore's price for a GB of storage a month in US dollars. */
+const FIRESTORE_STORAGE = 0.18;
+
+/** The document reads Firestore gives free a month: 50,000 a day. */
+const FIRESTORE_FREE_READS = 1_500_000;
+
+/** The document writes Firestore gives free a month: 20,000 a day. */
+const FIRESTORE_FREE_WRITES = 600_000;
+
+/** The workflow steps Upstash gives free a month: 1,000 a day. */
+const UPSTASH_FREE_STEPS = 30_000;
+
+/** The client errors each user meets a month: about one in every four sessions. */
+const ERRORS_PER_USER = 2;
+
+/** Datadog's price for a host a month in US dollars: Infrastructure Pro and APM, annual. */
+const DATADOG_HOST = 46;
+
+/** Datadog's price for 1,000 sessions in US dollars: RUM Measure and Session Replay, annual. */
+const DATADOG_SESSIONS = 2.65;
+
+/** The credits Netlify Pro includes a month. */
+const NETLIFY_CREDITS = 3_000;
+
+/** The credits a production deploy takes on Netlify. */
+const NETLIFY_DEPLOY_CREDITS = 15;
+
+/** The deploys a person ships a month: five a workday. */
+const DEPLOYS_PER_PERSON = 110;
+
+/** The megabytes each user's page loads transfer a month: forty loads of 1 MB. */
+const TRANSFER_PER_USER = 40;
+
+/** The credits a GB of bandwidth takes on Netlify. */
+const NETLIFY_BANDWIDTH_CREDITS = 10;
+
+/** The credits 10,000 requests take on Netlify. */
+const NETLIFY_REQUEST_CREDITS = 2;
+
+/** The minutes of CI GitLab Premium includes a month. */
+const GITLAB_MINUTES = 10_000;
+
+/** The build minutes Bitbucket Standard includes a month. */
+const BITBUCKET_MINUTES = 2_500;
+
 /** A volume tier: the amount it prices up to, and its rate for each unit. */
 type Tier = readonly [upTo: number, rate: number];
 
@@ -203,6 +269,15 @@ export const prices: Readonly<Record<string, Price>> = {
     Replit: metered("Core, or Pro, annual", "$20/mo, or $100/mo for a team", ({ people }) =>
         people === 1 ? 20 : 100,
     ),
+    Lovable: metered("Pro, monthly", "$25/mo, shared by the workspace", () => 25),
+    Bolt: metered("Pro, or Teams", "$25/mo, or $30/member/mo", ({ people }) =>
+        people === 1 ? 25 : 30 * people,
+    ),
+    v0: metered(
+        "Team + Vercel Pro",
+        "$30/seat/mo + $20/seat/mo hosting",
+        ({ people }) => 50 * people,
+    ),
     Make: metered("Core, or Teams, annual", "$9/mo, or $29/mo for a team", ({ people }) =>
         people === 1 ? 9 : 29,
     ),
@@ -234,7 +309,7 @@ export const prices: Readonly<Record<string, Price>> = {
     Temporal: metered("Essentials", "from $100/mo", ({ users }) =>
         temporalAt(users * ACTIONS_PER_USER * STEPS_PER_ACTION),
     ),
-    PostHog: metered("Analytics + replay", "by use, free to 1M events", ({ users }) => {
+    PostHog: metered("Analytics + replay", "per usage, free to 1M events", ({ users }) => {
         const events = tieredAt(users * EVENTS_PER_USER, POSTHOG_EVENTS);
         const recordings = tieredAt(users * RECORDINGS_PER_USER, POSTHOG_RECORDINGS);
 
@@ -244,6 +319,61 @@ export const prices: Readonly<Record<string, Price>> = {
         "Pro + CDN",
         "$20/seat/mo + usage",
         ({ people, users }) => 20 * people + cdnAt(users * REQUESTS_PER_USER),
+    ),
+
+    // the alternatives fig. 3 turns through, priced the same way
+    Clerk: metered(
+        "Pro",
+        "$25/mo + $0.02/MAU past 10K",
+        ({ users }) => 25 + Math.max(0, users - CLERK_INCLUDED) * CLERK_MAU,
+    ),
+    Auth0: metered("B2C Essentials", "from $35/mo for 500 MAU", ({ users }) =>
+        Math.max(35, users * AUTH0_MAU),
+    ),
+    "1Password": seat(7.99, "Business, annual"),
+    Convex: metered("Professional", "$25/developer/mo + usage", ({ people }) => 25 * people),
+    Neon: metered("Launch", "$0.106/CU-hour + $0.35/GB-month", ({ users }) => neonAt(users)),
+    Firebase: metered("Blaze", "$0.06/100K reads + $0.18/100K writes", ({ users }) =>
+        firestoreAt(users),
+    ),
+    Mailgun: metered("Basic or Foundation", "from $15/mo", ({ users }) =>
+        mailgunAt(users * EMAILS_PER_USER),
+    ),
+    Upstash: metered(
+        "Workflow, pay as you go",
+        "$1/100K steps",
+        ({ users }) =>
+            Math.max(0, users * ACTIONS_PER_USER * STEPS_PER_ACTION - UPSTASH_FREE_STEPS) / 100_000,
+    ),
+    Datadog: metered(
+        "Infrastructure Pro + APM + RUM",
+        "$46/host/mo + $2.65/1K sessions",
+        ({ users }) =>
+            DATADOG_HOST * hostsAt(users) +
+            ((users * RECORDINGS_PER_USER) / 1000) * DATADOG_SESSIONS,
+    ),
+    Sentry: metered(
+        "Team, annual",
+        "$26/mo + usage",
+        ({ users }) => 26 + Math.max(0, users * ERRORS_PER_USER - 50_000) * 0.000_29,
+    ),
+    Netlify: metered("Pro + credits", "$20/mo + $10/1,500 credits", ({ people, users }) =>
+        netlifyAt(people, users),
+    ),
+    Render: metered(
+        "Professional + Standard",
+        "$19/seat/mo + $25/instance",
+        ({ people, users }) => 19 * people + 25 * hostsAt(users),
+    ),
+    GitLab: metered(
+        "Premium + compute",
+        "$29/seat/mo + minutes",
+        ({ people }) => 29 * people + minutePacksAt(ciMinutesAt(people) - GITLAB_MINUTES),
+    ),
+    Bitbucket: metered(
+        "Standard + build minutes",
+        "$3.65/seat/mo + minutes",
+        ({ people }) => 3.65 * people + minutePacksAt(ciMinutesAt(people) - BITBUCKET_MINUTES),
     ),
 };
 
@@ -382,7 +512,7 @@ const connection = personal({ hours: 0.35, requests: 131, database: 10 * MB, fil
 export const workloads: Readonly<Record<string, Workload>> = {
     // documents
     Notion: documents,
-    Docs: documents,
+    "Google Docs": documents,
     Word: documents,
     Confluence: documents,
     Obsidian: documents,
@@ -409,14 +539,14 @@ export const workloads: Readonly<Record<string, Workload>> = {
     "Proton Mail": mail,
 
     // calendar
-    Calendar: calendar,
+    "Google Calendar": calendar,
     "Outlook Calendar": calendar,
     Calendly: calendar,
     "Cal.com": calendar,
 
     // tables
     Airtable: tables,
-    Sheets: tables,
+    "Google Sheets": tables,
     Excel: tables,
     Coda: tables,
 
@@ -437,7 +567,6 @@ export const workloads: Readonly<Record<string, Workload>> = {
     Strava: connection,
     Monzo: connection,
     Goodreads: connection,
-    Fitbit: connection,
     Steam: connection,
     Letterboxd: connection,
 
@@ -457,6 +586,24 @@ export const workloads: Readonly<Record<string, Workload>> = {
 
     // a waitlist app of the team's own code, and each signup's page loads
     Replit: workloadFrom({
+        shared: { files: 150 * MB },
+        perPerson: { hours: 0.5, requests: 100 },
+        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
+        isAtLeast: true,
+    }),
+    Lovable: workloadFrom({
+        shared: { files: 150 * MB },
+        perPerson: { hours: 0.5, requests: 100 },
+        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
+        isAtLeast: true,
+    }),
+    Bolt: workloadFrom({
+        shared: { files: 150 * MB },
+        perPerson: { hours: 0.5, requests: 100 },
+        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
+        isAtLeast: true,
+    }),
+    v0: workloadFrom({
         shared: { files: 150 * MB },
         perPerson: { hours: 0.5, requests: 100 },
         perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
@@ -487,6 +634,62 @@ export const workloads: Readonly<Record<string, Workload>> = {
             requests: EVENTS_PER_USER,
         },
     }),
+    // the alternatives fig. 3 turns through, each doing the same job as its row's first
+    Clerk: workloadFrom({ perUser: { database: 0.025 * MB, requests: SIGN_IN_REQUESTS } }),
+    Auth0: workloadFrom({ perUser: { database: 0.025 * MB, requests: SIGN_IN_REQUESTS } }),
+    "1Password": workloadFrom({ shared: { database: 2 * MB } }),
+    Convex: workloadFrom({
+        perUser: { database: 0.405 * MB, files: 0.045 * MB, requests: REQUESTS_PER_USER },
+    }),
+    Neon: workloadFrom({
+        perUser: { database: 0.405 * MB, files: 0.045 * MB, requests: REQUESTS_PER_USER },
+    }),
+    Firebase: workloadFrom({
+        perUser: { database: 0.405 * MB, files: 0.045 * MB, requests: REQUESTS_PER_USER },
+    }),
+    Mailgun: workloadFrom({
+        perUser: { database: 0.05 * MB, files: 0.05 * MB, requests: EMAILS_PER_USER },
+    }),
+    Upstash: workloadFrom({
+        perUser: { database: 0.2 * MB, requests: ACTIONS_PER_USER * STEPS_PER_ACTION },
+    }),
+    Datadog: workloadFrom({
+        perUser: {
+            database: 0.9 * MB,
+            files: RECORDINGS_PER_USER * RECORDING_SIZE,
+            requests: EVENTS_PER_USER,
+        },
+    }),
+    Sentry: workloadFrom({
+        perUser: {
+            database: 0.9 * MB,
+            files: RECORDINGS_PER_USER * RECORDING_SIZE,
+            requests: EVENTS_PER_USER,
+        },
+    }),
+    Netlify: workloadFrom({
+        shared: { database: 40 * MB, files: 1.96 * GB },
+        perUser: { requests: REQUESTS_PER_USER },
+        batch: ({ people }) => ((BUILD_MINUTES * people) / 60) * CI_MEMORY,
+        isAtLeast: true,
+    }),
+    Render: workloadFrom({
+        shared: { database: 40 * MB, files: 1.96 * GB },
+        perUser: { requests: REQUESTS_PER_USER },
+        batch: ({ people }) => ((BUILD_MINUTES * people) / 60) * CI_MEMORY,
+        isAtLeast: true,
+    }),
+    GitLab: workloadFrom({
+        shared: { database: 100 * MB, files: 2.85 * GB },
+        perPerson: { hours: 2, requests: 200, database: 50 * MB },
+        batch: ({ people }) => (ciMinutesAt(people) / 60) * CI_MEMORY,
+    }),
+    Bitbucket: workloadFrom({
+        shared: { database: 100 * MB, files: 2.85 * GB },
+        perPerson: { hours: 2, requests: 200, database: 50 * MB },
+        batch: ({ people }) => (ciMinutesAt(people) / 60) * CI_MEMORY,
+    }),
+
     // hosting: the app's builds and assets, and each user's page loads
     Vercel: workloadFrom({
         shared: { database: 40 * MB, files: 1.96 * GB },
@@ -573,6 +776,59 @@ export function sumOf(tools: readonly Workload[]): Workload {
 /** Return the sum of numbers. */
 function totalOf(values: readonly number[]): number {
     return values.reduce((sum, value) => sum + value, 0);
+}
+
+/** Return the hosts an app's peak load takes, each serving 50 requests a second. */
+function hostsAt(users: number): number {
+    const peak = (users * REQUESTS_PER_USER * PEAK_FACTOR) / (HOURS_PER_MONTH * SECONDS_PER_HOUR);
+
+    return Math.max(1, Math.ceil(peak / REQUESTS_PER_SECOND));
+}
+
+/** Return what Neon Launch charges a month: a compute sized to the audience, and storage. */
+function neonAt(users: number): number {
+    const units = users <= 10_000 ? 0.25 : users <= 50_000 ? 0.5 : 1;
+    const storage = (users * workloadOf("Supabase").perUser.database) / GB;
+
+    return units * HOURS_PER_MONTH * NEON_COMPUTE_HOUR + storage * NEON_STORAGE;
+}
+
+/** Return what Firestore charges a month for reads, writes and storage past its free quota. */
+function firestoreAt(users: number): number {
+    // count the reads, writes and stored GB past what Firestore gives free
+    const requests = users * REQUESTS_PER_USER;
+    const reads = Math.max(0, requests * ROWS_READ_PER_REQUEST - FIRESTORE_FREE_READS);
+    const writes = Math.max(0, requests * ROWS_WRITTEN_PER_REQUEST - FIRESTORE_FREE_WRITES);
+    const storage = Math.max(0, (users * workloadOf("Supabase").perUser.database) / GB - 1);
+
+    // price each meter
+    return (
+        (reads / 100_000) * FIRESTORE_READS +
+        (writes / 100_000) * FIRESTORE_WRITES +
+        storage * FIRESTORE_STORAGE
+    );
+}
+
+/** Return what Mailgun charges for a month's emails: Basic, then Foundation with overage. */
+function mailgunAt(emails: number): number {
+    return emails <= 10_000 ? 15 : 35 + Math.max(0, emails - 50_000) * 0.0013;
+}
+
+/** Return what Netlify Pro charges a month: its fee, and credit packs past its 3,000 credits. */
+function netlifyAt(people: number, users: number): number {
+    // count the credits deploys, bandwidth and requests take past the plan's
+    const deploys = people * DEPLOYS_PER_PERSON * NETLIFY_DEPLOY_CREDITS;
+    const bandwidth = ((users * TRANSFER_PER_USER) / 1000) * NETLIFY_BANDWIDTH_CREDITS;
+    const requests = ((users * REQUESTS_PER_USER) / 10_000) * NETLIFY_REQUEST_CREDITS;
+    const extra = Math.max(0, deploys + bandwidth + requests - NETLIFY_CREDITS);
+
+    // buy the extra credits in packs of 1,500
+    return 20 + Math.ceil(extra / 1500) * 10;
+}
+
+/** Return what packs of 1,000 CI minutes cost past a plan's included minutes, $10 each. */
+function minutePacksAt(minutes: number): number {
+    return Math.ceil(Math.max(0, minutes) / 1000) * 10;
 }
 
 /** Return what Resend charges for a month's emails: Pro, then Scale, then overage. */

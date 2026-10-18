@@ -1,18 +1,12 @@
 import { Icon } from "@destack/icon";
-import arrowSquareOut from "@destack/icon/phosphor/arrow-square-out";
 import at from "@destack/icon/phosphor/at";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import circle from "@destack/icon/phosphor/circle";
 import circleDashed from "@destack/icon/phosphor/circle-dashed";
 import circleHalf from "@destack/icon/phosphor/circle-half";
-import desktop from "@destack/icon/phosphor/desktop";
-import deviceMobile from "@destack/icon/phosphor/device-mobile";
 import dotsThree from "@destack/icon/phosphor/dots-three";
 import fileText from "@destack/icon/phosphor/file-text";
-import folder from "@destack/icon/phosphor/folder";
 import funnel from "@destack/icon/phosphor/funnel";
-import gitBranch from "@destack/icon/phosphor/git-branch";
-import gitPullRequest from "@destack/icon/phosphor/git-pull-request";
 import kanban from "@destack/icon/phosphor/kanban";
 import listBullets from "@destack/icon/phosphor/list-bullets";
 import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
@@ -23,16 +17,7 @@ import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { AvatarGroup } from "@destack/ui/avatar";
-import { Button } from "@destack/ui/button";
 import { Checkbox } from "@destack/ui/checkbox";
-import {
-    Item,
-    ItemActions,
-    ItemContent,
-    ItemDescription,
-    ItemMedia,
-    ItemTitle,
-} from "@destack/ui/item";
 import { Progress } from "@destack/ui/progress";
 import { Separator } from "@destack/ui/separator";
 import { Spinner } from "@destack/ui/spinner";
@@ -42,7 +27,18 @@ import type { JSX } from "@destack/view";
 import { palette } from "../../palette.stylex";
 import { AppHeader, appStyles, appText } from "../figure/app";
 import { AgentAvatar } from "../figure/agent";
-import { coverOf, messages, posts, signups, sources, type TaskState, tasks, week } from "./corner";
+import {
+    board,
+    messages,
+    press,
+    type PressState,
+    signups,
+    type TaskState,
+    tasks,
+    week,
+    workflows,
+} from "./corner";
+import type { Job } from "./space";
 import { ServiceGlyph } from "../figure/tile";
 import type { Source } from "./source";
 import { Favicon } from "../figure/glyph";
@@ -55,6 +51,12 @@ const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
 
 /** The weekdays your week shows, with their dates. */
 const DAYS = ["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24"];
+
+/** The workflow your agent adds in fig. 5, lit once it lands. */
+const ASKED_WORKFLOW = "asked-to-board";
+
+/** How far your agent has got in fig. 5: not yet, its board built, or its workflow added. */
+export type Change = "start" | "boarded" | "automated";
 
 /** The task states in the order the list groups them, with their names and marks. */
 const STATES: readonly (readonly [state: TaskState, name: string])[] = [
@@ -72,6 +74,8 @@ const taskLinks: Readonly<Record<string, readonly [icon: string, text: string]>>
     "DST-13": ["sync", "Runs Fri 09:00"],
     "DST-15": ["pages", "Launch post"],
     "DST-17": ["table", "1,840 waiting"],
+    "DST-18": ["sync", "Zapier · owner unknown"],
+    "DST-19": ["table", "9 subscriptions"],
 };
 
 /** The messages each signup wrote in Chat, by address. */
@@ -87,63 +91,71 @@ const signupInvites: Readonly<Record<string, string>> = {
     "ines@orbitlabs.eu": "Sent",
 };
 
-/** Draw a section of your own space by its ledger row, changed by a call when one lands on it. */
+/** Draw a section of your space by its row's job, changed by a call when one lands on it. */
 export function sectionOf(
-    row: number,
-    isChanged: boolean,
+    job: Job,
+    change: Change,
     source: Source,
     isRemixed: boolean,
 ): JSX.Element {
-    if (row === 1) {
-        return <Launch isChanged={isChanged} isRemixed={isRemixed} />;
-    } else if (row === 2) {
-        return <Tasks isChanged={isChanged} isRemixed={isRemixed} />;
-    } else if (row === 3) {
-        return <Chat isRemixed={isRemixed} />;
-    } else if (row === 4) {
-        return <Code isRemixed={isRemixed} />;
-    } else if (row === 5) {
-        return <Website isRemixed={isRemixed} />;
-    } else if (row === 6) {
+    if (job === "documents") {
+        return <Launch isRemixed={isRemixed} />;
+    } else if (job === "tables") {
+        return <Press isRemixed={isRemixed} />;
+    } else if (job === "tasks") {
+        return <Tasks isRemixed={isRemixed} />;
+    } else if (job === "calendar") {
         return <Week isRemixed={isRemixed} />;
-    } else if (row === 7) {
-        return <Mail isChanged={isChanged} isRemixed={isRemixed} />;
-    } else if (row === 8) {
-        return <Signups isChanged={isChanged} isRemixed={isRemixed} />;
+    } else if (job === "chat") {
+        return <Chat isRemixed={isRemixed} />;
+    } else if (job === "mail") {
+        return <Mail isRemixed={isRemixed} />;
+    } else if (job === "canvas") {
+        return <Plan isRemixed={isRemixed} />;
+    } else if (job === "workflows") {
+        return <Flows change={change} isRemixed={isRemixed} />;
+    } else if (job === "builder") {
+        return <Signups change={change} isRemixed={isRemixed} />;
     }
 
     return <Connection source={source} isRemixed={isRemixed} />;
 }
 
+/** Your workflows once your agent adds the one that puts new askers on the board. */
+const askedWorkflows = [
+    [ASKED_WORKFLOW, "on message.create in #launch", "0", "just now"] as const,
+    ...workflows,
+];
+
 /** A change your agent makes to an app of yours: what you ask for, and what it did. */
 type Remix = { ask: string; done: string };
 
-/** Return the change your agent makes to the app on a row, or none for an app without one. */
-export function remixOf(row: number, source: Source): Remix | undefined {
-    if (row === 1) {
+/** Return the change your agent makes to the app that does a job. */
+export function remixOf(job: Job, source: Source): Remix {
+    if (job === "documents") {
         return { ask: "Count down to the launch", done: "Added a countdown to the launch page" };
-    } else if (row === 2) {
+    } else if (job === "tables") {
+        return { ask: "Flag press to follow up after 3 days", done: "Added Follow up to Press" };
+    } else if (job === "tasks") {
         return { ask: "Add a priority to every task", done: "Added Priority to Tasks" };
-    } else if (row === 3) {
-        return { ask: "Pin the launch checklist in #launch", done: "Pinned the checklist" };
-    } else if (row === 4) {
-        return { ask: "Deploy every merge to main", done: "Added deploys on merge" };
-    } else if (row === 5) {
-        return { ask: "Add a newsletter signup to my site", done: "Added a signup form" };
-    } else if (row === 6) {
+    } else if (job === "calendar") {
         return { ask: "Keep my mornings free for focus", done: "Blocked 9–11 every weekday" };
-    } else if (row === 7) {
+    } else if (job === "chat") {
+        return { ask: "Pin the launch checklist in #launch", done: "Pinned the checklist" };
+    } else if (job === "mail") {
         return {
             ask: "Add a P.S. with each person's referral link",
             done: "Added a referral P.S.",
         };
-    } else if (row === 8) {
+    } else if (job === "canvas") {
+        return { ask: "Draw how the tasks depend on each other", done: "Drew task arrows" };
+    } else if (job === "workflows") {
+        return { ask: "Tell me in Chat when a run fails", done: "Added failure alerts" };
+    } else if (job === "builder") {
         return { ask: "Show who referred each signup", done: "Added Referred by to Signups" };
-    } else if (row === 9) {
-        return { ask: `Chart my ${source.data} by week`, done: `Charted ${source.table} by week` };
     }
 
-    return undefined;
+    return { ask: `Chart my ${source.data} by week`, done: `Charted ${source.table} by week` };
 }
 
 /** The priority your agent gives each task once you ask it to add one. */
@@ -302,7 +314,11 @@ function StateMark(properties: { state: TaskState }) {
 }
 
 /** Draw the launch plan: a page you and your agent edit, made of your other apps' parts. */
-function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
+function Launch(properties: { isRemixed: boolean }) {
+    // count the launch tasks done
+    const launchTasks = tasks.slice(0, 4);
+    const done = launchTasks.filter(([, , state]) => state === "done").length;
+
     return (
         <Paned>
             <Toolbar
@@ -311,9 +327,7 @@ function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
                     <>
                         <Present />
                         <span {...style.attrs(appStyles.action, styles.wide)}>
-                            {properties.isChanged
-                                ? "Agent via HTTP · 09:13"
-                                : "Agent edited just now"}
+                            Agent edited just now
                         </span>
                         <span {...style.attrs(appStyles.primary)}>Share</span>
                     </>
@@ -332,7 +346,7 @@ function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
                     <span
                         data-xray="Jobs"
                         data-source="Calendar event"
-                        {...style.attrs(appStyles.property, properties.isChanged && styles.changed)}
+                        {...style.attrs(appStyles.property)}
                     >
                         Demo · Wed 11:00
                     </span>
@@ -355,10 +369,14 @@ function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
                     >
                         <span {...style.attrs(appText.meta, styles.embedHead)}>
                             <b>Launch tasks</b>
-                            <span {...style.attrs(styles.quiet)}>1 of 4 done</span>
-                            <Progress value={25} aria-label="Tasks done" xstyle={styles.progress} />
+                            <span {...style.attrs(styles.quiet)}>{done} of 4 done</span>
+                            <Progress
+                                value={done * 25}
+                                aria-label="Tasks done"
+                                xstyle={styles.progress}
+                            />
                         </span>
-                        {tasks.slice(0, 4).map(([id, title, state, owner, tint, due]) => (
+                        {launchTasks.map(([id, title, state, owner, tint, due]) => (
                             <span {...style.attrs(appText.body, styles.embedRow)}>
                                 <StateMark state={state} />
                                 <span
@@ -391,7 +409,7 @@ function Launch(properties: { isChanged: boolean; isRemixed: boolean }) {
                             <span {...style.attrs(appText.meta, styles.quiet)}>09:13</span>
                         </span>
                         <span {...style.attrs(appText.meta)}>
-                            Moved the demo to Wednesday so it lands before Thursday's invites.
+                            Ines booked the demo for Wednesday, so I linked it here and in DST-14.
                         </span>
                         <span {...style.attrs(appText.meta, styles.quiet)}>Reply</span>
                     </aside>
@@ -461,7 +479,7 @@ function isCommented(item: string): boolean {
 }
 
 /** Draw the launch tasks: your list grouped by state, your agent working through its share. */
-function Tasks(properties: { isChanged: boolean; isRemixed: boolean }) {
+function Tasks(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -503,26 +521,16 @@ function Tasks(properties: { isChanged: boolean; isRemixed: boolean }) {
                         {tasks
                             .filter((task) => task[2] === state)
                             .map(([id, title, , owner, tint, due]) => {
-                                // close the waitlist email once the agent's call lands
-                                const isClosed = properties.isChanged && id === "DST-16";
-                                const shown = isClosed ? "done" : state;
-
                                 return (
-                                    <div
-                                        {...style.attrs(
-                                            appText.body,
-                                            styles.taskRow,
-                                            isClosed && styles.changed,
-                                        )}
-                                    >
+                                    <div {...style.attrs(appText.body, styles.taskRow)}>
                                         <span {...style.attrs(styles.quiet, styles.taskId)}>
                                             {id}
                                         </span>
-                                        <StateMark state={shown} />
+                                        <StateMark state={state} />
                                         <span
                                             {...style.attrs(
                                                 styles.taskTitle,
-                                                shown === "done" && styles.struck,
+                                                state === "done" && styles.struck,
                                             )}
                                         >
                                             {properties.isRemixed ? (
@@ -654,75 +662,82 @@ function Chat(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Draw the code behind your apps. */
-function Code(properties: { isRemixed: boolean }) {
+/** Draw the press list as a table, its mail and calls read live from Mail and Calendar. */
+function Press(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="destack"
+                title="Press"
                 actions={
                     <>
-                        <span {...style.attrs(appStyles.action)}>Preview branch</span>
-                        <span {...style.attrs(appStyles.primary)}>Code ▾</span>
+                        <span {...style.attrs(appStyles.action)}>Grid</span>
+                        <span {...style.attrs(appStyles.primary)}>New row</span>
                     </>
                 }
             >
-                <span {...style.attrs(appStyles.property)}>
-                    <Icon icon={gitBranch} />
-                    main
+                <span data-xray="Database" {...style.attrs(appStyles.property)}>
+                    <Icon icon={magnifyingGlass} />
+                    Search 5 contacts
                 </span>
-                <span {...style.attrs(appStyles.property)}>2 branches</span>
-                <span {...style.attrs(appStyles.property)}>48 commits</span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        Deploys on merge
+                        Follow up after 3 days
                     </span>
                 ) : undefined}
             </Toolbar>
-            <Item data-xray="Jobs" variant="outline" size="sm" xstyle={styles.pull}>
-                <ItemMedia xstyle={styles.green}>
-                    <Icon icon={gitPullRequest} weight="bold" />
-                </ItemMedia>
-                <ItemContent>
-                    <ItemTitle xstyle={appText.body}>Show a friend's free slots #12</ItemTitle>
-                    <ItemDescription xstyle={appText.meta}>
-                        Agent wants to merge friend-free-slots into main · checks passed
-                    </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                    <Button size="sm" variant="outline">
-                        Review
-                    </Button>
-                </ItemActions>
-            </Item>
-            <Table data-xray="Code">
+            <Table data-xray="Database">
                 <TableHeader>
                     <TableRow>
-                        <TableHead colspan={3}>
-                            <span {...style.attrs(appText.body, styles.inline)}>
-                                <Face owner="F" />
-                                <b>Florian</b>
-                                <span>Mail the first batch on Thursday</span>
-                                <span {...style.attrs(styles.quiet, styles.code)}>a41f2c9</span>
-                                <span {...style.attrs(appStyles.property)}>
-                                    <Icon icon={checkCircle} weight="fill" />
-                                    passed
-                                </span>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Outlet</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>
+                            <span {...style.attrs(styles.joined)}>
+                                <ServiceGlyph icon="mail" />
+                                Last mail
                             </span>
+                        </TableHead>
+                        <TableHead xstyle={properties.isRemixed && styles.changed}>
+                            {properties.isRemixed ? (
+                                "Follow up"
+                            ) : (
+                                <span {...style.attrs(styles.joined)}>
+                                    <ServiceGlyph icon="calendar" />
+                                    Call
+                                </span>
+                            )}
                         </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {sources.map(([name, change, when]) => (
+                    {press.map(([name, outlet, state, last, tint]) => (
                         <TableRow>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(styles.inline)}>
-                                    <Icon icon={name.includes(".") ? fileText : folder} />
+                                    <Face owner={name.slice(0, 1)} tint={tint} />
                                     {name}
                                 </span>
                             </TableCell>
-                            <TableCell xstyle={[appText.body, styles.quiet]}>{change}</TableCell>
-                            <TableCell xstyle={[appText.body, styles.quiet]}>{when}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{outlet}</TableCell>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(appStyles.property)}>
+                                    <span
+                                        {...style.attrs(
+                                            styles.dot,
+                                            state === "scheduled"
+                                                ? styles.live
+                                                : state === "replied"
+                                                  ? styles.amber
+                                                  : styles.idle,
+                                        )}
+                                    />
+                                    {pressStates[state]}
+                                </span>
+                            </TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>
+                                {callOf(state, properties.isRemixed)}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -731,66 +746,134 @@ function Code(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Draw your website. */
-function Website(properties: { isRemixed: boolean }) {
+/** Return a press row's last column: its follow-up once remixed, or else its call's time. */
+function callOf(state: PressState, isRemixed: boolean): string {
+    // follow up on the pitched once remixed
+    if (isRemixed) {
+        return state === "pitched" ? "Due tomorrow" : "–";
+    }
+
+    // read the call from the demo booking
+    return state === "scheduled" ? "Wed 11:00" : "–";
+}
+
+/** The name each press state shows. */
+const pressStates: Readonly<Record<PressState, string>> = {
+    pitched: "Pitched",
+    replied: "Replied",
+    scheduled: "Call booked",
+};
+
+/** Draw the launch plan as a board of notes, each task's note live from Tasks. */
+function Plan(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Notes"
+                title="Launch plan"
                 actions={
                     <>
-                        <span {...style.attrs(appStyles.action)}>Published 2 h ago</span>
-                        <span {...style.attrs(appStyles.primary)}>Publish</span>
+                        <Present />
+                        <span {...style.attrs(appStyles.primary)}>Share</span>
                     </>
                 }
             >
-                <span {...style.attrs(appStyles.property, styles.on)}>
-                    <Icon icon={desktop} />
-                    Desktop
-                </span>
-                <span {...style.attrs(appStyles.property)}>
-                    <Icon icon={deviceMobile} />
-                    Mobile
-                </span>
-                <span {...style.attrs(appStyles.property)}>
-                    <span {...style.attrs(styles.dot, styles.live)} />
-                    florian.dev
-                    <Icon icon={arrowSquareOut} />
-                </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        Newsletter signup
+                        Tasks drawn as arrows
                     </span>
                 ) : undefined}
             </Toolbar>
-            <div {...style.attrs(styles.preview)}>
-                <div {...style.attrs(appText.body, styles.siteBar)}>
-                    <b>florian</b>
-                    <span {...style.attrs(styles.siteNav)}>
-                        <span>Notes</span>
-                        <span>About</span>
-                        <span>Waitlist</span>
-                    </span>
-                </div>
-                <h3 {...style.attrs(appText.heading, styles.title)}>Notes</h3>
-                <p {...style.attrs(appText.body, styles.quiet)}>
-                    On building Destack: the product, the pricing and the tools I run it on.
-                </p>
-                <ol data-xray="Database" {...style.attrs(styles.postGrid)}>
-                    {posts.map(([title, topic, date, from, to], index) => (
-                        <li {...style.attrs(styles.post)}>
-                            <span
-                                style={{ background: coverOf(index, from, to) }}
-                                {...style.attrs(styles.cover)}
-                            />
-                            <span {...style.attrs(appText.meta, styles.quiet)}>
-                                {topic} · {date}
-                            </span>
-                            <b {...style.attrs(appText.body)}>{title}</b>
-                        </li>
-                    ))}
-                </ol>
+            <div data-xray="Database" {...style.attrs(styles.board)}>
+                {board.map(([column, notes]) => (
+                    <div {...style.attrs(styles.boardColumn)}>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>{column}</span>
+                        {notes.map((note) => {
+                            const task = tasks.find(([id]) => id === note);
+
+                            return task === undefined ? (
+                                <span {...style.attrs(appText.body, styles.sticky)}>{note}</span>
+                            ) : (
+                                <span
+                                    {...style.attrs(appText.body, styles.sticky, styles.stickyTask)}
+                                >
+                                    <span {...style.attrs(styles.inline)}>
+                                        <StateMark state={task[2]} />
+                                        <b {...style.attrs(appText.meta)}>{task[0]}</b>
+                                    </span>
+                                    {task[1]}
+                                    <span {...style.attrs(appText.meta, styles.quiet)}>
+                                        Tasks · due {task[5]}
+                                    </span>
+                                </span>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
+        </Paned>
+    );
+}
+
+/** Draw the workflows of your space and their runs, a new one first once your agent adds it. */
+function Flows(properties: { change: Change; isRemixed: boolean }) {
+    // list your agent's workflow first once it adds it
+    const isAutomated = () => properties.change === "automated";
+
+    return (
+        <Paned>
+            <Toolbar
+                title="Workflows"
+                actions={
+                    <>
+                        <span {...style.attrs(appStyles.action)}>Runs</span>
+                        <span {...style.attrs(appStyles.primary)}>New workflow</span>
+                    </>
+                }
+            >
+                <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
+                    {isAutomated() ? "5 workflows" : "4 workflows"}
+                </span>
+                {properties.isRemixed ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        Alert me in Chat when a run fails
+                    </span>
+                ) : undefined}
+            </Toolbar>
+            <Table data-xray="Jobs">
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Workflow</TableHead>
+                        <TableHead>Starts</TableHead>
+                        <TableHead>Runs</TableHead>
+                        <TableHead>Last run</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {(isAutomated() ? askedWorkflows : workflows).map(
+                        ([name, trigger, runs, last]) => (
+                            <TableRow
+                                xstyle={isAutomated() && name === ASKED_WORKFLOW && styles.changed}
+                            >
+                                <TableCell xstyle={appText.body}>
+                                    <span {...style.attrs(styles.inline)}>
+                                        <ServiceGlyph icon="sync" />
+                                        <b {...style.attrs(styles.code)}>{name}</b>
+                                    </span>
+                                </TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet, styles.code]}>
+                                    {trigger}
+                                </TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet]}>{runs}</TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
+                            </TableRow>
+                        ),
+                    )}
+                </TableBody>
+            </Table>
+            <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
+                <Icon icon={dotsThree} />
+                Each step recorded once, retried on failure
+            </span>
         </Paned>
     );
 }
@@ -898,7 +981,7 @@ function rowOf(hour: number): number {
 }
 
 /** Draw the launch mail. */
-function Mail(properties: { isChanged: boolean; isRemixed: boolean }) {
+function Mail(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -928,20 +1011,16 @@ function Mail(properties: { isChanged: boolean; isRemixed: boolean }) {
                     </span>
                 ) : undefined}
             </Toolbar>
-            {/* the agent's send, held for your approval */}
-            <div {...style.attrs(styles.approval, properties.isChanged && styles.approved)}>
+            {/* the agent's send, held for your approval until it goes */}
+            <div {...style.attrs(styles.approval)}>
                 <Face owner="A" />
                 <span {...style.attrs(appText.meta)}>
-                    {properties.isChanged
-                        ? "Approved by Florian · sending to 1,840 people"
-                        : "Claude wants to send this to 1,840 people"}
+                    Claude wants to send this to 1,840 people
                 </span>
-                {properties.isChanged ? undefined : (
-                    <span {...style.attrs(styles.approvalButtons)}>
-                        <span {...style.attrs(appStyles.action)}>Decline</span>
-                        <span {...style.attrs(appStyles.primary)}>Approve</span>
-                    </span>
-                )}
+                <span {...style.attrs(styles.approvalButtons)}>
+                    <span {...style.attrs(appStyles.action)}>Decline</span>
+                    <span {...style.attrs(appStyles.primary)}>Approve</span>
+                </span>
             </div>
             <article {...style.attrs(styles.document)}>
                 <p {...style.attrs(appText.body)}>Hi Maya,</p>
@@ -986,7 +1065,10 @@ function Mail(properties: { isChanged: boolean; isRemixed: boolean }) {
 }
 
 /** Draw your waitlist's signups. */
-function Signups(properties: { isChanged: boolean; isRemixed: boolean }) {
+function Signups(properties: { change: Change; isRemixed: boolean }) {
+    // show your agent's board as a view of the signups once it builds it
+    const isBoarded = () => properties.change !== "start";
+
     return (
         <Paned>
             <Toolbar
@@ -1008,9 +1090,12 @@ function Signups(properties: { isChanged: boolean; isRemixed: boolean }) {
                     <Icon icon={funnel} />
                     Waiting
                 </span>
-                <span {...style.attrs(appStyles.property, properties.isChanged && styles.on)}>
-                    {properties.isChanged ? "Asked about pricing · didn't open" : "Source: any"}
-                </span>
+                <span {...style.attrs(appStyles.property)}>Source: any</span>
+                {isBoarded() ? (
+                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
+                        Launch askers · 9 · shared with Jonas
+                    </span>
+                ) : undefined}
             </Toolbar>
             <Table data-xray="Database">
                 <TableHeader>
@@ -1040,54 +1125,41 @@ function Signups(properties: { isChanged: boolean; isRemixed: boolean }) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {signups
-                        .filter(([, , , state]) => !properties.isChanged || state === "waiting")
-                        .map(([email, source, , state], index) => (
-                            <TableRow xstyle={properties.isChanged && styles.changed}>
-                                <TableCell xstyle={styles.select}>
-                                    <Checkbox checked={index < 4} aria-label={email} />
-                                </TableCell>
-                                <TableCell xstyle={appText.body}>{email}</TableCell>
-                                <TableCell xstyle={appText.body}>
-                                    <span {...style.attrs(appStyles.property)}>{source}</span>
-                                </TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet]}>
-                                    {properties.isRemixed
-                                        ? (referrals[email] ?? "–")
-                                        : properties.isChanged
-                                          ? "#launch · pricing"
-                                          : (signupMessages[email] ?? "–")}
-                                </TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet]}>
-                                    {properties.isChanged
-                                        ? "Sent"
-                                        : (signupInvites[email] ??
-                                          (index < 4 ? "Batch 1" : "Next batch"))}
-                                </TableCell>
-                                <TableCell xstyle={appText.body}>
-                                    <span {...style.attrs(appStyles.property)}>
-                                        <span
-                                            {...style.attrs(
-                                                styles.dot,
-                                                state === "invited" || properties.isChanged
-                                                    ? styles.live
-                                                    : styles.amber,
-                                            )}
-                                        />
-                                        {state === "invited" || properties.isChanged
-                                            ? "Invited"
-                                            : "Waiting"}
-                                    </span>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                    {signups.map(([email, source, , state], index) => (
+                        <TableRow>
+                            <TableCell xstyle={styles.select}>
+                                <Checkbox checked={index < 4} aria-label={email} />
+                            </TableCell>
+                            <TableCell xstyle={appText.body}>{email}</TableCell>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(appStyles.property)}>{source}</span>
+                            </TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>
+                                {properties.isRemixed
+                                    ? (referrals[email] ?? "–")
+                                    : (signupMessages[email] ?? "–")}
+                            </TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>
+                                {signupInvites[email] ?? (index < 4 ? "Batch 1" : "Next batch")}
+                            </TableCell>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(appStyles.property)}>
+                                    <span
+                                        {...style.attrs(
+                                            styles.dot,
+                                            state === "invited" ? styles.live : styles.amber,
+                                        )}
+                                    />
+                                    {state === "invited" ? "Invited" : "Waiting"}
+                                </span>
+                            </TableCell>
+                        </TableRow>
+                    ))}
                 </TableBody>
             </Table>
             <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
                 <Icon icon={dotsThree} />
-                {properties.isChanged
-                    ? "7 of 1,840 · asked about pricing in #launch and didn't open the last mail"
-                    : "1,833 more · filled by your public waitlist form"}
+                1,833 more · filled by your public waitlist form
             </span>
         </Paned>
     );
@@ -1118,10 +1190,6 @@ const styles = style.create({
         display: "inline-flex",
         gap: space[2],
     },
-    title: {
-        color: color.foreground,
-        margin: 0,
-    },
     document: {
         display: "grid",
         gap: space[3],
@@ -1140,14 +1208,8 @@ const styles = style.create({
     amber: {
         backgroundColor: palette.amber,
     },
-    signal: {
-        backgroundColor: palette.signal,
-    },
     live: {
         backgroundColor: palette.green,
-    },
-    green: {
-        color: palette.green,
     },
     embed: {
         borderColor: color.border,
@@ -1331,6 +1393,36 @@ const styles = style.create({
         borderRadius: "3px",
         flexGrow: 1,
     },
+    idle: {
+        backgroundColor: color.mutedForeground,
+    },
+    board: {
+        display: "grid",
+        gap: space[3],
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        minHeight: 0,
+        overflow: "hidden",
+    },
+    boardColumn: {
+        alignContent: "start",
+        display: "grid",
+        gap: space[2],
+    },
+    sticky: {
+        backgroundColor: `color-mix(in srgb, ${palette.amber} 22%, ${color.background})`,
+        borderRadius: radius["2"],
+        boxShadow: `0 1px 2px color-mix(in srgb, ${color.foreground} 12%, transparent)`,
+        display: "grid",
+        gap: space[1],
+        paddingBlock: space[2],
+        paddingInline: space[3],
+    },
+    stickyTask: {
+        backgroundColor: color.background,
+        borderColor: color.border,
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+    },
     changed: {
         backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
         transitionDuration: "400ms",
@@ -1344,9 +1436,6 @@ const styles = style.create({
         gap: space[2],
         paddingBlock: space[2],
         paddingInline: space[3],
-    },
-    approved: {
-        backgroundColor: `color-mix(in srgb, ${palette.green} 14%, transparent)`,
     },
     approvalButtons: {
         display: "flex",
@@ -1464,47 +1553,6 @@ const styles = style.create({
     replies: {
         color: color.primary,
         fontWeight: weight.semibold,
-    },
-    pull: {
-        borderColor: `color-mix(in srgb, ${palette.green} 40%, ${color.border})`,
-    },
-    preview: {
-        backgroundColor: color.background,
-        borderColor: color.border,
-        borderRadius: radius[3],
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        display: "grid",
-        gap: space[2],
-        padding: space[5],
-    },
-    siteBar: {
-        alignItems: "center",
-        display: "flex",
-        justifyContent: "space-between",
-        paddingBlockEnd: space[3],
-    },
-    siteNav: {
-        color: color.mutedForeground,
-        display: "flex",
-        gap: space[4],
-    },
-    postGrid: {
-        display: "grid",
-        gap: space[4],
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-    },
-    post: {
-        display: "grid",
-        gap: space[1],
-    },
-    cover: {
-        aspectRatio: "4 / 3",
-        borderRadius: radius[2],
-        display: "block",
     },
     week: {
         borderColor: color.border,

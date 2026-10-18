@@ -1,16 +1,79 @@
-import { priceOf } from "../figure/price";
-import type { Item } from "../figure/item";
+import { present } from "@destack/schema";
 
-/** The eight services a docs app runs on, numbered as the ledger rows. */
-export const services: readonly { stacked: Item; destacked: Item }[] = [
+import { priceOf } from "../figure/price";
+import type { Entry, Item } from "../figure/item";
+import type { OptionMark } from "../figure/picker";
+
+/** What an app rents a service for. */
+export type ServiceCategory =
+    | "identity"
+    | "secrets"
+    | "database"
+    | "messaging"
+    | "jobs"
+    | "analytics"
+    | "hosting"
+    | "code";
+
+/** A service an app rents: its name, which is also its plan's, what it is for, and its mark. */
+export type Service = { name: string; category: ServiceCategory; mark: OptionMark };
+
+/** Every service fig. 3 rents, grouped by category, the most common one first. */
+export const vendors: readonly Service[] = [
+    // identity
+    { name: "WorkOS", category: "identity", mark: { logo: "workos.png" } },
+    { name: "Clerk", category: "identity", mark: { icon: "clerk", tint: "#6c47ff" } },
+    { name: "Auth0", category: "identity", mark: { icon: "auth0", tint: "#eb5424" } },
+
+    // secrets
+    { name: "Doppler", category: "secrets", mark: { logo: "doppler.png" } },
+    { name: "1Password", category: "secrets", mark: { icon: "1password", tint: "#0094f5" } },
+
+    // database
+    { name: "Supabase", category: "database", mark: { logo: "supabase.svg" } },
+    { name: "Convex", category: "database", mark: { icon: "convex", tint: "#ee342f" } },
+    { name: "Neon", category: "database", mark: { icon: "neon", tint: "#00a87e" } },
+    { name: "Firebase", category: "database", mark: { icon: "firebase", tint: "#dd2c00" } },
+
+    // messaging
+    { name: "Resend", category: "messaging", mark: { logo: "resend.svg" } },
+    { name: "Mailgun", category: "messaging", mark: { icon: "mailgun", tint: "#f06b66" } },
+
+    // jobs
+    { name: "Temporal", category: "jobs", mark: { logo: "temporal.png" } },
+    { name: "Upstash", category: "jobs", mark: { icon: "upstash", tint: "#00c98d" } },
+
+    // analytics
+    { name: "PostHog", category: "analytics", mark: { logo: "posthog.svg" } },
+    { name: "Datadog", category: "analytics", mark: { icon: "datadog", tint: "#632ca6" } },
+    { name: "Sentry", category: "analytics", mark: { icon: "sentry", tint: "#362d59" } },
+
+    // hosting
+    { name: "Vercel", category: "hosting", mark: { logo: "vercel.png" } },
+    { name: "Netlify", category: "hosting", mark: { icon: "netlify", tint: "#00ad9f" } },
+    { name: "Render", category: "hosting", mark: { icon: "render", tint: "#000000" } },
+
+    // code
+    { name: "GitHub", category: "code", mark: { logo: "github.png" } },
+    { name: "GitLab", category: "code", mark: { icon: "gitlab", tint: "#fc6d26" } },
+    { name: "Bitbucket", category: "code", mark: { icon: "bitbucket", tint: "#0052cc" } },
+];
+
+/** One row of fig. 3: what the app rents, what renting means, and the engine's part for it. */
+type Slot = {
+    /** What the app rents a service for. */
+    category: ServiceCategory;
+    /** What renting it means for the app, shown as its title. */
+    note: string;
+    /** The engine's part that does the job. */
+    destacked: Item;
+};
+
+/** The eight rows a docs app runs on, numbered as the ledger rows. */
+const slots: readonly Slot[] = [
     {
-        stacked: {
-            label: "Identity",
-            mark: { logo: "workos.png" },
-            name: "WorkOS",
-            note: "sign-in and roles in a vendor of their own",
-            price: priceOf("WorkOS"),
-        },
+        category: "identity",
+        note: "sign-in and roles in a vendor of their own",
         destacked: {
             label: "Identity",
             mark: { app: "accounts" },
@@ -20,13 +83,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Secrets",
-            mark: { logo: "doppler.png" },
-            name: "Doppler",
-            note: "keys pasted into every service",
-            price: priceOf("Doppler"),
-        },
+        category: "secrets",
+        note: "keys pasted into every service",
         destacked: {
             label: "Secrets",
             mark: { app: "vault" },
@@ -36,13 +94,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Database",
-            mark: { logo: "supabase.svg" },
-            name: "Supabase",
-            note: "a second backend to keep in step",
-            price: priceOf("Supabase"),
-        },
+        category: "database",
+        note: "a second backend to keep in step",
         destacked: {
             label: "Database",
             mark: { app: "storage" },
@@ -52,13 +105,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Messaging",
-            mark: { logo: "resend.svg" },
-            name: "Resend",
-            note: "an extra SDK just for email",
-            price: priceOf("Resend"),
-        },
+        category: "messaging",
+        note: "an extra SDK just for email",
         destacked: {
             label: "Messaging",
             mark: { app: "notify" },
@@ -68,13 +116,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Jobs",
-            mark: { logo: "temporal.png" },
-            name: "Temporal",
-            note: "a worker fleet beside the app",
-            price: priceOf("Temporal"),
-        },
+        category: "jobs",
+        note: "a worker fleet beside the app",
         destacked: {
             label: "Jobs",
             mark: { app: "sync" },
@@ -84,13 +127,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Analytics",
-            mark: { logo: "posthog.svg" },
-            name: "PostHog",
-            note: "events sent to their cloud",
-            price: priceOf("PostHog"),
-        },
+        category: "analytics",
+        note: "events sent to their cloud",
         destacked: {
             label: "Analytics",
             mark: { app: "telemetry" },
@@ -100,13 +138,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Hosting",
-            mark: { logo: "vercel.png" },
-            name: "Vercel",
-            note: "runs only in their cloud",
-            price: priceOf("Vercel"),
-        },
+        category: "hosting",
+        note: "runs only in their cloud",
         destacked: {
             label: "Hosting",
             mark: { app: "hosts" },
@@ -116,13 +149,8 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
     {
-        stacked: {
-            label: "Code",
-            mark: { logo: "github.png" },
-            name: "GitHub",
-            note: "a pipeline of its own",
-            price: priceOf("GitHub"),
-        },
+        category: "code",
+        note: "a pipeline of its own",
         destacked: {
             label: "Code",
             mark: { app: "source" },
@@ -132,3 +160,61 @@ export const services: readonly { stacked: Item; destacked: Item }[] = [
         },
     },
 ];
+
+/** The rows of fig. 3, as many as the services the app rents. */
+export const serviceCount = slots.length;
+
+/** The label of each row, as the x-ray tags the parts. */
+export const serviceLabels: readonly string[] = slots.map((slot) => slot.destacked.label);
+
+/** The engine's part on each row. */
+export const serviceParts: readonly Item[] = slots.map((slot) => slot.destacked);
+
+/** The service each category rents. */
+export type ServiceLineup = (category: ServiceCategory) => Service;
+
+/** Return the services of a category, the most common one first. */
+export function vendorsOf(category: ServiceCategory): readonly Service[] {
+    return vendors.filter((vendor) => vendor.category === category);
+}
+
+/** Return a service by its name. */
+export function vendorOf(name: string): Service {
+    return present(
+        vendors.find((vendor) => vendor.name === name),
+        `service ${name}`,
+    );
+}
+
+/** Return the index of the row that rents for a category. */
+export function serviceIndexOf(category: ServiceCategory): number {
+    return slots.findIndex((slot) => slot.category === category);
+}
+
+/** Return the category the row at an index rents for. */
+export function categoryOf(index: number): ServiceCategory {
+    return present(slots[index], "service row").category;
+}
+
+/** Return the service each row rents in the lineup. */
+export function rentedWith(lineup: ServiceLineup): readonly Service[] {
+    return slots.map((slot) => lineup(slot.category));
+}
+
+/** Return each row as a bill entry, rented from its service in the lineup. */
+export function entriesWith(lineup: ServiceLineup): readonly Entry[] {
+    return slots.map((slot) => {
+        const vendor = lineup(slot.category);
+
+        return {
+            stacked: {
+                label: slot.destacked.label,
+                mark: vendor.mark,
+                name: vendor.name,
+                note: slot.note,
+                price: priceOf(vendor.name),
+            },
+            destacked: slot.destacked,
+        };
+    });
+}

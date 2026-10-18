@@ -1,4 +1,11 @@
+import type { JSX } from "@destack/view";
+
 import type { Entry } from "../figure/item";
+import { Goodreads } from "../personal/goodreads";
+import { Letterboxd } from "../personal/letterboxd";
+import { Monzo } from "../personal/monzo";
+import { Steam } from "../personal/steam";
+import { Strava } from "../personal/strava";
 
 /** A personal app your agent connects to your space, its data synced into a table of yours. */
 export type Source = {
@@ -20,6 +27,8 @@ export type Source = {
     columns: readonly [string, string, string];
     /** The latest rows, newest first. */
     rows: readonly (readonly [string, string, string])[];
+    /** Draw your page in the app at the size of a real window. */
+    page: () => JSX.Element;
 };
 
 /** The personal apps the hero's data row turns through, each with a public API or export. */
@@ -29,7 +38,7 @@ export const sources: readonly Source[] = [
         name: "Strava",
         icon: "strava",
         tint: "#fc4c02",
-        site: "strava.com/athletes/florian",
+        site: "strava.com/dashboard",
         data: "runs",
         table: "Workouts",
         columns: ["Date", "Run", "Distance"],
@@ -38,13 +47,14 @@ export const sources: readonly Source[] = [
             ["Oct 19", "Long run", "21.1 km"],
             ["Oct 17", "Intervals", "6.4 km"],
         ],
+        page: Strava,
     },
     {
         label: "Banking",
         name: "Monzo",
         icon: "monzo",
         tint: "#ff4f40",
-        site: "web.monzo.com/feed",
+        site: "web.monzo.com",
         data: "payments",
         table: "Budget",
         columns: ["Date", "Payee", "Amount"],
@@ -53,13 +63,14 @@ export const sources: readonly Source[] = [
             ["Oct 20", "Workshop Coffee", "£3.80"],
             ["Oct 18", "Trainline", "£42.10"],
         ],
+        page: Monzo,
     },
     {
         label: "Reading",
         name: "Goodreads",
         icon: "goodreads",
         tint: "#553b08",
-        site: "goodreads.com/review/list/florian",
+        site: "goodreads.com/user/show/1984-florian",
         data: "books",
         table: "Reading",
         columns: ["Finished", "Book", "Rating"],
@@ -68,21 +79,7 @@ export const sources: readonly Source[] = [
             ["Sep 30", "Piranesi", "★★★★"],
             ["Sep 12", "The Mythical Man-Month", "★★★★"],
         ],
-    },
-    {
-        label: "Health",
-        name: "Fitbit",
-        icon: "fitbit",
-        tint: "#00b0b9",
-        site: "fitbit.com/global/us/home",
-        data: "nights",
-        table: "Sleep",
-        columns: ["Night", "Asleep", "Resting"],
-        rows: [
-            ["Oct 21", "7 h 12 m", "52 bpm"],
-            ["Oct 20", "6 h 40 m", "55 bpm"],
-            ["Oct 19", "8 h 05 m", "51 bpm"],
-        ],
+        page: Goodreads,
     },
     {
         label: "Games",
@@ -98,13 +95,14 @@ export const sources: readonly Source[] = [
             ["Oct 18", "Tiny Glade", "31 h"],
             ["Oct 12", "Outer Wilds", "27 h"],
         ],
+        page: Steam,
     },
     {
         label: "Films",
         name: "Letterboxd",
         icon: "letterboxd",
         tint: "#00a35c",
-        site: "letterboxd.com/florian",
+        site: "letterboxd.com/florian/diary",
         data: "films",
         table: "Watched",
         columns: ["Watched", "Film", "Rating"],
@@ -113,6 +111,7 @@ export const sources: readonly Source[] = [
             ["Oct 12", "Past Lives", "★★★★"],
             ["Oct 4", "Stalker", "★★★★★"],
         ],
+        page: Letterboxd,
     },
 ];
 

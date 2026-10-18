@@ -13,9 +13,12 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
+import type { Job } from "../verb/space";
 import { sources } from "../verb/source";
 import { present } from "@destack/schema";
-import { services } from "./service";
+import { type Service, serviceCount, serviceLabels, serviceParts } from "./service";
+import type { Item } from "../figure/item";
+import type { OptionMark } from "../figure/picker";
 
 /** A browser narrower than a phone, where each tag shows only its mark. */
 const NARROW = "@container (max-width: 479px)";
@@ -36,31 +39,34 @@ const wiring: readonly string[] = [
 
 /** Your apps, one tab each while rented: their page, glyph, tab title, own subdomain and path. */
 const apps: readonly (readonly [
-    row: number,
+    job: Job,
     icon: string,
     title: string,
     slug: string,
     path: string,
 ])[] = [
-    [1, "pages", "Destack launch", "docs", "/launch"],
-    [2, "tasks", "Launch tasks", "tasks", "/tasks"],
-    [3, "chat", "# launch", "chat", "/chat"],
-    [4, "source", "destack", "code", "/code"],
-    [5, "pages", "Notes", "site", "/"],
-    [6, "calendar", "October 20 – 24", "calendar", "/book"],
-    [7, "mail", "Destack opens Friday", "mail", "/mail"],
-    [8, "table", "Signups", "waitlist", "/waitlist"],
+    ["documents", "pages", "Destack launch", "documents", "/launch"],
+    ["tables", "table", "Press", "press", "/press"],
+    ["tasks", "tasks", "Launch tasks", "tasks", "/tasks"],
+    ["calendar", "calendar", "October 20 – 24", "calendar", "/book"],
+    ["chat", "chat", "# launch", "chat", "/chat"],
+    ["mail", "mail", "Destack opens Friday", "mail", "/mail"],
+    ["canvas", "canvas", "Launch plan", "plan", "/plan"],
+    ["workflows", "sync", "Workflows", "workflows", "/workflows"],
+    ["builder", "build", "Signups", "waitlist", "/waitlist"],
 ];
 
 /** The apps of your space on its rail, by the page each opens. */
 const rail: readonly (readonly [icon: string, label: string])[] = [
     ["pages", "Pages"],
-    ["tasks", "Tasks"],
-    ["chat", "Chat"],
-    ["source", "Forge"],
-    ["calendar", "Calendar"],
     ["table", "Tables"],
+    ["tasks", "Tasks"],
+    ["calendar", "Calendar"],
+    ["chat", "Chat"],
     ["mail", "Mail"],
+    ["canvas", "Canvas"],
+    ["sync", "Workflows"],
+    ["build", "Waitlist"],
 ];
 
 /** The space in pixels every outline leaves around the element it marks. */
@@ -95,6 +101,7 @@ type Rectangle = { left: number; top: number; right: number; bottom: number };
 
 /** Draw the docs app in a browser, x-rayed: each part outlined with the service that runs it. */
 export function XRay(properties: {
+    rented: readonly Service[];
     isOpenAt: Stagger;
     lit: number | undefined;
     onLight: (index: number | undefined) => void;
@@ -104,7 +111,7 @@ export function XRay(properties: {
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
 
     // hold the app the browser shows, by its page
-    const [row, setRow] = createSignal(1);
+    const [row, setRow] = createSignal<Job>("documents");
     const app = () => appOf(row());
 
     // measure every marked element against the browser
@@ -140,7 +147,12 @@ export function XRay(properties: {
         setBoxes(
             measured.map(({ index, source, x, y, width, height }) => {
                 // find the tag's spot, and keep later tags clear of it
-                const tagWidth = tagWidthOf(index, source, properties.isOpenAt(index + 1));
+                const tagWidth = tagWidthOf(
+                    present(properties.rented[index], "rented service"),
+                    index,
+                    source,
+                    properties.isOpenAt(index + 1),
+                );
                 const spot = spotOf({ x, y, width, height }, tagWidth, bounds, [
                     ...obstacles,
                     ...placed,
@@ -160,7 +172,11 @@ export function XRay(properties: {
     // measure again as the browser resizes and once the space takes over the page
     const resizes = makeResizeObserver(measure);
     createEffect(
-        () => [row(), ...services.map((_, index) => properties.isOpenAt(index))],
+        () => [
+            row(),
+            properties.rented,
+            ...Array.from({ length: serviceCount }, (_, index) => properties.isOpenAt(index)),
+        ],
         () => {
             requestAnimationFrame(measure);
         },
@@ -173,7 +189,7 @@ export function XRay(properties: {
     });
 
     // keep a tab for each service still rented, its vendor's dashboard
-    const rented = () => services.filter((_, index) => !properties.isOpenAt(index + 1));
+    const rented = () => properties.rented.filter((_, index) => !properties.isOpenAt(index + 1));
 
     // follow the space once it takes over, and the host once hosting moves into it
     const isOwned = () => properties.isOpenAt(0);
@@ -221,14 +237,10 @@ export function XRay(properties: {
                 {rented().map((service) => (
                     <span
                         data-component="Tab"
-                        title={`${service.stacked.name} dashboard`}
+                        title={`${service.name} dashboard`}
                         {...style.attrs(browserStyles.tab, browserStyles.tabEven)}
                     >
-                        <img
-                            alt=""
-                            src={logoOf(service.stacked.mark)}
-                            {...style.attrs(styles.favicon)}
-                        />
+                        <VendorMark mark={service.mark} isTag={false} />
                     </span>
                 ))}
                 <span {...style.attrs(browserStyles.newTab)}>
@@ -282,7 +294,7 @@ export function XRay(properties: {
                         />
                     ) : undefined}
                     <main {...style.attrs(appStyles.main, styles.page)}>
-                        {sectionOf(row(), false, present(sources[0], "first source"), false)}
+                        {sectionOf(row(), "start", present(sources[0], "first source"), false)}
                     </main>
                     <p {...style.attrs(appStyles.statusBar)}>
                         <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>
@@ -298,7 +310,8 @@ export function XRay(properties: {
                 {boxes().map((box) => (
                     <Mark
                         box={box}
-                        accent={accentAt(properties.isOpenAt, box.index)}
+                        service={present(properties.rented[box.index], "rented service")}
+                        accent={accentAt(properties.rented, properties.isOpenAt, box.index)}
                         isOwned={properties.isOpenAt(box.index + 1)}
                         isLit={box.index === properties.lit}
                         isDimmed={isDimmed(properties.lit, box.index)}
@@ -312,6 +325,7 @@ export function XRay(properties: {
 
 /** Draw one x-rayed part: its outline, and a tag naming its service and source app. */
 function Mark(properties: {
+    service: Service;
     box: Box;
     accent: string;
     isOwned: boolean;
@@ -320,7 +334,7 @@ function Mark(properties: {
     onLight: (index: number | undefined) => void;
 }) {
     // set the tag where the measure placed it, on a corner of the outline
-    const service = () => serviceAt(properties.box.index);
+    const part = () => present(serviceParts[properties.box.index], "engine part");
     const tagLeft = () => properties.box.tagX;
     const tagTop = () => properties.box.tagY;
 
@@ -365,23 +379,19 @@ function Mark(properties: {
                     <>
                         <span
                             style={{
-                                "mask-image": `url(/diagram/${iconOf(service().destacked.mark)}.svg)`,
+                                "mask-image": `url(/diagram/${iconOf(part().mark)}.svg)`,
                             }}
                             {...style.attrs(styles.tagGlyph)}
                         />
-                        <span {...style.attrs(styles.tagName)}>{service().destacked.name}</span>
+                        <span {...style.attrs(styles.tagName)}>{part().name}</span>
                         {properties.box.source === undefined ? undefined : (
                             <span {...style.attrs(styles.tagWiring)}>{properties.box.source}</span>
                         )}
                     </>
                 ) : (
                     <>
-                        <img
-                            alt=""
-                            src={logoOf(service().stacked.mark)}
-                            {...style.attrs(styles.tagLogo)}
-                        />
-                        <span {...style.attrs(styles.tagName)}>{service().stacked.name}</span>
+                        <VendorMark mark={properties.service.mark} isTag />
+                        <span {...style.attrs(styles.tagName)}>{properties.service.name}</span>
                         <span {...style.attrs(styles.tagWiring)}>
                             {wiringAt(properties.box.index)}
                         </span>
@@ -479,28 +489,32 @@ function isOverlap(first: Rectangle, second: Rectangle): boolean {
 }
 
 /** Estimate a tag's width from its text: the service, then its source app or its rented wiring. */
-function tagWidthOf(index: number, source: string | undefined, isOwned: boolean): number {
-    const service = serviceAt(index);
-    const text = isOwned
-        ? `${service.destacked.name} ${source ?? ""}`
-        : `${service.stacked.name} ${wiringAt(index)}`;
+function tagWidthOf(
+    service: Service,
+    index: number,
+    source: string | undefined,
+    isOwned: boolean,
+): number {
+    const part = present(serviceParts[index], "engine part");
+    const text = isOwned ? `${part.name} ${source ?? ""}` : `${service.name} ${wiringAt(index)}`;
 
     return TAG_FRAME + text.length * TAG_CHARACTER;
 }
 
 /** Return the app that shows a page. */
-function appOf(row: number): (typeof apps)[number] {
-    const app = apps.find(([page]) => page === row);
-    if (app === undefined) {
-        throw new RangeError(`no app shows page ${String(row)}`);
-    }
-
-    return app;
+function appOf(job: Job): (typeof apps)[number] {
+    return present(
+        apps.find(([page]) => page === job),
+        `app for ${job}`,
+    );
 }
 
 /** Return the page an app of the rail opens. */
-function rowOfApp(icon: string): number {
-    return appOf(apps.find(([, glyph]) => glyph === icon)?.[0] ?? 0)[0];
+function rowOfApp(icon: string): Job {
+    return present(
+        apps.find(([, glyph]) => glyph === icon),
+        `app with glyph ${icon}`,
+    )[0];
 }
 
 /** Return an app's path within your space, where the root page drops its slash. */
@@ -510,7 +524,7 @@ function pathOf(app: (typeof apps)[number]): string {
 
 /** Return the ledger row of the service a part names by its label. */
 function indexOf(label: string): number {
-    const index = services.findIndex((service) => service.stacked.label === label);
+    const index = serviceLabels.indexOf(label);
     if (index === -1) {
         throw new RangeError(`no service labelled ${label}`);
     }
@@ -524,20 +538,11 @@ function isDimmed(lit: number | undefined, index: number): boolean {
 }
 
 /** Return the colour a part wears: the engine's orange once owned, or its vendor's accent. */
-function accentAt(isOpenAt: Stagger, index: number): string {
-    return isOpenAt(index + 1)
-        ? palette.ember
-        : accentOf(serviceAt(index).stacked.name, color.mutedForeground);
-}
+function accentAt(rented: readonly Service[], isOpenAt: Stagger, index: number): string {
+    const service = present(rented[index], "rented service");
+    const tint = "tint" in service.mark ? service.mark.tint : color.mutedForeground;
 
-/** Return the service on a ledger row, or refuse a row the ledger lacks. */
-function serviceAt(index: number): (typeof services)[number] {
-    const service = services[index];
-    if (service === undefined) {
-        throw new RangeError(`no service at ${String(index)}`);
-    }
-
-    return service;
+    return isOpenAt(index + 1) ? palette.ember : accentOf(service.name, tint);
 }
 
 /** Return how the rented service on a ledger row is wired in. */
@@ -550,17 +555,29 @@ function wiringAt(index: number): string {
     return kind;
 }
 
-/** Return the logo file of a vendor's mark. */
-function logoOf(mark: (typeof services)[number]["stacked"]["mark"]): string {
-    if (!("logo" in mark)) {
-        throw new TypeError("rented service without a logo");
-    }
-
-    return `/logos/${mark.logo}`;
+/** Draw a rented service's mark: its picture, or its shape from the icon set in its tint. */
+function VendorMark(properties: { mark: OptionMark; isTag: boolean }) {
+    return (
+        <>
+            {"logo" in properties.mark ? (
+                <img
+                    alt=""
+                    src={`/logos/${properties.mark.logo}`}
+                    {...style.attrs(properties.isTag ? styles.tagLogo : styles.favicon)}
+                />
+            ) : (
+                <Favicon
+                    icon={properties.mark.icon}
+                    tint={properties.mark.tint}
+                    size={properties.isTag ? 14 : 16}
+                />
+            )}
+        </>
+    );
 }
 
 /** Return the glyph of an app's mark. */
-function iconOf(mark: (typeof services)[number]["destacked"]["mark"]): string {
+function iconOf(mark: Item["mark"]): string {
     if (!("app" in mark)) {
         throw new TypeError("owned service without an app mark");
     }
