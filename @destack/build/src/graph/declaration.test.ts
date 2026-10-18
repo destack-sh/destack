@@ -150,7 +150,7 @@ test("derive the member symbols kinds list and resolve their relationships by ki
                     { mutates: true },
                 ],
                 [
-                    at("src/note.ts#Note:object"),
+                    at("src/note.ts#Note:object:note"),
                     at("src/note.ts#Note"),
                     "object",
                     "note",
@@ -180,7 +180,7 @@ test("derive the member symbols kinds list and resolve their relationships by ki
                     { sqlite: {} },
                 ],
                 [
-                    at("src/database.ts#database:resource"),
+                    at("src/database.ts#database:resource:main"),
                     at("src/database.ts#database"),
                     "resource",
                     "main",
@@ -192,14 +192,14 @@ test("derive the member symbols kinds list and resolve their relationships by ki
         [
             [
                 [
-                    at("src/view.ts#editor:view"),
+                    at("src/view.ts#editor:view:editor"),
                     at("src/view.ts#editor"),
                     "view",
                     "editor",
                     { name: "editor" },
                 ],
                 [
-                    at("src/view.ts#rename:command"),
+                    at("src/view.ts#rename:command:rename"),
                     at("src/view.ts#rename"),
                     "command",
                     "rename",
@@ -208,17 +208,17 @@ test("derive the member symbols kinds list and resolve their relationships by ki
             ],
             [
                 {
-                    from: at("src/view.ts#editor:view"),
-                    to: at("src/note.ts#Note:object"),
+                    from: at("src/view.ts#editor:view:editor"),
+                    to: at("src/note.ts#Note:object:note"),
                     kind: "presents",
                 },
                 {
-                    from: at("src/view.ts#editor:view"),
-                    to: `${library.id}/src/tag.ts#Tag:object`,
+                    from: at("src/view.ts#editor:view:editor"),
+                    to: `${library.id}/src/tag.ts#Tag:object:tag`,
                     kind: "presents",
                 },
                 {
-                    from: at("src/view.ts#rename:command"),
+                    from: at("src/view.ts#rename:command:rename"),
                     to: at("src/note.ts#Note.rename:method"),
                     kind: "invokes",
                 },

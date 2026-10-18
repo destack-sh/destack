@@ -218,7 +218,7 @@ test.concurrent("declare each example showing its symbol with controls, and each
     }).toEqual({
         declarations: [
             {
-                moniker: "src/card.example.ts#noteCardComplete:scenario",
+                moniker: "src/card.example.ts#noteCardComplete:scenario:complete",
                 kind: "scenario",
                 name: "complete",
                 description: {
@@ -238,7 +238,7 @@ test.concurrent("declare each example showing its symbol with controls, and each
                 },
             },
             {
-                moniker: "src/card.example.ts#noteCardLoud:example",
+                moniker: "src/card.example.ts#noteCardLoud:example:loud",
                 kind: "example",
                 name: "loud",
                 description: {
@@ -275,8 +275,12 @@ test.concurrent("declare each example showing its symbol with controls, and each
             },
         ],
         edges: [
-            ["src/card.example.ts#noteCardComplete:scenario", "covers", "src/card.ts#NoteCard"],
-            ["src/card.example.ts#noteCardLoud:example", "shows", "src/card.ts#NoteCard"],
+            [
+                "src/card.example.ts#noteCardComplete:scenario:complete",
+                "covers",
+                "src/card.ts#NoteCard",
+            ],
+            ["src/card.example.ts#noteCardLoud:example:loud", "shows", "src/card.ts#NoteCard"],
         ],
     });
 });

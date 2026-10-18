@@ -36,9 +36,7 @@ export class ExampleGraph {
                 module: example.source.file,
                 name: example.symbol,
             });
-            const declaration: graph.Declaration = {
-                moniker: graph.Moniker.parse(`${symbol}:example`),
-                symbol,
+            const declaration = graph.Declaration.at(symbol, {
                 kind: "example",
                 kindPackageId: kinds.id,
                 name: example.name,
@@ -51,7 +49,7 @@ export class ExampleGraph {
                         ]),
                     ),
                 },
-            };
+            });
 
             // show the symbol and every declaration at it
             const shown = name(example.of);

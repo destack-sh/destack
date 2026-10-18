@@ -40,7 +40,12 @@ export class DeclarationGraph {
                 (declaration.symbols ?? []).flatMap(({ member }) =>
                     member === undefined
                         ? []
-                        : [[`${member.name} ${member.kind}`, derive(described, member)] as const],
+                        : [
+                              [
+                                  `${member.name} ${member.kind}`,
+                                  graph.Declaration.member(described, member),
+                              ] as const,
+                          ],
                 ),
             );
             located.set(described.moniker, { declaration, described, members });
@@ -92,7 +97,10 @@ export class DeclarationGraph {
         const { declaration, described, members } = entry;
         const edges: graph.Edge[] = [];
         for (const symbol of declaration.symbols ?? []) {
-            const from = symbol.member === undefined ? described : derive(described, symbol.member);
+            const from =
+                symbol.member === undefined
+                    ? described
+                    : graph.Declaration.member(described, symbol.member);
             for (const relationship of symbol.relationships) {
                 for (const to of this.#resolve(
                     relationship.symbol,
@@ -148,19 +156,4 @@ function describe(declaration: DeclarationDescription): graph.Declaration {
         description: declaration.description,
         ...(declaration.vocabulary === undefined ? {} : { vocabulary: declaration.vocabulary }),
     });
-}
-
-/** Describe a member a declaration's symbols derive, as a member of its symbol. */
-function derive(
-    parent: graph.Declaration,
-    member: NonNullable<graph.MemberSymbol["member"]>,
-): graph.Declaration {
-    return {
-        moniker: graph.Moniker.parse(`${parent.symbol}.${member.name}:${member.kind}`),
-        symbol: parent.symbol,
-        kind: member.kind,
-        kindPackageId: parent.kindPackageId,
-        name: member.name,
-        description: member.description,
-    };
 }

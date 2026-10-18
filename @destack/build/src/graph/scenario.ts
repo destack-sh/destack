@@ -39,9 +39,7 @@ export class ScenarioGraph {
                 module: scenario.source.file,
                 name: scenario.symbol,
             });
-            const declaration: graph.Declaration = {
-                moniker: graph.Moniker.parse(`${symbol}:scenario`),
-                symbol,
+            const declaration = graph.Declaration.at(symbol, {
                 kind: "scenario",
                 kindPackageId: kinds.id,
                 name: scenario.name,
@@ -50,7 +48,7 @@ export class ScenarioGraph {
                     examples: given.map((example) => example.declaration.moniker),
                     ...scenario.description,
                 }),
-            };
+            });
 
             // cover what it exercises and what each example shows
             const covered = new Set([
