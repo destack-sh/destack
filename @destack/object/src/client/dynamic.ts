@@ -88,7 +88,7 @@ export class DynamicObjectClient {
         return found;
     }
 
-    /** Call a method by name with input validated by its JSON Schema, in the client's scope. */
+    /** Call a method by name with input validated by its JSON Schema, in the scope it acts in. */
     async call(type: string, method: string, input: JsonObject): Promise<JsonValue> {
         // find the method, refusing one the type does not declare or marks internal
         const object = this.object(type);
@@ -114,12 +114,11 @@ export class DynamicObjectClient {
             throw refuseInput(scoped, validated.error.issues);
         }
         const called = schema.jsonObject().parse(validated.data);
-        const { scope } = this.options;
 
-        // read through the store procedures
+        // read through the store procedures, in the scope the call reads
         if (!declared.mutates) {
             return this.#store.call({
-                scope,
+                scope: object.readScope(method, called),
                 call: object.call(method, called),
             });
         }

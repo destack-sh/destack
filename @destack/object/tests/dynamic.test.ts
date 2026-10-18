@@ -3,12 +3,19 @@ import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { DeclarationIndex } from "../src/index.ts";
-import { space } from "./fixture/space.ts";
-import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook, notesPackage } from "./fixture/note.ts";
+import { ObjectTypePool, defineObject, field } from "../src/index.ts";
+import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { testEvents } from "../src/test/index.ts";
+import { defineDatabase } from "@destack/db";
+import { through } from "@destack/access";
+import { definePackage } from "@destack/runtime";
+import { testCallKey } from "@destack/runtime/test";
+import { v7 } from "uuid";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
+import { note, notebook, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { Clock } from "@destack/environment";
 
 /** A row's identifier. */
@@ -19,7 +26,7 @@ async function reachNotes(
     endpoint: ReturnType<Awaited<ReturnType<typeof serveNotes>>["endpoint"]>,
 ) {
     // declare the types from their descriptions, as a manifest lists them
-    const objects = DeclarationIndex.of([space]).declare([notebook.describe(), note.describe()]);
+    const objects = ObjectTypePool.of([space]).declare([notebook.describe(), note.describe()]);
 
     return new DynamicObjectClient({
         clock: Clock.system,
@@ -30,14 +37,14 @@ async function reachNotes(
     });
 }
 
-test("list the types descriptions refer to that neither the index nor they declare", () => {
+test("list the types descriptions refer to that neither the pool nor they declare", () => {
     // index the platform's space, then describe the note alone and beside its notebook
-    const index = DeclarationIndex.of([space]);
+    const pool = ObjectTypePool.of([space]);
 
     // miss the notebook a note nests in, and nothing once the notebook is described too
     expect([
-        index.missing([note.describe()]),
-        index.missing([notebook.describe(), note.describe()]),
+        pool.missing([note.describe()]),
+        pool.missing([notebook.describe(), note.describe()]),
     ]).toEqual([[notebook.typeReference], []]);
 });
 
@@ -130,7 +137,7 @@ test.for(TEST_DIALECTS)(
         const client = await reachNotes(endpoint(users.alice));
 
         // describe every served type through the store, then declare each from the descriptions
-        const declared = DeclarationIndex.of([]).declare(await client.describe());
+        const declared = ObjectTypePool.of([]).declare(await client.describe());
         const unknown = { packageId: note.package.id, type: "page" };
 
         expect(declared.map((type) => [type.name, type.table[TABLE].sqlName])).toEqual([
@@ -144,3 +151,86 @@ test.for(TEST_DIALECTS)(
         });
     },
 );
+
+/** A shelf of a space: a scope of its own, which bookmarks live in. */
+const shelf = defineObject({
+    name: "shelf",
+    plural: "shelves",
+    scope: space,
+    isScope: true,
+    fields: {
+        /** The shelf's name. */
+        name: field.string(),
+    },
+    permissions: { read: through("scope", "read"), write: through("scope", "read") },
+});
+
+/** A bookmark kept on a shelf. */
+const bookmark = defineObject({
+    name: "bookmark",
+    plural: "bookmarks",
+    scope: shelf,
+    fields: {
+        /** The bookmarked address. */
+        url: field.string(),
+    },
+    permissions: { read: through("scope", "read"), write: through("scope", "read") },
+});
+
+test("read objects of a scope inside the space a client is pinned to, refusing a scope outside it", async () => {
+    // serve shelves and their bookmarks over HTTP, pinned to the space
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({
+            name: "main",
+            tables: [...notesDatabase.tables, ...shelf.tables, ...bookmark.tables],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const shelves = definePackage({ objects: { shelf, bookmark } });
+    const served = serveObjects(
+        nth(
+            new ObjectStore({
+                servers: [defineServer(shelves, {})],
+                chain: async () => undefined,
+                origin: { package: Package.of(shelves) },
+                principal: spacePrincipal(spaceId),
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+                clock: Clock.system,
+            }).packages,
+            0,
+        ),
+        spaceId,
+    );
+
+    // create a shelf, keep a bookmark on it, and read the bookmark through a client of the space
+    const client = new DynamicObjectClient({
+        clock: Clock.system,
+        package: Package.of(shelves),
+        objects: [shelf, bookmark],
+        scope: spaceId,
+        endpoint: served.endpoint(users.alice),
+        homes: () => served.endpoint(users.alice),
+    });
+    const kept = Identified.parse(await client.call("shelf", "create", { name: "Reading" }));
+    const marked = Identified.parse(
+        await client.call("bookmark", "create", { shelfId: kept.id, url: "https://destack.com" }),
+    );
+    const read = await client.call("bookmark", "get", { shelfId: kept.id, id: marked.id });
+
+    // refuse a shelf of another space
+    const elsewhere = `shelf-${v7()}`;
+    const refused = await client.call("bookmark", "list", { shelfId: elsewhere }).then(
+        () => "read",
+        (error: { code?: string }) => error.code,
+    );
+
+    expect([schema.looseObject({ url: schema.string() }).parse(read).url, refused]).toEqual([
+        "https://destack.com",
+        "NOT_FOUND",
+    ]);
+});

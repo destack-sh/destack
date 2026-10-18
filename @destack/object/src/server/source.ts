@@ -200,7 +200,7 @@ export class ObjectSource {
         }
 
         // decide for the scope's principal or a caller living in it, or the installation a partition below it runs
-        const following = context.access(context.scope ?? request.below);
+        const following = context.access(request.below);
         const resident = [following.subject, ...following.groups].filter(
             (subject) => subject.id === request.below || subject.scope === request.below,
         );

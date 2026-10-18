@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { graph, Package } from "@destack/package";
 import type { EventStore } from "@destack/event";
 import {
     Authorizer,
@@ -98,11 +98,7 @@ import {
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
 import { INTRINSIC } from "../object/intrinsic.ts";
 import { ObjectPolicy } from "../object/access.ts";
-import {
-    DeclarationIndex,
-    ObjectDescription,
-    type KnownDeclaration,
-} from "../object/description.ts";
+import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
@@ -675,7 +671,7 @@ export class ObjectStore {
                 .filter((declaration) => declaration instanceof ObjectType)
                 .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
         );
-        const intrinsic = DeclarationIndex.of([]);
+        const intrinsic = ObjectTypePool.of([]);
 
         // describe each asked type, then each type a description refers to beyond the intrinsic policies
         const served = this.#declared.filter((type) => !(INTRINSIC in type.source));
@@ -1476,6 +1472,13 @@ export class ObjectStore {
         );
         const storage = parent?.context.object.storage ?? "durable";
         const isBeside = object.storage === "events" && storage === "durable";
+
+        // read external objects outside the transaction, consistent as their rows never change
+        if (object.storage === "external" && !mutates && parent !== undefined) {
+            return this.query(caller, placed);
+        }
+
+        // refuse other storages and external work
         if (this.served(object).method(name).prepare !== undefined) {
             throw new TypeError(
                 `${object.name}.${name} does external work: a call inside a transaction cannot`,
@@ -2175,13 +2178,17 @@ export class ObjectStore {
         return authorization;
     }
 
-    /** Enter a scope: require the pinned scope and wait for observed writes. */
+    /** Enter a scope: require the pinned scope or one inside it, and wait for observed writes. */
     async enter(context: RequestContext, scope: string): Promise<void> {
-        // require the pinned scope
-        if (context.scope !== undefined && context.scope !== scope) {
-            throw new CallError("NOT_FOUND", {
-                message: `scope ${scope} is outside the pinned scope`,
-            });
+        // require the pinned scope or a scope inside it
+        const pinned = context.scope;
+        if (pinned !== undefined && pinned !== scope) {
+            const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
+            if (row?.ancestors.includes(pinned) !== true) {
+                throw new CallError("NOT_FOUND", {
+                    message: `scope ${scope} is outside the pinned scope`,
+                });
+            }
         }
 
         // wait for observed writes
@@ -3359,7 +3366,7 @@ export class ObjectStore {
         // declare the installation's types and index them beside the known ones by reference
         const { declarations, server } = sandbox;
         const platform = [...known];
-        const types = DeclarationIndex.of(platform).declare(
+        const types = ObjectTypePool.of(platform).declare(
             ObjectDescription.installed(declarations),
         );
         const byReference = new Map(
@@ -3368,7 +3375,9 @@ export class ObjectStore {
                 .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
         );
         const owner = server.build.manifest.package;
-        const own = declarations.filter((entry) => entry.packageId === owner.id);
+        const own = declarations.filter(
+            (entry) => graph.Moniker.packageId(entry.symbol) === owner.id,
+        );
 
         // route each described type, implementing the package's types in the sandbox
         const route = (routes: PackageDescription["objects"]): Record<string, ObjectType> =>
