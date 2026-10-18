@@ -13,8 +13,8 @@ export const bunEphemeral: EphemeralHost = {
     channel: (durable) => EphemeralStorage.channel(durable),
 };
 
-/** Run a workload in this process as its machine starts it, with its package's resources. */
-export async function runBunWorkload(
+/** Host a workload in this Bun process as its machine starts it, with its package's resources. */
+export async function hostWorkload(
     workload: Workload,
     resources: Readonly<Record<string, ResourceDeclaration<unknown>>>,
 ): Promise<void> {

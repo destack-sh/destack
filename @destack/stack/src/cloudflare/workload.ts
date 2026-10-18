@@ -8,8 +8,8 @@ import type { Workload } from "@destack/runtime/workload";
 import { spaceRunner } from "../client/index.ts";
 import { Clock } from "@destack/environment";
 
-/** Declare the class of the Durable Objects running a workload in a space. */
-export function durableObjectSpaceRunner(
+/** Host a workload in Durable Objects of the returned class, with its package's resources. */
+export function hostWorkload(
     workload: Workload,
     resources: Readonly<Record<string, ResourceDeclaration<unknown>>>,
 ): new (

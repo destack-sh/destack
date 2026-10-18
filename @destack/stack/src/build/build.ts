@@ -18,13 +18,14 @@ import { WORKLOAD_EXPORT } from "@destack/runtime/cloudflare";
 import { PackageDescription } from "@destack/runtime/inspect";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../client/hook.ts";
+import { SECRET_DECLARATION } from "../declare/binding.ts";
 import { RESOURCE_DECLARATION } from "@destack/resource";
 
 /** The prefix of the generated modules running each workload. */
 const PREFIX = "virtual:@destack/stack/workload/";
 
 /** The declaration kinds a workload description references. */
-const REFERENCED_KINDS = [RESOURCE_DECLARATION, "secret", "package", "trigger"] as const;
+const REFERENCED_KINDS = [RESOURCE_DECLARATION, SECRET_DECLARATION, "package", "trigger"] as const;
 
 /** Run each package workload in its own Bun process or Durable Object as its machine starts it. */
 export const stackBuild: BuildExtension = {
@@ -74,7 +75,8 @@ function runnable(compilation: Compilation): Runnable[] {
     // import every resource and secret the package declares
     const declarations = owned(compilation);
     const bound = declarations.filter(
-        (declaration) => declaration.kind === RESOURCE_DECLARATION || declaration.kind === "secret",
+        (declaration) =>
+            declaration.kind === RESOURCE_DECLARATION || declaration.kind === SECRET_DECLARATION,
     );
     const resources = bound.map((declaration) => ({
         name: declaration.name,
@@ -242,13 +244,13 @@ function runModule(
 
     return [
         runtime === "bun"
-            ? 'import { runBunWorkload } from "@destack/stack/bun";'
-            : 'import { durableObjectSpaceRunner } from "@destack/stack/cloudflare";',
+            ? 'import { hostWorkload } from "@destack/stack/bun";'
+            : 'import { hostWorkload } from "@destack/stack/cloudflare";',
         ...resources.map(({ module }, index) => importModule(module, `resource${index}`)),
         ...lines,
         runtime === "bun"
-            ? `await runBunWorkload(${workload}, ${bound});`
-            : `export const ${WORKLOAD_EXPORT} = durableObjectSpaceRunner(${workload}, ${bound});`,
+            ? `await hostWorkload(${workload}, ${bound});`
+            : `export const ${WORKLOAD_EXPORT} = hostWorkload(${workload}, ${bound});`,
     ].join("\n");
 }
 
