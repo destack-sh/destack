@@ -267,6 +267,16 @@ export class Notes {
             .from(file)
             .where(and(eq(file.size, FILE_SIZE), eq(file.content, FILE_CONTENT)));
 
+        // keep a note in a namespace of the object, and read it through a reader of that namespace
+        const spaced = this.databases.connect([note], { namespace: "space-2" });
+        await spaced.migrate([note]);
+        await spaced.insert(note).values({ id: "n", title: "Spaced" });
+        const named = await Snapshot.live(
+            DurableObjectReader.connect({ fetch: (sent) => this.fetch(sent) }, [note], "space-2"),
+        )
+            .read(note)
+            .findFirst({ where: { id: "n" } });
+
         // try to delete the notes through it
         const deleted = await new DurableObjectReader({ fetch: (sent) => this.fetch(sent) })
             .values(`DELETE FROM "${note[TABLE].sqlName}" RETURNING id`, [])
@@ -289,6 +299,7 @@ export class Notes {
 
         return Response.json({
             found,
+            named,
             measured,
             files: files.map((row) => [row.id, row.size.toString(), row.content.toHex()]),
             deleted,

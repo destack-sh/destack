@@ -36,9 +36,15 @@ export class DurableObjectReader implements SqliteConnectionClient {
         this.#object = object;
     }
 
-    /** Connect read-only to the database another object keeps. */
-    static connect(object: DurableObjectStub, tables: readonly Table[]) {
-        return new SqliteDatabase(new DurableObjectReader(object), tables, "networked", undefined);
+    /** Connect read-only to the database another object keeps, in a namespace of it when given. */
+    static connect(object: DurableObjectStub, tables: readonly Table[], namespace?: string) {
+        return new SqliteDatabase(
+            new DurableObjectReader(object),
+            tables,
+            "networked",
+            undefined,
+            namespace,
+        );
     }
 
     /** Read every row as an array of values. */

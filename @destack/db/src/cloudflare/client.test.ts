@@ -129,12 +129,13 @@ test("count the rows a Durable Object's statements write and read, each in the o
 test("read another object's database through its reader, refusing other operations and undoing a statement that writes", async () => {
     const worker = await start();
 
-    // read one note and the file by its exact size and bytes, refuse a measure, and keep both notes after the refused delete
+    // read one note and the file by its exact size and bytes, a namespace's note, refuse a measure, and keep both notes after the refused delete
     const response = await worker.dispatchFetch("https://notes.test/reader");
     expect([response.status, await response.json()]).toEqual([
         200,
         {
             found: { id: "b", title: "Note b" },
+            named: { id: "n", title: "Spaced" },
             measured: "this object answers reads alone, not measure",
             files: [["f", "9007199254740991", "0001feff"]],
             deleted: "a read of another object wrote rows",
