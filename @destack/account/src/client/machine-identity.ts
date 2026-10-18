@@ -275,11 +275,9 @@ export class MachineIdentity {
         });
         const response = await fetch(new Request(endpoint, { method: "POST", body }));
 
-        // refuse a refusal with the endpoint's error
+        // refuse as the endpoint refused
         if (!response.ok) {
-            throw new TypeError(
-                `the token endpoint answered ${response.status}: ${await response.text()}`,
-            );
+            throw await TokenResponse.refusal(response);
         }
 
         return TokenResponse.granted(TokenResponse.parse(await response.json()));

@@ -9,7 +9,7 @@ import { CallError } from "@destack/runtime/error";
 import { Pkce } from "@destack/runtime/authentication";
 import { DEVICE_CODE_GRANT_TYPE } from "@better-auth/oauth-provider";
 import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
+import { ErrorResponse, TokenResponse } from "../authentication/token.ts";
 import { EMAIL_CODE } from "../oauth/code.ts";
 import { ACCESS_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/exchange.ts";
 import accountPackage from "../package.ts";
@@ -24,14 +24,6 @@ const BROWSER_MILLISECONDS = 10 * 60_000;
 
 /** The scopes a native sign-in asks for: the person's profile, and a refresh token (OIDC). */
 const SIGN_IN_SCOPES = "openid profile offline_access";
-
-/** A refused token request (RFC 6749 5.2, RFC 8628 3.5). */
-const ErrorResponse = schema.looseObject({
-    /** The error code. */
-    error: schema.string().min(1),
-    /** What the error means, for the person (RFC 6749 5.2). */
-    error_description: schema.string().exactOptional(),
-});
 
 /** The issuer's answer to mailing a sign-in code: Better Auth's email OTP's. */
 const CodeSent = schema.looseObject({

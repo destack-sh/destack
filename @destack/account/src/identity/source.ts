@@ -10,7 +10,6 @@ import {
     TokenCache,
     TokenIssuer,
 } from "@destack/runtime/authentication";
-import { CallError } from "@destack/runtime/error";
 import { Issuer, type TokenBinding } from "../native/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
@@ -158,9 +157,7 @@ export class TokenSource {
         });
         const response = await this.send(new Request(endpoint, { method: "POST", body }));
         if (!response.ok) {
-            throw new CallError("UNAUTHORIZED", {
-                message: `the issuer refused ${this.subject.id}'s assertion: ${await response.text()}`,
-            });
+            throw await TokenResponse.refusal(response);
         }
 
         return TokenResponse.granted(TokenResponse.parse(await response.json()));

@@ -1,7 +1,23 @@
+import { CallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
 
 /** The milliseconds in a second, as OAuth counts expiries in seconds. */
 const SECOND_MILLISECONDS = 1000;
+
+/** The call error of each status a token endpoint refuses with an OAuth error (RFC 6749 5.2). */
+const REFUSALS: ReadonlyMap<number, "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN"> = new Map([
+    [400, "BAD_REQUEST"],
+    [401, "UNAUTHORIZED"],
+    [403, "FORBIDDEN"],
+]);
+
+/** A refused token request (RFC 6749 5.2, RFC 8628 3.5). */
+export const ErrorResponse = schema.looseObject({
+    /** The error code. */
+    error: schema.string().min(1),
+    /** What the error means, for the person (RFC 6749 5.2). */
+    error_description: schema.string().exactOptional(),
+});
 
 /** A token endpoint's answer (RFC 6749 5.1), with the provider's absolute expiry. */
 export const TokenResponse = Object.assign(
@@ -25,6 +41,26 @@ export const TokenResponse = Object.assign(
                 accessToken: response.access_token,
                 expiresAt: response.expires_at * SECOND_MILLISECONDS,
             };
+        },
+
+        /** Read a token endpoint's refusal as a call error by its status, with its OAuth error. */
+        async refusal(response: Response): Promise<CallError<string, unknown>> {
+            // fail as a bad gateway on an answer RFC 6749 gives no OAuth error, such as its own failure
+            const code = REFUSALS.get(response.status);
+            if (code === undefined) {
+                return new CallError("BAD_GATEWAY", {
+                    message: `the token endpoint answered ${response.status}: ${await response.text()}`,
+                });
+            }
+
+            // refuse as the status says, with the OAuth error the endpoint answers
+            const { error, error_description: description } = ErrorResponse.parse(
+                await response.json(),
+            );
+
+            return new CallError(code, {
+                message: description === undefined ? error : `${error}: ${description}`,
+            });
         },
     },
 );
