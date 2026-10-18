@@ -8,7 +8,9 @@ import { implementSeller } from "./seller.ts";
 import { implementSubscription } from "./subscription.ts";
 import { Billing } from "./billing.ts";
 import type { Metering } from "./metering.ts";
+import { account, entitlementShape } from "@destack/account/object";
 import { CallError } from "@destack/runtime/error";
+import { Scope } from "@destack/sync";
 import type { ServerDefinition } from "@destack/object/server";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
@@ -31,7 +33,7 @@ export function implementFinance(
             implementPrice(metering),
             implementSubscription(billing),
             implementCheckoutSession(billing),
-            implementCustomer(metering),
+            implementCustomer(),
             implementCharge(metering),
         ],
 
@@ -50,6 +52,13 @@ export function implementFinance(
                 return new Response(null, { status: 204 });
             },
         },
+
+        // follow each account's entitlements from the universe, which the derivations compare against
+        follows: [
+            account.follow(entitlementShape, {
+                key: async (row) => ({ key: { scope: Scope.universe.id, account: row.id } }),
+            }),
+        ],
 
         // rate the usage routed here and derive each account's entitlements
         controllers: [

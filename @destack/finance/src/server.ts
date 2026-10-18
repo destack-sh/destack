@@ -1,4 +1,6 @@
 import accountPackage from "@destack/account/package";
+import forgePackage from "@destack/forge/package";
+import { Registry } from "@destack/forge/client";
 import { defineServer } from "@destack/object/server";
 import { createClient } from "@destack/runtime/client";
 import { provider, tag } from "./declare/setting.ts";
@@ -33,7 +35,17 @@ export default defineServer(financePackage, (context) => {
         fetch: (request) => accounts.fetch(request),
     });
     const publisher = (handle: string) => client.residency.publisher({ handle, home });
-    const metering = new Metering(tag.read(context.settings), publisher);
+
+    // read the packages' published builds from the forge in the home
+    const forge = context.at(forgePackage.name);
+    const registry = new Registry(async () => ({
+        url: forge.url,
+        space: home,
+        fetch: forge.fetch,
+    }));
+    const metering = new Metering(tag.read(context.settings), publisher, (packageId, manifest) =>
+        registry.read(packageId, manifest),
+    );
 
     return implementFinance(home, metering, charging);
 });

@@ -281,7 +281,7 @@ test.each(TEST_DIALECTS)(
                 currency: invoice.table.currency,
             })
             .from(invoice.table);
-        const entitled = resolved(await finance.entitlements(ids.buyer), calls.reference);
+        const entitled = resolved(await finance.resolutions(ids.buyer), calls.reference);
 
         expect({
             url: session.url,
@@ -454,7 +454,7 @@ test.each(TEST_DIALECTS)(
         };
         await finance.fixture.use(ids.buyer, [requested]);
         await finance.fixture.use(ids.buyer, [requested]);
-        const entitled = resolved(await finance.entitlements(ids.buyer), calls.reference);
+        const entitled = resolved(await finance.resolutions(ids.buyer), calls.reference);
 
         // renew at Stripe: the draft closing the period takes the line and the included usage drawn on it
         const [subscribed] = stripe.list("sub").map((each) => String(each["id"]));
@@ -596,7 +596,7 @@ test.each(TEST_DIALECTS)(
         const go = await offerGo(finance);
         await finance.entitle();
         const resetAt = async () => {
-            const row = resolved(await finance.entitlements(ids.buyer), calls.reference);
+            const row = resolved(await finance.resolutions(ids.buyer), calls.reference);
 
             return row?.kind === "metered" ? row.resetAt : null;
         };

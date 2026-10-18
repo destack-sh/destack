@@ -3,7 +3,7 @@ import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
-import { FeatureDescription } from "../feature/description.ts";
+import { FeatureDescription } from "../feature/feature.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 
 /** Describe a feature with its resource and its value's JSON Schema or its meters. */

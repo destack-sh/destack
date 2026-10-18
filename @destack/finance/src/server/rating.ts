@@ -4,7 +4,7 @@ import type { MethodContext } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { Catalog } from "../catalog/catalog.ts";
+import type { ReleaseReader } from "../release/reader.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 import type { Meter } from "@destack/observability/meter";
 import { Period } from "../rate/period.ts";
@@ -63,8 +63,8 @@ export class Rating {
     readonly accountId: Identifier<"account">;
     /** The account's granting subscriptions with their items, read once for the page. */
     readonly granting: Awaited<ReturnType<typeof Subscription.granting>>;
-    /** Read the current catalog of a package. */
-    readonly #catalog: (packageId: PackageId) => Promise<Catalog>;
+    /** The packages' current releases the page reads its meters and SKUs from. */
+    readonly #releases: ReleaseReader;
     /** Who publishes each package's SKUs to the home's buyers. */
     readonly #publisher: Publisher;
     /** The call the page is rated in. */
@@ -78,14 +78,14 @@ export class Rating {
     private constructor(
         accountId: Identifier<"account">,
         granting: Awaited<ReturnType<typeof Subscription.granting>>,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
+        releases: ReleaseReader,
         publisher: Publisher,
         context: MethodContext,
     ) {
         // set the account, its terms and how to read and write its lines
         this.accountId = accountId;
         this.granting = granting;
-        this.#catalog = catalog;
+        this.#releases = releases;
         this.#publisher = publisher;
         this.#context = context;
 
@@ -97,13 +97,13 @@ export class Rating {
     /** Start rating a page of an account's usage, reading its granting subscriptions once. */
     static async open(
         accountId: Identifier<"account">,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
+        releases: ReleaseReader,
         publisher: Publisher,
         context: MethodContext,
     ): Promise<Rating> {
         const granting = await Subscription.granting(accountId, context);
 
-        return new Rating(accountId, granting, catalog, publisher, context);
+        return new Rating(accountId, granting, releases, publisher, context);
     }
 
     /** Rate uses of SKUs into their resources' lines, returning the refused uses. */
@@ -246,8 +246,8 @@ export class Rating {
         const { sku: skuKey, meter: meterKey, quantity } = used.keys;
         const reference = CatalogReference.of(present(skuKey, "a use's SKU"));
         const metered = CatalogReference.of(meterKey);
-        const sku = (await this.#catalog(reference.packageId)).sku(reference);
-        const meter = (await this.#catalog(metered.packageId)).meter(metered);
+        const sku = (await this.#releases.sku(reference));
+        const meter = (await this.#releases.meter(metered));
         const publisher =
             publishers.get(sku.package.name) ??
             Seller.publisher(sku.package, this.#publisher, this.#context);

@@ -1,4 +1,5 @@
 import { t } from "@destack/locale";
+import { entitlement } from "@destack/account/object";
 import { asc, eq, Snapshot } from "@destack/db";
 import { announcement } from "@destack/notification";
 import { TEST_DIALECTS } from "@destack/db/test";
@@ -212,7 +213,7 @@ async function append(
 
 /** Read the buyer's resolved usage of a feature. */
 async function entitled(finance: Finance, feature: typeof calls) {
-    return resolved(await finance.entitlements(ids.buyer), feature.reference);
+    return resolved(await finance.resolutions(ids.buyer), feature.reference);
 }
 
 test.each(TEST_DIALECTS)(
@@ -302,6 +303,38 @@ test.each(TEST_DIALECTS)(
                 { kind: "permission", permission: "read", reason: "subscribed" },
                 { feature: capacity.name, state: "blocked", usage: 1100, limit: CAPACITY },
             ],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "announce a usage state once, though its entitlement write is lost and derived again, on %s",
+    async (dialect) => {
+        // store 900 of the free plan's 1000 bytes: near the limit
+        const { finance, offer } = await open(dialect);
+        const free = await offerFree(finance);
+        await subscribe(finance, offer, [free], { start: START, end: END });
+        await finance.entitle();
+        await append(finance, {
+            id: "1",
+            space: spaces.notes,
+            meter: stored.name,
+            value: 900,
+            time: START + DAY,
+        });
+
+        // lose the entitlement write after its near state was announced, then derive again
+        await finance.test.database
+            .delete(entitlement.table)
+            .where(eq(entitlement.table.scope, ids.buyer));
+        await finance.entitle();
+        const announced = await finance.test.database
+            .select({ key: announcement.table.key })
+            .from(announcement.table);
+
+        // keep the one announcement of near, as its key was announced this period
+        expect(announced).toEqual([
+            { key: `${CatalogReference.key(capacity.reference)}:near:${START}` },
         ]);
     },
 );
@@ -741,11 +774,13 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-/** Read the buyer's entitlements to platform resources as resource, limit, usage and state. */
+/** Read the buyer's metered features allowing platform resources, with limit, usage and state. */
 async function resources(finance: Finance) {
-    const rows = await finance.entitlements(ids.buyer);
+    const resolutions = await finance.resolutions(ids.buyer);
 
-    return rows.flatMap(({ resource, limit, usage, state }) =>
-        resource === null ? [] : [[resource, limit, usage, state]],
+    return resolutions.flatMap((resolution) =>
+        resolution.resource === null || resolution.kind !== "metered"
+            ? []
+            : [[resolution.resource, resolution.limit, resolution.usage, resolution.state]],
     );
 }

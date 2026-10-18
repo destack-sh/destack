@@ -13,7 +13,7 @@ export function implementProductFeature(metering: Metering): typeof productFeatu
                     ProductFeature.requireGrant(
                         context.input,
                         context,
-                        metering.catalog(context, context.self, context.scope),
+                        metering.reader(context, context.self, context.scope),
                         publisher,
                     ),
             },
@@ -22,7 +22,7 @@ export function implementProductFeature(metering: Metering): typeof productFeatu
                     ProductFeature.requireGrant(
                         { ...context.target, ...context.input },
                         context,
-                        metering.catalog(context, context.self, context.scope),
+                        metering.reader(context, context.self, context.scope),
                         publisher,
                     ),
             },

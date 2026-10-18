@@ -17,7 +17,7 @@ export function implementPrice(metering: Metering): typeof price {
                         context.input.parentId,
                         Price.terms(Table.decode(price.table, context.input)),
                         context,
-                        metering.catalog(context, context.self, context.scope),
+                        metering.reader(context, context.self, context.scope),
                     ),
             },
         },

@@ -51,10 +51,10 @@ test.each(TEST_DIALECTS)(
         // derive every account's entitlements, then again once the buyer subscribes to the paid plan
         const read = async () => {
             const rows = await finance.test.database
-                .select({ accountId: entitlement.table.accountId, value: entitlement.table.value })
+                .select({ accountId: entitlement.table.scope, value: entitlement.table.value })
                 .from(entitlement.table)
                 .where(eq(entitlement.table.feature, support.name))
-                .orderBy(asc(entitlement.table.accountId));
+                .orderBy(asc(entitlement.table.scope));
 
             return rows.map((row) => [row.accountId, row.value]);
         };

@@ -2,40 +2,44 @@ import type { Call } from "@destack/sync";
 import { AccessContext } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import type { PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import { release } from "@destack/forge/object";
-import { Catalog } from "../catalog/catalog.ts";
+import { ReleaseReader } from "../release/reader.ts";
 import { CatalogReference } from "../catalog/reference.ts";
-import { Customer, type Publisher, Usage } from "../object/index.ts";
+import { type Publisher, Usage } from "../object/index.ts";
 import { Rating } from "./rating.ts";
 
 /** The instruments capturing the uses their declarations or terms refuse. */
 const instruments = telemetry.scope(import.meta.destack.package);
 
-/** The rating of each paying account's usage against the packages' catalogs. */
+/** The rating of each paying account's usage against the packages' current releases. */
 export class Metering {
     /** The distribution tag of each package's current release, such as latest or dev. */
     readonly tag: string;
     /** Who publishes each package's SKUs to the home's buyers. */
     readonly publisher: Publisher;
+    /** Open a package's published build by its manifest's digest. */
+    readonly #open: (packageId: PackageId, manifest: string) => Promise<BuildReader>;
 
-    /** The catalog of each release read so far, by package and version. */
-    readonly #released = new Map<string, Catalog>();
+    /** The declarations of each release read so far, by package and version. */
+    readonly #released = new Map<string, Awaited<ReturnType<typeof ReleaseReader.read>>>();
 
-    /** Meter usage against the packages' current catalogs and publishers. */
-    constructor(tag: string, publisher: Publisher) {
+    /** Meter usage against the packages' current builds, and their publishers. */
+    constructor(
+        tag: string,
+        publisher: Publisher,
+        open: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
+    ) {
         this.tag = tag;
         this.publisher = publisher;
+        this.#open = open;
     }
 
-    /** Resolve each package's release at the tag once per call, parsing each release once. */
-    catalog(
-        source: Pick<MethodContext, "query">,
-        caller: AccessContext,
-        scope: string,
-    ): (packageId: PackageId) => Promise<Catalog> {
-        return Catalog.once(async (packageId) => {
+    /** Read the releases the tag points at for one call, parsing each release once. */
+    reader(source: Pick<MethodContext, "query">, caller: AccessContext, scope: string): ReleaseReader {
+        return new ReleaseReader(async (packageId) => {
             // resolve the version the tag points at
             const resolved = await source.query(
                 caller,
@@ -46,17 +50,14 @@ export class Metering {
                 }),
             );
 
-            // read the release's catalog the first time
+            // read the declarations of the release's build the first time
             const key = `${packageId}@${resolved.version}`;
-            const owner = {
-                id: packageId,
-                name: resolved.metadata.name,
-                version: resolved.version,
-            };
-            const catalog = this.#released.get(key) ?? Catalog.of(owner, resolved.declarations);
-            this.#released.set(key, catalog);
+            const declared =
+                this.#released.get(key) ??
+                (await ReleaseReader.read(await this.#open(packageId, resolved.manifest)));
+            this.#released.set(key, declared);
 
-            return catalog;
+            return declared;
         });
     }
 
@@ -67,17 +68,17 @@ export class Metering {
         context: MethodContext,
     ): Promise<void> {
         // keep the page's uses their declarations accept, reporting the ones they refuse
-        const catalog = this.catalog(context, context.self, context.scope);
+        const releases = this.reader(context, context.self, context.scope);
         const events = Usage.series(context);
         const accepted: Usage[] = [];
         for (const used of page) {
-            if (await this.#accepts(used, catalog)) {
+            if (await this.#accepts(used, releases)) {
                 accepted.push(used);
             }
         }
 
         // rate the uses of SKUs into their lines, reporting the ones their terms refuse
-        const rating = await Rating.open(payer, catalog, this.publisher, context);
+        const rating = await Rating.open(payer, releases, this.publisher, context);
         const sold = accepted.filter((used) => used.keys.sku !== null);
         for (const refused of await rating.rateSkus(sold)) {
             instruments.captureException(refused);
@@ -90,7 +91,7 @@ export class Metering {
         const rated: Call[] = [];
         for (const key of metered) {
             const reference = CatalogReference.of(key);
-            const meter = (await catalog(reference.packageId)).meter(reference);
+            const meter = await releases.meter(reference);
             rated.push(
                 ...(await rating.rateMeter(meter, (period) =>
                     Usage.read(payer, meter, period, context.now, events),
@@ -100,18 +101,12 @@ export class Metering {
         if (rated.length > 0) {
             await context.mutate(context.self, rated);
         }
-
-        // derive the entitlements again from the counted usage
-        await Customer.entitle(payer, catalog, context);
     }
 
     /** Report whether a use's declarations accept it, reporting one they refuse. */
-    async #accepts(
-        used: Usage,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
-    ): Promise<boolean> {
+    async #accepts(used: Usage, releases: ReleaseReader): Promise<boolean> {
         try {
-            await Usage.require(used, catalog);
+            await Usage.require(used, releases);
 
             return true;
         } catch (error) {

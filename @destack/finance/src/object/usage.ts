@@ -16,9 +16,9 @@ import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
 import type { PackageId } from "@destack/package";
 import { CallError, isCallError } from "@destack/runtime/error";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
-import type { Catalog } from "../catalog/catalog.ts";
+import type { ReleaseReader } from "../release/reader.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 
 /** The share of a limit or budget at which usage is near it, where the soft cap first notifies. */
@@ -37,14 +37,12 @@ const LEVEL_KEYS = ["spaceId", "machineId", "installationId"] as const;
 type SeriesFold = (typeof SERIES_FOLDS)[number];
 
 /** What a use has beside its keys. */
-export const UsageData = defineSchema(
-    schema.object({
-        /** When the measure starts, in UTC epoch milliseconds. */
-        from: schema.number().int(),
-        /** When the measure ends, in UTC epoch milliseconds. */
-        to: schema.number().int(),
-    }),
-);
+export const UsageData = schema.object({
+    /** When the measure starts, in UTC epoch milliseconds. */
+    from: schema.number().int(),
+    /** When the measure ends, in UTC epoch milliseconds. */
+    to: schema.number().int(),
+});
 
 /** A metered use of a resource, stored in the home of the account paying for it. */
 export const usage = defineObject(
@@ -121,12 +119,12 @@ export const usageLimit = defineNotification({
     name: "usageLimit",
     title: "Usage limits",
     description: "Your account's usage nears or meets its plan's limit or spending limit.",
-    payload: Table.selectSchema(entitlement.table).pick({
-        feature: true,
-        state: true,
-        usage: true,
-        limit: true,
-    }),
+    payload: Table.selectSchema(entitlement.table)
+        .pick({ feature: true, state: true, limit: true })
+        .extend({
+            /** The usage of the feature since its last reset. */
+            usage: schema.number().min(0),
+        }),
     interruption: "timeSensitive",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: {
@@ -147,11 +145,11 @@ export const usageLimit = defineNotification({
 /** The uses of resources finance rates. */
 export const Usage = {
     /** Refuse a use its meter or SKU declaration rejects. */
-    async require(used: Usage, catalog: (packageId: PackageId) => Promise<Catalog>): Promise<void> {
+    async require(used: Usage, releases: ReleaseReader): Promise<void> {
         // read the use's meter from its package's current release
         const { packageId, name } = CatalogReference.of(used.keys.meter);
         const { level, sku: skuKey } = used.keys;
-        const meter = (await catalog(packageId)).meter({ packageId, name });
+        const meter = await releases.meter({ packageId, name });
 
         // require a level exactly for an averaged meter
         const isAveraged = meter.definition.aggregation === "average";
@@ -167,7 +165,7 @@ export const Usage = {
             return;
         }
         const reference = CatalogReference.of(skuKey);
-        const sku = (await catalog(reference.packageId)).sku(reference);
+        const sku = await releases.sku(reference);
         const measured = CatalogReference.key(sku.definition.meter);
         if (measured !== CatalogReference.key({ packageId, name })) {
             throw new CallError("BAD_REQUEST", {

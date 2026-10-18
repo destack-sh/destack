@@ -24,12 +24,12 @@ import { NotificationFixture } from "@destack/notification/test";
 import { EventView, type ObjectType } from "@destack/object";
 import { packageObject, tag } from "@destack/forge/object";
 import { publishBuild, resolvedRelease } from "@destack/forge/test";
-import { defineServer, ObjectStore, Stack } from "@destack/object/server";
+import { defineServer, ObjectStore, type PackageServer, Stack } from "@destack/object/server";
 import { Package, PackageId } from "@destack/package";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
-import { Identifier, JsonValue, present, schema } from "@destack/schema";
+import { Digest, Identifier, JsonValue, present, schema } from "@destack/schema";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
@@ -39,6 +39,7 @@ import { type EventStore, EventTime } from "@destack/event";
 import { serversOf, testEvents } from "@destack/object/test";
 import { type Plan } from "@destack/resource";
 import { StackDefinition } from "@destack/stack/declare";
+import { buildIndexServers } from "@destack/stack/test";
 import { homeDatabase } from "./home.ts";
 import { EntitlementController } from "../server/entitlement-controller.ts";
 import { Metering } from "../server/metering.ts";
@@ -57,6 +58,7 @@ import {
     product,
     productFeature,
     seller,
+    type Resolution,
     usage,
     Usage,
     usageLimit,
@@ -105,10 +107,10 @@ const INSTALLATION = principal.installation.reference(
 const ORIGIN = "https://finance.test";
 
 /** Finance's build, declaring its notifications, as the residency's home installs it. */
-const FINANCE_BUILD = await MemoryBuild.declaring(usageLimit.package, [
+const FINANCE_BUILD = await MemoryBuild.of(usageLimit.package, [
     {
         kind: "notification",
-        package: notification.package.id,
+        kindPackageId: notification.package.id,
         name: usageLimit.name,
         description: usageLimit.describe(),
     },
@@ -183,17 +185,29 @@ export class FinanceFixture {
     readonly #replicated = new Set<string>();
     /** The entitlement derivation, which the test runs where the control loop would. */
     readonly #entitlements: EntitlementController;
+    /** The published builds the metering reads, by their manifest's digest. */
+    readonly #published: Map<string, BuildReader>;
 
     /** Serve finance over a database, with the releases its grants and meters read. */
-    private constructor(test: TestDatabase, events: EventStore, options: FinanceFixtureOptions) {
+    private constructor(
+        test: TestDatabase,
+        events: EventStore,
+        index: readonly PackageServer[],
+        published: Map<string, BuildReader>,
+        options: FinanceFixtureOptions,
+    ) {
         // serve the objects on the test's clock, resolving each package's latest release in forge
         this.test = test;
+        this.#published = published;
         this.clock = options.clock ?? Clock.system;
         this.events = events;
 
         // meter the usage against the releases, publishing each package's SKUs as its account
-        this.metering = new Metering(RELEASE_TAG, (handle) =>
-            FinanceFixture.#publisher(Snapshot.live(test.database), handle),
+        this.metering = new Metering(
+            RELEASE_TAG,
+            (handle) => FinanceFixture.#publisher(Snapshot.live(test.database), handle),
+            async (_packageId, manifest) =>
+                present(published.get(manifest), `the published build ${manifest}`),
         );
         this.provider = options.provider === undefined ? undefined : options.provider(HOME);
         const definition = implementFinance(HOME, this.metering, this.provider);
@@ -203,6 +217,7 @@ export class FinanceFixture {
                 defineServer(financePackage, definition),
                 notificationServer,
                 ...serversOf([packageObject, resolvedRelease, tag, entitlement]),
+                ...index,
             ],
             chain: async () => undefined,
             principal: INSTALLATION,
@@ -269,9 +284,17 @@ export class FinanceFixture {
         }
     }
 
-    /** Rate the next page of an account's usage as the controller does, while pages are full. */
-    rate(scope: string): Promise<number | undefined> {
-        return this.#rating.reconcile(scope);
+    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    resolutions(scope: string): Promise<Resolution[]> {
+        return this.#entitlements.resolve(scope);
+    }
+
+    /** Rate the next page of an account's usage and derive its entitlements, as the loop does. */
+    async rate(scope: string): Promise<number | undefined> {
+        const rated = await this.#rating.reconcile(scope);
+        await this.#entitlements.reconcile(scope);
+
+        return rated;
     }
 
     /** Flush the hot usage of an account into segments, as the event store's controller does. */
@@ -366,19 +389,24 @@ export class FinanceFixture {
     ): Promise<FinanceFixture> {
         // migrate the database, serving the residency, and build each package's release
         const test = await TestDatabase.create(dialect, homeDatabase, { isMigrated: true });
-        await NotificationFixture.install(test.database, HOME, [FINANCE_BUILD]);
         await FinanceFixture.#serveResidency(test.database);
         await FinanceFixture.#replicateHome(test.database);
+        await NotificationFixture.install(test.database, HOME, [FINANCE_BUILD]);
+        const published = new Map<string, BuildReader>();
         for (const [owner, declared] of releases) {
             const build = await FinanceFixture.release(owner, declared);
             await publishBuild(test.database, HOME, account.identifier(PLATFORM_ACCOUNT), build);
+            published.set(await Digest.json(build.manifest), build);
         }
 
         // record the calls and the usage in the database's event log
         const clock = options.clock ?? Clock.system;
         const events = await testEvents(test.database, [usage.eventKind()], clock);
 
-        return new FinanceFixture(test, events, options);
+        // serve the index of the finance build the home installs
+        const index = await buildIndexServers(test.database, [FINANCE_BUILD]);
+
+        return new FinanceFixture(test, events, index, published, options);
     }
 
     /** Relate the finance installation as a residency server, as the platform binds it. */
@@ -515,23 +543,27 @@ export class FinanceFixture {
             ...FinanceFixture.#describe(entry),
         }));
 
-        return await MemoryBuild.declaring(owner, declarations);
+        return await MemoryBuild.of(owner, declarations);
     }
 
     /** Describe a declaration by its kind and the package declaring the kind. */
     static #describe(entry: Feature | Meter | Sku) {
         if (entry instanceof Feature) {
             return {
-                package: financePackage.id,
+                kindPackageId: financePackage.id,
                 kind: "feature",
                 description: describeFeature(entry),
             };
         } else if (entry instanceof Sku) {
-            return { package: financePackage.id, kind: "sku", description: describeSku(entry) };
+            return {
+                kindPackageId: financePackage.id,
+                kind: "sku",
+                description: describeSku(entry),
+            };
         }
 
         return {
-            package: observabilityPackage.id,
+            kindPackageId: observabilityPackage.id,
             kind: "meter",
             description: describeMeter(entry),
         };
@@ -547,6 +579,7 @@ export class FinanceFixture {
             build,
             this.clock.now(),
         );
+        this.#published.set(await Digest.json(build.manifest), build);
     }
 
     /** Replicate an account a person owns, as the account package replicates it. */

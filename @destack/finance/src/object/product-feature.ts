@@ -5,7 +5,7 @@ import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { Catalog } from "../catalog/catalog.ts";
+import type { ReleaseReader } from "../release/reader.ts";
 import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
@@ -54,7 +54,7 @@ export const ProductFeature = {
             readonly value?: JsonValue;
         },
         reader: Pick<Snapshot, "read">,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
+        releases: ReleaseReader,
         publisher: Publisher,
     ): Promise<void> {
         // read the account selling the product
@@ -70,10 +70,10 @@ export const ProductFeature = {
             packageId: grant.packageId,
             name: grant.feature,
         });
-        const declared = await catalog(reference.packageId);
-        await Seller.requirePublisher(sold.accountId, declared.package, publisher, reader);
+        const feature = await releases.feature(reference);
+        await Seller.requirePublisher(sold.accountId, feature.package, publisher, reader);
 
         // refuse a value the feature's declaration rejects
-        declared.feature(reference).requireGrant(grant.value ?? null);
+        feature.requireGrant(grant.value ?? null);
     },
 };

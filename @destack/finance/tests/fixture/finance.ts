@@ -13,7 +13,15 @@ import { asc, eq, type DatabaseConnection, type Dialect, Snapshot } from "@desta
 import type { TestDatabase } from "@destack/db/test";
 import { ObjectType } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
-import { nth, schema, Identifier, present, type JsonObject, type JsonValue } from "@destack/schema";
+import {
+    nth,
+    schema,
+    Identifier,
+    present,
+    type JsonObject,
+    type JsonValue,
+    Text,
+} from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext } from "@destack/runtime/test";
 import { Call, ObjectReference, Scope, Subject } from "@destack/sync";
@@ -29,6 +37,7 @@ import {
     type Subscription,
     subscriptionItem,
     type SubscriptionItem,
+    type Resolution,
 } from "../../src/object/index.ts";
 import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
@@ -374,32 +383,44 @@ export class Finance {
         return this.fixture.control(name);
     }
 
+    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    async resolutions(scope: Identifier<"account">): Promise<Resolution[]> {
+        // order them as the entitlements are, by package and feature
+        const resolutions = await this.fixture.resolutions(scope);
+
+        return resolutions.toSorted(
+            (left, right) =>
+                Text.compare(left.packageId, right.packageId) ||
+                Text.compare(left.feature, right.feature),
+        );
+    }
+
     /** Read an account's entitlements in a stable order. */
     async entitlements(scope: Identifier<"account">): Promise<Entitlement[]> {
         return await this.test.database
             .select()
             .from(entitlement.table)
-            .where(eq(entitlement.table.accountId, scope))
+            .where(eq(entitlement.table.scope, scope))
             .orderBy(asc(entitlement.table.packageId), asc(entitlement.table.feature));
     }
 }
 
-/** Read an account's entitlement to a feature as what its kind grants, null without one. */
-export function resolved(rows: readonly Entitlement[], feature: CatalogReference) {
-    // find the feature's row
-    const row = rows.find(
+/** Read an account's resolution of a feature as what its kind grants, null without one. */
+export function resolved(resolutions: readonly Resolution[], feature: CatalogReference) {
+    // find the feature's resolution
+    const found = resolutions.find(
         (each) => each.packageId === feature.packageId && each.feature === feature.name,
     );
 
     // keep the fields its kind grants
-    if (row === undefined) {
+    if (found === undefined) {
         return null;
-    } else if (row.kind === "boolean") {
-        return { kind: row.kind };
-    } else if (row.kind === "static") {
-        return { kind: row.kind, value: row.value };
+    } else if (found.kind === "boolean") {
+        return { kind: found.kind };
+    } else if (found.kind === "static") {
+        return { kind: found.kind, value: found.value };
     }
-    const { kind, limit, usage, resetAt, state } = row;
+    const { kind, limit, usage, resetAt, state } = found;
 
     return { kind, limit, usage, resetAt, state };
 }

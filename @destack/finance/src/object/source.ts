@@ -5,7 +5,7 @@ import type { Meter } from "@destack/observability/meter";
 import type { PackageId } from "@destack/package";
 import { CallError } from "@destack/runtime/error";
 import type { ObjectReference } from "@destack/sync";
-import type { Catalog } from "../catalog/catalog.ts";
+import type { ReleaseReader } from "../release/reader.ts";
 import { FeatureLimit } from "../feature/feature.ts";
 import type { FeatureGrant } from "../feature/grant.ts";
 import { Period } from "../rate/period.ts";
@@ -123,13 +123,13 @@ export class Source {
     async allot(
         accountId: IdentifierOf<typeof account>,
         grant: FeatureGrant,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
+        releases: ReleaseReader,
         events: UsageSeries,
         now: number,
     ): Promise<Allotment | undefined> {
         // read the feature's declaration, letting the grant lapse once its package removed it
         const reference = { packageId: grant.packageId, name: grant.feature };
-        const definition = (await catalog(grant.packageId)).find(reference)?.definition;
+        const definition = (await releases.findFeature(reference))?.definition;
         if (definition === undefined) {
             return undefined;
         }
@@ -137,6 +137,7 @@ export class Source {
             packageId: grant.packageId,
             feature: grant.feature,
             kind: definition.kind,
+            resource: definition.resource ?? null,
             source: this.reference,
             grantedAt: this.grantedAt,
             period: this.period,
@@ -152,7 +153,7 @@ export class Source {
 
         // count the meters' usage within the source's period, or since the start without a reset
         const meters = await Promise.all(
-            definition.meters.map(async (meter) => (await catalog(meter.packageId)).meter(meter)),
+            definition.meters.map(async (meter) => releases.meter(meter)),
         );
         const period = definition.reset === "period" ? this.period : undefined;
         const usage = await readUsage(accountId, meters, period, events, now);

@@ -3,9 +3,9 @@ import { space } from "@destack/account/object";
 import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import type { PackageId } from "@destack/package";
-import { defineSchema, present, schema, Text } from "@destack/schema";
+import { present, schema, Text } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import type { Catalog } from "../catalog/catalog.ts";
+import type { ReleaseReader } from "../release/reader.ts";
 import { CatalogReference } from "../catalog/reference.ts";
 import { Amount, Currency, DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";
@@ -23,32 +23,28 @@ const Recurrence = schema.object({
 });
 
 /** How a recurring price bills: per period for a quantity, or for metered usage. */
-export const Recurring = defineSchema(
-    schema.discriminatedUnion("usage", [
-        Recurrence.extend({
-            /** A quantity billed each period. */
-            usage: schema.literal("licensed"),
-        }),
-        Recurrence.extend({
-            /** The usage a meter counts in each period. */
-            usage: schema.literal("metered"),
-            /** The meter counting the usage. */
-            meter: CatalogReference,
-        }),
-    ]),
-);
+export const Recurring = schema.discriminatedUnion("usage", [
+    Recurrence.extend({
+        /** A quantity billed each period. */
+        usage: schema.literal("licensed"),
+    }),
+    Recurrence.extend({
+        /** The usage a meter counts in each period. */
+        usage: schema.literal("metered"),
+        /** The meter counting the usage. */
+        meter: CatalogReference,
+    }),
+]);
 
 /** One tier of a tiered price: the amounts up to a quantity. */
-export const Tier = defineSchema(
-    schema.object({
-        /** The highest quantity of the tier, inf for the last one. */
-        upTo: schema.union([schema.number().int().min(1), schema.literal("inf")]),
-        /** The amount per unit in the tier. */
-        unitAmount: Amount.exactOptional(),
-        /** The amount for the whole tier. */
-        flatAmount: Amount.exactOptional(),
-    }),
-);
+export const Tier = schema.object({
+    /** The highest quantity of the tier, inf for the last one. */
+    upTo: schema.union([schema.number().int().min(1), schema.literal("inf")]),
+    /** The amount per unit in the tier. */
+    unitAmount: Amount.exactOptional(),
+    /** The amount for the whole tier. */
+    flatAmount: Amount.exactOptional(),
+});
 
 /** The fields of a price that rate its usage, which subscription items store as bought. */
 export const PRICE_TERMS = {
@@ -148,14 +144,12 @@ export const price = defineObject(
     }),
 );
 /** The provider's identifiers of the product and prices a sale mirrored first, by finance's own. */
-export const PriceMirror = defineSchema(
-    schema.object({
-        /** The provider's identifier of the product, null where it was mirrored before. */
-        product: schema.string().nullable(),
-        /** The provider's identifier of each price mirrored, by the price's identifier. */
-        prices: schema.record(schema.string(), schema.string()),
-    }),
-);
+export const PriceMirror = schema.object({
+    /** The provider's identifier of the product, null where it was mirrored before. */
+    product: schema.string().nullable(),
+    /** The provider's identifier of each price mirrored, by the price's identifier. */
+    prices: schema.record(schema.string(), schema.string()),
+});
 /** The provider's identifiers of the product and prices a sale mirrored first. */
 export type PriceMirror = schema.Infer<typeof PriceMirror>;
 
@@ -222,7 +216,7 @@ export const Price = {
         parentId: string,
         terms: Pick<Price, keyof typeof PRICE_TERMS>,
         reader: Pick<Snapshot, "read">,
-        catalog: (packageId: PackageId) => Promise<Catalog>,
+        releases: ReleaseReader,
     ): Promise<void> {
         // refuse a price of a missing or default product
         const owner = await reader
@@ -253,7 +247,7 @@ export const Price = {
         // refuse a meter no package declares
         const { recurring } = terms;
         if (recurring.usage === "metered") {
-            (await catalog(recurring.meter.packageId)).meter(recurring.meter);
+            (await releases.meter(recurring.meter));
         }
 
         // refuse a fee below the usage it includes

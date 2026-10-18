@@ -6,8 +6,10 @@ import type { Period } from "../rate/period.ts";
 /** One source's allotment of a feature: what it grants, with its metered usage. */
 export type Allotment = Pick<
     Entitlement,
-    "packageId" | "feature" | "kind" | "value" | "limit" | "usage" | "resetAt" | "state"
+    "packageId" | "feature" | "kind" | "value" | "limit" | "resetAt" | "state" | "resource"
 > & {
+    /** The usage of a metered feature since its last reset, null for another kind. */
+    readonly usage: number | null;
     /** The subscription item or default product granting the feature. */
     readonly source: ObjectReference;
     /** When the source was created, the latest granting a static feature's value. */
@@ -16,30 +18,34 @@ export type Allotment = Pick<
     readonly period: Period;
 };
 
-/** What an account may use of a feature across every source granting it. */
-export type Resolution =
-    | {
-          /** Access alone. */
-          readonly kind: "boolean";
-      }
-    | {
-          /** A fixed value. */
-          readonly kind: "static";
-          /** The highest numeric value, or else the most recently granted one. */
-          readonly value: JsonValue;
-      }
-    | {
-          /** Usage of meters up to a limit. */
-          readonly kind: "metered";
-          /** The sum of the sources' limits, unlimited when any source is. */
-          readonly limit: number | null;
-          /** The usage within the current period of the source resetting first. */
-          readonly usage: number;
-          /** The reset of the source resetting first, none when no source resets. */
-          readonly resetAt: number | null;
-          /** The least advanced state of the sources, since any source with room allows usage. */
-          readonly state: UsageState;
-      };
+/** What an account may use of a feature across its granting sources, in its billing period. */
+export type Resolution = Pick<Entitlement, "packageId" | "feature" | "resource"> & {
+    /** The start of the billing period ending first among the granting sources. */
+    readonly periodStart: number;
+} & (
+        | {
+              /** Access alone. */
+              readonly kind: "boolean";
+          }
+        | {
+              /** A fixed value. */
+              readonly kind: "static";
+              /** The highest numeric value, or else the most recently granted one. */
+              readonly value: JsonValue;
+          }
+        | {
+              /** Usage of meters up to a limit. */
+              readonly kind: "metered";
+              /** The sum of the sources' limits, unlimited when any source is. */
+              readonly limit: number | null;
+              /** The usage within the current period of the source resetting first. */
+              readonly usage: number;
+              /** The reset of the source resetting first, none when no source resets. */
+              readonly resetAt: number | null;
+              /** The least advanced state of the sources, as any source with room allows usage. */
+              readonly state: UsageState;
+          }
+    );
 
 /** The allotments of features. */
 export const Allotment = {
@@ -51,13 +57,21 @@ export const Allotment = {
             throw new TypeError(`allotments of ${first.feature} disagree on its kind`);
         }
 
+        // resolve in the billing period ending first among the sources
+        const ending = nth(
+            allotments.toSorted((left, right) => left.period.end - right.period.end),
+            0,
+        );
+        const { packageId, feature, resource } = first;
+        const resolved = { packageId, feature, resource, periodStart: ending.period.start };
+
         // grant access when any source does
         if (first.kind === "boolean") {
-            return { kind: "boolean" };
+            return { ...resolved, kind: "boolean" };
         }
         // take the highest numeric value, or else the most recently granted one
         else if (first.kind === "static") {
-            return { kind: "static", value: resolveValue(allotments) };
+            return { ...resolved, kind: "static", value: resolveValue(allotments) };
         }
 
         // add the limits up, unlimited when any source is
@@ -78,22 +92,13 @@ export const Allotment = {
         const state = present(USAGE_STATES[Math.min(...states)], "a usage state");
 
         return {
+            ...resolved,
             kind: "metered",
             limit,
             usage: present(resetting.usage, "a metered usage"),
             resetAt: resetting.resetAt,
             state,
         };
-    },
-
-    /** Read the start of the billing period ending first among a feature's allotments. */
-    periodStart(allotments: readonly Allotment[]): number {
-        const ending = nth(
-            allotments.toSorted((left, right) => left.period.end - right.period.end),
-            0,
-        );
-
-        return ending.period.start;
     },
 };
 

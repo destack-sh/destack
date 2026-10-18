@@ -2,7 +2,7 @@ import { Address, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { canonicalize, type JsonValue } from "@destack/schema";
 import type { Sku } from "../sku/sku.ts";
-import { SkuDescription } from "../sku/description.ts";
+import { SkuDescription } from "../sku/sku.ts";
 
 /** The fields charges rated under a SKU depend on, which its prices do not change. */
 const RATED = ["provider", "meter", "pricingUnit", "unitSize", "currency"] as const;

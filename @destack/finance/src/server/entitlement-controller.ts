@@ -7,6 +7,7 @@ import { RequestId } from "@destack/runtime/request";
 import {
     customer,
     Customer,
+    type Resolution,
     product,
     productFeature,
     subscription,
@@ -15,13 +16,14 @@ import {
 } from "../object/index.ts";
 import type { Metering } from "./metering.ts";
 
-/** Derives each account's entitlements as subscriptions or defaults change. */
+/** Derives each account's entitlements as its usage, subscriptions or defaults change. */
 export class EntitlementController implements Controller {
     /** The controller's name in reports. */
     readonly name = "entitlement";
     /** The account replicas, subscriptions and default products entitlements derive from. */
     readonly watches: readonly Table[] = [
         account.table,
+        usage.table,
         subscription.table,
         subscriptionItem.table,
         product.table,
@@ -29,12 +31,12 @@ export class EntitlementController implements Controller {
     ];
     /** The object store deriving as finance's installation. */
     readonly #store: ObjectStore;
-    /** The space storing the entitlements, which the derivations run in. */
+    /** The residency's home, storing the customers whose announcements alert the accounts. */
     readonly #home: string;
     /** The metering whose catalogs the entitlements derive from. */
     readonly #metering: Metering;
 
-    /** Derive through a store of the entitlements in a space, with the metering's catalogs. */
+    /** Derive through finance's store in the residency's home, with the metering's catalogs. */
     constructor(store: ObjectStore, home: string, metering: Metering) {
         this.#store = store;
         this.#home = home;
@@ -46,6 +48,10 @@ export class EntitlementController implements Controller {
         // key an account's replica by itself
         if (Change.of(change, account.table)) {
             return [Change.image(change).id];
+        }
+        // key arriving usage by its paying account
+        else if (Change.of(change, usage.table)) {
+            return change.operation === "insert" ? [Change.image(change).scope] : [];
         }
         // key a subscription by its account
         else if (Change.of(change, subscription.table)) {
@@ -100,28 +106,51 @@ export class EntitlementController implements Controller {
         return rows.map((row) => row.id);
     }
 
-    /** Derive an account's entitlements in one mutation, skipping a current one. */
+    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    resolve(scope: string): Promise<Resolution[]> {
+        // read the catalogs, replicas and usage series the account's sources grant from
+        const caller = this.#store.serving(customer);
+        const releases = this.#metering.reader(this.#store, caller, this.#home);
+        const reader = Snapshot.live(this.#store.database);
+        const events = new EventView(usage.eventKind(), this.#store.events);
+
+        return Customer.resolve(
+            account.identifier(scope),
+            releases,
+            reader,
+            events,
+            this.#store.clock.now(),
+        );
+    }
+
+    /** Announce an account's changed usage states, then write its entitlements at the universe. */
     async reconcile(scope: string): Promise<number | undefined> {
-        // skip an account whose stored entitlements are current, read without a mutation
+        // derive the account's entitlements and alerts, comparing them to its replicated ones
         const now = this.#store.clock.now();
         const accountId = account.identifier(scope);
         const caller = this.#store.serving(customer);
-        const catalog = this.#metering.catalog(this.#store, caller, this.#home);
         const reader = Snapshot.live(this.#store.database);
-        const events = new EventView(usage.eventKind(), this.#store.events);
-        if (await Customer.isEntitlementCurrent(accountId, catalog, reader, events, now)) {
-            return undefined;
+        const resolutions = await this.resolve(scope);
+        const { calls, alerts } = await Customer.derive(accountId, resolutions, reader);
+
+        // announce the alerts before writing, so no written state skips its announcement
+        if (alerts.length > 0) {
+            const announcing = customer.call("announce", {
+                ...customer.in(this.#home),
+                accountId,
+                alerts,
+            });
+            await this.#store.mutate(
+                caller,
+                { id: RequestId.create(now), calls: [announcing] },
+                { scope: this.#home },
+            );
         }
 
-        // derive the account's entitlements in one mutation
-        await this.#store.mutate(
-            caller,
-            {
-                id: RequestId.create(now),
-                calls: [customer.call("entitle", { ...customer.in(this.#home), accountId })],
-            },
-            { scope: this.#home },
-        );
+        // write the changed entitlements at the universe as finance's installation
+        if (calls.length > 0) {
+            await this.#store.mutate(caller, { id: RequestId.create(now), calls });
+        }
 
         return undefined;
     }

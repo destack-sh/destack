@@ -29,13 +29,12 @@ export default definePackage({
         subscription,
         subscriptionItem,
         checkoutSession,
-        entitlement,
         charge,
         invoice,
         usage,
     },
     adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
     secrets: { "stripe-secret-key": stripeSecretKey },
-    // derive each account's entitlements
-    permissions: { installation: { space: [entitlement.permission("provide")] } },
+    // write each account's entitlements at the universe
+    permissions: { installation: { universe: [entitlement.permission("provide")] } },
 });

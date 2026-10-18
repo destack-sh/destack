@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { defineFeature } from "../src/declare/index.ts";
 import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
-import { Catalog } from "../src/catalog/index.ts";
+import { ReleaseReader } from "../src/release/reader.ts";
 import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
 import { FinanceFixture } from "../src/test/index.ts";
 import {
@@ -27,11 +27,13 @@ test("read described features and meters back from a build, and relate metered f
         calls,
         storageLimit,
     ]);
-    const catalog = Catalog.of(build.manifest.package, await build.declarations());
+    const releases = new ReleaseReader(async () => ReleaseReader.read(build));
     const features = [sync, support, seats, calls, storageLimit];
     expect([
-        features.map((feature) => describeFeature(catalog.feature(feature.reference))),
-        catalog.meter(requests.reference).definition,
+        await Promise.all(
+            features.map(async (feature) => describeFeature(await releases.feature(feature.reference))),
+        ),
+        (await releases.meter(requests.reference)).definition,
     ]).toEqual([features.map((feature) => describeFeature(feature)), requests.definition]);
 
     // relate the metered feature to its meter, and the others to nothing
@@ -50,9 +52,10 @@ test("read described features and meters back from a build, and relate metered f
     ]);
 
     // refuse an undeclared feature
-    expect(() => catalog.feature({ packageId: storage.id, name: "backup" })).toThrow(
-        `feature ${storage.id}/backup is undeclared`,
-    );
+    await expect(releases.feature({ packageId: storage.id, name: "backup" })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: `feature ${storage.id}/backup is undeclared`,
+    });
 });
 
 /** Read a feature's release entry back from JSON. */

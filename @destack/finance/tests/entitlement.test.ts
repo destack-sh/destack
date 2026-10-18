@@ -38,7 +38,7 @@ const NEXT = Date.UTC(2026, 11, 1);
 
 /** Read the derived fields of entitlements, without their bookkeeping. */
 function derived(rows: readonly Entitlement[]) {
-    return rows.map((row) => [row.feature, row.kind, row.value, row.limit, row.usage, row.resetAt]);
+    return rows.map((row) => [row.feature, row.kind, row.value, row.limit, row.resetAt]);
 }
 
 /** Open the service with Alice's customer for Acme's buyer account and Carol's offer. */
@@ -103,11 +103,11 @@ test.each(TEST_DIALECTS)(
         expect([due.status, derived(await finance.entitlements(ids.buyer))]).toEqual([
             "past_due",
             [
-                ["api.calls", "metered", null, CALL_LIMIT, 0, END],
-                ["seats", "static", SEATS, null, null, null],
-                ["storage.limit", "metered", null, STORAGE_LIMIT, 0, null],
-                ["support", "static", "priority", null, null, null],
-                ["sync", "boolean", null, null, null, null],
+                ["api.calls", "metered", null, CALL_LIMIT, END],
+                ["seats", "static", SEATS, null, null],
+                ["storage.limit", "metered", null, STORAGE_LIMIT, null],
+                ["support", "static", "priority", null, null],
+                ["sync", "boolean", null, null, null],
             ],
         ]);
 
@@ -138,8 +138,10 @@ test.each(TEST_DIALECTS)(
         });
         await finance.entitle();
         const usage = async () =>
-            (await finance.entitlements(ids.buyer)).flatMap((row) =>
-                row.kind === "metered" ? [[row.feature, row.usage, row.resetAt]] : [],
+            (await finance.resolutions(ids.buyer)).flatMap((resolution) =>
+                resolution.kind === "metered"
+                    ? [[resolution.feature, resolution.usage, resolution.resetAt]]
+                    : [],
             );
         expect(await usage()).toEqual([
             ["api.calls", 30, END],
@@ -198,7 +200,7 @@ test.each(TEST_DIALECTS)(
         await finance.entitle();
 
         // grant access, the most seats, the latest support, summed calls in the first period, and unlimited storage
-        const rows = await finance.entitlements(ids.buyer);
+        const rows = await finance.resolutions(ids.buyer);
         expect(
             [sync, seats, support, calls, storageLimit].map((feature) =>
                 resolved(rows, feature.reference),
@@ -235,7 +237,7 @@ test.each(TEST_DIALECTS)(
         await finance.entitle();
 
         // store one row for the feature with the summed limit
-        const rows = await finance.entitlements(ids.buyer);
+        const rows = await finance.resolutions(ids.buyer);
         expect([
             rows.filter((row) => row.feature === calls.name).length,
             resolved(rows, calls.reference),
@@ -280,7 +282,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // count the requests within the period, and take the changed support tier with them
-        const rows = await finance.entitlements(ids.buyer);
+        const rows = await finance.resolutions(ids.buyer);
         expect([resolved(rows, calls.reference), resolved(rows, support.reference)]).toEqual([
             { kind: "metered", limit: CALL_LIMIT, usage: 10, resetAt: END, state: "within" },
             { kind: "static", value: "community" },

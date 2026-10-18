@@ -8,7 +8,7 @@ import {
     space,
     user,
 } from "@destack/account/object";
-import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { build, installation, installationRevision } from "@destack/stack/object";
 import { call, journal } from "@destack/object";
 import { defineDatabase } from "@destack/db";
 import { packageObject, release, tag } from "@destack/forge/object";
@@ -46,7 +46,7 @@ export const homeDatabase = defineDatabase({
             usage,
         ].flatMap((type) => type.tables),
         ...notificationTables,
-        ...[user, installation, installationRevision, declaration].flatMap((type) => type.tables),
+        ...[user, installation, installationRevision, build].flatMap((type) => type.tables),
         ...[packageObject, release, tag, claim].flatMap((type) => type.tables),
         journal,
         ...call.tables,
