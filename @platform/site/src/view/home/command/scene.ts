@@ -1,5 +1,6 @@
 import { rowOf } from "../verb/space";
 import type { Change } from "../verb/apps";
+import type { Connector } from "./chat";
 import { present } from "@destack/schema";
 
 /** The milliseconds a beat of the task takes. */
@@ -29,13 +30,10 @@ const BUILD_BEATS = 6;
 /** The beats an app holds once its note shows. */
 const SHOWN_BEATS = 6;
 
-/** The beats each left-over item holds before the next one shows, a second each. */
-const LEFT_BEATS = 4;
-
 /** The beats the finished task holds before it runs again. */
 const HOLD_BEATS = 20;
 
-/** One item of the chat: a question, call, reply, approval, app, left-overs or tally. */
+/** One item of the chat: a question, call, reply, approval, or app. */
 export type Item =
     | { kind: "ask"; text: string }
     | {
@@ -57,18 +55,13 @@ export type Item =
           rows: readonly Lead[];
           note: string;
           isLive: boolean;
-      }
-    | { kind: "stale"; title: string; copies: readonly Copy[] }
-    | { kind: "tally"; text: string; isWrong: boolean };
+      };
 
 /** How long an approval holds: for this one call, or for the rest of the chat. */
 export type Grant = "once" | "chat";
 
 /** A row of the agent's board: who asked, what they asked, and where it stands. */
 export type Lead = readonly [name: string, asked: string, state: string];
-
-/** Something left for you to do by hand: the app's mark, where it is, and what to do. */
-export type Copy = readonly [server: string, place: string, value: string];
 
 /** One step of the task: what the chat adds, the page it touches, and how far your apps got. */
 export type Step = { item: Item; row: number; change: Change };
@@ -96,7 +89,7 @@ export type Moment = {
     isWorking: boolean;
 };
 
-/** A task told a step at a time on a clock of beats, from your message to the tally. */
+/** A task told a step at a time on a clock of beats, from your message to its last reply. */
 export class Scene {
     /** The steps, placed on the clock. */
     readonly cues: readonly Cue[];
@@ -200,6 +193,12 @@ const askers: readonly Lead[] = [
 
 /** The same people as the connectors match them by email, three missed under other addresses. */
 const matched: readonly Lead[] = askers.slice(0, 6);
+
+/** The connectors the agent has on in the stacked task, by mark and colour. */
+export const stackedConnectors: readonly Connector[] = [
+    ["airtable", "#18bfff"],
+    ["slack", "#4a154b"],
+];
 
 /** The task through Airtable and Slack: a partial match, no trigger, and a lost row. */
 export const stacked = new Scene([
@@ -312,25 +311,7 @@ export const stacked = new Scene([
     {
         item: {
             kind: "reply",
-            text: "Maya's back, but as a new row without Jonas's notes: Airtable's API can't restore deleted records.",
-        },
-        row: TABLES_ROW,
-        change: "start",
-    },
-    {
-        item: {
-            kind: "stale",
-            title: "Left for you",
-            copies: [["airtable", "Maya's original row", "in the base's Trash for 7 days"]],
-        },
-        row: TABLES_ROW,
-        change: "start",
-    },
-    {
-        item: {
-            kind: "tally",
-            text: "84 calls · 6 of 9 found · no trigger · Jonas's notes lost",
-            isWrong: true,
+            text: "Maya's back, but as a new row without Jonas's notes: Airtable's API can't restore deleted records. The original sits in the base's trash for 7 days.",
         },
         row: TABLES_ROW,
         change: "start",
@@ -430,15 +411,6 @@ export const destacked = new Scene([
         row: WAITLIST_ROW,
         change: "automated",
     },
-    {
-        item: {
-            kind: "tally",
-            text: "1 API · 9 of 9 · runs on its own · nothing lost",
-            isWrong: false,
-        },
-        row: WAITLIST_ROW,
-        change: "automated",
-    },
 ]);
 
 /** Return the beats you take to type a message into the composer and send it. */
@@ -464,15 +436,7 @@ function beatsOf(item: Item): number {
     else if (item.kind === "approval") {
         return DECIDE_BEATS + REST_BEATS;
     }
-    // an app: built, then its note
-    else if (item.kind === "app") {
-        return BUILD_BEATS + SHOWN_BEATS;
-    }
-    // the left-overs: read one by one
-    else if (item.kind === "stale") {
-        return item.copies.length * LEFT_BEATS;
-    }
 
-    // the tally
-    return REST_BEATS;
+    // an app: built, then its note
+    return BUILD_BEATS + SHOWN_BEATS;
 }

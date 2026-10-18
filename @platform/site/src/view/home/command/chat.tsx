@@ -1,5 +1,6 @@
 import { font } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createSignal, For, type JSX, Show } from "@destack/view";
 
@@ -30,6 +31,8 @@ const serverNames: Readonly<Record<string, string>> = {
     airtable: "Airtable",
     calendly: "Calendly",
     miro: "Miro",
+    zapier: "Zapier",
+    trello: "Trello",
 };
 
 /** The assistants the chat takes the look of, in turn. */
@@ -45,8 +48,39 @@ export const assistantOptions: readonly Option[] = [
 /** One assistant the chat can look like. */
 export type Assistant = (typeof assistants)[number];
 
+/** Return the assistant a chat looks like: the reader's choice, or the next one each run. */
+export function createAssistantTurn(
+    beat: () => number,
+    length: () => number,
+    isReduced: () => boolean,
+) {
+    // take the assistant the reader chose, or else the next one's look each time the task runs again
+    const [chosen, setChosen] = createSignal<Assistant | undefined>(undefined);
+    const turned = () =>
+        present(assistants[Math.floor(beat() / length()) % assistants.length], "turned assistant");
+    const look = () => chosen() ?? turned();
+
+    // show how far the run has come until the reader chooses
+    const progress = () =>
+        chosen() === undefined && !isReduced() ? (beat() % length()) / length() : undefined;
+    const choose = (name: string) =>
+        setChosen(
+            present(
+                assistants.find((candidate) => candidate === name),
+                "chosen assistant",
+            ),
+        );
+
+    return { look, progress, choose };
+}
+
 /** Draw an assistant's desktop app a turn at a time: through connectors, or with your space. */
-export function AgentChat(properties: { isOpen: boolean; moment: Moment; assistant: Assistant }) {
+export function AgentChat(properties: {
+    isOpen: boolean;
+    moment: Moment;
+    assistant: Assistant;
+    connectors: readonly Connector[];
+}) {
     // tell each assistant's chrome apart, so the shown one fades in over the rest
     const isShown = (candidate: Assistant) => candidate === properties.assistant;
 
@@ -182,7 +216,10 @@ export function AgentChat(properties: { isOpen: boolean; moment: Moment; assista
                             <span {...style.attrs(styles.claudePlus)}>
                                 <Glyph name="sliders" size={14} />
                             </span>
-                            <Connectors isOpen={properties.isOpen} />
+                            <Connectors
+                                isOpen={properties.isOpen}
+                                connectors={properties.connectors}
+                            />
                             <span {...style.attrs(styles.hint, styles.end)}>
                                 Opus 5.5
                                 <Glyph name="caret" size={10} />
@@ -196,7 +233,10 @@ export function AgentChat(properties: { isOpen: boolean; moment: Moment; assista
                         <Typed text={properties.moment.typing} placeholder="Ask anything" />
                         <span {...style.attrs(styles.composerRow)}>
                             <Glyph name="plus" size={18} />
-                            <Connectors isOpen={properties.isOpen} />
+                            <Connectors
+                                isOpen={properties.isOpen}
+                                connectors={properties.connectors}
+                            />
                             <span {...style.attrs(styles.end)}>
                                 <Glyph name="microphone" size={16} />
                             </span>
@@ -219,7 +259,10 @@ export function AgentChat(properties: { isOpen: boolean; moment: Moment; assista
                                 <Glyph name="sliders" size={14} />
                                 Tools
                             </span>
-                            <Connectors isOpen={properties.isOpen} />
+                            <Connectors
+                                isOpen={properties.isOpen}
+                                connectors={properties.connectors}
+                            />
                             <span {...style.attrs(styles.end)}>
                                 {send() === "idle" ? (
                                     <Glyph name="microphone" size={18} />
@@ -237,14 +280,11 @@ export function AgentChat(properties: { isOpen: boolean; moment: Moment; assista
     );
 }
 
-/** The connectors the assistant reaches your apps through, by mark and colour. */
-const vendors = [
-    ["airtable", "#18bfff"],
-    ["slack", "#4a154b"],
-] as const;
+/** A connector the assistant reaches an app through: its mark and colour. */
+export type Connector = readonly [icon: string, tint: string];
 
 /** Draw the connectors the composer has on: one per vendor, or your space alone. */
-function Connectors(properties: { isOpen: boolean }) {
+function Connectors(properties: { isOpen: boolean; connectors: readonly Connector[] }) {
     return (
         <span {...style.attrs(styles.connectors)}>
             <span {...style.attrs(styles.logos)}>
@@ -253,14 +293,14 @@ function Connectors(properties: { isOpen: boolean }) {
                         <img alt="" src="/brand/mark.svg" {...style.attrs(styles.server)} />
                     </span>
                 ) : (
-                    vendors.map(([icon, tint]) => (
-                        <span {...style.attrs(styles.logo)}>
-                            <Favicon icon={icon} tint={tint} size={11} />
+                    properties.connectors.map(([icon, tint], index) => (
+                        <span {...style.attrs(styles.logo, index >= 3 && styles.logoExtra)}>
+                            <Favicon icon={icon} tint={tint} size={13} />
                         </span>
                     ))
                 )}
             </span>
-            {properties.isOpen ? "Destack" : `${vendors.length} connectors`}
+            {properties.isOpen ? "Destack" : `${properties.connectors.length} connectors`}
         </span>
     );
 }
@@ -390,30 +430,6 @@ function ItemView(properties: {
                         </span>
                     </span>
                 ) : undefined}
-            </span>
-        );
-    }
-
-    // the copies the task missed, one under the other
-    else if (item.kind === "stale") {
-        return (
-            <span data-component="StaleCopies" {...style.attrs(styles.stale)}>
-                <b {...style.attrs(styles.staleTitle)}>{item.title}</b>
-                {item.copies.map(([server, place, value]) => (
-                    <span {...style.attrs(styles.staleCopy)}>
-                        <Favicon icon={server} tint={chat.ink} size={12} />
-                        <span {...style.attrs(styles.stalePlace)}>{place}</span>
-                        <span {...style.attrs(styles.staleValue)}>{value}</span>
-                    </span>
-                ))}
-            </span>
-        );
-    }
-    // the run's tally under the reply, marked where the answer came out wrong
-    else if (item.kind === "tally") {
-        return (
-            <span {...style.attrs(styles.tally, item.isWrong && styles.tallyWrong)}>
-                {item.text}
             </span>
         );
     }
@@ -863,58 +879,6 @@ const styles = style.create({
         overflowWrap: "anywhere",
         whiteSpace: "pre-wrap",
     },
-    tally: {
-        alignSelf: "flex-start",
-        backgroundColor: `color-mix(in srgb, ${assistant.passed} 12%, transparent)`,
-        borderRadius: "6px",
-        color: assistant.passed,
-        flexShrink: 0,
-        fontFamily: font.code,
-        fontSize: "0.6875rem",
-        fontWeight: 600,
-        paddingBlock: "0.25rem",
-        paddingInline: "0.5rem",
-    },
-    stale: {
-        alignSelf: "stretch",
-        borderColor: `color-mix(in srgb, ${assistant.failed} 35%, transparent)`,
-        borderRadius: "8px",
-        borderStyle: "dashed",
-        borderWidth: "1px",
-        display: "grid",
-        flexShrink: 0,
-        fontFamily: font.code,
-        fontSize: "0.6875rem",
-        gap: "0.375rem",
-        paddingBlock: "0.5rem",
-        paddingInline: "0.625rem",
-    },
-    staleTitle: {
-        color: assistant.failed,
-        fontWeight: 600,
-    },
-    staleCopy: {
-        alignItems: "center",
-        display: "grid",
-        gap: "0.5rem",
-        gridTemplateColumns: "auto minmax(0, 9rem) minmax(0, 1fr)",
-    },
-    stalePlace: {
-        fontWeight: 600,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    staleValue: {
-        opacity: 0.75,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    tallyWrong: {
-        backgroundColor: `color-mix(in srgb, ${assistant.failed} 12%, transparent)`,
-        color: assistant.failed,
-    },
     passed: {
         color: assistant.passed,
     },
@@ -1104,27 +1068,30 @@ const styles = style.create({
         color: chat.muted,
         display: "inline-flex",
         fontSize: "0.75rem",
-        gap: "0.375rem",
-        paddingBlock: "0.125rem",
+        gap: "0.5rem",
+        paddingBlock: "0.1875rem",
         paddingInlineEnd: "0.5rem",
         paddingInlineStart: "0.25rem",
         whiteSpace: "nowrap",
     },
     logos: {
         display: "inline-flex",
+        gap: "0.25rem",
+    },
+    logoExtra: {
+        display: { default: "inline-flex", [media.maxSm]: "none" },
     },
     logo: {
         alignItems: "center",
         backgroundColor: chat.canvas,
         borderColor: chat.border,
-        borderRadius: "50%",
+        borderRadius: "6px",
         borderStyle: "solid",
         borderWidth: "1px",
         display: "inline-flex",
-        height: "18px",
+        height: "22px",
         justifyContent: "center",
-        marginInlineStart: { default: "-5px", ":first-child": 0 },
-        width: "18px",
+        width: "22px",
     },
     idle: {
         opacity: 0.5,

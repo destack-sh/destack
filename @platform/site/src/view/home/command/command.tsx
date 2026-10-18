@@ -12,8 +12,8 @@ import { Label, LabelRow } from "../entry/label";
 import { Picker } from "../figure/picker";
 import { StackSwitch } from "../entry/switch";
 import { pages, rowOf, SpaceBrowser, type Viewer } from "../verb/space";
-import { AgentChat, type Assistant, assistantOptions, assistants } from "./chat";
-import { BEAT, destacked, stacked } from "./scene";
+import { AgentChat, assistantOptions, createAssistantTurn } from "./chat";
+import { BEAT, destacked, stacked, stackedConnectors } from "./scene";
 import { sources } from "../verb/source";
 import { AirtableSignups } from "../tool/airtable";
 import { type Lineup, lineupAt, toolOf } from "../tool/tool";
@@ -75,25 +75,8 @@ export function Command(properties: { isOpen: boolean }) {
     const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
     const step = () => moment().step;
 
-    // take the assistant the reader chose, or else the next one's look each time the task runs again
-    const [chosen, setChosen] = createSignal<Assistant | undefined>(undefined);
-    const turned = () =>
-        present(
-            assistants[Math.floor(beat() / scene().length) % assistants.length],
-            "turned assistant",
-        );
-    const look = () => chosen() ?? turned();
-    const progress = () =>
-        chosen() === undefined && !isReduced()
-            ? (beat() % scene().length) / scene().length
-            : undefined;
-    const choose = (name: string) =>
-        setChosen(
-            present(
-                assistants.find((candidate) => candidate === name),
-                "chosen assistant",
-            ),
-        );
+    // take the assistant the reader chose, or else the next one's look each time it runs again
+    const { look, progress, choose } = createAssistantTurn(beat, () => scene().length, isReduced);
 
     // show the page the reader opens from a tab, or else the page the step or the walk touches
     const [viewer, setViewer] = createSignal<Viewer>("Me");
@@ -170,7 +153,12 @@ export function Command(properties: { isOpen: boolean }) {
                             : "Your agent, one connector per app"}
                     </Label>
                 </LabelRow>
-                <AgentChat isOpen={properties.isOpen} moment={moment()} assistant={look()} />
+                <AgentChat
+                    isOpen={properties.isOpen}
+                    moment={moment()}
+                    assistant={look()}
+                    connectors={stackedConnectors}
+                />
             </div>
         </section>
     );
