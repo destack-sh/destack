@@ -14,9 +14,14 @@ export function refusal(pending: Promise<unknown>): Promise<"done" | readonly [s
         () => "done" as const,
         (error: unknown) => {
             // read the code and message the error carries
-            const { code, message } = CodedError.parse(error);
+            const coded = CodedError.safeParse(error);
 
-            return [code, message] as const;
+            // rethrow an error without them, failing the test that awaits it
+            if (!coded.success) {
+                throw error;
+            }
+
+            return [coded.data.code, coded.data.message] as const;
         },
     );
 }

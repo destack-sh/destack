@@ -1,4 +1,3 @@
-import { schema } from "@destack/schema";
 import { expect, test } from "vitest";
 import { refusal } from "./refusal.ts";
 
@@ -19,6 +18,8 @@ test("answer a refusal's code and message", async () => {
     ]);
 });
 
-test("reject a failure without a code, failing the test that awaits it", async () => {
-    await expect(refusal(Promise.reject(new Error("broken")))).rejects.toBeInstanceOf(schema.Error);
+test("rethrow a failure without a code, failing the test that awaits it", async () => {
+    const failure = new Error("broken");
+
+    await expect(refusal(Promise.reject(failure))).rejects.toBe(failure);
 });
