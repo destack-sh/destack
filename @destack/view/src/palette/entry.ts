@@ -1,5 +1,6 @@
 import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
+import { type BuildReader, CommandDescription } from "@destack/package/manifest";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { CommandReference } from "../declare/command.ts";
@@ -134,6 +135,23 @@ export type PaletteFocus = schema.Infer<typeof PaletteFocus>;
 
 /** The palette's ranking of entries, their sources and their keybindings. */
 export const Palette = {
+    /** Read the commands a build declares, with the key combinations they declare. */
+    async commands(
+        build: Pick<BuildReader, "declared" | "manifest">,
+    ): Promise<(CommandReference & { readonly keybinding: Accelerator | undefined })[]> {
+        const declared = await build.declared(
+            import.meta.destack.package.id,
+            "command",
+            CommandDescription,
+        );
+
+        return declared.map((entry) => ({
+            packageId: build.manifest.package.id,
+            name: entry.name,
+            keybinding: entry.description.keybinding,
+        }));
+    },
+
     /** Rank the entries that match a query. */
     rank(entries: readonly PaletteEntry[], query: string, focus: PaletteFocus): PaletteEntry[] {
         const scored = entries.flatMap((entry) => {
