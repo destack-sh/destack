@@ -665,12 +665,20 @@ export class ObjectStore {
 
     /** Describe known types and every type they refer to, every served one when given none. */
     describe(types?: readonly ObjectTypeReference[]): ObjectDescription[] {
-        // index the known types by reference, beside the intrinsic policies every client knows
-        const known = new Map(
-            this.known
-                .filter((declaration) => declaration instanceof ObjectType)
-                .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
-        );
+        // index the known types and every type their descriptions mention
+        const known = new Map<string, ObjectType>();
+        const pendingTypes = this.known.filter((declaration) => declaration instanceof ObjectType);
+        for (let type = pendingTypes.pop(); type !== undefined; type = pendingTypes.pop()) {
+            const key = ObjectTypeReference.key(type.typeReference);
+            if (!known.has(key)) {
+                known.set(key, type);
+                pendingTypes.push(
+                    ...type.referenced,
+                    ...type.ancestors,
+                    ...type.attachments.map((attachment) => attachment.object),
+                );
+            }
+        }
         const intrinsic = ObjectTypePool.of([]);
 
         // describe each asked type, then each type a description refers to beyond the intrinsic policies

@@ -165,6 +165,18 @@ const shelf = defineObject({
     permissions: { read: through("scope", "read"), write: through("scope", "read") },
 });
 
+/** A label another package keeps, which bookmarks refer to though the store serves no labels. */
+const label = defineObject({
+    name: "label",
+    plural: "labels",
+    scope: space,
+    fields: {
+        /** The label's text. */
+        text: field.string(),
+    },
+    permissions: { read: through("scope", "read") },
+});
+
 /** A bookmark kept on a shelf. */
 const bookmark = defineObject({
     name: "bookmark",
@@ -173,11 +185,13 @@ const bookmark = defineObject({
     fields: {
         /** The bookmarked address. */
         url: field.string(),
+        /** The label the bookmark carries, absent for none. */
+        label: field.reference(() => label).optional(),
     },
     permissions: { read: through("scope", "read"), write: through("scope", "read") },
 });
 
-test("read objects of a scope inside the space a client is pinned to, refusing a scope outside it", async () => {
+test("read objects of a scope inside the space a client is pinned to, refusing a scope outside it, and describe every type they refer to", async () => {
     // serve shelves and their bookmarks over HTTP, pinned to the space
     const storage = await TestDatabase.create(
         "sqlite",
@@ -229,8 +243,12 @@ test("read objects of a scope inside the space a client is pinned to, refusing a
         (error: { code?: string }) => error.code,
     );
 
-    expect([schema.looseObject({ url: schema.string() }).parse(read).url, refused]).toEqual([
-        "https://destack.com",
-        "NOT_FOUND",
-    ]);
+    // describe the bookmark with every type it refers to, the label the store serves none of among them
+    const described = await client.describe([bookmark.typeReference]);
+
+    expect([
+        schema.looseObject({ url: schema.string() }).parse(read).url,
+        refused,
+        described.map((type) => type.name).toSorted(),
+    ]).toEqual(["https://destack.com", "NOT_FOUND", ["bookmark", "label", "shelf", "space"]]);
 });
