@@ -8,7 +8,7 @@ import { Claim, ClaimLookup, claimTable, Follow, type ObjectType } from "@destac
 import type { ObjectStore, ServerDefinition } from "@destack/object/server";
 import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { type Fetch, PackageMount } from "@destack/runtime";
 import { conceal, isCallError, CallError } from "@destack/runtime/error";
 import { RequestBody, RequestId } from "@destack/runtime/request";
@@ -64,15 +64,10 @@ export interface ForgeOptions {
 }
 
 /** Follow the connection of each live repository from its account's home. */
-const connectionFollow = Follow.of(connectionShape, {
-    from: repository.query({
-        where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
-    }),
+const connectionFollow = repository.follow(connectionShape, {
+    where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
     key: async (row) => ({
-        key: {
-            scope: schema.identifier("account").parse(row["accountId"]),
-            id: schema.identifier("connection").parse(row["connectionId"]),
-        },
+        key: { scope: row.accountId, id: present(row.connectionId, "a connection") },
     }),
 });
 
