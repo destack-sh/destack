@@ -1,6 +1,7 @@
 import { PUSH_CAPABILITY } from "./message/recipient.ts";
 import { client, user } from "@destack/account/object";
 import { message, messageAttempt } from "@destack/message";
+import { build, catalog, symbol } from "@destack/stack/object";
 import { definePackage } from "@destack/runtime";
 import { activity } from "./object/activity.ts";
 import { announcement } from "./object/announcement.ts";
@@ -28,6 +29,10 @@ export default definePackage({
                 message.permission("read"),
                 message.permission("control"),
                 messageAttempt.permission("record"),
+                // read the notifications installed builds declare, from their index
+                build.permission("read"),
+                symbol.permission("read"),
+                catalog.permission("read"),
             ],
             // read where people receive notifications
             universe: [user.permission("recipient")],

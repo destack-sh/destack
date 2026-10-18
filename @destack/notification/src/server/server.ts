@@ -1,11 +1,12 @@
-import type { MethodContext } from "@destack/object";
+import { type CallInput, ListPage, type MethodContext } from "@destack/object";
 import type { ServerDefinition } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import { CallError } from "@destack/runtime/error";
-import { type Duration, schema } from "@destack/schema";
-import { installation, installationRevision } from "@destack/stack/object";
+import { Catalog, Localization, type LocaleTag } from "@destack/locale";
+import { type Duration, fromJsonSchema, type Identifier, schema } from "@destack/schema";
+import { catalog, installation, installationRevision, symbol } from "@destack/stack/object";
 import { ScheduledCall } from "@destack/workflow";
-import { NotificationCatalog } from "../notification/catalog.ts";
+import { NotificationDescription, NotificationType } from "../notification/notification.ts";
 import { deliver, notification, scheduled, summarize } from "../object/notification.ts";
 import type notificationPackage from "../package.ts";
 import { implementActivity } from "./activity.ts";
@@ -28,7 +29,15 @@ const BATCH = 100;
 /** The keys reconciled at once by default. */
 const CONCURRENCY = 16;
 
-/** The notification package's server in a store: its tuning, and the catalogs it read. */
+/** The notifications a build declares by name, and the catalogs it ships. */
+interface ReadBuild {
+    /** The declared notifications by name. */
+    readonly notifications: ReadonlyMap<string, NotificationType>;
+    /** The catalogs translating its messages and its unpublished dependencies'. */
+    readonly catalogs: readonly Catalog[];
+}
+
+/** The notification package's server in a store: its tuning, and the builds it read. */
 export class NotificationServer {
     /** The recipients of one announcement batch. */
     readonly batch: number;
@@ -38,8 +47,8 @@ export class NotificationServer {
     readonly pushTtl: Duration;
     /** How long an email waits for the notification to be read elsewhere. */
     readonly emailDelay: Duration;
-    /** The notifications and catalogs of each release read so far. */
-    readonly #catalogs = new Map<string, Promise<NotificationCatalog>>();
+    /** The notifications and translations of each build read so far. */
+    readonly #builds = new Map<string, Promise<ReadBuild>>();
 
     /** Serve notifications with the given tuning, the defaults elsewhere. */
     constructor(options: NotificationOptions) {
@@ -50,11 +59,40 @@ export class NotificationServer {
         this.emailDelay = options.emailDelay ?? EMAIL_DELAY;
     }
 
-    /** Read the notifications and translations of the release a call's space installs. */
-    async catalog(
-        context: Pick<MethodContext, "read" | "scope">,
+    /** Read a notification the space's installed release declares, refusing an undeclared one. */
+    async notification(
+        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
         packageId: PackageId,
-    ): Promise<NotificationCatalog> {
+        name: string,
+    ): Promise<NotificationType> {
+        // look the notification up in the release's build
+        const { notifications } = await this.#read(context, packageId);
+        const declared = notifications.get(name);
+        if (declared === undefined) {
+            throw new CallError("BAD_REQUEST", {
+                message: `${packageId} declares no notification ${name}`,
+            });
+        }
+
+        return declared;
+    }
+
+    /** Bind a locale to the translations of the release a call's space installs. */
+    async localization(
+        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
+        packageId: PackageId,
+        tag: LocaleTag,
+    ): Promise<Localization> {
+        const { catalogs } = await this.#read(context, packageId);
+
+        return Localization.of(tag, catalogs);
+    }
+
+    /** Read the notifications and translations of the build the space's installation follows. */
+    async #read(
+        context: Pick<MethodContext, "read" | "query" | "self" | "scope">,
+        packageId: PackageId,
+    ): Promise<ReadBuild> {
         // read the revision the space's installation of the package follows
         const scope = schema.identifier("space").parse(context.scope);
         const [installed] = await context
@@ -72,15 +110,67 @@ export class NotificationServer {
             });
         }
 
-        // describe its notifications and translations once per revision, which never changes
-        const known = this.#catalogs.get(revision.id);
+        // read its build's notifications and translations once per build, which never changes
+        const known = this.#builds.get(revision.buildId);
         if (known !== undefined) {
             return known;
         }
-        const reading = NotificationCatalog.read(context, revision, packageId);
-        this.#catalogs.set(revision.id, reading);
+        const reading = NotificationServer.#index(context, revision.buildId);
+        this.#builds.set(revision.buildId, reading);
 
         return reading;
+    }
+
+    /** Read the notifications a build declares and the catalogs it ships, from its index. */
+    static async #index(
+        context: Pick<MethodContext, "query" | "self">,
+        buildId: Identifier<"build">,
+    ): Promise<ReadBuild> {
+        // read every notification the build declares and every catalog it ships
+        const where = { kindPackageId: import.meta.destack.package.id, kind: "notification" };
+        const [declared, shipped] = await Promise.all([
+            Array.fromAsync(
+                ListPage.all(
+                    (input: CallInput<typeof symbol, "list">) =>
+                        context.query(context.self, symbol.call("list", input)),
+                    { buildId, where },
+                ),
+            ),
+            Array.fromAsync(
+                ListPage.all(
+                    (input: CallInput<typeof catalog, "list">) =>
+                        context.query(context.self, catalog.call("list", input)),
+                    { buildId },
+                ),
+            ),
+        ]);
+
+        // rebuild each notification's payload schema, and each catalog
+        const notifications = declared.map((row) => {
+            const {
+                package: declaring,
+                payload,
+                actions,
+                ...definition
+            } = NotificationDescription.parse(row.description);
+
+            return new NotificationType(
+                declaring,
+                { ...definition, payload: fromJsonSchema(payload) },
+                actions,
+            );
+        });
+        const catalogs = shipped.map(({ packageId, locale, messages, drafts }) => ({
+            package: packageId,
+            locale,
+            messages,
+            ...(drafts === null ? {} : { drafts }),
+        }));
+
+        return {
+            notifications: new Map(notifications.map((each) => [each.name, each])),
+            catalogs,
+        };
     }
 
     /** Define the package's server: its types, an occurrence's delivery, and a home's follows. */

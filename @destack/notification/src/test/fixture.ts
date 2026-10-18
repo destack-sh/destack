@@ -82,8 +82,8 @@ import {
     subscription,
     summarize,
 } from "../object/index.ts";
-import { declaration, installation, installationRevision } from "@destack/stack/object";
-import { installBuild } from "@destack/stack/test";
+import { build, installation, installationRevision } from "@destack/stack/object";
+import { buildIndexServers, installBuild } from "@destack/stack/test";
 import { implementUser } from "@destack/account/server";
 import { NotificationServer, type NotificationOptions } from "../server/index.ts";
 import notificationPackage from "../package.ts";
@@ -152,7 +152,7 @@ export const homeDatabase = defineDatabase({
         ),
         installation.table,
         installationRevision.table,
-        declaration.table,
+        build.table,
     ],
     replicated: [user.table, client.table, key.table, space.table, account.table],
 });
@@ -264,7 +264,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         ...replicaTables,
         installation.table,
         installationRevision.table,
-        declaration.table,
+        build.table,
     ];
 
     /** Keep the served space and the means to open homes. */
@@ -328,10 +328,10 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         };
 
         // render each notification in its declaring build's catalogs and its recipient's language
-        const build =
+        const declaring =
             options.build ??
             (await MemoryBuild.write(new Map(), { package: options.origin.package }));
-        const builds = [build, INBOX_BUILD];
+        const builds = [declaring, INBOX_BUILD];
         const served: NotificationOptions =
             options.batch === undefined ? {} : { batch: options.batch };
 
@@ -359,6 +359,8 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                     await NotificationFixture.installation(spaceId),
                 ),
                 settingServer(SETTINGS),
+                // read the installed builds' declarations from their index
+                ...(await buildIndexServers(test.database, builds)),
             ],
             chain: async () => undefined,
             principal: installer,
@@ -411,8 +413,8 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         builds: readonly BuildReader[],
         at = Date.now(),
     ): Promise<void> {
-        for (const build of builds) {
-            await installBuild(database, scope, build, at);
+        for (const reader of builds) {
+            await installBuild(database, scope, reader, at);
         }
     }
 
@@ -695,6 +697,8 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                     ],
                 }),
                 settingServer(SETTINGS),
+                // read the installed builds' declarations from their index
+                ...(await buildIndexServers(test.database, this.#builds)),
             ],
             principal: installer,
             database: test.database,

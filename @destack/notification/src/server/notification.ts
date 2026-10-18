@@ -161,8 +161,11 @@ async function summarizeAt(
     );
 
     // send each destination the entries it takes in the summary, in the person's language
-    const own = await server.catalog(context, import.meta.destack.package.id);
-    const locale = own.localization(recipient.locale);
+    const locale = await server.localization(
+        context,
+        import.meta.destack.package.id,
+        recipient.locale,
+    );
     const options = { emailDelay: Duration.milliseconds(server.emailDelay), summaryAt: at };
     const routings = entries.map(
         (entry, index) => new Routing(entry, recipient, nth(settings, index), options, context.now),

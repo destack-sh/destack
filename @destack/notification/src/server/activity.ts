@@ -5,6 +5,7 @@ import { nth, present } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { Activity, activity } from "../object/activity.ts";
 import { Notification, notification } from "../object/notification.ts";
+import { Recipient } from "../message/recipient.ts";
 import type { NotificationServer } from "./server.ts";
 
 /** Implement activities: notify their recipients, answer their actions, and plan a home's. */
@@ -19,16 +20,18 @@ export function implementActivity(server: NotificationServer): typeof activity {
             act: async (call) => {
                 // answer as the declaration of the release the space installs
                 const { packageId, name } = call.target;
-                const declared = (await server.catalog(call, packageId)).get(name);
+                const declared = await server.notification(call, packageId, name);
 
                 return declared.act(call.input.action, call.input.text, call);
             },
             notify: async (call) => {
                 // render in each person's locale with the declaring release's catalogs
-                const catalog = await server.catalog(call, call.input.packageId);
-                const localize = (person: Subject) => catalog.localize(call, person);
+                const { packageId, name } = call.input;
+                const declared = await server.notification(call, packageId, name);
+                const localize = async (person: Subject) =>
+                    server.localization(call, packageId, await Recipient.locale(call, person));
 
-                return catalog.get(call.input.name).notify(localize, call);
+                return declared.notify(localize, call);
             },
         },
     });

@@ -30,9 +30,9 @@ export function implementAnnouncement(server: NotificationServer): typeof announ
     return announcement.implement({
         methods: {
             announce: async (call) =>
-                (await server.catalog(call, call.input.packageId))
-                    .get(call.input.name)
-                    .announce(call),
+                (await server.notification(call, call.input.packageId, call.input.name)).announce(
+                    call,
+                ),
             expand: (context) => expand(context, server.batch),
         },
         controller: {

@@ -1,5 +1,6 @@
 import * as accountObject from "@destack/account/object";
-import { type LocaleTag } from "@destack/locale";
+import { type LocaleTag, SOURCE_LOCALE } from "@destack/locale";
+import { principal } from "@destack/access";
 import { Destination } from "@destack/message";
 import type { MethodContext } from "@destack/object";
 import { present, schema } from "@destack/schema";
@@ -35,6 +36,24 @@ export class Recipient {
             ...row.browsers.map(({ url, keys }) => ({ channel: "push" as const, url, keys })),
             ...(row.email === undefined ? [] : [{ channel: "email" as const, address: row.email }]),
         ];
+    }
+
+    /** Read the language a principal reads: a person's profile's, else the messages' own. */
+    static async locale(
+        context: Pick<MethodContext, "read">,
+        subject: Subject,
+    ): Promise<LocaleTag> {
+        // read the messages as authored for a principal without a profile, such as an agent
+        if (!principal.user.is(subject)) {
+            return SOURCE_LOCALE;
+        }
+
+        // read a person's language from their public profile
+        const profile = await context
+            .read(accountObject.user)
+            .findFirst({ where: { id: accountObject.user.identifier(subject.id) } });
+
+        return present(profile, `the profile of ${subject.id}`).locale;
     }
 
     /** Read where a person receives notifications through account's query, acting for the home. */

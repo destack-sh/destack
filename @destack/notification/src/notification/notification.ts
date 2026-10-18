@@ -1,27 +1,45 @@
-import type { Localization, Message } from "@destack/locale";
+import { type Localization, Message } from "@destack/locale";
 import {
     MethodContext,
     type MethodContextOf,
     type ObjectType,
     type ResultOf,
 } from "@destack/object";
-import type { Package } from "@destack/package";
+import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
+import { NotificationMetadata } from "../declare/notification.ts";
 import { CallError } from "@destack/runtime/error";
 import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Activity, activity } from "../object/activity.ts";
 import { announcement, type Announcement } from "../object/announcement.ts";
 import { type InterruptionLevel, Preference } from "../preference/preference.ts";
-import { type Action, type ActionDefinition, NotificationContentDefinition } from "./content.ts";
+import { Action, type ActionDefinition, NotificationContentDefinition } from "./content.ts";
 import type { Notice } from "./notice.ts";
-import type { NotificationDescription } from "./catalog.ts";
 
 /** The largest payload as JSON, in bytes. */
 const PAYLOAD_BYTES = 2048;
 
 /** The default collapse window: a quarter hour, the default email delay. */
 const COLLAPSE: Duration = { minutes: 15 };
+
+/** A notification as manifests describe it. */
+export const NotificationDescription = NotificationMetadata.extend({
+    /** The declaring package. */
+    package: Package,
+    /** The payload's JSON Schema. */
+    payload: schema.jsonObject(),
+    /** The content every channel shows, its arguments the payload's fields. */
+    content: NotificationContentDefinition,
+    /** The line summarizing a thread's notifications, its argument the count. */
+    summary: Message,
+    /** The actions, the first the default. */
+    actions: schema.array(Action),
+    /** How long an unread notification collapses later ones of its thread. */
+    collapse: Duration.schema.exactOptional(),
+});
+/** A declared notification as manifests describe it. */
+export type NotificationDescription = schema.Infer<typeof NotificationDescription>;
 
 /** The payload fields a notification's messages take as arguments. */
 export type PayloadField<Payload extends schema.Schema> = keyof schema.Infer<Payload> & string;
