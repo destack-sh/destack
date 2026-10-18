@@ -20,7 +20,8 @@ import { ObjectType } from "@destack/object";
 import { announcement, notification, scheduled } from "@destack/notification";
 import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
-import { declaration, installation, installationRevision } from "@destack/stack/object";
+import { build, installation, installationRevision } from "@destack/stack/object";
+import { buildIndexServers } from "@destack/stack/test";
 import { user } from "@destack/account/object";
 import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
@@ -187,7 +188,8 @@ async function serveInstallation(
     spaceId: Identifier<"space">,
 ): Promise<ObjectStore> {
     const store: ObjectStore = new ObjectStore({
-        servers,
+        // serve the space's packages, and the index of the social build it installs
+        servers: [...servers, ...(await buildIndexServers(database, [SOCIAL_BUILD]))],
         chain: async () => undefined,
         clock: Clock.system,
         database,
@@ -306,13 +308,16 @@ async function openSpace(database: DatabaseConnection): Promise<Identifier<"spac
         anyone.reference("*", "*"),
     );
 
-    // grant the articles' installation what its workloads request, as approving it does
+    // grant the installation serving articles, social and notification what their packages request
     await access.replicateRole(
         reference,
         {
             name: `installation/${INSTALLATION}`,
-            description: "What the articles' installation requests in this space",
-            permissions: [announcement.permission("expand"), article.permission("read")],
+            description: "What the installation's packages request in this space",
+            permissions: [
+                article.permission("read"),
+                ...(notificationServer.package.permissions.installation?.space ?? []),
+            ],
         },
         principal.installation.reference(spaceId, INSTALLATION),
     );
@@ -344,7 +349,7 @@ async function durable(dialect: Dialect): Promise<TestDatabase> {
                 ...objects
                     .filter((object) => object.storage === "durable")
                     .flatMap((object) => object.tables),
-                ...[user, account, space, installation, installationRevision, declaration].flatMap(
+                ...[user, account, space, installation, installationRevision, build].flatMap(
                     (type) => type.tables,
                 ),
             ],
