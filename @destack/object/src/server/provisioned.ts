@@ -17,7 +17,7 @@ import {
     type ObjectController,
     type ObjectReconciliation,
 } from "../object/controller.ts";
-import { type Condition, type ObservationReport } from "../object/condition.ts";
+import { type Condition, Observation, type ObservationReport } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type ResourceRow } from "../trait/provisioned.ts";
@@ -218,7 +218,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             );
         }
         // provision a resource whose specification changed and apply its desired states
-        else if (row.generation > row.observedGeneration || row.reference === null) {
+        else if (!Observation.isCurrent(row, "ready") || row.reference === null) {
             const provisioned = await ResourceController.#provision(
                 object,
                 row,

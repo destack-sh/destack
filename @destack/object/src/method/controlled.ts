@@ -15,12 +15,19 @@ export const approvalMethod = new MethodBuilder<
     TraitTable<{ readonly controlled: { readonly approval: true } }>
 >();
 
-/** Record a controller's observation of its target at its generation. */
+/** Record a controller's conditions of its target at the generation it evaluated. */
 export const observe = controlledMethod
     .mutation({ permission: "control", input: Observation })
     .handle(async (context) => {
-        // merge the conditions and hold transition times while their status stays
+        // refuse an observation of a generation the record has not reached
         const { observedGeneration, conditions, fields } = context.input;
+        if (observedGeneration > context.target.generation) {
+            throw new CallError("CONFLICT", {
+                message: `${context.object.name} is at generation ${context.target.generation}, not ${observedGeneration}`,
+            });
+        }
+
+        // merge the conditions and hold transition times while their status stays
         const current = context.target.conditions;
         const merged = Object.fromEntries(
             Object.entries(conditions).map(([name, condition]) => [
@@ -36,7 +43,6 @@ export const observe = controlledMethod
         // write the observed state
         return context.updateStatus({
             ...Table.decode(context.object.table, fields ?? {}),
-            observedGeneration,
             conditions: { ...current, ...merged },
         });
     });

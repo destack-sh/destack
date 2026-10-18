@@ -24,14 +24,12 @@ export type ControlledMethodMap<Controlled> = Controlled extends { readonly appr
       ? { readonly observe: typeof observe; readonly finalize: typeof finalize }
       : {};
 
-/** Declare the desired generation and a controller's observations. */
+/** Declare the desired generation and the controllers' observations. */
 export function controlledColumns() {
     return {
         /** The desired state's generation. */
         generation: integer("generation").notNull().default(1),
-        /** The latest generation the controller evaluated. */
-        observedGeneration: integer("observed_generation").notNull().default(0),
-        /** The conditions the controller reports. */
+        /** The conditions the controllers report, each at the generation it observed. */
         conditions: json("conditions", ConditionMap).notNull().default({}),
     };
 }
@@ -50,7 +48,7 @@ export function approvalColumns() {
 
 /** Records a controller reconciles. */
 export const controlled: Trait<ControlledDefinition> & {
-    /** Require valid revisions and generations, and refuse observations of future generations. */
+    /** Require valid revisions and generations. */
     readonly checks: (name: string) => Check[];
 } = {
     key: "controlled",
@@ -74,9 +72,6 @@ export const controlled: Trait<ControlledDefinition> & {
         return [
             check(`${name}_revision`, { revision: { gte: 1 } }),
             check(`${name}_generation`, { generation: { gte: 1 } }),
-            check(`${name}_observed_generation`, {
-                observedGeneration: { gte: 0, lte: { field: "generation" } },
-            }),
         ];
     },
 };

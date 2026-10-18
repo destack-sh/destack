@@ -304,8 +304,8 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
 
     // record the provider, the reference and the host, and apply each size in turn
     expect({
-        unset: [unset.reference, unset.observedGeneration, unset.conditions],
-        fenced: [fenced.reference, fenced.observedGeneration, fenced.conditions],
+        unset: [unset.reference, unset.conditions],
+        fenced: [fenced.reference, fenced.conditions],
         grown: [
             grown.provider,
             grown.reference,
@@ -319,8 +319,8 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         stored,
         unknown,
     }).toEqual({
-        unset: [null, 0, {}],
-        fenced: [null, 0, {}],
+        unset: [null, {}],
+        fenced: [null, {}],
         grown: ["memory", `memory:${ids.first}`, machineId, "Applied"],
         waiting: [
             "AwaitingApproval",

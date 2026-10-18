@@ -167,10 +167,9 @@ test.each(TEST_DIALECTS)(
 
         // observations leave the generation and the first transition time, deletion advances it
         expect([
-            [created.id, created.generation, created.observedGeneration, created.revision],
+            [created.id, created.generation, created.revision],
             [
                 observed.generation,
-                observed.observedGeneration,
                 observed.revision,
                 observed.address,
                 observed.conditions,
@@ -178,9 +177,8 @@ test.each(TEST_DIALECTS)(
             [requested.generation, requested.revision, requested.deletedAt],
             finalized,
         ]).toEqual([
-            [MACHINE, 1, 0, 1],
+            [MACHINE, 1, 1],
             [
-                1,
                 1,
                 3,
                 "10.0.0.1",
@@ -300,13 +298,18 @@ test("let an object representing a principal control its own row, and refuse it 
                 Caller.of(principal.installation.reference(spaceId, actor)),
                 Date.now(),
             ),
-            agent.call("observe", { spaceId, id: first, observedGeneration: 1, conditions: {} }),
+            agent.call("observe", {
+                spaceId,
+                id: first,
+                observedGeneration: 1,
+                conditions: { ready: { status: "true", reason: "Running", message: "" } },
+            }),
         );
     await observe(first);
     const refused = await refusal(observe(second));
     const [observed] = await storage.database.select().from(agent.table);
 
-    expect({ observed: observed?.observedGeneration, refused }).toEqual({
+    expect({ observed: observed?.conditions["ready"]?.observedGeneration, refused }).toEqual({
         observed: 1,
         refused: ["NOT_FOUND", `no installation ${first}`],
     });

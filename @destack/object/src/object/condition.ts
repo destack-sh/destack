@@ -42,7 +42,7 @@ export type Condition = schema.Infer<typeof Condition>;
 /** Status conditions keyed by their unique domain-specific names. */
 export const ConditionMap = schema.record(schema.string().min(1), StatusCondition);
 
-/** A record a controller observes: desired and observed generations and named conditions. */
+/** A record controllers observe: its desired generation and their named conditions. */
 export interface ObservedRecord {
     /** The scope the record lives in. */
     readonly scope: string;
@@ -50,8 +50,6 @@ export interface ObservedRecord {
     readonly id: string;
     /** The desired generation. */
     readonly generation: number;
-    /** The last generation a controller observed. */
-    readonly observedGeneration: number;
     /** The conditions by name. */
     readonly conditions: Readonly<Record<string, StatusCondition>>;
 }
@@ -81,18 +79,23 @@ export const Observation = Object.assign(
             });
         },
 
+        /** Report whether a record's named condition was observed at its current generation. */
+        isCurrent(record: Omit<ObservedRecord, "scope" | "id">, name: string): boolean {
+            return record.conditions[name]?.observedGeneration === record.generation;
+        },
+
         /** Report whether a record already has an observation. */
         isRecorded(
             record: ObservedRecord & Readonly<Record<string, unknown>>,
             observation: ObservationReport,
         ): boolean {
             return (
-                record.observedGeneration === record.generation &&
                 Object.entries(observation.conditions).every(([name, condition]) => {
                     const current = record.conditions[name];
 
                     return (
-                        current?.status === condition.status &&
+                        current?.observedGeneration === record.generation &&
+                        current.status === condition.status &&
                         current.reason === condition.reason &&
                         current.message === condition.message
                     );
