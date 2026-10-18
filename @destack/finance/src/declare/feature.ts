@@ -1,5 +1,5 @@
 import { ModuleMetadata, Package } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import {
     RESOURCE_KINDS,
     Feature,
@@ -32,10 +32,8 @@ export function defineFeature<Value extends schema.Schema>(
         );
     }
 
-    // require a declarative value schema, or meters and their reset
-    if (definition.kind === "static") {
-        defineSchema(definition.value);
-    } else if (definition.kind === "metered") {
+    // require a metered feature's meters and reset
+    if (definition.kind === "metered") {
         const meters = schema.array(CatalogReference).min(1).parse(definition.meters);
         FeatureReset.parse(definition.reset);
 

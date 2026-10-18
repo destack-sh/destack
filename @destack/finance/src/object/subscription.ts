@@ -3,7 +3,7 @@ import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, type MethodContextOf, defineObject, field } from "@destack/object";
-import { defineSchema, type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Currency } from "../rate/amount.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";
@@ -39,19 +39,17 @@ const STEPS: Readonly<Record<Subscription["status"], Transition | undefined>> = 
 };
 
 /** The schema of a product to subscribe to, and the currency of the prices to subscribe at. */
-const purchasableSchema = defineSchema(
-    schema.object({
-        /** The seller's product. */
-        product: schema.object({
-            /** The space of the product. */
-            scope: schema.identifier("space"),
-            /** The product. */
-            id: schema.identifier("product"),
-        }),
-        /** The currency of the prices. */
-        currency: Currency,
+const purchasableSchema = schema.object({
+    /** The seller's product. */
+    product: schema.object({
+        /** The space of the product. */
+        scope: schema.identifier("space"),
+        /** The product. */
+        id: schema.identifier("product"),
     }),
-);
+    /** The currency of the prices. */
+    currency: Currency,
+});
 /** A product to subscribe to at its prices in one currency. */
 export type Purchasable = schema.Infer<typeof purchasableSchema>;
 
@@ -82,83 +80,77 @@ export const SUBSCRIPTION_STATES = [
 ] as const;
 
 /** A subscription as the payment provider bills it. */
-export const ProviderSubscription = defineSchema(
-    schema.object({
-        /** The provider's identifier of the subscription. */
-        providerId: schema.string().min(1),
-        /** The provider's identifier of the customer. */
-        customer: schema.string().min(1),
-        /** Where the provider's billing stands, in finance's states. */
-        status: schema.enum(SUBSCRIPTION_STATES),
-        /** When the current period started, in UTC epoch milliseconds. */
-        currentPeriodStart: schema.number().int(),
-        /** When the current period ends. */
-        currentPeriodEnd: schema.number().int(),
-        /** Whether the subscription ends with the current period. */
-        cancelAtPeriodEnd: schema.boolean(),
-        /** When the subscription was canceled, null while it runs. */
-        canceledAt: schema.number().int().nullable(),
-        /** When the trial ends, null without one. */
-        trialEnd: schema.number().int().nullable(),
-        /** The items, by the provider's identifiers of themselves and their prices. */
-        items: schema.array(
-            schema.object({
-                /** The provider's identifier of the item. */
-                providerId: schema.string().min(1),
-                /** The provider's identifier of the item's price. */
-                price: schema.string().min(1),
-                /** The units billed each period. */
-                quantity: schema.number().int().min(0),
-            }),
-        ),
-    }),
-);
+export const ProviderSubscription = schema.object({
+    /** The provider's identifier of the subscription. */
+    providerId: schema.string().min(1),
+    /** The provider's identifier of the customer. */
+    customer: schema.string().min(1),
+    /** Where the provider's billing stands, in finance's states. */
+    status: schema.enum(SUBSCRIPTION_STATES),
+    /** When the current period started, in UTC epoch milliseconds. */
+    currentPeriodStart: schema.number().int(),
+    /** When the current period ends. */
+    currentPeriodEnd: schema.number().int(),
+    /** Whether the subscription ends with the current period. */
+    cancelAtPeriodEnd: schema.boolean(),
+    /** When the subscription was canceled, null while it runs. */
+    canceledAt: schema.number().int().nullable(),
+    /** When the trial ends, null without one. */
+    trialEnd: schema.number().int().nullable(),
+    /** The items, by the provider's identifiers of themselves and their prices. */
+    items: schema.array(
+        schema.object({
+            /** The provider's identifier of the item. */
+            providerId: schema.string().min(1),
+            /** The provider's identifier of the item's price. */
+            price: schema.string().min(1),
+            /** The units billed each period. */
+            quantity: schema.number().int().min(0),
+        }),
+    ),
+});
 /** A subscription as the payment provider bills it. */
 export type ProviderSubscription = schema.Infer<typeof ProviderSubscription>;
 
 /** The lines a period's close added to the provider's invoice. */
-export const PeriodClose = defineSchema(
-    schema.object({
-        /** The provider's invoice line per usage charge, null for a line billing nothing. */
-        lines: schema.record(schema.string(), schema.string().nullable()),
-        /** The included usage drawn on the period's lines, in minor units. */
-        drawn: schema.number().int().min(0),
-        /** The provider's identifier of the invoice line crediting the drawn usage, if any. */
-        creditLine: schema.string().nullable(),
-    }),
-);
+export const PeriodClose = schema.object({
+    /** The provider's invoice line per usage charge, null for a line billing nothing. */
+    lines: schema.record(schema.string(), schema.string().nullable()),
+    /** The included usage drawn on the period's lines, in minor units. */
+    drawn: schema.number().int().min(0),
+    /** The provider's identifier of the invoice line crediting the drawn usage, if any. */
+    creditLine: schema.string().nullable(),
+});
 /** The lines a period's close added to the provider's invoice. */
 export type PeriodClose = schema.Infer<typeof PeriodClose>;
 
 /** A change of a subscription's plan at the provider. */
-export const PlanChange = defineSchema(
-    schema.discriminatedUnion("kind", [
-        schema.object({
-            /** The prices changed. */
-            kind: schema.literal("change"),
-            /** The provider's identifier of the buying customer. */
-            customer: schema.string(),
-            /** The provider's identifier of the subscription, changed once the change commits. */
-            subscription: schema.string().min(1),
-            /** The provider's identifiers of the licensed prices the subscription changes to. */
-            prices: schema.array(
-                schema.object({ price: schema.string().min(1), quantity: schema.number().int() }),
-            ),
-            /** The product and prices the change mirrored first. */
-            mirrored: PriceMirror,
-        }),
-        schema.object({
-            /** The subscription canceled for the default product. */
-            kind: schema.literal("cancel"),
-            /** The provider's identifier of the buying customer. */
-            customer: schema.string(),
-            /** The provider's identifier of the subscription, canceled once the change commits. */
-            subscription: schema.string().min(1),
-            /** The current period closed onto the final invoice. */
-            closed: PeriodClose,
-        }),
-    ]),
-);
+export const PlanChange = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The prices changed. */
+        kind: schema.literal("change"),
+        /** The provider's identifier of the buying customer. */
+        customer: schema.string(),
+        /** The provider's identifier of the subscription, changed once the change commits. */
+        subscription: schema.string().min(1),
+        /** The provider's identifiers of the licensed prices the subscription changes to. */
+        prices: schema.array(
+            schema.object({ price: schema.string().min(1), quantity: schema.number().int() }),
+        ),
+        /** The product and prices the change mirrored first. */
+        mirrored: PriceMirror,
+    }),
+    schema.object({
+        /** The subscription canceled for the default product. */
+        kind: schema.literal("cancel"),
+        /** The provider's identifier of the buying customer. */
+        customer: schema.string(),
+        /** The provider's identifier of the subscription, canceled once the change commits. */
+        subscription: schema.string().min(1),
+        /** The current period closed onto the final invoice. */
+        closed: PeriodClose,
+    }),
+]);
 /** A change of a subscription's plan at the provider. */
 export type PlanChange = schema.Infer<typeof PlanChange>;
 

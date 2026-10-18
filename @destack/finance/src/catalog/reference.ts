@@ -1,20 +1,16 @@
 import { PackageId } from "@destack/package";
-import { defineSchema, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 /** A package-local name of a feature, meter or SKU, stable across releases. */
-export const CatalogName = defineSchema(
-    schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u),
-);
+export const CatalogName = schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u);
 
 /** The schema of a feature, meter or SKU by its package and name. */
-const catalogReferenceSchema = defineSchema(
-    schema.object({
-        /** The declaring package. */
-        packageId: PackageId,
-        /** The package-local name. */
-        name: CatalogName,
-    }),
-);
+const catalogReferenceSchema = schema.object({
+    /** The declaring package. */
+    packageId: PackageId,
+    /** The package-local name. */
+    name: CatalogName,
+});
 /** The identity of a feature, meter or SKU. */
 export type CatalogReference = schema.Infer<typeof catalogReferenceSchema>;
 
