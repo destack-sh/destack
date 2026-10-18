@@ -29,35 +29,57 @@ export const ViewPresentation = schema.object({
 export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
 
 /** A view a browser output compiles, as manifests describe it. */
-export const ViewDescription = Object.assign(
-    schema
-        .object({
-            /** The emitted chunk mounting the view. */
-            entrypoint: PackagePath,
-            /** The browser features the view may use beyond the bare sandbox. */
-            sandbox: Sandbox,
-            /** The object types the view presents, so opening an object picks its view. */
-            presents: schema.array(ViewPresentation),
-            /** The packages the view calls as its person. */
-            packages: schema.array(PackageId),
-        })
-        .strict(),
-    {
-        /** List view names by rank: views of no type first, then by strength and name. */
-        rank(views: Readonly<Record<string, Pick<ViewDescription, "presents">>>): string[] {
-            return Object.entries(views)
-                .map(([name, view]) => ({ name, strength: strength(view) }))
-                .toSorted(
-                    (left, right) =>
-                        left.strength - right.strength || Text.compare(left.name, right.name),
-                )
-                .map((entry) => entry.name);
-        },
-    },
-);
+const viewDescription = schema
+    .object({
+        /** The emitted chunk mounting the view. */
+        entrypoint: PackagePath,
+        /** The browser features the view may use beyond the bare sandbox. */
+        sandbox: Sandbox,
+        /** The object types the view presents, so opening an object picks its view. */
+        presents: schema.array(ViewPresentation),
+        /** The packages the view calls as its person. */
+        packages: schema.array(PackageId),
+    })
+    .strict();
 
 /** A view a browser output compiles, as manifests describe it. */
-export type ViewDescription = schema.Infer<typeof ViewDescription>;
+export const ViewDescription = Object.assign(viewDescription, {
+    /** List the views a build's outputs compile, by name. */
+    list(manifest: {
+        readonly outputs: Readonly<
+            Record<string, { readonly views: Readonly<Record<string, ViewDescription>> }>
+        >;
+    }): Record<string, ViewDescription> {
+        // name each view once across the outputs, refusing a name two outputs compile
+        const views: Record<string, ViewDescription> = {};
+        for (const [output, compiled] of Object.entries(manifest.outputs)) {
+            for (const [name, view] of Object.entries(compiled.views)) {
+                if (Object.hasOwn(views, name)) {
+                    throw new TypeError(
+                        `output ${output} compiles view ${name} another output does`,
+                    );
+                }
+                views[name] = view;
+            }
+        }
+
+        return views;
+    },
+
+    /** List view names by rank: views of no type first, then by strength and name. */
+    rank(views: Readonly<Record<string, Pick<ViewDescription, "presents">>>): string[] {
+        return Object.entries(views)
+            .map(([name, view]) => ({ name, strength: strength(view) }))
+            .toSorted(
+                (left, right) =>
+                    left.strength - right.strength || Text.compare(left.name, right.name),
+            )
+            .map((entry) => entry.name);
+    },
+});
+
+/** A view a browser output compiles, as manifests describe it. */
+export type ViewDescription = schema.Infer<typeof viewDescription>;
 
 /** A call of an object type's method as a command the shell offers. */
 export const CommandDescription = schema.object({
