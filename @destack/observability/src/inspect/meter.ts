@@ -1,8 +1,7 @@
 import { Address, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import type { JsonValue } from "@destack/schema";
-import type { Meter } from "../meter/meter.ts";
-import { MeterDescription } from "../meter/description.ts";
+import { type Meter, MeterDescription } from "../meter/meter.ts";
 
 /** The fields usage counted under a meter depends on. */
 const COUNTED = ["aggregation", "unit"] as const;

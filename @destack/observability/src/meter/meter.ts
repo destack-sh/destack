@@ -1,4 +1,6 @@
-import { type Package, PackageId } from "@destack/package";
+import type {} from "@destack/package/import-meta";
+import type { BuildReader } from "@destack/package/manifest";
+import { Package, PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
 /** How a meter folds a period's events into one usage. */
@@ -33,6 +35,14 @@ export const MeterMetadata = schema.object({
 /** The fields of a meter declaration. */
 export type MeterDefinition = schema.Infer<typeof MeterMetadata>;
 
+/** A meter declaration as manifests describe it. */
+export const MeterDescription = MeterMetadata.extend({
+    /** The declaring package. */
+    package: Package,
+});
+/** A meter declaration as manifests describe it. */
+export type MeterDescription = schema.Infer<typeof MeterDescription>;
+
 /** A meter declaration: what its events count and how a period's events fold into usage. */
 export class Meter {
     /** The declaring package. */
@@ -44,6 +54,20 @@ export class Meter {
     constructor(owner: Package, definition: MeterDefinition) {
         this.package = owner;
         this.definition = definition;
+    }
+
+    /** Read the meters a build declares, as observability declares the meter kind. */
+    static async list(build: Pick<BuildReader, "declared">): Promise<Meter[]> {
+        const declared = await build.declared(
+            import.meta.destack.package.id,
+            "meter",
+            MeterDescription,
+        );
+
+        return declared.map(
+            ({ description: { package: declaring, ...definition } }) =>
+                new Meter(declaring, definition),
+        );
     }
 
     /** The identity its events and features refer to. */
