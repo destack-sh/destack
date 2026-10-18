@@ -12,7 +12,7 @@ import { SignUp } from "../better-auth/sign-up.ts";
 import { AccountFixture, type Browser, ISSUER, outcome, type Person } from "../test/index.ts";
 import { Issuer } from "./issuer.ts";
 import { ClientKey } from "./client-key.ts";
-import { SessionKeychain } from "./session-keychain.ts";
+import { SessionStore } from "./session.ts";
 import { login, Login } from "./login.ts";
 import { NativeSignIn } from "./sign-in.ts";
 import { Clock } from "@destack/environment";
@@ -314,7 +314,7 @@ async function native(accounts: AccountFixture) {
 
     // sign people in with the keychain's refresh tokens
     const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request));
-    const sessions = new SessionKeychain(new MemoryKeychain());
+    const sessions = new SessionStore(new MemoryKeychain());
     const signIn = new NativeSignIn({
         issuer,
         sessions,

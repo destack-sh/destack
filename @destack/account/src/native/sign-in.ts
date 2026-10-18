@@ -10,7 +10,7 @@ import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer
 import type { Residency } from "../object/residency.ts";
 import { type LoginRow, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
-import type { SessionKeychain } from "./session-keychain.ts";
+import type { SessionStore } from "./session.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
 import type { Clock } from "@destack/environment";
 
@@ -34,7 +34,7 @@ export interface NativeSignInOptions {
     /** The issuer people sign in with. */
     readonly issuer: Issuer;
     /** The keychain's refresh tokens of the signed-in people. */
-    readonly sessions: SessionKeychain;
+    readonly sessions: SessionStore;
     /** The keys of the clients sign-ins register, proving them to this computer's machine. */
     readonly keys: ClientKey;
     /** The native device's local logins. */

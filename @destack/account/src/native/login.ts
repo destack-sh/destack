@@ -10,7 +10,6 @@ import type { Clock } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/runtime";
-import { TokenCache } from "@destack/runtime/authentication";
 import { type ClientOptions, createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -20,7 +19,7 @@ import { Account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
-import type { SessionKeychain } from "./session-keychain.ts";
+import type { SessionStore } from "./session.ts";
 
 /** A person signed in on a computer's native device, the keychain storing their refresh token. */
 export const login = defineObject({
@@ -49,23 +48,21 @@ export const login = defineObject({
 /** A login as devices store it. */
 export type LoginRow = Select<typeof login.table>;
 
-/** A person signed in on a computer through a client's refresh token, which the keychain stores. */
+/** A person signed in on a computer, acting through the session the keychain keeps for them. */
 export class Login {
     /** The login's row. */
     readonly row: LoginRow;
     /** The issuer that signed the person in. */
     readonly issuer: Issuer;
     /** The keychain storing the client's refresh token, which each refresh replaces. */
-    readonly #sessions: SessionKeychain;
+    readonly #sessions: SessionStore;
     /** The fetch calling the issuer and the machines. */
     readonly #fetch: Fetch;
-    /** The access tokens refreshed and exchanged for the person, by package and binding. */
-    readonly #tokens = new TokenCache();
     /** The clock the tokens are reused by. */
     readonly #clock: Clock;
 
     /** Act as the person of a login through the refresh token a keychain stores for them. */
-    constructor(row: LoginRow, sessions: SessionKeychain, fetch: Fetch, clock: Clock) {
+    constructor(row: LoginRow, sessions: SessionStore, fetch: Fetch, clock: Clock) {
         // require a person still signed in
         if (row.status !== "authenticated") {
             throw new CallError("UNAUTHORIZED", { message: "the person is not signed in" });
@@ -146,12 +143,14 @@ export class Login {
         }
 
         // exchange it for the package's token, cached per package and binding
-        return this.#tokens.token(
-            canonicalize([audience, bound]),
-            this.#clock.now(),
-            async () => this.issuer.exchange(await this.#accountToken(stepUp), audience, bound),
-            stepUp,
-        );
+        return this.#sessions
+            .accessTokens(this.row)
+            .token(
+                canonicalize([audience, bound]),
+                this.#clock.now(),
+                async () => this.issuer.exchange(await this.#accountToken(stepUp), audience, bound),
+                stepUp,
+            );
     }
 
     /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
@@ -193,7 +192,7 @@ export class Login {
 
     /** Read the person's access token for the account package, refreshing it for a step-up. */
     #accountToken(stepUp?: StepUp): Promise<string> {
-        return this.#tokens.token(
+        return this.#sessions.accessTokens(this.row).token(
             accountPackage.id,
             this.#clock.now(),
             async () => {
