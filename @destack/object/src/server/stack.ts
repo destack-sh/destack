@@ -26,7 +26,7 @@ import {
 } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import { type ObjectOf, ObjectType } from "../object/object.ts";
-import type { ObjectDescription } from "../object/description.ts";
+import { ObjectDescription } from "../object/description.ts";
 import { declarable, managedColumns } from "../trait/declarable.ts";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
@@ -50,31 +50,6 @@ type ManagedColumns = TableColumnMap<
 
 /** One section of a stack document: declarations by name. */
 const DECLARED = schema.record(schema.string(), schema.unknown());
-
-/** The fields of a described type's definition that place its declarations in a stack document. */
-const DESCRIBED = schema.looseObject({
-    /** The type's name. */
-    name: schema.string(),
-    /** The type's plural, the document key of its declarations. */
-    plural: schema.string(),
-    /** How stacks declare the type, absent on a type stacks do not declare. */
-    declarable: schema.unknown().exactOptional(),
-    /** The type its records nest in, whose declarations contain the type's own. */
-    nested: schema.unknown().exactOptional(),
-    /** The resource kind the type provisions, absent on a type provisioning none. */
-    provisioned: schema
-        .looseObject({
-            /** The kind, as a description tags it. */
-            kind: schema.looseObject({
-                /** The tagged kind. */
-                $kind: schema.looseObject({
-                    /** The kind's name. */
-                    name: schema.string(),
-                }),
-            }),
-        })
-        .exactOptional(),
-});
 
 /** A stack's resource entry, as planning its creation reads it: its declaration's kind. */
 const DECLARED_RESOURCE = schema.looseObject({
@@ -537,18 +512,19 @@ export class Stack {
         // read the types the applied declarations install, and the ones stacks declare by collection
         const installing = present(this.#options.installing, "the reader of the installed types");
         const descriptions = await installing(this.transaction.view());
-        const described = descriptions.map((description) =>
-            DESCRIBED.parse(description.definition),
-        );
-        const types = described.filter((type) => type.declarable !== undefined);
+        const types = descriptions.flatMap((description) => {
+            const declaration = ObjectDescription.declaration(description);
+
+            return declaration === undefined ? [] : [{ name: description.name, ...declaration }];
+        });
 
         // plan each resource entry the type provisioning its kind takes, declared through that kind
         const steps: Step[] = [];
         for (const { key, names } of this.#installing) {
             for (const name of names === "every" ? [] : names) {
                 const declared = DECLARED_RESOURCE.parse(DECLARED.parse(this.document[key])[name]);
-                const type = described.find(
-                    (each) => each.provisioned?.kind.$kind.name === declared.declaration.kind,
+                const type = descriptions.find(
+                    (each) => ObjectDescription.provisionedKind(each) === declared.declaration.kind,
                 );
                 if (type === undefined) {
                     throw new ObjectError(
@@ -562,7 +538,7 @@ export class Stack {
 
         // plan each declaration of a collection one of them collects, and the declarations nested in it
         for (const { key } of this.#installing.filter((entry) => entry.names === "every")) {
-            const type = types.find((each) => each.plural === key && each.nested === undefined);
+            const type = types.find((each) => each.plural === key && !each.isNested);
             if (type === undefined) {
                 throw new ObjectError("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
             }
@@ -570,9 +546,7 @@ export class Stack {
                 steps.push(Stack.#creation(type.name, name));
                 for (const [plural, children] of Object.entries(DECLARED.parse(value))) {
                     // plan the declarations of a type nested in it
-                    const child = types.find(
-                        (each) => each.plural === plural && each.nested !== undefined,
-                    );
+                    const child = types.find((each) => each.plural === plural && each.isNested);
                     if (child !== undefined) {
                         const names = Object.keys(DECLARED.parse(children));
                         steps.push(
