@@ -81,6 +81,9 @@ const TAG_INSET = 8;
 /** The width in pixels a tag takes per character of its text, to estimate its size. */
 const TAG_CHARACTER = 6.2;
 
+/** The width in pixels a tag takes with its mark alone. */
+const TAG_MARK = 20;
+
 /** The width in pixels a tag's mark and padding take, beside its text. */
 const TAG_FRAME = 30;
 
@@ -104,7 +107,7 @@ export function XRay(properties: {
     rented: readonly Service[];
     isOpenAt: Stagger;
     lit: number | undefined;
-    onLight: (index: number | undefined) => void;
+    onLight: (row: number | undefined) => void;
 }) {
     // hold the browser and the elements marked for the x-ray
     let root: HTMLDivElement | undefined;
@@ -152,6 +155,7 @@ export function XRay(properties: {
                     index,
                     source,
                     properties.isOpenAt(index + 1),
+                    index + 1 === properties.lit,
                 );
                 const spot = spotOf({ x, y, width, height }, tagWidth, bounds, [
                     ...obstacles,
@@ -175,6 +179,7 @@ export function XRay(properties: {
         () => [
             row(),
             properties.rented,
+            properties.lit,
             ...Array.from({ length: serviceCount }, (_, index) => properties.isOpenAt(index)),
         ],
         () => {
@@ -313,8 +318,7 @@ export function XRay(properties: {
                         service={present(properties.rented[box.index], "rented service")}
                         accent={accentAt(properties.rented, properties.isOpenAt, box.index)}
                         isOwned={properties.isOpenAt(box.index + 1)}
-                        isLit={box.index === properties.lit}
-                        isDimmed={isDimmed(properties.lit, box.index)}
+                        isLit={box.index + 1 === properties.lit}
                         onLight={properties.onLight}
                     />
                 ))}
@@ -330,8 +334,7 @@ function Mark(properties: {
     accent: string;
     isOwned: boolean;
     isLit: boolean;
-    isDimmed: boolean;
-    onLight: (index: number | undefined) => void;
+    onLight: (row: number | undefined) => void;
 }) {
     // set the tag where the measure placed it, on a corner of the outline
     const part = () => present(serviceParts[properties.box.index], "engine part");
@@ -342,7 +345,7 @@ function Mark(properties: {
         <>
             <div
                 data-component="XRayMark"
-                onPointerEnter={() => properties.onLight(properties.box.index)}
+                onPointerEnter={() => properties.onLight(properties.box.index + 1)}
                 onPointerLeave={() => properties.onLight(undefined)}
                 {...style.attributes(
                     [
@@ -350,8 +353,11 @@ function Mark(properties: {
                         properties.isOwned
                             ? styles.markOwned(properties.accent)
                             : styles.markRented(properties.accent),
-                        properties.isLit && styles.markLit(properties.accent),
-                        properties.isDimmed && styles.markDimmed,
+                        properties.isLit
+                            ? styles.markLit(properties.accent)
+                            : properties.isOwned
+                              ? styles.markQuiet
+                              : styles.markPatch(properties.accent),
                     ],
                     {
                         left: `${properties.box.x - PAD}px`,
@@ -363,14 +369,13 @@ function Mark(properties: {
             />
             <span
                 data-component="XRayTag"
-                onPointerEnter={() => properties.onLight(properties.box.index)}
+                onPointerEnter={() => properties.onLight(properties.box.index + 1)}
                 onPointerLeave={() => properties.onLight(undefined)}
                 {...style.attributes(
                     [
                         styles.tag,
                         properties.isOwned ? styles.tagOwned : styles.tagRented(properties.accent),
-                        properties.isLit && styles.tagLit,
-                        properties.isDimmed && styles.markDimmed,
+                        properties.isLit ? styles.tagLit : styles.tagQuiet,
                     ],
                     { left: `${tagLeft()}px`, top: `${tagTop()}px` },
                 )}
@@ -383,16 +388,36 @@ function Mark(properties: {
                             }}
                             {...style.attrs(styles.tagGlyph)}
                         />
-                        <span {...style.attrs(styles.tagName)}>{part().name}</span>
+                        <span
+                            {...style.attrs(styles.tagName, !properties.isLit && styles.tagHidden)}
+                        >
+                            {part().name}
+                        </span>
                         {properties.box.source === undefined ? undefined : (
-                            <span {...style.attrs(styles.tagWiring)}>{properties.box.source}</span>
+                            <span
+                                {...style.attrs(
+                                    styles.tagWiring,
+                                    !properties.isLit && styles.tagHidden,
+                                )}
+                            >
+                                {properties.box.source}
+                            </span>
                         )}
                     </>
                 ) : (
                     <>
                         <VendorMark mark={properties.service.mark} isTag />
-                        <span {...style.attrs(styles.tagName)}>{properties.service.name}</span>
-                        <span {...style.attrs(styles.tagWiring)}>
+                        <span
+                            {...style.attrs(styles.tagName, !properties.isLit && styles.tagHidden)}
+                        >
+                            {properties.service.name}
+                        </span>
+                        <span
+                            {...style.attrs(
+                                styles.tagWiring,
+                                !properties.isLit && styles.tagHidden,
+                            )}
+                        >
                             {wiringAt(properties.box.index)}
                         </span>
                     </>
@@ -494,7 +519,12 @@ function tagWidthOf(
     index: number,
     source: string | undefined,
     isOwned: boolean,
+    isLit: boolean,
 ): number {
+    // size an unlit tag to its mark alone, and a lit one to its mark and text
+    if (!isLit) {
+        return TAG_MARK;
+    }
     const part = present(serviceParts[index], "engine part");
     const text = isOwned ? `${part.name} ${source ?? ""}` : `${service.name} ${wiringAt(index)}`;
 
@@ -532,11 +562,6 @@ function indexOf(label: string): number {
     return index;
 }
 
-/** Report whether a part fades back while another one is lit. */
-function isDimmed(lit: number | undefined, index: number): boolean {
-    return lit !== undefined && lit !== index;
-}
-
 /** Return the colour a part wears: the engine's orange once owned, or its vendor's accent. */
 function accentAt(rented: readonly Service[], isOpenAt: Stagger, index: number): string {
     const service = present(rented[index], "rented service");
@@ -568,8 +593,8 @@ function VendorMark(properties: { mark: OptionMark; isTag: boolean }) {
             ) : (
                 <Favicon
                     icon={properties.mark.icon}
-                    tint={properties.mark.tint}
-                    size={properties.isTag ? 14 : 16}
+                    tint={properties.isTag ? palette.tileGlyph : properties.mark.tint}
+                    size={properties.isTag ? 13 : 16}
                 />
             )}
         </>
@@ -677,8 +702,13 @@ const styles = style.create({
         backgroundColor: `color-mix(in srgb, ${accent} 16%, transparent)`,
         borderColor: accent,
     }),
-    markDimmed: {
-        opacity: 0.3,
+    markPatch: (accent: string) => ({
+        backgroundColor: `color-mix(in srgb, ${accent} 14%, transparent)`,
+        borderColor: `color-mix(in srgb, ${accent} 45%, transparent)`,
+    }),
+    markQuiet: {
+        backgroundColor: "transparent",
+        opacity: 0.45,
     },
     tag: {
         alignItems: "center",
@@ -703,6 +733,12 @@ const styles = style.create({
     },
     tagLit: {
         zIndex: 1,
+    },
+    tagQuiet: {
+        opacity: 0.75,
+    },
+    tagHidden: {
+        display: "none",
     },
     tagRented: (accent: string) => ({
         backgroundColor: accent,

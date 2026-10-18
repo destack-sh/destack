@@ -98,8 +98,13 @@ export function Noun(properties: { isOpen: boolean }) {
         setPicked((current) => ({ ...current, [categoryOf(row - 1)]: name }));
     };
 
-    // hold the service pointed at, in the diagram or the bill
-    const [lit, setLit] = createSignal<number | undefined>(undefined);
+    // light the ledger row pointed at, counting the space as row 0, or else the row that just turned
+    const [pointed, setLit] = createSignal<number | undefined>(undefined);
+    const lit = () =>
+        pointed() ??
+        (!isReduced() && !isTouched() && turns() > 0
+            ? ((turns() - 1) % serviceCount) + 1
+            : undefined);
 
     // count the services still rented, which a row's switch changes one at a time
     const rentedCount = () =>
@@ -136,7 +141,9 @@ export function Noun(properties: { isOpen: boolean }) {
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
-                    {isOpenAt(0) ? "One engine under every app" : "Eight vendors under every app"}
+                    {isOpenAt(0)
+                        ? "Your app, running on one engine"
+                        : "Your app, running on eight vendors"}
                 </Label>
                 <div {...style.attrs(styles.window)}>
                     <XRay rented={rented()} isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />

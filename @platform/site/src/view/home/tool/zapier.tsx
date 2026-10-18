@@ -16,6 +16,12 @@ const glyphs = {
     check: ["m6 12.5 4 4 8-9"],
     caret: ["m7 10 5 5 5-5"],
     bolt: ["M13 3 5 14h6l-1 7 8-11h-6z"],
+    search: ["M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14", "m20 20-4-4"],
+    calendar: ["M4 6h16v14H4z", "M4 10h16", "M8 3v4", "M16 3v4"],
+    arrow: ["M5 12h14", "m13 6 6 6-6 6"],
+    folder: ["M3 6h6l2 2h10v11H3z"],
+    person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8", "M4 21a8 8 0 0 1 16 0"],
+    close: ["m6 6 12 12", "M18 6 6 18"],
     hook: [
         "M8.5 17a3 3 0 1 1 2.5-4.6L14 7",
         "M14 7a3 3 0 1 1 2.8 2",
@@ -144,6 +150,92 @@ export function Zapier() {
                     <span {...style.attrs(styles.continue)}>Continue</span>
                 </aside>
             </div>
+        </div>
+    );
+}
+
+/** One run in the Zap history: who it ran for and when. */
+export type ZapRun = readonly [who: string, when: string];
+
+/** The apps the launch askers Zap writes to, by mark and colour. */
+const runApps: readonly (readonly [icon: string, tint: string])[] = [
+    ["airtable", "#18bfff"],
+    ["trello", "#0052cc"],
+    ["slack", "#4a154b"],
+    ["googlecalendar", "#4285f4"],
+];
+
+/** The history's filters. */
+const filters: readonly (readonly [glyph: keyof typeof glyphs, name: string])[] = [
+    ["calendar", "Date range"],
+    ["bolt", "Zaps"],
+    ["plus", "Apps"],
+    ["folder", "Folders"],
+    ["person", "Owners"],
+];
+
+/** Draw the Zap history: a Zap's runs, newest first, each with its status, apps and tasks. */
+export function ZapierHistory(properties: { zap: string; runs: readonly ZapRun[] }) {
+    return (
+        <div data-component="ZapierHistory" {...style.attrs(styles.history)}>
+            <b {...style.attrs(styles.historyTitle)}>Zap history</b>
+            <span {...style.attrs(styles.historyTabs)}>
+                <span {...style.attrs(styles.historyTab, styles.historyTabOn)}>Zap runs</span>
+                <span {...style.attrs(styles.historyTab)}>Task usage</span>
+            </span>
+            <span {...style.attrs(styles.historySearch)}>
+                <Mark name="search" size={14} />
+                Search Zap runs
+            </span>
+            <span {...style.attrs(styles.historyFilters)}>
+                {filters.map(([glyph, name]) => (
+                    <span {...style.attrs(styles.historyFilter)}>
+                        <Mark name={glyph} size={13} />
+                        {name}
+                    </span>
+                ))}
+            </span>
+            <span {...style.attrs(styles.historyChips)}>
+                <span {...style.attrs(styles.historyChip)}>
+                    <Mark name="calendar" size={13} />
+                    <b>Today</b>
+                </span>
+                <span {...style.attrs(styles.historyChip)}>
+                    <Mark name="bolt" size={13} />
+                    {properties.zap}
+                    <Mark name="close" size={12} />
+                </span>
+                <span {...style.attrs(styles.historyClear)}>Clear all</span>
+            </span>
+            <span {...style.attrs(styles.historyStatuses)}>All statuses</span>
+            {properties.runs.map(([who, when]) => (
+                <span {...style.attrs(styles.historyRun)}>
+                    <span {...style.attrs(styles.historyBox)} />
+                    <span {...style.attrs(styles.historyOk)}>
+                        <Mark name="check" size={12} />
+                    </span>
+                    <b>Success</b>
+                    <span {...style.attrs(styles.historyApps)}>
+                        {runApps.map(([icon, tint]) => (
+                            <span {...style.attrs(styles.historyApp)}>
+                                <Favicon icon={icon} tint={tint} size={13} />
+                            </span>
+                        ))}
+                    </span>
+                    <span {...style.attrs(styles.historyName)}>
+                        <b>
+                            {properties.zap} · {who}
+                        </b>
+                        <span>{when}</span>
+                    </span>
+                    <span {...style.attrs(styles.historyTasks)}>
+                        <b>4</b>
+                        tasks
+                    </span>
+                    <span {...style.attrs(styles.historyOwner)}>FC</span>
+                    <Mark name="arrow" size={16} />
+                </span>
+            ))}
         </div>
     );
 }
@@ -440,5 +532,176 @@ const styles = style.create({
         fontWeight: 600,
         paddingBlock: "8px",
         textAlign: "center",
+    },
+
+    // the Zap history
+    history: {
+        alignContent: "start",
+        backgroundColor: zapier.canvas,
+        color: zapier.ink,
+        display: "grid",
+        fontFamily: zapier.face,
+        fontSize: "12.5px",
+        gap: "10px",
+        height: "100%",
+        overflow: "hidden",
+        paddingBlock: "16px",
+        paddingInline: "20px",
+    },
+    historyTitle: {
+        fontSize: "22px",
+        fontWeight: 700,
+    },
+    historyTabs: {
+        borderBottomColor: zapier.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        gap: "18px",
+        justifySelf: "start",
+    },
+    historyTab: {
+        fontSize: "15px",
+        fontWeight: 600,
+        paddingBlock: "4px",
+    },
+    historyTabOn: {
+        boxShadow: `inset 0 -3px 0 ${zapier.purple}`,
+    },
+    historySearch: {
+        alignItems: "center",
+        backgroundColor: zapier.surface,
+        borderColor: zapier.line,
+        borderRadius: "4px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: zapier.muted,
+        display: "flex",
+        gap: "8px",
+        justifySelf: "start",
+        paddingBlock: "6px",
+        paddingInline: "10px",
+        width: "45%",
+    },
+    historyFilters: {
+        display: "grid",
+        gap: "8px",
+        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    },
+    historyFilter: {
+        alignItems: "center",
+        backgroundColor: zapier.surface,
+        borderColor: zapier.line,
+        borderRadius: "4px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: zapier.muted,
+        display: "flex",
+        gap: "6px",
+        overflow: "hidden",
+        paddingBlock: "6px",
+        paddingInline: "8px",
+        whiteSpace: "nowrap",
+    },
+    historyChips: {
+        alignItems: "center",
+        display: "flex",
+        gap: "8px",
+    },
+    historyChip: {
+        alignItems: "center",
+        borderColor: zapier.ink,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "inline-flex",
+        gap: "6px",
+        paddingBlock: "4px",
+        paddingInline: "10px",
+        whiteSpace: "nowrap",
+    },
+    historyClear: {
+        color: zapier.purple,
+        fontWeight: 600,
+    },
+    historyStatuses: {
+        backgroundColor: zapier.surface,
+        borderColor: zapier.line,
+        borderRadius: "4px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: zapier.muted,
+        paddingBlock: "6px",
+        paddingInline: "10px",
+    },
+    historyRun: {
+        alignItems: "center",
+        backgroundColor: zapier.surface,
+        borderColor: zapier.line,
+        borderRadius: "6px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        columnGap: "10px",
+        display: "grid",
+        gridTemplateColumns: "14px 20px 58px auto minmax(0, 1fr) 36px 26px 16px",
+        paddingBlock: "8px",
+        paddingInline: "12px",
+    },
+    historyBox: {
+        borderColor: zapier.muted,
+        borderRadius: "3px",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        height: "13px",
+        width: "13px",
+    },
+    historyOk: {
+        alignItems: "center",
+        backgroundColor: zapier.on,
+        borderRadius: "50%",
+        color: zapier.onAccent,
+        display: "flex",
+        height: "20px",
+        justifyContent: "center",
+        width: "20px",
+    },
+    historyApps: {
+        display: "flex",
+    },
+    historyApp: {
+        alignItems: "center",
+        backgroundColor: zapier.surface,
+        borderColor: zapier.line,
+        borderRadius: "4px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        display: "flex",
+        height: "22px",
+        justifyContent: "center",
+        marginInlineStart: "-3px",
+        width: "22px",
+    },
+    historyName: {
+        display: "grid",
+        minWidth: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+    },
+    historyTasks: {
+        display: "grid",
+        fontSize: "11px",
+        justifyItems: "center",
+    },
+    historyOwner: {
+        alignItems: "center",
+        backgroundColor: zapier.ink,
+        borderRadius: "50%",
+        color: zapier.onAccent,
+        display: "flex",
+        fontSize: "9.5px",
+        fontWeight: 700,
+        height: "24px",
+        justifyContent: "center",
+        width: "24px",
     },
 });

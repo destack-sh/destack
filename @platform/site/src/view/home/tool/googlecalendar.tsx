@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { week } from "../verb/corner";
+import { week, type WeekBlock } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleCalendar } from "./googlecalendar.stylex";
@@ -67,8 +67,13 @@ function rowOf(hour: number): number {
     return Math.round((hour - 9) * 2) + 2;
 }
 
-/** Draw the launch week in the calendar, its bookable times as an appointment schedule. */
+/** Draw the launch week in the calendar as it stands in the launch story. */
 export function GoogleCalendar() {
+    return <GoogleCalendarWeek week={week} />;
+}
+
+/** Draw a week in the calendar: bookable times as a schedule, overlaps side by side. */
+export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
     return (
         <div data-component="GoogleCalendarPage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -143,7 +148,7 @@ export function GoogleCalendar() {
                             {hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`}
                         </span>
                     ))}
-                    {week.map(([day, start, end, title, isBookable]) => (
+                    {properties.week.map(([day, start, end, title, isBookable], index) => (
                         <span
                             style={{
                                 "grid-column": String(day + 2),
@@ -156,6 +161,9 @@ export function GoogleCalendar() {
                                     : title.includes("·")
                                       ? styles.sage
                                       : styles.own,
+                                overlapOf(properties.week, index) === "first" && styles.eventFirst,
+                                overlapOf(properties.week, index) === "second" &&
+                                    styles.eventSecond,
                             )}
                         >
                             <b>{isBookable ? "Destack demo" : title.split(" · ")[0]}</b>
@@ -170,6 +178,18 @@ export function GoogleCalendar() {
             </div>
         </div>
     );
+}
+
+/** Return whether a block shares its start with another: the first or second of two, or alone. */
+function overlapOf(blocks: readonly WeekBlock[], index: number): "first" | "second" | "alone" {
+    // find the blocks that start when this one does on the same day
+    const block = blocks[index];
+    const shared = blocks.filter((other) => other[0] === block?.[0] && other[1] === block?.[1]);
+    if (shared.length < 2) {
+        return "alone";
+    }
+
+    return shared[0] === block ? "first" : "second";
 }
 
 /** Draw one of the app's own glyphs in the current colour. */
@@ -407,5 +427,11 @@ const styles = style.create({
         borderStyle: "dashed",
         borderWidth: "1px",
         color: googleCalendar.blue,
+    },
+    eventFirst: {
+        marginInlineEnd: "50%",
+    },
+    eventSecond: {
+        marginInlineStart: "50%",
     },
 });

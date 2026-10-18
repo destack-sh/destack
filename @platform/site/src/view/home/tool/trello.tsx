@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { tasks, type TaskState } from "../verb/corner";
+import { type Task, tasks, type TaskState } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { trello } from "./trello.stylex";
@@ -61,8 +61,13 @@ const lists: readonly (readonly [state: TaskState, name: string])[] = [
 /** The checklist progress of each launch task, in its order. */
 const checklists: readonly string[] = ["4/4", "1/3", "2/5", "0/2", "0/4", "0/3"];
 
-/** Draw the launch tasks as cards on the team's board, one list per status. */
+/** Draw the launch tasks on the board as they stand in the launch story. */
 export function Trello() {
+    return <TrelloBoard tasks={tasks} />;
+}
+
+/** Draw tasks as cards on the team's board, one list per status. */
+export function TrelloBoard(properties: { tasks: readonly Task[] }) {
     return (
         <div data-component="TrelloPage" {...style.attrs(styles.page)}>
             {/* app header */}
@@ -133,7 +138,7 @@ export function Trello() {
                             {name}
                             <Mark name="more" size={15} />
                         </b>
-                        {tasks.map(([, title, taskState, owner, tint, due], index) =>
+                        {properties.tasks.map(([, title, taskState, owner, tint, due], index) =>
                             taskState === state ? (
                                 <article {...style.attrs(styles.card)}>
                                     <span {...style.attrs(styles.labels)}>

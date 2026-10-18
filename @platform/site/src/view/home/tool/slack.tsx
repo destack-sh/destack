@@ -1,13 +1,25 @@
 import * as style from "@destack/style";
 
-import { messages } from "../verb/corner";
+import { type Message, messages } from "../verb/corner";
 import { Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
 import { slack } from "./slack.stylex";
 
-/** Draw the launch channel as a team chat seen through a guest invite. */
+/** The colour and initial of each author's avatar. */
+const avatars: Readonly<Record<Message[0], readonly [tint: string, initial: string]>> = {
+    Florian: ["#2f7d8c", "F"],
+    Agent: ["#6b5ca5", "A"],
+    Zapier: ["#ff4f00", "Z"],
+};
+
+/** Draw the launch channel as it stands in the launch story. */
 export function Slack() {
+    return <SlackChannel messages={messages} />;
+}
+
+/** Draw the launch channel as a team chat seen through a guest invite. */
+export function SlackChannel(properties: { messages: readonly Message[] }) {
     return (
         <div data-component="SlackPage" {...style.attrs(styles.slack)}>
             <div {...style.attrs(styles.slackTop)}>
@@ -69,23 +81,20 @@ export function Slack() {
                         <span {...style.attrs(styles.slackTab)}>Files</span>
                     </span>
                     <ul {...style.attrs(styles.slackMessages)}>
-                        {messages.map(([author, time, text], index) => (
+                        {properties.messages.map(([author, time, text], index) => (
                             <li {...style.attrs(styles.slackMessage)}>
                                 <span
-                                    style={{
-                                        "background-color":
-                                            author === "Agent" ? "#6b5ca5" : "#2f7d8c",
-                                    }}
+                                    style={{ "background-color": avatars[author][0] }}
                                     {...style.attrs(styles.slackAvatar)}
                                 >
-                                    {author === "Agent" ? "A" : "F"}
+                                    {avatars[author][1]}
                                 </span>
                                 <span {...style.attrs(styles.slackBody)}>
                                     <span>
-                                        <b>{author === "Agent" ? "Agent" : "Florian"}</b>
-                                        {author === "Agent" ? (
+                                        <b>{author}</b>
+                                        {author === "Florian" ? undefined : (
                                             <span {...style.attrs(styles.slackApp)}>APP</span>
-                                        ) : undefined}
+                                        )}
                                         <span {...style.attrs(styles.slackMuted)}> {time}</span>
                                     </span>
                                     {text}

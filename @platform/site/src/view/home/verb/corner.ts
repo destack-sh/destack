@@ -36,15 +36,18 @@ export const launch: readonly (readonly [item: string, isDone: boolean])[] = [
 /** A task's state, from not started to done. */
 export type TaskState = "todo" | "started" | "review" | "done";
 
-/** The launch tasks. */
-export const tasks: readonly (readonly [
+/** A launch task: its key, title, state, owner, owner's colour, and due date. */
+export type Task = readonly [
     id: string,
     title: string,
     state: TaskState,
     owner: string,
     tint: string,
     due: string,
-])[] = [
+];
+
+/** The launch tasks. */
+export const tasks: readonly Task[] = [
     ["DST-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
     ["DST-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 22"],
     ["DST-16", "Email the waitlist", "review", "A", "#6b5ca5", "Oct 23"],
@@ -55,12 +58,11 @@ export const tasks: readonly (readonly [
     ["DST-19", "Cancel the other nine subscriptions", "todo", "F", "#2f7d8c", "Oct 27"],
 ];
 
-/** The launch channel's messages: who wrote it, when, and what they said. */
-export const messages: readonly (readonly [
-    author: "Florian" | "Agent",
-    time: string,
-    text: string,
-])[] = [
+/** A message in the launch channel: who wrote it, when, and what they said. */
+export type Message = readonly [author: "Florian" | "Agent" | "Zapier", time: string, text: string];
+
+/** The launch channel's messages. */
+export const messages: readonly Message[] = [
     ["Florian", "09:12", "Ines from Orbit Labs booked the demo. Wednesday at 11, apparently."],
     ["Agent", "09:13", "Added it to DST-14 and the launch page: Wed 11:00."],
     ["Agent", "09:40", "Drafted the Hacker News post. Two titles, the second one is spicier."],
@@ -92,22 +94,26 @@ export const week: readonly WeekBlock[] = [
 ];
 
 /** A signup's state, invited or still waiting. */
-export type SignupState = "invited" | "waiting";
+export type SignupState = "invited" | "approved" | "waiting";
 
-/** The latest signups: the address. */
-export const signups: readonly (readonly [
+/** A signup: their address, where they came from, when they joined, their state, and a note. */
+export type Signup = readonly [
     email: string,
     source: string,
     joined: string,
     state: SignupState,
-])[] = [
-    ["maya@northwind.io", "Launch post", "2 min ago", "waiting"],
-    ["jonas@kettle.dev", "Website", "14 min ago", "waiting"],
-    ["tara@fieldnotes.co", "Friend", "1 h ago", "waiting"],
-    ["leo@brightpath.app", "Website", "3 h ago", "waiting"],
-    ["sam@quietly.so", "Launch post", "Yesterday", "invited"],
-    ["noor@papertrail.fm", "Demo day", "Yesterday", "invited"],
-    ["ines@orbitlabs.eu", "Website", "Oct 18", "invited"],
+    note: string,
+];
+
+/** The latest signups: the address. */
+export const signups: readonly Signup[] = [
+    ["maya@northwind.io", "Launch post", "2 min ago", "waiting", ""],
+    ["jonas@kettle.dev", "Website", "14 min ago", "waiting", ""],
+    ["tara@fieldnotes.co", "Friend", "1 h ago", "waiting", ""],
+    ["leo@brightpath.app", "Website", "3 h ago", "waiting", ""],
+    ["sam@quietly.so", "Launch post", "Yesterday", "invited", ""],
+    ["noor@papertrail.fm", "Demo day", "Yesterday", "invited", ""],
+    ["ines@orbitlabs.eu", "Website", "Oct 18", "invited", ""],
 ];
 
 /** The mail in the inbox, newest first. */

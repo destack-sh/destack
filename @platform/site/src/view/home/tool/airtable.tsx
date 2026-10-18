@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { press, type PressState, signups } from "../verb/corner";
+import { press, type PressState, type Signup, signups } from "../verb/corner";
 import { site } from "../figure/site.stylex";
 import { airtable } from "./airtable.stylex";
 
@@ -53,6 +53,13 @@ const signupFields: readonly (readonly [name: string, glyph: keyof typeof glyphs
     ["Notes", "text"],
 ];
 
+/** The name each signup's status pill shows. */
+const signupNames: Readonly<Record<Signup[3], string>> = {
+    invited: "Invited",
+    approved: "Approved",
+    waiting: "Waiting",
+};
+
 /** The name each status pill shows. */
 const statusNames: Readonly<Record<PressState, string>> = {
     pitched: "Pitched",
@@ -65,16 +72,21 @@ type Table = "Press" | "Signups";
 
 /** Draw the press list as the launch base's grid. */
 export function Airtable() {
-    return <Base table="Press" />;
+    return <Base table="Press" signups={signups} />;
 }
 
 /** Draw the waitlist's signups as the launch base's grid. */
 export function AirtableSignups() {
-    return <Base table="Signups" />;
+    return <AirtableSignupsOf signups={signups} />;
+}
+
+/** Draw some signups as the launch base's grid. */
+export function AirtableSignupsOf(properties: { signups: readonly Signup[] }) {
+    return <Base table="Signups" signups={properties.signups} />;
 }
 
 /** Draw the launch base with one of its tables open: its tabs, its view bar and its grid. */
-function Base(properties: { table: Table }) {
+function Base(properties: { table: Table; signups: readonly Signup[] }) {
     return (
         <div data-component="AirtablePage" {...style.attrs(styles.page)}>
             {/* base header */}
@@ -142,7 +154,11 @@ function Base(properties: { table: Table }) {
             </div>
 
             {/* grid */}
-            {properties.table === "Press" ? <PressGrid /> : <SignupsGrid />}
+            {properties.table === "Press" ? (
+                <PressGrid />
+            ) : (
+                <SignupsGrid signups={properties.signups} />
+            )}
         </div>
     );
 }
@@ -215,7 +231,7 @@ function PressGrid() {
 }
 
 /** Draw the signups' grid: the latest of the waitlist's people. */
-function SignupsGrid() {
+function SignupsGrid(properties: { signups: readonly Signup[] }) {
     return (
         <div {...style.attrs(styles.grid)}>
             <span {...style.attrs(styles.row, styles.headRow)}>
@@ -233,7 +249,7 @@ function SignupsGrid() {
                     </span>
                 ))}
             </span>
-            {signups.map(([email, source, joined, state], index) => (
+            {properties.signups.map(([email, source, joined, state, note], index) => (
                 <span {...style.attrs(styles.row)}>
                     <span {...style.attrs(styles.number)}>{index + 1}</span>
                     <span {...style.attrs(styles.cell, styles.primary)}>{email}</span>
@@ -245,13 +261,17 @@ function SignupsGrid() {
                         <span
                             {...style.attrs(
                                 styles.pill,
-                                state === "invited" ? styles.green : styles.gray,
+                                state === "invited"
+                                    ? styles.green
+                                    : state === "approved"
+                                      ? styles.blue
+                                      : styles.gray,
                             )}
                         >
-                            {state === "invited" ? "Invited" : "Waiting"}
+                            {signupNames[state]}
                         </span>
                     </span>
-                    <span {...style.attrs(styles.cell)} />
+                    <span {...style.attrs(styles.cell, styles.note)}>{note}</span>
                 </span>
             ))}
             <span {...style.attrs(styles.row)}>
@@ -519,5 +539,11 @@ const styles = style.create({
         fontSize: "12px",
         paddingBlock: "8px",
         paddingInline: "14px",
+    },
+    note: {
+        color: airtable.muted,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
 });
