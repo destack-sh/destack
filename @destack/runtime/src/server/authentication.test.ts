@@ -12,6 +12,7 @@ import {
     relation,
     union,
     AccessContext,
+    type Authentication,
     Authorization,
     Caller,
     principal,
@@ -136,6 +137,57 @@ test("verify a credential the package verifies before the host, which answers ev
         host: "alice",
         revoked: ["UNAUTHORIZED", "the package key is revoked"],
         verified: ["standing", "none", "revoked"],
+    });
+});
+
+/** Hand over a user verified for a package until a time. */
+function handed(name: string, audience: PackageId, expiresAt: number): Authentication {
+    const user = authenticateUser(name);
+
+    return { ...user, credential: { ...user.credential, audience, expiresAt } };
+}
+
+test("serve a caller handed over in-process while it is current for this package, and refuse one verified for another package", async () => {
+    // serve the caller's name to callers handed over by in-process code
+    const definition = {
+        me: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user] },
+            audit: false,
+        })
+            .route({ method: "GET", path: "/me" })
+            .output(schema.string()),
+    };
+    const implementation = implement(definition).$context<RequestContext>();
+    const other = PackageId.parse("package-019f7480-0000-7000-8000-000000000009");
+    await using server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        health: new Health("handed"),
+        drainTimeout: 100,
+        router: implementation.router({
+            me: implementation.me.handler(({ context }) => Caller.sender(context.caller()).id),
+        }),
+    });
+    const me = (authentication: Authentication) =>
+        createClient(
+            { version: fixturePackage.version, router: definition },
+            {
+                url: "https://fixture.test",
+                fetch: (request) => server.fetch(request, authentication),
+            },
+        ).me();
+
+    // answer a current caller verified for this package, refusing an expired one and one verified for another
+    const later = Date.now() + 60000;
+    expect({
+        current: await me(handed("alice", hosting.package.id, later)),
+        expired: await refusal(me(handed("bob", hosting.package.id, Date.now() - 1))),
+        other: await refusal(me(handed("carol", other, later))),
+    }).toEqual({
+        current: "alice",
+        expired: ["UNAUTHORIZED", "caller authentication is not current"],
+        other: ["UNAUTHORIZED", "caller authentication has a different audience or scope"],
     });
 });
 
