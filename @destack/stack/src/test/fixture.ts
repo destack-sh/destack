@@ -1,4 +1,3 @@
-import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -28,12 +27,11 @@ import accountPackage from "@destack/account/package";
 import { Provisioned } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import {
-    type Database,
     type DatabaseConnection,
     defineDatabase,
     type Dialect,
-    eq,
     type LogPosition,
+    Snapshot,
     Transaction,
 } from "@destack/db";
 import { MemoryContentStore, TestDatabase, TestSeed } from "@destack/db/test";
@@ -47,9 +45,8 @@ import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { until } from "@destack/runtime/timer";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import type { StackClient } from "../client/index.ts";
-import { type BuildUpload, MAIN_DATABASE, SPACE_PROVIDER } from "../object/index.ts";
+import { type BuildUpload, Database, MAIN_DATABASE, SPACE_PROVIDER } from "../object/index.ts";
 import { BuildStore } from "../server/installation/build.ts";
-import type { InstallationBuild } from "../declare/installation.ts";
 import { StackDefinition } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
 import * as object from "../object/index.ts";
@@ -67,6 +64,8 @@ import { testEvents, serversOf } from "@destack/object/test";
 import { entitlement } from "@destack/account/object";
 import { TestRegistry } from "./build.ts";
 import { TestRuntime } from "./runtime.ts";
+import { insertBuildScope, insertRelease } from "./install.ts";
+import { BunGraphStorage } from "../bun/graph.ts";
 import { Clock } from "@destack/environment";
 
 /** The main database of a space a test machine serves without other modules. */
@@ -111,12 +110,6 @@ const SPACE_SEED = new TestSeed(async ({ database }) => {
         updatedAt: now,
     });
 });
-
-/** Keep a test space's main database as a SQLite file below a directory, as the space provider. */
-export class TestSpaceDatabaseHost extends BunSqliteDatabaseHost {
-    /** The provider code of the spaces' own databases. */
-    override readonly provider: string = SPACE_PROVIDER;
-}
 
 /** Record a test space's call events in its database, their segments in memory. */
 export function openEvents(database: DatabaseConnection): Promise<EventStore> {
@@ -174,6 +167,8 @@ export class StackFixture implements AsyncDisposable {
     #buckets: Promise<LocalBucketHost> | undefined;
     /** The machine's build store, opened once. */
     #builds: Promise<BuildStore> | undefined;
+    /** The index of the builds, opened once. */
+    #index: Promise<BunGraphStorage> | undefined;
     /** The registry the space's releases come from. */
     readonly registry = new TestRegistry();
     /** The replica of the universe's space rows running now, one at a time. */
@@ -266,9 +261,24 @@ export class StackFixture implements AsyncDisposable {
             sweepCache: null,
             repositories: null,
             follows: [],
-            external: null,
+            external: await this.index(),
+            served: (spaceId) => this.served(spaceId),
             ...overrides,
         };
+    }
+
+    /** Read the revisions a space serves, as a space restarted on every change serves them. */
+    async served(
+        spaceId: Identifier<"space">,
+    ): Promise<ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>> {
+        const builds = await this.builds();
+        const installed = await Database.installed(
+            Snapshot.live(this.database),
+            spaceId,
+            (manifest) => builds.packages.contents(manifest),
+        );
+
+        return new Map(installed.map((entry) => [entry.installation.id, entry.revisionId]));
     }
 
     /** Call the account objects machines read, with every person at home in one space. */
@@ -374,6 +384,28 @@ export class StackFixture implements AsyncDisposable {
         return this.#builds;
     }
 
+    /** Index the space's builds in a temporary directory until the test ends. */
+    index(): Promise<BunGraphStorage> {
+        this.#index ??= (async () => {
+            // keep the index files in a directory removed with the index once the test ends
+            const directory = await mkdtemp(join(tmpdir(), "destack-stack-index-"));
+            const builds = await this.builds();
+            const index = new BunGraphStorage(
+                this.database,
+                async (_space, manifest) => builds.packages.contents(manifest),
+                directory,
+            );
+            onTestFinished(async () => {
+                await index[Symbol.asyncDispose]();
+                await rm(directory, { recursive: true, force: true });
+            });
+
+            return index;
+        })();
+
+        return this.#index;
+    }
+
     /** Store a running build's files as its runner. */
     async storeBuild(
         runner: StackClient,
@@ -431,19 +463,7 @@ export class StackFixture implements AsyncDisposable {
         });
 
         // keep the build's own scope inside its space's, as its creation does
-        const [spaceScope] = await database
-            .select()
-            .from(Scope.table)
-            .where(eq(Scope.table.scope, ids.space));
-        const parent = present(spaceScope, `the scope of ${ids.space}`);
-        await database.insert(Scope.table).values({
-            scope: id,
-            parent: ids.space,
-            ancestors: [ids.space, ...parent.ancestors],
-            partition: parent.partition,
-            packageId: object.build.package.id,
-            type: object.build.name,
-        });
+        await insertBuildScope(database, ids.space, id);
 
         return { kind: "build", build: id };
     }
@@ -467,14 +487,22 @@ export class StackFixture implements AsyncDisposable {
         return { ...definition, installations: Object.fromEntries(pinned) };
     }
 
-    /** Keep a package's fixture release at a version in the build store. */
-    async release(packageId: PackageId, version: string): Promise<InstallationBuild> {
-        // replicate the release the registry keeps into the build store
+    /** Keep a package's fixture release in the build store, as the space's build of it. */
+    async release(
+        packageId: PackageId,
+        version: string,
+    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
+        // replicate the release the registry keeps into the build store, and keep it as the space's build
         const manifest = await this.registry.find(packageId, version);
-        const { location, fetch } = await this.registry.locate(packageId, manifest);
-        await (await this.builds()).packages.copy(location, fetch);
+        const reader = await (await this.builds()).open(this.registry, packageId, manifest);
+        const release = { package: packageId, version, manifest };
 
-        return { kind: "release", version, manifest };
+        return insertRelease(
+            this.database,
+            ids.space,
+            release,
+            Object.keys(reader.manifest.outputs),
+        );
     }
 
     /** Keep the machine's live sockets in memory until the test ends. */
@@ -600,7 +628,7 @@ export class StackFixture implements AsyncDisposable {
 /** How a fixture opens a machine's database. */
 export interface StackFixtureOptions {
     /** The machine's database: the stack package's, or one with other packages' tables too. */
-    readonly database?: Database;
+    readonly database?: ReturnType<typeof defineDatabase>;
     /** The database's dialect, SQLite by default. */
     readonly dialect?: Dialect;
 }
@@ -828,10 +856,13 @@ export async function settle(
         }
         sequence = page.sequence;
 
-        // reconcile each key a change selects once per controller
+        // reconcile each key a watched change selects, once per controller
         for (const controller of controllers) {
             const keys = new Set<string>();
-            for (const change of page.changes) {
+            const watched = page.changes.filter((change) =>
+                (controller.watches ?? []).includes(change.table),
+            );
+            for (const change of watched) {
                 for (const key of (await controller.keys?.(change)) ?? []) {
                     keys.add(key);
                 }

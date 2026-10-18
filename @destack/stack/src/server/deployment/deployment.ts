@@ -27,6 +27,7 @@ import {
 import { InstallationBindingState, InstallationKind } from "@destack/runtime/declare";
 import type { BuildReader } from "@destack/package/manifest";
 import {
+    Build,
     capture,
     Deployment,
     deployment,
@@ -36,10 +37,8 @@ import {
     Installation,
     installation,
     installationRevision,
-    MAIN_DATABASE,
     dependency,
 } from "../../object/index.ts";
-import type { InstallationBuild } from "../../declare/index.ts";
 import { StackError } from "../../error/index.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 import type { ServedBindable } from "../resource/binding.ts";
@@ -407,13 +406,16 @@ class Rollout {
 
         // run the revision's build and restart a failed instance in place
         const restarts = recorded.status === "failed" ? recorded.restarts + 1 : recorded.restarts;
-        const [revision] = await reconciliation.database
-            .select({ build: installationRevision.table.build })
-            .from(installationRevision.table)
-            .where(eq(installationRevision.table.id, this.#current.revisionId));
-        const { build } = present(revision, `revision ${this.#current.revisionId}`);
+        const snapshot = Snapshot.live(reconciliation.database);
+        const revision = present(
+            await snapshot
+                .read(installationRevision.table)
+                .findFirst({ where: { id: this.#current.revisionId } }),
+            `revision ${this.#current.revisionId}`,
+        );
+        const built = await Build.require(snapshot, revision.scope, revision.buildId);
         try {
-            await this.#launch(recorded, build, captures, resources, running);
+            await this.#launch(recorded, built.manifest, captures, resources, running);
         } catch (error) {
             // record the failure on the instance and restart it after its backoff
             return this.#recordFailure(recorded, restarts, error);
@@ -457,7 +459,7 @@ class Rollout {
     /** Start an instance's workload on its runtime from the revision's build with its resources. */
     async #launch(
         recorded: Instance,
-        build: InstallationBuild,
+        manifest: string,
         captures: readonly CaptureRow[],
         resources: readonly WorkloadCapture[],
         running: Runtime,
@@ -467,7 +469,7 @@ class Rollout {
         this.#refuseUnsupported(running);
 
         // start the workload as its installation, by its name, with its captures, and record an unasked exit
-        const reader = await this.#options.builds.packages.contents(build.manifest);
+        const reader = await this.#options.builds.packages.contents(manifest);
         const installed = present(
             await Snapshot.live(this.#reconciliation.database)
                 .read(installation.table)
@@ -486,7 +488,7 @@ class Rollout {
                 scope: current.scope,
                 deploymentId: current.id,
                 build: reader,
-                manifest: build.manifest,
+                manifest,
                 output: current.output,
                 workload: current.workload,
                 sandbox: current.description.sandbox,
@@ -495,7 +497,7 @@ class Rollout {
                 served: this.#served(captures),
                 installations: await Rollout.#installations(captures, reader),
                 resources: resources
-                    .filter((entry) => entry.name !== MAIN_DATABASE)
+                    .filter((entry) => Rollout.#isUsed(current.description, entry))
                     .map((entry) => Rollout.#requireProvisioned(entry)),
                 settings: await Installation.settings(this.#reconciliation.database, reader, {
                     scope: current.scope,
@@ -503,6 +505,16 @@ class Rollout {
                 }),
             },
             (code) => this.#recordExit(recorded.id, code),
+        );
+    }
+
+    /** Report whether a workload uses a captured resource, as its description lists it. */
+    static #isUsed(
+        description: Deployment["description"],
+        resource: Pick<WorkloadCapture, "packageId" | "name">,
+    ): boolean {
+        return description.resources.some(
+            (used) => used.packageId === resource.packageId && used.name === resource.name,
         );
     }
 

@@ -9,18 +9,22 @@ import {
     type ResourceType,
     type ResultOf,
 } from "@destack/object";
+import { PackageDescription } from "@destack/runtime";
+import type { PackageId } from "@destack/package";
 import { CallError } from "@destack/runtime/error";
 import { entitlement, Space, space } from "@destack/account/object";
 import {
     binding,
+    build,
     deployment,
-    type Installation,
+    Installation,
     installation,
     installationRevision,
     InstallationRevision,
     Build,
     type Submission,
 } from "../../object/index.ts";
+import { ViewDescription } from "@destack/package/manifest";
 import {
     Application,
     type ApplicationOptions,
@@ -28,7 +32,7 @@ import {
     reconcileApplication,
 } from "./application.ts";
 import { Approval } from "./approval.ts";
-import type { InstallationBuild, InstallationSelection } from "../../declare/installation.ts";
+import type { InstallationSelection } from "../../declare/installation.ts";
 import { type RepositoryOwner, SelectedRepository } from "./selection.ts";
 import type { SpaceAccounts } from "../server.ts";
 import { reconcileStack, type StackOptions } from "./stack.ts";
@@ -62,13 +66,23 @@ const declaredInstallation = installation.implement({
                 },
             });
 
-            return followed?.digest !== (await InstallationRevision.digest(declaredBuild(desired)));
+            return (
+                followed?.digest !==
+                (await InstallationRevision.digest(declaredRelease(desired).manifest))
+            );
         },
         written: async (context, row, desired) => {
-            // retain the release's revision once and follow it
-            const [{ id }] = await context.mutate([
-                await InstallationRevision.create(row, declaredBuild(desired)),
-            ]);
+            // keep the release as the space's build, at the manifest the stack pinned
+            const release = declaredRelease(desired);
+            const pulled = await Build.release(
+                context.transaction.view(),
+                (calls) => context.mutate(calls),
+                row.scope,
+                release,
+            );
+
+            // retain its revision once and follow it
+            const [{ id }] = await context.mutate([await InstallationRevision.create(row, pulled)]);
             if (row.revisionId !== id) {
                 await context.mutate([
                     declaredInstallation.call("follow", { id: row.id, revisionId: id }),
@@ -159,6 +173,55 @@ function handleInstallations(options: InstallationOptions) {
 
                 return {};
             },
+            delete: async (call, next) => {
+                // list the live installations outside the target's stack following a revision
+                const { target } = call;
+                const rows = await call
+                    .read(installation.table)
+                    .findMany({ where: { scope: target.scope } });
+                const others = rows.filter(
+                    (row) =>
+                        row.id !== target.id &&
+                        row.revisionId !== null &&
+                        (row.managerInstallationId === null ||
+                            row.managerInstallationId !== target.managerInstallationId),
+                );
+
+                // read their revisions and builds, two reads for the space
+                const revisionIds = others.map((row) =>
+                    present(row.revisionId, `the revision of ${row.name}`),
+                );
+                const revisions = await call
+                    .read(installationRevision.table)
+                    .findMany({ where: { id: { in: revisionIds } } });
+                const built = await call
+                    .read(build.table)
+                    .findMany({ where: { id: { in: revisions.map((each) => each.buildId) } } });
+
+                // refuse removing a package one of them needs
+                for (const row of others) {
+                    const revision = present(
+                        revisions.find((each) => each.id === row.revisionId),
+                        `the revision of ${row.name}`,
+                    );
+                    const manifest = Build.manifest(
+                        present(
+                            built.find((each) => each.id === revision.buildId),
+                            `the build of ${row.name}`,
+                        ),
+                    );
+                    const reader = await options.builds.packages.contents(manifest);
+                    const description = await PackageDescription.of(reader);
+                    const needed = Installation.needed(row, revision, description);
+                    if (needed.some((entry) => entry.package.id === target.packageId)) {
+                        throw new CallError("PRECONDITION_FAILED", {
+                            message: `${row.name} needs ${target.name}, which stays installed while it does`,
+                        });
+                    }
+                }
+
+                return next(call);
+            },
             finalize: async (call, next) => {
                 // remove an application's deployments, resources and grants before the installation
                 await finalizeApplication(call, options);
@@ -217,8 +280,8 @@ async function submit(
     }
 
     // pin the submitted build and require a build of the installation's package
-    const build = await pin(context, target, submission.build, options);
-    const reader = await options.builds.packages.contents(build.manifest);
+    const pinned = await pin(context, target, submission.build, options);
+    const reader = await options.builds.packages.contents(pinned.manifest);
     const built = reader.manifest.package.id;
     if (built !== target.packageId) {
         throw new CallError("BAD_REQUEST", {
@@ -228,7 +291,7 @@ async function submit(
 
     // retain the evaluation once
     const [revision] = await context.mutate(context.self, [
-        await InstallationRevision.create(target, build, evaluation),
+        await InstallationRevision.create(target, pinned, evaluation),
     ]);
 
     // point the installation at the selection, arguments, revision and space's stack submitted
@@ -259,37 +322,41 @@ async function submit(
     return context.update({ ...followed, ...submittedBy });
 }
 
-/** Pin a submitted build by its manifest's digest. */
+/** Pin a submitted build as the space's: a succeeded build, or a release pulled once. */
 async function pin(
     context: MethodContext,
     target: Installation,
     reference: Submission["build"],
     options: Pick<InstallationOptions, "builds" | "registry">,
-): Promise<InstallationBuild> {
+): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
     // take a succeeded build of the space
     if (reference.kind === "build") {
-        return Build.resolve(context, target.scope, reference.build);
+        return Build.require(context, target.scope, reference.build);
     }
 
-    // keep the release a version or tag points at in the build store
+    // read the version a tag or a pinned manifest has
     const { builds, registry } = options;
     const manifest =
         reference.kind === "tag"
             ? await registry.find(target.packageId, reference.tag)
             : (reference.manifest ?? (await registry.find(target.packageId, reference.version)));
-    const { location, fetch } = await registry.locate(target.packageId, manifest);
-    await builds.packages.copy(location, fetch);
-    const reader = await builds.packages.contents(manifest);
+    const reader = await builds.open(registry, target.packageId, manifest);
 
-    // record the version the release has, refusing a manifest of another version
+    // refuse a manifest of another version, and keep the release as the space's build
     const version = reader.manifest.package.version;
     if (reference.kind === "release" && reference.version !== version) {
         throw new CallError("BAD_REQUEST", {
             message: `${target.packageId} ${reference.version} resolved to ${version}`,
         });
     }
+    const release = { package: target.packageId, version, manifest };
 
-    return { kind: "release", version, manifest };
+    return Build.release(
+        context,
+        (calls) => context.mutate(context.self, calls),
+        target.scope,
+        release,
+    );
 }
 
 /** Wake installations on the changes of their resources, deployments, bindings and placement. */
@@ -333,7 +400,7 @@ function installationWatches(resources: readonly ResourceType<typeof space>[]) {
         ObjectWatch.of(binding.table, (row) => [{ id: row.installationId }]),
         // wake the applications of the account's spaces refused for an unentitled capability
         ObjectWatch.of(entitlement.table, async (row, database) => {
-            const spaces = await Space.within(database, row.accountId);
+            const spaces = await Space.within(database, row.scope);
             const refused = await database
                 .select({ id: installation.table.id, conditions: installation.table.conditions })
                 .from(installation.table)
@@ -346,6 +413,31 @@ function installationWatches(resources: readonly ResourceType<typeof space>[]) {
 
             return refused
                 .filter((each) => each.conditions["ready"]?.reason === "UnentitledCapability")
+                .map((each) => ({ id: each.id }));
+        }),
+        // wake the space's applications waiting for a dependency once its package is installed or served
+        ObjectWatch.of(installation.table, async (row, database) => {
+            const refused = await database
+                .select({
+                    id: installation.table.id,
+                    conditions: installation.table.conditions,
+                    dependencies: installationRevision.table.dependencies,
+                })
+                .from(installation.table)
+                .innerJoin(
+                    installationRevision.table,
+                    eq(installationRevision.table.id, installation.table.revisionId),
+                )
+                .where(eq(installation.table.scope, row.scope));
+
+            return refused
+                .filter(
+                    (each) =>
+                        ["UninstalledDependency", "WaitingForSpace"].includes(
+                            each.conditions["ready"]?.reason ?? "",
+                        ) &&
+                        each.dependencies.some((release) => release.package.id === row.packageId),
+                )
                 .map((each) => ({ id: each.id }));
         }),
         // wake the space's stack and applications once its placement changes
@@ -365,24 +457,28 @@ function installationWatches(resources: readonly ResourceType<typeof space>[]) {
     ];
 }
 
-/** Read the release build a declared installation follows, pinned by the stack's evaluation. */
-function declaredBuild(desired: {
-    readonly package: { readonly id: string; readonly version: string; readonly manifest?: Digest };
-}): InstallationBuild {
+/** Read the release a declared installation follows, pinned by the stack's evaluation. */
+function declaredRelease(desired: {
+    readonly package: {
+        readonly id: PackageId;
+        readonly version: string;
+        readonly manifest?: Digest;
+    };
+}): { readonly package: PackageId; readonly version: string; readonly manifest: string } {
     const { id, version, manifest } = desired.package;
     if (manifest === undefined) {
         throw new StackError("INVALID_DEFINITION", `the stack installs ${id} ${version} unpinned`);
     }
 
-    return { kind: "release", version, manifest };
+    return { package: id, version, manifest };
 }
 
 /** Open a view the installation's revision declares at a location, in the opening person's home. */
 async function open(
     context: MethodContextOf<typeof declaredInstallation, "open">,
-    options: Pick<InstallationOptions, "accounts">,
+    options: Pick<InstallationOptions, "accounts" | "builds">,
 ): Promise<ResultOf<typeof declaredInstallation, "open">> {
-    // require a revision declaring the view
+    // require the revision the installation follows
     const { target } = context;
     const { view, path } = context.input;
     const revision =
@@ -391,11 +487,16 @@ async function open(
             : await context
                   .read(installationRevision)
                   .findFirst({ where: { id: target.revisionId } });
-    const definition = revision?.views[view];
-    if (revision === undefined || definition === undefined) {
-        throw new CallError("NOT_FOUND", {
-            message: `${target.name} declares no view ${view}`,
-        });
+    if (revision === undefined) {
+        throw new CallError("NOT_FOUND", { message: `${target.name} declares no view ${view}` });
+    }
+
+    // read the revision's build and the view it mounts
+    const built = await Build.require(context, target.scope, revision.buildId);
+    const reader = await options.builds.packages.contents(built.manifest);
+    const definition = ViewDescription.list(reader.manifest)[view];
+    if (definition === undefined) {
+        throw new CallError("NOT_FOUND", { message: `${target.name} declares no view ${view}` });
     }
 
     // read the opening person's home
@@ -407,13 +508,17 @@ async function open(
         id: schema.identifier("user").parse(opener.id),
     });
 
+    // read what the opening person lends the installation, as its package and enabled capabilities ask
+    const description = await PackageDescription.of(reader);
+
     return {
         installationId: target.id,
         revisionId: revision.id,
-        build: revision.build,
+        manifest: built.manifest,
         view,
         definition,
         path,
         home,
+        permissions: Installation.permissions(target, description, "user"),
     };
 }

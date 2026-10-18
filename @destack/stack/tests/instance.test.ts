@@ -1,13 +1,14 @@
+import { PACKAGE_KIND_PACKAGE_ID } from "@destack/runtime";
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
 import { ObjectReference, Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type DatabaseConnection, Snapshot, eq, Expression, DatabaseState } from "@destack/db";
-import { nth, Identifier, present, schema } from "@destack/schema";
+import { Digest, nth, Identifier, present, schema } from "@destack/schema";
 import { databaseProvider, type LogPosition } from "@destack/db";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import {
@@ -31,7 +32,6 @@ import { space } from "@destack/account/object";
 import { defineObject, type Field, field, type ObjectDefinition } from "@destack/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import type { BuildReader } from "@destack/package/manifest";
-import { PackageStore } from "@destack/build/store";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
 import { Approval, serveSpace, type SpaceOptions } from "../src/server/index.ts";
@@ -73,9 +73,16 @@ const objectPackage = Package.parse({
 /** The main workload of the notes build. */
 const mainWorkload = { ...workload, resources: [] };
 
+/** A package an application depends on, which its space may lack. */
+const VAULT = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000f2",
+    name: "@acme/vault",
+    version: "2026.9.0",
+});
+
 /** The package defining resource kinds and triggers. */
 const runtimePackage = Package.parse({
-    id: "package-01996ab0-0000-7000-8000-00000000000e",
+    id: PACKAGE_KIND_PACKAGE_ID,
     name: "@destack/runtime",
     version: "2026.9.0",
 });
@@ -106,8 +113,9 @@ function noteType(
         fields,
         shareable: {},
     });
-    const { definition } = note.describe();
+    const { name, definition } = note.describe();
     const description = {
+        name,
         package: { ...notesPackage, version },
         definition: convert === undefined ? definition : { ...definition, convert },
     };
@@ -184,11 +192,11 @@ async function notesBuild(
     });
 
     // declare each resource, package and trigger as its definer's inspector records it
-    const built = await MemoryBuild.declaring(
+    const built = await MemoryBuild.of(
         notesPackage,
         declared.map((entry) => ({
             kind: entry.kind ?? "resource",
-            package: entry.definer.id,
+            kindPackageId: entry.definer.id,
             module: "src/resource.ts",
             name: entry.name,
             description: entry.description,
@@ -259,7 +267,6 @@ async function submitRevision(
     const now = Date.now();
     const reader = build ?? (await notesBuild([main]));
     const built = await fixture.recordBuild(reader);
-    const manifest = await PackageStore.digest(reader.manifest);
     const revision = nth(
         await database
             .insert(object.installationRevision.table)
@@ -269,10 +276,8 @@ async function submitRevision(
                 updatedAt: now,
                 id: Identifier.create("installation-revision"),
                 installationId,
-                build: { ...built, manifest },
-                views: {},
-                settings: [],
-                catalogs: [],
+                buildId: built.build,
+                dependencies: [],
                 digest: character.repeat(64),
             })
             .returning(),
@@ -308,7 +313,7 @@ async function serveControllers(
 
     // run the chosen runtimes on the machine serving the space and record instances on the one test runtime
     await placeSpace(database, ids.space, ids.machine);
-    const store = serveSpace(
+    const served = serveSpace(
         await fixture.options({
             machine: ids.machine,
             providers: [
@@ -325,24 +330,64 @@ async function serveControllers(
                 name === runtime.name ? runtime : new TestRuntime(name),
             ),
         }),
-    ).store;
+    );
+    const { store } = served;
 
     return {
         root,
         runtime,
         authorizer: store.authorizer,
         deployments: {
-            reconcile: (id: string) => reconcile(store, "installation", { id }),
+            reconcile: async (id: string) => {
+                // deploy, apply the space's resources, and deploy again once the space serves the revision
+                await reconcile(store, "installation", { id });
+                await reconcileResources(store, ids.space);
+
+                return reconcile(store, "installation", { id });
+            },
+            deploy: (id: string) => reconcile(store, "installation", { id }),
         },
         instances: {
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
-            settle: (after: LogPosition) => settle(database, store.controllers(), after),
+            settle: (after: LogPosition) =>
+                settle(
+                    database,
+                    [
+                        ...store.controllers(),
+                        // write main's desired states, as the space's consumer controller does
+                        ...(nth(served.packages, 0).controllers ?? []).filter(
+                            (controller) => controller.name === "consumer",
+                        ),
+                    ],
+                    after,
+                ),
         },
         resources: {
             reconcile: (scope: string) => reconcileResources(store, scope),
         },
         approve: (id: Identifier<"installation">) => approvePlan(database, store, id),
+        uninstall: (id: Identifier<"installation">) =>
+            store.mutate(store.serving(object.installation), {
+                id: RequestId.create(Date.now()),
+                calls: [
+                    object.installation.call(
+                        "delete",
+                        object.installation.target({ scope: ids.space, id }),
+                    ),
+                ],
+            }),
     };
+}
+
+/** Read an installation's ready condition as its reason and message. */
+async function readiness(database: DatabaseConnection, id: Identifier<"installation">) {
+    const [row] = await database
+        .select({ conditions: object.installation.table.conditions })
+        .from(object.installation.table)
+        .where(eq(object.installation.table.id, id));
+    const condition = present(row, "the installation").conditions["ready"];
+
+    return [condition?.reason, condition?.message];
 }
 
 /** Approve the plan an installation waits on as it stands. */
@@ -448,26 +493,29 @@ test("bind an application's tables to the space's main database, start its insta
     const { database } = fixture;
     const notes = await installNotes(fixture);
     const { runtime, deployments, instances, resources } = await serveControllers(fixture);
-    await deployments.reconcile(notes.id);
+    await deployments.deploy(notes.id);
 
-    // wait with the instance while main has not applied the notes' tables
-    const deployed = nth(await database.select().from(object.deployment.table), 0);
-    await instances.reconcile(deployed.id);
+    // activate nothing while main has not applied the notes' tables the space would serve
     const mainDatabase = nth(await database.select().from(object.database.table), 0);
-    const waiting = nth(await database.select().from(object.instance.table), 0);
+    const [waiting] = await database
+        .select()
+        .from(object.installation.table)
+        .where(eq(object.installation.table.id, notes.id));
     expect({
         started: runtime.started.length,
-        instance: [waiting.status, waiting.restarts, waiting.conditions["ready"]?.status],
-        ready: [waiting.conditions["ready"]?.reason, waiting.conditions["ready"]?.message],
+        deployments: await database.select().from(object.deployment.table),
+        ready: [waiting?.conditions["ready"]?.reason, waiting?.conditions["ready"]?.message],
     }).toEqual({
         started: 0,
-        instance: ["starting", 0, "false"],
-        ready: ["WaitingForResources", `resources ${mainDatabase.id} are not applied`],
+        deployments: [],
+        ready: ["WaitingForSpace", `waiting for the space to serve revision ${waiting?.revisionId}`],
     });
 
-    // apply main to start the waiting instance
+    // apply main, deploy once the space serves the revision, and start the instance
     const provisioned = await database.log.position();
     await resources.reconcile(ids.space);
+    await deployments.deploy(notes.id);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await instances.settle(provisioned);
     const applied = nth(await database.select().from(object.database.table), 0);
     const attached = nth(await database.select().from(object.binding.table), 0);
@@ -477,13 +525,13 @@ test("bind an application's tables to the space's main database, start its insta
         main: [applied.name, applied.ownerId, applied.conditions["ready"]?.reason],
         binding: [attached.installationId, attached.name, attached.target],
         tables: bound.tables.sqlite.map((state) => state.table.name),
-        instance: [running.id, running.status],
+        instance: [running.deploymentId, running.status],
         resources: present(runtime.started.at(-1), "the started run").resources,
     }).toEqual({
         main: ["main", null, "Applied"],
         binding: [notes.id, "main", mainDatabase.id],
         tables: ["example__notes__note"],
-        instance: [waiting.id, "running"],
+        instance: [deployed.id, "running"],
         resources: [],
     });
 
@@ -856,15 +904,6 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
             .where(eq(object.installation.table.id, notes.id));
         await deployments.reconcile(notes.id);
     };
-    const readiness = async () => {
-        const [installed] = await database
-            .select({ conditions: object.installation.table.conditions })
-            .from(object.installation.table)
-            .where(eq(object.installation.table.id, notes.id));
-        const ready = installed?.conditions["ready"];
-
-        return [ready?.reason, ready?.message];
-    };
     const deployed = async () =>
         (
             await database
@@ -875,11 +914,11 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
 
     // refuse allowing an undeclared capability, a directory without fs, and writing a directory fs reads
     await grant(["microphone"]);
-    const undeclared = await readiness();
+    const undeclared = await readiness(database, notes.id);
     await grant([], [notesDirectory]);
-    const unreadable = await readiness();
+    const unreadable = await readiness(database, notes.id);
     await grant(["index"], [{ ...notesDirectory, access: "write" }]);
-    const overreaching = await readiness();
+    const overreaching = await readiness(database, notes.id);
     const refusedDeployments = await deployed();
 
     // deploy with the build's sandbox alone
@@ -960,7 +999,7 @@ test("refuse to deploy an installation binding without an address, then run the 
 
     // refuse to deploy while no stack binds the tasks installation to an address
     await deployments.reconcile(notes.id);
-    const readiness = async () =>
+    const condition = async () =>
         nth(
             await database
                 .select({ conditions: object.installation.table.conditions })
@@ -968,7 +1007,7 @@ test("refuse to deploy an installation binding without an address, then run the 
                 .where(eq(object.installation.table.id, notes.id)),
             0,
         ).conditions["ready"];
-    const refused = await readiness();
+    const refused = await condition();
 
     // declare the tasks dependency at the address of the notes installation itself and bind it
     const now = Date.now();
@@ -1494,7 +1533,7 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
         ...declared,
         description: {
             ...declared.description,
-            capabilities: { sync: { reason: "Sync across devices", requires: [feature] } },
+            capabilities: { sync: { reason: "Sync across devices", features: [feature] } },
         },
     };
     const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request]));
@@ -1503,15 +1542,6 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
         opened,
         isEnforcingEntitlements: true,
     });
-    const ready = async () => {
-        const [row] = await database
-            .select({ conditions: object.installation.table.conditions })
-            .from(object.installation.table)
-            .where(eq(object.installation.table.id, notes.id));
-        const condition = present(row, "the installation").conditions["ready"];
-
-        return [condition?.reason, condition?.message];
-    };
     const deployed = async () =>
         (
             await database
@@ -1522,7 +1552,7 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
     // deploy with the account replicated without the feature, then once it is entitled to it
     await TestEntitlement.set(database, ids.account, "database", { kind: "boolean" });
     await deployments.reconcile(notes.id);
-    const refused = { ready: await ready(), deployed: await deployed() };
+    const refused = { ready: await readiness(database, notes.id), deployed: await deployed() };
     await TestEntitlement.set(database, ids.account, { feature }, { kind: "boolean" });
     await deployments.reconcile(notes.id);
 
@@ -1536,5 +1566,101 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
             deployed: [],
         },
         entitled: [["sync"]],
+    });
+});
+
+test("refuse deploying an application until its space installs its dependency, and refuse uninstalling the dependency while the application needs it", async () => {
+    // install notes depending on a vault package its space lacks, published at the registry
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const vault = await fixture.registry.push(await MemoryBuild.of(VAULT, []));
+    const notes = await installNotes(fixture);
+    await database
+        .update(object.installationRevision.table)
+        .set({ dependencies: [{ package: VAULT, manifest: Digest.parse(vault) }] })
+        .where(eq(object.installationRevision.table.installationId, notes.id));
+    const { deployments, instances, uninstall } = await serveControllers(fixture, {
+        opened: await openUniverse(),
+    });
+
+    // deploy without the vault, then once installing it wakes notes through the controllers' watches
+    await deployments.reconcile(notes.id);
+    const refused = await readiness(database, notes.id);
+    const before = await database.log.position();
+    const now = Date.now();
+    const installed = nth(
+        await database
+            .insert(object.installation.table)
+            .values({
+                scope: ids.space,
+                createdAt: now,
+                updatedAt: now,
+                id: Identifier.create("installation"),
+                packageId: VAULT.id,
+                role: "application",
+                selection: { kind: "release", version: VAULT.version },
+                name: "vault",
+            })
+            .returning(),
+        0,
+    );
+    await submitRevision(fixture, installed.id, "f", await MemoryBuild.of(VAULT, []));
+    await instances.settle(before);
+    const deployed = await readiness(database, notes.id);
+
+    // uninstall the vault while notes needs it
+    const uninstalled = await refusal(uninstall(installed.id));
+
+    // refuse naming the missing package, deploy once installed, and keep the vault installed
+    expect({ refused, deployed, uninstalled }).toEqual({
+        refused: ["UninstalledDependency", "notes needs @acme/vault installed"],
+        deployed: ["Deployed", "1 workloads deployed"],
+        uninstalled: [
+            "PRECONDITION_FAILED",
+            "notes needs vault, which stays installed while it does",
+        ],
+    });
+});
+
+test("deploy an application without a package only its optional capability needs, and refuse the capability once allowed until the space installs it", async () => {
+    // install notes with an optional vault sync capability needing a vault package its space lacks
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const declared = requesting({});
+    const request: Declared = {
+        ...declared,
+        description: {
+            ...declared.description,
+            capabilities: {
+                "vault-sync": {
+                    reason: "Keep notes in the vault",
+                    optional: true,
+                    packages: [VAULT.id],
+                },
+            },
+        },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, request]));
+    const vault = await fixture.registry.push(await MemoryBuild.of(VAULT, []));
+    await database
+        .update(object.installationRevision.table)
+        .set({ dependencies: [{ package: VAULT, manifest: Digest.parse(vault) }] })
+        .where(eq(object.installationRevision.table.installationId, notes.id));
+    const { deployments } = await serveControllers(fixture, { opened: await openUniverse() });
+
+    // deploy without the capability, then with it allowed
+    await deployments.reconcile(notes.id);
+    const without = await readiness(database, notes.id);
+    await database
+        .update(object.installation.table)
+        .set({ allowed: ["vault-sync"] })
+        .where(eq(object.installation.table.id, notes.id));
+    await deployments.reconcile(notes.id);
+    const allowed = await readiness(database, notes.id);
+
+    // deploy without the vault until the capability needs it
+    expect({ without, allowed }).toEqual({
+        without: ["Deployed", "1 workloads deployed"],
+        allowed: ["UninstalledDependency", "capability vault-sync needs @acme/vault installed"],
     });
 });

@@ -20,7 +20,7 @@ import { Health } from "@destack/runtime/health";
 import { Server } from "@destack/runtime/server";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { BunGraphStorage } from "../src/bun/index.ts";
-import { module, symbol } from "../src/graph/index.ts";
+import { module, symbol } from "../src/object/index.ts";
 import { build } from "../src/object/index.ts";
 import { stackTables } from "../src/stack/index.ts";
 import { ids } from "../src/test/index.ts";
@@ -42,6 +42,9 @@ const packages = {
 
 /** The build the test reads. */
 const buildId = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-000000000003");
+
+/** A second build of the same commit, which shares the first one's index. */
+const rebuiltId = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-000000000004");
 
 /** The repository the build compiles. */
 const repositoryId = schema
@@ -84,30 +87,34 @@ test("serve a build's modules and symbols from its index to the build's readers,
         new TextEncoder().encode(JSON.stringify(PackageManifest.parse(stored.manifest))),
     );
 
-    // record it as the space's succeeded build
-    await database.insert(build.table).values({
-        id: buildId,
-        scope: ids.space,
-        source: {
-            kind: "commit",
-            repository: repositoryId,
-            commit: "a".repeat(40),
-            directory: ".",
-        },
-        outputs: ["bun"],
-        state: "succeeded",
-        manifest,
-        startedAt: now,
-        finishedAt: now,
-        createdAt: now,
-        updatedAt: now,
-    });
-    await Authorization.run(
-        authorizer,
-        database,
-        () => AccessContext.of(Caller.of(owner), now),
-        (authorization) => authorization.create(build.reference(ids.space, buildId), {}),
-    );
+    // record it as two of the space's succeeded builds of one commit, the second finished later
+    const record = async (id: typeof buildId, finishedAt: number) => {
+        await database.insert(build.table).values({
+            id,
+            scope: ids.space,
+            source: {
+                kind: "commit",
+                repository: repositoryId,
+                commit: "a".repeat(40),
+                directory: ".",
+            },
+            outputs: ["bun"],
+            state: "succeeded",
+            manifest,
+            startedAt: now,
+            finishedAt,
+            createdAt: now,
+            updatedAt: now,
+        });
+        await Authorization.run(
+            authorizer,
+            database,
+            () => AccessContext.of(Caller.of(owner), now),
+            (authorization) => authorization.create(build.reference(ids.space, id), {}),
+        );
+    };
+    await record(buildId, now);
+    await record(rebuiltId, now + 1);
 
     // read the build's graph through the object store as its owner and refuse a stranger
     await using graphs = new BunGraphStorage(
@@ -148,21 +155,29 @@ test("serve a build's modules and symbols from its index to the build's readers,
         module.call("list", { buildId }),
     );
 
+    // read the rebuild's notebook variable, in its own scope and finish, from the one index
+    const rebuilt = await store.query(
+        context(ids.owner).access(),
+        symbol.call("get", { buildId: rebuiltId, id: `${at}#notebook` }),
+    );
+
     // list every module with its dependencies and the notebook's object declaration at its variable
     expect([
         modules.items.map((row) => [row.id, row.path, relations(row.relationships)]),
-        summary(await read(`${at}#notebook:object`)),
+        summary(await read(`${at}#notebook:object:notebook`)),
         summary(await read(`${at}#notebook`)),
-        await readdir(join(directory, "graph", manifest)),
+        [rebuilt.scope, rebuilt.createdAt],
+        await readdir(join(directory, "graph")),
     ]).toEqual([
         [
             [moniker("src/index.ts"), "src/index.ts", ["depends src/object.ts"]],
             [at, "src/object.ts", [`depends ${packages.object}`]],
             [moniker("src/service.ts"), "src/service.ts", ["depends src/object.ts"]],
         ],
-        [`${at}#notebook:object`, at, "object", "notebook", `${at}#notebook`, []],
+        [`${at}#notebook:object:notebook`, at, "object", "notebook", `${at}#notebook`, []],
         [`${at}#notebook`, at, "variable", "notebook", null, [`calls ${packages.object}`]],
-        [`${buildId}.sqlite`],
+        [rebuiltId, now + 1],
+        [`${manifest}.sqlite`],
     ]);
     const refused = await refusal(
         store.query(
@@ -308,20 +323,11 @@ async function writeNotebook(): Promise<BuildReader> {
         });
     const notebook = monikerOf("src/object.ts", "notebook");
     const service = monikerOf("src/service.ts", "notebooksService");
-    const procedure = (name: string) => ({
-        moniker: graph.Moniker.of({
-            packageId: NOTEBOOK_ID,
-            module: "src/service.ts",
-            name: "notebooksService",
-            member: name,
-            kind: "procedure",
-        }),
-        symbol: service,
-        kind: "procedure",
-        package: PackageId.parse(packages.service),
-        name,
-        description: {},
-    });
+    const procedure = (name: string) =>
+        graph.Declaration.member(
+            { symbol: service, kindPackageId: PackageId.parse(packages.service) },
+            { kind: "procedure", name, description: {} },
+        );
 
     // write each module's source beside its graph file
     const sources = new Map(
@@ -354,14 +360,12 @@ async function writeNotebook(): Promise<BuildReader> {
             exports: [{ name: "notebook", symbol: notebook, isTypeOnly: false }],
             symbols: [variable(notebook, "src/object.ts")],
             declarations: [
-                {
-                    moniker: graph.Moniker.parse(`${notebook}:object`),
-                    symbol: notebook,
+                graph.Declaration.at(notebook, {
                     kind: "object",
-                    package: PackageId.parse(packages.object),
+                    kindPackageId: PackageId.parse(packages.object),
                     name: "notebook",
                     description: {},
-                },
+                }),
             ],
             edges: [
                 {

@@ -7,18 +7,16 @@ import {
     type ObjectReconciliation,
     type ObjectType,
 } from "@destack/object";
-import { OBJECT_DECLARATION } from "@destack/object/inspect";
 import { type ApplyOptions, Stack, type ObjectStore } from "@destack/object/server";
-import type { DependencyRelease, PackageId } from "@destack/package";
+import type { PackageRelease, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { PACKAGE_DECLARATION } from "@destack/runtime";
+import { PackageDescription } from "@destack/runtime";
 import { CallError } from "@destack/runtime/error";
 import { install, type InstallationDefinition } from "../../declare/installation.ts";
 import { StackDefinition } from "../../declare/stack.ts";
 import { StackError } from "../../error/index.ts";
 import stackPackage from "../../package.ts";
 import {
-    declaration,
     Installation,
     installation,
     InstallationRevision,
@@ -28,7 +26,7 @@ import {
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
-import { BuildStore } from "./build.ts";
+import { type BuildStore, installableReleases } from "./build.ts";
 import { Failure } from "@destack/sync";
 
 /** What a machine applies stacks with: its build store. */
@@ -55,7 +53,7 @@ export async function reconcileStack(
     let deferred: string | undefined;
     try {
         const release: StackApplicationOptions["release"] = (snapshot, packageId, installationId) =>
-            BuildStore.installed(options.builds, snapshot, spaceId, packageId, installationId);
+            options.builds.installed(snapshot, spaceId, packageId, installationId);
         const objects = declaredTypes(reconciliation.store.objects);
         const store = reconciliation.store;
         const applying = stackApplication(database, stack, revision, objects, { store, release });
@@ -136,16 +134,6 @@ async function readServedStack(spaceId: Identifier<"space">, database: DatabaseC
     return served;
 }
 
-/** A Destack release a build resolved. */
-type DestackRelease = Extract<DependencyRelease, { readonly kind: "destack" }>;
-
-/** Read the Destack releases a build resolved, the closure of the packages it depends on. */
-export async function readReleases(build: BuildReader): Promise<DestackRelease[]> {
-    return Object.values(await build.dependencies()).flatMap((dependency) =>
-        dependency.kind === "destack" ? [dependency] : [],
-    );
-}
-
 /** Read the stack a stack package declares at an export, with its installations' dependencies. */
 export async function declaredStack(
     reader: BuildReader,
@@ -173,7 +161,7 @@ export async function declaredStack(
     const declared = found.description;
 
     // read the one release the build resolved each Destack package at
-    const resolved = oneReleaseEach(await readReleases(reader), name);
+    const resolved = oneReleaseEach(await reader.releases(), name);
 
     // refuse a stack declaring the main database every space has
     const document = StackDefinition.collections(declared);
@@ -199,38 +187,28 @@ export async function declaredStack(
         }),
     );
 
-    // read the Destack releases each declared installation's build depends on, its whole closure
+    // read the installable packages each declared installation's build depends on, but those its optional capabilities need
     const declaredPackages = new Set(
         Object.values(pinned).map((installed) => installed.package.id),
     );
     const closures = await Promise.all(
         Object.values(pinned).map(async (installed) => {
+            // read the installation's package and the packages only its optional capabilities need
             const build = await open(installed.package.id, installed.package.manifest);
+            const description = await PackageDescription.of(build);
+            const optional = new Set(Installation.optionalPackages(description));
 
-            return (await readReleases(build)).filter(
-                (release) => !declaredPackages.has(release.package.id),
+            // keep its installable dependencies the stack leaves out
+            return (await installableReleases(build, open)).filter(
+                (release) =>
+                    !declaredPackages.has(release.package.id) && !optional.has(release.package.id),
             );
         }),
     );
 
-    // keep one release per package across the installations
-    const depended = oneReleaseEach(closures.flat(), name);
-
-    // keep the releases whose build declares their package, leaving libraries out
-    const installable = await Promise.all(
-        [...depended.values()].map(async (release) => {
-            const build = await open(release.package.id, release.manifest);
-            const isInstallable = (await build.declarations()).some(
-                (entry) => entry.kind === PACKAGE_DECLARATION,
-            );
-
-            return isInstallable ? [release] : [];
-        }),
-    );
-
-    // install each as any package, bound to nothing, at the release its dependents resolved
+    // install each once as any package, bound to nothing, at the release its dependents resolved
     const transitive: Record<string, InstallationDefinition> = {};
-    for (const release of installable.flat()) {
+    for (const release of oneReleaseEach(closures.flat(), name).values()) {
         const installed = install({ ...release.package, resources: {}, secrets: {} }, {});
         if (Object.hasOwn(document.installations, installed.name)) {
             throw new StackError(
@@ -253,10 +231,10 @@ export async function declaredStack(
 
 /** Key releases by package, refusing two releases of one package in a stack. */
 function oneReleaseEach(
-    releases: readonly DestackRelease[],
+    releases: readonly PackageRelease[],
     stack: string,
-): Map<PackageId, DestackRelease> {
-    const byPackage = new Map<PackageId, DestackRelease>();
+): Map<PackageId, PackageRelease> {
+    const byPackage = new Map<PackageId, PackageRelease>();
     for (const release of releases) {
         // refuse a second release of a package
         const known = byPackage.get(release.package.id);
@@ -298,7 +276,7 @@ function stackApplication(
 
     // apply every declaration the machine supports in dependency order, those of installed types once the store serves them
     return {
-        installing: (snapshot) => installedTypes(snapshot, stack),
+        installing: (snapshot) => installedTypes(snapshot, stack, options.release),
         database,
         objects,
         manager: { installationId: stack.id, packageId: stack.packageId },
@@ -312,33 +290,28 @@ function stackApplication(
     };
 }
 
-/** Read the object types the installations a stack manages describe. */
+/** Read the object types the builds of the installations a stack manages declare. */
 async function installedTypes(
     snapshot: Snapshot,
     stack: Installation,
+    release: StackApplicationOptions["release"],
 ): Promise<ObjectDescription[]> {
-    // read the revisions the stack's installations follow
-    const { scope } = stack;
+    // read the installations the stack manages that follow a revision
     const managed = await snapshot.read(installation.table).findMany({
-        where: {
-            scope,
-            managerInstallationId: stack.id,
-        },
+        where: { scope: stack.scope, managerInstallationId: stack.id },
     });
-    const revisions = managed.flatMap((entry) =>
-        entry.revisionId === null ? [] : [entry.revisionId],
+    const following = managed.filter((entry) => entry.revisionId !== null);
+
+    // read the object types each one's build declares
+    const declared = await Promise.all(
+        following.map(async (entry) => {
+            const reader = await release(snapshot, entry.packageId, entry.id);
+
+            return ObjectDescription.installed(await reader.declarations());
+        }),
     );
 
-    // read the object types their builds declare
-    const declared = await snapshot.read(declaration.table).findMany({
-        where: {
-            scope,
-            revisionId: { in: revisions },
-            kind: OBJECT_DECLARATION,
-        },
-    });
-
-    return declared.map((entry) => ObjectDescription.parse(entry.description));
+    return declared.flat();
 }
 
 /** List the types stacks declare, once per table: the declarable ones, roles and relationships. */

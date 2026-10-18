@@ -44,7 +44,6 @@ import {
     Database,
     deployment,
     build,
-    installationRevision,
     instance,
     restore,
     Restore,
@@ -538,17 +537,11 @@ export class SpaceTransfer {
         }
     }
 
-    /** Read the manifests of the builds a space's builds and revisions run. */
+    /** Read the manifests of the builds a space has, compiled or pulled. */
     static async manifests(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<string>> {
         const built = await reader.read(build.table).findMany({ where: { scope: spaceId } });
-        const revisions = await reader
-            .read(installationRevision.table)
-            .findMany({ where: { scope: spaceId } });
 
-        return new Set([
-            ...built.flatMap((row) => (row.manifest === null ? [] : [row.manifest])),
-            ...revisions.map((row) => row.build.manifest),
-        ]);
+        return new Set(built.flatMap((row) => (row.manifest === null ? [] : [row.manifest])));
     }
 
     /** Replicate each build the space's builds and revisions run from the source's build store. */

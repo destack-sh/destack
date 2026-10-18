@@ -7,13 +7,16 @@ import {
     type Select,
     type Snapshot,
 } from "@destack/db";
-import { none, relation } from "@destack/access";
+import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
 import { PackageManifest } from "@destack/package/manifest";
 import { Lease } from "@destack/resource";
-import { Commit, Digest, type Identifier, present, schema } from "@destack/schema";
+import { PackageId } from "@destack/package";
+import type { ResultsOf } from "@destack/object";
+import type { Call } from "@destack/sync";
+import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { errorOf, CallError } from "@destack/runtime/error";
-import { type InstallationBuild, PackageDirectory } from "../declare/installation.ts";
+import { PackageDirectory } from "../declare/installation.ts";
 import { machine, space } from "@destack/account/object";
 import { Failure, ObjectReference, Subject } from "@destack/sync";
 import { installationRevision } from "./installation.ts";
@@ -30,7 +33,7 @@ export const FINISHED_BUILD_STATES = ["succeeded", "failed", "cancelled"] as con
 /** The steps of a running build: resolving its source, compiling it, and storing the result. */
 export const BUILD_PHASES = ["preparing", "building", "storing"] as const;
 
-/** The source a build compiles: a checkout with its unpublished changes, or a commit. */
+/** The source a build has: a checkout with unpublished changes, a commit, or a release. */
 export const BuildSource = schema.discriminatedUnion("kind", [
     schema.object({
         /** A working directory registered on a machine. */
@@ -52,8 +55,18 @@ export const BuildSource = schema.discriminatedUnion("kind", [
         /** The package directory within the repository. */
         directory: PackageDirectory,
     }),
+    schema.object({
+        /** A published release, pulled from its registry rather than compiled here. */
+        kind: schema.literal("release"),
+        /** The released package. */
+        package: PackageId,
+        /** The released version. */
+        version: Version,
+        /** The digest of the release's manifest, which pins its exact build. */
+        manifest: Digest,
+    }),
 ]);
-/** The source a build compiles. */
+/** The source a build has. */
 export type BuildSource = schema.Infer<typeof BuildSource>;
 
 /** A file a runner stores among a space's builds: its content's digest and size. */
@@ -137,8 +150,8 @@ export const build = defineObject(
             // what to build
             /** The source compiled. */
             source: field.json(BuildSource),
-            /** The outputs compiled by the names the exports imply, every one while absent. */
-            outputs: field.json(schema.array(schema.string().min(1)).min(1)).optional(),
+            /** The outputs, by the names the exports imply; every one while absent. */
+            outputs: field.json(schema.array(schema.string().min(1))).optional(),
 
             // how it runs
             /** Where the build stands. */
@@ -163,9 +176,9 @@ export const build = defineObject(
         relations: {
             runner: { subjects: [machine] },
         },
-        // let a build's runner alone read and run it
+        // let the space's readers read its builds and their index, and a build's runner run it
         permissions: {
-            read: relation("runner"),
+            read: union(relation("runner"), through("scope", "read")),
             create: none(),
             cancel: none(),
             run: relation("runner"),
@@ -294,7 +307,7 @@ export type Build = Omit<Select<typeof build.table>, keyof BuildState> & BuildSt
 
 /** What build retention keeps and drops. */
 export interface BuildRetention {
-    /** The manifests of the builds and releases kept. */
+    /** The manifests of the builds kept, releases among them. */
     readonly retained: ReadonlySet<string>;
     /** The unexpired builds retention drops. */
     readonly expired: readonly {
@@ -303,7 +316,7 @@ export interface BuildRetention {
     }[];
 }
 
-/** Reads of builds that installations resolve their submissions by. */
+/** The builds a space has: compiled from a checkout or a commit, or pulled as a release. */
 export const Build = {
     /** Narrow a build row by its state, failing on a row the table's checks refuse. */
     of<Row extends Pick<Select<typeof build.table>, "id" | keyof BuildState>>(
@@ -391,13 +404,13 @@ export const Build = {
         return found === undefined ? undefined : Build.of(found);
     },
 
-    /** Resolve a succeeded build of a space to the build an installation's revision evaluates. */
-    async resolve(
+    /** Require a space's build with its manifest, as a revision evaluates it. */
+    async require(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         buildId: Identifier<"build">,
-    ): Promise<InstallationBuild> {
-        // require the space's build
+    ): Promise<Select<typeof build.table> & { readonly manifest: string }> {
+        // require the space's build, refusing one without its files
         const [found] = await snapshot
             .read(build.table)
             .findMany({ where: { scope: spaceId, id: buildId } });
@@ -405,7 +418,33 @@ export const Build = {
             throw new CallError("NOT_FOUND", { message: `no build ${buildId}` });
         }
 
-        return { kind: "build", build: buildId, manifest: Build.manifest(found) };
+        return { ...found, manifest: Build.manifest(found) };
+    },
+
+    /** Read a space's build of a release, creating it pulled and born succeeded the first time. */
+    async release(
+        reader: Pick<Snapshot, "read">,
+        mutate: <const Calls extends readonly Call[]>(calls: Calls) => Promise<ResultsOf<Calls>>,
+        spaceId: Identifier<"space">,
+        release: {
+            readonly package: PackageId;
+            readonly version: string;
+            readonly manifest: string;
+        },
+    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
+        // take the space's live build of the release's manifest
+        const [found] = await reader.read(build.table).findMany({
+            where: { scope: spaceId, manifest: release.manifest, expiredAt: { isNull: true } },
+        });
+
+        // create it pulled from the registry the first time
+        const { package: packageId, version, manifest } = release;
+        const source = { kind: "release" as const, package: packageId, version, manifest };
+        const id =
+            found?.id ??
+            (await mutate([build.call("create", { ...build.in(spaceId), source })]))[0].id;
+
+        return Build.require(reader, spaceId, id);
     },
 
     /** Read what retention keeps. */
@@ -413,15 +452,12 @@ export const Build = {
         database: DatabaseConnection,
         retention: (space: string) => Promise<number>,
     ): Promise<BuildRetention> {
-        // read each build and release revisions apply once
+        // read each build revisions apply once
         const revisions = await database
-            .selectDistinct({ build: installationRevision.table.build })
+            .selectDistinct({ build: installationRevision.table.buildId })
             .from(installationRevision.table);
-        const applied = revisions.map((revision) => revision.build);
-        const retained = new Set(applied.map((applies) => applies.manifest));
-        const appliedBuilds = new Set(
-            applied.flatMap((applies) => (applies.kind === "build" ? [applies.build] : [])),
-        );
+        const appliedBuilds = new Set(revisions.map((revision) => revision.build));
+        const retained = new Set<string>();
 
         // group the unexpired builds by space and package source, newest first
         const builds = await database
@@ -465,11 +501,20 @@ export const Build = {
     },
 };
 
-/** Read the package a build source compiles: a checkout's or a repository's package directory. */
+/** Read the package a build source has: a checkout or repository directory, or a release. */
 function sourcePackage(source: BuildSource): readonly string[] {
-    return source.kind === "checkout"
-        ? [source.kind, source.machine, source.checkout, source.directory]
-        : [source.kind, source.repository, source.directory];
+    // group a checkout's builds by its directory
+    if (source.kind === "checkout") {
+        return [source.kind, source.machine, source.checkout, source.directory];
+    }
+    // group a repository's builds by its directory
+    else if (source.kind === "commit") {
+        return [source.kind, source.repository, source.directory];
+    }
+    // group a release's builds by its package
+    else {
+        return [source.kind, source.package];
+    }
 }
 
 /** The builds of one space assigned to one runner, replicated to the runner's machine. */

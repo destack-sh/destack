@@ -2,10 +2,19 @@ import { DatabaseKind, type Select, type Snapshot, type Transaction } from "@des
 import { defineObject } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { nth, Digest, type Identifier, present } from "@destack/schema";
+import { Digest, type Identifier, present } from "@destack/schema";
+import { RESOURCE_DECLARATION } from "@destack/resource";
+import { OBJECT_DECLARATION } from "@destack/object/inspect";
 import { binding } from "./binding.ts";
-import { type Declaration, declaration } from "./declaration.ts";
-import { type Installation, installation } from "./installation.ts";
+import { Build, build } from "./build.ts";
+import {
+    type Installation,
+    installation,
+    installationRevision,
+    type InstallationRevision,
+} from "./installation.ts";
+import type { graph } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 
 /** The name of every space's main database, which keeps every installation's objects. */
 export const MAIN_DATABASE = "main";
@@ -52,11 +61,18 @@ export const Database = {
         });
     },
 
-    /** Read the installations whose tables a space's main database applied. */
+    /** Read the revision a space serves each installation at, with its declarations. */
     async installed(
-        snapshot: Snapshot,
+        snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-    ): Promise<{ readonly installation: Installation; readonly declarations: Declaration[] }[]> {
+        open: (manifest: string) => Promise<Pick<BuildReader, "declarations">>,
+    ): Promise<
+        {
+            readonly installation: Installation;
+            readonly revisionId: InstallationRevision["id"];
+            readonly declarations: graph.Declaration[];
+        }[]
+    > {
         // read no installations of a space before its birth gives it main
         const [main] = await snapshot
             .read(database.table)
@@ -65,42 +81,71 @@ export const Database = {
             return [];
         }
 
-        // read the digests of the states main applied, none while a plan waits
-        const desired = [...main.states, ...main.drainingStates];
-        const isApplied = main.appliedState === (await Digest.json(desired));
-        const applied = new Set(isApplied ? desired : []);
-
-        // read the installations whose main binding asks for an applied state
-        const bindings = await snapshot.read(binding.table).findMany({
-            where: {
-                scope: spaceId,
-                name: MAIN_DATABASE,
-                target: main.id,
-            },
-        });
-        const digests = await Promise.all(bindings.map((entry) => Digest.json(entry.state)));
-        const served = bindings.filter((_entry, index) => applied.has(nth(digests, index)));
-        const installations = await snapshot.read(installation.table).findMany({
-            where: {
-                scope: spaceId,
-                id: { in: served.map((entry) => entry.installationId) },
-            },
-        });
-
-        // read each installation's revision's declarations
-        const revisions = installations.flatMap((entry) =>
-            entry.revisionId === null ? [] : [entry.revisionId],
+        // read the installations, their bindings, and their revisions' builds
+        const installations = await snapshot
+            .read(installation.table)
+            .findMany({ where: { scope: spaceId } });
+        const bindings = await snapshot.read(binding.table).findMany({ where: { scope: spaceId } });
+        const revisionIds = installations.flatMap((entry) =>
+            [entry.revisionId, entry.appliedRevisionId].filter((id) => id !== null),
         );
-        const declared = await snapshot.read(declaration.table).findMany({
-            where: {
-                scope: spaceId,
-                revisionId: { in: revisions },
-            },
+        const revisions = await snapshot
+            .read(installationRevision.table)
+            .findMany({ where: { scope: spaceId, id: { in: revisionIds } } });
+        const builds = await snapshot.read(build.table).findMany({
+            where: { scope: spaceId, id: { in: revisions.map((entry) => entry.buildId) } },
         });
 
-        return installations.map((entry) => ({
-            installation: entry,
-            declarations: declared.filter((each) => each.revisionId === entry.revisionId),
-        }));
+        // read each revision's declarations from its build, once
+        const declared = new Map(
+            await Promise.all(
+                revisions.map(async (revision) => {
+                    const built = present(
+                        builds.find((each) => each.id === revision.buildId),
+                        `the build of revision ${revision.id}`,
+                    );
+                    const reader = await open(Build.manifest(built));
+
+                    return [revision.id, await reader.declarations()] as const;
+                }),
+            ),
+        );
+
+        // serve each installation at its revision once main applied its tables, else at the revision it deployed last
+        const applied = new Set(main.appliedStates);
+        const served = await Promise.all(
+            installations.map(async (entry) => {
+                // serve a revision declaring no object types at once, and one declaring some once main applied them
+                const latest =
+                    entry.revisionId === null ? undefined : declared.get(entry.revisionId);
+                const tables = bindings.find(
+                    (each) =>
+                        each.installationId === entry.id &&
+                        each.name === MAIN_DATABASE &&
+                        each.target === main.id,
+                );
+                const isApplied =
+                    latest !== undefined &&
+                    (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
+                        (tables !== undefined && applied.has(await Digest.json(tables.state))));
+                const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
+
+                return revisionId === null ? [] : [{ installation: entry, revisionId }];
+            }),
+        );
+
+        // keep each one whose own resources are each bound, as servers open them at start and read secrets on use
+        const bound = new Set(
+            bindings.map((entry) => `${entry.installationId}:${entry.packageId}:${entry.name}`),
+        );
+
+        return served.flat().flatMap(({ installation: entry, revisionId }) => {
+            const declarations = present(declared.get(revisionId), `revision ${revisionId}`);
+            const isBound = declarations
+                .filter((each) => each.kind === RESOURCE_DECLARATION)
+                .every((each) => bound.has(`${entry.id}:${entry.packageId}:${each.name}`));
+
+            return isBound ? [{ installation: entry, revisionId, declarations }] : [];
+        });
     },
 };

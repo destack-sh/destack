@@ -1,9 +1,10 @@
-import { Catalog } from "@destack/locale";
 import {
     Grant,
     type GrantPermission,
     none,
     PermissionReference,
+    type PermissionRequest,
+    PermissionScope,
     PermissionSet,
     principal,
     self,
@@ -32,13 +33,14 @@ import {
     DeclarationName,
     DirectoryGrant,
     PackageId,
+    type Package,
+    PackageRelease,
     Sandbox,
 } from "@destack/package";
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
 import { Plan } from "@destack/resource";
 import {
     canonicalize,
-    defineSchema,
     Digest,
     type Identifier,
     Instant,
@@ -47,14 +49,11 @@ import {
     schema,
 } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import { SettingCatalog, SettingDescription, SettingReference } from "@destack/setting";
+import { Setting, SettingReference } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { Scope } from "@destack/sync";
-import {
-    InstallationBuild,
-    InstallationSelection,
-    InstallationDefinition,
-} from "../declare/installation.ts";
+import { InstallationSelection, InstallationDefinition } from "../declare/installation.ts";
+import { build } from "./build.ts";
 import { StackDefinition } from "../declare/stack.ts";
 import { space, Space } from "@destack/account/object";
 import { Submission } from "./stack.ts";
@@ -66,14 +65,6 @@ const GRANT_NAME = "permissions";
 /** The account owning the repository of a written selection, null for any other selection. */
 export const SelectedAccount = schema.identifier("account").nullable();
 
-/** A view a build's output mounts. */
-export const BuildView = ViewDescription.extend({
-    /** The output mounting the view. */
-    output: DeclarationName,
-});
-/** A view a build's output mounts. */
-export type BuildView = schema.Infer<typeof BuildView>;
-
 /** A location within a view, with its query, excluding another origin. */
 export const ViewPath = schema.string().regex(/^\/(?:[^/\\\r\n][^\\\r\n]*)?$/u);
 
@@ -83,31 +74,31 @@ export const InstallationView = schema.object({
     installationId: schema.identifier("installation"),
     /** The revision whose build serves the view. */
     revisionId: schema.identifier("installation-revision"),
-    /** The build serving the view. */
-    build: InstallationBuild,
+    /** The digest of the manifest of the build serving the view. */
+    manifest: Digest,
     /** The view's name. */
     view: DeclarationName,
     /** The view as the build's output mounts it. */
-    definition: BuildView,
+    definition: ViewDescription,
     /** The location within the view. */
     path: ViewPath,
     /** The opening person's home space, where the view's home types open. */
     home: schema.identifier("space"),
+    /** What the opening person lends the installation on use, by the scope it applies in. */
+    permissions: PermissionSet,
 });
 /** A view of an installation's revision, as a client opens it. */
 export type InstallationView = schema.Infer<typeof InstallationView>;
 
 /** A short-lived access token a space grants one of its installations for a package. */
-export const InstallationToken = defineSchema(
-    schema.object({
-        /** The signed access token. */
-        accessToken: schema.string(),
-        /** The HTTP authorization scheme. */
-        tokenType: schema.literal("Bearer"),
-        /** The exclusive expiry in epoch milliseconds. */
-        expiresAt: Instant,
-    }),
-);
+export const InstallationToken = schema.object({
+    /** The signed access token. */
+    accessToken: schema.string(),
+    /** The HTTP authorization scheme. */
+    tokenType: schema.literal("Bearer"),
+    /** The exclusive expiry in epoch milliseconds. */
+    expiresAt: Instant,
+});
 /** A short-lived access token a space grants one of its installations. */
 export type InstallationToken = schema.Infer<typeof InstallationToken>;
 
@@ -347,8 +338,13 @@ export const installation = defineObject(
                     message: `installation ${call.target.name} has no revision before its applied one`,
                 });
             }
-            // refuse a revision of a build, whose repository or checkout the installation follows on
-            else if (previous.build.kind !== "release") {
+
+            // refuse a revision of a compiled build, whose repository or checkout the installation follows on
+            const built = present(
+                await call.read(build).findFirst({ where: { id: previous.buildId } }),
+                `the build of revision ${previous.id}`,
+            );
+            if (built.source.kind !== "release") {
                 throw new CallError("CONFLICT", {
                     message: `installation ${call.target.name} rolls back only to a release, its previous revision is a build`,
                 });
@@ -357,7 +353,7 @@ export const installation = defineObject(
             // follow it and pin its release
             await call.update({
                 revisionId: previous.id,
-                selection: { kind: "release", version: previous.build.version },
+                selection: { kind: "release", version: built.source.version },
             });
 
             return { revisionId: previous.id };
@@ -380,14 +376,12 @@ export const installationRevision = defineObject(
                     delete: "cascade",
                 },
             ),
-            /** The exact build evaluated. */
-            build: field.json(InstallationBuild),
-            /** The views the build's outputs mount, keyed by name. */
-            views: field.json(schema.record(DeclarationName, BuildView)),
-            /** The settings the build declares. */
-            settings: field.json(schema.array(SettingDescription)),
-            /** The translations of its own and its unpublished dependencies' messages. */
-            catalogs: field.json(schema.array(Catalog)),
+            /** The space's build evaluated: compiled here or pulled as a release. */
+            build: field.reference((): ObjectOf<{ identity: "build" }> => build, {
+                delete: "restrict",
+            }),
+            /** The installable packages its build depends on, at their compiled releases. */
+            dependencies: field.json(schema.array(PackageRelease)),
             /** The evaluated stack definition, for stacks. */
             definition: field.json(StackDefinition).optional(),
             /** The SHA-256 digest of the canonical build, parameters and definition. */
@@ -406,7 +400,7 @@ export const installationRevision = defineObject(
     (method) => ({
         create: method.create("record", {
             isInternal: true,
-            fields: ["installationId", "build", "definition", "digest"],
+            fields: ["installationId", "buildId", "definition", "digest"],
             input: schema.object({
                 /** The package whose build the revision evaluates. */
                 packageId: PackageId,
@@ -437,6 +431,68 @@ export const Installation = {
             .map(([name]) => name);
     },
 
+    /** List the packages only a package's optional capabilities need installed. */
+    optionalPackages(description: PackageDescription | undefined): PackageId[] {
+        return Object.values(description?.capabilities ?? {}).flatMap((capability) =>
+            capability.optional === true ? (capability.packages ?? []) : [],
+        );
+    },
+
+    /** List the packages an installation needs installed, its enabled capabilities' included. */
+    needed(
+        row: Pick<Installation, "name" | "capabilities" | "allowed">,
+        revision: Pick<InstallationRevision, "dependencies">,
+        description: PackageDescription | undefined,
+    ): { readonly package: Package; readonly capability?: string }[] {
+        // keep the dependencies optional capabilities alone need out
+        const optional = new Set(Installation.optionalPackages(description));
+        const required = revision.dependencies
+            .filter((dependency) => !optional.has(dependency.package.id))
+            .map((dependency) => ({ package: dependency.package }));
+
+        // add the packages each enabled capability needs, which its build depends on
+        const enabled = Installation.enabled(row, description).flatMap((capability) =>
+            (description?.capabilities[capability]?.packages ?? []).map((packageId) => {
+                const dependency = present(
+                    revision.dependencies.find((each) => each.package.id === packageId),
+                    `${row.name}'s build dependency ${packageId}, which capability ${capability} needs`,
+                );
+
+                return { package: dependency.package, capability };
+            }),
+        );
+
+        return [...required, ...enabled];
+    },
+
+    /** Order installations so each comes before the packages its revision depends on. */
+    dependentsFirst<
+        Row extends Pick<Installation, "packageId"> & {
+            readonly dependencies: InstallationRevision["dependencies"] | null;
+        },
+    >(rows: readonly Row[]): Row[] {
+        // take the rows no remaining row depends on, until none remain
+        const ordered: Row[] = [];
+        let remaining = [...rows];
+        while (remaining.length > 0) {
+            const needed = new Set(
+                remaining.flatMap((row) =>
+                    (row.dependencies ?? []).map((dependency) => dependency.package.id),
+                ),
+            );
+            const free = remaining.filter((row) => !needed.has(row.packageId));
+            if (free.length === 0) {
+                throw new CallError("CONFLICT", {
+                    message: `installations of ${remaining.map((row) => row.packageId).join(", ")} depend on each other`,
+                });
+            }
+            ordered.push(...free);
+            remaining = remaining.filter((row) => !free.includes(row));
+        }
+
+        return ordered;
+    },
+
     /** Join the sandbox abilities an installation's enabled capabilities unlock. */
     sandbox(
         row: Pick<Installation, "capabilities" | "allowed">,
@@ -449,23 +505,24 @@ export const Installation = {
         );
     },
 
-    /** Merge what an installation's space lends it: its package's and capabilities' sets. */
+    /** Merge what a delegator lends an installation: its package's and capabilities' sets. */
     permissions(
         row: Pick<Installation, "capabilities" | "allowed">,
         description: PackageDescription | undefined,
+        delegator: keyof PermissionRequest,
     ): PermissionSet {
         // gather the package's set and each enabled capability's
         const enabled = Installation.enabled(row, description);
-        const sets = [
-            description?.permissions.installation ?? {},
+        const sets: PermissionSet[] = [
+            description?.permissions[delegator] ?? {},
             ...Object.entries(description?.capabilities ?? {})
                 .filter(([name]) => enabled.includes(name))
-                .map(([, capability]) => capability.permissions?.installation ?? {}),
+                .map(([, capability]) => capability.permissions?.[delegator] ?? {}),
         ];
 
         // merge them scope by scope, each permission once
         return Object.fromEntries(
-            (["space", "account", "universe"] as const).flatMap((scope) => {
+            PermissionScope.options.flatMap((scope) => {
                 const merged = sets.flatMap((set) => set[scope] ?? []);
                 const once = merged.filter(
                     (permission, index) =>
@@ -488,7 +545,7 @@ export const Installation = {
         description: PackageDescription | undefined,
     ): Promise<void> {
         // upsert the role with exactly the space permissions, bound to the installation
-        const set = Installation.permissions(target, description);
+        const set = Installation.permissions(target, description, "installation");
         const installed = principal.installation.reference(target.scope, target.id);
         const manager = {
             installationId: target.id,
@@ -535,15 +592,15 @@ export const Installation = {
     /** Resolve an installation's value of each space setting its build declares, by setting key. */
     async settings(
         database: DatabaseConnection,
-        build: BuildReader,
+        reader: BuildReader,
         target: {
             readonly scope: Identifier<"space">;
             readonly installation: Identifier<"installation">;
         },
     ): Promise<Record<string, JsonValue>> {
         // resolve each space setting the build declares for the installation
-        const catalog = await SettingCatalog.read(build);
-        const placed = catalog.settings.filter((declared) => declared.definition.scope === "space");
+        const declared = await Setting.list(reader);
+        const placed = declared.filter((setting) => setting.definition.scope === "space");
         const resolved = await Promise.all(
             placed.map(async (declared): Promise<[string, JsonValue]> => [
                 SettingReference.key(declared.reference),
@@ -736,34 +793,31 @@ export const InstallationRevision = {
         return revision;
     },
 
-    /** Digest a build and its stack evaluation. */
-    digest(build: InstallationBuild, evaluation?: Submission["evaluation"]): Promise<Digest> {
-        const content =
-            build.kind === "build" ? { kind: build.kind, manifest: build.manifest } : build;
-
+    /** Digest a build's manifest and its stack evaluation, the same for every build row of it. */
+    digest(manifest: string, evaluation?: Submission["evaluation"]): Promise<Digest> {
         return Digest.json(
             evaluation === undefined
-                ? { build: content }
+                ? { manifest }
                 : {
-                      build: content,
+                      manifest,
                       parameters: evaluation.parameters,
                       definition: evaluation.definition,
                   },
         );
     },
 
-    /** Describe the call keeping a build and its stack evaluation as a revision. */
+    /** Describe the call keeping a space's build and its stack evaluation as a revision. */
     async create(
         target: Pick<Installation, "id" | "packageId">,
-        build: InstallationBuild,
+        evaluated: { readonly id: Identifier<"build">; readonly manifest: string },
         evaluation?: Submission["evaluation"],
     ) {
         return installationRevision.call("create", {
             installationId: target.id,
             packageId: target.packageId,
-            build,
+            buildId: evaluated.id,
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
-            digest: await InstallationRevision.digest(build, evaluation),
+            digest: await InstallationRevision.digest(evaluated.manifest, evaluation),
         });
     },
 };

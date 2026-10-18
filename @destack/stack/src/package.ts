@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { defineAdapter, definePackage } from "@destack/runtime";
-import { module, symbol } from "./graph/object.ts";
+import { catalog, module, symbol } from "./object/graph.ts";
 import {
     binding,
     branch,
@@ -8,7 +8,6 @@ import {
     branchChange,
     build,
     capture,
-    declaration,
     deployment,
     installation,
     installationKey,
@@ -39,7 +38,6 @@ export default definePackage({
         installationRevision,
         installationKey,
         proof,
-        declaration,
         binding,
         deployment,
         capture,
@@ -59,6 +57,7 @@ export default definePackage({
         grant,
         module,
         symbol,
+        catalog,
     },
     adapters: {
         handoff: defineAdapter("handoff", { path: HANDOFF_PATH, callers: [principal.machine] }),

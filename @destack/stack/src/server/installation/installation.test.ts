@@ -4,7 +4,7 @@ import { Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { CallError } from "@destack/runtime/error";
 import { Installation, installation, installationRevision } from "../../object/index.ts";
-import { ids, StackFixture } from "../../test/index.ts";
+import { ids, insertRelease, StackFixture } from "../../test/index.ts";
 
 test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const client = await (await StackFixture.open()).serve();
@@ -53,14 +53,14 @@ test("find and list only the enabled installations not being deleted, as a machi
             createdAt: now,
             updatedAt: now,
         });
+        const release = { package: ids.package, version: "2026.9.0", manifest: "e".repeat(64) };
+        const pulled = await insertRelease(database, ids.space, release, [], now);
         await database.insert(installationRevision.table).values({
             id: revisionId,
             scope: ids.space,
             installationId: id,
-            build: { kind: "release", version: "2026.9.0", manifest: "e".repeat(64) },
-            views: {},
-            settings: [],
-            catalogs: [],
+            buildId: pulled.id,
+            dependencies: [],
             digest: "e".repeat(64),
             createdAt: now,
             updatedAt: now,
@@ -106,10 +106,8 @@ test("roll an installation back to the revision applied before, a reused one too
             id,
             scope: ids.space,
             installationId: installed.id,
-            build: await fixture.release(ids.package, version),
-            views: {},
-            settings: [],
-            catalogs: [],
+            buildId: (await fixture.release(ids.package, version)).id,
+            dependencies: [],
             digest: version.replaceAll(".", "").padEnd(64, "0"),
             createdAt: now,
             updatedAt: now,

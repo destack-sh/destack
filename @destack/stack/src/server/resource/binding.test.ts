@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { serveSpace } from "../index.ts";
-import { ids, reconcile, StackFixture } from "../../test/index.ts";
+import { ids, reconcile, StackFixture, TestSpaceDatabaseHost } from "../../test/index.ts";
 
 test("deploy an installation capturing each binding at its target's generation or its pinned version, and relate it to the captured resources", async () => {
     // keep two resources at different generations bound by one installation with one binding pinned
@@ -63,10 +63,8 @@ test("deploy an installation capturing each binding at its target's generation o
             ...record,
             id: Identifier.create("installation-revision"),
             installationId: ids.notes,
-            build: await fixture.release(ids.package, "2026.9.0"),
-            views: {},
-            settings: [],
-            catalogs: [],
+            buildId: (await fixture.release(ids.package, "2026.9.0")).id,
+            dependencies: [],
             digest: "e".repeat(64),
         })
         .returning();
@@ -79,7 +77,12 @@ test("deploy an installation capturing each binding at its target's generation o
     onTestFinished(() => rm(files, { recursive: true, force: true }));
     const databases = new BunSqliteDatabaseHost(pathToFileURL(`${files}/`));
     const store = serveSpace(
-        await fixture.options({ providers: [databaseProvider(databases, object.database)] }),
+        await fixture.options({
+            providers: [
+                databaseProvider(databases, object.database),
+                await TestSpaceDatabaseHost.provider(),
+            ],
+        }),
     ).store;
     await reconcile(store, "installation", { id: ids.notes });
 

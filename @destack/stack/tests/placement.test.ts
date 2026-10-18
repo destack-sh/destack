@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
+    build,
     database,
     installation,
     installationRevision,
@@ -43,21 +44,21 @@ test("give birth to placed spaces from their replicated rows with main in their 
         retention: "forever",
         tags: {},
     };
-    const build = await MemoryBuild.declaring(stacked, [
+    const stackBuild = await MemoryBuild.of(stacked, [
         {
             kind: "stack",
-            package: stackPackage.id,
+            kindPackageId: stackPackage.id,
             name: "home",
             description: { resources: {}, installations: {} },
         },
         {
             kind: "stack",
-            package: stackPackage.id,
+            kindPackageId: stackPackage.id,
             name: "placed",
             description: { resources: { main }, installations: {} },
         },
     ]);
-    const manifest = await fixture.registry.push(build);
+    const manifest = await fixture.registry.push(stackBuild);
 
     // place two spaces carrying their stacks, with the rows the machine replicates
     const home = schema.identifier("space").parse(Identifier.create("space"));
@@ -132,10 +133,10 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
     await replicateAccount(fixture.database);
     await replicateChain(fixture);
     const declaring = (title: string) =>
-        MemoryBuild.declaring(stacked, [
+        MemoryBuild.of(stacked, [
             {
                 kind: "stack",
-                package: stackPackage.id,
+                kindPackageId: stackPackage.id,
                 name: "home",
                 description: { resources: {}, installations: {}, title },
             },
@@ -187,6 +188,17 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
         return present(row, "the home's stack");
     };
 
+    // read the manifest of a pulled release build, or mark a compiled one
+    const pulledManifest = async (buildId: Identifier<"build">) => {
+        const [row] = await fixture.database
+            .select({ source: build.table.source, manifest: build.table.manifest })
+            .from(build.table)
+            .where(eq(build.table.id, buildId));
+        const found = present(row, `build ${buildId}`);
+
+        return found.source.kind === "release" ? found.manifest : "build";
+    };
+
     // read the build and settings the home's stack follows after each reconcile
     const color = `${ids.stackPackage}/color`;
     const followed = async () => {
@@ -194,7 +206,7 @@ test("keep a person's own apply of a placed space's stack, and submit the space'
         const { revision } = await stack();
 
         return {
-            manifest: revision.build.kind === "release" ? revision.build.manifest : "build",
+            manifest: await pulledManifest(revision.buildId),
             settings: present(revision.definition, "the definition")["settings"],
             listed: await controller.list(),
         };

@@ -1,4 +1,5 @@
 export * from "./fixture.ts";
+export * from "./space.ts";
 export * from "./build.ts";
 export * from "./runtime.ts";
 export * from "./route.ts";

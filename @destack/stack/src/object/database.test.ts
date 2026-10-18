@@ -1,20 +1,15 @@
 import { eq, Snapshot } from "@destack/db";
 import { nth, Digest, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { ids, StackFixture } from "../test/index.ts";
-import {
-    binding,
-    Database,
-    database,
-    declaration,
-    installation,
-    installationRevision,
-} from "./index.ts";
+import { Package } from "@destack/package";
+import { MemoryBuild } from "@destack/package/test";
+import { ids, insertRelease, StackFixture } from "../test/index.ts";
+import { binding, Database, database, installation, installationRevision } from "./index.ts";
 
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
-test("serve an installation once the space's main database applied its tables, and none before or without main", async () => {
+test("serve an installation once the space's main database applied its tables, while a later plan waits too, and none before or without main", async () => {
     // install notes at a revision declaring a note type, bound to main
     const fixture = await StackFixture.open();
     const { database: connection } = fixture;
@@ -30,31 +25,20 @@ test("serve an installation once the space's main database applied its tables, a
         name: "notes",
     });
     const revision = Identifier.create("installation-revision");
+    const release = { package: ids.package, version: "2026.9.0", manifest: "d".repeat(64) };
+    const pulled = await insertRelease(connection, ids.space, release);
     await connection.insert(installationRevision.table).values({
         ...record,
         id: revision,
         installationId: ids.notes,
-        build: { kind: "release", version: "2026.9.0", manifest: "d".repeat(64) },
-        views: {},
-        settings: [],
-        catalogs: [],
+        buildId: pulled.id,
+        dependencies: [],
         digest: "e".repeat(64),
     });
     await connection
         .update(installation.table)
         .set({ revisionId: revision })
         .where(eq(installation.table.id, ids.notes));
-    await connection.insert(declaration.table).values({
-        ...record,
-        id: Identifier.create("declaration"),
-        revisionId: revision,
-        installationId: ids.notes,
-        packageId: ids.package,
-        kindPackageId: ids.package,
-        kind: "object",
-        name: "note",
-        description: {},
-    });
     await connection.insert(binding.table).values({
         ...record,
         id: Identifier.create("binding"),
@@ -64,8 +48,13 @@ test("serve an installation once the space's main database applied its tables, a
         target: main.id,
         state: STATE,
     });
+    const notes = await MemoryBuild.of(
+        Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        [{ kind: "object", kindPackageId: ids.package, name: "note", description: {} }],
+    );
+    const open = async () => notes;
     const served = async () =>
-        (await Database.installed(Snapshot.live(connection), ids.space)).map((entry) => [
+        (await Database.installed(Snapshot.live(connection), ids.space, open)).map((entry) => [
             entry.installation.id,
             entry.declarations.map((each) => each.name),
         ]);
@@ -80,18 +69,26 @@ test("serve an installation once the space's main database applied its tables, a
     // serve notes once main applied them
     await connection
         .update(database.table)
-        .set({ appliedState: await Digest.json([await Digest.json(STATE)]) })
+        .set({ appliedStates: [await Digest.json(STATE)] })
         .where(eq(database.table.id, main.id));
     const applied = await served();
+
+    // keep serving notes while a plan for another state waits for its approval
+    await connection
+        .update(database.table)
+        .set({ states: [await Digest.json(STATE), "f".repeat(64)] })
+        .where(eq(database.table.id, main.id));
+    const waiting = await served();
 
     // serve nothing in a space without main
     await connection.delete(binding.table);
     await connection.delete(database.table).where(eq(database.table.id, main.id));
     const unborn = await served();
 
-    expect({ unapplied, applied, unborn }).toEqual({
+    expect({ unapplied, applied, waiting, unborn }).toEqual({
         unapplied: [],
         applied: [[ids.notes, ["note"]]],
+        waiting: [[ids.notes, ["note"]]],
         unborn: [],
     });
 });

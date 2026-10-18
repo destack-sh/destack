@@ -184,7 +184,7 @@ test.each(TEST_DIALECTS)(
             reference: provision.reference,
             provider: "sqlite",
             states: [digest],
-            appliedState: await Digest.json([digest]),
+            appliedStates: [digest],
         };
         await source.insert(desiredState).values({ scope: ids.space, digest, state });
         await source.insert(object.database.table).values(resource);
@@ -201,7 +201,7 @@ test.each(TEST_DIALECTS)(
             ...scratchDeclared,
             reference: scratchProvision.reference,
             provider: "sqlite",
-            appliedState: await Digest.json([]),
+            appliedStates: [],
         };
         await source.insert(object.database.table).values(scratch);
         const scratchRecord = DatabaseKind.record(scratch);
@@ -517,7 +517,6 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__stack__installation_revision",
         "destack__stack__installation_key",
         "destack__stack__proof",
-        "destack__stack__declaration",
         "destack__stack__binding",
         "destack__stack__deployment",
         "destack__stack__capture",

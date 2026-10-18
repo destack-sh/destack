@@ -50,8 +50,7 @@ export class RetentionController implements Controller {
         // expire the builds retention drops and sweep their files, sparing what was stored within the grace
         const now = this.#objects.clock.now();
         const { database } = this.#objects;
-        const retained = await BuildStore.sweep(
-            this.#builds,
+        const retained = await this.#builds.sweep(
             this.#objects,
             (space) =>
                 SettingValue.resolve(Snapshot.live(database), buildRetention, { scope: space }),

@@ -7,7 +7,7 @@ import {
 } from "@destack/package";
 import { InstallationName } from "@destack/runtime";
 import { PackagePath } from "@destack/package/file";
-import { defineSchema, Digest, schema, Version } from "@destack/schema";
+import { Digest, schema, Version } from "@destack/schema";
 import { RESOURCE_TARGET, SECRET_TARGET, StackBinding } from "./binding.ts";
 import type { PackageHandle } from "@destack/runtime/declare";
 import { StackError } from "../error/index.ts";
@@ -35,109 +35,81 @@ const Tag = schema.object({
 export type ReleaseReference = schema.Infer<typeof Release> | schema.Infer<typeof Tag>;
 
 /** The release, repository reference or checkout an installation follows. */
-export const InstallationSelection = defineSchema(
-    schema.discriminatedUnion("kind", [
-        Release,
-        Tag,
-        schema.object({
-            /** Follow committed repository history. */
-            kind: schema.literal("repository"),
-            /** The registered repository. */
-            repository: schema.identifier("repository"),
-            /** The full branch or tag reference. */
-            reference: schema.string().regex(/^refs\/(heads|tags)\/.+$/u),
-            /** The package directory within the repository. */
-            directory: PackageDirectory,
-        }),
-        schema.object({
-            /** Follow a local working directory, including unpublished changes. */
-            kind: schema.literal("checkout"),
-            /** The machine administering the checkout. */
-            machine: schema.identifier("machine"),
-            /** The checkout registered on that machine. */
-            checkout: schema.identifier("checkout"),
-            /** The package directory within the checkout. */
-            directory: PackageDirectory,
-        }),
-    ]),
-);
+export const InstallationSelection = schema.discriminatedUnion("kind", [
+    Release,
+    Tag,
+    schema.object({
+        /** Follow committed repository history. */
+        kind: schema.literal("repository"),
+        /** The registered repository. */
+        repository: schema.identifier("repository"),
+        /** The full branch or tag reference. */
+        reference: schema.string().regex(/^refs\/(heads|tags)\/.+$/u),
+        /** The package directory within the repository. */
+        directory: PackageDirectory,
+    }),
+    schema.object({
+        /** Follow a local working directory, including unpublished changes. */
+        kind: schema.literal("checkout"),
+        /** The machine administering the checkout. */
+        machine: schema.identifier("machine"),
+        /** The checkout registered on that machine. */
+        checkout: schema.identifier("checkout"),
+        /** The package directory within the checkout. */
+        directory: PackageDirectory,
+    }),
+]);
 /** The release, repository reference or checkout an installation follows. */
 export type InstallationSelection = schema.Infer<typeof InstallationSelection>;
 
-/** The exact build a revision evaluated: a registry release, or a build of the space. */
-export const InstallationBuild = defineSchema(
-    schema.discriminatedUnion("kind", [
-        Release.extend({
-            /** The digest of the release manifest. */
-            manifest: Digest,
-        }),
-        schema.object({
-            /** A succeeded build of the space. */
-            kind: schema.literal("build"),
-            /** The build. */
-            build: schema.identifier("build"),
-            /** The digest of the build's manifest. */
-            manifest: Digest,
-        }),
-    ]),
-);
-/** The exact build a revision evaluated. */
-export type InstallationBuild = schema.Infer<typeof InstallationBuild>;
-
 /** The build a submission selects. */
-export const BuildReference = defineSchema(
-    schema.discriminatedUnion("kind", [
-        Release.extend({
-            /** The digest of the release manifest, where the submitter pinned it. */
-            manifest: Digest.exactOptional(),
-        }),
-        Tag,
-        schema.object({
-            /** A succeeded build of the space. */
-            kind: schema.literal("build"),
-            /** The build. */
-            build: schema.identifier("build"),
-        }),
-    ]),
-);
+export const BuildReference = schema.discriminatedUnion("kind", [
+    Release.extend({
+        /** The digest of the release manifest, where the submitter pinned it. */
+        manifest: Digest.exactOptional(),
+    }),
+    Tag,
+    schema.object({
+        /** A succeeded build of the space. */
+        kind: schema.literal("build"),
+        /** The build. */
+        build: schema.identifier("build"),
+    }),
+]);
 /** The build a submission selects. */
 export type BuildReference = schema.Infer<typeof BuildReference>;
 
 /** Select an installation by configuration key or persistent identifier in the space. */
-export const InstallationReference = defineSchema(
-    schema.union([
-        DeclarationName,
-        schema.object({
-            /** The existing installation checked when applying the configuration. */
-            id: schema.identifier("installation"),
-        }),
-    ]),
-);
+export const InstallationReference = schema.union([
+    DeclarationName,
+    schema.object({
+        /** The existing installation checked when applying the configuration. */
+        id: schema.identifier("installation"),
+    }),
+]);
 
 /** A package installation declared in a configuration. */
-export const InstallationDefinition = defineSchema(
-    schema.object({
-        /** The package release selected by this configuration. */
-        package: Package.extend({
-            /** The digest of the release manifest, absent to resolve the version at the forge. */
-            manifest: Digest.exactOptional(),
-        }),
-        /** Whether this installation should serve requests. */
-        status: schema.enum(["enabled", "suspended"]),
-        /** Space-local URL name, independent of the stable installation key. */
-        name: InstallationName,
-        /** The bindings of the package's declarations, by package ID and declaration name. */
-        bindings: schema.record(PackageId, schema.record(DeclarationName, StackBinding)),
-        /** Workload compute settings checked against package and machine policy. */
-        compute: schema.record(DeclarationName, ComputeDefinition),
-        /** The package's optional capabilities the installation allows. */
-        capabilities: schema.array(DeclarationName),
-        /** The directories granted to the package's `fs` capability, each with its access. */
-        directories: schema.array(DirectoryGrant),
-        /** User-defined labels. */
-        tags: schema.record(schema.string().min(1), schema.string()),
+export const InstallationDefinition = schema.object({
+    /** The package release selected by this configuration. */
+    package: Package.extend({
+        /** The digest of the release manifest, absent to resolve the version at the forge. */
+        manifest: Digest.exactOptional(),
     }),
-);
+    /** Whether this installation should serve requests. */
+    status: schema.enum(["enabled", "suspended"]),
+    /** Space-local URL name, independent of the stable installation key. */
+    name: InstallationName,
+    /** The bindings of the package's declarations, by package ID and declaration name. */
+    bindings: schema.record(PackageId, schema.record(DeclarationName, StackBinding)),
+    /** Workload compute settings checked against package and machine policy. */
+    compute: schema.record(DeclarationName, ComputeDefinition),
+    /** The package's optional capabilities the installation allows. */
+    capabilities: schema.array(DeclarationName),
+    /** The directories granted to the package's `fs` capability, each with its access. */
+    directories: schema.array(DirectoryGrant),
+    /** User-defined labels. */
+    tags: schema.record(schema.string().min(1), schema.string()),
+});
 /** A package installation declared in a configuration. */
 export type InstallationDefinition = schema.Infer<typeof InstallationDefinition>;
 

@@ -83,7 +83,6 @@ test.for(TEST_DIALECTS)(
             conditions: {},
             tags: {},
             generation: 1,
-            observedGeneration: 0,
             revision: 1,
             deletedAt: null,
             ...ObjectReference.columns("createdBy", undefined),

@@ -1,8 +1,8 @@
 import { principal } from "@destack/access";
 import { TABLE } from "@destack/db";
 import { space } from "@destack/account/object";
-import { defineObject, field, ObjectType } from "@destack/object";
-import type { InstalledDeclaration } from "@destack/object/inspect";
+import { ObjectTypePool, defineObject, field, ObjectType } from "@destack/object";
+import { graph } from "@destack/package";
 import { HookSandbox } from "@destack/object";
 import { Package } from "@destack/package";
 import { nth, schema } from "@destack/schema";
@@ -13,6 +13,9 @@ import { testServerContext } from "@destack/runtime/test";
 import { expect, test } from "@destack/test";
 import { serveSpace } from "../src/server/index.ts";
 import { ids, StackFixture } from "../src/test/index.ts";
+
+/** A build declaration, as a sandbox receives it. */
+type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
 
 /** The notebooks package. */
 const notebooks = Package.parse({
@@ -55,11 +58,7 @@ function create(type: ObjectType, title: string) {
 }
 
 /** The sandbox of an installation whose types have no hooks, which the store never calls. */
-const unhooked = async (
-    owner: Package,
-    id: string,
-    declarations: readonly InstalledDeclaration[],
-) =>
+const unhooked = async (owner: Package, id: string, declarations: readonly Declared[]) =>
     new HookSandbox({
         server: { ...(await testServerContext(owner, ids.space)), installation: id },
         declarations,
@@ -70,19 +69,16 @@ const unhooked = async (
 const KNOWN = [space, ...Object.values(principal)];
 
 /** Describe a package's one type and its handle routing it, as its build's declarations do. */
-function declared(owner: Package, type: ObjectType, route: string): InstalledDeclaration[] {
+function declared(owner: Package, type: ObjectType, route: string): Declared[] {
     // describe the type as the package's own, and its handle routing it
-    const description = { package: owner, definition: type.describe().definition };
-    const own = ObjectType.of(description, KNOWN);
+    const description = { ...type.describe(), package: owner };
+    const own = nth(ObjectTypePool.of(KNOWN).declare([description]), 0);
     const handle = PackageHandle.of(owner, { objects: { [route]: own } });
+    const symbol = graph.Moniker.of({ packageId: owner.id, module: "src/index.ts", name: route });
 
     return [
-        { kind: "object", packageId: owner.id, description },
-        {
-            kind: PACKAGE_DECLARATION,
-            packageId: owner.id,
-            description: describePackage(handle),
-        },
+        { symbol, kind: "object", description },
+        { symbol, kind: PACKAGE_DECLARATION, description: describePackage(handle) },
     ];
 }
 

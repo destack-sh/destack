@@ -10,7 +10,6 @@ import {
     Account,
     placement,
     residency,
-    ResidencyCode,
     residentShape,
     space,
     spaceShape,
@@ -29,7 +28,7 @@ import workflowServer from "@destack/workflow/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
-import { SettingCatalog } from "@destack/setting";
+import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import { branchType, installation } from "../object/index.ts";
 import stackPackage from "../package.ts";
@@ -59,6 +58,7 @@ import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
 import { RetentionController, type SweepCache } from "./resource/retention.ts";
 import { hookAdapter } from "./installation/hook.ts";
+import type { ServedRevisions } from "./installation/application.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
@@ -132,8 +132,10 @@ export interface SpaceOptions {
     readonly repositories: RepositoryOwner | null;
     /** The shapes the machine follows beside the space's own, such as its repository references. */
     readonly follows: readonly Follow[];
-    /** The files with the machine's external object types, such as its builds' graphs. */
-    readonly external: ExternalStorage | null;
+    /** The storage of the machine's external object types: its builds' graphs. */
+    readonly external: ExternalStorage;
+    /** Read the revision this start of a space serves each of its installations at. */
+    readonly served: ServedRevisions;
     /** The live sockets of the machine's spaces. */
     readonly sockets: SocketRegistry;
     /** The clock the machine reads time at. */
@@ -163,7 +165,7 @@ function stackServer(
 
     return defineServer(stackPackage, {
         objects: [...own, ...externalObjects(options, own)],
-        ...(options.external === null ? {} : { external: options.external }),
+        external: options.external,
         providers: listed,
         follows: [
             ...spaceFollows(options),
@@ -307,6 +309,7 @@ function ownObjects(
             issuer: options.keystore.issuer(options.database, options.principal.id),
             isEnforcingEntitlements: options.isEnforcingEntitlements,
             database: options.database,
+            served: options.served,
         }),
         implementInstallationRevision(builds, registry),
         binder.declare(),
@@ -336,9 +339,8 @@ function ownObjects(
 /** Serve the space's installations' settings, read from the builds they install. */
 function installedSettingsServer(options: SpaceOptions): PackageServer {
     const snapshot = Snapshot.live(options.database);
-    const catalog = SettingCatalog.cached((written) =>
-        BuildStore.installed(
-            options.builds,
+    const declared = Setting.declared((written) =>
+        options.builds.installed(
             snapshot,
             schema.identifier("space").parse(written.scope),
             written.package ?? written.packageId,
@@ -346,13 +348,13 @@ function installedSettingsServer(options: SpaceOptions): PackageServer {
         ),
     );
 
-    return settingServer({ declared: catalog, after: [installation] });
+    return settingServer({ declared, after: [installation] });
 }
 
 /** Collect the external types, refusing one under a name the space serves. */
 function externalObjects(options: SpaceOptions, own: readonly ObjectType[]): readonly ObjectType[] {
     // refuse an external type under a name the space serves
-    const external = options.external?.objects ?? [];
+    const external = options.external.objects;
     const taken = external.find((type) => own.some((each) => each.key === type.key));
     if (taken !== undefined) {
         throw new TypeError(`object ${taken.name} is served by the space`);
@@ -392,16 +394,10 @@ function spaceFollows(options: Pick<SpaceOptions, "principal">): readonly Follow
 
     return [
         Follow.of(spaceShape, { keys: [{ key: { scope: Scope.universe.id, space: served } }] }),
-        Follow.of(residentShape, {
-            from: residency.query(),
+        residency.follow(residentShape, {
             key: async (row) =>
-                row["home"] === served
-                    ? {
-                          key: {
-                              scope: Scope.universe.id,
-                              residency: ResidencyCode.parse(row["id"]),
-                          },
-                      }
+                row.home === served
+                    ? { key: { scope: Scope.universe.id, residency: row.id } }
                     : undefined,
         }),
     ];

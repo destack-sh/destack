@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { nth, Digest, type Identifier, present, schema } from "@destack/schema";
+import { canonicalize, nth, type Identifier, present, schema } from "@destack/schema";
 import {
     type DatabaseConnection,
     type DatabaseHandle,
@@ -167,9 +167,8 @@ export class ProviderIndex {
     /** Find the providers of the kind whose resources an object type is. */
     of(object: ObjectType): readonly SpaceProvider[] {
         return (
-            [...this.byKind.values()].find((providers) =>
-                nth(providers, 0).object.same(object),
-            ) ?? []
+            [...this.byKind.values()].find((providers) => nth(providers, 0).object.same(object)) ??
+            []
         );
     }
 
@@ -252,9 +251,10 @@ export async function appliedStates(
     database: DatabaseConnection,
     row: ResourceRow,
 ): Promise<ResourceState[]> {
-    // require the recorded digest of its desired states and block a transfer while a plan waits for approval
+    // require its applied states to be its desired ones, blocking a transfer while a plan waits for approval
     const desired = [...row.states, ...row.drainingStates];
-    if (row.appliedState !== (await Digest.json(desired)) || row.plan !== null) {
+    const isApplied = canonicalize(row.appliedStates) === canonicalize(desired);
+    if (!isApplied || row.plan !== null) {
         throw new CallError("PRECONDITION_FAILED", {
             message: `resource ${row.id} has not applied its desired states: approve or reject its plan first`,
         });

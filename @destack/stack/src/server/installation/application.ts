@@ -2,17 +2,20 @@ import { account, Entitlement, Space, space } from "@destack/account/object";
 import { and, type DatabaseConnection, DatabaseKind, DatabaseState, eq } from "@destack/db";
 import { ObjectStore } from "@destack/object/server";
 import accountPackage from "@destack/account/package";
-import { type MethodContextOf, type ObjectReconciliation } from "@destack/object";
-import { declareInstalled } from "@destack/object/inspect";
+import {
+    ObjectTypePool,
+    type MethodContextOf,
+    ObjectDescription,
+    type ObjectReconciliation,
+} from "@destack/object";
 import {
     HOST_SANDBOX,
     Sandbox,
     DeclarationName,
     type DirectoryGrant,
-    type graph,
     type PackageId,
 } from "@destack/package";
-import type { BuildReader, Declared } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
@@ -22,8 +25,8 @@ import {
     type Step,
     Upgrade,
 } from "@destack/resource";
-import { canonicalize, present, schema, Version } from "@destack/schema";
-import { readReleases } from "./stack.ts";
+import { canonicalize, type Identifier, present, schema, Version } from "@destack/schema";
+import { ObjectTypeReference } from "@destack/sync";
 import {
     InstallationBindingSpec,
     type InstallationBindingState,
@@ -44,7 +47,6 @@ import {
     instance,
     MAIN_DATABASE,
 } from "../../object/index.ts";
-import type { InstallationBuild } from "../../declare/installation.ts";
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
@@ -66,7 +68,14 @@ export interface ApplicationOptions {
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
     readonly database: DatabaseConnection;
+    /** Read the revision this start of a space serves each of its installations at. */
+    readonly served: ServedRevisions;
 }
+
+/** Read the revision this start of a space serves each of its installations at. */
+export type ServedRevisions = (
+    spaceId: Identifier<"space">,
+) => Promise<ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>>;
 
 /** What a revision rolls out. */
 interface RolloutPlan {
@@ -115,6 +124,7 @@ interface Refusal {
         | "NoRuntime"
         | "UndeclaredCapability"
         | "UnentitledCapability"
+        | "UninstalledDependency"
         | "DeclaredDatabase"
         | "MissingBinding"
         | "NoUpgrade";
@@ -207,15 +217,15 @@ export class Application {
     async #deploy(revision: InstallationRevision, live: readonly Deployment[]): Promise<void> {
         // read the workloads the machine runs
         const target = this.#context.target;
-        const build = await this.#open(revision.build.manifest);
-        const [handle] = await ownDeclarations(build, "package", PackageDescription);
-        const description = handle?.description;
+        const build = await this.#open(revision);
+        const description = await PackageDescription.of(build);
         const { workloads, stranded } = this.#selectWorkloads(build, description);
 
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
             this.#describeRefusal(build, stranded, description) ??
             (await this.#describeUnentitled(description)) ??
+            (await this.#describeUninstalled(revision, description)) ??
             (await this.#describeDatabases(build));
         if (refusal !== undefined) {
             await this.#refuse(refusal);
@@ -239,7 +249,7 @@ export class Application {
         }
 
         // refuse installation needs without a bound address
-        const needs = await this.#readNeeds(build, workloads);
+        const needs = await this.#readNeeds(revision, build, workloads, description);
         const unbound = await this.#describeUnboundInstallations(needs);
         if (unbound !== undefined) {
             await this.#refuse(unbound);
@@ -251,7 +261,7 @@ export class Application {
         await this.#rollOut(revision, { build, workloads, fresh, replaced, needs, description });
     }
 
-    /** Attach the application's needs, then drain the replaced deployments. */
+    /** Attach the application's needs, wait for its space, grant, drain and activate. */
     async #rollOut(revision: InstallationRevision, rollout: RolloutPlan): Promise<void> {
         // attach what the installation owns and wait for targets not ready to capture
         const call = this.#context;
@@ -263,6 +273,18 @@ export class Application {
             await call.observe(installation, target, {
                 conditions: {
                     ready: { status: "false", reason: "WaitingForResources", message },
+                },
+            });
+
+            return;
+        }
+
+        // wait for the space to serve the revision and the packages whose types its grants name
+        const unserved = await this.#describeUnserved(revision, description);
+        if (unserved !== undefined) {
+            await call.observe(installation, target, {
+                conditions: {
+                    ready: { status: "false", reason: "WaitingForSpace", message: unserved },
                 },
             });
 
@@ -339,7 +361,7 @@ export class Application {
         const call = this.#context;
         const enabled = Installation.enabled(call.target, description);
         const needed = enabled.flatMap((name) =>
-            (description?.capabilities[name]?.requires ?? []).map((feature) => ({ name, feature })),
+            (description?.capabilities[name]?.features ?? []).map((feature) => ({ name, feature })),
         );
 
         // refuse the first feature the account's entitlements leave out
@@ -362,6 +384,60 @@ export class Application {
         }
 
         return undefined;
+    }
+
+    /** Describe a package the application needs that the space has not installed. */
+    async #describeUninstalled(
+        revision: InstallationRevision,
+        description: PackageDescription | undefined,
+    ): Promise<Refusal | undefined> {
+        // read the packages the space has installed
+        const call = this.#context;
+        const { target } = call;
+        const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
+        const installed = new Set(rows.map((row) => row.packageId));
+
+        // refuse the first needed package missing, naming the capability needing it
+        const missing = Installation.needed(target, revision, description).find(
+            (entry) => !installed.has(entry.package.id),
+        );
+        if (missing === undefined) {
+            return undefined;
+        }
+        const { name } = missing.package;
+
+        return {
+            reason: "UninstalledDependency",
+            message:
+                missing.capability === undefined
+                    ? `${target.name} needs ${name} installed`
+                    : `capability ${missing.capability} needs ${name} installed`,
+        };
+    }
+
+    /** Describe what the space does not serve yet: the revision, or a package it needs. */
+    async #describeUnserved(
+        revision: InstallationRevision,
+        description: PackageDescription | undefined,
+    ): Promise<string | undefined> {
+        // wait for the revision itself
+        const call = this.#context;
+        const { target } = call;
+        const served = await this.#options.served(target.scope);
+        if (served.get(target.id) !== revision.id) {
+            return `waiting for the space to serve revision ${revision.id}`;
+        }
+
+        // wait for each package the application needs, whose types its grants name
+        const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
+        const waiting = Installation.needed(target, revision, description).filter(
+            (entry) =>
+                !rows.some((row) => row.packageId === entry.package.id && served.has(row.id)),
+        );
+
+        return waiting.length === 0
+            ? undefined
+            : `waiting for the space to serve ${waiting.map((entry) => entry.package.name).join(", ")}`;
     }
 
     /** Describe the databases a build declares, which the space's main database refuses. */
@@ -404,8 +480,10 @@ export class Application {
         const applied = await call
             .read(installationRevision)
             .findFirst({ where: { id: target.appliedRevisionId } });
-        const appliedBuild = present(applied, `revision ${target.appliedRevisionId}`).build;
-        const upgrade = await this.#planUpgrade(appliedBuild, build);
+        const upgrade = await this.#planUpgrade(
+            present(applied, `revision ${target.appliedRevisionId}`),
+            build,
+        );
 
         // refuse a broken upgrade chain
         if (upgrade.kind === "refused") {
@@ -549,14 +627,14 @@ export class Application {
         });
     }
 
-    /** Open a build the build store keeps by its manifest's digest. */
-    async #open(manifest: string): Promise<BuildReader> {
-        return this.#options.builds.packages.contents(manifest);
+    /** Open the build a revision evaluated, which the build store keeps. */
+    #open(revision: Pick<InstallationRevision, "id">): Promise<BuildReader> {
+        return this.#options.builds.revision(this.#context, revision.id);
     }
 
     /** Plan the upgrade steps from an applied build to the next, or refuse a gap in its chain. */
     async #planUpgrade(
-        applied: InstallationBuild,
+        applied: Pick<InstallationRevision, "id">,
         next: BuildReader,
     ): Promise<
         | { readonly kind: "planned"; readonly plan: Plan }
@@ -564,7 +642,7 @@ export class Application {
     > {
         // skip rollbacks
         const target = this.#context.target;
-        const from = (await this.#open(applied.manifest)).manifest.package.version;
+        const from = (await this.#open(applied)).manifest.package.version;
         if (Version.compare(next.manifest.package.version, from) <= 0) {
             return { kind: "planned", plan: { steps: [] } };
         }
@@ -597,7 +675,7 @@ export class Application {
             );
             const { builds, registry } = this.#options;
             const earlier = await registry.find(target.packageId, upgrade.from);
-            reader = await BuildStore.open(builds, registry, target.packageId, earlier);
+            reader = await builds.open(registry, target.packageId, earlier);
         }
 
         return { kind: "planned", plan: { steps } };
@@ -606,29 +684,29 @@ export class Application {
     /** Select each workload of a build from the server output of the machine's first runtime. */
     #selectWorkloads(
         build: BuildReader,
-        declaration: PackageDescription | undefined,
+        description: PackageDescription | undefined,
     ): {
         readonly workloads: BuildWorkload[];
         readonly stranded: string[];
     } {
         // list the workloads of the emitted server outputs, each sandbox joined with what the enabled capabilities unlock
         const target = this.#context.target;
-        const enabled = Installation.enabled(target, declaration);
-        const unlocked = Installation.sandbox(target, declaration);
+        const enabled = Installation.enabled(target, description);
+        const unlocked = Installation.sandbox(target, description);
         const host = Sandbox.select(
             unlocked,
             HOST_SANDBOX.filter((name) => unlocked[name] !== undefined),
         );
         const offered = Object.entries(build.manifest.outputs).flatMap(([output, described]) =>
             described.runtime !== "browser" && described.emit
-                ? Object.entries(described.workloads).map(([name, description]) => {
-                      const sandbox = Sandbox.merge(description.sandbox, host);
+                ? Object.entries(described.workloads).map(([name, workload]) => {
+                      const sandbox = Sandbox.merge(workload.sandbox, host);
 
                       return {
                           output,
                           name,
                           runtime: ServerRuntime.parse(described.runtime),
-                          description: { ...description, sandbox },
+                          description: { ...workload, sandbox },
                           directories: sandbox.fs === undefined ? [] : target.directories,
                           enabled,
                       };
@@ -698,8 +776,10 @@ export class Application {
 
     /** Read the needs the binder binds: its objects' tables and its workloads' declarations. */
     async #readNeeds(
+        revision: InstallationRevision,
         build: BuildReader,
         workloads: readonly BuildWorkload[],
+        description: PackageDescription | undefined,
     ): Promise<ResourceNeed[]> {
         // list the package's own resources and secrets the workloads use
         const packageId = this.#context.target.packageId;
@@ -712,12 +792,9 @@ export class Application {
             ),
         );
 
-        // describe each used declaration of a kind the binder binds
+        // describe each of its declarations the binder binds, which its servers and workloads open
         const needs = declarations
-            .filter(
-                (declaration) =>
-                    used.has(declaration.name) && this.#options.binder.binds(declaration.kind),
-            )
+            .filter((declaration) => this.#options.binder.binds(declaration.kind))
             .map((declaration) => describeNeed(build, declaration));
 
         // require a description of every used declaration
@@ -729,55 +806,62 @@ export class Application {
             );
         }
 
-        return [...(await this.#mainNeed(build, declarations)), ...needs];
+        return [...(await this.#mainDatabase(revision, build, description)), ...needs];
     }
 
-    /** Describe the tables of the package's objects, which the space's main database keeps. */
-    async #mainNeed(
-        build: BuildReader,
-        declarations: readonly graph.Declaration[],
-    ): Promise<ResourceNeed[]> {
-        // read the object types of the build's dependency closure, which its own types refer to
-        const packageId = build.manifest.package.id;
-        const depended = await Promise.all(
-            (await readReleases(build)).map(async (release) => {
-                const reader = await BuildStore.open(
-                    this.#options.builds,
-                    this.#options.registry,
-                    release.package.id,
-                    release.manifest,
-                );
-
-                return (await reader.declarations()).map((declaration) => ({
-                    kind: declaration.kind,
-                    packageId: release.package.id,
-                    description: declaration.description,
-                }));
-            }),
-        );
-
-        // declare the package's types against the store's, its closure's and account's, a source stack depends on
-        const owned = declarations.map((declaration) => ({
-            kind: declaration.kind,
-            packageId,
-            description: declaration.description,
-        }));
-        const declared = declareInstalled(
-            [...depended.flat(), ...owned],
+    /** Pool the types the space serves and account's, which installed types refer to. */
+    #pool(): ObjectTypePool {
+        return ObjectTypePool.of(
             ObjectStore.known(this.#context.objects, Object.values(accountPackage.objects)),
         );
-        if (!declared.some((type) => type.package.id === packageId)) {
+    }
+
+    /** Describe the main database an installation needs: its own objects' tables. */
+    async #mainDatabase(
+        revision: InstallationRevision,
+        build: BuildReader,
+        description: PackageDescription | undefined,
+    ): Promise<ResourceNeed[]> {
+        // declare no tables for a package declaring no object types
+        const packageId = build.manifest.package.id;
+        const owned = ObjectDescription.installed(await build.declarations());
+        if (owned.length === 0) {
             return [];
         }
 
-        // describe its durable objects' tables, placed beside the closure's and platform's they reference
-        const served = this.#context.objects;
+        // read the types the builds of the packages it needs declare that the space serves none of yet
+        const known = new Set(
+            this.#context.objects.map((type) => ObjectTypeReference.key(type.typeReference)),
+        );
+        const needed = new Set(
+            Installation.needed(this.#context.target, revision, description).map(
+                (entry) => entry.package.id,
+            ),
+        );
+        const { builds, registry } = this.#options;
+        const depended = await Promise.all(
+            revision.dependencies
+                .filter((dependency) => needed.has(dependency.package.id))
+                .map(async (dependency) => {
+                    const { id } = dependency.package;
+                    const reader = await builds.open(registry, id, dependency.manifest);
+
+                    return ObjectDescription.installed(await reader.declarations());
+                }),
+        );
+        const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
+
+        // declare the package's own types against the served ones and those of its dependencies
+        const declared = this.#pool().declare([...unserved, ...owned]);
+
+        // describe its durable objects' tables, placing the other packages' they refer to
+        const others = this.#context.objects.filter((type) => type.package.id !== packageId);
         const tables = new Set(
-            [...declared, ...served]
+            [...others, ...declared]
                 .filter((type) => type.storage === "durable")
                 .flatMap((type) => type.tables),
         );
-        const state = DatabaseState.of([...tables], { package: build.manifest.package.id });
+        const state = DatabaseState.of([...tables], { package: packageId });
 
         return [
             {
@@ -864,12 +948,9 @@ function joinPaths(grants: readonly DirectoryGrant[]): string {
 
 /** Read the release a build runs and the oldest caller release its package serves. */
 async function servedRelease(build: BuildReader): Promise<{ release: Version; since?: Version }> {
-    // read the package's handle
-    const [handle] = await ownDeclarations(build, "package", PackageDescription);
-
     // take the build's release and the package's oldest served release
     const release = Version.parse(build.manifest.package.version);
-    const since = handle?.description.since;
+    const since = (await PackageDescription.of(build))?.since;
 
     return since === undefined ? { release } : { release, since };
 }
@@ -930,20 +1011,4 @@ function describeNeed(
     const { name, ...spec } = described;
 
     return { package: owner, name, kind: declaration.kind, spec, state: {} };
-}
-
-/** Read a build's own declarations of a kind, parsing each description. */
-async function ownDeclarations<Item extends schema.Schema>(
-    build: BuildReader,
-    kind: string,
-    item: Item,
-): Promise<Declared<schema.Output<Item>>[]> {
-    const declarations = await build.declarations();
-
-    return declarations
-        .filter((declaration) => declaration.kind === kind)
-        .map((declaration) => ({
-            ...declaration,
-            description: item.parse(declaration.description),
-        }));
 }

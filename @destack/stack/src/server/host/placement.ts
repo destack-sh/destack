@@ -271,7 +271,7 @@ export class PlacementController implements Controller {
         // copy the stack's build and its dependencies' builds from the registry and evaluate the export
         const { builds, registry } = this.#options;
         const open = (packageId: PackageId, manifest: string) =>
-            BuildStore.open(builds, registry, packageId, manifest);
+            builds.open(registry, packageId, manifest);
         const reader = await open(stack.package.id, stack.manifest);
 
         return declaredStack(reader, stack.export, stack.settings, open);

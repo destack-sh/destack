@@ -20,6 +20,7 @@ import { nth, schema, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { appliedStates, ConsumerController, serveSpace } from "../index.ts";
 import {
+    insertRelease,
     reconcileResources,
     ids,
     spaceDatabase,
@@ -116,7 +117,7 @@ test("provision a space's database under the space's approval threshold, and lea
     const fenced = await stored();
     expect([
         provisioned.provider,
-        provisioned.observedGeneration,
+        provisioned.conditions["ready"]?.observedGeneration,
         provisioned.conditions["ready"]?.reason,
         fenced.conditions["ready"]?.reason,
     ]).toEqual(["sqlite", 2, "Applied", "Applied"]);
@@ -370,14 +371,14 @@ test("retry a provisioning that failed, and keep a deleted resource while its in
     const revisionId = schema
         .identifier("installation-revision")
         .parse("installation-revision-01996ab0-0000-7000-8000-00000000000c");
+    const release = { package: ids.package, version: "2026.9.0", manifest: "e".repeat(64) };
+    const pulled = await insertRelease(database, ids.space, release, [], now);
     await database.insert(installationRevision.table).values({
         id: revisionId,
         scope: ids.space,
         installationId: named.installation,
-        build: { kind: "release", version: "2026.9.0", manifest: "e".repeat(64) },
-        views: {},
-        settings: [],
-        catalogs: [],
+        buildId: pulled.id,
+        dependencies: [],
         digest: "e".repeat(64),
         createdAt: now,
         updatedAt: now,

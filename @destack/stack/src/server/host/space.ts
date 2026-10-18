@@ -11,7 +11,7 @@ import { nth, type JsonObject } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Scope, type Uplink } from "@destack/sync";
-import { installation } from "../../object/index.ts";
+import { Installation, installation, installationRevision } from "../../object/index.ts";
 import type { Scheduler } from "./scheduler.ts";
 
 /** The condition a space records its placement under, beside its entitlements' conditions. */
@@ -95,9 +95,15 @@ async function remove(
         .select({
             id: installation.table.id,
             scope: installation.table.scope,
+            packageId: installation.table.packageId,
             deletedAt: installation.table.deletedAt,
+            dependencies: installationRevision.table.dependencies,
         })
         .from(installation.table)
+        .leftJoin(
+            installationRevision.table,
+            eq(installationRevision.table.id, installation.table.revisionId),
+        )
         .where(eq(installation.table.scope, row.id));
     const live = installations.filter((entry) => entry.deletedAt === null);
     if (live.length > 0) {
@@ -105,7 +111,9 @@ async function remove(
             AccessContext.of(Caller.of(itself), now),
             {
                 id: RequestId.create(now),
-                calls: live.map((entry) => installation.call("delete", installation.target(entry))),
+                calls: Installation.dependentsFirst(live).map((entry) =>
+                    installation.call("delete", installation.target(entry)),
+                ),
             },
             { component: space.name },
         );

@@ -5,10 +5,17 @@ import { RequestId } from "@destack/runtime/request";
 import { CallError } from "@destack/runtime/error";
 import { eq, Snapshot } from "@destack/db";
 import type { BuildReference, InstallationSelection } from "../src/declare/index.ts";
-import { BuildStore, serveSpace } from "../src/server/index.ts";
+import { serveSpace } from "../src/server/index.ts";
 import { build, Installation, installation, installationRevision } from "../src/object/index.ts";
 import { PackageId } from "@destack/package";
-import { ARCHIVE, fixtureBuild, ids, reconcile, StackFixture } from "../src/test/index.ts";
+import {
+    ARCHIVE,
+    fixtureBuild,
+    ids,
+    reconcile,
+    StackFixture,
+    TestSpaceDatabaseHost,
+} from "../src/test/index.ts";
 import { PackageStore } from "@destack/build/store";
 
 /** The checkout the stack follows. */
@@ -30,7 +37,9 @@ function release(version: string) {
 test("apply a submitted stack build and open its installations' views", async () => {
     const fixture = await StackFixture.open();
     const owner = (await fixture.serve({ isControlled: false }))(ids.owner);
-    const store = serveSpace(await fixture.options()).store;
+    const store = serveSpace(
+        await fixture.options({ providers: [await TestSpaceDatabaseHost.provider()] }),
+    ).store;
 
     // create the space's stack installation following a checkout
     const stack = await owner.installation.create({
@@ -102,20 +111,16 @@ test("apply a submitted stack build and open its installations' views", async ()
     ).toEqual({
         installationId: notes.id,
         revisionId: notes.revisionId,
-        build: {
-            kind: "release",
-            version: "2026.9.0",
-            manifest: await fixture.registry.find(ids.package, "2026.9.0"),
-        },
+        manifest: await fixture.registry.find(ids.package, "2026.9.0"),
         view: "home",
         definition: {
             entrypoint: "view.js",
             sandbox: {},
             presents: [],
             packages: [],
-            output: "browser",
         },
         path: "/",
+        permissions: {},
         home: ids.home,
     });
     await expect(
@@ -131,7 +136,9 @@ test("apply a submitted stack build and open its installations' views", async ()
 test("apply an earlier build submitted again after a later one, approving each plan that waits", async () => {
     const fixture = await StackFixture.open();
     const owner = (await fixture.serve({ isControlled: false }))(ids.owner);
-    const store = serveSpace(await fixture.options()).store;
+    const store = serveSpace(
+        await fixture.options({ providers: [await TestSpaceDatabaseHost.provider()] }),
+    ).store;
     const stack = await owner.installation.create({
         spaceId: ids.space,
         requestId: RequestId.create(Date.now()),
@@ -222,21 +229,21 @@ test("install an application from a checkout by submitting its build, following 
     ).toEqual({
         installationId: notes.id,
         revisionId: followed.revisionId,
-        build: { ...recorded, manifest: await PackageStore.digest(reader.manifest) },
+        manifest: await PackageStore.digest(reader.manifest),
         view: "home",
         definition: {
             entrypoint: "view.js",
             sandbox: {},
             presents: [],
             packages: [],
-            output: "browser",
         },
         path: "/",
+        permissions: {},
         home: ids.home,
     });
-    const declared = await owner.declaration.list({
-        spaceId: ids.space,
-        where: { revisionId: followed.revisionId },
+    const declared = await owner.symbol.list({
+        buildId: recorded.build,
+        where: { kindPackageId: { isNotNull: true } },
     });
     expect(declared.items.map(({ kind, name, description }) => [kind, name, description])).toEqual([
         ["command", "archive", ARCHIVE],
@@ -288,7 +295,9 @@ test("refuse submitting a build that has not succeeded or that the space does no
 test("wait for an approval of an application's upgrade across every release since the one it applied, refusing another digest", async () => {
     const fixture = await StackFixture.open();
     const owner = (await fixture.serve({ isControlled: false }))(ids.owner);
-    const store = serveSpace(await fixture.options()).store;
+    const store = serveSpace(
+        await fixture.options({ providers: [await TestSpaceDatabaseHost.provider()] }),
+    ).store;
     const notes = await owner.installation.create({
         spaceId: ids.space,
         requestId: RequestId.create(Date.now()),
@@ -368,7 +377,9 @@ test("refuse a build of another package, and block an upgrade from a release tha
     const fixture = await StackFixture.open();
     const fork = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f0");
     const owner = (await fixture.serve({ isControlled: false }))(ids.owner);
-    const store = serveSpace(await fixture.options()).store;
+    const store = serveSpace(
+        await fixture.options({ providers: [await TestSpaceDatabaseHost.provider()] }),
+    ).store;
     const notes = await owner.installation.create({
         spaceId: ids.space,
         requestId: RequestId.create(Date.now()),
@@ -436,15 +447,16 @@ test("follow a distribution tag, recording the version of the release it points 
     });
     const followed = await owner.installation.get({ spaceId: ids.space, id: notes.id });
     const [revision] = await fixture.database
-        .select({ build: installationRevision.table.build })
+        .select({ source: build.table.source, manifest: build.table.manifest })
         .from(installationRevision.table)
+        .innerJoin(build.table, eq(build.table.id, installationRevision.table.buildId))
         .where(eq(installationRevision.table.id, present(followed.revisionId, "the revision")));
-    expect([followed.selection, revision?.build]).toEqual([
+    const manifest = await fixture.registry.find(ids.package, "latest");
+    expect([followed.selection, revision]).toEqual([
         latest,
         {
-            kind: "release",
-            version: "2026.10.0",
-            manifest: await fixture.registry.find(ids.package, "latest"),
+            source: { kind: "release", package: ids.package, version: "2026.10.0", manifest },
+            manifest,
         },
     ]);
 });
@@ -475,10 +487,8 @@ test("open the build each package's installation in a space follows, refusing a 
             id: revisionId,
             scope: ids.space,
             installationId: id,
-            build: await fixture.release(packageId, version),
-            views: {},
-            settings: [],
-            catalogs: [],
+            buildId: (await fixture.release(packageId, version)).id,
+            dependencies: [],
             digest: suffix.repeat(32),
             createdAt: now,
             updatedAt: now,
@@ -494,7 +504,7 @@ test("open the build each package's installation in a space follows, refusing a 
     // open each package's build and refuse a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
-        BuildStore.installed(builds, Snapshot.live(database), ids.space, packageId).then(
+        builds.installed(Snapshot.live(database), ids.space, packageId).then(
             (reader) => reader.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),
         );

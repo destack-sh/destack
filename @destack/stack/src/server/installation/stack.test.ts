@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtemp, rm } from "node:fs/promises";
 import { spaceReplicated } from "../../stack/index.ts";
-import { PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
+import { PACKAGE_DECLARATION, PACKAGE_KIND_PACKAGE_ID, PackageHandle } from "@destack/runtime";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     and,
@@ -623,12 +623,12 @@ test("install a package and declare records of its type in one approved plan, ap
     const { database } = fixture;
 
     // publish notes declaring meters, and require approval of every plan in the space
-    const release = await MemoryBuild.declaring(
+    const release = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",
-                package: objectPackage,
+                kindPackageId: objectPackage,
                 name: "meter",
                 description: describeObject(meter),
             },
@@ -761,9 +761,23 @@ async function fixtureRelease(
 ): Promise<FixtureRelease> {
     const owner = Package.parse({ id, name, version });
     const declared = isInstallable
-        ? [{ kind: PACKAGE_DECLARATION, package: owner.id, name: "default", description: {} }]
+        ? [
+              {
+                  kind: PACKAGE_DECLARATION,
+                  kindPackageId: PACKAGE_KIND_PACKAGE_ID,
+                  name: "default",
+                  description: {
+                      api: { name: owner.name, procedures: [] },
+                      objects: {},
+                      adapters: {},
+                      views: [],
+                      permissions: {},
+                      capabilities: {},
+                  },
+              },
+          ]
         : [];
-    const build = await MemoryBuild.declaring(owner, declared, {
+    const build = await MemoryBuild.of(owner, declared, {
         dependencies: resolutions(dependencies),
     });
     const manifest = await Digest.of(new TextEncoder().encode(`${name}@${version}`));
@@ -785,12 +799,12 @@ function installingStack(installed: readonly FixtureRelease[]): Promise<BuildRea
         ]),
     );
 
-    return MemoryBuild.declaring(
+    return MemoryBuild.of(
         owner,
         [
             {
                 kind: "stack",
-                package: stackPackage.id,
+                kindPackageId: stackPackage.id,
                 name: "space",
                 description: { installations },
             },
