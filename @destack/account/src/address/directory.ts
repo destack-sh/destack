@@ -8,7 +8,7 @@ import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
-import { type Placement, placement } from "../object/placement.ts";
+import { placement, type PlacementEndpoint } from "../object/placement.ts";
 import { SpaceAddress } from "./address.ts";
 
 /** The directory: handles, space addresses `<name>--<handle>`, placements and machines. */
@@ -63,30 +63,19 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         type: Object,
         address: string,
         now: number,
-    ): Promise<
-        Omit<Placement, "id"> & {
-            readonly url: string;
-            readonly id: Identifier<Object["identity"]>;
-        }
-    > {
+    ): Promise<PlacementEndpoint & { readonly id: Identifier<Object["identity"]> }> {
         // find the object, then where its space answers
         const named = await this.find(type, address);
         if (named === undefined) {
             throw new CallError("NOT_FOUND", { message: `nothing answers at ${address}` });
         }
-        const { scope, machine, epoch, url } = await this.locate(
-            schema.identifier("space").parse(named.id),
-            now,
-        );
+        const located = await this.locate(schema.identifier("space").parse(named.id), now);
 
-        return { scope, machine, epoch, id: named.id, url };
+        return { id: named.id, ...located };
     }
 
     /** Locate a space's placement and the URL its machine answers at now. */
-    async locate(
-        spaceId: Identifier<"space">,
-        now: number,
-    ): Promise<Placement & { readonly url: string }> {
+    async locate(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint> {
         // read the placement, then where its machine answers
         const placed = await this.snapshot
             .read(placement.table)
@@ -98,10 +87,12 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         const url = await this.answering(machineId, now);
 
         return {
-            id: placed.id,
-            scope: placed.scope,
-            machine: machineId,
-            epoch: placed.epoch,
+            placement: {
+                id: placed.id,
+                scope: placed.scope,
+                machine: machineId,
+                epoch: placed.epoch,
+            },
             url,
         };
     }

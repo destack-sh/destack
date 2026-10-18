@@ -121,6 +121,16 @@ export const Placement = Object.assign(PlacementSchema, {
 /** Where a space runs. */
 export type Placement = schema.Infer<typeof PlacementSchema>;
 
+/** A space's placement and the URL its machine answers at now. */
+export const PlacementEndpoint = schema.object({
+    /** Where the space runs. */
+    placement: PlacementSchema,
+    /** The URL the placement's machine answers at. */
+    url: schema.string(),
+});
+/** A space's placement and the URL its machine answers at now. */
+export type PlacementEndpoint = schema.Infer<typeof PlacementEndpoint>;
+
 /** The epoch the calling machine serves a space at, which fences a previous machine. */
 const Serving = schema.object({
     /** The epoch the calling machine serves the space at. */

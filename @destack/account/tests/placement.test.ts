@@ -207,7 +207,7 @@ test("place spaces where they are created, store names in them, let exactly a sp
         "https://local.test/",
         "https://cloud.test/",
         "https://local.test/",
-        { ...at(cloud.id, 2), id: laptop, url: "https://cloud.test/" },
+        { id: laptop, placement: at(cloud.id, 2), url: "https://cloud.test/" },
         `NOT_FOUND: nothing answers at missing--${handle}`,
     ]);
 

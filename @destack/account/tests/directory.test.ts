@@ -40,7 +40,7 @@ test("find and resolve an address over the directory's rows, list an account's p
     ]).toEqual([
         place.reference(accountId, spaceId),
         undefined,
-        { ...placement, id: spaceId, url: "https://machine.test/" },
+        { id: spaceId, placement, url: "https://machine.test/" },
     ]);
 
     // list the account's home, placed with the account on the residency's cloud machine, beside the space
