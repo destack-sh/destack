@@ -33,9 +33,49 @@ const entry = defineObject({
     permissions: { read: through("parent", "read") },
 });
 
+/** A lookup of an entry's term, which a mutation reads from the entries' files. */
+const lookup = defineObject(
+    {
+        name: "lookup",
+        plural: "lookups",
+        scope: space,
+        fields: {
+            /** The term looked up. */
+            term: field.string(),
+        },
+        permissions: { read: through("scope", "read"), write: through("scope", "read") },
+    },
+    (method) => ({
+        create: method.create("write"),
+        /** Read an entry's term from inside a mutation. */
+        look: method.mutation({
+            permission: "write",
+            target: "scope",
+            input: schema.object({ term: Term }),
+            output: schema.object({ term: schema.string() }),
+        }),
+    }),
+).implement({
+    methods: {
+        look: async (call) => {
+            const spaceId = schema.identifier("space").parse(call.scope);
+            const read = await call.query(
+                call.caller,
+                entry.call("get", { spaceId, id: call.input.term }),
+            );
+
+            return { term: read.term };
+        },
+    },
+});
+
 test("read external objects named by their key from the database their files open per scope, allowing callers by the durable database", async () => {
     // store a public space's notebook in the durable database
-    const durable = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
+    const durable = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({ name: "main", tables: [...notesDatabase.tables, ...lookup.tables] }),
+        { isMigrated: true },
+    );
     onTestFinished(() => durable.close());
     const spaceId = schema.identifier("space").parse(`space-${v7()}`);
     await openSpace(durable.database, spaceId);
@@ -54,7 +94,7 @@ test("read external objects named by their key from the database their files ope
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([notebook, entry], {
+        servers: serversOf([notebook, entry, lookup], {
             external: {
                 objects: [entry],
                 open: async (scope): Promise<DatabaseConnection> => {
@@ -94,10 +134,16 @@ test("read external objects named by their key from the database their files ope
         context(users.alice).access(),
         entry.call("list", { spaceId }),
     );
-    expect([read.term, listed.items.map((row) => row.term), opened]).toEqual([
+    // read it from inside a mutation, outside its transaction as its rows never change
+    const [looked] = await store.mutate(context(users.alice).access(), {
+        id: RequestId.create(Date.now()),
+        calls: [lookup.call("look", { spaceId, term: id })],
+    });
+    expect([read.term, listed.items.map((row) => row.term), looked, opened]).toEqual([
         "Vienna",
         ["Vienna"],
-        [spaceId, spaceId],
+        { term: "Vienna" },
+        [spaceId, spaceId, spaceId],
     ]);
 
     // follow the entries in a client's live query, through the external replica

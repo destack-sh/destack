@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { CallError } from "@destack/runtime/error";
 import type { ObjectType } from "../object/object.ts";
 
-/** The files of external objects' rows, each scope's opened as a read-only database. */
+/** The files of external objects' immutable rows, each scope's opened as a read-only database. */
 export interface ExternalStorage {
     /** The external object types stored. */
     readonly objects: readonly ObjectType[];
