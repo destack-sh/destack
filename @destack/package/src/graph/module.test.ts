@@ -12,6 +12,12 @@ const DEFINED = Moniker.of({
     name: "a",
 });
 
+/** The module itself, where module-level declarations such as tests sit. */
+const MODULE = Moniker.of({
+    packageId: "package-01996ab0-0000-7000-8000-0000000000a1",
+    module: "src/a.ts",
+});
+
 /** A symbol the module does not define. */
 const ELSEWHERE = Moniker.of({
     packageId: "package-01996ab0-0000-7000-8000-0000000000a1",
@@ -19,8 +25,8 @@ const ELSEWHERE = Moniker.of({
     name: "b",
 });
 
-test("encode a module whose declarations sit at its own symbols, refusing one at a symbol it does not define", async () => {
-    // declare an object at the defined symbol, and one at another module's symbol
+test("encode a module whose declarations sit at itself or its own symbols, refusing one at a symbol it does not define", async () => {
+    // declare an object at the defined symbol, one at the module, and one at another module's symbol
     const declared = {
         kindPackageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a2"),
         kind: "object",
@@ -47,9 +53,11 @@ test("encode a module whose declarations sit at its own symbols, refusing one at
 
     expect({
         encoded: (await Module.file(module(DEFINED))).bytes.byteLength > 0,
+        atModule: (await Module.file(module(MODULE))).bytes.byteLength > 0,
         refused: await Module.file(module(ELSEWHERE)).catch((error: unknown) => String(error)),
     }).toEqual({
         encoded: true,
-        refused: `TypeError: src/a.ts declares ${ELSEWHERE}:object:a at no symbol it defines`,
+        atModule: true,
+        refused: `TypeError: src/a.ts declares ${ELSEWHERE}:object:a at neither itself nor a symbol it defines`,
     });
 });

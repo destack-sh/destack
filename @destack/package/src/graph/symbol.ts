@@ -2,27 +2,34 @@ import { schema } from "@destack/schema";
 import { SourceRange } from "../source/location.ts";
 import { Moniker } from "./moniker.ts";
 
-/** The kinds of code symbols. */
-export const SYMBOL_KINDS = [
-    "function",
-    "class",
-    "interface",
-    "type",
-    "variable",
-    "enum",
-    "namespace",
-    "method",
-    "property",
-    "accessor",
-    "member",
-] as const;
-
-/** A code entity of a module: a declared name or one of its members. */
+/** A code entity of a module: a declared name or one of its members, as SCIP kinds them. */
 export const Symbol = schema.object({
     /** The symbol's moniker. */
     moniker: Moniker,
     /** The kind of entity. */
-    kind: schema.enum(SYMBOL_KINDS),
+    kind: schema.enum([
+        // callables and types
+        "function",
+        "class",
+        "interface",
+        "typeAlias",
+        "typeParameter",
+        "enum",
+        "namespace",
+        "module",
+
+        // values
+        "variable",
+        "parameter",
+
+        // members
+        "method",
+        "constructor",
+        "property",
+        "getter",
+        "setter",
+        "enumMember",
+    ]),
     /** The first declaration's source range. */
     source: SourceRange,
     /** The printed declaration, one line per overload. */
