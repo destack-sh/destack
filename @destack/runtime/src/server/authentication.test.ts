@@ -219,15 +219,17 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     });
     const authorization = context.requireAuthorization();
 
-    // resolve the space and its folder, refusing the universe
+    // resolve the space and its folder, refusing the universe, and access the folder as the caller
     expect([
         await refusal(authorization.in(spaceId)),
         await refusal(authorization.in(folderId)),
         await refusal(authorization.in("universe")),
+        context.access(folderId).subject,
     ]).toEqual([
         "done",
         "done",
         ["UNAUTHORIZED", `the caller's credential applies to ${spaceId} only`],
+        alice.caller.subject,
     ]);
 });
 

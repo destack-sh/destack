@@ -145,9 +145,9 @@ export class RequestContext {
             return AccessContext.of(caller, this.clock.now(), { linkSecrets });
         }
 
-        // decide a credential's caller before it lapses, the credential current in the scope
+        // decide a credential's caller before it lapses, current in the pinned scope, else the scope
         const now = Credential.clamp(credential, this.clock.now());
-        Credential.requireCurrent(credential, this.audience, now, scope);
+        Credential.requireCurrent(credential, this.audience, now, this.scope ?? scope);
 
         return AccessContext.of(caller, now, { credential, linkSecrets });
     }
