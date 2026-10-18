@@ -47,7 +47,7 @@ export interface CallErrorReport {
 /** A package's failure that knows the call error its caller receives. */
 export interface DomainError extends Error {
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport;
+    readonly toCallError: () => CallErrorReport;
 }
 
 /** Recognise a package's failures that know the call error their caller receives. */
