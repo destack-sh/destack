@@ -1,6 +1,7 @@
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
+import type { PackageRelease } from "../definition/package.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Module, Root } from "../graph/module.ts";
 import { Declaration } from "../graph/declaration.ts";
@@ -36,6 +37,15 @@ export class BuildReader {
         return this.read(
             this.manifest.lists.dependencies,
             schema.record(schema.string(), DependencyResolution),
+        );
+    }
+
+    /** Read the Destack package releases the build resolved: its dependency closure's. */
+    async releases(): Promise<PackageRelease[]> {
+        return Object.values(await this.dependencies()).flatMap((dependency) =>
+            dependency.kind === "destack"
+                ? [{ package: dependency.package, manifest: dependency.manifest }]
+                : [],
         );
     }
 

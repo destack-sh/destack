@@ -86,3 +86,27 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
         BuildReader.open({ manifest: digest, url: "https://registry.example/missing/" }, fetch),
     ).rejects.toThrow(new PackageError("INVALID_FILE", "package read failed: HTTP 404"));
 });
+
+test("list the Destack releases a build resolved, leaving its npm dependencies out", async () => {
+    // build the app against a Destack release and an npm package
+    const vault = {
+        kind: "destack" as const,
+        package: Package.parse({
+            id: "package-019f5530-8000-7000-8000-000000000003",
+            name: "@example/vault",
+            version: "2026.9.0",
+        }),
+        manifest: Digest.parse("a".repeat(64)),
+    };
+    const jose = {
+        kind: "npm" as const,
+        package: { name: "jose", version: "6.2.12" },
+        registry: "https://registry.npmjs.org/",
+        integrity: "sha512-fixture",
+    };
+    const build = await MemoryBuild.of(app, [], {
+        dependencies: { "@example/vault": vault, jose },
+    });
+
+    expect(await build.releases()).toEqual([{ package: vault.package, manifest: vault.manifest }]);
+});
