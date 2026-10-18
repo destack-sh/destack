@@ -1,21 +1,11 @@
 import { TABLE } from "@destack/db";
-import { graph, type PackageId } from "@destack/package";
+import { graph } from "@destack/package";
 import { schema, type JsonValue } from "@destack/schema";
 import { ObjectDescription } from "../object/description.ts";
 import { ObjectType } from "../object/object.ts";
 
 /** The kind of the declarations `defineObject` makes, as manifests list them. */
 export const OBJECT_DECLARATION = "object";
-
-/** A package's declaration, as a space stores it for its installation's revision. */
-export interface Declaration {
-    /** The declaration's kind. */
-    readonly kind: string;
-    /** The declaring package. */
-    readonly packageId: PackageId;
-    /** The declaration's description. */
-    readonly description: JsonValue;
-}
 
 /** Describe an object type for the manifest, as the data it is declared from. */
 export function describeObject(object: ObjectType): ObjectDescription {

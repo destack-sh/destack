@@ -5,14 +5,14 @@ import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { schema, present, type JsonValue } from "@destack/schema";
-import type { Package } from "@destack/package";
-import { definePackage, PACKAGE_DECLARATION, type PackageHandle } from "@destack/runtime";
+import { graph, Package } from "@destack/package";
+import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey, testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import {
-    DeclarationIndex,
+    ObjectTypePool,
     defineObject,
     field,
     type FileBucket,
@@ -25,7 +25,9 @@ import {
     SessionRequest,
 } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
-import type { Declaration } from "../src/inspect/index.ts";
+
+/** A declaration of a build, as a sandbox receives it. */
+type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -143,7 +145,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     });
     const sandbox = new HookSandbox({
         server: context,
-        declarations: declared(cards),
+        declarations: [...declared(cards), dependency],
         send: async (request) => {
             const sent = HandlerRequest.parse(travel(request));
             const { call } = sent;
@@ -178,25 +180,49 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
 }
 
 /** Describe the card type and the package routing it, as the cards' build declares them. */
-function declared(cards: PackageHandle): Declaration[] {
+function declared(cards: PackageHandle): Declared[] {
+    const symbol = graph.Moniker.of({ packageId: cards.id, module: "src/index.ts", name: "cards" });
+
     return [
         ...Object.values(cards.objects)
             .filter((routed) => routed instanceof ObjectType)
-            .map((type) => ({
-                kind: "object",
-                packageId: type.package.id,
-                description: type.describe(),
-            })),
-        {
-            kind: PACKAGE_DECLARATION,
-            packageId: card.package.id,
-            description: describePackage(cards),
-        },
+            .map((type) => ({ symbol, kind: "object", description: type.describe() })),
+        { symbol, kind: PACKAGE_DECLARATION, description: describePackage(cards) },
     ];
 }
 
+/** A bundled dependency of the cards' package. */
+const bundled = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000d9",
+    name: "@example/dependency",
+    version: "2026.9.0",
+});
+
+/** A sticker the bundled dependency declares. */
+const sticker = defineObject(
+    {
+        name: "sticker",
+        plural: "stickers",
+        scope: space,
+        fields: {
+            /** The sticker's text. */
+            text: field.string(),
+        },
+        permissions: ["read"],
+    },
+    () => ({}),
+    { package: bundled },
+);
+
+/** The bundled dependency's package declaration, at its own symbol, which no sandbox serves. */
+const dependency: Declared = {
+    symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
+    kind: PACKAGE_DECLARATION,
+    description: describePackage(PackageHandle.of(bundled, { objects: { sticker } })),
+};
+
 /** Move the card type of a declaration into another package, its scope left in the platform's. */
-function moved(entry: Declaration, installed: Package): Declaration {
+function moved(entry: Declared, installed: Package): Declared {
     // rewrite the declaration's own package and every reference to the card type
     const reference = schema.looseObject({
         packageId: schema.literal(card.package.id),
@@ -217,7 +243,13 @@ function moved(entry: Declaration, installed: Package): Declaration {
         },
     );
 
-    return { ...entry, packageId: installed.id, description: schema.json().parse(description) };
+    const symbol = graph.Moniker.of({
+        packageId: installed.id,
+        module: "src/index.ts",
+        name: "cards",
+    });
+
+    return { ...entry, symbol, description: schema.jsonObject().parse(description) };
 }
 
 /** Summarize an answer: a result's card name, else the failure's code. */
@@ -558,6 +590,12 @@ test("decide permissions, take positions, read the start position and act as the
     });
 });
 
+test("serve the installation's own package from its sandbox, never a bundled dependency's", async () => {
+    const { store } = await serveCards(definePackage({ objects: { card } }));
+
+    expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
+});
+
 test("reach internal methods from the store's own code and its package's sandboxes alone", () => {
     // ask each code for the internal stamp and the public get
     const codes: readonly CallSite[] = [
@@ -741,7 +779,7 @@ test("describe the platform's and an installed package's types from one store, d
     });
 
     // declare every type the store describes, the photo's image stored in the platform's bucket
-    const types = DeclarationIndex.of([]).declare(store.describe());
+    const types = ObjectTypePool.of([]).declare(store.describe());
     const described = present(
         types.find((type) => type.name === "photo"),
         "the described photo type",
