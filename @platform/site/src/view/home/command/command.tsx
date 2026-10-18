@@ -8,35 +8,29 @@ import { createTimer } from "@destack/view/primitives/timer";
 import { lattice } from "../../layout/lattice.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Label } from "../entry/label";
+import { Label, LabelRow } from "../entry/label";
+import { Picker } from "../figure/picker";
 import { StackSwitch } from "../entry/switch";
-import { pages, SpaceBrowser, type Vendor, type Viewer } from "../verb/space";
-import { opensRequests, ResendLogs } from "../adjective/console";
-import { AgentChat, assistants } from "./chat";
-import { destacked, stacked } from "./scene";
+import { pages, rowOf, SpaceBrowser, type Viewer } from "../verb/space";
+import { AgentChat, type Assistant, assistantOptions, assistants } from "./chat";
+import { BEAT, destacked, stacked } from "./scene";
 import { sources } from "../verb/source";
+import { AirtableSignups } from "../tool/airtable";
+import { type Lineup, lineupAt, toolOf } from "../tool/tool";
 
-/** The milliseconds a beat takes. */
-const BEAT = 500;
+/** The rows of fig. 1 the task touches: the waitlist, its table, the chat and the workflows. */
+const ROWS: readonly number[] = (["tables", "builder", "chat", "workflows"] as const).map(rowOf);
 
-/** The beats each step of the task stays before the next one lands. */
-const STEP_BEATS = 3;
-
-/** The beats the finished task holds before it runs again. */
-const HOLD_BEATS = 12;
-
-/** The rows of fig. 1 the task touches: Chat, Mail and the waitlist. */
-const ROWS: readonly number[] = [3, 7, 8];
-
-/** The mail service the agent reaches through its connector, in place of fig. 1's mail. */
-const resend: Vendor = {
-    row: 7,
-    icon: "resend",
-    tint: "#000000",
-    title: "Logs · Resend",
-    site: "resend.com/logs",
-    page: () => <ResendLogs requests={opensRequests} />,
-};
+/** The tools the stacked task connects to, each row's first, Airtable open on the waitlist. */
+const lineup: Lineup = (category) =>
+    category === "tables"
+        ? {
+              ...toolOf("Airtable"),
+              tab: "Launch: Signups - Airtable",
+              site: "airtable.com/appLaunch/tblSignups",
+              page: AirtableSignups,
+          }
+        : lineupAt(0)(category);
 
 /** The command every app answers to, as an imperative. */
 const command: Form = {
@@ -46,7 +40,12 @@ const command: Form = {
     sense: {
         definition: "every app, programmable and composable",
         highlight: ["programmable", "composable"],
-        sentence: "One API across your whole space, for you and your agents, within your rules.",
+        sentence: (
+            <>
+                One API for everything in <em>your</em> space, for you and your agents, with your
+                rules.
+            </>
+        ),
     },
 };
 
@@ -71,31 +70,32 @@ export function Command(properties: { isOpen: boolean }) {
         },
     );
 
-    // run the task in the state the stack is in, a step every few beats, then hold and run again
-    const steps = () => (properties.isOpen ? destacked : stacked);
-    const run = () => steps().length * STEP_BEATS + HOLD_BEATS;
-    const shown = () =>
-        isReduced()
-            ? steps().length
-            : Math.min(steps().length, Math.floor((beat() % run()) / STEP_BEATS) + 1);
-    const step = () => present(steps()[shown() - 1], "shown step");
+    // run the task in the state the stack is in, then hold and run again, finished when still
+    const scene = () => (properties.isOpen ? destacked : stacked);
+    const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
+    const step = () => moment().step;
 
-    // show the chat up to the step reached, an approval replaced once its outcome lands
-    const items = () => {
-        const reached = steps()
-            .slice(0, shown())
-            .map((candidate) => candidate.item);
-        const isApproved = reached.some((item) => item.kind === "approval" && item.isApproved);
-
-        return reached.filter(
-            (item) => !(item.kind === "approval" && !item.isApproved && isApproved),
+    // take the assistant the reader chose, or else the next one's look each time the task runs again
+    const [chosen, setChosen] = createSignal<Assistant | undefined>(undefined);
+    const turned = () =>
+        present(
+            assistants[Math.floor(beat() / scene().length) % assistants.length],
+            "turned assistant",
         );
-    };
+    const look = () => chosen() ?? turned();
+    const progress = () =>
+        chosen() === undefined && !isReduced()
+            ? (beat() % scene().length) / scene().length
+            : undefined;
+    const choose = (name: string) =>
+        setChosen(
+            present(
+                assistants.find((candidate) => candidate === name),
+                "chosen assistant",
+            ),
+        );
 
-    // take the next assistant's look each time the task runs again
-    const look = () => assistants[Math.floor(beat() / run()) % assistants.length] ?? "Claude";
-
-    // show the page the reader opens from a tab, or else the page of fig. 1 the step touches
+    // show the page the reader opens from a tab, or else the page the step or the walk touches
     const [viewer, setViewer] = createSignal<Viewer>("Me");
     const [opened, setOpened] = createSignal<number | undefined>(undefined);
     const row = () => opened() ?? step().row;
@@ -107,7 +107,7 @@ export function Command(properties: { isOpen: boolean }) {
 
     // let the task take the page back when it runs again
     createEffect(
-        () => Math.floor(beat() / run()),
+        () => Math.floor(beat() / scene().length),
         () => {
             setOpened(undefined);
         },
@@ -128,8 +128,8 @@ export function Command(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={5}
                 isOpen={properties.isOpen}
-                stacked="three apps, three connectors"
-                destacked="three apps, one space"
+                stacked="two apps, two connectors"
+                destacked="two apps, one space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -140,9 +140,10 @@ export function Command(properties: { isOpen: boolean }) {
                 <SpaceBrowser
                     name="interface"
                     rows={ROWS}
-                    isChanged={step().isChanged && row() === step().row}
+                    change={step().change}
                     source={present(sources[0], "first source")}
-                    vendor={resend}
+                    lineup={lineup}
+                    vendor={undefined}
                     remix={undefined}
                     isOpenAt={() => properties.isOpen}
                     page={page()}
@@ -152,12 +153,24 @@ export function Command(properties: { isOpen: boolean }) {
                 />
             </div>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.console)}>
-                <Label>
-                    {properties.isOpen
-                        ? "Your agent, one integration for everything"
-                        : "Your agent, one connector per app"}
-                </Label>
-                <AgentChat isOpen={properties.isOpen} items={items()} assistant={look()} />
+                <LabelRow
+                    end={
+                        <Picker
+                            label="Agent"
+                            options={assistantOptions}
+                            shown={look()}
+                            progress={progress()}
+                            onChoose={choose}
+                        />
+                    }
+                >
+                    <Label>
+                        {properties.isOpen
+                            ? "Your agent, one integration"
+                            : "Your agent, one connector per app"}
+                    </Label>
+                </LabelRow>
+                <AgentChat isOpen={properties.isOpen} moment={moment()} assistant={look()} />
             </div>
         </section>
     );

@@ -80,6 +80,12 @@ export const gemini = style.defineConsts({
     composer: "light-dark(#f0f4f9, #1e1f20)",
     /** Your account's avatar. */
     avatar: "#2f6f7e",
+    /** The spark that turns while Gemini works. */
+    spark: "#4285f4",
+    /** The send button. */
+    send: "light-dark(#0b57d0, #a8c7fa)",
+    /** The send button's arrow. */
+    sendInk: "light-dark(#ffffff, #062e6f)",
 });
 
 /** Claude's composer colours, light and dark as it ships. */

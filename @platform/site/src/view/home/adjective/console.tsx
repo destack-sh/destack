@@ -76,19 +76,6 @@ export const batchRequests: readonly ResendRequest[] = [
     ["09:41:02.207", "POST", "/emails", 200, "201 ms"],
 ];
 
-/** An agent reading the last mail's opens one email at a time, newest first, over 2 a second. */
-export const opensRequests: readonly ResendRequest[] = [
-    ["10:05:41.902", "POST", "/emails/batch", 200, "312 ms"],
-    ["10:05:38.517", "GET", "/emails/4f1c…", 200, "64 ms"],
-    ["10:05:38.011", "GET", "/emails/9a07…", 200, "58 ms"],
-    ["10:05:37.996", "GET", "/emails/2b8e…", 429, "12 ms"],
-    ["10:05:37.984", "GET", "/emails/c41d…", 429, "11 ms"],
-    ["10:05:37.502", "GET", "/emails/7e93…", 200, "61 ms"],
-    ["10:05:37.004", "GET", "/emails/d0a2…", 200, "57 ms"],
-    ["10:05:36.991", "GET", "/emails/18f6…", 429, "13 ms"],
-    ["10:05:36.503", "GET", "/emails/5c3b…", 200, "62 ms"],
-];
-
 /** Draw the mail service's API log, its requests newest first. */
 export function ResendLogs(properties: { requests: readonly ResendRequest[] }) {
     return (
