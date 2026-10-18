@@ -147,12 +147,15 @@ test.each(TEST_DIALECTS)(
     },
 );
 
-test("select a changed pending object's own key beside the keys a watch of its own table declares", async () => {
-    // wake the earliest unsent reminder of a topic once another of its reminders changes
+test("select a changed pending object's own key beside the keys every watch of its own table declares", async () => {
+    // wake the first and the last unsent reminder through two watches once another reminder changes
     const queued = reminder.implement({
         controller: {
             pending: { sentAt: { isNull: true } },
-            watches: [ObjectWatch.of(reminder.table, () => [{ id: "head" }])],
+            watches: [
+                ObjectWatch.of(reminder.table, () => [{ id: "head" }]),
+                ObjectWatch.of(reminder.table, () => [{ id: "tail" }]),
+            ],
             reconcile: async () => undefined,
         },
     });
@@ -190,12 +193,16 @@ test("select a changed pending object's own key beside the keys a watch of its o
         sequence: 1,
     });
 
-    // key a pending reminder by itself and the watch, and a sent one only by the watch
+    // key a pending reminder by itself and both watches, and a sent one only by the watches
     expect([
         await controller.keys?.(changed(null)),
         await controller.keys?.(changed(1)),
         controller.watches,
-    ]).toEqual([['{"id":"head"}', `{"id":"${created.id}"}`], ['{"id":"head"}'], [reminder.table]]);
+    ]).toEqual([
+        ['{"id":"head"}', '{"id":"tail"}', `{"id":"${created.id}"}`],
+        ['{"id":"head"}', '{"id":"tail"}'],
+        [reminder.table],
+    ]);
 });
 
 test("run a controller's calls as the space, audited as the space with the controller's name, and refuse principals lacking the method's permission", async () => {

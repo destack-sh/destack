@@ -101,14 +101,18 @@ export const ObjectController = {
             Condition.resolve(declared.pending, Namespace.fields(table)),
             table,
         );
-        const watches = new Map((declared.watches ?? []).map((watch) => [watch.table, watch]));
+        const watches = Map.groupBy(declared.watches ?? [], (watch) => watch.table);
         const readKey = (row: Row): KeyFields =>
             declared.key?.(row) ?? { id: ObjectController.readIdentifier(row) };
         const keys = async (change: Change) => {
-            // select the keys a watch of the changed table reads
-            const watch = watches.get(change.table);
-            const watched =
-                watch === undefined ? [] : await watch.keys(Change.image(change), store.database);
+            // select the keys each watch of the changed table reads
+            const watched = (
+                await Promise.all(
+                    (watches.get(change.table) ?? []).map(async (watch) =>
+                        watch.keys(Change.image(change), store.database),
+                    ),
+                )
+            ).flat();
 
             // add the key of a changed object left pending
             const row = Change.image(change);
