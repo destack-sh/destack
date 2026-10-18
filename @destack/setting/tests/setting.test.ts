@@ -12,7 +12,7 @@ import {
 } from "../src/inspect/index.ts";
 import type { DeviceSettingValue, SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
-import { Setting, SettingCatalog, SettingReference } from "../src/setting/index.ts";
+import { Setting, SettingReference } from "../src/setting/index.ts";
 import {
     account,
     alice,
@@ -254,14 +254,14 @@ test("describe a setting and read the settings a build declares", async () => {
     });
 
     // read both settings back, validating values by their described schemas
-    const catalog = await SettingCatalog.read(await release([editor, layout]));
-    const read = catalog.get(layout.reference);
-    const [first] = catalog.settings;
+    const settings = await Setting.list(await release([editor, layout]));
+    const read = Setting.find(settings, layout.reference);
+    const [first] = settings;
     if (first === undefined) {
-        throw new TypeError("the catalog has no settings");
+        throw new TypeError("the build declares no settings");
     }
     expect([
-        catalog.settings.map(describeSetting),
+        settings.map(describeSetting),
         first.definition.schema.safeParse("vim").success,
         first.definition.schema.safeParse("emacs").success,
         read.definition.schema.safeParse({ width: 100, compact: true }).success,
@@ -269,7 +269,7 @@ test("describe a setting and read the settings a build declares", async () => {
     ]).toEqual([[describeSetting(editor), describeSetting(layout)], true, false, true, false]);
 
     // refuse a setting the build does not declare
-    expect(failure(() => catalog.get({ ...editor.reference, name: "theme" }))).toEqual({
+    expect(failure(() => Setting.find(settings, { ...editor.reference, name: "theme" }))).toEqual({
         code: "UNDECLARED",
         message: `setting ${notes.id}/theme is not declared`,
     });

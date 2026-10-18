@@ -1,7 +1,7 @@
 import { StackSetting } from "../declare/stack.ts";
 import { setting, type SettingValue } from "../object/index.ts";
 import {
-    SettingCatalog,
+    Setting,
     SettingPlacement,
     type SettingReference,
     type SettingWrite,
@@ -12,10 +12,10 @@ import type { ObjectType } from "@destack/object";
 
 /** What a store serves its setting values with. */
 export interface SettingOptions {
-    /** Read the catalog declaring each written value. */
+    /** Read the setting each written value is a value of. */
     readonly declared: (
         written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
-    ) => Promise<SettingCatalog>;
+    ) => Promise<Setting>;
     /** The types whose declarations a stack applies before its settings. */
     readonly after: readonly ObjectType[];
 }
@@ -24,7 +24,7 @@ export interface SettingOptions {
 export function implementSetting(options: SettingOptions) {
     // read each stack release's settings once
     const { declared, after } = options;
-    const catalogs = new BuildCache((reader) => SettingCatalog.read(reader));
+    const builds = new BuildCache((reader) => Setting.list(reader));
 
     return setting.implement({
         methods: {
@@ -51,7 +51,7 @@ export function implementSetting(options: SettingOptions) {
                 const reader = isOwn
                     ? await stack.release(stack.manager.packageId, stack.manager.installationId)
                     : await stack.release(desired.setting.packageId);
-                const placed = (await catalogs.read(reader)).get(desired.setting);
+                const placed = Setting.find(await builds.read(reader), desired.setting);
 
                 // require a declared value at a placement the space permits, stamped with its release
                 const write = {
@@ -80,13 +80,11 @@ async function requireDeclared(
         Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
     declared: SettingOptions["declared"],
 ): Promise<void> {
-    // check it against the catalog declaring it at its placement
+    // check it against its setting's declaration at its placement
     const placement = SettingPlacement.of(value);
     const reference = { packageId: value.packageId, name: value.name };
-    const catalog = await declared({ ...placement, ...reference, release: value.release });
-    catalog
-        .get(reference)
-        .requireWrite(
+    const setting = await declared({ ...placement, ...reference, release: value.release });
+    setting.requireWrite(
             { ...placement, mode: value.mode, value: value.value, release: value.release },
             value.scope,
         );

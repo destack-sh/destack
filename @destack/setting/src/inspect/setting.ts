@@ -1,6 +1,6 @@
 import { type JsonValue, Version } from "@destack/schema";
 import { Address, Plan, type Comparator } from "@destack/resource";
-import { SettingDescription } from "../setting/catalog.ts";
+import { SettingDescription } from "../setting/setting.ts";
 import type { Setting } from "../setting/setting.ts";
 
 /** Plan a setting's value change between two releases. */

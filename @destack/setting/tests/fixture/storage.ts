@@ -17,7 +17,7 @@ import { settingTables } from "../../src/stack/index.ts";
 import { settingServer } from "../../src/server/index.ts";
 import settingPackage from "../../src/package.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import { type Setting, SettingCatalog } from "../../src/setting/index.ts";
+import { Setting } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
@@ -33,8 +33,8 @@ export class Storage {
     readonly subject: Subject;
     /** The fixture release declaring the settings. */
     readonly reader: Promise<BuildReader>;
-    /** Open the fixture release's settings for every written value. */
-    readonly catalog: ReturnType<typeof SettingCatalog.cached>;
+    /** Find each written value's setting in the fixture release. */
+    readonly declared: ReturnType<typeof Setting.declared>;
     /** The served setting values. */
     readonly objects: ObjectStore;
     /** The events the stores record their calls in. */
@@ -50,7 +50,7 @@ export class Storage {
         this.database = test.database;
         this.subject = Subject.parse(principal.user.reference(Scope.universe.id, alice));
         this.reader = release(declarations);
-        this.catalog = SettingCatalog.cached(() => this.reader);
+        this.declared = Setting.declared(() => this.reader);
         this.#events = events;
         this.objects = this.#serve(universe.reference(Scope.universe.id, Scope.universe.id));
     }
@@ -65,7 +65,7 @@ export class Storage {
             chain: async () => undefined,
             clock: Clock.system,
             principal: served,
-            servers: [settingServer({ declared: this.catalog, after: [] })],
+            servers: [settingServer({ declared: this.declared, after: [] })],
             policies: [principal.user, space.policy],
             database: this.database,
             callKey: testCallKey,

@@ -1,5 +1,7 @@
-import { PackageId, type Package } from "@destack/package";
-import { nth, schema, Version, canonicalize } from "@destack/schema";
+import { Package, PackageId } from "@destack/package";
+import type {} from "@destack/package/import-meta";
+import { BuildCache, type BuildReader } from "@destack/package/manifest";
+import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
@@ -33,6 +35,69 @@ const INSTALLATION_WEIGHT = 4;
 
 /** A package-local setting name, stable across releases. */
 export const SettingName = schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u);
+
+/** The scope a setting belongs to and the overrides it permits. */
+export const SettingScope = schema.discriminatedUnion("scope", [
+    schema.object({
+        /** A value of each user. */
+        scope: schema.literal("user"),
+        /** The overrides the setting permits. */
+        overrides: schema.array(schema.enum(["package", "space", "installation", "device"])),
+    }),
+    schema.object({
+        /** A value of each space. */
+        scope: schema.literal("space"),
+        /** The overrides the setting permits. */
+        overrides: schema.array(schema.literal("installation")),
+    }),
+    schema.object({
+        /** A value each device stores for itself, as a local object. */
+        scope: schema.literal("device"),
+        /** The overrides the setting permits: none. */
+        overrides: schema.tuple([]),
+    }),
+]);
+/** The scope a setting belongs to and the overrides it permits. */
+export type SettingScope = schema.Infer<typeof SettingScope>;
+
+/** The serializable fields of a setting declaration. */
+export const SettingMetadata = schema.object({
+    /** The package-local name. */
+    name: SettingName,
+    /** The label settings views show. */
+    title: schema.string().min(1),
+    /** The behavior the value controls. */
+    description: schema.string().min(1),
+    /** The group settings views show it in. */
+    group: schema.string().min(1).exactOptional(),
+    /** When a consumer applies a changed value. */
+    apply: schema.enum(["immediate", "restart"]),
+    /** The migration guidance of a deprecated setting. */
+    deprecated: schema.string().min(1).exactOptional(),
+    /** How placed values combine. */
+    merge: schema.enum(["value", "key"]).exactOptional(),
+});
+
+/** The serializable fields of a setting description beside its scope. */
+const description = SettingMetadata.extend({
+    /** The declaring package. */
+    package: Package,
+    /** The value's JSON Schema. */
+    schema: schema.jsonObject(),
+    /** The default value. */
+    default: schema.json(),
+    /** The conversions of earlier values, by the release introducing each. */
+    convert: schema.record(Version, Expression.schema).exactOptional(),
+});
+
+/** A setting declaration as manifests describe it. */
+export const SettingDescription = schema.discriminatedUnion("scope", [
+    SettingScope.options[0].extend(description.shape),
+    SettingScope.options[1].extend(description.shape),
+    SettingScope.options[2].extend(description.shape),
+]);
+/** A setting declaration as manifests describe it. */
+export type SettingDescription = schema.Infer<typeof SettingDescription>;
 
 /** The schema of a setting's identity: its package and name. */
 const SettingIdentity = schema.object({
@@ -83,6 +148,49 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     constructor(owner: Package, definition: SettingDefinition<Value>) {
         this.package = owner;
         this.definition = definition;
+    }
+
+    /** Rebuild a setting from its description, its schema from its JSON Schema. */
+    static of(description: SettingDescription): Setting {
+        const { package: owner, schema: valueSchema, ...definition } = description;
+
+        return new Setting(owner, { ...definition, schema: fromJsonSchema(valueSchema) });
+    }
+
+    /** Read the settings a build declares, in declaration order. */
+    static async list(reader: BuildReader): Promise<Setting[]> {
+        const declared = await reader.declared(
+            import.meta.destack.package.id,
+            "setting",
+            SettingDescription,
+        );
+
+        return declared.map((entry) => Setting.of(entry.description));
+    }
+
+    /** Find a declared setting and refuse an undeclared one. */
+    static find(settings: readonly Setting[], reference: SettingReference): Setting {
+        // look the setting up by its key
+        const key = SettingReference.key(reference);
+        const setting = settings.find((each) => SettingReference.key(each.reference) === key);
+        if (setting === undefined) {
+            throw new SettingError("UNDECLARED", `setting ${key} is not declared`);
+        }
+
+        return setting;
+    }
+
+    /** Find each written value's setting in the build `open` opens for it, reading each build once. */
+    static declared(
+        open: (
+            written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+        ) => Promise<BuildReader>,
+    ): (
+        written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+    ) => Promise<Setting> {
+        const builds = new BuildCache((reader) => Setting.list(reader));
+
+        return async (written) => Setting.find(await builds.read(await open(written)), written);
     }
 
     /** The identity its values refer to. */

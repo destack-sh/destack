@@ -1,49 +1,7 @@
 import { schema, toJsonSchema, Version } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { ModuleMetadata, Package } from "@destack/package";
-import { Setting, SettingName } from "../setting/setting.ts";
-
-/** The scope a setting belongs to and the overrides it permits. */
-export const SettingScope = schema.discriminatedUnion("scope", [
-    schema.object({
-        /** A value of each user. */
-        scope: schema.literal("user"),
-        /** The overrides the setting permits. */
-        overrides: schema.array(schema.enum(["package", "space", "installation", "device"])),
-    }),
-    schema.object({
-        /** A value of each space. */
-        scope: schema.literal("space"),
-        /** The overrides the setting permits. */
-        overrides: schema.array(schema.literal("installation")),
-    }),
-    schema.object({
-        /** A value each device stores for itself, as a local object. */
-        scope: schema.literal("device"),
-        /** The overrides the setting permits: none. */
-        overrides: schema.tuple([]),
-    }),
-]);
-/** The scope a setting belongs to and the overrides it permits. */
-export type SettingScope = schema.Infer<typeof SettingScope>;
-
-/** The serializable fields of a setting declaration. */
-export const SettingMetadata = schema.object({
-    /** The package-local name. */
-    name: SettingName,
-    /** The label settings views show. */
-    title: schema.string().min(1),
-    /** The behavior the value controls. */
-    description: schema.string().min(1),
-    /** The group settings views show it in. */
-    group: schema.string().min(1).exactOptional(),
-    /** When a consumer applies a changed value. */
-    apply: schema.enum(["immediate", "restart"]),
-    /** The migration guidance of a deprecated setting. */
-    deprecated: schema.string().min(1).exactOptional(),
-    /** How placed values combine. */
-    merge: schema.enum(["value", "key"]).exactOptional(),
-});
+import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 
 /** A setting as authored. */
 export type SettingDefinition<Value extends schema.Schema = schema.Schema> = schema.Infer<
