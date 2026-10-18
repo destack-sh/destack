@@ -1,17 +1,9 @@
-import {
-    mkdir,
-    mkdtemp,
-    readdir,
-    readFile,
-    realpath,
-    rm,
-    symlink,
-    writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { buildPackage } from "../src/index.ts";
+import { buildPackage, type PackageBuild } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
 import { readPackageDescription } from "../src/source/index.ts";
 
@@ -27,6 +19,24 @@ export const leafExtension = {
             transform: (code) => ({ code: code.replaceAll("unchanged", "transformed"), map: null }),
         },
     ],
+};
+`;
+
+/** The leaf's extension, emitting a generated entry that imports the leaf. */
+const GLUE_EXTENSION = `/** Emit the generated glue as an entry of each compilation. */
+export const leafExtension = {
+    compile: (compilation) => {
+        compilation.entry("glue", "virtual:@fixture/leaf/glue");
+
+        return [
+            {
+                name: "@fixture/leaf",
+                resolveId: (id) => (id === "virtual:@fixture/leaf/glue" ? "\\0" + id : null),
+                load: (id) =>
+                    id === "\\0virtual:@fixture/leaf/glue" ? 'export * from "@fixture/leaf";' : null,
+            },
+        ];
+    },
 };
 `;
 
@@ -60,6 +70,15 @@ async function writePackage(
 async function link(root: string, dependent: string, name: string): Promise<void> {
     await mkdir(join(root, dependent, "node_modules", "@fixture"), { recursive: true });
     await symlink(join(root, name), join(root, dependent, "node_modules", "@fixture", name));
+}
+
+/** Run an entry of a build's Bun output, reading its exports. */
+async function readEntry(build: PackageBuild, name: string): Promise<Record<string, unknown>> {
+    const path = present(build.reader.manifest.outputs["bun"]?.exports[name], `entry ${name}`);
+
+    return schema
+        .record(schema.string(), schema.unknown())
+        .parse(await import(join(build.directory, path)));
 }
 
 /** Write an application whose two packages require one extension leaf, returning its root. */
@@ -125,16 +144,10 @@ test("apply the extension of a transitive dependency once in a build of a packag
         });
 
         // load the leaf's extension once and compile the application's marker through it
-        const output = join(build.directory, "output", "bun");
-        const chunks = await Promise.all(
-            (await readdir(output))
-                .filter((file) => file.endsWith(".js"))
-                .map(async (file) => await readFile(join(output, file), "utf8")),
-        );
-        expect([
-            loaded.map((entry) => entry.directory),
-            chunks.some((code) => code.includes('"transformed"')),
-        ]).toEqual([[await realpath(join(root, "leaf"))], true]);
+        expect([loaded.map((entry) => entry.directory), await readEntry(build, ".")]).toEqual([
+            [await realpath(join(root, "leaf"))],
+            { marker: "transformed" },
+        ]);
     } finally {
         await rm(root, { recursive: true });
     }
@@ -179,6 +192,28 @@ test("load a development dependency's own extension in development without walki
             development.map((entry) => entry.directory),
             release.map((entry) => entry.directory),
         ]).toEqual([[await realpath(join(root, "tool"))], []]);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});
+
+test("bundle what a module an extension generates imports, though the package does not declare it", async () => {
+    // let the leaf's extension emit a generated entry importing the leaf, which the application does not declare
+    const root = await writeApplication();
+    const directory = join(root, "application");
+    await writeFile(join(root, "leaf", "src", "build.ts"), GLUE_EXTENSION);
+    await writeFile(join(root, "leaf", "src", "index.ts"), 'export const glued = "glued";\n');
+    await link(root, "application", "leaf");
+    try {
+        // build the application's server module through the extension
+        await using build = await buildPackage({
+            directory,
+            dependencies: {},
+            outputs: { bun: { kind: "module", runtime: "bun", bundle: true } },
+        });
+
+        // run the generated entry, which carries the leaf's code it imports
+        expect(await readEntry(build, "glue")).toEqual({ glued: "glued" });
     } finally {
         await rm(root, { recursive: true });
     }

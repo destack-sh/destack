@@ -528,7 +528,12 @@ export class OutputCompilation implements Compilation {
         }
 
         // bundle a declared dependency, or keep its registry release external
-        return this.#isExternalRelease(DependencyName.of(specifier), dependencies, output);
+        return this.#isExternalRelease(
+            DependencyName.of(specifier),
+            importer,
+            dependencies,
+            output,
+        );
     }
 
     /** Check whether a specifier names a local module or one a bundled dependency imports. */
@@ -545,6 +550,11 @@ export class OutputCompilation implements Compilation {
             return true;
         }
 
+        // bundle what modules a build extension generates import, as the extension's own code
+        if (importer?.startsWith("\0") === true) {
+            return true;
+        }
+
         // bundle what bundled dependencies import
         return (
             options.bundle === true &&
@@ -557,6 +567,7 @@ export class OutputCompilation implements Compilation {
     /** Require a declared dependency, keeping its registry release external unless bundled. */
     #isExternalRelease(
         dependency: string,
+        importer: string | undefined,
         dependencies: Readonly<Record<string, DependencyResolution>>,
         output: PackageOutput,
     ): boolean {
@@ -568,7 +579,11 @@ export class OutputCompilation implements Compilation {
             declaration.optionalDependencies,
         ];
         if (!groups.some((requirements) => Object.hasOwn(requirements, dependency))) {
-            throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${dependency}`);
+            const by = importer === undefined ? "" : `, imported by ${importer}`;
+            throw new BuildError(
+                "BUILD_FAILED",
+                `undeclared runtime dependency: ${dependency}${by}`,
+            );
         }
 
         // bundle it, or keep its registry release external
