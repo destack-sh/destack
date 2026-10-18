@@ -100,7 +100,10 @@ export function colorsOf(values: readonly string[], element: Element): Map<strin
         return { text, probe };
     });
     element.append(...probes.map(({ probe }) => probe));
-    const computed = probes.map(({ text, probe }) => ({ text, color: getComputedStyle(probe).color }));
+    const computed = probes.map(({ text, probe }) => ({
+        text,
+        color: getComputedStyle(probe).color,
+    }));
     for (const { probe } of probes) {
         probe.remove();
     }
@@ -110,19 +113,22 @@ export function colorsOf(values: readonly string[], element: Element): Map<strin
 
 /** Read a computed color's channels, painting syntax such as oklch() to read its pixel. */
 function rgbaOf(computed: string, element: Element): Rgba {
+    // read rgb() channels, painting any other color syntax
     const channels = /^rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\)$/u.exec(
         computed,
     );
     if (channels === null) {
         return paintedColor(computed, element.ownerDocument);
     }
+
+    // scale the channels to fractions
     const [, red = "0", green = "0", blue = "0", alpha = "1"] = channels;
 
     return [Number(red) / 255, Number(green) / 255, Number(blue) / 255, Number(alpha)];
 }
 
 /** Paint a CSS color on one pixel and read its sRGB channels. */
-function paintedColor(color: string, document: Document): [number, number, number, number] {
+function paintedColor(color: string, document: Document): Rgba {
     // paint the color on a one-pixel canvas
     const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
     if (context === null) {

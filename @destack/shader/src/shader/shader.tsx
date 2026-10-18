@@ -108,14 +108,14 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
 
     // read the theme again once a burst of changes above the canvas has painted, when styles are settled
-    let frame = 0;
+    let request = 0;
     let timeout = 0;
     const settle = () => {
-        if (frame !== 0 || timeout !== 0) {
+        if (request !== 0 || timeout !== 0) {
             return;
         }
-        frame = requestAnimationFrame(() => {
-            frame = 0;
+        request = requestAnimationFrame(() => {
+            request = 0;
             timeout = window.setTimeout(() => {
                 timeout = 0;
                 setMutations((count) => count + 1);
@@ -124,8 +124,8 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     };
     onCleanup(() => {
         // cancel only what is scheduled, which never happens while rendering on the server
-        if (frame !== 0) {
-            cancelAnimationFrame(frame);
+        if (request !== 0) {
+            cancelAnimationFrame(request);
         } else if (timeout !== 0) {
             clearTimeout(timeout);
         }
