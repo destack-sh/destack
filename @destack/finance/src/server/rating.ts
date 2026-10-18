@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { type Call, ObjectReference } from "@destack/sync";
 import { EventTime } from "@destack/event";
 import type { MethodContext } from "@destack/object";
@@ -5,7 +6,6 @@ import type { PackageId } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ReleaseReader } from "../release/reader.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 import type { Meter } from "@destack/observability/meter";
 import { Period } from "../rate/period.ts";
 import {
@@ -177,13 +177,13 @@ export class Rating {
     /** Rate the period's usage of a seller's meter into the line of each metered price. */
     async rateMeter(meter: Meter, used: (period: Period) => Promise<number>): Promise<Call[]> {
         // take the granting subscriptions' items billing the meter
-        const key = CatalogReference.key(meter.reference);
+        const key = DeclarationReference.key(meter.reference);
         const billing = this.granting.flatMap((row) =>
             row.items
                 .filter(
                     ({ terms: { recurring } }) =>
                         recurring.usage === "metered" &&
-                        CatalogReference.key(recurring.meter) === key,
+                        DeclarationReference.key(recurring.meter) === key,
                 )
                 .map((item) => ({ row, item })),
         );
@@ -244,10 +244,10 @@ export class Rating {
     ): Promise<void> {
         // read the SKU and its meter, and the reselling seller once per package
         const { sku: skuKey, meter: meterKey, quantity } = used.keys;
-        const reference = CatalogReference.of(present(skuKey, "a use's SKU"));
-        const metered = CatalogReference.of(meterKey);
-        const sku = (await this.#releases.sku(reference));
-        const meter = (await this.#releases.meter(metered));
+        const reference = DeclarationReference.ofKey(present(skuKey, "a use's SKU"));
+        const metered = DeclarationReference.ofKey(meterKey);
+        const sku = await this.#releases.sku(reference);
+        const meter = await this.#releases.meter(metered);
         const publisher =
             publishers.get(sku.package.name) ??
             Seller.publisher(sku.package, this.#publisher, this.#context);
@@ -261,7 +261,7 @@ export class Rating {
         }
 
         // add the quantity to the line of the space or machine that used it, reading the line once
-        const skuId = CatalogReference.key(reference);
+        const skuId = DeclarationReference.key(reference);
         const resourceId = present(
             used.keys.spaceId ?? used.keys.machineId,
             `the space or machine of use ${used.id}`,

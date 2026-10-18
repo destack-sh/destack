@@ -1,9 +1,9 @@
+import { DeclarationReference } from "@destack/package/declare";
 import type { Charge } from "../object/charge.ts";
 import type { Price } from "../object/price.ts";
 import { present } from "@destack/schema";
 import { type Sku } from "../sku/sku.ts";
 import { Cost, type DecimalAmount } from "./amount.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 
 /** The fractions of a pricing unit a quantity has. */
 const QUANTITY_SCALE = 1_000_000;
@@ -37,7 +37,7 @@ export const Rate = {
 
         return {
             pricingQuantity,
-            skuPriceId: `${CatalogReference.key(sku.reference)}@${observedAt}`,
+            skuPriceId: `${DeclarationReference.key(sku.reference)}@${observedAt}`,
             listUnitPrice: unitAmount,
             listCost: Cost.of(listCost),
             billedCost: Cost.of(isBilled ? listCost : 0n),

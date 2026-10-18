@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { ModuleMetadata, Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import {
@@ -7,7 +8,6 @@ import {
     FeatureReset,
     type FeatureDefinition,
 } from "../feature/feature.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 
 /** Declare a typed feature that products grant. */
 export function defineFeature<Value extends schema.Schema>(
@@ -34,11 +34,11 @@ export function defineFeature<Value extends schema.Schema>(
 
     // require a metered feature's meters and reset
     if (definition.kind === "metered") {
-        const meters = schema.array(CatalogReference).min(1).parse(definition.meters);
+        const meters = schema.array(DeclarationReference).min(1).parse(definition.meters);
         FeatureReset.parse(definition.reset);
 
         // count each meter once
-        const keys = new Set(meters.map((meter) => CatalogReference.key(meter)));
+        const keys = new Set(meters.map((meter) => DeclarationReference.key(meter)));
         if (keys.size < meters.length) {
             throw new TypeError(`feature ${definition.name} counts a meter twice`);
         }

@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { t } from "@destack/locale";
 import { entitlement } from "@destack/account/object";
 import { asc, eq, Snapshot } from "@destack/db";
@@ -33,7 +34,6 @@ import {
     stored,
     uptime,
 } from "./fixture/storage.ts";
-import { CatalogReference } from "@destack/finance";
 import { RequestId } from "@destack/runtime/request";
 import { VirtualClock } from "@destack/environment/simulation";
 
@@ -201,7 +201,7 @@ async function append(
         readonly meter: string;
         readonly value: number;
         readonly level?: number;
-        readonly sku?: CatalogReference;
+        readonly sku?: DeclarationReference;
         readonly time: number;
     },
 ): Promise<void> {
@@ -291,15 +291,15 @@ test.each(TEST_DIALECTS)(
         ).toEqual([
             [
                 "usageLimit",
-                `${CatalogReference.key(capacity.reference)}:near:${START}`,
-                `${CatalogReference.key(capacity.reference)}:${START}`,
+                `${DeclarationReference.key(capacity.reference)}:near:${START}`,
+                `${DeclarationReference.key(capacity.reference)}:${START}`,
                 { kind: "permission", permission: "read", reason: "subscribed" },
                 { feature: capacity.name, state: "near", usage: 900, limit: CAPACITY },
             ],
             [
                 "usageLimit",
-                `${CatalogReference.key(capacity.reference)}:blocked:${START}`,
-                `${CatalogReference.key(capacity.reference)}:${START}`,
+                `${DeclarationReference.key(capacity.reference)}:blocked:${START}`,
+                `${DeclarationReference.key(capacity.reference)}:${START}`,
                 { kind: "permission", permission: "read", reason: "subscribed" },
                 { feature: capacity.name, state: "blocked", usage: 1100, limit: CAPACITY },
             ],
@@ -334,7 +334,7 @@ test.each(TEST_DIALECTS)(
 
         // keep the one announcement of near, as its key was announced this period
         expect(announced).toEqual([
-            { key: `${CatalogReference.key(capacity.reference)}:near:${START}` },
+            { key: `${DeclarationReference.key(capacity.reference)}:near:${START}` },
         ]);
     },
 );

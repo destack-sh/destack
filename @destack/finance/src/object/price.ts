@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
@@ -6,7 +7,6 @@ import type { PackageId } from "@destack/package";
 import { present, schema, Text } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ReleaseReader } from "../release/reader.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 import { Amount, Currency, DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";
 import { product } from "./product.ts";
@@ -32,7 +32,7 @@ export const Recurring = schema.discriminatedUnion("usage", [
         /** The usage a meter counts in each period. */
         usage: schema.literal("metered"),
         /** The meter counting the usage. */
-        meter: CatalogReference,
+        meter: DeclarationReference,
     }),
 ]);
 
@@ -247,7 +247,7 @@ export const Price = {
         // refuse a meter no package declares
         const { recurring } = terms;
         if (recurring.usage === "metered") {
-            (await releases.meter(recurring.meter));
+            await releases.meter(recurring.meter);
         }
 
         // refuse a fee below the usage it includes

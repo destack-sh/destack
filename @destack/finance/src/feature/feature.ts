@@ -1,14 +1,14 @@
+import { DeclarationReference } from "@destack/package/declare";
 import {
     ENTITLEMENT_RESOURCES,
     type EntitlementResource,
     FEATURE_KINDS,
 } from "@destack/account/object";
-import { Package, PackageId } from "@destack/package";
+import { Package, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);
@@ -36,7 +36,7 @@ export const FeatureLimit = schema.number().int().min(0);
 /** The fields of a feature declaration beside its kind. */
 export const FeatureMetadata = schema.object({
     /** The package-local name. */
-    name: CatalogName,
+    name: DeclarationName,
     /** What the feature grants. */
     description: schema.string().min(1),
     /** The platform resource the feature's grant allows, absent for a package's own feature. */
@@ -62,7 +62,7 @@ export type FeatureDefinition<Value extends schema.Schema = schema.Schema> = sch
               /** Usage of meters up to the limit a grant sets. */
               readonly kind: "metered";
               /** The meters of one unit whose events count together as usage. */
-              readonly meters: readonly CatalogReference[];
+              readonly meters: readonly DeclarationReference[];
               /** When the usage starts again. */
               readonly reset: FeatureReset;
           }
@@ -90,7 +90,7 @@ export const FeatureDescription = schema.discriminatedUnion("kind", [
         /** Usage of meters up to the limit a grant sets. */
         kind: schema.literal("metered"),
         /** The meters of one unit whose events count together as usage. */
-        meters: schema.array(CatalogReference).min(1),
+        meters: schema.array(DeclarationReference).min(1),
         /** When the usage starts again. */
         reset: FeatureReset,
     }),
@@ -127,7 +127,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** The identity products and entitlements refer to. */
-    get reference(): CatalogReference {
+    get reference(): DeclarationReference {
         return { packageId: this.package.id, name: this.definition.name };
     }
 
@@ -137,7 +137,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Serialise the feature as its reference. */
-    toJSON(): CatalogReference {
+    toJSON(): DeclarationReference {
         return this.reference;
     }
 
@@ -173,7 +173,7 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
         // refuse any other value
         if (!isAccepted) {
             throw new CallError("BAD_REQUEST", {
-                message: `feature ${CatalogReference.key(this.reference)} refuses the granted value`,
+                message: `feature ${DeclarationReference.key(this.reference)} refuses the granted value`,
             });
         }
     }

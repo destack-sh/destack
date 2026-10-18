@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { through, union } from "@destack/access";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Country } from "@destack/locale";
@@ -17,7 +18,6 @@ import { CallError } from "@destack/runtime/error";
 import { canonicalize, present, schema, type Identifier } from "@destack/schema";
 import { announcement } from "@destack/notification";
 import type { ReleaseReader } from "../release/reader.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 import { Allotment, type Resolution } from "./allotment.ts";
 import { Source } from "./source.ts";
 import { usageLimit, type UsageSeries } from "./usage.ts";
@@ -360,7 +360,7 @@ function columns(
 
 /** Key an entitlement or allotment by its feature. */
 function featureKey(row: { readonly packageId: PackageId; readonly feature: string }): string {
-    return CatalogReference.key({ packageId: row.packageId, name: row.feature });
+    return DeclarationReference.key({ packageId: row.packageId, name: row.feature });
 }
 
 /** Compare a stored entitlement with a derived input. */

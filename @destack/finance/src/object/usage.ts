@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { through, union } from "@destack/access";
 import { account, entitlement, machine, space } from "@destack/account/object";
 import { Table } from "@destack/db";
@@ -19,7 +20,6 @@ import { CallError, isCallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import type { ReleaseReader } from "../release/reader.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 
 /** The share of a limit or budget at which usage is near it, where the soft cap first notifies. */
 export const NEAR_SHARE = 0.8;
@@ -147,7 +147,7 @@ export const Usage = {
     /** Refuse a use its meter or SKU declaration rejects. */
     async require(used: Usage, releases: ReleaseReader): Promise<void> {
         // read the use's meter from its package's current release
-        const { packageId, name } = CatalogReference.of(used.keys.meter);
+        const { packageId, name } = DeclarationReference.ofKey(used.keys.meter);
         const { level, sku: skuKey } = used.keys;
         const meter = await releases.meter({ packageId, name });
 
@@ -164,10 +164,10 @@ export const Usage = {
         if (skuKey === null) {
             return;
         }
-        const reference = CatalogReference.of(skuKey);
+        const reference = DeclarationReference.ofKey(skuKey);
         const sku = await releases.sku(reference);
-        const measured = CatalogReference.key(sku.definition.meter);
-        if (measured !== CatalogReference.key({ packageId, name })) {
+        const measured = DeclarationReference.key(sku.definition.meter);
+        if (measured !== DeclarationReference.key({ packageId, name })) {
             throw new CallError("BAD_REQUEST", {
                 message: `sku ${sku.name} prices meter ${measured}, and the use measures ${name}`,
             });
@@ -192,7 +192,7 @@ export const Usage = {
         events: UsageSeries,
     ): Promise<number> {
         // fold the meter's events in the range, each level apart by its source
-        const key = CatalogReference.key({ packageId: meter.package.id, name: meter.name });
+        const key = DeclarationReference.key({ packageId: meter.package.id, name: meter.name });
         const from = period === undefined ? 0 : EventTime.of(period.start);
         const before = EventTime.of(period === undefined ? now + 1 : period.end);
         const { measure, fold, group } = Usage.request(meter.definition.aggregation, period);

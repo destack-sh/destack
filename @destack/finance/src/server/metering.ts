@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import type { Call } from "@destack/sync";
 import { AccessContext } from "@destack/access";
 import type { MethodContext } from "@destack/object";
@@ -7,7 +8,6 @@ import type { Identifier } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import { release } from "@destack/forge/object";
 import { ReleaseReader } from "../release/reader.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 import { type Publisher, Usage } from "../object/index.ts";
 import { Rating } from "./rating.ts";
 
@@ -38,7 +38,11 @@ export class Metering {
     }
 
     /** Read the releases the tag points at for one call, parsing each release once. */
-    reader(source: Pick<MethodContext, "query">, caller: AccessContext, scope: string): ReleaseReader {
+    reader(
+        source: Pick<MethodContext, "query">,
+        caller: AccessContext,
+        scope: string,
+    ): ReleaseReader {
         return new ReleaseReader(async (packageId) => {
             // resolve the version the tag points at
             const resolved = await source.query(
@@ -90,7 +94,7 @@ export class Metering {
         );
         const rated: Call[] = [];
         for (const key of metered) {
-            const reference = CatalogReference.of(key);
+            const reference = DeclarationReference.ofKey(key);
             const meter = await releases.meter(reference);
             rated.push(
                 ...(await rating.rateMeter(meter, (period) =>

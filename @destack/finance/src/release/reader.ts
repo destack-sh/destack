@@ -1,20 +1,24 @@
+import { DeclarationReference } from "@destack/package/declare";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Meter } from "@destack/observability/meter";
 import { CallError } from "@destack/runtime/error";
-import { CatalogReference } from "../catalog/reference.ts";
 import { Feature } from "../feature/feature.ts";
 import { Sku } from "../sku/sku.ts";
 
 /** Read the features, meters and SKUs packages declare, in the releases one call resolves. */
 export class ReleaseReader {
     /** Read the declarations of a package's current release. */
-    readonly #read: (packageId: PackageId) => Promise<Awaited<ReturnType<typeof ReleaseReader.read>>>;
+    readonly #read: (
+        packageId: PackageId,
+    ) => Promise<Awaited<ReturnType<typeof ReleaseReader.read>>>;
     /** The declarations read so far, by package, so one call reads one release of each. */
     readonly #releases = new Map<PackageId, ReturnType<ReleaseReader["release"]>>();
 
     /** Read each package's current release once, through a read of its declarations. */
-    constructor(read: (packageId: PackageId) => Promise<Awaited<ReturnType<typeof ReleaseReader.read>>>) {
+    constructor(
+        read: (packageId: PackageId) => Promise<Awaited<ReturnType<typeof ReleaseReader.read>>>,
+    ) {
         this.#read = read;
     }
 
@@ -30,11 +34,11 @@ export class ReleaseReader {
     }
 
     /** Find a declared feature and refuse an undeclared one. */
-    async feature(reference: CatalogReference): Promise<Feature> {
+    async feature(reference: DeclarationReference): Promise<Feature> {
         const feature = await this.findFeature(reference);
         if (feature === undefined) {
             throw new CallError("NOT_FOUND", {
-                message: `feature ${CatalogReference.key(reference)} is undeclared`,
+                message: `feature ${DeclarationReference.key(reference)} is undeclared`,
             });
         }
 
@@ -42,20 +46,20 @@ export class ReleaseReader {
     }
 
     /** Find a declared feature, absent once a release no longer declares it. */
-    async findFeature(reference: CatalogReference): Promise<Feature | undefined> {
+    async findFeature(reference: DeclarationReference): Promise<Feature | undefined> {
         const { features } = await this.release(reference.packageId);
 
         return features.find((each) => ReleaseReader.#isAt(each, reference));
     }
 
     /** Find a declared meter and refuse an undeclared one. */
-    async meter(reference: CatalogReference): Promise<Meter> {
+    async meter(reference: DeclarationReference): Promise<Meter> {
         // look the meter up in its package's release
         const { meters } = await this.release(reference.packageId);
         const meter = meters.find((each) => ReleaseReader.#isAt(each, reference));
         if (meter === undefined) {
             throw new CallError("NOT_FOUND", {
-                message: `meter ${CatalogReference.key(reference)} is undeclared`,
+                message: `meter ${DeclarationReference.key(reference)} is undeclared`,
             });
         }
 
@@ -63,13 +67,13 @@ export class ReleaseReader {
     }
 
     /** Find a declared SKU and refuse an undeclared one. */
-    async sku(reference: CatalogReference): Promise<Sku> {
+    async sku(reference: DeclarationReference): Promise<Sku> {
         // look the SKU up in its package's release
         const { skus } = await this.release(reference.packageId);
         const sku = skus.find((each) => ReleaseReader.#isAt(each, reference));
         if (sku === undefined) {
             throw new CallError("NOT_FOUND", {
-                message: `sku ${CatalogReference.key(reference)} is undeclared`,
+                message: `sku ${DeclarationReference.key(reference)} is undeclared`,
             });
         }
 
@@ -86,9 +90,9 @@ export class ReleaseReader {
 
     /** Report whether a declaration is the one a reference points at. */
     static #isAt(
-        declared: { readonly reference: CatalogReference },
-        reference: CatalogReference,
+        declared: { readonly reference: DeclarationReference },
+        reference: DeclarationReference,
     ): boolean {
-        return CatalogReference.key(declared.reference) === CatalogReference.key(reference);
+        return DeclarationReference.key(declared.reference) === DeclarationReference.key(reference);
     }
 }

@@ -1,12 +1,12 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { PackageId, DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ReleaseReader } from "../release/reader.ts";
-import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
 
@@ -22,7 +22,7 @@ export const productFeature = defineObject(
             /** The package declaring the feature. */
             packageId: field.string(PackageId),
             /** The feature's name in its package. */
-            feature: field.string(CatalogName),
+            feature: field.string(DeclarationName),
             /** A static feature's value or a metered one's limit, unlimited without one. */
             value: field.json(schema.json()).optional(),
         },
@@ -66,7 +66,7 @@ export const ProductFeature = {
         }
 
         // refuse a feature of a package another account publishes
-        const reference = CatalogReference.parse({
+        const reference = DeclarationReference.parse({
             packageId: grant.packageId,
             name: grant.feature,
         });

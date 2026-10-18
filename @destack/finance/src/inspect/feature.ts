@@ -1,10 +1,10 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { graph } from "@destack/package";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Feature } from "../feature/feature.ts";
 import { FeatureDescription } from "../feature/feature.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 
 /** Describe a feature with its resource and its value's JSON Schema or its meters. */
 export function describeFeature(feature: Feature): FeatureDescription {
@@ -75,7 +75,7 @@ export function featureVocabulary(declared: Feature): Record<string, JsonValue> 
             feature.kind === "metered"
                 ? {
                       kind: feature.kind,
-                      meters: feature.meters.map((meter) => CatalogReference.key(meter)),
+                      meters: feature.meters.map((meter) => DeclarationReference.key(meter)),
                   }
                 : { kind: feature.kind },
     };

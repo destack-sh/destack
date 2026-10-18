@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { STACKS } from "@destack/account/test";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
@@ -65,7 +66,6 @@ import {
 } from "../object/index.ts";
 import { Sku } from "../sku/index.ts";
 import financePackage from "../package.ts";
-import { CatalogReference } from "../catalog/reference.ts";
 import { Clock } from "@destack/environment";
 
 /** The residency of the accounts the fixture replicates. */
@@ -140,13 +140,13 @@ export interface FinanceUse {
     /** The dedicated machine whose hours were used, absent for a space's use. */
     readonly machine?: Identifier<"machine">;
     /** The meter measuring it. */
-    readonly meter: CatalogReference;
+    readonly meter: DeclarationReference;
     /** The amount used in the meter's unit. */
     readonly quantity: number;
     /** The level held, for an averaged meter. */
     readonly level?: number;
     /** The SKU rating it, absent for a seller's own meter. */
-    readonly sku?: CatalogReference;
+    readonly sku?: DeclarationReference;
     /** When the use was measured, in UTC epoch milliseconds. */
     readonly time: number;
 }
@@ -370,8 +370,8 @@ export class FinanceFixture {
         return {
             id: use.id,
             time: EventTime.of(use.time),
-            meter: CatalogReference.key(use.meter),
-            sku: use.sku === undefined ? null : CatalogReference.key(use.sku),
+            meter: DeclarationReference.key(use.meter),
+            sku: use.sku === undefined ? null : DeclarationReference.key(use.sku),
             spaceId: use.space ?? null,
             machineId: use.machine ?? null,
             installationId: null,

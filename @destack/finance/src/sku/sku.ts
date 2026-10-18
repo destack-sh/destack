@@ -1,10 +1,10 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { ProviderCode, Tenancy } from "@destack/account/object";
-import { Package } from "@destack/package";
+import { Package, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
-import { CatalogName, CatalogReference } from "../catalog/reference.ts";
 
 /** The FOCUS ServiceCategories of the services SKUs price. */
 export const SERVICE_CATEGORIES = ["Compute", "Databases", "Storage", "Networking"] as const;
@@ -17,7 +17,7 @@ export type ServiceCategory = schema.Infer<typeof ServiceCategory>;
 /** The fields of a SKU declaration. */
 export const SkuMetadata = schema.object({
     /** The package-local name. */
-    name: CatalogName,
+    name: DeclarationName,
     /** What the SKU prices. */
     description: schema.string().min(1),
     /** The provider selling it. */
@@ -31,7 +31,7 @@ export const SkuMetadata = schema.object({
     /** The tenancy of the priced machines, absent for a SKU every tenancy uses. */
     tenancy: Tenancy.exclude(["own"]).exactOptional(),
     /** The meter measuring its billing unit. */
-    meter: CatalogReference,
+    meter: DeclarationReference,
     /** The FOCUS PricingUnit, such as GB-month. */
     pricingUnit: schema.string().min(1),
     /** The meter's units in one pricing unit, such as 10^9 byte-months in a GB-month. */
@@ -86,7 +86,7 @@ export class Sku {
     }
 
     /** The identity meter events and charges refer to. */
-    get reference(): CatalogReference {
+    get reference(): DeclarationReference {
         return { packageId: this.package.id, name: this.definition.name };
     }
 
@@ -96,7 +96,7 @@ export class Sku {
     }
 
     /** Serialise the SKU as its reference. */
-    toJSON(): CatalogReference {
+    toJSON(): DeclarationReference {
         return this.reference;
     }
 }

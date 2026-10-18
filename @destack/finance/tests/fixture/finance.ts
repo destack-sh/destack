@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { type Message, t } from "@destack/locale";
 import { accessRelationship, principal, Relationship } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -41,7 +42,6 @@ import {
 } from "../../src/object/index.ts";
 import { FinanceFixture, type FinanceFixtureOptions } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
-import type { CatalogReference } from "../../src/catalog/reference.ts";
 import type { Meter } from "@destack/observability/meter";
 import type { Package } from "@destack/package";
 import {
@@ -406,7 +406,7 @@ export class Finance {
 }
 
 /** Read an account's resolution of a feature as what its kind grants, null without one. */
-export function resolved(resolutions: readonly Resolution[], feature: CatalogReference) {
+export function resolved(resolutions: readonly Resolution[], feature: DeclarationReference) {
     // find the feature's resolution
     const found = resolutions.find(
         (each) => each.packageId === feature.packageId && each.feature === feature.name,
