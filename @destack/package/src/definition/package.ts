@@ -19,8 +19,18 @@ export const PackageId = Object.assign(schema.identifier("package"), {
 /** The immutable identity retained across package renames and releases. */
 export type PackageId = schema.Infer<typeof PackageId>;
 
-/** A declaration name within a package. */
-export const DeclarationName = schema.string().regex(NAME_PATTERN);
+/** The pattern of a dotted declaration name: camelCase words and dots, such as editor.mode. */
+const DOTTED_PATTERN = /^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u;
+
+/** A declaration name within a package: kebab-case, or dotted camelCase such as editor.mode. */
+export const DeclarationName = schema
+    .string()
+    .regex(
+        new RegExp(
+            `^(?:${NAME_PATTERN.source.slice(1, -1)}|${DOTTED_PATTERN.source.slice(1, -1)})$`,
+            "u",
+        ),
+    );
 /** A declaration name within a package. */
 export type DeclarationName = schema.Infer<typeof DeclarationName>;
 

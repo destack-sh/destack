@@ -34,4 +34,19 @@ export const DeclarationReference = Object.assign(declarationReferenceSchema, {
     of(declaration: Declaration): DeclarationReference {
         return { packageId: declaration.package.id, name: declaration.name };
     },
+
+    /** Key a reference by its package and name, as `<packageId>/<name>`. */
+    key(reference: DeclarationReference): string {
+        return `${reference.packageId}/${reference.name}`;
+    },
+
+    /** Read a reference from its key, refusing a malformed one. */
+    ofKey(key: string): DeclarationReference {
+        const separator = key.indexOf("/");
+
+        return declarationReferenceSchema.parse({
+            packageId: key.slice(0, separator),
+            name: key.slice(separator + 1),
+        });
+    },
 });
