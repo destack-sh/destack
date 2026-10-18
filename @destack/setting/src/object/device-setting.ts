@@ -1,9 +1,8 @@
 import { through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, device, field } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { PackageId, DeclarationName } from "@destack/package";
 import { schema, Version } from "@destack/schema";
-import { SettingName } from "../setting/setting.ts";
 
 /** A setting value one device stores for everyone using it, above every value placed in a scope. */
 export const deviceSetting = defineObject({
@@ -15,7 +14,7 @@ export const deviceSetting = defineObject({
         /** The package declaring the setting. */
         packageId: field.string(PackageId).immutable(),
         /** The setting's name in its declaring package. */
-        name: field.string(SettingName).immutable(),
+        name: field.string(DeclarationName).immutable(),
         /** The value. */
         value: field.json(schema.json()),
         /** The release of the setting's package the value was written against. */

@@ -1,8 +1,8 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { Package } from "@destack/package";
 import { schema, canonicalize } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
-import { SettingReference } from "./setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
 
 /** A placed value's identity: the row and the revision a resolution read. */
@@ -53,7 +53,7 @@ export type SettingSource = schema.Infer<typeof SettingSource>;
 export const SettingResolution = Object.assign(
     schema.object({
         /** The setting. */
-        setting: SettingReference,
+        setting: DeclarationReference,
         /** The selection the value is resolved for. */
         selection: SettingSelection,
         /** The effective value. */

@@ -1,15 +1,15 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
 import { Scope, type Subject } from "@destack/sync";
 import { ObjectClient } from "@destack/object/client";
 import type { ClientOptions } from "@destack/runtime/client";
-import type { Setting, SettingReference } from "../setting/setting.ts";
+import type { Setting } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
-import { PackageId } from "@destack/package";
+import { PackageId, DeclarationName } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
-import { SettingName } from "../setting/setting.ts";
 import type { Clock } from "@destack/environment";
 
 /** A setting value placed in a scope. */
@@ -23,7 +23,7 @@ export const setting = defineObject({
         /** The package declaring the setting. */
         packageId: field.string(PackageId).immutable(),
         /** The setting's name in its declaring package. */
-        name: field.string(SettingName).immutable(),
+        name: field.string(DeclarationName).immutable(),
 
         // read the overrides from other databases as identifiers
         /** The consuming package the value applies to. */
@@ -92,7 +92,7 @@ export const SettingValue = {
     /** Read the values a scope and the scopes above it place for some settings, nearest first. */
     async along(
         database: DatabaseConnection,
-        settings: readonly SettingReference[],
+        settings: readonly DeclarationReference[],
         scope: string,
     ): Promise<{ readonly chain: string[]; readonly values: SettingValue[] }> {
         // read the values placed along the scope's chain
@@ -130,7 +130,7 @@ export const SettingValue = {
             /** The database with the replica, of `ObjectClient.tables({ setting })`. */
             readonly database: DatabaseConnection;
             /** The settings yielded. */
-            readonly settings: readonly SettingReference[];
+            readonly settings: readonly DeclarationReference[];
             /** The clock the replica runs at. */
             readonly clock: Clock;
         },
@@ -194,7 +194,7 @@ export const SettingValue = {
     /** Yield the values along a scope's chain for some settings, now and after each change. */
     async *follow(
         database: DatabaseConnection,
-        settings: readonly SettingReference[],
+        settings: readonly DeclarationReference[],
         scope: string,
         signal: AbortSignal,
     ): AsyncGenerator<{ readonly chain: string[]; readonly values: SettingValue[] }> {

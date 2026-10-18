@@ -1,11 +1,7 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { StackSetting } from "../declare/stack.ts";
 import { setting, type SettingValue } from "../object/index.ts";
-import {
-    Setting,
-    SettingPlacement,
-    type SettingReference,
-    type SettingWrite,
-} from "../setting/index.ts";
+import { Setting, SettingPlacement, type SettingWrite } from "../setting/index.ts";
 import { BuildCache } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "@destack/object";
@@ -14,7 +10,7 @@ import type { ObjectType } from "@destack/object";
 export interface SettingOptions {
     /** Read the setting each written value is a value of. */
     readonly declared: (
-        written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+        written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,
     ) => Promise<Setting>;
     /** The types whose declarations a stack applies before its settings. */
     readonly after: readonly ObjectType[];
@@ -85,7 +81,7 @@ async function requireDeclared(
     const reference = { packageId: value.packageId, name: value.name };
     const setting = await declared({ ...placement, ...reference, release: value.release });
     setting.requireWrite(
-            { ...placement, mode: value.mode, value: value.value, release: value.release },
-            value.scope,
-        );
+        { ...placement, mode: value.mode, value: value.value, release: value.release },
+        value.scope,
+    );
 }

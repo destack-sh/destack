@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
@@ -12,7 +13,7 @@ import {
 } from "../src/inspect/index.ts";
 import type { DeviceSettingValue, SettingValue } from "../src/object/index.ts";
 import { SettingResolution, SettingSelection } from "../src/setting/index.ts";
-import { Setting, SettingReference } from "../src/setting/index.ts";
+import { Setting } from "../src/setting/index.ts";
 import {
     account,
     alice,
@@ -370,7 +371,7 @@ test("refuse placements and writes a setting does not permit", () => {
         unsupported,
         {
             code: "INVALID_PLACEMENT",
-            message: `devices cannot store values of ${SettingReference.key(plain.reference)}`,
+            message: `devices cannot store values of ${DeclarationReference.key(plain.reference)}`,
         },
         {
             code: "INVALID_PLACEMENT",
@@ -631,7 +632,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
 
 test("read a setting's value among an installation's resolved settings, refusing an invalid or unresolved one", () => {
     // read the resolved value by the setting's key
-    const key = SettingReference.key(editor.reference);
+    const key = DeclarationReference.key(editor.reference);
     const read = editor.read({ [key]: "vim" });
 
     // refuse a value the schema rejects and a setting the host left out

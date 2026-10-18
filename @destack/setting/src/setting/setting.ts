@@ -1,4 +1,5 @@
-import { Package, PackageId } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
+import { Package, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { BuildCache, type BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
@@ -33,9 +34,6 @@ const SPACE_WEIGHT = 2;
 /** A set value for the installation follows one for its space. */
 const INSTALLATION_WEIGHT = 4;
 
-/** A package-local setting name, stable across releases. */
-export const SettingName = schema.string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u);
-
 /** The scope a setting belongs to and the overrides it permits. */
 export const SettingScope = schema.discriminatedUnion("scope", [
     schema.object({
@@ -63,7 +61,7 @@ export type SettingScope = schema.Infer<typeof SettingScope>;
 /** The serializable fields of a setting declaration. */
 export const SettingMetadata = schema.object({
     /** The package-local name. */
-    name: SettingName,
+    name: DeclarationName,
     /** The label settings views show. */
     title: schema.string().min(1),
     /** The behavior the value controls. */
@@ -98,34 +96,6 @@ export const SettingDescription = schema.discriminatedUnion("scope", [
 ]);
 /** A setting declaration as manifests describe it. */
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
-
-/** The schema of a setting's identity: its package and name. */
-const SettingIdentity = schema.object({
-    /** The package declaring the setting. */
-    packageId: PackageId,
-    /** The package-local name. */
-    name: SettingName,
-});
-
-/** The identity of a setting across package renames and releases. */
-export const SettingReference = Object.assign(SettingIdentity, {
-    /** Key a setting by its package and name. */
-    key(reference: SettingReference): string {
-        return `${reference.packageId}/${reference.name}`;
-    },
-
-    /** Read the setting of a key, refusing a key without a package and name. */
-    of(key: string): SettingReference {
-        const separator = key.indexOf("/");
-
-        return SettingIdentity.parse({
-            packageId: key.slice(0, separator),
-            name: key.slice(separator + 1),
-        });
-    },
-});
-/** The identity of a setting. */
-export type SettingReference = schema.Infer<typeof SettingIdentity>;
 
 /** A value written in a scope, from a write or a stack's declaration. */
 export type SettingWrite = Omit<SettingPlacement, "scope"> & {
@@ -169,10 +139,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Find a declared setting and refuse an undeclared one. */
-    static find(settings: readonly Setting[], reference: SettingReference): Setting {
+    static find(settings: readonly Setting[], reference: DeclarationReference): Setting {
         // look the setting up by its key
-        const key = SettingReference.key(reference);
-        const setting = settings.find((each) => SettingReference.key(each.reference) === key);
+        const key = DeclarationReference.key(reference);
+        const setting = settings.find((each) => DeclarationReference.key(each.reference) === key);
         if (setting === undefined) {
             throw new SettingError("UNDECLARED", `setting ${key} is not declared`);
         }
@@ -183,10 +153,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** Find each written value's setting in the build `open` opens for it, reading each build once. */
     static declared(
         open: (
-            written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+            written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,
         ) => Promise<BuildReader>,
     ): (
-        written: SettingReference & SettingPlacement & Pick<SettingWrite, "release">,
+        written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,
     ) => Promise<Setting> {
         const builds = new BuildCache((reader) => Setting.list(reader));
 
@@ -194,7 +164,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     }
 
     /** The identity its values refer to. */
-    get reference(): SettingReference {
+    get reference(): DeclarationReference {
         return { packageId: this.package.id, name: this.definition.name };
     }
 
@@ -206,7 +176,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** Read the setting's value among an installation's resolved settings. */
     read(settings: JsonObject): schema.Infer<Value> {
         // require the value its machine resolved
-        const key = SettingReference.key(this.reference);
+        const key = DeclarationReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
             throw new SettingError(
                 "UNDECLARED",
@@ -218,7 +188,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Serialise the setting as its reference. */
-    toJSON(): SettingReference {
+    toJSON(): DeclarationReference {
         return this.reference;
     }
 
@@ -523,7 +493,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         } else if (!this.isDeviceStored()) {
             throw new SettingError(
                 "INVALID_PLACEMENT",
-                `devices cannot store values of ${SettingReference.key(this.reference)}`,
+                `devices cannot store values of ${DeclarationReference.key(this.reference)}`,
             );
         }
 
