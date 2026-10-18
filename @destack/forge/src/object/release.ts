@@ -2,7 +2,7 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { graph, PackageId } from "@destack/package";
+import { PackageId } from "@destack/package";
 import { Upgrade } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Distribution, Pack, PackageMetadata } from "../pack/index.ts";
@@ -34,8 +34,6 @@ export const release = defineObject(
             metadata: field.json(PackageMetadata),
             /** The steps from the package's previous release, absent for its first. */
             upgrade: field.json(Upgrade).optional(),
-            /** The build's declarations, such as the features, meters and SKUs it sells. */
-            declarations: field.json(schema.array(graph.Declaration)),
             /** The warning installers show for the release, absent while it is not deprecated. */
             deprecation: field.string(DeprecationMessage).optional(),
             /** When the release was yanked: new installs skip it, exact pins still resolve it. */

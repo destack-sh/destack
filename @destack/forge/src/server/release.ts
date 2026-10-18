@@ -104,7 +104,7 @@ export const ReleaseMethod = {
         await ReleaseMethod.advance(context, packed);
 
         // insert the release
-        const { manifest, commit, version, distribution, metadata, upgrade, declarations } = packed;
+        const { manifest, commit, version, distribution, metadata, upgrade } = packed;
         const created = await next(
             context.with({
                 input: {
@@ -114,7 +114,6 @@ export const ReleaseMethod = {
                     version,
                     distribution,
                     metadata,
-                    declarations,
                     ...(upgrade === undefined ? {} : { upgrade }),
                 },
             }),

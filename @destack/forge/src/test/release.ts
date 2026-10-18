@@ -36,7 +36,7 @@ export async function publishBuild(
         })
         .onConflictDoNothing();
 
-    // store the release with the build's declarations and an empty archive
+    // store the release with an empty archive
     await database.insert(release.table).values({
         id: Identifier.create("release"),
         scope,
@@ -60,7 +60,6 @@ export async function publishBuild(
             dependencies: {},
             optionalDependencies: {},
         },
-        declarations: [...(await build.declarations())],
         createdAt: now,
         updatedAt: now,
     });
