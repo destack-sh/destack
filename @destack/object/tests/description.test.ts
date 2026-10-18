@@ -1,16 +1,10 @@
 import { expect, test } from "@destack/test";
-import { principal } from "@destack/access";
+import { principal, through } from "@destack/access";
 import { declareState } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { nth, schema, toJsonSchema } from "@destack/schema";
-import {
-    DeclarationIndex,
-    defineObject,
-    field,
-    type FileBucket,
-    ObjectType,
-} from "../src/index.ts";
+import { ObjectTypePool, defineObject, field, type FileBucket, ObjectType } from "../src/index.ts";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "./fixture/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
@@ -133,10 +127,39 @@ const TYPES = [
     sample,
 ];
 
+/** A mark nested in any object, counted on it. */
+const mark = defineObject(
+    {
+        name: "mark",
+        plural: "marks",
+        scope: space,
+        nested: { in: "any", receive: "mark" },
+        fields: {
+            /** The mark's label. */
+            label: field.string(),
+        },
+        permissions: { read: through("parent", "read") },
+        aggregates: { markCount: { function: "count" } },
+    },
+    () => ({ update: false }),
+);
+
+/** A host the marks attach to. */
+const host = defineObject({
+    name: "host",
+    plural: "hosts",
+    scope: space,
+    fields: {
+        /** The number of marks. */
+        markCount: field.count(),
+    },
+    permissions: ["read", "mark"],
+    attachments: [mark.attach({ by: "mark" })],
+});
 test("describe every field and method as its builder calls, and declare the same type from them", () => {
     // describe the type, declare it again and describe that
     const described = sample.describe();
-    const declared = nth(DeclarationIndex.of(TYPES).declare([described]), 0);
+    const declared = nth(ObjectTypePool.of(TYPES).declare([described]), 0);
     expect(declared.describe()).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
@@ -268,7 +291,7 @@ test("encode a message field's package, identifier and source text, and refuse p
 test("describe every test type as data, and declare the same types, routes and tables from it", () => {
     // describe each type, declare them all again only from the descriptions, and describe them
     const described = TYPES.map((type) => type.describe());
-    const declared = DeclarationIndex.of([]).declare(described);
+    const declared = ObjectTypePool.of([]).declare(described);
     expect(declared.map((type) => type.describe())).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
@@ -295,6 +318,22 @@ test("describe every test type as data, and declare the same types, routes and t
     ]);
 });
 
+test("declare described types against each other, never against the pool's own types of the same names", () => {
+    // describe a host attaching marks, the host first, into a pool that already knows both
+    const declared = ObjectTypePool.of([space, mark, host]).declare([
+        host.describe(),
+        mark.describe(),
+    ]);
+
+    // read one complete table state from the declared types alone, the host's mark dependents among them
+    expect(
+        declareState(
+            declared.flatMap((type) => type.tables),
+            "sqlite",
+        ),
+    ).toEqual(declareState([...host.tables, ...mark.tables], "sqlite"));
+});
+
 test("refuse code, unknown declarations and intrinsic types at their path", () => {
     // a method's inverse written as code, and a reference to a type the reader does not know
     const coded = defineObject(
@@ -314,7 +353,7 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
             "coded.methods.rename.mutation[0].inverse is code: a description cannot store it",
         ),
     );
-    expect(() => DeclarationIndex.of([space]).declare([sample.describe()])).toThrow(
+    expect(() => ObjectTypePool.of([space]).declare([sample.describe()])).toThrow(
         new TypeError(
             `a description refers to unknown object type ${JSON.stringify([note.package.id, "note"])}`,
         ),

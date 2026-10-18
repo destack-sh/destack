@@ -1,5 +1,5 @@
 import { INTRINSIC_POLICIES, Policy, PolicySubject } from "@destack/access";
-import { DeclarationName, Package } from "@destack/package";
+import { DeclarationName, graph, Package } from "@destack/package";
 import { NO_STATE, ResourceDeclaration, ResourceKind } from "@destack/resource";
 import {
     fromJsonSchema,
@@ -16,7 +16,7 @@ import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
 import { INTRINSIC } from "./intrinsic.ts";
-import { type Declaration, OBJECT_DECLARATION } from "../inspect/object.ts";
+import { OBJECT_DECLARATION } from "../inspect/object.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -91,7 +91,7 @@ export const ObjectDescription = Object.assign(objectDescription, {
 
     /** Read the object descriptions among an installation's declarations. */
     installed(
-        declarations: readonly Pick<Declaration, "kind" | "description">[],
+        declarations: readonly Pick<graph.Declaration, "kind" | "description">[],
     ): ObjectDescription[] {
         return declarations
             .filter((entry) => entry.kind === OBJECT_DECLARATION)
@@ -99,7 +99,7 @@ export const ObjectDescription = Object.assign(objectDescription, {
     },
 
     /** Decode a description's definition against the known declarations, its methods built. */
-    decode(description: ObjectDescription, known: DeclarationIndex): ObjectDefinition {
+    decode(description: ObjectDescription, known: ObjectTypePool): ObjectDefinition {
         const definition = { ...description.definition, name: description.name };
 
         return readDefinition(known.decode(definition));
@@ -108,16 +108,16 @@ export const ObjectDescription = Object.assign(objectDescription, {
 /** An object type as data. */
 export type ObjectDescription = schema.Infer<typeof objectDescription>;
 
-/** The types and policies descriptions refer to, by reference key. */
-export class DeclarationIndex {
+/** The object types and policies descriptions are declared against, by reference key. */
+export class ObjectTypePool {
     /** The object types, by reference key. */
     readonly objects = new Map<string, ObjectType>();
     /** The policies, the object types' own included, by reference key. */
     readonly policies = new Map<string, Policy>();
 
-    /** Index known declarations beside the intrinsic policies every access model has. */
-    static of(known: Iterable<KnownDeclaration>): DeclarationIndex {
-        const declarations = new DeclarationIndex();
+    /** Pool known declarations beside the intrinsic policies every access model has. */
+    static of(known: Iterable<KnownDeclaration>): ObjectTypePool {
+        const declarations = new ObjectTypePool();
         for (const declaration of [...INTRINSIC_POLICIES, ...known]) {
             declarations.add(declaration);
         }
@@ -138,14 +138,17 @@ export class DeclarationIndex {
 
     /** Declare object types from descriptions and add them, each once its references are known. */
     declare(descriptions: readonly ObjectDescription[]): ObjectType[] {
-        // declare each type once the ones it refers to now are known, adding it here
+        // declare each type once the object types of the same descriptions it refers to now are
+        //  declared, as their tables are the ones its own refer to; policies match by key alone
         const pending = new Map(descriptions.map((each) => [ObjectDescription.key(each), each]));
         const declared = new Map<string, ObjectType>();
         while (pending.size > 0) {
-            const ready = [...pending].filter(([, each]) =>
-                this.#unknown(each.definition, false).every(
-                    (reference) => !pending.has(ObjectTypeReference.key(reference)),
-                ),
+            const ready = [...pending].filter(([key, each]) =>
+                ObjectTypePool.#references(each.definition, false).every(({ reference, kind }) => {
+                    const referred = ObjectTypeReference.key(reference);
+
+                    return kind === "policies" || referred === key || !pending.has(referred);
+                }),
             );
             if (ready.length === 0) {
                 throw new TypeError(
@@ -169,7 +172,7 @@ export class DeclarationIndex {
         );
     }
 
-    /** List the types descriptions refer to that neither the index nor the descriptions declare. */
+    /** List the types descriptions refer to that neither the pool nor the descriptions declare. */
     missing(descriptions: readonly ObjectDescription[]): ObjectTypeReference[] {
         const described = new Set(descriptions.map((each) => ObjectDescription.key(each)));
         const missing = descriptions
@@ -179,21 +182,21 @@ export class DeclarationIndex {
         return [...new Map(missing.map((each) => [ObjectTypeReference.key(each), each])).values()];
     }
 
-    /** List the types and policies a description refers to that the index lacks, lazy ones too. */
+    /** List the types and policies a description refers to that the pool lacks, lazy ones too. */
     references(description: ObjectDescription): ObjectTypeReference[] {
-        const references = this.#unknown(description.definition, true).map(
-            (reference) => [ObjectTypeReference.key(reference), reference] as const,
-        );
+        const references = ObjectTypePool.#references(description.definition, true)
+            .filter(({ reference, kind }) => !this[kind].has(ObjectTypeReference.key(reference)))
+            .map(({ reference }) => [ObjectTypeReference.key(reference), reference] as const);
 
         return [...new Map(references).values()];
     }
 
-    /** Report whether the index knows a type or policy by its reference. */
+    /** Report whether the pool knows a type or policy by its reference. */
     has(reference: ObjectTypeReference): boolean {
         return this.policies.has(ObjectTypeReference.key(reference));
     }
 
-    /** Rebuild a description's values, resolving each tag against the index. */
+    /** Rebuild a description's values, resolving each tag against the pool. */
     decode(value: JsonValue): unknown {
         // take plain values as they are
         if (value === null || typeof value !== "object") {
@@ -276,37 +279,40 @@ export class DeclarationIndex {
         );
     }
 
-    /** List the references in a description value the index lacks, lazy ones when asked. */
-    #unknown(value: JsonValue, isLazyFollowed: boolean): ObjectTypeReference[] {
+    /** List the type and policy references in a description's values, lazy ones when asked. */
+    static #references(
+        value: JsonValue,
+        isLazyFollowed: boolean,
+    ): { readonly reference: ObjectTypeReference; readonly kind: "objects" | "policies" }[] {
         // read nothing from plain values, and each entry of a list
         if (value === null || typeof value !== "object") {
             return [];
         } else if (isList(value)) {
-            return value.flatMap((entry) => this.#unknown(entry, isLazyFollowed));
+            return value.flatMap((entry) => ObjectTypePool.#references(entry, isLazyFollowed));
         }
-        // pass a type or policy reference the index lacks
-        else if ("$object" in value || "$policy" in value) {
-            const object = value["$object"];
-            const reference = ObjectTypeReference.parse(object ?? value["$policy"]);
-            const declarations = object === undefined ? this.policies : this.objects;
-
-            return declarations.has(ObjectTypeReference.key(reference)) ? [] : [reference];
+        // pass a type or policy reference
+        else if ("$object" in value) {
+            return [{ reference: ObjectTypeReference.parse(value["$object"]), kind: "objects" }];
+        } else if ("$policy" in value) {
+            return [{ reference: ObjectTypeReference.parse(value["$policy"]), kind: "policies" }];
         }
         // follow a lazy reference only when asked, and every other entry
         else if ("$lazy" in value && !isLazyFollowed) {
             return [];
         }
 
-        return JsonValue.values(value).flatMap((entry) => this.#unknown(entry, isLazyFollowed));
+        return JsonValue.values(value).flatMap((entry) =>
+            ObjectTypePool.#references(entry, isLazyFollowed),
+        );
     }
 
-    /** Read a declaration by its tagged reference, refusing one the index lacks. */
+    /** Read a declaration by its tagged reference, refusing one the pool lacks. */
     #require<Value>(
         declarations: ReadonlyMap<string, Value>,
         value: JsonValue | undefined,
         noun: string,
     ): Value {
-        // look the reference up, refusing one the index lacks
+        // look the reference up, refusing one the pool lacks
         const key = ObjectTypeReference.key(ObjectTypeReference.parse(value));
         const declaration = declarations.get(key);
         if (declaration === undefined) {
