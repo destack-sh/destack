@@ -6,7 +6,6 @@ import {
     defineObject,
     defineShape,
     field,
-    Follow,
     ObjectWatch,
 } from "@destack/object";
 import { PackageId } from "@destack/package";
@@ -64,8 +63,6 @@ export const entitlement = defineObject(
             value: field.json(schema.json()).optional(),
             /** The usage limit of a metered feature, unlimited without one. */
             limit: field.integer().optional(),
-            /** The usage of a metered feature since its last reset. */
-            usage: field.number().optional(),
             /** When a metered feature's usage resets, absent for usage that never resets. */
             resetAt: field.time().optional(),
             /** Where the usage of a metered feature stands against its limit and budget. */
@@ -94,12 +91,6 @@ export const entitlement = defineObject(
                     AND: [
                         {
                             OR: [
-                                { kind: "metered", usage: { isNotNull: true } },
-                                { kind: { ne: "metered" }, usage: { isNull: true } },
-                            ],
-                        },
-                        {
-                            OR: [
                                 { kind: "metered", state: { isNotNull: true } },
                                 { kind: { ne: "metered" }, state: { isNull: true } },
                             ],
@@ -120,7 +111,7 @@ export const entitlement = defineObject(
         create: method.create("provide", { isInternal: true }),
         update: method.update("provide", {
             isInternal: true,
-            fields: ["value", "limit", "usage", "resetAt", "state", "resource"],
+            fields: ["value", "limit", "resetAt", "state", "resource"],
         }),
         delete: method.delete("provide", { isInternal: true }),
     }),
@@ -219,13 +210,9 @@ export const Entitlement = {
         }
         // refuse a use blocked at its limit
         else if (row.state === "blocked") {
-            const limit = row.limit === null ? "its spending limit" : `${row.limit}`;
+            const limit = row.limit === null ? "its spending limit" : `its limit of ${row.limit}`;
 
-            return {
-                status: "false",
-                reason: "Blocked",
-                message: `${used} used ${row.usage} of ${limit}`,
-            };
+            return { status: "false", reason: "Blocked", message: `${used} reached ${limit}` };
         }
         // allow any other use
         else {
@@ -234,19 +221,15 @@ export const Entitlement = {
     },
 
     /** Follow the entitlements of the accounts of the spaces a database serves. */
-    follow: Follow.of(entitlementShape, {
-        from: space.query(),
+    follow: space.follow(entitlementShape, {
         key: async (row, view) => {
             // follow nothing for a space this database does not serve
-            const spaceId = space.identifier(schema.string().parse(row["id"]));
-            if (!(await Space.isServing(view.database, spaceId))) {
+            if (!(await Space.isServing(view.database, row.id))) {
                 return undefined;
             }
 
             // follow its account's entitlements from the universe, their home
-            const accountId = account.identifier(schema.string().parse(row["scope"]));
-
-            return { key: { scope: Scope.universe.id, account: accountId } };
+            return { key: { scope: Scope.universe.id, account: row.scope } };
         },
     }),
 

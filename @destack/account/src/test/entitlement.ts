@@ -29,8 +29,7 @@ export const TestEntitlement = {
         database: DatabaseConnection,
         accountId: Identifier<"account">,
         granted: EntitlementResource | { readonly feature: FeatureReference },
-        terms: Pick<Entitlement, "kind"> &
-            Partial<Pick<Entitlement, "value" | "limit" | "usage" | "state">>,
+        terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
     ): Promise<void> {
         // mark the account's replica complete once
         const now = Date.now();

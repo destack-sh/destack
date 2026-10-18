@@ -12,15 +12,9 @@ const ACCOUNT = account.identifier("account-019f5530-8000-7000-8000-000000000501
 /** The package declaring the platform's features. */
 const PRICING = PackageId.parse("package-019f5530-8000-7000-8000-000000000503");
 
-/** A metered entitlement to a resource with a limit of 1000, blocked at it. */
-function metered(resource: "database" | "storage" | "network", usage: number) {
-    return {
-        resource,
-        kind: "metered" as const,
-        limit: 1000,
-        usage,
-        state: usage >= 1000 ? ("blocked" as const) : ("within" as const),
-    };
+/** A metered entitlement to a resource with a limit of 1000, blocked at it or within it. */
+function metered(resource: "database" | "storage" | "network", state: "blocked" | "within") {
+    return { resource, kind: "metered" as const, limit: 1000, state };
 }
 
 test.for(TEST_DIALECTS)(
@@ -65,9 +59,9 @@ test.for(TEST_DIALECTS)(
             .insert(replicaPosition)
             .values({ ...key, epoch: "epoch", sequence: 1, confirmedAt: now });
         const rows = [
-            metered("database", 1200),
-            metered("storage", 10),
-            metered("network", 1000),
+            metered("database", "blocked"),
+            metered("storage", "within"),
+            metered("network", "blocked"),
             { resource: "tenancy" as const, kind: "static" as const, value: ["shared", "own"] },
         ];
         for (const row of rows) {
