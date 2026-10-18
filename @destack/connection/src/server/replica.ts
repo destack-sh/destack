@@ -1,6 +1,5 @@
-import { defineShape, Follow } from "@destack/object";
+import { defineShape } from "@destack/object";
 import { schema } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
 import { integration } from "../object/integration.ts";
 import { connection } from "../object/connection.ts";
 
@@ -31,18 +30,16 @@ export const integrationShape = defineShape({
 });
 
 /** Follow each integration of another scope a live connection refers to, from its home. */
-export const integrationFollow = Follow.of(integrationShape, {
-    from: connection.query({ where: { deletedAt: { isNull: true } } }),
+export const integrationFollow = connection.follow(integrationShape, {
+    where: { deletedAt: { isNull: true } },
     key: async (row) => {
         // follow nothing for a connection without an integration, or with its own scope's
-        const named =
-            row["integration"] === null ? null : ObjectReference.parse(row["integration"]);
-        if (named === null || named.scope === row["scope"]) {
+        if (row.integration === null || row.integration.scope === row.scope) {
             return undefined;
         }
 
         return {
-            key: { scope: named.scope, id: schema.identifier("integration").parse(named.id) },
+            key: { scope: row.integration.scope, id: integration.identifier(row.integration.id) },
         };
     },
 });
