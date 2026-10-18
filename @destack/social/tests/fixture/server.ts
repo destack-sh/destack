@@ -73,7 +73,7 @@ const SOCIAL_BUILD = await MemoryBuild.of(
     comment.package,
     [mention, thread, reply].map((declared) => ({
         kind: "notification",
-        package: notification.package.id,
+        kindPackageId: notification.package.id,
         name: declared.name,
         description: declared.describe(),
     })),
