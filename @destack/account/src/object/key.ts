@@ -138,9 +138,9 @@ export const Key = {
             return;
         }
 
-        // require the key to authenticate now: unrevoked, unexpired and unsuspended
+        // require the key its thumbprint names to authenticate now: unrevoked, unexpired and unsuspended
         const standing = await reader.read(key.table).findMany({
-            where: { AND: [{ id: credential.id }, Key.authenticates(now)] },
+            where: { AND: [{ thumbprint: credential.id }, Key.authenticates(now)] },
         });
         if (standing.length === 0) {
             throw new CallError("UNAUTHORIZED", {

@@ -4,7 +4,7 @@ import { eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
-import { afterAll, beforeAll, expect, test } from "@destack/test";
+import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
 import { decodeJwt } from "jose";
 import { found, Identifier, schema } from "@destack/schema";
 import { MachineIdentity } from "../src/client/index.ts";
@@ -524,4 +524,47 @@ test("rotate once for two identities of one machine rotating at once, ending on 
             .filter((entry) => entry.revokedAt === null)
             .map((entry) => entry.publicKey),
     }).toEqual({ registered: 2, active: [{ kty, crv, x, y }] });
+});
+
+test("authenticate a machine's token in a space it serves while its key stands, and refuse it once the machine is revoked", async () => {
+    // enroll a machine serving a space, and grant it a token there by its assertion
+    const identity = await accounts.enroll(ids.account);
+    const spaceId = Identifier.create("space");
+    await TestDirectory.place(accounts.database, {
+        id: spaceId,
+        scope: ids.account,
+        machine: identity.machineId,
+        epoch: 1,
+    });
+    const response = await accounts.fetch(
+        new Request(ENDPOINT, {
+            method: "POST",
+            body: new URLSearchParams({
+                grant_type: JWT_BEARER,
+                assertion: await identity.assert(ENDPOINT),
+                resource: PackageId.resource(AUDIENCE),
+                space: spaceId,
+            }),
+        }),
+    );
+    const token = Tokens.parse(await response.json()).access_token;
+
+    // authenticate the token in the space, before and after the owner revokes the machine
+    const authenticate = () =>
+        Identity.authenticate(
+            Snapshot.live(accounts.database),
+            new Request("https://machine.test/", { headers: { authorization: `Bearer ${token}` } }),
+            { audience: AUDIENCE, universe: ISSUER, scope: spaceId, now: Date.now() },
+        );
+    const standing = (await authenticate())?.caller.subject;
+    await accounts.user(ids.owner).machine.revoke({
+        scope: ids.account,
+        id: identity.machineId,
+        requestId: RequestId.create(Date.now()),
+    });
+
+    expect({ standing, revoked: await refusal(authenticate()) }).toEqual({
+        standing: principal.machine.reference(Scope.universe.id, identity.machineId),
+        revoked: ["UNAUTHORIZED", "machine token's key no longer authenticates"],
+    });
 });
