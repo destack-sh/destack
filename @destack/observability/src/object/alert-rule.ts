@@ -6,6 +6,7 @@ import {
     defineObject,
     field,
     Method,
+    Observation,
     type ObjectReconciliation,
     type ObjectType,
 } from "@destack/object";
@@ -595,15 +596,15 @@ export class AlertRule {
     /** Report the rule evaluated at its generation, once per generation. */
     async #observe(reconciliation: ObjectReconciliation<typeof alertRule>): Promise<void> {
         // report only a new generation or a changed readiness, so the report wakes no evaluation of its own
-        const ready = this.row.conditions["Ready"];
+        const ready = this.row.conditions["ready"];
         const isReported =
-            this.row.observedGeneration === this.row.generation && ready?.reason === "Evaluated";
+            Observation.isCurrent(this.row, "ready") && ready?.reason === "Evaluated";
         if (!isReported) {
             await reconciliation.mutate([
                 alertRule.call("observe", {
                     ...alertRule.target(this.row),
                     observedGeneration: this.row.generation,
-                    conditions: { Ready: { status: "true", reason: "Evaluated", message: "" } },
+                    conditions: { ready: { status: "true", reason: "Evaluated", message: "" } },
                 }),
             ]);
         }
