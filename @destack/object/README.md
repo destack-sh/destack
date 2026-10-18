@@ -228,7 +228,7 @@ const usable = defineShape({
     queries: () => [connection.query({ permission: "use" })], // only the connections the follower may use
 });
 const directory = Follow.of(directoryShape, { keys: [{ key: { scope: Scope.universe.id } }] });
-const activities = Follow.of(activityShape, { from: relationship.query(), key: keyOf });
+const activities = relationship.follow(activityShape, { key: keyOf });
 const byTitle = Follow.of(cards, { onDemand: { ttl: { minutes: 10 } } });
 
 await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns

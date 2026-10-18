@@ -74,6 +74,7 @@ import {
     type ObjectSchema,
 } from "../method/procedure.ts";
 import { storeProcedures, type ObjectQuery, type StoreProcedures } from "../replica/replica.ts";
+import type { RowFollow, Shape } from "../replica/shape.ts";
 import { compile, compileQueries } from "../query/query.ts";
 import { record } from "../trait/record.ts";
 import { series, type SeriesMethodMap } from "../trait/series.ts";
@@ -1275,6 +1276,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         } = {},
     ): ObjectQuery {
         return { object: this.name, ...options };
+    }
+
+    /** Follow a shape at one key per row of these objects in the follower's own database. */
+    follow<Self extends ObjectType, Parameters extends object>(
+        this: Self,
+        shape: Shape<Parameters>,
+        at: Omit<RowFollow<Parameters, Self>, "shape" | "from">,
+    ): RowFollow<Parameters, Self> {
+        return { ...at, shape, from: this };
     }
 
     /** Compile a query or include of the objects. */

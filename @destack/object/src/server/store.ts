@@ -79,7 +79,7 @@ import {
     type ProcedureRouter,
 } from "@destack/runtime";
 import * as sync from "@destack/sync";
-import { type Follow, type FollowKey } from "../replica/shape.ts";
+import { type Follow, type FollowKey, type RowFollow } from "../replica/shape.ts";
 import { followKey } from "../replica/key.ts";
 import { QueriesParameters } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
@@ -617,7 +617,7 @@ export class ObjectStore {
                     ...ObjectStore.#chainedTables(given, types),
                     // relist when followed rows change, which the host's chain fact reads
                     ...follows.flatMap((each) => each.shape.objects.map((type) => type.table)),
-                    ...follows.flatMap((each) => ObjectStore.#followedTables(each, types)),
+                    ...follows.flatMap((each) => ("from" in each ? [each.from.table] : [])),
                     // relist when the store acquires or evicts an on-demand key
                     ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
                 ],
@@ -692,7 +692,7 @@ export class ObjectStore {
             } else if (!described.has(key)) {
                 const description = type.describe();
                 described.set(key, description);
-                pending.push(...ObjectDescription.references(description, intrinsic));
+                pending.push(...intrinsic.references(description));
             }
             reference = pending.pop();
         }
@@ -3192,19 +3192,6 @@ export class ObjectStore {
         return "receive" in publisher;
     }
 
-    /** List the tables whose rows decide a follow's keys: its rows' type's, none for fixed keys. */
-    static #followedTables(follow: Follow, objects: readonly ObjectType[]): Table[] {
-        // follow fixed and on-demand keys whatever the store's rows change
-        if (!("from" in follow)) {
-            return [];
-        }
-
-        // watch the table of the rows the keys come from
-        const { object } = follow.from;
-
-        return objects.filter((type) => type.name === object).map((type) => type.table);
-    }
-
     /** Compose a store's parts from its servers and sandboxes, and list the packages it serves. */
     static #compose(
         given: ObjectStoreOptions,
@@ -3681,19 +3668,14 @@ export class ObjectStore {
         return partition ?? (principal.installation.is(self) ? self.scope : self.id);
     }
 
-    /** Read the keys of a follow over the store's own rows: one per row its query reads. */
+    /** Read the keys of a follow over the store's own rows: one per row it reads. */
     static async #readKeys(
         store: ObjectStore,
-        follow: Extract<Follow, { readonly from: unknown }>,
+        follow: RowFollow<object, ObjectType>,
     ): Promise<FollowKey[]> {
-        // read the queried rows of the store's own database
-        const query = follow.from;
-        const type = present(
-            store.decided.find((object) => object.name === query.object),
-            `the object type ${query.object} a follow's keys come from`,
-        );
+        // read the rows of the store's own database the keys come from
         const view = Snapshot.live(store.database);
-        const rows = await view.read(type.table).findMany({ where: query.where ?? {} });
+        const rows = await view.read(follow.from.table).findMany({ where: follow.where ?? {} });
 
         // read each row's key
         const found = await Promise.all(rows.map((row) => follow.key(row, view, store.space)));

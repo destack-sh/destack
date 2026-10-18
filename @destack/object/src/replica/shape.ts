@@ -1,4 +1,11 @@
-import { type DatabaseConnection, eq, type Snapshot, sql } from "@destack/db";
+import {
+    type Condition,
+    type DatabaseConnection,
+    eq,
+    type RowImage,
+    type Snapshot,
+    sql,
+} from "@destack/db";
 import { type Duration, schema } from "@destack/schema";
 import { replica, Subject, type Subscription } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
@@ -155,7 +162,7 @@ export interface FollowKey<Parameters extends object = object> {
 }
 
 /** A shape a package's code reads replicated: at fixed keys, one key per own row, or on demand. */
-export type Follow<Parameters extends object = object> = {
+export type Follow<Parameters extends object = object, From extends ObjectType = ObjectType> = {
     /** Whether the store waits for these replicas before serving, true by default. */
     readonly isReadinessGate?: boolean;
 } & (
@@ -168,14 +175,16 @@ export type Follow<Parameters extends object = object> = {
     | {
           /** The followed shape. */
           readonly shape: Shape<Parameters>;
-          /** The query of the follower's own rows its keys come from. */
-          readonly from: ObjectQuery;
+          /** The object type of the follower's own rows its keys come from. */
+          readonly from: From;
+          /** The condition on those rows, every row when absent. */
+          readonly where?: Condition<RowImage<From["table"]>>;
           /** Read a row's key as the follower, absent for a row it follows nothing for. */
-          readonly key: (
-              row: Readonly<Record<string, unknown>>,
+          key(
+              row: RowImage<From["table"]>,
               view: Snapshot,
               space: string | undefined,
-          ) => Promise<FollowKey<Parameters> | undefined>;
+          ): Promise<FollowKey<Parameters> | undefined>;
       }
     | {
           /** The followed shape. */
@@ -185,13 +194,22 @@ export type Follow<Parameters extends object = object> = {
       }
 );
 
+/** A follow of a shape at one key per row of the follower's own, of one object type. */
+export type RowFollow<Parameters extends object, From extends ObjectType> = Extract<
+    Follow<Parameters, From>,
+    { readonly from: unknown }
+>;
+
 /** Follows of shapes. */
 export const Follow = {
-    /** Follow a shape at fixed keys, at one key per row of the follower's own, or on demand. */
-    of<Parameters extends object, const At extends DistributiveOmit<Follow<Parameters>, "shape">>(
-        shape: Shape<Parameters>,
-        at: At,
-    ): NoInfer<At & { readonly shape: Shape<Parameters> }> {
+    /** Follow a shape at fixed keys or on demand. */
+    of<
+        Parameters extends object,
+        const At extends DistributiveOmit<
+            Exclude<Follow<Parameters>, { readonly from: unknown }>,
+            "shape"
+        >,
+    >(shape: Shape<Parameters>, at: At): NoInfer<At & { readonly shape: Shape<Parameters> }> {
         return { ...at, shape };
     },
 };

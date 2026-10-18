@@ -7,7 +7,7 @@ import { present, schema } from "@destack/schema";
 import { Scope, type Publisher } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
-import { defineShape, type Follow } from "../src/index.ts";
+import { defineShape, Follow } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
@@ -34,25 +34,13 @@ const iconed = defineShape({
 });
 
 /** Follow the universe's pages titled Plan. */
-const plans: Follow<{ title: string }> = {
-    shape: titled,
-    keys: [{ key: { scope: Scope.universe.id, title: "Plan" } }],
-};
+const plans = Follow.of(titled, { keys: [{ key: { scope: Scope.universe.id, title: "Plan" } }] });
 
 /** Follow the pages of each icon the space's pages show. */
-const icons: Follow<{ icon: string }> = {
-    shape: iconed,
-    from: page.query(),
+const icons = page.follow(iconed, {
     key: async (row) =>
-        row["icon"] === null
-            ? undefined
-            : {
-                  key: {
-                      scope: schema.string().parse(row["scope"]),
-                      icon: schema.string().parse(row["icon"]),
-                  },
-              },
-};
+        row.icon === null ? undefined : { key: { scope: row.scope, icon: row.icon } },
+});
 
 test("subscribe to a fixed key and to one key per row the follower has, each toward its scope's publisher, and relist once a row changes the keys", async () => {
     // compose the pages with the follows over the space's database, naming each scope's publisher
