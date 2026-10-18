@@ -173,14 +173,32 @@ describe("note", () => {
     );
     const registered = module.declarations.find((declaration) => declaration.kind === "test");
     expect({
-        declarations: module.declarations.map(({ kind, name }) => ({ kind, name })),
+        // declare each test and suite at the module, which defines no symbols of its own
+        symbols: module.symbols,
+        declarations: module.declarations.map(({ moniker, symbol, kind, name }) => ({
+            moniker: local(moniker),
+            symbol: local(symbol),
+            kind,
+            name,
+        })),
         covers: module.edges
             .filter((edge) => edge.from === registered?.moniker && edge.kind === "covers")
             .map((edge) => edge.to.slice(edge.to.indexOf("/") + 1)),
     }).toEqual({
+        symbols: [],
         declarations: [
-            { kind: "test", name: "note › starts incomplete" },
-            { kind: "suite", name: "note" },
+            {
+                moniker: "src/note.test.ts:suite:note",
+                symbol: "src/note.test.ts",
+                kind: "suite",
+                name: "note",
+            },
+            {
+                moniker: "src/note.test.ts:test:note › starts incomplete",
+                symbol: "src/note.test.ts",
+                kind: "test",
+                name: "note › starts incomplete",
+            },
         ],
         covers: ["src/note.ts#createNote"],
     });

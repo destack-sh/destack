@@ -10,7 +10,7 @@ export interface TestSource {
     readonly declarations: readonly TestDeclaration[];
 }
 
-/** A test or suite of a module as a declaration with its source range. */
+/** A test or suite of a module as a declaration at the module, with its source range. */
 export interface DescribedTest {
     /** The test's declaration. */
     readonly declaration: graph.Declaration;
@@ -23,23 +23,17 @@ export class TestGraph {
     /** The tests of each module, by module path. */
     readonly #tests = new Map<string, DescribedTest[]>();
 
-    /** Describe each test at the symbol its suite titles and title name. */
+    /** Describe each test as a declaration at its module, named by its suite titles and title. */
     constructor(source: Package, tests: TestSource) {
         for (const test of tests.declarations) {
-            const symbol = graph.Moniker.of({
-                packageId: source.id,
-                module: test.file,
-                name: [...test.suites, test.name].join(" › "),
-            });
+            const module = graph.Moniker.of({ packageId: source.id, module: test.file });
             const described: DescribedTest = {
-                declaration: {
-                    moniker: `${symbol}:${test.kind}`,
-                    symbol,
+                declaration: graph.Declaration.at(module, {
                     kind: test.kind,
                     kindPackageId: tests.package.id,
                     name: [...test.suites, test.name].join(" › "),
                     description: { modifiers: test.modifiers },
-                },
+                }),
                 source: { file: test.file, start: test.start, end: test.end },
             };
             this.#tests.set(test.file, [...(this.#tests.get(test.file) ?? []), described]);

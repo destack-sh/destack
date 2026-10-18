@@ -17,40 +17,40 @@ import type { ExampleDeclaration } from "../typescript/example.ts";
 import type { ScenarioDeclaration } from "../typescript/scenario.ts";
 
 /** The symbol kind of each language declaration kind. */
-const SYMBOL_KINDS: Readonly<Record<string, graph.Symbol["kind"]>> = {
+const DECLARATION_SYMBOL_KINDS: Readonly<Record<string, graph.Symbol["kind"]>> = {
     FunctionDeclaration: "function",
     FunctionExpression: "function",
     ArrowFunction: "function",
     ClassDeclaration: "class",
     ClassExpression: "class",
     InterfaceDeclaration: "interface",
-    TypeAliasDeclaration: "type",
-    TypeLiteral: "type",
-    MappedType: "type",
-    TypeParameter: "type",
+    TypeAliasDeclaration: "typeAlias",
+    TypeLiteral: "typeAlias",
+    MappedType: "typeAlias",
+    TypeParameter: "typeParameter",
     VariableDeclaration: "variable",
     BindingElement: "variable",
-    Parameter: "variable",
     ExportAssignment: "variable",
     ObjectLiteralExpression: "variable",
+    Parameter: "parameter",
     EnumDeclaration: "enum",
+    EnumMember: "enumMember",
     ModuleDeclaration: "namespace",
-    SourceFile: "namespace",
-    ExportDeclaration: "namespace",
-    NamespaceExport: "namespace",
+    SourceFile: "module",
+    ExportDeclaration: "module",
+    NamespaceExport: "module",
     MethodDeclaration: "method",
     MethodSignature: "method",
-    Constructor: "method",
     CallSignature: "method",
     ConstructSignature: "method",
     IndexSignature: "method",
+    Constructor: "constructor",
     PropertyDeclaration: "property",
     PropertySignature: "property",
     PropertyAssignment: "property",
     ShorthandPropertyAssignment: "property",
-    GetAccessor: "accessor",
-    SetAccessor: "accessor",
-    EnumMember: "member",
+    GetAccessor: "getter",
+    SetAccessor: "setter",
 };
 
 /** The longest printed signature line, TypeScript's defaultMaximumTruncationLength. */
@@ -424,7 +424,7 @@ function isAnonymous(name: string): boolean {
 
 /** Read the symbol kind of a symbol's first declaration. */
 function kindOf(declarations: readonly SourceDeclaration[], name: string): graph.Symbol["kind"] {
-    const kind = SYMBOL_KINDS[first(declarations).kind];
+    const kind = DECLARATION_SYMBOL_KINDS[first(declarations).kind];
     if (kind === undefined) {
         throw new BuildError(
             "INSPECTION_FAILED",
@@ -453,7 +453,7 @@ function printSymbol(symbol: SymbolDescription): string {
     const heritage = declaration.heritage
         .map((clause) => ` ${clause.relation} ${clause.type.text}`)
         .join("");
-    const kind = SYMBOL_KINDS[declaration.kind];
+    const kind = DECLARATION_SYMBOL_KINDS[declaration.kind];
 
     // print callables by overload, types by their definition and values by their type
     if (kind === "function") {
@@ -462,9 +462,9 @@ function printSymbol(symbol: SymbolDescription): string {
             .join("\n");
     } else if (kind === "class" || kind === "interface") {
         return `${kind} ${symbol.name}${generics}${heritage}`;
-    } else if (kind === "type") {
+    } else if (kind === "typeAlias") {
         return `type ${symbol.name}${generics} = ${symbol.declaredType?.text ?? ""}`;
-    } else if (kind === "enum" || kind === "namespace") {
+    } else if (kind === "enum" || kind === "namespace" || kind === "module") {
         return `${kind} ${symbol.name}`;
     } else {
         return `${symbol.name}: ${symbol.valueType?.text ?? symbol.declaredType?.text ?? ""}`;
@@ -483,15 +483,15 @@ function truncate(signature: string): string {
 
 /** Print a member's declaration, one line per overload of a method. */
 function printMember(member: SymbolDescription["members"][number]): string {
-    const kind = SYMBOL_KINDS[first(member.declarations).kind];
+    const kind = DECLARATION_SYMBOL_KINDS[first(member.declarations).kind];
     const optional = member.isOptional ? "?" : "";
 
     // print methods by overload, enum members by name and the rest by type
-    if (kind === "method") {
+    if (kind === "method" || kind === "constructor") {
         return member.signatures
             .map((signature) => `${member.name}${optional}${printSignature(signature)}`)
             .join("\n");
-    } else if (kind === "member") {
+    } else if (kind === "enumMember") {
         return member.name;
     } else {
         return `${member.name}${optional}: ${member.type.text}`;
