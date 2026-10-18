@@ -13,7 +13,7 @@ export type Moniker = schema.Infer<typeof monikerSchema>;
 /** A stable name of a module, symbol or declaration across builds. */
 export const Moniker = Object.assign(monikerSchema, { of });
 
-/** The names a moniker joins: package and module, then optional symbol, member and kind. */
+/** The names a moniker of a module, symbol or member joins. */
 export interface MonikerName {
     /** The package identifier, or `npm:<name>` for a package without one. */
     readonly packageId: string;
@@ -23,16 +23,13 @@ export interface MonikerName {
     readonly name?: string;
     /** The member of the symbol. */
     readonly member?: string;
-    /** The declaration kind, for a declaration at the symbol or member. */
-    readonly kind?: string;
 }
 
 /** Join a moniker from its names. */
 function of(name: MonikerName): Moniker {
-    // name the module followed by the symbol, its member and the declaration kind
+    // name the module followed by the symbol and its member
     const symbol = name.name === undefined ? "" : `#${name.name}`;
     const member = name.member === undefined ? "" : `.${name.member}`;
-    const kind = name.kind === undefined ? "" : `:${name.kind}`;
 
-    return monikerSchema.parse(`${name.packageId}/${name.module}${symbol}${member}${kind}`);
+    return monikerSchema.parse(`${name.packageId}/${name.module}${symbol}${member}`);
 }
