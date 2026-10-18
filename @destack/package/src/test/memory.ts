@@ -64,16 +64,19 @@ export const MemoryBuild = {
             files.set(path, source);
             const symbol = (name: string) =>
                 Moniker.of({ packageId: owner.id, module: path, name });
+            const names = [...new Set(values.map((value) => value.name))];
             graph.push({
                 path,
                 digest: await Digest.of(source),
                 imports: [],
-                exports: values.map((value) => ({
-                    name: value.name,
-                    symbol: symbol(value.name),
-                    isTypeOnly: false,
+                exports: names.map((name) => ({ name, symbol: symbol(name), isTypeOnly: false })),
+                symbols: names.map((name) => ({
+                    moniker: symbol(name),
+                    kind: "variable",
+                    source: { file: path, start: 0, end: source.length },
+                    signature: `export const ${name}`,
+                    isExported: true,
                 })),
-                symbols: [],
                 declarations: values.map(({ module: _module, ...value }) =>
                     Declaration.at(symbol(value.name), Declared.parse(value)),
                 ),

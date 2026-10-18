@@ -47,6 +47,14 @@ export type Root = schema.Infer<typeof Root>;
 
 /** Encode a module as its graph file: the bytes and their digest, the file's content address. */
 async function file(module: Module): Promise<{ digest: Digest; bytes: Uint8Array<ArrayBuffer> }> {
+    // refuse a declaration at a symbol the module does not define
+    const defined = new Set(module.symbols.map((symbol) => symbol.moniker));
+    const stray = module.declarations.find((declaration) => !defined.has(declaration.symbol));
+    if (stray !== undefined) {
+        throw new TypeError(`${module.path} declares ${stray.moniker} at no symbol it defines`);
+    }
+
+    // encode the module
     const bytes = new TextEncoder().encode(`${JSON.stringify(module)}\n`);
 
     return { digest: await Digest.of(bytes), bytes };
