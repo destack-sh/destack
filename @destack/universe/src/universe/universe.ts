@@ -9,17 +9,15 @@ import { Account, claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { accountServer, DnsOverHttps, Operator, UniverseRole } from "@destack/account/server";
 import { accountDatabase } from "@destack/account/stack";
-import { defineDatabase } from "@destack/db";
 import type { Bucket } from "@destack/bucket";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { Registry } from "@destack/forge/client";
 import forgePackage from "@destack/forge/package";
 import { type Keyring } from "@destack/identity";
 import type { MailTransport } from "@destack/message/email";
 import { call } from "@destack/object";
-import { defineServer } from "@destack/object/server";
-import { ObjectStore } from "@destack/object/server";
+import { defineServer, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId } from "@destack/package";
 import relayPackage from "@destack/relay/package";
 import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
@@ -30,7 +28,7 @@ import type { Alarm } from "@destack/runtime/control";
 import { Health } from "@destack/runtime/health";
 import { type CallKey, RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
-import { SettingCatalog } from "@destack/setting";
+import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import { Scope } from "@destack/sync";
 import objectPackage from "@destack/object/package";
@@ -153,7 +151,7 @@ export class Universe implements AsyncDisposable {
                     signIn: signIn.promise,
                 }),
                 settingServer({
-                    declared: SettingCatalog.cached((value) =>
+                    declared: Setting.declared((value) =>
                         registry.open(value.packageId, value.release),
                     ),
                     after: [],

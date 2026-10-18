@@ -57,7 +57,7 @@ test("start a universe over its declaration, answering the account package below
             clock: Clock.system,
             network: { ...Network.system, fetch: async () => new Response(null, { status: 502 }) },
         },
-        // leave the residency home's finance unreachable, its entitlement replica retrying
+        // leave the residency's home unreachable, its follows retrying
         report: () => {},
     });
 
