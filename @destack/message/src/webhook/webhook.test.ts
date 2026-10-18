@@ -47,7 +47,6 @@ const ENDPOINT: Endpoint = {
     status: "enabled",
     conditions: {},
     generation: 1,
-    observedGeneration: 1,
     revision: 1,
     tags: {},
     deletedAt: null,
