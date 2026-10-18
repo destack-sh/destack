@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import {
     Grant,
     type GrantPermission,
@@ -49,7 +50,7 @@ import {
     schema,
 } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import { Setting, SettingReference } from "@destack/setting";
+import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { Scope } from "@destack/sync";
 import { InstallationSelection, InstallationDefinition } from "../declare/installation.ts";
@@ -603,7 +604,7 @@ export const Installation = {
         const placed = declared.filter((setting) => setting.definition.scope === "space");
         const resolved = await Promise.all(
             placed.map(async (declared): Promise<[string, JsonValue]> => [
-                SettingReference.key(declared.reference),
+                DeclarationReference.key(declared.reference),
                 schema
                     .json()
                     .parse(await SettingValue.resolve(Snapshot.live(database), declared, target)),

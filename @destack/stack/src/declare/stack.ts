@@ -1,10 +1,11 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { ModuleMetadata, type Package } from "@destack/package";
 import { type JsonObject, JsonValue, schema } from "@destack/schema";
 import { InstallationDefinition } from "./installation.ts";
 import { ResourceDefinition } from "@destack/resource";
 import type { RelationshipDefinition, RoleDefinition } from "./permission.ts";
 import { RouteDefinition } from "./route.ts";
-import { type Setting, SettingReference } from "@destack/setting";
+import { type Setting } from "@destack/setting";
 import type { StackSetting } from "@destack/setting/declare";
 
 /** The collections a stack declares, extended by module augmentation in object packages. */
@@ -23,7 +24,7 @@ export interface StackDefinition {
     readonly settings?: Readonly<
         Record<
             string,
-            Omit<StackSetting, "setting"> & { readonly setting: Setting | SettingReference }
+            Omit<StackSetting, "setting"> & { readonly setting: Setting | DeclarationReference }
         >
     >;
 }
@@ -50,7 +51,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         return Object.fromEntries(
             Object.entries(settings).map(([key, value]) => [
                 key,
-                { setting: SettingReference.of(key), mode: "set", value },
+                { setting: DeclarationReference.ofKey(key), mode: "set", value },
             ]),
         );
     },
