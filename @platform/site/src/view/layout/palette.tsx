@@ -1,8 +1,10 @@
 import { Icon } from "@destack/icon";
+import caretRight from "@destack/icon/phosphor/caret-right";
+import check from "@destack/icon/phosphor/check";
 import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { Button } from "@destack/ui/button";
 import {
     CommandDialog,
@@ -12,11 +14,11 @@ import {
     CommandItem,
     CommandList,
     CommandLoading,
-    CommandShortcut,
 } from "@destack/ui/command";
-import { Kbd, KbdGroup } from "@destack/ui/kbd";
-import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
+import { present, schema } from "@destack/schema";
+import { Kbd } from "@destack/ui/kbd";
 import { createMemo, createSignal, For, onSettled, Show } from "@destack/view";
+import type { LocalAppearance } from "@destack/view/document";
 import { Accelerator, isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 import { useNavigate } from "@destack/view/router";
@@ -26,55 +28,97 @@ import {
     commandEvents,
     type CommandMatch,
     commandsFor,
-    groupOf,
     highlightSegments,
     matchCommands,
-    type SearchScope,
-    searchScopes,
+    type Menu,
+    menuTitles,
+    type PageSection,
+    type Site,
 } from "./command";
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
+import { createDownloads } from "../home/participle/download/download";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 
-/** The most results the palette shows at once. */
-const RESULT_LIMIT = 8;
+/** The most results a search shows at once. */
+const RESULT_LIMIT = 10;
+
+/** The most recently opened pages the empty palette lists. */
+const RECENT_LIMIT = 4;
+
+/** The browser storage key of the recently opened pages, a per-visitor convenience. */
+const RECENT_KEY = "destack-palette-recent";
+
+/** The milliseconds a copied command shows its check before the palette closes. */
+const COPIED_TIME = 700;
 
 /** Search the site's pages, sections and commands from anywhere, on ⌘K, Ctrl+K or a slash. */
-export function CommandPalette() {
-    // hold whether the palette is open, the loaded entries and the search
+export function CommandPalette(properties: { appearance: LocalAppearance }) {
+    // hold whether the palette is open, its menu, the search and the loaded entries
     const navigate = useNavigate();
+    const { selected: download } = createDownloads();
     const [isOpen, setIsOpen] = createSignal(false);
+    const [menu, setMenu] = createSignal<Menu>("root");
+    const [query, setQuery] = createSignal("");
     const [entries, setEntries] = createSignal<readonly SearchEntry[]>([]);
     const [isLoading, setIsLoading] = createSignal(false);
     const [failure, setFailure] = createSignal<string>();
-    const [source, setSource] = createSignal<PageFormats>();
-    const [hasStack, setHasStack] = createSignal(false);
-    const [query, setQuery] = createSignal("");
-    const [scope, setScope] = createSignal<SearchScope>("All");
+    const [page, setPage] = createSignal<Pick<Site, "source" | "sections" | "hasStack">>({
+        source: undefined,
+        sections: [],
+        hasStack: false,
+    });
+    const [recent, setRecent] = createSignal<readonly string[]>([]);
+    const [copied, setCopied] = createSignal<string>();
     const [isMac, setIsMac] = createSignal(false);
-    const commands = createMemo(() =>
-        commandsFor([...siteSearchEntries, ...entries()], source(), hasStack()),
-    );
-    const results = createMemo(() => matchCommands(commands(), query(), RESULT_LIMIT, scope()));
 
-    // group the ranked results in the order their first result appears
+    // build the page's commands, and list what the menu and search show
+    const commands = createMemo(() =>
+        commandsFor({
+            entries: [...siteSearchEntries, ...entries()],
+            download: download(),
+            ...page(),
+        }),
+    );
+    const results = createMemo(() => matchCommands(commands(), menu(), query(), RESULT_LIMIT));
+
+    // group the results, the recent pages first on the empty root
     const groups = createMemo(() => {
+        // collect the groups in the order they first show
         const grouped = new Map<string, CommandMatch[]>();
-        for (const match of results()) {
-            const name = groupOf(match.command);
-            grouped.set(name, [...(grouped.get(name) ?? []), match]);
+
+        // lead the empty root with the recently opened pages
+        if (menu() === "root" && query().trim() === "") {
+            const opened = recent().flatMap((id) =>
+                commands().filter((command) => command.id === id),
+            );
+            grouped.set(
+                "Recent",
+                opened.map((command) => ({ command, excerpt: "", terms: [] })),
+            );
         }
 
-        return [...grouped];
+        // add each result to its group
+        for (const match of results()) {
+            grouped.set(match.command.group, [...(grouped.get(match.command.group) ?? []), match]);
+        }
+
+        return [...grouped].filter(([, matches]) => matches.length > 0);
     });
 
-    // load the search index the first time somebody opens the palette, retrying after a failure
+    // open on the root, reading the page, and load the search index once
     const open = async (): Promise<void> => {
-        // clear the search and show the palette over the current page
+        // clear the search and read the page under the palette
         setQuery("");
-        setSource(currentPageSource());
-        setHasStack(document.querySelector("[data-figure-label]") !== null);
+        setMenu("root");
+        setCopied(undefined);
+        setPage({
+            source: currentPageSource(),
+            sections: currentSections(),
+            hasStack: document.querySelector("[data-figure-label]") !== null,
+        });
+        setRecent(readRecent());
         setIsOpen(true);
 
         // load the index once, leaving a load in flight or done alone
@@ -107,15 +151,44 @@ export function CommandPalette() {
         setIsMac(isCommandPlatform());
     });
 
-    // close the palette and run the chosen command
-    const choose = (command: PaletteCommand): void => {
-        setIsOpen(false);
-        if (command.action.kind === "dispatch") {
-            document.dispatchEvent(new CustomEvent(command.action.event));
-        } else if (command.action.href.startsWith("/")) {
-            navigate(command.action.href);
+    // enter a submenu with a fresh search, or go back to the root
+    const enter = (next: Menu): void => {
+        setMenu(next);
+        setQuery("");
+    };
+
+    // run the chosen command: open its menu, copy, set the theme, dispatch or follow it
+    const choose = async (command: PaletteCommand): Promise<void> => {
+        const { action } = command;
+        if (action.kind === "menu") {
+            enter(action.menu);
+        } else if (action.kind === "copy") {
+            await navigator.clipboard.writeText(action.text);
+            setCopied(command.id);
+            setTimeout(() => setIsOpen(false), COPIED_TIME);
+        } else if (action.kind === "appearance") {
+            properties.appearance.setAppearance(action.appearance);
+            setIsOpen(false);
+        } else if (action.kind === "dispatch") {
+            setIsOpen(false);
+            document.dispatchEvent(new CustomEvent(action.event));
         } else {
-            window.open(command.action.href, "_blank", "noopener,noreferrer");
+            setIsOpen(false);
+            setRecent(writeRecent(command, recent()));
+            follow(action.href);
+        }
+    };
+
+    // follow a destination: a section in place, a site route, or another site in a new tab
+    const follow = (href: string): void => {
+        if (href.startsWith("#")) {
+            present(document.getElementById(href.slice(1)), `section ${href}`).scrollIntoView({
+                behavior: "smooth",
+            });
+        } else if (href.startsWith("/")) {
+            navigate(href);
+        } else {
+            window.open(href, "_blank", "noopener,noreferrer");
         }
     };
 
@@ -134,33 +207,49 @@ export function CommandPalette() {
                 onSearchChange={setQuery}
                 shouldFilter={false}
                 loop
+                onKeyDown={(event) => {
+                    // go back to the root on Backspace in an empty submenu search
+                    if (event.key === "Backspace" && query() === "" && menu() !== "root") {
+                        event.preventDefault();
+                        enter("root");
+                    }
+                }}
             >
+                {/* name the submenu above its search */}
+                <Show when={menu() !== "root" ? menu() : undefined}>
+                    {(submenu) => (
+                        <span {...style.attrs(styles.crumbs)}>
+                            <button
+                                type="button"
+                                onClick={() => enter("root")}
+                                {...style.attrs(styles.crumb)}
+                            >
+                                {menuTitles.root}
+                            </button>
+                            <Icon icon={caretRight} xstyle={styles.crumbCaret} />
+                            <span {...style.attrs(styles.crumb, styles.crumbOn)}>
+                                {menuTitles[submenu()]}
+                            </span>
+                        </span>
+                    )}
+                </Show>
                 <CommandInput
                     placeholder={
-                        scope() === "All" ? "Search Destack…" : `Search ${scope().toLowerCase()}…`
+                        menu() === "root"
+                            ? "What do you need?"
+                            : `Search ${menuTitles[menu()].toLowerCase()}…`
                     }
+                    xstyle={styles.input}
                 />
 
-                {/* keep the searched collection visible while typing */}
-                <ToggleGroup
-                    aria-label="Search scope"
-                    value={scope()}
-                    onValueChange={(value) => {
-                        const chosen = searchScopes.find((name) => name === value);
-                        setScope(chosen ?? "All");
-                    }}
-                    size="sm"
-                    xstyle={styles.scopes}
-                >
-                    <For each={searchScopes}>
-                        {(name) => <ToggleGroupItem value={name}>{name}</ToggleGroupItem>}
-                    </For>
-                </ToggleGroup>
-
-                <CommandList>
-                    <Show when={isLoading()}>
+                {/* list the results */}
+                <CommandList xstyle={styles.list}>
+                    {/* show the index loading */}
+                    <Show when={isLoading() && query() !== ""}>
                         <CommandLoading>Loading search…</CommandLoading>
                     </Show>
+
+                    {/* show the index failing to load */}
                     <Show when={failure()}>
                         {(message) => (
                             <p role="alert" {...style.attrs(styles.failure)}>
@@ -168,13 +257,27 @@ export function CommandPalette() {
                             </p>
                         )}
                     </Show>
-                    <CommandEmpty>No results found.</CommandEmpty>
+
+                    {/* say what matched nothing, else list the groups */}
+                    <CommandEmpty>No results for “{query()}”</CommandEmpty>
                     <For each={groups()}>
-                        {(group) => (
-                            <CommandGroup heading={group[0]}>
-                                <For each={group[1]}>
+                        {([heading, matches]) => (
+                            <CommandGroup
+                                heading={<span {...style.attrs(styles.heading)}>{heading}</span>}
+                            >
+                                <For each={matches}>
                                     {(match) => (
-                                        <Result match={match} isMac={isMac()} onChoose={choose} />
+                                        <Row
+                                            match={match}
+                                            isMac={isMac()}
+                                            isCopied={copied() === match.command.id}
+                                            isCurrent={
+                                                match.command.action.kind === "appearance" &&
+                                                match.command.action.appearance ===
+                                                    properties.appearance.appearance()
+                                            }
+                                            onChoose={(command) => void choose(command)}
+                                        />
                                     )}
                                 </For>
                             </CommandGroup>
@@ -183,19 +286,23 @@ export function CommandPalette() {
                 </CommandList>
 
                 {/* show the keys the palette answers to */}
-                <footer {...style.attrs(text.footnote, styles.footer)}>
+                <footer {...style.attrs(text.caption, styles.footer)}>
                     <span {...style.attrs(styles.hint)}>
-                        <KbdGroup>
-                            <Kbd>↑</Kbd>
-                            <Kbd>↓</Kbd>
-                        </KbdGroup>
+                        <Kbd>↑</Kbd>
+                        <Kbd>↓</Kbd>
                         Navigate
                     </span>
                     <span {...style.attrs(styles.hint)}>
                         <Kbd>↵</Kbd>
                         Open
                     </span>
-                    <span {...style.attrs(styles.hint)}>
+                    <Show when={menu() !== "root"}>
+                        <span {...style.attrs(styles.hint)}>
+                            <Kbd>⌫</Kbd>
+                            Back
+                        </span>
+                    </Show>
+                    <span {...style.attrs(styles.hint, styles.hintEnd)}>
                         <Kbd>Esc</Kbd>
                         Close
                     </span>
@@ -205,39 +312,80 @@ export function CommandPalette() {
     );
 }
 
-/** Draw one result: its icon, its highlighted label and context, an excerpt, and its keys. */
-function Result(properties: {
+/** Draw one row: its icon, its label and quiet line, and its key, menu caret or check. */
+function Row(properties: {
     match: CommandMatch;
     isMac: boolean;
+    isCopied: boolean;
+    isCurrent: boolean;
     onChoose: (command: PaletteCommand) => void;
 }) {
+    // read the command, and show a content match's excerpt in place of its route
     const command = () => properties.match.command;
+    const isContent = () => command().kind === "page" || command().kind === "section";
+    const detail = () =>
+        isContent() && properties.match.excerpt !== ""
+            ? properties.match.excerpt
+            : command().detail;
 
     return (
         <CommandItem
             value={command().id}
             onSelect={() => properties.onChoose(command())}
-            xstyle={styles.item}
+            xstyle={styles.row}
         >
             <Icon icon={command().icon} xstyle={styles.kind} />
-            <span {...style.attrs(styles.result)}>
-                <strong {...style.attrs(text.body, styles.label)}>
-                    <Highlight match={properties.match} text={command().label} />
-                </strong>
-                <Show when={properties.match.excerpt !== ""}>
-                    <span {...style.attrs(text.subheadline, styles.excerpt)}>
-                        <Highlight match={properties.match} text={properties.match.excerpt} />
-                    </span>
+            <span {...style.attrs(styles.body)}>
+                <span {...style.attrs(text.callout, styles.label)}>
+                    <Highlight terms={properties.match.terms} text={command().label} />
+                </span>
+                <Show when={detail() !== ""}>
+                    <Detail
+                        terms={properties.match.terms}
+                        text={detail()}
+                        isCode={!(isContent() && properties.match.excerpt !== "")}
+                    />
                 </Show>
             </span>
-            <Show when={command().keybinding}>
-                {(keybinding) => (
-                    <CommandShortcut>
-                        {Accelerator.format(keybinding(), properties.isMac)}
-                    </CommandShortcut>
+            <span {...style.attrs(styles.end)}>
+                {properties.isCopied ? (
+                    <span {...style.attrs(text.caption, styles.copied)}>
+                        <Icon icon={check} xstyle={styles.endIcon} />
+                        Copied
+                    </span>
+                ) : properties.isCurrent ? (
+                    <Icon icon={check} xstyle={styles.endIcon} />
+                ) : command().action.kind === "menu" ? (
+                    <Icon icon={caretRight} xstyle={styles.endIcon} />
+                ) : command().keybinding === undefined ? undefined : (
+                    <Kbd>{Accelerator.format(command().keybinding ?? "", properties.isMac)}</Kbd>
                 )}
-            </Show>
+            </span>
         </CommandItem>
+    );
+}
+
+/** Draw a row's quiet line: a route or version in code, or an excerpt in prose. */
+function Detail(properties: { terms: readonly string[]; text: string; isCode: boolean }) {
+    return (
+        <span {...style.attrs(text.caption, styles.detail, properties.isCode && styles.detailCode)}>
+            <Highlight terms={properties.terms} text={properties.text} />
+        </span>
+    );
+}
+
+/** Render a text with the searched terms marked, keeping its case. */
+function Highlight(properties: { terms: readonly string[]; text: string }) {
+    return (
+        <For each={highlightSegments(properties.text, properties.terms)}>
+            {(segment) =>
+                segment.isMatch ? (
+                    <mark {...style.attrs(styles.mark)}>{segment.text}</mark>
+                ) : (
+                    segment.text
+                )
+            }
+        </For>
     );
 }
 
@@ -259,19 +407,42 @@ function currentPageSource(): PageFormats | undefined {
     return { markdownRoute, textRoute };
 }
 
-/** Render a result text with the searched terms marked, keeping its case. */
-function Highlight(properties: { match: CommandMatch; text: string }) {
-    return (
-        <For each={highlightSegments(properties.text, properties.match.terms)}>
-            {(segment) =>
-                segment.isMatch ? (
-                    <mark {...style.attrs(styles.mark)}>{segment.text}</mark>
-                ) : (
-                    segment.text
-                )
-            }
-        </For>
+/** Read the current page's entries: each anchor, its part of speech, and its heading. */
+function currentSections(): readonly PageSection[] {
+    return [...document.querySelectorAll<HTMLElement>("header[id]:has(> h1, > h2)")].map(
+        (header) => ({
+            id: header.id,
+            partOfSpeech: present(header.querySelector("p i")?.textContent, "entry part of speech"),
+            heading: present(header.querySelector("h1, h2")?.textContent, "entry heading"),
+        }),
     );
+}
+
+/** Read the recently opened commands, none where storage is empty or refused. */
+function readRecent(): readonly string[] {
+    try {
+        const stored: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+
+        return schema.array(schema.string()).parse(stored);
+    } catch {
+        return [];
+    }
+}
+
+/** Put a followed page first among the recent ones, and store them where storage allows. */
+function writeRecent(command: PaletteCommand, recent: readonly string[]): readonly string[] {
+    // keep pages and sections only, sections of this page drop out on others
+    const next =
+        command.kind === "page" || command.kind === "section"
+            ? [command.id, ...recent.filter((id) => id !== command.id)].slice(0, RECENT_LIMIT)
+            : recent;
+    try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {
+        // keep the list for this visit where storage refuses
+    }
+
+    return next;
 }
 
 /** The palette styles. */
@@ -280,62 +451,133 @@ const styles = style.create({
         width: "20px",
         height: "20px",
     },
-    scopes: {
-        paddingInline: space[3],
-        paddingBlock: space[2],
-        borderBottomWidth: stroke.border,
-        borderBottomStyle: "solid",
-        borderBottomColor: color.border,
-        flexWrap: "wrap",
+
+    // search
+    crumbs: {
+        alignItems: "center",
+        display: "flex",
+        gap: space[1],
+        paddingBlockStart: space[3],
+        paddingInline: space[4],
     },
-    item: {
-        alignItems: "start",
+    crumb: {
+        backgroundColor: color.muted,
+        borderRadius: radius[1],
+        borderWidth: 0,
+        color: color.mutedForeground,
+        cursor: "pointer",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        letterSpacing: "0.06em",
+        paddingBlock: "0.125rem",
+        paddingInline: space[2],
+        textTransform: "uppercase",
+    },
+    crumbOn: {
+        color: color.foreground,
+        cursor: "default",
+    },
+    crumbCaret: {
+        color: color.mutedForeground,
+        height: "0.75rem",
+        width: "0.75rem",
+    },
+    input: {
+        fontSize: "1.125rem",
+    },
+
+    // results
+    list: {
+        paddingBlock: space[2],
+        paddingInline: space[2],
+    },
+    heading: {
+        color: color.mutedForeground,
+        display: "block",
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        fontWeight: weight.regular,
+        letterSpacing: "0.08em",
+        paddingBlockStart: space[2],
+        textTransform: "uppercase",
+    },
+    row: {
+        backgroundColor: { default: "transparent", ":is([data-highlighted])": color.muted },
+        color: color.foreground,
+        columnGap: space[3],
+        minHeight: "2.75rem",
+        paddingBlock: space[2],
+        paddingInline: space[3],
     },
     kind: {
-        width: "1rem",
-        height: "1rem",
-        flexShrink: 0,
-        marginBlockStart: "0.25rem",
         color: color.mutedForeground,
+        flexShrink: 0,
+        height: "1.125rem",
+        width: "1.125rem",
     },
-    result: {
+    body: {
         display: "grid",
         flexGrow: 1,
         minWidth: 0,
     },
     label: {
-        fontWeight: weight.semibold,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
-    context: {
-        color: color.mutedForeground,
-    },
-    excerpt: {
+    detail: {
         color: color.mutedForeground,
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
     },
+    detailCode: {
+        fontFamily: font.code,
+    },
     mark: {
         backgroundColor: "transparent",
         color: color.primary,
+        fontWeight: weight.medium,
     },
-    footer: {
-        display: "flex",
-        gap: space[4],
-        paddingBlock: space[2],
-        paddingInline: space[3],
-        borderTopWidth: stroke.border,
-        borderTopStyle: "solid",
-        borderTopColor: color.border,
-        color: color.mutedForeground,
-    },
-    hint: {
-        display: "flex",
+    end: {
         alignItems: "center",
-        gap: space[2],
+        color: color.mutedForeground,
+        display: "flex",
+        flexShrink: 0,
+        marginInlineStart: "auto",
+    },
+    endIcon: {
+        height: "1rem",
+        width: "1rem",
+    },
+    copied: {
+        alignItems: "center",
+        color: color.primary,
+        display: "flex",
+        gap: space[1],
     },
     failure: {
         color: color.destructive,
         padding: space[3],
+    },
+
+    // keys
+    footer: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        color: color.mutedForeground,
+        display: "flex",
+        gap: space[4],
+        paddingBlock: space[2],
+        paddingInline: space[4],
+    },
+    hint: {
+        alignItems: "center",
+        display: "flex",
+        gap: space[1],
+    },
+    hintEnd: {
+        marginInlineStart: "auto",
     },
 });
