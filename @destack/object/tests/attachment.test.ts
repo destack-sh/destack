@@ -222,7 +222,7 @@ test.for(TEST_DIALECTS)(
             store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
-                below: spaceId,
+                target: spaceId,
                 parameters: {
                     queries: {
                         articles: {

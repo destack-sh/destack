@@ -153,7 +153,7 @@ test.each(TEST_DIALECTS)(
                     asked,
                     asked.after,
                     {
-                        subject: principal.space.reference(Scope.universe.id, asked.below),
+                        subject: principal.space.reference(Scope.universe.id, asked.target),
                     },
                     signal,
                 ),
@@ -304,7 +304,7 @@ test.each(TEST_DIALECTS)(
                         asked,
                         asked.after,
                         {
-                            subject: principal.space.reference(Scope.universe.id, asked.below),
+                            subject: principal.space.reference(Scope.universe.id, asked.target),
                         },
                         signal,
                     ),
@@ -386,7 +386,7 @@ test.each(TEST_DIALECTS)(
                         asked,
                         asked.after,
                         {
-                            subject: principal.space.reference(Scope.universe.id, asked.below),
+                            subject: principal.space.reference(Scope.universe.id, asked.target),
                         },
                         signal,
                     ),

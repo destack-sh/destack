@@ -31,7 +31,7 @@ test.for(TEST_DIALECTS)(
             west.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
-                below: spaceId,
+                target: spaceId,
                 parameters: {
                     queries: { notebooks: { object: "notebook" } },
                 },

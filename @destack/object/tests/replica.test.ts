@@ -23,6 +23,7 @@ import {
     replica,
     Replica,
     replicaRow,
+    replicaSubscription,
     replicaTables,
     Scope,
     Subject,
@@ -135,7 +136,7 @@ test("list and follow the mentions a home has as replicas of another space, from
         store.source.queriesPublication.subscription({
             name: "objects",
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: { queries: { mentions: { object: "mention" } } },
         }),
         subjectContext(alice, spaceId, { signal: following.signal }),
@@ -144,19 +145,23 @@ test("list and follow the mentions a home has as replicas of another space, from
     const before = await listed();
     const table = mention.table[TABLE].sqlName;
     await database.transaction(async (replicating) => {
-        await replicating.insert(replica).values({
+        await replicating
+            .insert(replica)
+            .values({ name: "mentions", scope: other, tables: [table] });
+        await replicating.insert(replicaSubscription).values({
             name: "mentions",
             scope: other,
-            ...Replica.subscriptionColumns({
-                name: "mentions",
-                publication: QUERIES_PUBLICATION,
-                scope: other,
-                below: spaceId,
-                subject: alice,
-                parameters: {},
-            }),
-            audience: "caller",
-            tables: [table],
+            ...Replica.subscriptionColumns(
+                {
+                    name: "mentions",
+                    publication: QUERIES_PUBLICATION,
+                    scope: other,
+                    target: spaceId,
+                    subject: alice,
+                    parameters: {},
+                },
+                "caller",
+            ),
         });
         await replicating.insert(replicaRow).values({
             name: "mentions",
@@ -407,7 +412,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             name: `chain:${spaceId}`,
             publication: store.source.chainPublication.name,
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: { local: [], replicated: [], types: [] },
         },
         subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
@@ -589,7 +594,7 @@ test("replicate only the rows a query's own permission allows, drop a row once t
         store.source.queriesPublication.subscription({
             name: "loans",
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: { queries: { loans: loan.query({ permission: "use" }) } },
         }),
         subjectContext(alice, spaceId, { signal: following.signal }),
@@ -629,7 +634,7 @@ test("replicate only the rows a query's own permission allows, drop a row once t
                 store.source.queriesPublication.subscription({
                     name: "loans",
                     scope: spaceId,
-                    below: spaceId,
+                    target: spaceId,
                     parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
                 }),
                 subjectContext(alice, spaceId, { signal: following.signal }),
@@ -670,7 +675,7 @@ test("answer a follow of a type the scope does not install with a complete page 
         store.source.queriesPublication.subscription({
             name: "activity",
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: { queries: { activity: { object: "activity" } } },
         }),
         subjectContext(alice, spaceId, { signal: following.signal }),
@@ -718,7 +723,7 @@ test("answer a universe follow of a table no served type lists with a complete p
         Authorizer.universeSubscription({
             name: spaceId,
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: {
                 rows: [
                     {

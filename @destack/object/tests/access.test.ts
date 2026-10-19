@@ -85,7 +85,7 @@ test.for(TEST_DIALECTS)(
             store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: SPACE_ID,
-                below: SPACE_ID,
+                target: SPACE_ID,
                 parameters: {
                     queries: {
                         roles: { object: "role" },

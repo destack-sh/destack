@@ -597,7 +597,7 @@ export class ObjectStore {
         const types = [...given.objects, ...(given.policies ?? [])].filter(
             (each) => each instanceof ObjectType,
         );
-        const below = this.scope;
+        const target = this.scope;
         const publisherOf = (scope: string) =>
             publisher?.(scope) ?? present(subscriber?.uplink, `the publisher of ${scope}`);
 
@@ -622,10 +622,10 @@ export class ObjectStore {
                 subscriptions: async () => {
                     // follow the follows' keys, then the chains
                     const followed = await ObjectStore.#followSubscriptions(this, follows, {
-                        below,
+                        target,
                         publisher: publisherOf,
                     });
-                    const chained = (await this.source.chains(below)).map(
+                    const chained = (await this.source.chains(target)).map(
                         ({ subscription, home }) => ({
                             subscription,
                             publisher: publisherOf(home),
@@ -3596,7 +3596,7 @@ export class ObjectStore {
         store: ObjectStore,
         follows: readonly Follow[],
         options: {
-            readonly below: string;
+            readonly target: string;
             readonly publisher: (scope: string) => sync.Publisher;
         },
     ): Promise<SubscriberEntry[]> {
@@ -3627,7 +3627,7 @@ export class ObjectStore {
                 const { shape } = follow;
                 const isReadinessGate = follow.isReadinessGate ?? true;
                 const derived = keys.map(({ key, subject }) => ({
-                    subscription: shape.subscription(key, options.below, subject),
+                    subscription: shape.subscription(key, options.target, subject),
                     home: key.scope,
                 }));
 
@@ -3654,7 +3654,7 @@ export class ObjectStore {
     static async #onDemandSubscriptions(
         store: ObjectStore,
         follow: Extract<Follow, { readonly onDemand: unknown }>,
-        options: { readonly below: string; readonly publisher: (scope: string) => sync.Publisher },
+        options: { readonly target: string; readonly publisher: (scope: string) => sync.Publisher },
     ): Promise<SubscriberEntry[]> {
         // read the keys that have not lapsed
         const rows = await store.database
@@ -3685,7 +3685,7 @@ export class ObjectStore {
             subscription: follow.shape.onDemandSubscription(
                 scope,
                 keys,
-                options.below,
+                options.target,
                 ObjectStore.#onDemandSubject(store, subject),
             ),
             publisher: options.publisher(scope),

@@ -1,5 +1,4 @@
 import { users } from "./fixture/user.ts";
-import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -10,12 +9,13 @@ import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
 import { through } from "@destack/access";
+import { Package } from "@destack/package";
 import { definePackage } from "@destack/runtime";
 import { testCallKey } from "@destack/runtime/test";
 import { v7 } from "uuid";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
-import { note, notebook, notesDatabase, notesPackage } from "./fixture/note.ts";
+import { note, notebook, notesDatabase } from "./fixture/note.ts";
 import { Clock } from "@destack/environment";
 
 /** A row's identifier. */
@@ -30,7 +30,6 @@ async function reachNotes(
 
     return new DynamicObjectClient({
         clock: Clock.system,
-        package: Package.of(notesPackage),
         objects,
         scope: spaceId,
         endpoint,
@@ -224,7 +223,6 @@ test("read objects of a scope inside the space a client is pinned to, refusing a
     // create a shelf, keep a bookmark on it, and read the bookmark through a client of the space
     const client = new DynamicObjectClient({
         clock: Clock.system,
-        package: Package.of(shelves),
         objects: [shelf, bookmark],
         scope: spaceId,
         endpoint: served.endpoint(users.alice),

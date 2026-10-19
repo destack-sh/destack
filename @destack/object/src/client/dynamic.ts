@@ -1,5 +1,4 @@
 import { type DatabaseConnection, TABLE, type TableState } from "@destack/db";
-import type { Package } from "@destack/package";
 import { Digest, present, type JsonObject, type JsonValue, schema } from "@destack/schema";
 import type { Client } from "@destack/runtime";
 import type { ClientOptions } from "@destack/runtime/client";
@@ -36,8 +35,6 @@ const CALL_RESULTS = schema.array(schema.json());
 
 /** An installation's objects, reached through the package serving them. */
 export interface DynamicObjectClientOptions {
-    /** The installed release, which every call is made against. */
-    readonly package: Package;
     /** The object types the installation serves, as its manifest describes them. */
     readonly objects: readonly ObjectType[];
     /** The scope of the calls and watches, such as a space. */
@@ -64,13 +61,8 @@ export class DynamicObjectClient {
     /** Reach an installation's objects through the package serving them. */
     constructor(options: DynamicObjectClientOptions) {
         this.options = options;
-        this.#store = ObjectClient.store(options.package, options.endpoint);
-        this.#home = ObjectClient.homes(
-            options.package,
-            options.scope,
-            () => this.#store,
-            options.homes,
-        );
+        this.#store = ObjectClient.store(options.endpoint);
+        this.#home = ObjectClient.homes(options.scope, () => this.#store, options.homes);
     }
 
     /** Report whether an installation serves a type: one of its databases declares its table. */
@@ -202,7 +194,7 @@ export class DynamicObjectClient {
             name,
             publication: object.storage === "external" ? EXTERNAL_PUBLICATION : QUERIES_PUBLICATION,
             scope,
-            below: scope,
+            target: scope,
             parameters: { queries: { [name]: schema.json().parse(followed) } },
         };
 
@@ -263,6 +255,7 @@ export class DynamicObjectClient {
                 const pages = await this.#store.stream({ ...subscription, ...from }, { signal });
                 for await (const page of replica.apply(database, pages, {
                     subscription,
+                    audience: "caller",
                     clock: this.options.clock,
                 })) {
                     if (page.complete) {

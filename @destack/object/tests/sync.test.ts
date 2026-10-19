@@ -79,7 +79,7 @@ async function serveTasks(dialect: (typeof TEST_DIALECTS)[number]) {
         store.source.queriesPublication.subscription({
             name: "objects",
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: {},
         }),
         context,

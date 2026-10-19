@@ -66,7 +66,7 @@ const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 export class ObjectSource {
     /** The store whose objects the replicas copy. */
     readonly store: ObjectStore;
-    /** The replicas streaming now, by the scope or principal below they are for. */
+    /** The replicas streaming now, by the target scope or principal they are for. */
     readonly #streaming = new Map<string, number>();
 
     /** Stream the replicas of a store's objects. */
@@ -74,9 +74,9 @@ export class ObjectSource {
         this.store = store;
     }
 
-    /** Report whether a replica streams now for a scope or principal below. */
-    follows(below: string): boolean {
-        return this.#streaming.has(below);
+    /** Report whether a replica streams now for a target scope or principal. */
+    follows(target: string): boolean {
+        return this.#streaming.has(target);
     }
 
     /** Stream a publication's replica to the caller its audience allows. */
@@ -87,16 +87,16 @@ export class ObjectSource {
         // allow the caller by the publication's audience, counting its replica while it streams
         const publication = this.#publication(subscription);
         const follower = await this.#authorizeFollower(publication, subscription, context);
-        const below = subscription.below;
-        this.#streaming.set(below, (this.#streaming.get(below) ?? 0) + 1);
+        const target = subscription.target;
+        this.#streaming.set(target, (this.#streaming.get(target) ?? 0) + 1);
         try {
             yield* this.#relay(publication, subscription, follower, context);
         } finally {
-            const remaining = found(this.#streaming, below) - 1;
+            const remaining = found(this.#streaming, target) - 1;
             if (remaining === 0) {
-                this.#streaming.delete(below);
+                this.#streaming.delete(target);
             } else {
-                this.#streaming.set(below, remaining);
+                this.#streaming.set(target, remaining);
             }
         }
     }
@@ -131,7 +131,7 @@ export class ObjectSource {
         }
     }
 
-    /** Allow a caller to a publication's replica for the scope below, returning who it is for. */
+    /** Allow a caller to a publication's replica for its target scope, returning who it is for. */
     async #authorizeFollower(
         publication: sync.Publication,
         subscription: sync.Subscription,
@@ -174,7 +174,7 @@ export class ObjectSource {
         context: RequestContext,
     ): Promise<ReplicaFollower> {
         // find the served object standing for the scope
-        const standing = await this.#standing(request.below);
+        const standing = await this.#standing(request.target);
 
         // decide for the subject a follower follows on behalf of, as its token states it may
         if (request.subject !== undefined) {
@@ -202,25 +202,25 @@ export class ObjectSource {
         }
 
         // decide for the scope's principal or a caller living in it, or the installation a partition below it runs
-        const following = context.access(request.below);
+        const following = context.access(request.target);
         const resident = [following.subject, ...following.groups].filter(
-            (subject) => subject.id === request.below || subject.scope === request.below,
+            (subject) => subject.id === request.target || subject.scope === request.target,
         );
         if (
             resident.length === 0 &&
-            (await this.#isPartitionOf(request.below, following.subject))
+            (await this.#isPartitionOf(request.target, following.subject))
         ) {
             return { context };
         } else if (resident.length === 0) {
             throw new CallError("FORBIDDEN", {
-                message: `only ${request.below} and its contents can follow the replicas held for it`,
+                message: `only ${request.target} and its contents can follow the replicas held for it`,
             });
         }
 
         // decide a replica on its scope
         if (this.#publication(request).audience === "contained") {
-            const isResident = resident.some((subject) => subject.scope === request.below);
-            const decided = standing === undefined || isResident ? request.below : request.scope;
+            const isResident = resident.some((subject) => subject.scope === request.target);
+            const decided = standing === undefined || isResident ? request.target : request.scope;
             await this.#requireReplicate(decided, resident, context);
         }
 
@@ -228,15 +228,15 @@ export class ObjectSource {
     }
 
     /** Decide whether a scope is a partition inside the scope of the installation following it. */
-    async #isPartitionOf(below: string, follower: Subject): Promise<boolean> {
+    async #isPartitionOf(target: string, follower: Subject): Promise<boolean> {
         // allow an installation following a partition its scope encloses, as its partitions follow their chains
         if (!principal.installation.is(follower)) {
             return false;
         }
-        const [row] = await Scope.read(Snapshot.live(this.store.database), [below]);
+        const [row] = await Scope.read(Snapshot.live(this.store.database), [target]);
 
         return (
-            row !== undefined && row.partition === below && row.ancestors.includes(follower.scope)
+            row !== undefined && row.partition === target && row.ancestors.includes(follower.scope)
         );
     }
 
@@ -283,15 +283,15 @@ export class ObjectSource {
 
     /** Require `replicate` on a caller's own object, or else on a scope. */
     async #requireReplicate(
-        below: string,
+        target: string,
         resident: readonly Subject[],
         context: RequestContext,
     ): Promise<void> {
         // list the permissions on the caller's own objects, at the rows standing for them here
         const authorization = await this.store.authorize(
             Transaction.reading(this.store.database),
-            below,
-            context.access(below),
+            target,
+            context.access(target),
         );
         const standings = await Promise.all(resident.map((subject) => this.#standing(subject.id)));
         const personal = standings.flatMap((standing) =>
@@ -306,7 +306,7 @@ export class ObjectSource {
         );
 
         // add the scope's permission, and require the first one
-        const scope = await Scope.object(Snapshot.live(this.store.database), below);
+        const scope = await Scope.object(Snapshot.live(this.store.database), target);
         const policy = this.store.authorizer.policy(scope);
         const granting = [...personal];
         if (Object.hasOwn(policy.definition.permissions, REPLICATE)) {
@@ -346,7 +346,7 @@ export class ObjectSource {
 
     /** Find a principal's row in the decided type representing its kind, with its scope. */
     async #standing(
-        below: string,
+        target: string,
         database: DatabaseConnection = this.store.database,
     ): Promise<
         | {
@@ -361,11 +361,11 @@ export class ObjectSource {
         const representing = this.store.decided.filter(
             (type) =>
                 type.represents !== undefined &&
-                type.table[TABLE].column("id").definition.schema.safeParse(below).success,
+                type.table[TABLE].column("id").definition.schema.safeParse(target).success,
         );
         if (representing.length > 1) {
             throw new TypeError(
-                `types ${representing.map((type) => type.name).join(", ")} all represent ${below}`,
+                `types ${representing.map((type) => type.name).join(", ")} all represent ${target}`,
             );
         }
         const [object] = representing;
@@ -375,7 +375,7 @@ export class ObjectSource {
         }
 
         // read the principal's row, and stand for the principal inside the scope holding it
-        const [row] = await Snapshot.live(database).select(object.table, ["id"], [[below]]);
+        const [row] = await Snapshot.live(database).select(object.table, ["id"], [[target]]);
         if (row === undefined) {
             return undefined;
         }
@@ -384,12 +384,12 @@ export class ObjectSource {
             packageId: kind.definition.packageId,
             type: kind.name,
             scope: kind.definition.isGlobal === true ? Scope.universe.id : scope,
-            id: below,
+            id: target,
         };
 
         return {
             object,
-            reference: object.reference(scope, below),
+            reference: object.reference(scope, target),
             subject,
             parent: scope === Scope.universe.id ? undefined : scope,
         };
@@ -591,10 +591,12 @@ export class ObjectSource {
             const compiled = ObjectSource.#withReplicas(queries, held);
             const rekept = new AbortController();
             const following = AbortSignal.any([signal, rekept.signal]);
-            const name = sync.replica[TABLE].sqlName;
+            const names = [sync.replica, sync.replicaSubscription].map(
+                (table) => table[TABLE].sqlName,
+            );
             const changed = database.log.until(
                 async (tables) =>
-                    tables.has(name) &&
+                    names.some((name) => tables.has(name)) &&
                     canonicalize(await sync.Replica.tables(database, scope, caller)) !== current,
                 following,
             );
@@ -1009,14 +1011,14 @@ export class ObjectSource {
     }
 
     /** List the replicas a store's decisions read, each with the scope whose home publishes it. */
-    async chains(below: string): Promise<
+    async chains(target: string): Promise<
         {
             readonly subscription: sync.Subscription;
             readonly home: string;
         }[]
     > {
         // follow nothing at the universe, nor for a scope without a chain
-        const kind = below === Scope.universe.id ? undefined : await this.#chainKind();
+        const kind = target === Scope.universe.id ? undefined : await this.#chainKind();
         if (kind === undefined) {
             return [];
         }
@@ -1029,12 +1031,12 @@ export class ObjectSource {
         );
         const isOwn = isLiving || kind.kind === "home";
         const own = isOwn
-            ? await this.subscriptions(below, kind)
-            : [this.universeSubscription(below)];
+            ? await this.subscriptions(target, kind)
+            : [this.universeSubscription(target)];
 
         // leave the own chain's scopes to it, else let the via replica cover the store's own scope
         const chained = new Set(
-            isOwn ? [below, ...own.map((subscription) => subscription.scope)] : [],
+            isOwn ? [target, ...own.map((subscription) => subscription.scope)] : [],
         );
 
         // read the replicated scopes outside the chain that served objects live in or relate to
@@ -1067,14 +1069,14 @@ export class ObjectSource {
         // replicate the store's own outside scopes' chains from the universe
         const via = await this.store.authorizer.chainVia(
             this.store.database,
-            { name: Authorizer.viaReplica(below), below },
+            { name: Authorizer.viaReplica(target), target },
             outside.flat(),
             isOwn ? [] : this.reached(),
         );
         const vias = via === undefined ? [] : [{ subscription: via }];
 
         return [
-            ...own.map((subscription) => ({ subscription, home: below })),
+            ...own.map((subscription) => ({ subscription, home: target })),
             ...vias.map((entry) => ({ ...entry, home: Scope.universe.id })),
         ];
     }
@@ -1090,12 +1092,12 @@ export class ObjectSource {
         }
         const held = await this.store.database
             .selectDistinct({ key: sync.replicaRow.key })
-            .from(sync.replica)
+            .from(sync.replicaSubscription)
             .innerJoin(
                 sync.replicaRow,
                 and(
-                    eq(sync.replicaRow.name, sync.replica.name),
-                    eq(sync.replicaRow.scope, sync.replica.scope),
+                    eq(sync.replicaRow.name, sync.replicaSubscription.name),
+                    eq(sync.replicaRow.scope, sync.replicaSubscription.scope),
                 ),
             )
             .where(
@@ -1105,7 +1107,7 @@ export class ObjectSource {
                         sync.replicaRow.key,
                         rows.map((row) => Key.name(table, row)),
                     ),
-                    isNotNull(sync.replica.subjectId),
+                    isNotNull(sync.replicaSubscription.subjectId),
                 ),
             );
 
@@ -1141,22 +1143,22 @@ export class ObjectSource {
 
     /** List a database's replica subscriptions for a scope: its chain and its universe rows. */
     async subscriptions(
-        below: string,
+        target: string,
         options: ChainOptions,
         elsewhere: readonly ObjectType[] = [],
     ): Promise<sync.Subscription[]> {
         // replicate the chain and the universe rows the scope reads, except another replica's
         const chain = await this.store.authorizer.chain(
             this.store.database,
-            below,
+            target,
             options,
             this.reached(),
         );
-        return [...chain, this.universeSubscription(below, elsewhere)];
+        return [...chain, this.universeSubscription(target, elsewhere)];
     }
 
     /** Request the universe rows and delegated grants a scope reads but no other replica has. */
-    universeSubscription(below: string, elsewhere: readonly ObjectType[] = []): sync.Subscription {
+    universeSubscription(target: string, elsewhere: readonly ObjectType[] = []): sync.Subscription {
         // leave inherited rows to the chains, and rows another replica or a follow has to it
         const followedElsewhere = [...elsewhere, ...this.store.followed];
         const replicated = this.store.replicated.filter(
@@ -1204,15 +1206,15 @@ export class ObjectSource {
         // add the access grants delegated to the scope's principals, wherever their delegators live
         rows.push({
             type: grant.typeReference,
-            where: { delegateScope: below },
+            where: { delegateScope: target },
             isEverywhere: true,
         });
 
         // replicate the universe's rows the scope or machine may read, under its own name
         return Authorizer.universeSubscription({
-            name: below,
+            name: target,
             scope: Scope.universe.id,
-            below,
+            target,
             parameters: { rows },
         });
     }
@@ -1290,15 +1292,15 @@ export class ObjectSource {
         const parent = "subject" in follower ? follower.parent : undefined;
         const chain = await Scope.chain(
             Snapshot.live(this.store.database),
-            parent ?? request.below,
+            parent ?? request.target,
         );
         const scopes = [
-            ...(parent === undefined ? [] : [request.below]),
+            ...(parent === undefined ? [] : [request.target]),
             ...chain.map((link) => link.object.id),
         ];
         if (!scopes.includes(request.scope)) {
             throw new CallError("NOT_FOUND", {
-                message: `${request.scope} does not contain ${request.below}`,
+                message: `${request.scope} does not contain ${request.target}`,
             });
         }
     }
@@ -1371,7 +1373,7 @@ export class ObjectSource {
                 AccessContext.of(Caller.of(follower.subject), this.store.clock.now()),
                 {
                     isContained,
-                    within: await this.#within(follower.parent ?? request.below),
+                    within: await this.#within(follower.parent ?? request.target),
                     ...replicating,
                 },
             );
@@ -1392,8 +1394,8 @@ export class ObjectSource {
         else if (isContained) {
             return ObjectAudience.of(
                 this.store,
-                request.below,
-                follower.context.access(request.below),
+                request.target,
+                follower.context.access(request.target),
                 {
                     isContained,
                     ...replicating,
@@ -1409,7 +1411,7 @@ export class ObjectSource {
                     sync.Replica.isReplicated(Snapshot.live(database), request.scope, table),
                 ),
             );
-            const scope = replicated.every(Boolean) ? request.below : request.scope;
+            const scope = replicated.every(Boolean) ? request.target : request.scope;
 
             return ObjectAudience.of(this.store, scope, follower.context.access(scope));
         }

@@ -596,7 +596,7 @@ test("replicate the chains of an installation's two served spaces in one replica
         first({ ...chains, parameters: { ...chains.parameters, between: [otherAccountId] } }),
     );
     expect({
-        requests: requests.map((request) => [request.name, request.scope, request.below]),
+        requests: requests.map((request) => [request.name, request.scope, request.target]),
         parameters: [chains.parameters["via"], chains.parameters["between"]],
         refused,
         scopes: new Set(
@@ -646,7 +646,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     const request = Authorizer.chainSubscription({
         name: Authorizer.chainReplica(spaceId),
         scope: accountId,
-        below: spaceId,
+        target: spaceId,
         parameters: { local: [], replicated: [], via: [], between: [], types: [] },
     });
     const first = async (): Promise<Page | undefined> => {
@@ -710,7 +710,7 @@ test("replicate a partition's chain via its installation's space, which the sour
     const request = Authorizer.chainSubscription({
         name: Authorizer.viaReplica(partition),
         scope: Scope.universe.id,
-        below: partition,
+        target: partition,
         parameters: { local: [], replicated: [], via: [spaceId], between: [accountId], types: [] },
     });
     const first = async (): Promise<Page | undefined> => {
@@ -759,18 +759,23 @@ test("request no via chain for the rows a subject's follow brought, which their 
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
     const name = `activity:${spaceId}`;
-    await database.insert(sync.replica).values({
+    await database
+        .insert(sync.replica)
+        .values({ name, scope: spaceId, tables: [space.table[TABLE].sqlName] });
+    await database.insert(sync.replicaSubscription).values({
         name,
         scope: spaceId,
-        ...sync.Replica.subscriptionColumns({
-            name,
-            publication: "queries",
-            scope: spaceId,
-            below: followingSpaceId,
-            parameters: {},
-            subject: alice,
-        }),
-        tables: [space.table[TABLE].sqlName],
+        ...sync.Replica.subscriptionColumns(
+            {
+                name,
+                publication: "queries",
+                scope: spaceId,
+                target: followingSpaceId,
+                parameters: {},
+                subject: alice,
+            },
+            "caller",
+        ),
     });
     await database.insert(sync.replicaRow).values({
         name,
@@ -833,11 +838,13 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
     await database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
-    await database.insert(sync.replica).values({
+    await database
+        .insert(sync.replica)
+        .values({ name: brought.name, scope: spaceId, tables: [space.table[TABLE].sqlName] });
+    await database.insert(sync.replicaSubscription).values({
         name: brought.name,
         scope: spaceId,
-        ...sync.Replica.subscriptionColumns(brought),
-        tables: [space.table[TABLE].sqlName],
+        ...sync.Replica.subscriptionColumns(brought, "caller"),
     });
     await database.insert(sync.replicaRow).values({
         name: brought.name,
@@ -1081,7 +1088,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         "the chains' request",
     );
     expect({
-        requests: requests.map((request) => [request.name, request.scope, request.below]),
+        requests: requests.map((request) => [request.name, request.scope, request.target]),
         via: chains.parameters["via"],
     }).toEqual({
         requests: [
@@ -1181,7 +1188,11 @@ test("replicate the chain of an account another replica brought first, once the 
             installed.database,
             (from, signal) => publisher.stream({ ...residents, ...from }, signal),
             early.signal,
-            { subscription: residents, clock: Clock.system },
+            {
+                subscription: residents,
+                audience: replicating.source.universePublication.audience,
+                clock: Clock.system,
+            },
         );
     const head = await home.database.log.position();
     await Replica.wait(

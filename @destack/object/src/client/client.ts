@@ -51,7 +51,6 @@ import {
 } from "@destack/schema";
 import type { Client } from "@destack/runtime";
 import { createClient, type ClientOptions } from "@destack/runtime/client";
-import type { Package } from "@destack/package";
 import { errorOf, CallError } from "@destack/runtime/error";
 import { Replay } from "../audit/replay.ts";
 import { AccessContext, Authorization, Authorizer, Caller, decisionTables } from "@destack/access";
@@ -284,8 +283,6 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly database: DatabaseConnection;
     /** The object types to replicate, by key. */
     readonly objects: Objects;
-    /** The package serving the objects, required when they span packages. */
-    readonly package?: Package;
     /** The scope's branch types, among the objects, to check out and edit branches. */
     readonly branch?: BranchType;
     /** The scope whose objects to replicate. */
@@ -439,13 +436,11 @@ export class ObjectClient<
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
 
-        // reach the package serving the replicated objects
-        const replicated = this.objects.filter((object) => object.storage !== "local");
-        const served = ObjectClient.#served(replicated, options.package);
-        this.#store = ObjectClient.store(served, options.endpoint);
-        this.#reconnect = (machine) => ObjectClient.store(served, options.reconnect(machine));
+        // reach the store serving the replicated objects
+        this.#store = ObjectClient.store(options.endpoint);
+        this.#reconnect = (machine) => ObjectClient.store(options.reconnect(machine));
         this.#isReachingHomes = options.homes !== undefined;
-        this.#home = ObjectClient.homes(served, this.scope, () => this.#store, options.homes);
+        this.#home = ObjectClient.homes(this.scope, () => this.#store, options.homes);
 
         // replicate durable objects with their predictions, and ephemeral and external objects apart
         const tables = ObjectClient.#storedTables(this.objects, "durable");
@@ -589,22 +584,6 @@ export class ObjectClient<
         );
     }
 
-    /** Read the package serving the objects: the one they share, or the one the client sets. */
-    static #served(objects: readonly ObjectType[], named: Package | undefined): Package {
-        // take the given package, or require the objects to share one
-        const packages = new Map(objects.map((object) => [object.package.id, object.package]));
-        const [only, ...others] = packages.values();
-        if (named !== undefined) {
-            return named;
-        } else if (only === undefined || others.length > 0) {
-            throw new TypeError(
-                "a client with objects of several packages needs the serving package",
-            );
-        }
-
-        return only;
-    }
-
     /** Write a branch's rows from the client's replica over its other rows. */
     static #branchSource(types: BranchType, objects: readonly ObjectType[]): sync.BranchSource {
         const branches = types.object.table;
@@ -625,7 +604,6 @@ export class ObjectClient<
 
     /** Reach the store procedures of a scope's home: the client's own, else each home once. */
     static homes(
-        served: Package,
         scope: string,
         own: () => Client<StoreProcedures>,
         homes: ((scope: string) => ClientOptions) | undefined,
@@ -643,18 +621,18 @@ export class ObjectClient<
             }
 
             // connect to each other scope's home once
-            const connected = known.get(home) ?? ObjectClient.store(served, homes(home));
+            const connected = known.get(home) ?? ObjectClient.store(homes(home));
             known.set(home, connected);
 
             return connected;
         };
     }
 
-    /** Call the store procedures of the serving package, speaking its release. */
-    static store(served: Package, endpoint: ClientOptions): Client<StoreProcedures> {
+    /** Call a store's procedures, speaking the object package's release. */
+    static store(endpoint: ClientOptions): Client<StoreProcedures> {
         const router = { store: storeProcedures };
 
-        return createClient({ version: served.version, router }, endpoint).store;
+        return createClient({ router }, endpoint).store;
     }
 
     /** List the tables a client's local database has for some object types. */
@@ -1179,15 +1157,17 @@ export class ObjectClient<
             name: replica.name,
             publication: follow.publication,
             scope: this.scope,
-            below: this.scope,
+            target: this.scope,
             parameters,
             ...(this.#refresh === undefined ? {} : { refresh: this.#refresh }),
         };
         const from = await replica.resume(this.database, followed);
         const pages = await procedures.stream({ ...followed, ...from }, { signal: stream });
         let isGrown = false;
+        // apply the pages its source decides for the client as the caller
         for await (const page of replica.apply(this.database, pages, {
             subscription: followed,
+            audience: "caller",
             clock: this.clock,
             ...(prediction === undefined ? {} : { prediction }),
         })) {

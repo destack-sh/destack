@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { Package } from "@destack/package";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "@destack/runtime";
 import { Watermark } from "@destack/sync";
@@ -13,6 +14,9 @@ import {
     Subscription,
     Aggregate,
 } from "@destack/sync";
+
+/** The package defining the store procedures. */
+const DEFINING_PACKAGE = Package.of(import.meta.destack.package);
 
 /** The view a read sees: a log position, a branch over the main line, or both. */
 export const ViewShape = {
@@ -155,7 +159,12 @@ export type PushResult = schema.Infer<typeof PushResult>;
 
 /** The procedures a client replica or a database replicating the served one uses. */
 export const storeProcedures = {
-    push: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
+    push: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "identity",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/push" })
         .input(
             schema.object({
@@ -168,7 +177,12 @@ export const storeProcedures = {
             }),
         )
         .output(PushResult),
-    watermark: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
+    watermark: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "identity",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/watermark" })
         .input(
             schema.object({
@@ -179,7 +193,12 @@ export const storeProcedures = {
             }),
         )
         .output(Watermark),
-    call: defineProcedure({ authentication: "public", permission: "rows", audit: false })
+    call: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "public",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/call" })
         .input(
             schema.object({
@@ -190,7 +209,12 @@ export const storeProcedures = {
             }),
         )
         .output(schema.json()),
-    receive: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
+    receive: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "identity",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/receive" })
         .input(
             schema.object({
@@ -204,7 +228,12 @@ export const storeProcedures = {
                 results: schema.array(schema.json()),
             }),
         ),
-    broadcast: defineProcedure({ authentication: "identity", permission: "rows", audit: false })
+    broadcast: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "identity",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/broadcast" })
         .input(
             schema.object({
@@ -217,11 +246,21 @@ export const storeProcedures = {
             }),
         )
         .output(schema.object({})),
-    stream: defineProcedure({ authentication: "public", permission: "rows", audit: false })
+    stream: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "public",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
-    describe: defineProcedure({ authentication: "public", permission: "rows", audit: false })
+    describe: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "public",
+        permission: "rows",
+        audit: false,
+    })
         .route({ method: "POST", path: "/store/describe" })
         .input(
             schema.object({

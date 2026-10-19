@@ -74,7 +74,7 @@ export class Shape<Parameters extends object = object> {
     }
 
     /** Subscribe to a key for a follower, on behalf of a principal if given. */
-    subscription(key: ShapeKey<Parameters>, below: string, subject?: Subject): Subscription {
+    subscription(key: ShapeKey<Parameters>, target: string, subject?: Subject): Subscription {
         // name each query of the key's parameters by its type and position
         const { scope, ...rest } = key;
         const named = this.#named(this.parameters.parse(rest), "");
@@ -83,7 +83,7 @@ export class Shape<Parameters extends object = object> {
             name: this.replicaName(key),
             publication: QUERIES_PUBLICATION,
             scope,
-            below,
+            target,
             ...(subject === undefined ? {} : { subject }),
             parameters: { queries: schema.json().parse(named) },
         };
@@ -93,7 +93,7 @@ export class Shape<Parameters extends object = object> {
     onDemandSubscription(
         scope: string,
         keys: readonly Parameters[],
-        below: string,
+        target: string,
         subject?: Subject,
     ): Subscription {
         // name each key's queries by its parameter values, its type and its position
@@ -109,7 +109,7 @@ export class Shape<Parameters extends object = object> {
             ),
             publication: QUERIES_PUBLICATION,
             scope,
-            below,
+            target,
             ...(subject === undefined ? {} : { subject }),
             parameters: { queries: schema.json().parse(named) },
         };

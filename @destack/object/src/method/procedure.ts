@@ -1,6 +1,7 @@
 import { type Insert, type JsonOf, jsonShape, type Select, TABLE } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { type Identifier, mapValues, schema } from "@destack/schema";
+import { Package } from "@destack/package";
 import { defineProcedure } from "@destack/runtime/procedure";
 import { RequestId } from "@destack/runtime/request";
 import { MAX_PAGE_LIMIT } from "./page.ts";
@@ -151,6 +152,7 @@ export function callableProcedures(
         const { route, input, output } = object.procedure(name);
         procedures[name] = ObjectProcedure.procedure(
             defineProcedure({
+                package: Package.of(object.package),
                 authentication: method.mutates ? "identity" : "public",
                 permission: { rows: object.policy.permission(method.permission) },
                 audit: false,

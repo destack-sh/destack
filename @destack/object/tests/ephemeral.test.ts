@@ -114,7 +114,7 @@ test.for(TEST_DIALECTS)(
             east.store.source.queriesPublication.subscription({
                 name: "objects",
                 scope: spaceId,
-                below: spaceId,
+                target: spaceId,
                 parameters: {},
             }),
             context(users.alice).context,
@@ -495,7 +495,7 @@ async function serveBoards(dialect: Dialect) {
                     store.source.ephemeralPublication.subscription({
                         name: "ephemeral",
                         scope: spaceId,
-                        below: spaceId,
+                        target: spaceId,
                         parameters: {
                             writerId,
                             queries: { presences: { object: "presence" } },

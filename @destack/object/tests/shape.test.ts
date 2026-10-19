@@ -82,7 +82,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
             name: subscription.name,
             publication: subscription.publication,
             scope: subscription.scope,
-            below: subscription.below,
+            target: subscription.target,
             parameters: subscription.parameters,
             isScopePublisher: publisher === publishers.get(subscription.scope),
         }));
@@ -95,7 +95,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         name: `titled:${Scope.universe.id}:Plan`,
         publication: "queries",
         scope: Scope.universe.id,
-        below: spaceId,
+        target: spaceId,
         parameters: { queries: { "0:page": { object: "page", where: { title: "Plan" } } } },
         isScopePublisher: true,
     };
@@ -103,7 +103,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         name: `iconed:${spaceId}:${glyph}`,
         publication: "queries",
         scope: spaceId,
-        below: spaceId,
+        target: spaceId,
         parameters: { queries: { "0:page": { object: "page", where: { icon: glyph } } } },
         isScopePublisher: true,
     });
@@ -112,7 +112,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         name: `chain:${spaceId}`,
         publication: "chain",
         scope,
-        below: spaceId,
+        target: spaceId,
         parameters: {
             local: [page.typeReference],
             replicated: [],
@@ -127,7 +127,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         name: spaceId,
         publication: "universe",
         scope: Scope.universe.id,
-        below: spaceId,
+        target: spaceId,
         parameters: {
             rows: [
                 {
