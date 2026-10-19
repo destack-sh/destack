@@ -45,7 +45,6 @@ import {
 } from "../audit/recorder.ts";
 import { Journal } from "../audit/journal.ts";
 import type { CallKey } from "@destack/runtime/request";
-
 import {
     nth,
     canonicalize,
@@ -107,14 +106,12 @@ import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
-
 import { Provisioned } from "../trait/provisioned.ts";
 import { ResourceController, type ResourceControllerOptions } from "./provisioned.ts";
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
 import type { Controller } from "@destack/runtime/control";
-
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
@@ -409,7 +406,7 @@ export class ObjectStore {
     /** The principal of the store's own work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The one partition the store serves, its own scope's when absent, never one inside it. */
-    readonly #partition: string | undefined;
+    readonly partition: string | undefined;
     /** The evaluator of the served objects' policies. */
     readonly authorizer: Authorizer;
     /** The journal of executed mutations, recorded only by a store serving methods. */
@@ -475,8 +472,12 @@ export class ObjectStore {
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
-        // compose the servers' packages, then add the referenced and followed types and the follows
+        // compose the servers' packages, keeping the principal and partition the follows place replicas below
         const { parts, served } = ObjectStore.#compose(given, () => this);
+        this.principal = parts.principal;
+        this.partition = parts.partition;
+
+        // add the referenced and followed types and the follows
         const options = this.#following(ObjectStore.#referencing(parts));
         this.followed = [...new Set((parts.follows ?? []).flatMap((each) => each.shape.objects))];
 
@@ -503,8 +504,6 @@ export class ObjectStore {
 
         // build the authorizer over the objects and the scope types enclosing them
         this.database = options.database;
-        this.principal = options.principal;
-        this.#partition = options.partition;
 
         // authorize the replicas the policies do not already decide
         const policed = new Set(
@@ -598,7 +597,7 @@ export class ObjectStore {
         const types = [...given.objects, ...(given.policies ?? [])].filter(
             (each) => each instanceof ObjectType,
         );
-        const below = ObjectStore.#below(given.partition, given.principal);
+        const below = this.scope;
         const reach = (scope: string) =>
             publisher?.(scope) ?? present(subscriber?.uplink, `the publisher of ${scope}`);
 
@@ -831,6 +830,11 @@ export class ObjectStore {
             : new Journal(options.database, callKey, { events, clock: options.clock });
     }
 
+    /** The scope the store's database is home to: its partition, its space, else its principal. */
+    get scope(): string {
+        return this.partition ?? this.space ?? this.principal.id;
+    }
+
     /** The space the store serves, absent for a machine's or the universe's store. */
     get space(): string | undefined {
         // a space's store serves the space, a sandboxed installation's store its installation's space
@@ -1026,12 +1030,7 @@ export class ObjectStore {
         }
 
         // wait on commits until the synced replica follows the key's queries
-        const wanted = shape.onDemandSubscription(
-            scope,
-            [parameters],
-            ObjectStore.#below(this.#partition, this.principal),
-            at.subject,
-        );
+        const wanted = shape.onDemandSubscription(scope, [parameters], this.scope, at.subject);
         await this.database.log.until(() => this.#covers(wanted), signal);
     }
 
@@ -2181,8 +2180,8 @@ export class ObjectStore {
         const authorization = await this.authorize(transaction, scope, caller, authorizing);
         authorization.requireHere(
             calls.map(({ object, name }) => object.permission(object.method(name).permission)),
-            this.#partition,
-            calls.length === 0 ? undefined : ObjectStore.#below(undefined, this.principal),
+            this.partition,
+            calls.length === 0 ? undefined : (this.space ?? this.principal.id),
         );
         authorization.requireMethods(calls);
 
@@ -2269,15 +2268,13 @@ export class ObjectStore {
 
     /** Read the position the store's log has now, under the scope its database is home to. */
     async watermark(): Promise<Watermark> {
-        const scope = ObjectStore.#below(this.#partition, this.principal);
-
-        return { scope, ...(await this.database.log.position()) };
+        return { scope: this.scope, ...(await this.database.log.position()) };
     }
 
     /** Wait until the store's own log or a replica of another scope's log has the watermark. */
     async #reach(scope: string, watermark: Watermark, signal: AbortSignal): Promise<boolean> {
         // wait on the store's own log
-        if (watermark.scope === ObjectStore.#below(this.#partition, this.principal)) {
+        if (watermark.scope === this.scope) {
             if (watermark.epoch !== (await this.database.log.epoch())) {
                 throw new DatabaseError(
                     "STALE_EPOCH",
@@ -3694,11 +3691,6 @@ export class ObjectStore {
         const parsed = Subject.parse(JSON.parse(subject));
 
         return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;
-    }
-
-    /** Read the scope or partition below which a store places its replicas. */
-    static #below(partition: string | undefined, self: Subject): string {
-        return partition ?? (principal.installation.is(self) ? self.scope : self.id);
     }
 
     /** Read the keys of a follow over the store's own rows: one per row it reads. */
