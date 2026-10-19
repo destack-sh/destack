@@ -1,4 +1,4 @@
-import { PackageError, type Package } from "@destack/package";
+import { Package, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
@@ -155,6 +155,14 @@ export const ThemeDefinition = schema.object({
 });
 /** A theme as authored. */
 export type ThemeDefinition = schema.Infer<typeof ThemeDefinition>;
+
+/** A theme declaration as manifests describe it. */
+export const ThemeDescription = ThemeDefinition.extend({
+    /** The declaring package. */
+    package: Package,
+});
+/** A theme declaration as manifests describe it. */
+export type ThemeDescription = schema.Infer<typeof ThemeDescription>;
 
 /** The declarations a theme root's style attribute carries. */
 export type ThemeStyle = {
