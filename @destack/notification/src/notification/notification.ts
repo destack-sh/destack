@@ -8,12 +8,15 @@ import {
 import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
-import { NotificationMetadata } from "../declare/notification.ts";
 import { CallError } from "@destack/runtime/error";
 import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
-import { Activity, activity } from "../object/activity.ts";
+import { Activity, activity, NotificationName } from "../object/activity.ts";
 import { announcement, type Announcement } from "../object/announcement.ts";
-import { type InterruptionLevel, Preference } from "../preference/preference.ts";
+import {
+    INTERRUPTION_LEVELS,
+    type InterruptionLevel,
+    Preference,
+} from "../preference/preference.ts";
 import { Action, type ActionDefinition, NotificationContentDefinition } from "./content.ts";
 import type { Notice } from "./notice.ts";
 
@@ -22,6 +25,20 @@ const PAYLOAD_BYTES = 2048;
 
 /** The default collapse window: a quarter hour, the default email delay. */
 const COLLAPSE: Duration = { minutes: 15 };
+
+/** A notification's metadata. */
+export const NotificationMetadata = schema.object({
+    /** The name, in camel case. */
+    name: NotificationName,
+    /** The label settings show. */
+    title: schema.string().min(1),
+    /** What it tells. */
+    description: schema.string().min(1),
+    /** How strongly it interrupts. */
+    interruption: schema.enum(INTERRUPTION_LEVELS),
+    /** The preference recipients start from. */
+    preference: Preference,
+});
 
 /** A notification as manifests describe it. */
 export const NotificationDescription = NotificationMetadata.extend({

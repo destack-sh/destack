@@ -2,23 +2,11 @@ import { ModuleMetadata } from "@destack/package";
 import type { ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Action, type ActionDefinition } from "../notification/content.ts";
-import { NotificationType, type NotificationDefinition } from "../notification/notification.ts";
-import { NotificationName } from "../object/activity.ts";
-import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
-
-/** A notification's metadata. */
-export const NotificationMetadata = schema.object({
-    /** The name, in camel case. */
-    name: NotificationName,
-    /** The label settings show. */
-    title: schema.string().min(1),
-    /** What it tells. */
-    description: schema.string().min(1),
-    /** How strongly it interrupts. */
-    interruption: schema.enum(INTERRUPTION_LEVELS),
-    /** The preference recipients start from. */
-    preference: Preference,
-});
+import {
+    NotificationMetadata,
+    NotificationType,
+    type NotificationDefinition,
+} from "../notification/notification.ts";
 
 /** Declare a notification. */
 export function defineNotification<
