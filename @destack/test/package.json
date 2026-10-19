@@ -4,11 +4,10 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Write, run, and inspect Destack tests.",
+    "description": "Write and run Destack tests.",
     "exports": {
         ".": "./src/index.ts",
-        "./config": "./src/config/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./config": "./src/config/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
