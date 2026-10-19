@@ -1,5 +1,5 @@
 import { ObjectReference, Subject } from "@destack/sync";
-import { nth, canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
+import { nth, canonicalize, Digest, type Identifier, present, schema, Text } from "@destack/schema";
 import { principal } from "@destack/access";
 import { and, eq, inArray } from "@destack/db";
 import {
@@ -24,7 +24,7 @@ import {
     Build,
     type Submission,
 } from "../../object/index.ts";
-import { ViewDescription } from "@destack/package/manifest";
+import { ViewDescription, ViewPresentationPriority } from "@destack/package/manifest";
 import {
     Application,
     type ApplicationOptions,
@@ -139,6 +139,7 @@ function handleInstallations(options: InstallationOptions) {
     return declaredInstallation.implement({
         methods: {
             open: (call) => open(call, options),
+            present: (call) => presenter(call, options),
             token: (call) => InstallationAssertion.token(call, options.issuer),
             create: handleSelection(options),
             update: handleSelection(options),
@@ -471,6 +472,62 @@ function declaredRelease(desired: {
     }
 
     return { package: id, version, manifest };
+}
+
+/** Find the view of a space presenting an object most strongly, or the view asked for. */
+async function presenter(
+    context: MethodContextOf<typeof declaredInstallation, "present">,
+    options: Pick<InstallationOptions, "builds">,
+): Promise<ResultOf<typeof declaredInstallation, "present">> {
+    // read the views of each installation's followed revision
+    const { object, view: asked } = context.input;
+    const scope = schema.identifier("space").parse(context.scope);
+    const installed = await context.read(declaredInstallation).findMany({ where: { scope } });
+    const views = await Promise.all(
+        installed.map(async (each) => {
+            // read the revision the installation follows and its build's views
+            const revision =
+                each.revisionId === null
+                    ? undefined
+                    : await context
+                          .read(installationRevision)
+                          .findFirst({ where: { id: each.revisionId } });
+            if (revision === undefined) {
+                return [];
+            }
+            const built = await Build.require(context, scope, revision.buildId);
+            const reader = await options.builds.packages.contents(built.manifest);
+
+            return Object.entries(ViewDescription.list(reader.manifest)).map(
+                ([view, definition]) => ({ installation: each.name, view, definition }),
+            );
+        }),
+    );
+
+    // choose the strongest of the views asked for presenting the object's type
+    const candidates = views.flat().filter(({ view }) => asked === undefined || view === asked);
+    const presenters = candidates.flatMap(({ installation: name, view, definition }) =>
+        definition.presents
+            .filter(
+                (presented) =>
+                    presented.packageId === object.packageId && presented.type === object.type,
+            )
+            .map((presented) => ({ installation: name, view, priority: presented.priority })),
+    );
+    const [chosen] = presenters.toSorted(
+        (left, right) =>
+            ViewPresentationPriority.compare(left.priority, right.priority) ||
+            Text.compare(left.installation, right.installation) ||
+            Text.compare(left.view, right.view),
+    );
+    if (chosen === undefined) {
+        const missing = asked === undefined ? "no view" : `no view ${asked}`;
+        throw new CallError("NOT_FOUND", {
+            message: `${missing} of ${scope} presents ${object.type} objects`,
+        });
+    }
+
+    return { installation: chosen.installation, view: chosen.view };
 }
 
 /** Open a view the installation's revision declares at a location, in the opening person's home. */

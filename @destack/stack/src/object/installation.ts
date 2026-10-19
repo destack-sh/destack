@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
     Caller,
@@ -56,7 +57,7 @@ import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
-import { Scope } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
 import { InstallationSelection, InstallationDefinition } from "../declare/installation.ts";
 import { build } from "./build.ts";
 import { StackDefinition } from "../declare/stack.ts";
@@ -69,9 +70,6 @@ const GRANT_NAME = "permissions";
 
 /** The account owning the repository of a written selection, null for any other selection. */
 export const SelectedAccount = schema.identifier("account").nullable();
-
-/** A location within a view, with its query, excluding another origin. */
-export const ViewPath = schema.string().regex(/^\/(?:[^/\\\r\n][^\\\r\n]*)?$/u);
 
 /** A view of an installation's revision, as a client opens it. */
 export const InstallationView = schema.object({
@@ -284,6 +282,24 @@ export const installation = defineObject(
                 path: ViewPath,
             }),
             output: InstallationView,
+        }),
+
+        /** Find the view of the space presenting an object most strongly, or the view asked for. */
+        present: method.query({
+            permission: "list",
+            target: "scope",
+            input: schema.object({
+                /** The object. */
+                object: ObjectReference,
+                /** The view asked for, absent for the strongest presenting the object's type. */
+                view: DeclarationName.exactOptional(),
+            }),
+            output: schema.object({
+                /** The installation's name. */
+                installation: InstallationName,
+                /** The view's name. */
+                view: DeclarationName,
+            }),
         }),
 
         /** Follow the revision applied before the current one again. */

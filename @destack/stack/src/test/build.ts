@@ -127,7 +127,13 @@ export async function fixtureBuild(packageId: PackageId, version: string): Promi
                         home: {
                             entrypoint: "view.js",
                             sandbox: {},
-                            presents: [],
+                            presents: [{ packageId, type: "note", priority: "option" }],
+                            packages: [],
+                        },
+                        editor: {
+                            entrypoint: "editor.js",
+                            sandbox: {},
+                            presents: [{ packageId, type: "note", priority: "default" }],
                             packages: [],
                         },
                     },

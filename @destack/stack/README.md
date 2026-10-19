@@ -106,6 +106,16 @@ const { store, packages } = serveSpace({
 });
 ```
 
+## Views
+
+`installation.open` reads the view an installation's revision declares, and `installation.present` finds the view of a space presenting an object most strongly.
+
+```ts
+const opened = await stack.installation.open({ spaceId, id, view: "home", path: "/" }); // its build, permissions and home
+const shown = await stack.installation.present({ spaceId, object: note }); // { installation: "notes", view: "editor" }
+await stack.installation.present({ spaceId, object: note, view: "home" }); // the view asked for
+```
+
 ## Change requests
 
 A space that requires approvals of its branches, through the `branch.approvals` setting, merges a branch only through a `changeRequest` holding its merge, which the change request makes once enough approvers approve, as a protected branch merges only approved pull requests.

@@ -116,7 +116,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         definition: {
             entrypoint: "view.js",
             sandbox: {},
-            presents: [],
+            presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             packages: [],
         },
         path: "/",
@@ -131,6 +131,26 @@ test("apply a submitted stack build and open its installations' views", async ()
             message: "notes declares no view settings",
         }),
     );
+
+    // present a note in the view presenting it by default, in the view asked for, and refuse others
+    const note = { packageId: ids.package, type: "note", scope: ids.space, id: "note-1" };
+    const presented = (object: typeof note, view?: string) =>
+        owner.installation.present({
+            spaceId: ids.space,
+            object,
+            ...(view === undefined ? {} : { view }),
+        });
+    expect([
+        await presented(note),
+        await presented(note, "home"),
+        await refusal(presented(note, "settings")),
+        await refusal(presented({ ...note, type: "folder" })),
+    ]).toEqual([
+        { installation: "notes", view: "editor" },
+        { installation: "notes", view: "home" },
+        ["NOT_FOUND", `no view settings of ${ids.space} presents note objects`],
+        ["NOT_FOUND", `no view of ${ids.space} presents folder objects`],
+    ]);
 });
 
 test("apply an earlier build submitted again after a later one, approving each plan that waits", async () => {
@@ -234,7 +254,7 @@ test("install an application from a checkout by submitting its build, following 
         definition: {
             entrypoint: "view.js",
             sandbox: {},
-            presents: [],
+            presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             packages: [],
         },
         path: "/",
