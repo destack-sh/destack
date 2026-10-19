@@ -242,7 +242,7 @@ export class TokenSource {
         const at = this.options.at(Egress.address(issued.name, issued.issuer.scope));
         const type = Issuer.type(issued.package);
         const client = createClient(
-            { version: issued.package.version, router: { issuer: type.procedures } },
+            { router: { issuer: type.procedures } },
             {
                 url: `${at.url}${PackageMount.path(issued.package.id)}`,
                 fetch: (request) => at.fetch(request),
