@@ -252,7 +252,7 @@ repositoryTest(
                     name: "objects",
                     publication: QUERIES_PUBLICATION,
                     scope: forge.space,
-                    below: forge.space,
+                    target: forge.space,
                     parameters: { queries: { references: { object: "reference" } } },
                 },
                 { signal: controller.signal },
@@ -301,15 +301,15 @@ repositoryTest(
         const outside = await forge.createSpace(other.accountId);
         await forge.settle();
 
-        // follow the selected branch as a space for a space below
-        const follow = async (space: Identifier<"space">, below: string) => {
+        // follow the selected branch as a space for a target space
+        const follow = async (space: Identifier<"space">, target: string) => {
             const controller = new AbortController();
             const pages = await forge
                 .connectSpace(space)
                 .store.stream(
                     referenceShape.subscription(
                         { scope: forge.space, repository: site.id, name: "refs/heads/main" },
-                        below,
+                        target,
                     ),
                     { signal: controller.signal },
                 );
