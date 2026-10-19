@@ -1,12 +1,10 @@
-import { mapDirectives } from "./directives.ts";
+/** An image with its description, source, and the attributes braced after it. */
+const IMAGE = /!\[([^\]]*)\]\(([^)\s]+)[^)]*\)(?:\{[^}\n]*\})?/gu;
 
 /** Normalize Markdown into compact full-text search content. */
 export function searchTextFor(markdown: string) {
-    return mapDirectives(
-        withoutComments(markdown),
-        (_name, attributes, body) =>
-            `${attributes["title"] ?? attributes["alt"] ?? ""}\n${attributes["caption"] ?? body}`,
-    )
+    return withoutComments(markdown)
+        .replace(IMAGE, "$1")
         .replace(/```[\s\S]*?```/gu, (block) => block.replace(/^```[^\n]*|```$/gu, ""))
         .replace(/<[^>]+>/gu, " ")
         .replace(/\[([^\]]+)\]\([^)]+\)/gu, "$1")
@@ -24,26 +22,15 @@ export function plainTextFor(markdown: string) {
             protect(source.trimEnd(), code),
         )
         .replace(/`([^`\n]+)`/gu, (_match: string, source: string) => protect(source, code));
-    const text = mapDirectives(protectedMarkdown, (name, attributes, body) => {
-        if (name === "figure" || name === "video") {
-            const title = attributes["title"] ?? attributes["alt"] ?? "";
-            const source = attributes["src"];
-            if (source == undefined) {
-                throw new Error(`missing src in ${name} directive`);
-            }
-
-            return `${title} (${protect(source, code)})\n${attributes["caption"] ?? body}`;
-        }
-
-        return body;
-    })
+    const text = protectedMarkdown
+        .replace(
+            IMAGE,
+            (_match: string, alt: string, source: string) => `${alt} (${protect(source, code)})`,
+        )
         .replace(/^```[^\n]*\n/gmu, "")
         .replace(/^```\s*$/gmu, "")
-        .replace(/^:::\w+[^\n]*$/gmu, "")
-        .replace(/^:::\s*$/gmu, "")
         .replace(/^#{1,6}\s+/gmu, "")
         .replace(/^>\s?/gmu, "")
-        .replace(/!\[([^\]]*)\]\([^)]+\)/gu, "$1")
         .replace(/\[([^\]]+)\]\([^)]+\)/gu, "$1")
         .replace(/<[^>]+>/gu, "")
         .replace(/[*_`~]/gu, "")

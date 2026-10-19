@@ -2,12 +2,11 @@ import type { Element, ElementContent, Root, RootContent } from "hast";
 import type * as mdast from "mdast";
 import { existsSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
-import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
-import { captured, parseAttributes } from "./directives.ts";
+import { captured, parseAttributes } from "./attributes.ts";
 import { highlightCode } from "./highlight.ts";
 import { searchTextFor } from "./text.ts";
 
@@ -21,10 +20,10 @@ const CODE_EXTENSIONS: Record<string, string> = {
     typescript: "ts",
 };
 
-/** The kinds of GitHub alert a quotation can open with. */
-const ALERT = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/u;
+/** The kinds of alert a quotation can open with: GitHub's, and Obsidian's abstract. */
+const ALERT = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|ABSTRACT)\]\s*/u;
 
-/** The video files a video directive may play directly. */
+/** The video files a figure plays as a looping animation. */
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".ogv"]);
 
 /** An asset collected while rendering a content page. */
@@ -41,8 +40,8 @@ export type MarkdownContext = {
     sourceRoutes?: Map<string, { route: string; headings: Set<string> }>;
 };
 
-/** The parser of the site's Markdown: GitHub's flavour with block directives. */
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
+/** The parser of the site's Markdown: GitHub's flavour. */
+const parser = unified().use(remarkParse).use(remarkGfm);
 
 /** The converter of a Markdown tree to HTML, writing footnotes as GitHub does. */
 const converter = unified().use(remarkRehype, {
@@ -130,7 +129,7 @@ export function requireString<Field extends string>(
 /** Render trusted Markdown into its HTML tree, with collection-aware links and assets. */
 export function renderMarkdown(markdown: string, context: MarkdownContext): Root {
     // parse the page and shape its Markdown tree
-    const tree = parseMarkdown(markdown);
+    const tree = parser.parse(markdown);
     const counters = { figure: 0 };
     shapeMarkdown(tree, context, new Map());
 
@@ -139,18 +138,6 @@ export function renderMarkdown(markdown: string, context: MarkdownContext): Root
     shapeHtml(html, context, counters);
 
     return withoutParserData(html);
-}
-
-/** Parse Markdown into its tree, accepting directives written with bare attributes. */
-function parseMarkdown(markdown: string): mdast.Root {
-    // brace a directive's bare attributes, `:::figure width="600"` as `:::figure{width="600"}`
-    const braced = markdown.replace(
-        /^:::(\w+)[ \t]+(\S[^\n]*?)[ \t]*$/gmu,
-        (_line, name: string, attributes: string) =>
-            attributes.startsWith("{") ? `:::${name}${attributes}` : `:::${name}{${attributes}}`,
-    );
-
-    return parser.parse(braced);
 }
 
 /** Shape a Markdown tree in place. */
@@ -188,9 +175,13 @@ function shapeMarkdown(
             node.url = resolveLink(node.url, context);
             node.data = { ...node.data, hProperties: { loading: "lazy", decoding: "async" } };
         }
-        // write a quotation as a GitHub alert, or as a figure crediting its source
+        // set an image alone in its paragraph as a figure, the line under it as its caption
+        else if (node.type === "paragraph" && node.children[0]?.type === "image") {
+            shapeFigure(node, context);
+        }
+        // write a quotation as an alert or an abstract, or as a figure crediting its source
         else if (node.type === "blockquote") {
-            shapeQuotation(node);
+            shapeQuotation(node, context);
         }
         // mark a fence with its title, format and language for its listing
         else if (node.type === "code") {
@@ -207,24 +198,6 @@ function shapeMarkdown(
                 },
             };
         }
-        // mark a directive as a figure of its kind, carrying its attributes
-        else if (node.type === "containerDirective") {
-            shapeDirective(node, context);
-        }
-        // refuse a leaf directive, which the site has none of
-        else if (node.type === "leafDirective") {
-            throw new Error(`unknown directive in ${context.slug}: ${node.name}`);
-        }
-        // write back the text an inline colon made a directive, such as the `:draft` of `Note:draft`
-        else if (node.type === "textDirective") {
-            parent.children.splice(
-                index,
-                1,
-                { type: "text", value: `:${node.name}` },
-                ...node.children,
-            );
-            continue;
-        }
 
         // shape the node's children
         if ("children" in node) {
@@ -233,15 +206,40 @@ function shapeMarkdown(
     }
 }
 
-/** Write a quotation as a GitHub alert, or as a figure crediting its source. */
-function shapeQuotation(quotation: mdast.Blockquote): void {
-    // open an alert with its kind as title
+/** Write a quotation as an alert or an abstract, or as a figure crediting its source. */
+function shapeQuotation(quotation: mdast.Blockquote, context: MarkdownContext): void {
+    // read the alert a quotation opens with, dropping its marker
     const first = quotation.children[0];
     const opening = first?.type === "paragraph" ? first.children[0] : undefined;
     const alert = opening?.type === "text" ? ALERT.exec(opening.value) : null;
-    if (first?.type === "paragraph" && opening?.type === "text" && alert !== null) {
-        const kind = captured(alert, 1).toLowerCase();
+    if (opening?.type === "text" && alert !== null) {
         opening.value = opening.value.slice(alert[0].length);
+    }
+
+    // set an abstract aside, its closing link to a heading on this page as its skip link
+    if (first?.type === "paragraph" && alert !== null && captured(alert, 1) === "ABSTRACT") {
+        const last = quotation.children.at(-1);
+        const link =
+            last?.type === "paragraph" && last.children.length === 1 ? last.children[0] : undefined;
+        const skip = link?.type === "link" && link.url.startsWith("#") ? link : undefined;
+        if (skip !== undefined) {
+            quotation.children = quotation.children.slice(0, -1);
+        }
+        quotation.data = {
+            hName: "aside",
+            hProperties: {
+                dataKind: "abstract",
+                dataTo: skip && resolveHeadingLink(skip.url, context),
+                dataSkip: skip && textOf(skip),
+            },
+        };
+
+        return;
+    }
+
+    // open an alert with its kind as title
+    if (first?.type === "paragraph" && alert !== null) {
+        const kind = captured(alert, 1).toLowerCase();
         const title: mdast.Paragraph = {
             type: "paragraph",
             data: { hProperties: { className: ["markdown-alert-title"] } },
@@ -279,82 +277,71 @@ function shapeQuotation(quotation: mdast.Blockquote): void {
     }
 }
 
-/** Mark a figure or video directive as a figure, its caption and attributes as data. */
-function shapeDirective(
-    node: Extract<mdast.RootContent, { type: "containerDirective" }>,
-    context: MarkdownContext,
-): void {
-    // read the attributes, constraining an authored width to positive pixels
-    const attributes = Object.fromEntries(
-        Object.entries(node.attributes ?? {}).flatMap(([key, value]) =>
-            typeof value === "string" ? [[key, value]] : [],
-        ),
-    );
+/** Set an image alone in its paragraph as a figure, the line under it as its caption. */
+function shapeFigure(paragraph: mdast.Paragraph, context: MarkdownContext): void {
+    // read the image, and the attributes braced right after it, `{width=600 poster=./still.webp}`
+    const [image, after, ...rest] = paragraph.children;
+    if (image?.type !== "image") {
+        throw new Error(`a figure paragraph in ${context.slug} opens without its image`);
+    }
+    const braced = after?.type === "text" ? /^\{([^}\n]*)\}/u.exec(after.value) : null;
+    const attributes = braced === null ? {} : parseAttributes(captured(braced, 1));
+    const tail =
+        after?.type === "text" && braced !== null
+            ? [{ ...after, value: after.value.slice(braced[0].length) }, ...rest]
+            : [after, ...rest].flatMap((node) => (node === undefined ? [] : [node]));
+
+    // take the line under the image as the caption, leaving an image with words beside it inline
+    const [head, ...caption] = tail;
+    if (head !== undefined && head.type === "text" && /^[ \t]*\n/u.test(head.value)) {
+        caption.unshift({ ...head, value: head.value.replace(/^[ \t]*\n/u, "") });
+    } else if (
+        head !== undefined &&
+        head.type !== "break" &&
+        !(head.type === "text" && head.value.trim() === "")
+    ) {
+        return;
+    }
+
+    // constrain an authored width to positive pixels, and require the image's description
     const width = attributes["width"];
     if (width !== undefined && !/^[1-9][0-9]*$/u.test(width)) {
         throw new Error(`invalid media width in ${context.slug}: ${width}`);
     }
+    if (image.alt == undefined || image.alt === "") {
+        throw new Error(`missing alt text in ${context.slug}: ${image.url}`);
+    }
 
-    // take the caption from its attribute or the directive's body
-    const caption: mdast.PhrasingContent[] =
-        attributes["caption"] === undefined
-            ? node.children.flatMap((child) => (child.type === "paragraph" ? child.children : []))
-            : [{ type: "text", value: attributes["caption"] }];
-    const figcaption: mdast.Paragraph = {
-        type: "paragraph",
-        data: { hName: "figcaption" },
-        children: caption,
-    };
+    // carry a YouTube player, a video file as a looping animation, or an image
+    const youtube = youtubeVideo(image.url);
+    const isAnimation = VIDEO_EXTENSIONS.has(extname(pathOf(image.url)).toLowerCase());
+    const media =
+        youtube !== undefined
+            ? {
+                  dataKind: "video",
+                  dataSrc: image.url,
+                  dataEmbed: youtube.embed,
+                  dataPoster:
+                      attributes["poster"] === undefined
+                          ? `https://i.ytimg.com/vi/${youtube.id}/hqdefault.jpg`
+                          : resolveLink(attributes["poster"], context),
+                  dataTitle: image.alt,
+              }
+            : {
+                  dataKind: isAnimation ? "animation" : "image",
+                  dataSrc: resolveLink(image.url, context),
+                  dataAlt: image.alt,
+                  ...(isAnimation && {
+                      dataPoster: resolveLink(
+                          requireAttribute(attributes, "poster", context.slug, "figure"),
+                          context,
+                      ),
+                  }),
+              };
 
-    // carry an image, or a video file as a looping animation with its poster frame
-    if (node.name === "figure") {
-        const source = requireAttribute(attributes, "src", context.slug, node.name);
-        const isAnimation = VIDEO_EXTENSIONS.has(extname(pathOf(source)).toLowerCase());
-        node.data = {
-            hName: "figure",
-            hProperties: {
-                dataKind: isAnimation ? "animation" : "image",
-                dataWidth: width,
-                dataSrc: resolveLink(source, context),
-                dataAlt: requireAttribute(attributes, "alt", context.slug, node.name),
-                ...(isAnimation && {
-                    dataPoster: resolveLink(
-                        requireAttribute(attributes, "poster", context.slug, node.name),
-                        context,
-                    ),
-                }),
-            },
-        };
-        node.children = [figcaption];
-    }
-    // carry a video's file or YouTube player, its title and its poster, resolved
-    else if (node.name === "video") {
-        const source = requireAttribute(attributes, "src", context.slug, node.name);
-        const youtube = youtubeVideo(source);
-        if (youtube === undefined && !VIDEO_EXTENSIONS.has(extname(pathOf(source)).toLowerCase())) {
-            throw new Error(`unsupported video in ${context.slug}: ${source}`);
-        }
-        const poster =
-            attributes["poster"] === undefined
-                ? youtube && `https://i.ytimg.com/vi/${youtube.id}/hqdefault.jpg`
-                : resolveLink(attributes["poster"], context);
-        node.data = {
-            hName: "figure",
-            hProperties: {
-                dataKind: "video",
-                dataWidth: width,
-                dataSrc: resolveLink(source, context),
-                dataEmbed: youtube?.embed,
-                dataPoster: poster,
-                dataTitle: requireAttribute(attributes, "title", context.slug, node.name),
-            },
-        };
-        node.children = [figcaption];
-    }
-    // refuse an unknown directive
-    else {
-        throw new Error(`unknown directive in ${context.slug}: ${node.name}`);
-    }
+    // keep the paragraph as the figure, its caption phrasing set as the figcaption
+    paragraph.data = { hName: "figure", hProperties: { ...media, dataWidth: width } };
+    paragraph.children = [{ type: "emphasis", data: { hName: "figcaption" }, children: caption }];
 }
 
 /** Shape the HTML tree in place. */
@@ -739,7 +726,7 @@ export function headingsFor(markdown: string) {
     // collect the headings with their unique slugs
     const slugs = new Map<string, number>();
 
-    return parseMarkdown(markdown)
+    return parser.parse(markdown)
         .children.filter((node): node is mdast.Heading => node.type === "heading")
         .map((heading) => ({
             depth: heading.depth,
@@ -752,7 +739,7 @@ export function headingsFor(markdown: string) {
 export function searchSectionsFor(markdown: string) {
     // open a section at each heading up to level three and take the source beneath it
     const slugs = new Map<string, number>();
-    const nodes = parseMarkdown(markdown).children;
+    const nodes = parser.parse(markdown).children;
     const sections = [];
     for (const [index, node] of nodes.entries()) {
         if (node.type !== "heading" || node.depth > 3) {

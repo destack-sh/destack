@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { renderMarkdown } from "./markdown.ts";
 
-/** A page with a titled fence, an alert, a quotation, a footnote, a table and a figure. */
+/** A page with a fence, an alert, a quotation, a footnote, a table, a figure and an abstract. */
 const page = `## Setup
 
 \`\`\`ts title="install.ts"
@@ -22,9 +22,13 @@ Read the notes.[^1]
 | --- | --- |
 | build | 3 s |
 
-:::figure width="600" src="https://example.com/bull.jpg" alt="A bull in a few lines"
+![A bull in a few lines](https://example.com/bull.jpg){width=600}
 The Bull, 1945
-:::
+
+> [!ABSTRACT]
+> One stack for personal software.
+>
+> [Skip to Setup](#setup)
 
 [^1]: One database per space.
 `;
@@ -108,7 +112,7 @@ assert.deepEqual(JSON.stringify(element(5)).match(/"dataLabel":"[^"]*"/gu), [
     '"dataLabel":"Time"',
 ]);
 
-// carry the figure's image, width and number, its body as the caption
+// carry the figure's image, width and number, the line under it as the caption
 assert.deepEqual(element(6), {
     type: "element",
     tagName: "figure",
@@ -129,9 +133,21 @@ assert.deepEqual(element(6), {
     ],
 });
 
+// set the abstract aside, its closing link to a heading as the skip link
+assert.deepEqual(
+    [
+        element(7).tagName,
+        element(7).properties,
+        element(7)
+            .children.filter((node) => node.type === "element")
+            .map((node) => node.tagName),
+    ],
+    ["aside", { dataKind: "abstract", dataTo: "#setup", dataSkip: "Skip to Setup" }, ["p"]],
+);
+
 // list the footnote under its visible heading, as GitHub does
 assert.deepEqual(
-    [element(7).tagName, element(7).properties],
+    [element(8).tagName, element(8).properties],
     ["section", { dataFootnotes: true, className: ["footnotes"] }],
 );
 process.stdout.write("markdown tests passed\n");

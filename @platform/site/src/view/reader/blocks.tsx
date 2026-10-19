@@ -1,5 +1,6 @@
 import type { Element, ElementContent, Root } from "hast";
 import { Icon } from "@destack/icon";
+import arrowDown from "@destack/icon/phosphor/arrow-down";
 import play from "@destack/icon/phosphor/play";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -29,6 +30,7 @@ import { createReducedMotion } from "@destack/view/motion";
 export const blocks: ContentComponents = {
     pre: Listing,
     figure: Figure,
+    aside: Aside,
     table: (properties) => <Table>{properties.children}</Table>,
     thead: (properties) => <TableHeader xstyle={styles.head}>{properties.children}</TableHeader>,
     tbody: (properties) => <TableBody>{properties.children}</TableBody>,
@@ -236,6 +238,31 @@ function Figure(properties: ContentElementProperties) {
     return <figure>{properties.children}</figure>;
 }
 
+/** Render an aside: an abstract with its skip link past the essay, or any other aside as it is. */
+function Aside(properties: ContentElementProperties) {
+    // leave an aside of no kind to the prose
+    if (attribute(properties, "data-kind") !== "abstract") {
+        return <aside>{properties.children}</aside>;
+    }
+
+    // read the heading the abstract skips to, and the words of its link
+    const to = attribute(properties, "data-to");
+    const skip = attribute(properties, "data-skip");
+
+    return (
+        <aside aria-label="Abstract" {...style.attrs(styles.abstract)}>
+            <span {...style.attrs(styles.abstractLabel)}>Abstract</span>
+            <div {...style.attrs(styles.abstractBody)}>{properties.children}</div>
+            {to === undefined ? undefined : (
+                <a href={to} {...style.attrs(styles.skip)}>
+                    {skip}
+                    <Icon icon={arrowDown} xstyle={styles.skipIcon} />
+                </a>
+            )}
+        </aside>
+    );
+}
+
 /** Read one of an element's attributes as text, undefined when absent. */
 function attribute(properties: ContentElementProperties, name: string): string | undefined {
     const value = properties[name];
@@ -357,6 +384,51 @@ const styles = style.create({
     },
     drawing: {
         padding: space[6],
+    },
+    abstract: {
+        borderBlockColor: color.border,
+        borderBlockStyle: "solid",
+        borderBlockWidth: stroke.border,
+        borderInlineWidth: 0,
+        display: "grid",
+        justifyItems: "start",
+        marginBlockEnd: space[6],
+        marginBlockStart: 0,
+        paddingBlock: space[6],
+        rowGap: space[3],
+    },
+    abstractLabel: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+    },
+    abstractBody: {
+        color: color.foreground,
+        display: "grid",
+        fontSize: { default: "1.25rem", [media.maxSm]: "1.125rem" },
+        justifySelf: "stretch",
+        lineHeight: 1.55,
+    },
+    skip: {
+        alignItems: "center",
+        color: color.primary,
+        columnGap: space[1],
+        display: "inline-flex",
+        fontFamily: font.code,
+        fontSize: "0.75rem",
+        letterSpacing: "0.08em",
+        textDecorationLine: {
+            default: "none",
+            ":hover": { default: null, [media.hover]: "underline" },
+        },
+        textTransform: "uppercase",
+        textUnderlineOffset: "0.25em",
+    },
+    skipIcon: {
+        height: "0.875rem",
+        width: "0.875rem",
     },
     figure: {
         marginBlock: space[4],
