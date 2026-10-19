@@ -51,8 +51,8 @@ export class TestTemplate<
     readonly dialects: readonly Dialect[] | undefined;
     /** The value every copy shares, as its JSON form crosses from the run to the tests. */
     readonly value: schema.Schema<Value>;
-    /** Write the rows into the migrated database, returning the value every copy shares. */
-    readonly write: (storage: TestDatabase<Models>) => Promise<Value>;
+    /** Write the rows, and files into a directory of the run, returning what every copy shares. */
+    readonly write: (storage: TestDatabase<Models>, directory: string) => Promise<Value>;
 
     /** Define a template by its name, tables, value and write. */
     constructor(fields: {
@@ -60,7 +60,7 @@ export class TestTemplate<
         readonly tables: declaration.Database<Models> | readonly Table[];
         readonly dialects?: readonly Dialect[];
         readonly value: schema.Schema<Value>;
-        readonly write: (storage: TestDatabase<Models>) => Promise<Value>;
+        readonly write: (storage: TestDatabase<Models>, directory: string) => Promise<Value>;
     }) {
         // keep the fields
         this.name = fields.name;

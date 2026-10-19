@@ -167,6 +167,7 @@ export class TestDatabase<
             const value = await TestDatabase.#write(
                 template,
                 new TestDatabase(await open(tables), open, async () => {}),
+                run.directory,
             );
             const columns = await readColumns(session, schema);
             await session.end();
@@ -180,6 +181,7 @@ export class TestDatabase<
         const value = await TestDatabase.#write(
             template,
             await TestDatabase.#sqliteAt(file, tables, async () => {}),
+            run.directory,
         );
         const database = await sqlite.connectBunSqlite(file, tables);
         await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -188,18 +190,34 @@ export class TestDatabase<
         return { source: { dialect, file }, value };
     }
 
+    /** Keep SQLite in a file the caller owns, migrated when the file is new. */
+    static async at<Models extends Readonly<Record<string, Model>>>(
+        file: string,
+        tables: declaration.Database<Models> | readonly Table[],
+    ): Promise<TestDatabase<Models>> {
+        // copy the migrated database into a new file
+        const declared = "tables" in tables ? tables.tables : tables;
+        if (!(await Bun.file(file).exists())) {
+            await copyFile(await sqliteTemplate(declared, false, replicatedOf(tables)), file);
+        }
+
+        return TestDatabase.#sqliteAt(file, tables, async () => {});
+    }
+
     /** Drop the expired schemas no test claims and the images of runs that ended long ago. */
     static sweep(): Promise<void> {
         return TestSchema.sweep(testAddress());
     }
 
-    /** Write a template's rows into a database, then close it. */
+    /** Write a template into a database and a directory of the run's, then close the database. */
     static async #write<Value extends JsonValue, Models extends Readonly<Record<string, Model>>>(
         template: TestTemplate<Value, Models>,
         storage: TestDatabase<Models>,
+        directory: string,
     ): Promise<Value> {
+        const files = await mkdtemp(join(directory, "files-"));
         try {
-            return await template.write(storage);
+            return await template.write(storage, files);
         } finally {
             await storage.close();
         }
