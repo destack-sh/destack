@@ -1,6 +1,6 @@
 import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { none, principal, relation } from "@destack/access";
+import { grant, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -52,6 +52,25 @@ const roomsPackage = definePackage({ objects: { room } });
 
 /** The database of the space's rooms. */
 const roomsDatabase = defineDatabase({ name: "main", tables: [...room.tables, ...callTables] });
+
+/** Seats in a room, served by a package replicating the rooms. */
+const seat = defineObject({
+    name: "seat",
+    plural: "seats",
+    scope: room,
+    fields: {},
+    permissions: { read: none() },
+});
+
+/** The package of the rooms' seats. */
+const seatsPackage = definePackage({ objects: { seat } });
+
+/** The database of the rooms' seats, replicating the rooms. */
+const seatsDatabase = defineDatabase({
+    name: "main",
+    tables: [...seat.tables, ...callTables],
+    replicated: [room.table],
+});
 
 /** An uplink streaming and receiving nothing, named by who it stands for. */
 function idle(name: string): Uplink {
@@ -169,6 +188,51 @@ test.each(TEST_DIALECTS)(
                 [ROOM, "universe", "root"],
             ],
             [`fixture--${spaceId} ${roomsPackage.id}`],
+        ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "replicate the rooms from the universe into the space's root, and leave a room's own row to its partition's chain, on %s",
+    async (dialect) => {
+        // store the rooms' seats, replicating the rooms
+        const storage = await TestDatabase.create(dialect, seatsDatabase, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        await openSpace(storage.database, spaceId);
+
+        // list the types the universe replica of the root and of a room's partition request
+        const idles = { machine: idle("machine"), root: idle("root") };
+        const universeRows = async (partition?: string) => {
+            const store = new ObjectStore({
+                servers: [defineServer(seatsPackage, {})],
+                chain: async () => ({ kind: "follower" }),
+                clock: Clock.system,
+                origin: { package: Package.of(seatsPackage) },
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+                server: {
+                    ...(await testServerContext(Package.of(seatsPackage), spaceId)),
+                    ...(partition === undefined ? {} : { partition }),
+                    publisher: idles.machine,
+                    publisherAt: () => idles.root,
+                },
+            });
+
+            return store.source.universeSubscription(partition ?? spaceId).parameters["rows"];
+        };
+
+        // request every room at the root, and only the grants delegated into the room in its partition
+        expect([await universeRows(), await universeRows(ROOM)]).toEqual([
+            [
+                { type: room.typeReference, where: {}, isEverywhere: true },
+                {
+                    type: grant.typeReference,
+                    where: { delegateScope: spaceId },
+                    isEverywhere: true,
+                },
+            ],
+            [{ type: grant.typeReference, where: { delegateScope: ROOM }, isEverywhere: true }],
         ]);
     },
 );

@@ -35,13 +35,10 @@ import {
 } from "@destack/db";
 
 import { canonicalize, Digest, Duration, found, present, schema } from "@destack/schema";
-
 import { CallError, refuseInput } from "@destack/runtime/error";
-
 import { type RequestContext } from "@destack/runtime/server";
 import { withEventMeta } from "@destack/runtime";
 import * as sync from "@destack/sync";
-
 import {
     ACCESS_PUBLICATION,
     EPHEMERAL_PUBLICATION,
@@ -52,16 +49,11 @@ import {
 } from "../replica/replica.ts";
 import { FOLLOW, ObjectType, REPLICATE, type ObjectStorage } from "../object/object.ts";
 import { ExternalStorage } from "./external.ts";
-
 import { Authorization } from "./authorization.ts";
-
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ObjectAudience } from "./audience.ts";
-
 import type { Controller } from "@destack/runtime/control";
-
 import { until } from "@destack/runtime/timer";
-
 import type { ObjectStore, Subscriber } from "./store.ts";
 
 /** The largest broadcast event, in bytes: 16 KiB, far above the tens of bytes a cursor takes. */
@@ -200,6 +192,15 @@ export class ObjectSource {
             return { subject, ...(parent === undefined ? {} : { parent }) };
         }
 
+        // decide a via replica on its via scopes, in its audience
+        const via =
+            request.publication === CHAIN_PUBLICATION
+                ? ObjectSource.#chainParameters(request).via
+                : [];
+        if (via.length > 0) {
+            return { context };
+        }
+
         // decide for the scope's principal or a caller living in it, or the installation a partition below it runs
         const following = context.access(request.below);
         const resident = [following.subject, ...following.groups].filter(
@@ -215,12 +216,9 @@ export class ObjectSource {
                 message: `only ${request.below} and its contents can follow the replicas held for it`,
             });
         }
-        // decide a replica on its scope, and a via replica on each of its scopes
-        const via =
-            request.publication === CHAIN_PUBLICATION
-                ? ObjectSource.#chainParameters(request).via
-                : [];
-        if (this.#publication(request).audience === "contained" && via.length === 0) {
+
+        // decide a replica on its scope
+        if (this.#publication(request).audience === "contained") {
             const isResident = resident.some((subject) => subject.scope === request.below);
             const decided = standing === undefined || isResident ? request.below : request.scope;
             await this.#requireReplicate(decided, resident, context);
@@ -1166,12 +1164,18 @@ export class ObjectSource {
                 object.inherited === undefined &&
                 !followedElsewhere.some((type) => type.same(object)),
         );
+
+        // leave partition types to a partitioned store's chain
+        const isPartitioned = this.store.partition !== undefined;
+        const listable = replicated.filter(
+            (object) => !isPartitioned || object.definition.partition !== true,
+        );
         const isUnscoped = (object: ObjectType) =>
             object.scopes.length === 0 ||
             object.scopes.some((scope) => !replicated.some((type) => type.same(scope)));
 
         // replicate a type that lives in scope types outside the replica from every scope of its rows
-        const listed = replicated.filter(isUnscoped);
+        const listed = listable.filter(isUnscoped);
         const rows: UniverseParameters["rows"][number][] = listed.map((object) =>
             object.scope === Scope.universe.id
                 ? { type: object.typeReference, where: {} }
@@ -1181,7 +1185,7 @@ export class ObjectSource {
         // add the types living in the scopes of listed types, at any depth
         for (let isGrowing = true; isGrowing;) {
             isGrowing = false;
-            for (const object of replicated.filter((candidate) => !listed.includes(candidate))) {
+            for (const object of listable.filter((candidate) => !listed.includes(candidate))) {
                 const scopes = listed.filter((scope) =>
                     object.scopes.some((type) => type.same(scope)),
                 );

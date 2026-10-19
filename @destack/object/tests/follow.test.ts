@@ -680,6 +680,70 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     });
 });
 
+test("replicate a partition's chain via its installation's space, which the source holds no row of the partition below", async () => {
+    // store an account with a space at home, which holds no row of the installation's partition
+    const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => home.close());
+    const access = new AccessFixture(home.database);
+    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await home.database
+        .insert(space.table)
+        .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
+    const source = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([space]),
+        policies: [document],
+        database: home.database,
+        callKey: testCallKey,
+        events: await testEvents(home.database),
+        origin: { package: document.package },
+    });
+
+    // request the chain via the space below a partition of the installation living in it
+    const subject = principal.installation.reference(spaceId, followingId);
+    const partition = "tunnel-01996ab0-0000-7000-8000-000000000007";
+    const request = Authorizer.chainSubscription({
+        name: Authorizer.viaReplica(partition),
+        scope: Scope.universe.id,
+        below: partition,
+        parameters: { local: [], replicated: [], via: [spaceId], between: [accountId], types: [] },
+    });
+    const first = async (): Promise<Page | undefined> => {
+        const pages = source.source.relayed(request, subjectContext(subject, spaceId));
+        const page = await pages.next();
+        await pages.return(undefined);
+
+        return page.done === true ? undefined : page.value;
+    };
+
+    // refuse it until the installation may replicate the space, then replicate the space's chain
+    const refused = await refusal(first());
+    await access.replicateRelationship(
+        spaceId,
+        space.reference(accountId, spaceId),
+        "replicator",
+        subject,
+        1,
+    );
+    const page = present(await first(), "the chain's first page");
+    expect({
+        refused,
+        scopes: new Set(
+            page.changes
+                .filter((change) => change.table === Scope.table[TABLE].sqlName)
+                .map((change) => change.row["scope"]),
+        ),
+    }).toEqual({
+        refused: ["FORBIDDEN", "permission denied: replicate"],
+        scopes: new Set([accountId, spaceId]),
+    });
+});
+
 test("request no via chain for the rows a subject's follow brought, which their source decided for that subject", async () => {
     // store a space replicated into an installation's database by a follow on alice's behalf
     const declared = defineDatabase({
