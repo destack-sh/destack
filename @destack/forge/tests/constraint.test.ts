@@ -3,7 +3,7 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { repository } from "../src/object/index.ts";
-import { homeDatabase } from "./fixture/home.ts";
+import { homeDatabase } from "../src/test/home.ts";
 
 test.each(TEST_DIALECTS)(
     "refuse repository rows that mix the columns of their origins on %s",

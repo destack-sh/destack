@@ -1,3 +1,6 @@
+import { auditedCalls } from "./fixture/audit.ts";
+import { ids } from "@destack/account/test";
+import type { ForgeFixture } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -6,7 +9,7 @@ import { Registry } from "../src/client/index.ts";
 import { LATEST_TAG, packageObject } from "../src/object/index.ts";
 import { PackageArchive } from "../src/pack/index.ts";
 import { fixtureBuild, prereleaseBuild, uncommittedBuild } from "./fixture/build.ts";
-import { ACCOUNT_ID, COMMIT, PackageFixture } from "./fixture/package.ts";
+import { ACCOUNT_ID, COMMIT, openForge } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
 
 /** The fields of an npm version document the reads check. */
@@ -25,7 +28,7 @@ async function code(attempt: Promise<unknown>): Promise<string> {
 }
 
 /** Read an npm document as a user, or anonymously: its body, or its status and failure. */
-async function npm(forge: PackageFixture, path: string, user?: string): Promise<unknown> {
+async function npm(forge: ForgeFixture, path: string, user?: string): Promise<unknown> {
     const response = await fetch(`${forge.origin}/npm${path}`, {
         headers: user === undefined ? {} : { authorization: `Bearer ${user}` },
     });
@@ -36,17 +39,17 @@ async function npm(forge: PackageFixture, path: string, user?: string): Promise<
 
 test("publish pushed builds as releases, replaying retried requests, refusing versions taken before and stable builds of uncommitted changes, and publishing prereleases of them", async () => {
     // publish a package, tagging it latest, and pack its build as the release stores it
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
-    const owner = forge.client("owner");
-    const archive = await PackageArchive.pack(answer.build.reader, COMMIT);
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
+    const owner = forge.client(ids.owner);
+    const archive = await PackageArchive.pack(answer.reader, COMMIT);
 
     // retry the publication, publish the version again, and publish the next one under a tag
     const created = {
         spaceId: forge.space,
         requestId: RequestId.create(Date.now()),
         parentId: answer.packageId,
-        manifest: await forge.push(await fixtureBuild("answer", "2026.9.1")),
+        manifest: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
         tag: "next",
     };
     const next = await owner.release.create(created);
@@ -81,9 +84,9 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
 
     // refuse a tag a range reads, a build nobody pushed, a build of uncommitted changes, another package's build, and a stranger
     const missing = "f".repeat(64);
-    const dirty = await forge.push(await uncommittedBuild());
-    const greeting = (await forge.publish(await fixtureBuild("greeting"))).manifest;
-    const attempt = (changes: Partial<typeof created>, user = "owner") =>
+    const dirty = await forge.push((await uncommittedBuild()).reader);
+    const greeting = (await forge.publish((await fixtureBuild("greeting")).reader)).manifest;
+    const attempt = (changes: Partial<typeof created>, user = ids.owner) =>
         refusal(
             forge.client(user).release.create({
                 ...created,
@@ -96,7 +99,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
         await attempt({ manifest: missing }),
         await attempt({ manifest: dirty }),
         await attempt({ manifest: greeting }),
-        await attempt({}, "stranger"),
+        await attempt({}, ids.stranger),
     ]).toEqual([
         ["BAD_REQUEST", "invalid distribution tag: x"],
         ["NOT_FOUND", `build ${missing} was not pushed to the forge`],
@@ -109,7 +112,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
     const prerelease = await owner.release.create({
         ...created,
         requestId: RequestId.create(Date.now()),
-        manifest: await forge.push(await prereleaseBuild()),
+        manifest: await forge.push((await prereleaseBuild()).reader),
         tag: "dev",
     });
     expect([prerelease.version, prerelease.commit, prerelease.metadata.gitHead]).toEqual([
@@ -121,15 +124,15 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
 
 test("resolve a published release by version and by the tag pointing at it, and open its build through the releases", async () => {
     // publish a release, which latest points at, and read releases as its owner
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
-    const owner = forge.client("owner");
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
+    const owner = forge.client(ids.owner);
     const releases = new Registry(async () => ({
         url: forge.origin,
         space: forge.space,
         fetch: (request) => {
             const headers = new Headers(request.headers);
-            headers.set("authorization", "Bearer owner");
+            headers.set("authorization", `Bearer ${ids.owner}`);
 
             return fetch(new Request(request, { headers }));
         },
@@ -148,32 +151,32 @@ test("resolve a published release by version and by the tag pointing at it, and 
     ]).toEqual([
         answer.manifest,
         answer.manifest,
-        await answer.build.reader.distributed(),
+        await answer.reader.distributed(),
         ["NOT_FOUND", `${packageId} lacks release next`],
     ]);
 });
 
 test("store a pushed build in the forge's store by digest as its release's manifest", async () => {
     // push and release the build
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const pushed = await forge.store.contents(answer.manifest);
 
     // store the pushed build as the release's manifest
     expect([pushed.manifest, await pushed.distributed()]).toEqual([
-        answer.build.manifest,
-        await answer.build.reader.distributed(),
+        answer.reader.manifest,
+        await answer.reader.distributed(),
     ]);
 });
 
 test("publish releases in order, each planned from the latest release,", async () => {
     // refuse a release planned from one the package never published and publish both in order
-    await using forge = await PackageFixture.open();
+    await using forge = await openForge();
     const next = await fixtureBuild("answer", "2026.9.1");
-    const early = await refusal(forge.publish(next));
-    const first = await forge.publish(await fixtureBuild("answer"));
-    const second = await forge.publish(next);
-    const owner = forge.client("owner");
+    const early = await refusal(forge.publish(next.reader));
+    const first = await forge.publish((await fixtureBuild("answer")).reader);
+    const second = await forge.publish(next.reader);
+    const owner = forge.client(ids.owner);
     const published = await owner.package.get({ spaceId: forge.space, id: first.packageId });
 
     // record the upgrade on the later release, and the terms neither release fixes
@@ -187,9 +190,9 @@ test("publish releases in order, each planned from the latest release,", async (
 
 test("administer releases and distribution tags of a published package as its account's owner", async () => {
     // publish a package into the owner's account
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
-    const owner = forge.client("owner");
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
+    const owner = forge.client(ids.owner);
     const packageId = answer.packageId;
 
     // read the release, create a tag, replay its request, move it, refuse a stale move and a missing target, and delete it
@@ -251,7 +254,7 @@ test("administer releases and distribution tags of a published package as its ac
             revision: 2,
         }),
         await code(
-            forge.client("stranger").release.get({ spaceId: forge.space, id: published.id }),
+            forge.client(ids.stranger).release.get({ spaceId: forge.space, id: published.id }),
         ),
     ]).toEqual([
         ["2026.9.0", COMMIT, null, null],
@@ -271,7 +274,10 @@ test("administer releases and distribution tags of a published package as its ac
     ]);
 
     // audit each change once, the publication's vocabulary, tag and its pointing included, failures too, and never a read
-    expect(await forge.audited()).toEqual([
+    const audited = (await auditedCalls(forge.storage.database))
+        .filter((ended) => ended.execution.category === "activity")
+        .map((ended) => [ended.method, ended.execution.outcome.kind]);
+    expect(audited).toEqual([
         ["package.create", "success"],
         ["package.advance", "success"],
         ["tag.create", "success"],
@@ -288,10 +294,10 @@ test("administer releases and distribution tags of a published package as its ac
 
 test("enforce unique package names within an account and resolve global names to tagged and exact releases", async () => {
     // publish a package and claim its name again under another identity
-    await using forge = await PackageFixture.open();
-    await forge.publish(await fixtureBuild("answer"));
+    await using forge = await openForge();
+    await forge.publish((await fixtureBuild("answer")).reader);
     const taken = await refusal(
-        forge.client("owner").package.create({
+        forge.client(ids.owner).package.create({
             spaceId: forge.space,
             accountId: ACCOUNT_ID,
             id: Identifier.create("package"),
@@ -303,7 +309,7 @@ test("enforce unique package names within an account and resolve global names to
 
     // resolve the latest tag, an exact version, a missing tag and a missing package
     const version = async (path: string) => {
-        const read = await npm(forge, path, "owner");
+        const read = await npm(forge, path, ids.owner);
 
         return Array.isArray(read) ? read : DOCUMENT.parse(read).version;
     };
@@ -324,29 +330,29 @@ test("enforce unique package names within an account and resolve global names to
 
 test("resolve a package by its global name and its release by version or tag, hiding private packages from strangers", async () => {
     // publish a public release, which latest points at, and a private package
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"), "public");
-    await forge.publish(await fixtureBuild("greeting"));
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader, "public");
+    await forge.publish((await fixtureBuild("greeting")).reader);
     const spaceId = forge.space;
-    const resolve = (user: string, name: string) =>
+    const resolve = (user: Identifier<"user">, name: string) =>
         forge.client(user).package.resolve({ spaceId, name });
     const resolveRelease = (named: string) =>
-        forge.client("stranger").release.resolve({
+        forge.client(ids.stranger).release.resolve({
             spaceId,
             parentId: answer.packageId,
             release: named,
         });
 
     // resolve the name, the release by tag and by version, and refuse missing names and releases
-    const resolved = await resolve("stranger", "@example/answer");
+    const resolved = await resolve(ids.stranger, "@example/answer");
     expect([
         [resolved.id, resolved.name],
         (await resolveRelease(LATEST_TAG)).version,
         (await resolveRelease("2026.9.0")).manifest,
         await refusal(resolveRelease("next")),
-        await refusal(resolve("stranger", "@other/answer")),
-        (await resolve("owner", "@example/greeting")).name,
-        await refusal(resolve("stranger", "@example/greeting")),
+        await refusal(resolve(ids.stranger, "@other/answer")),
+        (await resolve(ids.owner, "@example/greeting")).name,
+        await refusal(resolve(ids.stranger, "@example/greeting")),
     ]).toEqual([
         [answer.packageId, "answer"],
         "2026.9.0",
@@ -360,11 +366,11 @@ test("resolve a package by its global name and its release by version or tag, hi
 
 test("deprecate releases, and yank them from new installs while exact pins still resolve them", async () => {
     // publish two versions of a package, and a package depending on the first
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
-    const next = await forge.publish(await fixtureBuild("answer", "2026.9.1"));
-    await forge.publish(await fixtureBuild("greeting"));
-    const owner = forge.client("owner");
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
+    const next = await forge.publish((await fixtureBuild("answer", "2026.9.1")).reader);
+    await forge.publish((await fixtureBuild("greeting")).reader);
+    const owner = forge.client(ids.owner);
     const named = (entry: { readonly parentId: string }) =>
         entry.parentId === answer.packageId ? "answer" : "greeting";
     const releases = new Map(
@@ -396,7 +402,7 @@ test("deprecate releases, and yank them from new installs while exact pins still
 
     // deprecate the first version for npm to report and withdraw the deprecation of the second
     const read = async (path: string) =>
-        DOCUMENT.parse(await npm(forge, `/@example/answer${path}`, "owner"));
+        DOCUMENT.parse(await npm(forge, `/@example/answer${path}`, ids.owner));
     const deprecated = await deprecate("answer@2026.9.0", "use 2026.9.1");
     await deprecate("answer@2026.9.1", "broken");
     await deprecate("answer@2026.9.1", null);
@@ -412,10 +418,10 @@ test("deprecate releases, and yank them from new installs while exact pins still
         await yank("answer@2026.9.1", true),
         await yank("answer@2026.9.1", true),
         await tags(),
-        await npm(forge, "/@example/answer/latest", "owner"),
+        await npm(forge, "/@example/answer/latest", ids.owner),
         (
             await fetch(`${forge.origin}/npm/@example/answer/-/answer-2026.9.0.tgz`, {
-                headers: { authorization: "Bearer owner" },
+                headers: { authorization: `Bearer ${ids.owner}` },
             })
         ).status,
     ]).toEqual([
@@ -450,11 +456,11 @@ test("deprecate releases, and yank them from new installs while exact pins still
 
 test("let anyone read public and unlisted packages, list only public ones, and show private ones to the account alone", async () => {
     // publish a public package and an unlisted one
-    await using forge = await PackageFixture.open();
-    await forge.publish(await fixtureBuild("answer"), "public");
-    const greeting = await forge.publish(await fixtureBuild("greeting"), "unlisted");
-    const owner = forge.client("owner");
-    const reads = async (user?: string) => {
+    await using forge = await openForge();
+    await forge.publish((await fixtureBuild("answer")).reader, "public");
+    const greeting = await forge.publish((await fixtureBuild("greeting")).reader, "unlisted");
+    const owner = forge.client(ids.owner);
+    const reads = async (user?: Identifier<"user">) => {
         const client = forge.client(user);
         const document = await npm(forge, "/@example/greeting", user);
 
@@ -474,7 +480,7 @@ test("let anyone read public and unlisted packages, list only public ones, and s
     };
 
     // let strangers and anonymous callers read both, listing only the public one
-    expect([await reads("owner"), await reads("stranger"), await reads()]).toEqual([
+    expect([await reads(ids.owner), await reads(ids.stranger), await reads()]).toEqual([
         [["answer", "greeting"], "accepted", "accepted", 2],
         [["answer"], "accepted", "accepted", 2],
         [["answer"], "accepted", "accepted", 2],
@@ -494,7 +500,7 @@ test("let anyone read public and unlisted packages, list only public ones, and s
     } as const;
     expect([
         await code(
-            forge.client("stranger").package.update({
+            forge.client(ids.stranger).package.update({
                 ...change,
                 requestId: RequestId.create(Date.now()),
             }),
@@ -506,7 +512,7 @@ test("let anyone read public and unlisted packages, list only public ones, and s
                 revision: current.revision,
             })
         ).visibility,
-        await reads("owner"),
+        await reads(ids.owner),
         await reads(),
     ]).toEqual([
         "FORBIDDEN",
@@ -518,8 +524,8 @@ test("let anyone read public and unlisted packages, list only public ones, and s
 
 test("find a published package's account by its package id across the universe", async () => {
     // publish a package, and find its account through the directory as the forge, by the package id alone
-    await using forge = await PackageFixture.open();
-    const answer = await forge.publish(await fixtureBuild("answer"));
+    await using forge = await openForge();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const claims = forge.claims;
     expect([
         await Claim.lookup(packageObject, claims, "id", [answer.packageId]),

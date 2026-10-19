@@ -1,8 +1,8 @@
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
 import { VAULT_PROVIDER } from "@destack/vault/declare";
-import { credentialVault } from "../../src/stack/index.ts";
-import forgePackage from "../../src/package.ts";
+import { credentialVault } from "../stack/index.ts";
+import forgePackage from "../package.ts";
 import {
     AccessContext,
     anyone,
@@ -31,14 +31,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { type ObjectReference, type Publisher, Scope, type Subject, Uplink } from "@destack/sync";
 import type { AccountFixture } from "@destack/account/test";
 import { vaultTables } from "@destack/vault/stack";
-import {
-    issuer,
-    packageObject,
-    reference,
-    release,
-    repository,
-    tag,
-} from "../../src/object/index.ts";
+import { issuer, packageObject, reference, release, repository, tag } from "../object/index.ts";
 import { claimTable, Follow } from "@destack/object";
 
 /** The residency whose home the fixture forges are installed in. */
@@ -109,6 +102,7 @@ export async function bearHome(objects: ObjectStore, home: ResidencyHome): Promi
     // record the space and its first access here, its home, the space owning itself
     const now = objects.clock.now();
     await Transaction.run(objects.database, async (transaction) => {
+        // receive the space as the store's principal
         const authorization = new Authorization(objects.authorizer, transaction, () =>
             AccessContext.of(Caller.of(objects.principal), now),
         );
@@ -140,6 +134,7 @@ export async function provisionVault(
     home: string,
     forge: Subject,
 ): Promise<ObjectReference> {
+    // store the vault in the home
     const now = Date.now();
     const id = vault.identifier(Identifier.create("vault"));
     await database.insert(vault.table).values({

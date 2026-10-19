@@ -1,3 +1,5 @@
+import { ids } from "@destack/account/test";
+import { ForgeFixture } from "../src/test/index.ts";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,8 +9,9 @@ import { nth, zip } from "@destack/schema";
 import {
     FIXTURE_RELEASES,
     FixtureSource,
-    PackageFixture,
     PRERELEASE_VERSION,
+    ACCOUNT_ID,
+    openUniverse,
 } from "./fixture/package.ts";
 
 /** Build each fixture release into a directory, publishing it for its dependents. */
@@ -17,20 +20,23 @@ async function build(builds: string, images: ImageIndex): Promise<void> {
     try {
         // replicate every source and start its builder at once, since booting a builder takes most of its first build
         await using stack = new AsyncDisposableStack();
-        const [forge, ...sources] = await Promise.all([
-            PackageFixture.open(images),
+        const [accounts, ...sources] = await Promise.all([
+            openUniverse(images),
             ...FIXTURE_RELEASES.map(([name]) => FixtureSource.open(name, directory)),
         ]);
-        stack.use(forge);
+        stack.use(accounts);
+        const forge = stack.use(
+            await ForgeFixture.create(accounts, { account: ACCOUNT_ID, user: ids.owner }),
+        );
         sources.forEach((source) => stack.use(source));
 
         // store and publish each version's build in dependency order
         for (const [source, [, versions]] of zip(sources, FIXTURE_RELEASES)) {
-            for (const built of await source.build(forge.npmrc(), versions)) {
+            for (const built of await source.build(forge.npmrc("@example"), versions)) {
                 stack.use(built);
                 const version = built.manifest.package.version;
                 await cp(built.directory, join(builds, source.name, version), { recursive: true });
-                await forge.publish(built);
+                await forge.publish(built.reader);
             }
         }
 

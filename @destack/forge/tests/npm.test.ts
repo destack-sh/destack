@@ -1,16 +1,18 @@
+import { ids } from "@destack/account/test";
+import type { ForgeFixture } from "../src/test/index.ts";
 import { expect, test } from "@destack/test";
 import { RequestId } from "@destack/runtime/request";
 import { present } from "@destack/schema";
 import type { Release, Tag } from "../src/object/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";
-import { PackageFixture } from "./fixture/package.ts";
+import { openForge } from "./fixture/package.ts";
 
 test("serve npm documents of published releases with conditional reads and per-request authorization", async () => {
     // publish a package and read its packument, a version, a tag and the archive as the owner
-    await using forge = await PackageFixture.open();
-    const { release } = await forge.publish(await fixtureBuild("answer"));
-    const tags = (await forge.client("owner").tag.list({ spaceId: forge.space })).items;
-    const authorization = "Bearer owner";
+    await using forge = await openForge();
+    const { release } = await forge.publish((await fixtureBuild("answer")).reader);
+    const tags = (await forge.client(ids.owner).tag.list({ spaceId: forge.space })).items;
+    const authorization = `Bearer ${ids.owner}`;
     const read = (path: string, headers: Record<string, string> = { authorization }) =>
         fetch(`${forge.origin}/npm${path}`, { headers });
     const packument = await read("/@example%2fanswer");
@@ -19,7 +21,7 @@ test("serve npm documents of published releases with conditional reads and per-r
 
     // answer unchanged documents from their entity tag, and hide documents and archives from anonymous and other callers alike
     const cached = await read("/@example/answer", { authorization, "if-none-match": etag });
-    const callers: Record<string, string>[] = [{}, { authorization: "Bearer stranger" }];
+    const callers: Record<string, string>[] = [{}, { authorization: `Bearer ${ids.stranger}` }];
     const denied = await Promise.all(
         callers.flatMap((headers) =>
             ["/@example/answer", "/@example/answer/-/answer-2026.9.0.tgz"].map(async (path) => {
@@ -73,12 +75,12 @@ test("serve npm documents of published releases with conditional reads and per-r
 
 test("answer only a package's own archives, versions and tags", async () => {
     // publish two packages, and read each's tarball under the other's name
-    await using forge = await PackageFixture.open();
-    await forge.publish(await fixtureBuild("answer"));
-    await forge.publish(await fixtureBuild("greeting"));
+    await using forge = await openForge();
+    await forge.publish((await fixtureBuild("answer")).reader);
+    await forge.publish((await fixtureBuild("greeting")).reader);
     const read = async (path: string) => {
         const response = await fetch(`${forge.origin}/npm${path}`, {
-            headers: { authorization: "Bearer owner" },
+            headers: { authorization: `Bearer ${ids.owner}` },
         });
         const body: unknown = await response.json();
 
@@ -101,10 +103,10 @@ test("answer only a package's own archives, versions and tags", async () => {
 
 test("serve public packages to anonymous npm clients with their deprecations, hiding yanked versions from the packument but serving their archives", async () => {
     // publish two versions of a public package, deprecate the first and yank the second
-    await using forge = await PackageFixture.open();
-    const first = await forge.publish(await fixtureBuild("answer"), "public");
-    const second = await forge.publish(await fixtureBuild("answer", "2026.9.1"));
-    const owner = forge.client("owner");
+    await using forge = await openForge();
+    const first = await forge.publish((await fixtureBuild("answer")).reader, "public");
+    const second = await forge.publish((await fixtureBuild("answer", "2026.9.1")).reader);
+    const owner = forge.client(ids.owner);
     const deprecated = await owner.release.deprecate({
         spaceId: forge.space,
         id: first.release.id,
@@ -136,11 +138,11 @@ test("serve public packages to anonymous npm clients with their deprecations, hi
 
 test("refuse npm's writes, which the Destack release and tag calls take", async () => {
     // send each write npm makes, with the owner's credentials
-    await using forge = await PackageFixture.open();
+    await using forge = await openForge();
     const write = async (method: string, path: string) => {
         const response = await fetch(`${forge.origin}/npm${path}`, {
             method,
-            headers: { authorization: "Bearer owner", "content-type": "application/json" },
+            headers: { authorization: `Bearer ${ids.owner}`, "content-type": "application/json" },
             ...(method === "PUT" ? { body: "{}" } : {}),
         });
         const body: unknown = await response.json();
@@ -163,7 +165,7 @@ test("refuse npm's writes, which the Destack release and tag calls take", async 
 });
 
 /** Describe a release of the answer package as its npm version document. */
-function described(forge: PackageFixture, release: Release) {
+function described(forge: ForgeFixture, release: Release) {
     const { shasum, integrity, fileCount, unpackedSize } = release.distribution;
     const tarball = `${forge.origin}/npm/@example/answer/-/answer-${release.version}.tgz`;
 

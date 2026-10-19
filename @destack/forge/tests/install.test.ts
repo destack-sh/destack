@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { PackageBuild } from "@destack/build";
 import { schema } from "@destack/schema";
 import { fixtureBuild } from "./fixture/build.ts";
-import { readJson, PackageFixture, run } from "./fixture/package.ts";
+import { openForge, readJson, run } from "./fixture/package.ts";
 
 /** Each package manager with how it installs a project and runs the installed code. */
 const MANAGERS = {
@@ -42,19 +42,19 @@ test.for(MANAGER_NAMES)(
     { timeout: 120_000 },
     async (manager) => {
         // publish a package and one built against it from the registry
-        await using forge = await PackageFixture.open();
-        const answer = await forge.publish(await fixtureBuild("answer"));
-        const greeting = await forge.publish(await fixtureBuild("greeting"));
+        await using forge = await openForge();
+        const answer = await forge.publish((await fixtureBuild("answer")).reader);
+        const greeting = await forge.publish((await fixtureBuild("greeting")).reader);
 
         // install the dependent package into a consumer project through the registry
-        const consumer = join(forge.directory, "consumer");
+        const consumer = join(forge.state.directory, "consumer");
         await cp(fileURLToPath(new URL("./fixture/consumer/", import.meta.url)), consumer, {
             recursive: true,
         });
-        await writeFile(join(consumer, ".npmrc"), forge.npmrc());
-        await mkdir(join(forge.directory, "cache"), { recursive: true });
+        await writeFile(join(consumer, ".npmrc"), forge.npmrc("@example"));
+        await mkdir(join(forge.state.directory, "cache"), { recursive: true });
         const selected = MANAGERS[manager];
-        await run(selected.install(join(forge.directory, "cache", manager)), consumer);
+        await run(selected.install(join(forge.state.directory, "cache", manager)), consumer);
 
         // run it, and restore both original builds from what was installed, finding each package as Node resolves it
         const greetingPath = await installed(consumer, "@example/greeting");
@@ -67,8 +67,8 @@ test.for(MANAGER_NAMES)(
                 .dependencies,
         }).toEqual({
             output: "hello world, the answer is 42\n",
-            answer: answer.build.manifest,
-            greeting: greeting.build.manifest,
+            answer: answer.reader.manifest,
+            greeting: greeting.reader.manifest,
             dependencies: { "@example/answer": "2026.9.0" },
         });
     },

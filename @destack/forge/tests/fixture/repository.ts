@@ -40,7 +40,7 @@ import {
     readHome,
     RESIDENCY,
     type ResidencyHome,
-} from "./home.ts";
+} from "../../src/test/home.ts";
 import { ConnectionSpace } from "./space.ts";
 import { APP_ID, GITHUB_API, GitHubStandIn, WEBHOOK_SECRET } from "./github.ts";
 import { githubPrivateKey } from "./key.ts";

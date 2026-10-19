@@ -37,12 +37,14 @@
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
@@ -50,9 +52,7 @@
         "semver": "7.8.5"
     },
     "devDependencies": {
-        "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
         "@types/semver": "7.8.0"
