@@ -469,8 +469,10 @@ export class ObjectClient<
             scope: options.scope,
             tables: decisionTables,
         });
-        this.#authorizer = ObjectPolicy.authorizer(this.objects, [], (table) =>
-            options.database.replicates(table),
+        this.#authorizer = ObjectPolicy.authorizer(
+            this.objects,
+            [],
+            new Set(options.database.tables.filter((table) => options.database.replicates(table))),
         );
 
         // read every replica and the local objects through one local feed

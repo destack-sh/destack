@@ -143,11 +143,11 @@ export const ObjectPolicy = {
         };
     },
 
-    /** Build the authorizer of object types, their enclosing scope types, and related types. */
+    /** Build the authorizer of stored object types, their scope types and related types. */
     authorizer(
         objects: readonly ObjectType[],
         others: readonly (Policy | ObjectType | TableMapping)[],
-        replicates: (table: Table) => boolean,
+        replicated: ReadonlySet<Table>,
         partition?: string,
     ): Authorizer {
         // collect each object type once and the types they relate to
@@ -182,7 +182,11 @@ export const ObjectPolicy = {
                     other instanceof Policy || other instanceof ObjectType ? [] : [other],
                 ),
             ],
-            { replicates, ...(partition === undefined ? {} : { partition }) },
+            {
+                replicated,
+                tables: new Set([...replicated, ...objects.map((object) => object.table)]),
+                ...(partition === undefined ? {} : { partition }),
+            },
         );
     },
 
