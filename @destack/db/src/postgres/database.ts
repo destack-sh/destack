@@ -23,7 +23,7 @@ const PAYLOAD_BYTES = 7_800;
 /** How long a message's fragments wait for the rest before dropping: a minute, past a burst. */
 const FRAGMENT_MILLISECONDS = 60_000;
 
-/** The client codes of a connection that closed, which leaves nothing to unlisten. */
+/** The client codes of a connection that closed, which leaves nothing to notify or unlisten. */
 const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONNECTION_ENDED"]);
 
 /** The prefix of a payload with one fragment of a message, which no JSON text starts with. */
@@ -94,6 +94,12 @@ export function postgresChannel(client: postgres.Sql, name: string): Channel<unk
     const failures = new Set<(error: unknown) => void>();
     const send = (payload: string) =>
         void client.notify(name, payload).catch((error: unknown) => {
+            // drop a notification a closed connection leaves nobody to send to
+            const code = errorCode(error);
+            if (code !== undefined && CLOSED_CODES.has(code)) {
+                return;
+            }
+
             // fail every listener, or fail loudly without one
             if (failures.size === 0) {
                 throw error;
