@@ -100,6 +100,20 @@ test("translate the same source text of two packages by each package's own catal
     ]);
 });
 
+test("ask for the catalogs of a package whose message renders without any", () => {
+    // render a notes message with its catalogs, and a mail message without any
+    const requested: string[] = [];
+    const german = Localization.of("de", [GERMAN], {
+        request: (packageId) => requested.push(packageId),
+    });
+    const rendered = [german.render(archived(1)), german.render(Message.context("", MAIL)`Close`)];
+
+    expect({ rendered, requested }).toEqual({
+        rendered: [`1 Notiz in ${OPEN}Trips${CLOSE} archiviert`, "Close"],
+        requested: [MAIL.package.id],
+    });
+});
+
 test("select a variant by value with the catch-all covering unlisted values", () => {
     const english = Localization.of("en", []);
     expect([

@@ -3,6 +3,7 @@ import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
 import type { Message } from "../message/message.ts";
 import type { JsonValue } from "@destack/schema";
+import type { PackageId } from "@destack/package";
 
 /** The smallest relative time unit, with its length in milliseconds. */
 const SECOND: readonly [Intl.RelativeTimeFormatUnit, number] = ["second", 1000];
@@ -17,9 +18,6 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
     ["minute", 60 * 1000],
     SECOND,
 ];
-
-/** The compiled formatters, by locale and source, compiled once each. */
-const COMPILED = new Map<string, MessageFormat>();
 
 /** The arguments a message's reader supplies, none for a message without any. */
 export type RenderArguments<Names extends string> = [Names] extends [never]
@@ -65,6 +63,8 @@ export interface LocalizationOptions {
     readonly source?: LocaleTag;
     /** The direction text and controls run in, the locale's own when absent. */
     readonly direction?: Direction;
+    /** Ask for the catalogs of a package whose message renders without any. */
+    readonly request?: (packageId: PackageId) => void;
 }
 
 /** The language messages are written in when a localization names none. */
@@ -76,12 +76,13 @@ export const Localization = {
     of(
         tag: LocaleTag,
         catalogs: readonly Catalog[],
-        { source = SOURCE_LOCALE, direction }: LocalizationOptions = {},
+        { source = SOURCE_LOCALE, direction, request }: LocalizationOptions = {},
     ): Localization {
         // index the translations by package and locale, and walk the fallback chain once
         const translations = new Map(
             catalogs.map((catalog) => [`${catalog.package}\u0000${catalog.locale}`, catalog]),
         );
+        const packages = new Set(catalogs.map((catalog) => catalog.package));
         const chain = Locale.fallback(tag, source);
 
         // build each formatter once per options and reuse it
@@ -95,17 +96,33 @@ export const Localization = {
             (options?: Intl.ListFormatOptions) => new Intl.ListFormat(tag, options),
         );
         const relatives = new Intl.RelativeTimeFormat(tag, { numeric: "auto" });
+        const compiled = new Map<string, MessageFormat>();
+        const compile = (locale: LocaleTag, text: string) => {
+            // compile each locale's text once
+            const key = `${locale}\u0000${text}`;
+            const found = compiled.get(key) ?? new MessageFormat(locale, text);
+            compiled.set(key, found);
+
+            return found;
+        };
 
         return {
             tag,
             direction: direction ?? Locale.direction(tag),
-            render: (message, ...[supplied]) =>
-                render(
+            render: (message, ...[supplied]) => {
+                // ask for the catalogs of a package rendering without any
+                if (!packages.has(message.package)) {
+                    request?.(message.package);
+                }
+
+                return render(
                     { ...message, values: { ...message.values, ...supplied } },
                     chain,
                     source,
                     translations,
-                ),
+                    compile,
+                );
+            },
             number: (value, options) => numbers(options).format(value),
             money: (amount, currency) => money(amount, currency, numbers),
             date: (time, options) => dates(options).format(time),
@@ -122,6 +139,7 @@ function render(
     chain: readonly LocaleTag[],
     source: LocaleTag,
     translations: ReadonlyMap<string, Catalog>,
+    compile: (locale: LocaleTag, text: string) => MessageFormat,
 ): string {
     // take the nearest translation its own package's catalogs hold
     for (const tag of chain) {
@@ -148,19 +166,6 @@ function format(compiled: MessageFormat, values: Readonly<Record<string, unknown
     }
 
     return text;
-}
-
-/** Compile a MessageFormat 2 source for a locale once. */
-function compile(locale: LocaleTag, source: string): MessageFormat {
-    // reuse the formatter compiled for the locale and source
-    const key = `${locale}\u0000${source}`;
-    let compiled = COMPILED.get(key);
-    if (compiled === undefined) {
-        compiled = new MessageFormat(locale, source);
-        COMPILED.set(key, compiled);
-    }
-
-    return compiled;
 }
 
 /** Write an amount in its currency's minor unit, a custom x- currency by its code. */
