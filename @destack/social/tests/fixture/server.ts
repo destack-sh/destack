@@ -372,7 +372,7 @@ function follow(store: ObjectStore, spaceId: string, actor: Actor) {
         store.source.ephemeralPublication.subscription({
             name: "ephemeral",
             scope: spaceId,
-            below: spaceId,
+            target: spaceId,
             parameters: {
                 writerId: `writer-${actor}`,
                 queries: { presences: { object: "presence" } },
