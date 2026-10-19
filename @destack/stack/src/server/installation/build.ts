@@ -97,14 +97,17 @@ export class BuildStore {
         return BuildReader.open(location, fetch);
     }
 
-    /** Read a published build, copying it from the registry into the store first. */
+    /** Read a published build, copying it from the registry into the store unless stored. */
     async open(
         registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: string,
     ): Promise<BuildReader> {
-        const { location, fetch } = await registry.locate(packageId, manifest);
-        await this.packages.copy(location, fetch);
+        // copy a build the store lacks from where the registry locates it
+        if (!(await this.packages.contains(manifest))) {
+            const { location, fetch } = await registry.locate(packageId, manifest);
+            await this.packages.copy(location, fetch);
+        }
 
         return this.packages.contents(manifest);
     }

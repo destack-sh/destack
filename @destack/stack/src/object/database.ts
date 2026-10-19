@@ -60,7 +60,7 @@ export const Database = {
         });
     },
 
-    /** Read the revision a space serves each installation at, with its declarations. */
+    /** Read the revision a space serves each installation at, with its build and declarations. */
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
@@ -69,6 +69,7 @@ export const Database = {
         {
             readonly installation: Installation;
             readonly revisionId: InstallationRevision["id"];
+            readonly manifest: string;
             readonly declarations: graph.Declaration[];
         }[]
     > {
@@ -95,17 +96,22 @@ export const Database = {
             where: { scope: spaceId, id: { in: revisions.map((entry) => entry.buildId) } },
         });
 
-        // read each revision's declarations from its build, once
+        // read each revision's build and its declarations, once
         const declared = new Map(
             await Promise.all(
                 revisions.map(async (revision) => {
+                    // open the revision's build by its manifest
                     const built = present(
                         builds.find((each) => each.id === revision.buildId),
                         `the build of revision ${revision.id}`,
                     );
-                    const reader = await open(Build.manifest(built));
+                    const manifest = Build.manifest(built);
+                    const reader = await open(manifest);
 
-                    return [revision.id, await reader.declarations()] as const;
+                    return [
+                        revision.id,
+                        { manifest, declarations: await reader.declarations() },
+                    ] as const;
                 }),
             ),
         );
@@ -116,7 +122,9 @@ export const Database = {
             installations.map(async (entry) => {
                 // serve a bound revision declaring no object types at once, and one declaring some once main applied them
                 const latest =
-                    entry.revisionId === null ? undefined : declared.get(entry.revisionId);
+                    entry.revisionId === null
+                        ? undefined
+                        : declared.get(entry.revisionId)?.declarations;
                 const tables = bindings.find(
                     (each) =>
                         each.installationId === entry.id &&
@@ -143,12 +151,15 @@ export const Database = {
         );
 
         return served.flat().flatMap(({ installation: entry, revisionId }) => {
-            const declarations = present(declared.get(revisionId), `revision ${revisionId}`);
+            const { manifest, declarations } = present(
+                declared.get(revisionId),
+                `revision ${revisionId}`,
+            );
             const hasBindings = declarations
                 .filter((each) => each.kind === RESOURCE_DECLARATION)
                 .every((each) => bound.has(`${entry.id}:${entry.packageId}:${each.name}`));
 
-            return hasBindings ? [{ installation: entry, revisionId, declarations }] : [];
+            return hasBindings ? [{ installation: entry, revisionId, manifest, declarations }] : [];
         });
     },
 };

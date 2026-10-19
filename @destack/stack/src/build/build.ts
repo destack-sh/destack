@@ -15,7 +15,7 @@ import type {
 import { DeclarationReference } from "@destack/package/declare";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
 import { WORKLOAD_EXPORT } from "@destack/runtime/cloudflare";
-import { PackageDescription } from "@destack/runtime/inspect";
+import { PackageDescription } from "@destack/runtime";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../client/hook.ts";
 import { SECRET_DECLARATION } from "../declare/binding.ts";
