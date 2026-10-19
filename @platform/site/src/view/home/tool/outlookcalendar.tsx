@@ -174,7 +174,7 @@ export function OutlookCalendar() {
                                     {...style.attrs(styles.event, isBookable && styles.booking)}
                                 >
                                     <b>{isBookable ? "Destack demo" : title.split(" · ")[0]}</b>
-                                    <span>{isBookable ? "Bookings with me" : "Florian Cäsar"}</span>
+                                    <span>{isBookable ? "Bookings with me" : "Florian"}</span>
                                 </span>
                             ))}
                         </div>

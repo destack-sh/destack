@@ -29,7 +29,7 @@ export function CalCom() {
                 {/* host and event */}
                 <div {...style.attrs(styles.event)}>
                     <span {...style.attrs(styles.avatar)}>F</span>
-                    <span {...style.attrs(styles.host)}>Florian Cäsar</span>
+                    <span {...style.attrs(styles.host)}>Florian</span>
                     <b {...style.attrs(styles.title)}>Destack demo</b>
                     <span {...style.attrs(styles.detail)}>
                         <Mark name="clock" size={16} />
@@ -41,7 +41,7 @@ export function CalCom() {
                     </span>
                     <span {...style.attrs(styles.detail)}>
                         <Mark name="globe" size={16} />
-                        Europe/Vienna
+                        Europe/Zurich
                         <Mark name="caret" size={14} />
                     </span>
                 </div>

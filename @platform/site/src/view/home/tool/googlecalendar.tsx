@@ -57,7 +57,7 @@ const days: readonly (readonly [weekday: string, date: number])[] = [
 
 /** The calendars in the side list: name and colour. */
 const calendars: readonly (readonly [name: string, tint: string])[] = [
-    ["Florian Cäsar", "#039be5"],
+    ["Florian", "#039be5"],
     ["Destack launch", "#33b679"],
     ["Tasks", "#4285f4"],
 ];

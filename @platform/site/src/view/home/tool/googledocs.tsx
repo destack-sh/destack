@@ -179,7 +179,7 @@ export function GoogleDocuments() {
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <span {...style.attrs(styles.person)}>F</span>
-                            Florian Cäsar
+                            Florian
                         </span>
                     </p>
                     <p {...style.attrs(styles.text)}>

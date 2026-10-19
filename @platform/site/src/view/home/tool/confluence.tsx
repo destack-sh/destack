@@ -168,7 +168,7 @@ export function Confluence() {
                         </b>
                         <span {...style.attrs(styles.byline)}>
                             <span {...style.attrs(styles.avatar)}>F</span>
-                            Owned by Florian Cäsar
+                            Owned by Florian
                             <span {...style.attrs(styles.dot)}>·</span>
                             Last updated 2 hours ago
                             <span {...style.attrs(styles.dot)}>·</span>
@@ -206,7 +206,7 @@ export function Confluence() {
                                 <tr>
                                     <th {...style.attrs(styles.cellHead)}>Owner</th>
                                     <td {...style.attrs(styles.cell)}>
-                                        <span {...style.attrs(styles.mention)}>@Florian Cäsar</span>
+                                        <span {...style.attrs(styles.mention)}>@Florian</span>
                                     </td>
                                 </tr>
                             </tbody>

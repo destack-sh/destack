@@ -161,7 +161,7 @@ export function Word() {
                     </b>
                     <p {...style.attrs(styles.meta)}>
                         Status: In progress · Launch: October 24, 2025 · Demo: October 22, 11:00 ·
-                        Owner: Florian Cäsar
+                        Owner: Florian
                     </p>
                     <p {...style.attrs(styles.text)}>
                         Ship to the waitlist on Thursday, then open signups on Friday.

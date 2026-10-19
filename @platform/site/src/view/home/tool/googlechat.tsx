@@ -178,7 +178,7 @@ export function GoogleChat() {
                                 </span>
                                 <span {...style.attrs(styles.messageBody)}>
                                     <span {...style.attrs(styles.byline)}>
-                                        <b>{author === "Agent" ? "Agent" : "Florian Cäsar"}</b>
+                                        <b>{author === "Agent" ? "Agent" : "Florian"}</b>
                                         {author === "Agent" ? (
                                             <span {...style.attrs(styles.app)}>App</span>
                                         ) : undefined}

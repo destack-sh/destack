@@ -114,7 +114,7 @@ export function ProtonMail() {
                         <Mark name="apps" size={18} />
                         <span {...style.attrs(styles.user)}>
                             <span {...style.attrs(styles.userText)}>
-                                <b>Florian Cäsar</b>
+                                <b>Florian</b>
                                 <span>florian@symbol.co</span>
                             </span>
                             <span {...style.attrs(styles.initials)}>FC</span>

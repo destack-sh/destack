@@ -155,7 +155,7 @@ export function Teams() {
                                     </span>
                                     <span {...style.attrs(styles.postText)}>
                                         <span {...style.attrs(styles.byline)}>
-                                            <b>{author === "Agent" ? "Agent" : "Florian Cäsar"}</b>
+                                            <b>{author === "Agent" ? "Agent" : "Florian"}</b>
                                             {author === "Agent" ? (
                                                 <span {...style.attrs(styles.bot)}>Bot</span>
                                             ) : undefined}

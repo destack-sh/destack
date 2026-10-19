@@ -78,7 +78,7 @@ export function Steam() {
                     <span {...style.attrs(styles.avatar)}>F</span>
                     <span {...style.attrs(styles.who)}>
                         <b {...style.attrs(styles.name)}>florian ▾</b>
-                        <span {...style.attrs(styles.small)}>Florian · Berlin, Germany</span>
+                        <span {...style.attrs(styles.small)}>Florian · Zurich, Switzerland</span>
                         <span {...style.attrs(styles.summary)}>
                             Factory games and puzzle boxes.
                         </span>

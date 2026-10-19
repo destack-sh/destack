@@ -32,7 +32,7 @@ const runs: readonly (readonly [
 ])[] = [
     [
         "Morning run",
-        "October 21, 2025 at 7:02 AM · Berlin",
+        "October 21, 2025 at 7:02 AM · Zurich",
         "8.20 km",
         "5:08 /km",
         "42m 06s",
@@ -41,7 +41,7 @@ const runs: readonly (readonly [
     ],
     [
         "Long run",
-        "October 19, 2025 at 8:30 AM · Berlin",
+        "October 19, 2025 at 8:30 AM · Zurich",
         "21.10 km",
         "5:31 /km",
         "1h 56m",

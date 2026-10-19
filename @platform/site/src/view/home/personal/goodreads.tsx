@@ -65,9 +65,9 @@ export function Goodreads() {
                             <span {...style.attrs(styles.link, styles.small)}>38 reviews</span>
                         </span>
                         <span {...style.attrs(styles.details)}>
-                            <h1 {...style.attrs(styles.name)}>Florian Cäsar</h1>
+                            <h1 {...style.attrs(styles.name)}>Florian</h1>
                             <span {...style.attrs(styles.fact)}>
-                                <b>Details</b> Berlin, Germany
+                                <b>Details</b> Zurich, Switzerland
                             </span>
                             <span {...style.attrs(styles.fact)}>
                                 <b>Activity</b> Joined in March 2014

@@ -39,7 +39,7 @@ export function Monzo() {
                     {...style.attrs(styles.logo)}
                 />
                 <span {...style.attrs(styles.account)}>Personal account</span>
-                <span {...style.attrs(styles.me)}>Florian Cäsar · Log out</span>
+                <span {...style.attrs(styles.me)}>Florian · Log out</span>
             </header>
 
             <div {...style.attrs(styles.panes)}>
