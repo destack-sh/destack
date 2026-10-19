@@ -362,10 +362,15 @@ function valueOf(column: Column, value: unknown): SQLWrapper {
         return new SQL([value]);
     }
 
-    // default a value an insert leaves out, and bind the others
+    // validate a written value once, as it enters the database, and bind it
+    if (value !== undefined && value !== null) {
+        return new SQL([new Parameter(column.definition.schema.parse(value), column)]);
+    }
+
+    // default a value an insert leaves out, and bind null
     const fallback = column.definition.default;
     if (value !== undefined || fallback === undefined) {
-        return new SQL([new Parameter(value ?? null, column)]);
+        return new SQL([new Parameter(null, column)]);
     }
 
     return fallback instanceof SQL ? fallback : new SQL([new Parameter(fallback, column)]);

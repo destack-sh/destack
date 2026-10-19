@@ -38,6 +38,15 @@ const BIT = schema.union([
     schema.literal(1n),
 ]);
 
+/** The JavaScript type each scalar column kind stores. */
+const SCALAR_TYPES = {
+    text: "string",
+    numeric: "string",
+    integer: "number",
+    real: "number",
+    boolean: "boolean",
+} as const satisfies Partial<Record<ColumnKind, "string" | "number" | "boolean">>;
+
 /** A decimal number as text, in fixed or exponent notation. */
 const DECIMAL = schema.string().regex(/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u);
 
@@ -187,8 +196,6 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
             ...definition,
             schema: validator,
             json: validator,
-            encode: (value: unknown, dialect: Dialect) =>
-                definition.encode(validator.parse(value), dialect),
             fromJson: (value: unknown) => validator.parse(definition.fromJson(value)),
         });
     }
@@ -240,9 +247,9 @@ export interface ColumnDefinition<
     readonly classification?: "sensitive";
     /** How a sensitive value is sealed, absent for an opaque copy of sealed text. */
     readonly sealing?: Sealing;
-    /** Encode an application value as a driver parameter. */
+    /** Convert a valid application value to a driver parameter, which its write validated. */
     readonly encode: (value: unknown, dialect: Dialect) => DriverValue;
-    /** Decode a driver value as an application value. */
+    /** Convert a stored driver value to an application value, which its write validated. */
     readonly decode: (value: unknown, dialect: Dialect) => Value;
     /** Write a value as JSON: exact numbers as text, instants as epoch ms, bytes as base64. */
     toJson(value: Value): JsonValue;
@@ -316,8 +323,9 @@ export function integer(name: string): ColumnBuilder<ColumnDefinitionOf<number, 
     return new ColumnBuilder({
         ...column.definition,
         decode: (value) =>
-            validator.parse(
+            stored(
                 typeof value === "string" || typeof value === "bigint" ? Number(value) : value,
+                "number",
             ),
     });
 }
@@ -345,7 +353,7 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
     return new ColumnBuilder({
         ...column.definition,
         encode(value, dialect) {
-            const checked = validator.parse(value);
+            const checked = stored(value, "boolean");
 
             // store SQLite booleans as zero or one
             if (dialect === "sqlite") {
@@ -367,7 +375,7 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
             }
             // read native PostgreSQL booleans
             else if (dialect === "postgresql") {
-                return validator.parse(value);
+                return stored(value, "boolean");
             }
             // reject other dialects
             else {
@@ -391,7 +399,7 @@ export function json<Value extends JsonValue>(
         nullable: true,
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode: (value) => JSON.stringify(validator.parse(value)),
+        encode: (value) => JSON.stringify(value),
         decode: (value, dialect) => {
             // read the stored JSON as its write validated it
             // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored JSON passed its write's validator
@@ -404,7 +412,7 @@ export function json<Value extends JsonValue>(
 function storedJson(value: unknown, dialect: Dialect): unknown {
     // parse SQLite JSON text
     if (dialect === "sqlite") {
-        const parsed: unknown = JSON.parse(TEXT.parse(value));
+        const parsed: unknown = JSON.parse(stored(value, "string"));
 
         return parsed;
     }
@@ -437,7 +445,7 @@ export function identifier<const Prefix extends string>(
         nullable: true,
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode: (value) => validator.parse(value),
+        encode: (value) => stored(value, "string"),
         decode: (value) => validator.parse(value),
     });
 }
@@ -455,10 +463,10 @@ export function binary(name: string): ColumnBuilder<ColumnDefinitionOf<Uint8Arra
         nullable: true,
         toJson: (value) => value.toBase64(),
         fromJson: (value) => Uint8Array.fromBase64(TEXT.parse(value)),
-        encode: (value) => validator.parse(value),
+        encode: (value) => stored(value, "bytes"),
         decode(value) {
             // view driver buffers as plain bytes
-            const bytes = validator.parse(value);
+            const bytes = stored(value, "bytes");
 
             return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         },
@@ -481,15 +489,16 @@ export function bigint(name: string): ColumnBuilder<ColumnDefinitionOf<bigint, "
         nullable: true,
         toJson: (value) => value.toString(),
         fromJson: (value) => validator.parse(BigInt(INTEGER_TEXT.parse(value))),
-        encode: (value) => validator.parse(value),
+        encode: (value) => stored(value, "bigint"),
         decode(value) {
             // reject integers that already lost precision
             if (typeof value === "number" && !Number.isSafeInteger(value)) {
                 throw new RangeError("the database driver returned an inexact integer");
             }
 
-            return validator.parse(
+            return stored(
                 typeof value === "string" || typeof value === "number" ? BigInt(value) : value,
+                "bigint",
             );
         },
     });
@@ -513,7 +522,10 @@ function decimalText(value: unknown): unknown {
 }
 
 /** Define a column whose JSON form, parameter and driver value are its validated value. */
-function scalarColumn<Value extends string | number | boolean | null, Kind extends ColumnKind>(
+function scalarColumn<
+    Value extends string | number | boolean | null,
+    Kind extends keyof typeof SCALAR_TYPES,
+>(
     name: string,
     kind: Kind,
     types: Readonly<Record<Dialect, string>>,
@@ -529,7 +541,39 @@ function scalarColumn<Value extends string | number | boolean | null, Kind exten
         nullable: true,
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode: (value) => validator.parse(value),
+        encode: (value) => stored(value, SCALAR_TYPES[kind]),
         decode: (value) => validator.parse(read(value)),
     });
+}
+
+/** The JavaScript type of each driver value a column stores, by name. */
+interface StoredTypes {
+    /** Text. */
+    readonly string: string;
+    /** A double-precision number. */
+    readonly number: number;
+    /** A boolean. */
+    readonly boolean: boolean;
+    /** An exact integer. */
+    readonly bigint: bigint;
+    /** Bytes. */
+    readonly bytes: Uint8Array;
+}
+
+/** Narrow a driver value to the type a column stores, refusing a value of another type. */
+function stored<Type extends keyof StoredTypes>(value: unknown, type: Type): StoredTypes[Type] {
+    // refuse a value of another type than the column stores
+    if (!isStored(value, type)) {
+        throw new TypeError(`the database driver returned ${typeof value} for a ${type} column`);
+    }
+
+    return value;
+}
+
+/** Decide whether a driver value has the type a column stores. */
+function isStored<Type extends keyof StoredTypes>(
+    value: unknown,
+    type: Type,
+): value is StoredTypes[Type] {
+    return type === "bytes" ? value instanceof Uint8Array : typeof value === type;
 }
