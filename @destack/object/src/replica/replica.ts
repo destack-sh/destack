@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "@destack/runtime";
-import { Watermark } from "@destack/runtime/bookmark";
+import { Watermark } from "@destack/sync";
 import { defineProcedure } from "@destack/runtime/procedure";
 import {
     Call,

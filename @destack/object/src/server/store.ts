@@ -57,7 +57,7 @@ import {
     zip,
 } from "@destack/schema";
 import type { ServerContext } from "@destack/runtime/workload";
-import type { Watermark } from "@destack/runtime/bookmark";
+import type { Watermark } from "@destack/sync";
 import { CompactionController } from "@destack/runtime/database";
 import { refuseInput, CallError } from "@destack/runtime/error";
 import { copyRequest, RequestId, type RequestIdentity } from "@destack/runtime/request";
@@ -598,7 +598,7 @@ export class ObjectStore {
             (each) => each instanceof ObjectType,
         );
         const below = this.scope;
-        const reach = (scope: string) =>
+        const publisherOf = (scope: string) =>
             publisher?.(scope) ?? present(subscriber?.uplink, `the publisher of ${scope}`);
 
         // add the followed types and the subscriptions
@@ -623,10 +623,13 @@ export class ObjectStore {
                     // follow the follows' keys, then the chains
                     const followed = await ObjectStore.#followSubscriptions(this, follows, {
                         below,
-                        publisher: reach,
+                        publisher: publisherOf,
                     });
                     const chained = (await this.source.chains(below)).map(
-                        ({ subscription, home }) => ({ subscription, publisher: reach(home) }),
+                        ({ subscription, home }) => ({
+                            subscription,
+                            publisher: publisherOf(home),
+                        }),
                     );
 
                     return [...chained, ...followed];
@@ -1133,7 +1136,7 @@ export class ObjectStore {
             watermark: store.watermark.handler(async ({ input, context }) => {
                 // read the scope's watermark once its replicas have the homes' commits
                 await this.enter(context, input.scope);
-                await this.#reachHomes(context, input.scope, input.homes);
+                await this.#waitForHomes(context, input.scope, input.homes);
 
                 return this.watermark();
             }),
@@ -2202,18 +2205,18 @@ export class ObjectStore {
         }
 
         // wait for observed writes
-        await this.reach(context, scope);
+        await this.waitFor(context, scope);
     }
 
     /** Wait until the database has the caller's watermarks in the scope chain. */
-    async reach(context: RequestContext, scope: string): Promise<void> {
+    async waitFor(context: RequestContext, scope: string): Promise<void> {
         // wait for the watermarks of the scope chain
         const watermarks = context.bookmark.watermarks;
         if (watermarks.length === 0) {
             return;
         }
         const chain = await this.#chainIds(scope);
-        await this.#reachAll(
+        await this.#waitForAll(
             context,
             scope,
             watermarks.filter((entry) => chain.has(entry.scope)),
@@ -2221,7 +2224,7 @@ export class ObjectStore {
     }
 
     /** Wait until a scope's chain replicas have their homes' commits, refusing other homes. */
-    async #reachHomes(
+    async #waitForHomes(
         context: RequestContext,
         scope: string,
         homes: readonly Watermark[],
@@ -2236,7 +2239,7 @@ export class ObjectStore {
         }
 
         // wait for each home's commit
-        await this.#reachAll(context, scope, homes);
+        await this.#waitForAll(context, scope, homes);
     }
 
     /** Read a scope and the scopes enclosing it, by identifier. */
@@ -2246,8 +2249,8 @@ export class ObjectStore {
         return new Set([scope, ...chain.map((link) => link.object.id)]);
     }
 
-    /** Wait until the scope's log or its replicas reach each watermark, in a bounded wait each. */
-    async #reachAll(
+    /** Wait until the scope's log or its replicas hold each watermark, in a bounded wait each. */
+    async #waitForAll(
         context: RequestContext,
         scope: string,
         watermarks: readonly Watermark[],
@@ -2257,8 +2260,8 @@ export class ObjectStore {
                 context.signal,
                 AbortSignal.timeout(BOOKMARK_TIMEOUT_MILLISECONDS),
             ]);
-            const isReached = await this.#reach(scope, watermark, signal);
-            if (!isReached) {
+            const isAt = await this.#waitForPosition(scope, watermark, signal);
+            if (!isAt) {
                 throw new CallError("SERVICE_UNAVAILABLE", {
                     message: `${watermark.scope} has not reached the required sequence`,
                 });
@@ -2272,7 +2275,11 @@ export class ObjectStore {
     }
 
     /** Wait until the store's own log or a replica of another scope's log has the watermark. */
-    async #reach(scope: string, watermark: Watermark, signal: AbortSignal): Promise<boolean> {
+    async #waitForPosition(
+        scope: string,
+        watermark: Watermark,
+        signal: AbortSignal,
+    ): Promise<boolean> {
         // wait on the store's own log
         if (watermark.scope === this.scope) {
             if (watermark.epoch !== (await this.database.log.epoch())) {
@@ -3271,9 +3278,9 @@ export class ObjectStore {
             }),
         );
 
-        // reach a partition's chain at its installation's root
+        // follow a partition's chain at its installation's root
         const isPartition = server?.partition !== undefined && server.partition !== server.space;
-        const reach =
+        const partitionPublisher =
             server !== undefined && isPartition
                 ? ObjectStore.#partitionPublisher(server, store, publisher)
                 : publisher;
@@ -3290,7 +3297,7 @@ export class ObjectStore {
             policies,
             ...(external.length === 0 ? {} : { external }),
             ...(follows.length === 0 ? {} : { follows }),
-            ...(reach === undefined ? {} : { publisher: reach }),
+            ...(partitionPublisher === undefined ? {} : { publisher: partitionPublisher }),
             ...(providers.length === 0 || machine === undefined
                 ? {}
                 : { provisioned: { providers, machine } }),
@@ -3450,12 +3457,12 @@ export class ObjectStore {
         let root: sync.Publisher | undefined;
 
         return (scope) => {
-            // reach other scopes as given
+            // publish other scopes as given
             if (scope !== server.partition) {
                 return publisher?.(scope) ?? server.publisher;
             }
 
-            // reach the partition through its installation's root
+            // publish the partition through its installation's root
             root ??= server.publisherAt(
                 Egress.address(server.name, server.space),
                 store().origin.package.id,
