@@ -12,6 +12,7 @@ import { Bill } from "../figure/bill";
 import { BASE_USERS } from "../figure/price";
 import { createSteps } from "../figure/stagger";
 import { InstallWays } from "./install";
+import type { Tool } from "../tool/tool";
 import { lineCount, tallyOf, ToolWall } from "./wall";
 
 /** The milliseconds between the steps of the bill's switch, one per line. */
@@ -32,8 +33,8 @@ const participle: Form = {
 /** Close the page on destacking: the tools you pick, the space they become, and how to install. */
 export function Participle(properties: {
     isOpen: boolean;
-    picks: readonly string[];
-    onPick: (name: string) => void;
+    picks: readonly Tool[];
+    onPick: (tool: Tool) => void;
     prompt: string;
 }) {
     // follow the motion the section shows, and step the bill's lines in order as the stack switches

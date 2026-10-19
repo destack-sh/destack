@@ -8,6 +8,7 @@ import { Adjective } from "../home/adjective/adjective";
 import { Command } from "../home/command/command";
 import { Participle } from "../home/participle/participle";
 import { firstPicks, promptOf } from "../home/participle/wall";
+import type { Tool } from "../home/tool/tool";
 import { PastParticiple } from "../home/past/past";
 import { Verb } from "../home/verb/verb";
 import { lattice } from "../layout/lattice.stylex";
@@ -19,17 +20,17 @@ export function Home() {
     const [isOpen, setIsOpen] = createSignal(false);
 
     // hold the tools the reader uses, starting from the first figure's, which the install prompt names
-    const [picks, setPicks] = createSignal<readonly string[]>(firstPicks);
-    const pick = (name: string) =>
+    const [picks, setPicks] = createSignal<readonly Tool[]>(firstPicks);
+    const pick = (tool: Tool) =>
         setPicks((current) =>
-            current.includes(name)
-                ? current.filter((picked) => picked !== name)
-                : [...current, name],
+            current.includes(tool)
+                ? current.filter((picked) => picked !== tool)
+                : [...current, tool],
         );
 
     // choose a tool from the first figure: pick it, last, so that figure shows it
-    const choose = (name: string) =>
-        setPicks((current) => [...current.filter((picked) => picked !== name), name]);
+    const choose = (tool: Tool) =>
+        setPicks((current) => [...current.filter((picked) => picked !== tool), tool]);
 
     return (
         <>

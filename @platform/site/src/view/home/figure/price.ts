@@ -1,3 +1,5 @@
+import type { Category } from "../tool/tool";
+
 /** The bytes in a megabyte. */
 const MB = 1_000_000;
 
@@ -508,61 +510,29 @@ const automation = personal({ hours: 0.5, requests: 170, database: 90 * MB, file
 /** Connection: a personal app synced every 15 minutes, 10 seconds a sync, and a year of rows. */
 const connection = personal({ hours: 0.35, requests: 131, database: 10 * MB, files: 0 });
 
-/** The work each tool's job takes after a year of use, by tool. */
+/** Builder: a waitlist app of the team's own code, and each signup's page loads. */
+const builder = workloadFrom({
+    shared: { files: 150 * MB },
+    perPerson: { hours: 0.5, requests: 100 },
+    perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
+    isAtLeast: true,
+});
+
+/** The work each job takes after a year of use, whichever tool does it. */
+export const jobWorkloads: Readonly<Record<Category, Workload>> = {
+    documents,
+    tables,
+    tasks,
+    calendar,
+    chat,
+    mail,
+    canvas,
+    workflows: automation,
+    builder,
+};
+
+/** The work each tool outside the jobs takes after a year of use, by tool. */
 export const workloads: Readonly<Record<string, Workload>> = {
-    // documents
-    Notion: documents,
-    "Google Docs": documents,
-    Word: documents,
-    Confluence: documents,
-    Obsidian: documents,
-
-    // tasks
-    Linear: tasks,
-    Jira: tasks,
-    Asana: tasks,
-    Trello: tasks,
-    ClickUp: tasks,
-
-    // chat
-    Slack: chat,
-    Teams: chat,
-    Discord: chat,
-    "Google Chat": chat,
-    WhatsApp: chat,
-
-    // mail
-    Gmail: mail,
-    Outlook: mail,
-    Superhuman: mail,
-    Thunderbird: mail,
-    "Proton Mail": mail,
-
-    // calendar
-    "Google Calendar": calendar,
-    "Outlook Calendar": calendar,
-    Calendly: calendar,
-    "Cal.com": calendar,
-
-    // tables
-    Airtable: tables,
-    "Google Sheets": tables,
-    Excel: tables,
-    Coda: tables,
-
-    // canvas
-    Miro: canvas,
-    FigJam: canvas,
-    Mural: canvas,
-    Lucid: canvas,
-    Excalidraw: canvas,
-
-    // automation
-    Zapier: automation,
-    Make: automation,
-    n8n: automation,
-    "Power Automate": automation,
-
     // personal apps connected to your space
     Strava: connection,
     Monzo: connection,
@@ -582,32 +552,6 @@ export const workloads: Readonly<Record<string, Workload>> = {
         shared: { database: 33 * MB, files: 77 * MB },
         perPerson: { hours: 0.25, requests: 100 },
         perUser: { requests: REQUESTS_PER_USER },
-    }),
-
-    // a waitlist app of the team's own code, and each signup's page loads
-    Replit: workloadFrom({
-        shared: { files: 150 * MB },
-        perPerson: { hours: 0.5, requests: 100 },
-        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
-        isAtLeast: true,
-    }),
-    Lovable: workloadFrom({
-        shared: { files: 150 * MB },
-        perPerson: { hours: 0.5, requests: 100 },
-        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
-        isAtLeast: true,
-    }),
-    Bolt: workloadFrom({
-        shared: { files: 150 * MB },
-        perPerson: { hours: 0.5, requests: 100 },
-        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
-        isAtLeast: true,
-    }),
-    v0: workloadFrom({
-        shared: { files: 150 * MB },
-        perPerson: { hours: 0.5, requests: 100 },
-        perUser: { database: 0.15 * MB, requests: REQUESTS_PER_USER },
-        isAtLeast: true,
     }),
 
     // identity: a 25 KB account with its sessions

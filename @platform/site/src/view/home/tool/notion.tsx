@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch } from "../verb/corner";
+import { launch, press, type PressState } from "../verb/corner";
 import { Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
@@ -82,6 +82,135 @@ export function Notion() {
                 </ul>
             </div>
         </div>
+    );
+}
+
+/** The strokes of the database's own glyphs, on a 24-unit grid. */
+const marks = {
+    table: ["M4 5h16v14H4z", "M4 10h16", "M10 10v9"],
+    board: ["M4 5h16v14H4z", "M10 5v14", "M15 5v14"],
+    text: ["M5 7h14", "M5 12h14", "M5 17h9"],
+    select: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "m8.5 10.5 3.5 3.5 3.5-3.5"],
+    sort: ["M8 4v16", "m4 8 4-4 4 4", "M16 20V4", "m12 16 4 4 4-4"],
+    bolt: ["M13 3 5 14h6l-1 7 8-11h-6z"],
+} satisfies Record<string, readonly string[]>;
+
+/** The name each status tag shows. */
+const statusNames: Readonly<Record<PressState, string>> = {
+    pitched: "Pitched",
+    replied: "Replied",
+    scheduled: "Call booked",
+};
+
+/** Draw the press list as a database on a page of the launch workspace. */
+export function NotionDatabase() {
+    return (
+        <div data-component="NotionDatabasePage" {...style.attrs(styles.database)}>
+            {/* top bar */}
+            <nav {...style.attrs(styles.notionBar)}>
+                <span {...style.attrs(styles.notionCrumb)}>
+                    <span aria-hidden="true">🚀</span>
+                    Destack launch
+                    <span {...style.attrs(styles.muted)}>/</span>
+                    <span aria-hidden="true">📰</span>
+                    Press
+                </span>
+                <span {...style.attrs(styles.notionTools)}>
+                    <span>Share</span>
+                    <Glyph name="clock" size={18} weight={1.75} />
+                    <Glyph name="star" size={18} weight={1.75} />
+                    <Glyph name="more" size={18} weight={2.5} />
+                </span>
+            </nav>
+
+            {/* title */}
+            <div {...style.attrs(styles.databaseBody)}>
+                <b {...style.attrs(styles.databaseTitle)}>
+                    <span aria-hidden="true">📰</span>
+                    Press
+                </b>
+
+                {/* views and tools */}
+                <span {...style.attrs(styles.views)}>
+                    <span {...style.attrs(styles.view, styles.viewOn)}>
+                        <Mark name="table" />
+                        All press
+                    </span>
+                    <span {...style.attrs(styles.view, styles.viewBoard)}>
+                        <Mark name="board" />
+                        By status
+                    </span>
+                    <span {...style.attrs(styles.viewTools)}>
+                        <Glyph name="filter" size={16} weight={1.75} />
+                        <Mark name="sort" />
+                        <Mark name="bolt" />
+                        <Glyph name="search" size={16} weight={1.75} />
+                        <span {...style.attrs(styles.newButton)}>
+                            New
+                            <Glyph name="caret" size={12} weight={2.5} />
+                        </span>
+                    </span>
+                </span>
+
+                {/* table */}
+                <div {...style.attrs(styles.table)}>
+                    <span {...style.attrs(styles.row, styles.headRow)}>
+                        <span {...style.attrs(styles.cell)}>
+                            <span {...style.attrs(styles.typeMark)}>Aa</span>
+                            Name
+                        </span>
+                        <span {...style.attrs(styles.cell)}>
+                            <Mark name="text" />
+                            Outlet
+                        </span>
+                        <span {...style.attrs(styles.cell)}>
+                            <Mark name="select" />
+                            Status
+                        </span>
+                        <span {...style.attrs(styles.cell, styles.wide)}>
+                            <Glyph name="calendar" size={15} weight={1.75} />
+                            Last contact
+                        </span>
+                    </span>
+                    {press.map(([name, outlet, state, last]) => (
+                        <span {...style.attrs(styles.row)}>
+                            <span {...style.attrs(styles.cell, styles.title)}>{name}</span>
+                            <span {...style.attrs(styles.cell)}>{outlet}</span>
+                            <span {...style.attrs(styles.cell)}>
+                                <span
+                                    {...style.attrs(
+                                        styles.tag,
+                                        state === "scheduled"
+                                            ? styles.tagGreen
+                                            : state === "replied"
+                                              ? styles.tagBlue
+                                              : styles.tagYellow,
+                                    )}
+                                >
+                                    {statusNames[state]}
+                                </span>
+                            </span>
+                            <span {...style.attrs(styles.cell, styles.wide)}>{last}, 2025</span>
+                        </span>
+                    ))}
+                    <span {...style.attrs(styles.newRow)}>
+                        <Glyph name="plus" size={15} weight={1.75} />
+                        New page
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** Draw one of the database's own glyphs in the current colour. */
+function Mark(properties: { name: keyof typeof marks }) {
+    return (
+        <svg aria-hidden="true" viewBox="0 0 24 24" {...style.attrs(styles.mark)}>
+            {marks[properties.name].map((path) => (
+                <path d={path} />
+            ))}
+        </svg>
     );
 }
 
@@ -265,5 +394,159 @@ const styles = style.create({
     notionDone: {
         opacity: 0.375,
         textDecorationLine: "line-through",
+    },
+
+    // database
+    database: {
+        backgroundColor: notion.surface,
+        color: notion.ink,
+        fontFamily: notion.sans,
+        fontSize: "14px",
+        height: "100%",
+        overflow: "hidden",
+    },
+    muted: {
+        color: notion.muted,
+    },
+    mark: {
+        fill: "none",
+        flexShrink: 0,
+        height: "16px",
+        stroke: "currentColor",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        strokeWidth: 1.75,
+        width: "16px",
+    },
+    databaseBody: {
+        display: "grid",
+        paddingInline: { default: "96px", [site.compact]: "48px", [site.narrow]: "16px" },
+    },
+    databaseTitle: {
+        alignItems: "center",
+        display: "flex",
+        fontSize: { default: "40px", [site.narrow]: "30px" },
+        fontWeight: 700,
+        gap: "14px",
+        lineHeight: 1.2,
+        marginBlockEnd: "20px",
+        marginBlockStart: { default: "56px", [site.narrow]: "28px" },
+    },
+    views: {
+        alignItems: "center",
+        borderBottomColor: notion.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        color: notion.muted,
+        display: "flex",
+        gap: "4px",
+    },
+    view: {
+        alignItems: "center",
+        borderBottomColor: "transparent",
+        borderBottomStyle: "solid",
+        borderBottomWidth: "2px",
+        display: "flex",
+        fontWeight: 500,
+        gap: "6px",
+        paddingBlock: "8px",
+        paddingInline: "4px",
+        whiteSpace: "nowrap",
+    },
+    viewOn: {
+        borderBottomColor: notion.ink,
+        color: notion.ink,
+    },
+    viewBoard: {
+        display: { default: "flex", [site.narrow]: "none" },
+    },
+    viewTools: {
+        alignItems: "center",
+        display: "flex",
+        gap: "14px",
+        marginInlineStart: "auto",
+    },
+    newButton: {
+        alignItems: "center",
+        backgroundColor: notion.link,
+        borderRadius: "6px",
+        color: "white",
+        display: "flex",
+        fontWeight: 500,
+        gap: "8px",
+        paddingBlock: "4px",
+        paddingInline: "10px",
+    },
+    table: {
+        display: "grid",
+    },
+    row: {
+        borderBottomColor: notion.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "grid",
+        gridTemplateColumns: {
+            default: "minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 0.9fr)",
+            [site.narrow]: "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)",
+        },
+        minHeight: "34px",
+    },
+    headRow: {
+        color: notion.muted,
+    },
+    cell: {
+        alignItems: "center",
+        borderInlineEndColor: notion.line,
+        borderInlineEndStyle: "solid",
+        borderInlineEndWidth: "1px",
+        display: "flex",
+        gap: "6px",
+        minWidth: 0,
+        overflow: "hidden",
+        paddingInline: "8px",
+        whiteSpace: "nowrap",
+    },
+    wide: {
+        borderInlineEndWidth: "0",
+        display: { default: "flex", [site.narrow]: "none" },
+    },
+    typeMark: {
+        fontSize: "13px",
+    },
+    title: {
+        fontWeight: 500,
+        textDecorationColor: notion.line,
+        textDecorationLine: "underline",
+        textDecorationThickness: "1px",
+        textUnderlineOffset: "3px",
+    },
+    tag: {
+        borderRadius: "3px",
+        overflow: "hidden",
+        paddingInline: "6px",
+        textOverflow: "ellipsis",
+    },
+    tagGreen: {
+        backgroundColor: notion.green,
+        color: notion.greenInk,
+    },
+    tagBlue: {
+        backgroundColor: notion.sky,
+        color: notion.navy,
+    },
+    tagYellow: {
+        backgroundColor: notion.yellow,
+        color: notion.yellowInk,
+    },
+    newRow: {
+        alignItems: "center",
+        borderBottomColor: notion.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        color: notion.muted,
+        display: "flex",
+        gap: "6px",
+        minHeight: "34px",
+        paddingInline: "8px",
     },
 });

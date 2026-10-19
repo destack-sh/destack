@@ -24,6 +24,20 @@ export const notion = style.defineConsts({
     tan: "#d9a679",
     /** The cover's dark paint. */
     clay: "#b46d4e",
+    /** Secondary text, icons and column heads. */
+    muted: "light-dark(#787774, #9b9b9b)",
+    /** The table's lines. */
+    line: "light-dark(#e9e9e7, #2f2f2f)",
+    /** A call-booked tag. */
+    green: "light-dark(#dbeddb, #2b593f)",
+    /** A call-booked tag's text. */
+    greenInk: "light-dark(#1c3829, #dbeddb)",
+    /** A pitched tag. */
+    yellow: "light-dark(#fdecc8, #89632a)",
+    /** A pitched tag's text. */
+    yellowInk: "light-dark(#402c1b, #fdecc8)",
+    /** The typeface the app sets in databases, or the nearest one a machine has. */
+    sans: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif',
     /** The typeface the site sets, or the nearest one a machine has. */
     face: '"Lyon-Text", Georgia, ui-serif, "Times New Roman", serif',
 });

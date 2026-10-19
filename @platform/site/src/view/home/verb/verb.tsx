@@ -26,10 +26,10 @@ import {
     type Viewer,
 } from "./space";
 import type { Stagger } from "../figure/stagger";
-import { BASE_USERS, workloadOf } from "../figure/price";
+import { BASE_USERS, jobWorkloads, type Workload, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
 import { sources } from "./source";
-import { type Lineup, lineupAt, toolsOf } from "../tool/tool";
+import { type Lineup, lineupAt, type Tool, toolsOf } from "../tool/tool";
 import type { Option } from "../figure/picker";
 import { screen } from "../../layout/screen.stylex";
 
@@ -77,6 +77,13 @@ function optionsOf(row: number): readonly Option[] {
     return offered.map((app) => ({ name: app.name, mark: { icon: app.icon, tint: app.tint } }));
 }
 
+/** Return the work a row's tool takes: its job's, or the personal app's on the data row. */
+function workloadAt(row: number, name: string): Workload {
+    const category = categoryAt(row);
+
+    return category === undefined ? workloadOf(name) : jobWorkloads[category];
+}
+
 /** Return the tint of an item's first mark, or the muted tone where it has none. */
 function tintOf(item: Item): string {
     const [mark] = marksOf(item.mark);
@@ -87,8 +94,8 @@ function tintOf(item: Item): string {
 /** Open the page with the verb, illustrated by your space in the cloud. */
 export function Verb(properties: {
     isOpen: boolean;
-    picks: readonly string[];
-    onChoose: (name: string) => void;
+    picks: readonly Tool[];
+    onChoose: (tool: Tool) => void;
 }) {
     // hold the holding pointed at, the one the browser settles on a moment later, and the one chosen
     const [lit, setLit] = createSignal<number | undefined>(undefined);
@@ -165,10 +172,9 @@ export function Verb(properties: {
 
     // show the tool the reader picked last for a row, or else the one the row has turned to
     const lineup = (): Lineup => (category) => {
-        const picked = toolsOf(category).filter((tool) => properties.picks.includes(tool.name));
+        const picked = toolsOf(category).filter((tool) => properties.picks.includes(tool));
         const latest = picked.toSorted(
-            (left, right) =>
-                properties.picks.indexOf(left.name) - properties.picks.indexOf(right.name),
+            (left, right) => properties.picks.indexOf(left) - properties.picks.indexOf(right),
         )[picked.length - 1];
 
         return latest ?? lineupAt(turnsOf(rowOf(category)))(category);
@@ -176,10 +182,16 @@ export function Verb(properties: {
 
     // show a chosen app's page: a tool every figure shares, or a personal app of this one
     const pick = (row: number, name: string) => {
-        if (categoryAt(row) === undefined) {
+        const category = categoryAt(row);
+        if (category === undefined) {
             setChosenSource(name);
         } else {
-            properties.onChoose(name);
+            properties.onChoose(
+                present(
+                    toolsOf(category).find((tool) => tool.name === name),
+                    `${name} tool`,
+                ),
+            );
         }
         choose(row);
     };
@@ -300,9 +312,9 @@ export function Verb(properties: {
                     isWindow
                     scale={{ people: people(), users: BASE_USERS }}
                     scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
-                    lines={holdingsWith(source(), lineup()).map((entry) => ({
+                    lines={holdingsWith(source(), lineup()).map((entry, index) => ({
                         entry,
-                        workload: workloadOf(entry.stacked.name),
+                        workload: workloadAt(index + 1, entry.stacked.name),
                         tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
                     }))}
                     lighting={lighting}

@@ -32,7 +32,7 @@ import { Lucid } from "./lucid";
 import { Miro } from "./miro";
 import { Mural } from "./mural";
 import { N8n } from "./n8n";
-import { Notion } from "./notion";
+import { Notion, NotionDatabase } from "./notion";
 import { Replit } from "./replit";
 import { Slack } from "./slack";
 import { Superhuman } from "./superhuman";
@@ -80,7 +80,7 @@ export type Tool = {
     page: () => JSX.Element;
 };
 
-/** Every tool the page names, grouped by category. */
+/** Every tool the page names, grouped by category, a tool rented for two jobs listed in each. */
 export const tools: readonly Tool[] = [
     // docs
     {
@@ -271,7 +271,7 @@ export const tools: readonly Tool[] = [
         icon: "caldotcom",
         tint: "#292929",
         subscription: "Cal.com",
-        tab: "Destack demo | Florian Cäsar | Cal.com",
+        tab: "Destack demo | Florian | Cal.com",
         site: "cal.com/florian/destack-demo",
         relation: { kind: "replace" },
         page: CalCom,
@@ -293,7 +293,7 @@ export const tools: readonly Tool[] = [
         icon: "outlook",
         tint: "#0078d4",
         subscription: "Microsoft 365",
-        tab: "Calendar - Florian Cäsar - Outlook",
+        tab: "Calendar - Florian - Outlook",
         site: "outlook.office.com/calendar/view/workweek",
         relation: { kind: "bridge", status: "two-way sync" },
         page: OutlookCalendar,
@@ -400,6 +400,17 @@ export const tools: readonly Tool[] = [
         site: "coda.io/d/Destack-launch/Press",
         relation: { kind: "replace" },
         page: Coda,
+    },
+    {
+        name: "Notion",
+        category: "tables",
+        icon: "notion",
+        tint: "#191919",
+        subscription: "Notion",
+        tab: "Press",
+        site: "notion.so/symbol/Press-8c41f0e2a5b94d1c9e7f3a6b2d5c8e10",
+        relation: { kind: "replace" },
+        page: NotionDatabase,
     },
 
     // canvas
@@ -569,7 +580,7 @@ export function toolsOf(category: Category): readonly Tool[] {
     return tools.filter((tool) => tool.category === category);
 }
 
-/** Return a tool by its name. */
+/** Return a tool's first entry by its name, the job it is rented for first. */
 export function toolOf(name: string): Tool {
     return present(
         tools.find((tool) => tool.name === name),

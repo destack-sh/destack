@@ -7,7 +7,7 @@ import {
     type Price,
     sumOf,
     type Workload,
-    workloadOf,
+    jobWorkloads,
 } from "../figure/price";
 import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
@@ -23,7 +23,7 @@ import { chrome } from "../figure/chrome.stylex";
 import { browserStyles } from "../figure/browser";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
-import { type Category, type Tool, tools } from "../tool/tool";
+import { type Category, type Tool, toolOf, tools } from "../tool/tool";
 
 /** An app every space comes with: its name and its icon. */
 type App = { name: string; icon: string };
@@ -73,7 +73,13 @@ export const lineCount = spaceJobs.length + 1;
 const offered: readonly Tool[] = tools.filter((tool) => tool.category in apps);
 
 /** The tools picked before the reader picks any. */
-export const firstPicks: readonly string[] = ["Notion", "Calendly", "Linear", "Airtable", "Slack"];
+export const firstPicks: readonly Tool[] = [
+    "Notion",
+    "Calendly",
+    "Linear",
+    "Airtable",
+    "Slack",
+].map(toolOf);
 
 /** Return the subscriptions a set of tools bills under, each once. */
 function subscriptionsOf(picked: readonly Tool[]): readonly string[] {
@@ -112,10 +118,11 @@ function statusOf(tool: Tool): string | undefined {
 }
 
 /** One row of the wall and the bill: a job, your space's app for it, and the tools that do it. */
-type Row = { label: string; app: App; tools: readonly Tool[] };
+type Row = { job: Job; label: string; app: App; tools: readonly Tool[] };
 
 /** The rows of the wall and the bill, one per job your space does. */
 const rows: readonly Row[] = [...spaceJobs, "workflows" as const].map((job) => ({
+    job,
     label: jobLabels[job],
     app: apps[job],
     tools: offered.filter((tool) => tool.category === job),
@@ -149,16 +156,16 @@ const landing = "cubic-bezier(0.23, 1, 0.32, 1)";
 
 /** Draw your tools a row per job: to pick while stacked, folded into your apps once destacked. */
 export function ToolWall(properties: {
-    picks: readonly string[];
+    picks: readonly Tool[];
     isOpen: boolean;
-    onPick: (name: string) => void;
+    onPick: (tool: Tool) => void;
 }) {
     // hold the wall and where each mark sat at the last layout
     let wall: HTMLOListElement | undefined;
     let places = new Map<string, DOMRect>();
 
     // find a row's picked tools
-    const pickedOf = (row: Row) => row.tools.filter((tool) => properties.picks.includes(tool.name));
+    const pickedOf = (row: Row) => row.tools.filter((tool) => properties.picks.includes(tool));
 
     // move each mark from where it sat to where it sits now, once the new layout has painted
     createEffect(
@@ -225,7 +232,7 @@ export function ToolWall(properties: {
                                 row.tools.map((tool) => (
                                     <ToolButton
                                         tool={tool}
-                                        isPicked={properties.picks.includes(tool.name)}
+                                        isPicked={properties.picks.includes(tool)}
                                         onPick={properties.onPick}
                                     />
                                 ))
@@ -239,10 +246,10 @@ export function ToolWall(properties: {
 }
 
 /** Return the apps you could make from the jobs your picks cover, the fullest first. */
-function makesOf(picks: readonly string[]): readonly Make[] {
+function makesOf(picks: readonly Tool[]): readonly Make[] {
     // read the jobs some pick covers, and keep the apps whose jobs all are
     const covered = new Set(
-        offered.filter((tool) => picks.includes(tool.name)).map((tool) => tool.category),
+        offered.filter((tool) => picks.includes(tool)).map((tool) => tool.category),
     );
     const ready = makes.filter((make) => make.jobs.every((job) => covered.has(job)));
 
@@ -252,14 +259,14 @@ function makesOf(picks: readonly string[]): readonly Make[] {
 }
 
 /** Draw a tool to pick: its mark and its name, underlined once picked. */
-function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (name: string) => void }) {
+function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (tool: Tool) => void }) {
     return (
         <button
             type="button"
             data-key={properties.tool.name}
             aria-pressed={properties.isPicked ? "true" : "false"}
             title={[properties.tool.name, statusOf(properties.tool)].filter(Boolean).join(", ")}
-            onClick={() => properties.onPick(properties.tool.name)}
+            onClick={() => properties.onPick(properties.tool)}
             {...style.attrs(styles.chip, styles.tool, properties.isPicked && styles.picked)}
         >
             <Favicon icon={properties.tool.icon} tint={properties.tool.tint} size={16} />
@@ -397,11 +404,11 @@ function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
 }
 
 /** Tally the picks a row to each job your space does. */
-export function tallyOf(picks: readonly string[]): readonly Line[] {
+export function tallyOf(picks: readonly Tool[]): readonly Line[] {
     // gather each row's picked tools
     const picked = rows.map((row) => ({
         ...row,
-        doers: row.tools.filter((tool) => picks.includes(tool.name)),
+        doers: row.tools.filter((tool) => picks.includes(tool)),
     }));
 
     // price each row on what the rows above it have not billed yet
@@ -415,7 +422,7 @@ export function tallyOf(picks: readonly string[]): readonly Line[] {
 
         return {
             entry: entryOf(row.label, row.doers, row.app, price),
-            workload: workloadOfRow(row.doers),
+            workload: workloadOfRow(row.job, row.doers),
             tint:
                 row.doers[0] === undefined
                     ? color.mutedForeground
@@ -458,15 +465,15 @@ function entryOf(label: string, doers: readonly Tool[], app: App, price: Price):
     };
 }
 
-/** Sum the work a row's tools take: their storage and compute, a floor where any of them is. */
-function workloadOfRow(doers: readonly Tool[]): Workload {
-    return sumOf(doers.map((tool) => workloadOf(tool.name)));
+/** Sum the work a row's tools take: the job's work once for each tool that does it. */
+function workloadOfRow(job: Job, doers: readonly Tool[]): Workload {
+    return sumOf(doers.map(() => jobWorkloads[job]));
 }
 
 /** Write the prompt that sets up a space, brings in replaced tools and connects the rest. */
-export function promptOf(picks: readonly string[]) {
+export function promptOf(picks: readonly Tool[]) {
     // split the picks into what moves in and what stays connected
-    const picked = offered.filter((tool) => picks.includes(tool.name));
+    const picked = offered.filter((tool) => picks.includes(tool));
     const moved = listOf(picked.filter((tool) => tool.relation.kind === "replace"));
     const linked = listOf(picked.filter((tool) => tool.relation.kind === "bridge"));
     const asks = [
@@ -481,7 +488,7 @@ export function promptOf(picks: readonly string[]) {
 
 /** Name tools in a list a person would write. */
 function listOf(picked: readonly Tool[]) {
-    const names = picked.map((tool) => tool.name);
+    const names = [...new Set(picked.map((tool) => tool.name))];
 
     return names.length <= 1
         ? names.join("")
