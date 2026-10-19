@@ -107,7 +107,7 @@ test("place spaces where they are created, store names in them, let exactly a sp
         {
             name: "chain",
             scope: accountId,
-            below: laptop,
+            target: laptop,
             publication: "chain",
             parameters: {
                 local: [],
@@ -439,7 +439,7 @@ function claims(caller: Actor) {
     };
 }
 
-/** Replicate the chain above a scope as a machine, below a space if given, reporting a refusal. */
+/** Replicate the chain above a scope as a machine, for a target space if given, reporting a refusal. */
 async function replicas(machine: Actor, scope: string, spaceId?: string): Promise<string> {
     const controller = new AbortController();
     const replicated = machine.client.store
@@ -447,7 +447,7 @@ async function replicas(machine: Actor, scope: string, spaceId?: string): Promis
             {
                 name: "chain",
                 scope,
-                below: spaceId ?? scope,
+                target: spaceId ?? scope,
                 publication: "chain",
                 parameters: { local: [], replicated: [], via: [], between: [], types: [] },
             },
@@ -526,8 +526,8 @@ test("publish a personal machine's URL as the machine alone, and read it as abse
 });
 
 /** Refuse following the replicas stored for a scope as anyone but it and what lives in it. */
-function unfollowed(below: string): string {
-    return `FORBIDDEN: only ${below} and its contents can follow the replicas held for it`;
+function unfollowed(target: string): string {
+    return `FORBIDDEN: only ${target} and its contents can follow the replicas held for it`;
 }
 
 /** Refuse moving a space to a machine that serves neither its account nor its residency. */

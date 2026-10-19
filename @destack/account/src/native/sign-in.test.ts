@@ -295,7 +295,6 @@ async function native(accounts: AccountFixture) {
     const logins = await ObjectClient.open({
         database,
         objects: { login },
-        package: login.package,
         clock: new VirtualClock(NOW),
         scope: DEVICE,
         caller: subject,

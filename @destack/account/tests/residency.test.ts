@@ -269,7 +269,7 @@ function chain(space: string, accountId: string) {
     return {
         name: "chain",
         scope: accountId,
-        below: space,
+        target: space,
         publication: "chain",
         parameters: {
             local: [],
@@ -305,7 +305,7 @@ async function accounts(caller: Actor, space: string): Promise<unknown[]> {
         {
             name: space,
             scope: Scope.universe.id,
-            below: space,
+            target: space,
             publication: "universe",
             parameters: { rows: [{ type: ACCOUNT_TYPE, where: {}, isEverywhere: true }] },
         },
