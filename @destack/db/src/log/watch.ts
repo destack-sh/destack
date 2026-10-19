@@ -1,4 +1,5 @@
 import type { Channel, Commit } from "../channel/channel.ts";
+import type { LogPosition } from "./position.ts";
 
 /** Who announces a connection's commits: the connection after commit, or the database inside it. */
 export type Announcer = "connection" | "database";
@@ -19,6 +20,10 @@ export class CommitWatch {
     #stop?: () => Promise<void>;
     /** The failure that ended listening. */
     #failure?: { readonly error: unknown };
+    /** The commits heard since the watch began. */
+    #generation = 0;
+    /** The log head read since the latest commit heard, at that commit's generation. */
+    #head: { readonly generation: number; readonly position: Promise<LogPosition> } | undefined;
 
     /** Watch the commits announced on a channel, or only this connection's without one. */
     constructor(
@@ -55,6 +60,30 @@ export class CommitWatch {
         for (const wake of waiting) {
             wake(error);
         }
+    }
+
+    /** Read the log head once per commit of a sole writer, which hears each commit as it ends. */
+    head(read: () => Promise<LogPosition>): Promise<LogPosition> {
+        // read the head of a database other writers commit to as well
+        if (this.#channel !== undefined) {
+            return read();
+        }
+
+        // reuse the head read since the latest commit
+        if (this.#head?.generation === this.#generation) {
+            return this.#head.position;
+        }
+
+        // read it once for this commit, forgetting a failed read
+        const head = { generation: this.#generation, position: read() };
+        this.#head = head;
+        head.position.catch(() => {
+            if (this.#head === head) {
+                this.#head = undefined;
+            }
+        });
+
+        return head.position;
     }
 
     /** Wait until a check of the tables committed since the last check passes after a commit. */
@@ -106,6 +135,9 @@ export class CommitWatch {
 
     /** Wake every reader waiting for a commit, adding the committed tables to each reader's. */
     #wake(tables: readonly string[]): void {
+        // count the commit
+        this.#generation += 1;
+
         // add the tables
         for (const committed of this.#committed) {
             for (const table of tables) {

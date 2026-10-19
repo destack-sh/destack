@@ -310,18 +310,15 @@ export class Log {
 
     /** Read the position of the latest commit, as a follower of an origin sees it when given. */
     async position(origin?: string): Promise<LogPosition> {
-        // read the head
-        const [row] = await this.database.all(selectHead(this.database.dialect));
-        const head = {
-            epoch: LogColumn.text(row?.["epoch"]),
-            logged: LogColumn.nullableInteger(row?.["logged"]),
-            horizon: LogColumn.integer(row?.["horizon"]),
-        };
+        // read the latest commit once per commit, and afresh inside a transaction seeing its own writes
         if (origin === undefined) {
-            return { epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
+            return this.database.driver.transaction === undefined
+                ? this.database.state.commits.head(() => this.#latest())
+                : this.#latest();
         }
 
         // read the latest change of another origin, or the horizon once compacted
+        const head = await this.#readHead();
         const [other] = await this.database.all(sql`
             SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
             WHERE origin IS NULL OR origin <> ${origin}
@@ -329,6 +326,28 @@ export class Log {
         const sequence = LogColumn.nullableInteger(other?.["sequence"]);
 
         return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
+    }
+
+    /** Read the position of the latest commit. */
+    async #latest(): Promise<LogPosition> {
+        const head = await this.#readHead();
+
+        return { epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
+    }
+
+    /** Read the log's head row: its epoch, latest sequence and horizon. */
+    async #readHead(): Promise<{
+        readonly epoch: string;
+        readonly logged: number | null;
+        readonly horizon: number;
+    }> {
+        const [row] = await this.database.all(selectHead(this.database.dialect));
+
+        return {
+            epoch: LogColumn.text(row?.["epoch"]),
+            logged: LogColumn.nullableInteger(row?.["logged"]),
+            horizon: LogColumn.integer(row?.["horizon"]),
+        };
     }
 
     /** Read the position the open transaction's reads reach. */
