@@ -155,15 +155,18 @@ test.each(TEST_DIALECTS)(
             ]);
         };
 
+        // follow each link's chain and the access grants delegated into it from the universe
         expect([await subscriptions(spaceId), await subscriptions(ROOM), reached]).toEqual([
             [
                 [`chain:${spaceId}`, spaceId, "machine"],
                 [`chain:${spaceId}`, "universe", "machine"],
+                [spaceId, "universe", "machine"],
             ],
             [
                 [`chain:${ROOM}`, ROOM, "root"],
                 [`chain:${ROOM}`, spaceId, "root"],
                 [`chain:${ROOM}`, "universe", "root"],
+                [ROOM, "universe", "root"],
             ],
             [`fixture--${spaceId} ${roomsPackage.id}`],
         ]);

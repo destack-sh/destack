@@ -1,4 +1,4 @@
-import { AccessContext, Caller } from "@destack/access";
+import { AccessContext, Caller, grant } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
@@ -122,7 +122,24 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         },
         isScopePublisher: scope === spaceId,
     });
-    const own = [chain(spaceId), chain(Scope.universe.id)];
+    // follow the access grants delegated into the space from the universe
+    const grants = {
+        name: spaceId,
+        publication: "universe",
+        scope: Scope.universe.id,
+        below: spaceId,
+        parameters: {
+            rows: [
+                {
+                    type: grant.typeReference,
+                    where: { delegateScope: spaceId },
+                    isEverywhere: true,
+                },
+            ],
+        },
+        isScopePublisher: false,
+    };
+    const own = [chain(spaceId), chain(Scope.universe.id), grants];
     expect({
         first,
         second,

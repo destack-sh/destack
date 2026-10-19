@@ -3,6 +3,7 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ControlLoop } from "@destack/runtime/control";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
+    accessGrant,
     accessTables,
     accessRelationship,
     Authorizer,
@@ -22,7 +23,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import { until } from "@destack/runtime/timer";
-import { Scope, Feed, Replica, Subject, type Page, type Subscription } from "@destack/sync";
+import { Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, defineShape, field, Follow } from "../src/index.ts";
@@ -214,18 +215,21 @@ test.each(TEST_DIALECTS)(
         });
         const head = await home.database.log.position();
         for (const scope of [spaceId, accountId, Scope.universe.id]) {
-            const key = present(
-                (await follower.list()).find((entry) => readScope(entry) === scope),
-                `the replica key of ${scope}`,
-            );
-            following.push(
-                follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
-            );
+            // follow every replica the scope keeps: its chain and, at the universe, the grants delegated in
+            const keys = (await follower.list()).filter((entry) => readScope(entry) === scope);
+            for (const key of keys) {
+                following.push(
+                    follower
+                        .reconcile(key, reconciliation(controller.signal))
+                        .then(() => undefined),
+                );
+            }
             await Replica.wait(installed.database, scope, head, controller.signal);
         }
         expect((await follower.list()).map(readScope)).toEqual([
             spaceId,
             accountId,
+            Scope.universe.id,
             Scope.universe.id,
         ]);
 
@@ -368,12 +372,85 @@ test("drop a replica once its source refuses its follow and no follow names it a
     requested.delete(otherSpaceId);
     closing(otherSpaceId).abort(new CallError("FORBIDDEN", { message: "refused" }));
     await machine.database.log.until(
-        async () => (await ownChain(machine.database)) === OWN_CHAIN,
+        async () => (await ownReplicas(machine.database)) === OWN_REPLICAS,
         controller.signal,
     );
 
     // drop the documents' replica without reporting the refusal
     expect(failures).toEqual([]);
+});
+
+test("replicate a person's grant to an installation of the space from the universe into the space", async () => {
+    // keep alice's grant to an installation of the space, and another one's to an installation elsewhere, at home
+    const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
+    const machine = await TestDatabase.create(
+        "sqlite",
+        [...document.tables, ...callTables, lease],
+        { isMigrated: true },
+    );
+    onTestFinished(async () => {
+        await Promise.all([home.close(), machine.close()]);
+    });
+    const access = new AccessFixture(home.database);
+    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    const alice = principal.user.reference(Scope.universe.id, users.alice);
+    const granted = await access.replicateGrant(
+        alice,
+        principal.installation.reference(
+            spaceId,
+            "installation-01996ab0-0000-7000-8000-0000000000b1",
+        ),
+        [{ ...document.permission("read"), scope: spaceId }],
+    );
+    await access.replicateGrant(
+        alice,
+        principal.installation.reference(
+            otherSpaceId,
+            "installation-01996ab0-0000-7000-8000-0000000000b2",
+        ),
+        [{ ...document.permission("read"), scope: otherSpaceId }],
+    );
+
+    // follow the space's replicas from home
+    const feed = new Feed(home.database, accessTables, { clock: Clock.system });
+    const store: ObjectStore = new ObjectStore({
+        chain: async () => ({ kind: "follower" }),
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document]),
+        database: machine.database,
+        uplink: {
+            receive: refuseChanges,
+            call: refuseQueries,
+            stream: (subscription, signal) =>
+                feed.subscribe(
+                    store.source.buildReplica(subscription).queries,
+                    subscription.after,
+                    signal,
+                ),
+        },
+        callKey: testCallKey,
+        events: await testEvents(machine.database),
+        origin: { package: document.package },
+    });
+    const controller = new AbortController();
+    const loop = new ControlLoop(
+        machine.database,
+        store.controllers().filter((each) => each.name === "replica"),
+        { clock: Clock.system, report: failing },
+    );
+    const running = loop.run(controller.signal);
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+    });
+    const head = await home.database.log.position();
+    await Replica.wait(machine.database, Scope.universe.id, head, controller.signal);
+
+    // keep only the grant to the space's installation
+    const kept = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
+    expect(kept.map((row) => row.id)).toEqual([granted]);
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {
@@ -603,7 +680,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     });
 });
 
-test("decide a via chain for the subject whose follow brought its rows", async () => {
+test("request no via chain for the rows a subject's follow brought, which their source decided for that subject", async () => {
     // store a space replicated into an installation's database by a follow on alice's behalf
     const declared = defineDatabase({
         name: "installed",
@@ -663,11 +740,8 @@ test("decide a via chain for the subject whose follow brought its rows", async (
             subscription.parameters["via"],
         ]);
 
-    // request the space's chain via it decided for alice, beside the installation's own universe replica
-    expect(vias).toEqual([
-        [Authorizer.viaReplica(followingSpaceId), undefined, []],
-        [`${Authorizer.viaReplica(followingSpaceId)}:${Subject.key(alice)}`, alice, [spaceId]],
-    ]);
+    // request only the installation's own via chain, leaving alice's space to its source
+    expect(vias).toEqual([[Authorizer.viaReplica(followingSpaceId), undefined, []]]);
 });
 
 test("serve a store whose on-behalf follow is refused, without gating its readiness", async () => {
@@ -732,12 +806,8 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
         .filter(({ subscription }) => subscription.subject !== undefined)
         .map(({ subscription, isReadinessGate }) => [subscription.name, isReadinessGate]);
 
-    // gate neither the follow nor the via chain its rows brought
-    const via = `${Authorizer.viaReplica(followingSpaceId)}:${Subject.key(alice)}`;
-    expect(gates).toEqual([
-        [via, false],
-        [brought.name, false],
-    ]);
+    // leave the best-effort follow ungated
+    expect(gates).toEqual([[brought.name, false]]);
 });
 
 test("replicate a scoped table an installation's database declares beside its followed space's chain, and drop its rows once the installation may no longer read the space", async () => {
@@ -847,15 +917,19 @@ test("replicate a scoped table an installation's database declares beside its fo
     });
 });
 
-/** The replicas of the store's own chain, each as its name and scope. */
-const OWN_CHAIN = JSON.stringify(
-    [spaceId, accountId, Scope.universe.id]
-        .map((scope) => [Authorizer.chainReplica(spaceId), scope])
-        .toSorted((left, right) => left.join().localeCompare(right.join())),
+/** The store's own replicas, its chain and the grants into its space, as names and scopes. */
+const OWN_REPLICAS = JSON.stringify(
+    [
+        ...[spaceId, accountId, Scope.universe.id].map((scope) => [
+            Authorizer.chainReplica(spaceId),
+            scope,
+        ]),
+        [spaceId, Scope.universe.id],
+    ].toSorted((left, right) => left.join().localeCompare(right.join())),
 );
 
-/** List a database's replicas as their names and scopes, to compare with the own chain. */
-async function ownChain(database: DatabaseConnection): Promise<string> {
+/** List a database's replicas as their names and scopes, to compare with the own ones. */
+async function ownReplicas(database: DatabaseConnection): Promise<string> {
     const replicas = (await Replica.subscriptions(database))
         .map((replica) => [replica.name, replica.scope])
         .toSorted((left, right) => left.join().localeCompare(right.join()));
@@ -1075,25 +1149,22 @@ test("replicate the chain of an account another replica brought first, once the 
     expect(await Promise.race([followed.promise, timeout])).toEqual([accountId]);
 });
 
-/** Follow a store's replica of the universe until the test finishes. */
+/** Follow a store's replicas of the universe until the test finishes. */
 async function followUniverse(
     replicating: ObjectStore,
     home: DatabaseConnection,
 ): Promise<AbortController> {
-    // follow the store's replica of the universe's rows
+    // follow the store's replicas of the universe's rows, and of the grants delegated into it
     const replica = present(
         replicating.controllers().find((each) => each.name === "replica"),
         "the replica controller",
     );
     const controller = new AbortController();
-    const key = (await replica.list()).find((each) => readScope(each) === Scope.universe.id);
-    const following = replica.reconcile(
-        present(key, "the universe's key"),
-        reconciliation(controller.signal),
-    );
+    const keys = (await replica.list()).filter((each) => readScope(each) === Scope.universe.id);
+    const following = keys.map((key) => replica.reconcile(key, reconciliation(controller.signal)));
     onTestFinished(async () => {
         controller.abort();
-        await Promise.allSettled([following]);
+        await Promise.allSettled(following);
     });
 
     // wait for it to reach the home's head

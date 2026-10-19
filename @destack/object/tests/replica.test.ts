@@ -2,7 +2,9 @@ import { users } from "./fixture/user.ts";
 import {
     AccessContext,
     AccessError,
+    Authorizer,
     Caller,
+    grant,
     none,
     principal,
     relation,
@@ -639,4 +641,100 @@ test("replicate only the rows a query's own permission allows, drop a row once t
         [["delete", lent.id]],
         ["BAD_REQUEST", "object loan has no permission lend"],
     ]);
+});
+
+test("answer a follow of a type the scope does not install with a complete page of no rows", async () => {
+    // serve mentions alone in the space
+    const storage = await TestDatabase.create("sqlite", [...mention.tables, ...callTables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([mention]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: mention.package },
+    });
+
+    // follow a type of a package the space does not install, as alice
+    const following = new AbortController();
+    onTestFinished(() => following.abort());
+    const alice = principal.user.reference("universe", users.alice);
+    const pages = store.source.relayed(
+        store.source.queriesPublication.subscription({
+            name: "activity",
+            scope: spaceId,
+            below: spaceId,
+            parameters: { queries: { activity: { object: "activity" } } },
+        }),
+        subjectContext(alice, spaceId, { signal: following.signal }),
+    );
+    const first = await pages.next();
+
+    // answer the follow as complete and empty, keeping it open for when the type arrives
+    expect(
+        first.done === true ? "ended" : [first.value.complete, first.value.changes.length],
+    ).toEqual([true, 0]);
+});
+
+test("answer a universe follow of a table no served type lists with a complete page of no rows", async () => {
+    // keep alice's grant to an installation of the space, in a space serving mentions alone
+    const storage = await TestDatabase.create("sqlite", [...mention.tables, ...callTables], {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, spaceId);
+    const alice = principal.user.reference(Scope.universe.id, users.alice);
+    await new AccessFixture(database).replicateGrant(
+        alice,
+        principal.installation.reference(
+            spaceId,
+            "installation-01996ab0-0000-7000-8000-0000000000b1",
+        ),
+        [],
+    );
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([mention]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: mention.package },
+    });
+
+    // follow the grants delegated into the space as the space, which the grant lets read it
+    const following = new AbortController();
+    onTestFinished(() => following.abort());
+    const pages = store.source.relayed(
+        Authorizer.universeSubscription({
+            name: spaceId,
+            scope: spaceId,
+            below: spaceId,
+            parameters: {
+                rows: [
+                    {
+                        type: grant.typeReference,
+                        where: { delegateScope: spaceId },
+                        isEverywhere: true,
+                    },
+                ],
+            },
+        }),
+        subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
+    );
+    const first = await pages.next();
+
+    // answer it as complete and empty, as no type the store serves lists the grant table
+    expect(
+        first.done === true ? "ended" : [first.value.complete, first.value.changes.length],
+    ).toEqual([true, 0]);
 });

@@ -210,7 +210,7 @@ await store.mutate(store.serving(page), { id: RequestId.create(), calls: [create
 
 ## Replicas
 
-A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, and changes replicated rows at their home over the store's `Uplink`.
+A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, and changes replicated rows at their home over the store's `Uplink`; every store also follows its scope's chain and, from the universe, the access grants delegated into its scope.
 
 ```ts
 import { defineShape, Follow } from "@destack/object";

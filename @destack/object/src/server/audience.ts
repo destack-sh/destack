@@ -196,6 +196,10 @@ export class ObjectAudience implements Audience {
         if (listed === "query") {
             return sql`true`;
         }
+        // match no rows of a table no type here lists
+        else if (listed === "none") {
+            return sql`false`;
+        }
         // decide in memory the rows at their home in other scopes than the followed one, each in its own chain
         else if (
             listed.object.storage === "durable" &&
@@ -239,6 +243,10 @@ export class ObjectAudience implements Audience {
         if (listed === "query") {
             return new Set(rows.keys());
         }
+        // show no rows of a table no type here lists
+        else if (listed === "none") {
+            return new Set();
+        }
         // filter the listed rows the caller holds the query's own permission on
         const filtered = await this.#authorization.filter(listed.object, listed.listing, rows, {
             scope: this.#scope,
@@ -275,7 +283,7 @@ export class ObjectAudience implements Audience {
     ): Promise<readonly (readonly string[])[]> {
         // conceal nothing of the rows left to their query, or of another table's rows a follower has by containment
         const listed = this.#isContained ? this.#objects.get(table) : this.#listed(table);
-        if (listed === "query" || listed === undefined) {
+        if (listed === "query" || listed === "none" || listed === undefined) {
             return rows.map(() => []);
         }
         const object = "object" in listed ? listed.object : listed;
@@ -420,7 +428,8 @@ export class ObjectAudience implements Audience {
               readonly listing: Permission;
               readonly own: Permission | undefined;
           }
-        | "query" {
+        | "query"
+        | "none" {
         // leave the journal and replica records to their queries, and contained rows to their follower
         if (
             this.#isContained ||
@@ -431,11 +440,16 @@ export class ObjectAudience implements Audience {
             return "query";
         }
 
+        // answer no rows of a table no served type lists, as a source has none to decide
+        const object = this.#objects.get(table);
+        if (object?.listing === undefined) {
+            return "none";
+        }
+
         // read the listing permission and the query's own
-        const { object, permission: listing } = this.#objects.listed(table);
         const own = permission === undefined ? undefined : object.permission(permission);
 
-        return { object, listing, own };
+        return { object, listing: object.listing, own };
     }
 
     /** Share one grant reader among the scope's subscribers at a position. */

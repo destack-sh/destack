@@ -10,6 +10,7 @@ import {
     ChainParameters,
     CONTAINED,
     decisionTables,
+    grant,
     type Policy,
     principal,
     Relationship,
@@ -502,6 +503,17 @@ export class ObjectSource {
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
 
+    /** Keep a follow's queries of the types this store serves, as others have no rows here. */
+    #served(named: QueriesParameters["queries"]): QueriesParameters["queries"] {
+        return named === undefined
+            ? undefined
+            : Object.fromEntries(
+                  Object.entries(named).filter(([, query]) =>
+                      this.store.durable.some((object) => object.name === query.object),
+                  ),
+              );
+    }
+
     /** Follow a scope's durable objects for a follower. */
     async *#durable(
         subscription: sync.Subscription,
@@ -518,7 +530,7 @@ export class ObjectSource {
         const { chain } = audience;
         const caller = Caller.principal(reader);
         const compile = (named: QueriesParameters["queries"]) =>
-            ObjectType.queries(this.store.durable, named, chain);
+            ObjectType.queries(this.store.durable, this.#served(named), chain);
         const earlier =
             previous === undefined ? undefined : QueriesParameters.parse(previous).queries;
         const options = ObjectSource.#followOptions(audience, context, {
@@ -1003,7 +1015,6 @@ export class ObjectSource {
         {
             readonly subscription: sync.Subscription;
             readonly home: string;
-            readonly brought?: readonly string[];
         }[]
     > {
         // follow nothing at the universe, nor for a scope without a chain
@@ -1018,13 +1029,10 @@ export class ObjectSource {
         const isLiving = served.some((object) =>
             object.scopes.some((scope) => !known.some((type) => type.same(scope))),
         );
-        const universe = this.universeSubscription(below);
         const isOwn = isLiving || kind.kind === "home";
         const own = isOwn
             ? await this.subscriptions(below, kind)
-            : universe === undefined
-              ? []
-              : [universe];
+            : [this.universeSubscription(below)];
 
         // leave the own chain's scopes to it, else let the via replica cover the store's own scope
         const chained = new Set(
@@ -1045,84 +1053,45 @@ export class ObjectSource {
                     .select({ id: table.column("id"), scope: table.column("scope") })
                     .from(scope.table);
 
-                // read who brought each row here, in one read per table
+                // leave the rows a subject's follow brought, which their source decided for that subject
                 const stored = rows
                     .map((row) => ({
                         id: schema.string().parse(row.id),
                         scope: schema.string().parse(row.scope),
                     }))
                     .filter((row) => !chained.has(row.id));
-                const bringers = await this.#bringers(scope.table, stored);
+                const brought = await this.#brought(scope.table, stored);
 
-                return stored.map((row) => ({
-                    row,
-                    ...bringers.get(Key.name(scope.table, row)),
-                }));
+                return stored.filter((row) => !brought.has(Key.name(scope.table, row)));
             }),
         );
 
-        // replicate the outside scopes' chains from the universe, once per store and per following subject
-        const bySubject = Map.groupBy(outside.flat(), (entry) =>
-            entry.subject === undefined ? undefined : Subject.key(entry.subject),
-        );
-        const storeVia = await this.store.authorizer.chainVia(
+        // replicate the store's own outside scopes' chains from the universe
+        const via = await this.store.authorizer.chainVia(
             this.store.database,
             { name: Authorizer.viaReplica(below), below },
-            (bySubject.get(undefined) ?? []).map((entry) => entry.row),
+            outside.flat(),
             isOwn ? [] : this.reached(),
         );
-        const onBehalf = await Promise.all(
-            [...bySubject].flatMap(([key, entries]) => {
-                const subject = entries[0]?.subject;
-
-                return key === undefined || subject === undefined
-                    ? []
-                    : [
-                          this.store.authorizer
-                              .chainVia(
-                                  this.store.database,
-                                  { name: `${Authorizer.viaReplica(below)}:${key}`, below },
-                                  entries.map((entry) => entry.row),
-                                  [],
-                              )
-                              .then((via) =>
-                                  via === undefined
-                                      ? undefined
-                                      : {
-                                            subscription: { ...via, subject },
-                                            brought: [
-                                                ...new Set(
-                                                    entries.flatMap((entry) => entry.name ?? []),
-                                                ),
-                                            ],
-                                        },
-                              ),
-                      ];
-            }),
-        );
-        const vias = [
-            ...(storeVia === undefined ? [] : [{ subscription: storeVia }]),
-            ...onBehalf.filter((via) => via !== undefined),
-        ];
+        const vias = via === undefined ? [] : [{ subscription: via }];
 
         return [
             ...own.map((subscription) => ({ subscription, home: below })),
-            ...vias.map((via) => ({ ...via, home: Scope.universe.id })),
+            ...vias.map((entry) => ({ ...entry, home: Scope.universe.id })),
         ];
     }
 
-    /** Read the subject and replica of the follow that brought each of some scope rows here. */
-    async #bringers(
+    /** List the keys of some scope rows a follow on a subject's behalf holds here. */
+    async #brought(
         table: Table,
         rows: readonly { readonly id: string; readonly scope: string }[],
-    ): Promise<Map<string, { readonly subject: Subject; readonly name: string }>> {
-        // read the replicas with the rows that follow on a subject's behalf
-        const bringers = new Map<string, { readonly subject: Subject; readonly name: string }>();
+    ): Promise<Set<string>> {
+        // read the rows' keys held by replicas that follow on a subject's behalf
         if (rows.length === 0) {
-            return bringers;
+            return new Set();
         }
-        const brought = await this.store.database
-            .select({ key: sync.replicaRow.key, replica: sync.replica })
+        const held = await this.store.database
+            .selectDistinct({ key: sync.replicaRow.key })
             .from(sync.replica)
             .innerJoin(
                 sync.replicaRow,
@@ -1142,15 +1111,7 @@ export class ObjectSource {
                 ),
             );
 
-        // take the first such replica of each row
-        for (const { key, replica } of brought) {
-            const subscription = sync.Replica.subscriptionOf(replica);
-            if (!bringers.has(key) && subscription?.subject !== undefined) {
-                bringers.set(key, { subject: subscription.subject, name: subscription.name });
-            }
-        }
-
-        return bringers;
+        return new Set(held.map((entry) => entry.key));
     }
 
     /** List the object types whose universe relationships the decided types reach. */
@@ -1193,16 +1154,11 @@ export class ObjectSource {
             options,
             this.reached(),
         );
-        const universe = this.universeSubscription(below, elsewhere);
-
-        return universe === undefined ? chain : [...chain, universe];
+        return [...chain, this.universeSubscription(below, elsewhere)];
     }
 
-    /** Request the universe rows a scope or machine may read, but those another replica has. */
-    universeSubscription(
-        below: string,
-        elsewhere: readonly ObjectType[] = [],
-    ): sync.Subscription | undefined {
+    /** Request the universe rows and delegated grants a scope reads but no other replica has. */
+    universeSubscription(below: string, elsewhere: readonly ObjectType[] = []): sync.Subscription {
         // leave inherited rows to the chains, and rows another replica or a follow has to it
         const followedElsewhere = [...elsewhere, ...this.store.followed];
         const replicated = this.store.replicated.filter(
@@ -1241,10 +1197,12 @@ export class ObjectSource {
             }
         }
 
-        // request nothing where no universe object type is replicated
-        if (rows.length === 0) {
-            return undefined;
-        }
+        // add the access grants delegated to the scope's principals, wherever their delegators live
+        rows.push({
+            type: grant.typeReference,
+            where: { delegateScope: below },
+            isEverywhere: true,
+        });
 
         // replicate the universe's rows the scope or machine may read, under its own name
         return Authorizer.universeSubscription({
