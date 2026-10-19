@@ -30,8 +30,8 @@ let installation: Subject;
 
 beforeAll(async () => {
     simulation.install();
-    // open the account package in process, as the simulation runs only in-process effects
-    accounts = await AccountFixture.open({
+    // write and serve the account package inside the simulation, which runs only in-process effects
+    accounts = await AccountFixture.create({
         dialect: "sqlite",
         signIn: { clock: simulation.clock },
     });
