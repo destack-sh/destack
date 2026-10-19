@@ -9,7 +9,7 @@ import type { Alarm } from "@destack/runtime/control";
 import { CallKey } from "@destack/runtime/request";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { Universe, UniverseDeclaration, universeDatabase } from "../universe/index.ts";
+import { Universe, UniverseDefinition, universeDatabase } from "../universe/index.ts";
 import { Environment } from "@destack/environment";
 
 /** The instruments capturing the failures no request answers. */
@@ -25,7 +25,7 @@ const UNIVERSE_SCHEMA = "public";
 export interface UniverseBindings {
     /** The namespace of the one object running the universe. */
     readonly INSTANCE: DurableObjectNamespace;
-    /** The universe's declaration, as `release` writes it. */
+    /** The universe's definition, as `release` writes it. */
     readonly UNIVERSE: unknown;
     /** The account database through Hyperdrive. */
     readonly DATABASE: { readonly connectionString: string };
@@ -74,7 +74,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
 
     // start the universe, calling the machine Workers at their origins
     const universe = await Universe.start({
-        declaration: UniverseDeclaration.parse(bindings.UNIVERSE),
+        definition: UniverseDefinition.parse(bindings.UNIVERSE),
         origin: bindings.DESTACK_ISSUER,
         database,
         keyring,

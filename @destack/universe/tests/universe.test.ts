@@ -14,7 +14,7 @@ import { Clock, Network } from "@destack/environment";
 /** The origin the test universe answers at. */
 const ORIGIN = "https://universe.test";
 
-test("start a universe over its declaration, answering the account package below its mount and nothing elsewhere", async () => {
+test("start a universe over its definition, answering the account package below its mount and nothing elsewhere", async () => {
     // start the universe over a fresh database, with a cloud machine serving its residency
     const storage = await TestDatabase.create("sqlite", universeDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -23,7 +23,7 @@ test("start a universe over its declaration, answering the account package below
     const machine = new MachineIdentity(ids.machine, new MemoryKeychain(), Clock.system);
     const { publicKey } = await machine.generate();
     await using universe = await Universe.start({
-        declaration: {
+        definition: {
             residencies: [{ code: "eu", name: "Europe" }],
             platform: {
                 name: "Destack",

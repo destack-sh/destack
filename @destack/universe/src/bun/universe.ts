@@ -4,12 +4,12 @@ import { connectPostgres } from "@destack/db/postgres";
 import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/message/email";
 import { CallKey } from "@destack/runtime/request";
-import { Universe, type UniverseDeclaration, universeDatabase } from "../universe/index.ts";
+import { Universe, type UniverseDefinition, universeDatabase } from "../universe/index.ts";
 
 /** What a Bun process runs a universe with. */
 export interface BunUniverseOptions {
-    /** The universe's declaration. */
-    readonly declaration: UniverseDeclaration;
+    /** The universe's definition. */
+    readonly definition: UniverseDefinition;
     /** The clock the universe runs at, and the network it listens and sends through. */
     readonly environment: Environment;
     /** The universe's origin on loopback, its issuer, such as http://127.0.0.1:4100. */
@@ -50,7 +50,7 @@ export class BunUniverse implements AsyncDisposable {
 
         // start the universe's packages, sending to other origins over the network
         const universe = await Universe.start({
-            declaration: options.declaration,
+            definition: options.definition,
             origin: options.origin,
             database,
             keyring,

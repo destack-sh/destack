@@ -35,10 +35,10 @@ import objectPackage from "@destack/object/package";
 import universePackage from "../package.ts";
 import { Run } from "@destack/workflow";
 import { apply } from "./apply.ts";
-import { UniverseDeclaration } from "./declaration.ts";
+import { UniverseDefinition } from "./definition.ts";
 import type { Environment } from "@destack/environment";
 
-/** The universe's database: the account database and the runs applying its declaration. */
+/** The universe's database: the account database and the runs applying its definition. */
 export const universeDatabase = defineDatabase({
     name: "account",
     tables: [
@@ -57,8 +57,8 @@ const LIFETIMES: ReadonlyMap<PackageId, number> = new Map([
 
 /** What a host runs a universe with. */
 export interface UniverseOptions {
-    /** The universe's declaration. */
-    readonly declaration: UniverseDeclaration;
+    /** The universe's definition. */
+    readonly definition: UniverseDefinition;
     /** The universe's origin, below which each package answers at its mount. */
     readonly origin: string;
     /** The migrated account database. */
@@ -84,20 +84,20 @@ export interface UniverseOptions {
 /** A running universe: the account and setting packages, each answering below its mount. */
 export class Universe implements AsyncDisposable {
     /** What the universe declares. */
-    readonly declaration: UniverseDeclaration;
+    readonly definition: UniverseDefinition;
     /** The server of each package, by its identifier. */
     readonly servers: ReadonlyMap<string, Server>;
 
     /** Create a started universe. */
-    private constructor(declaration: UniverseDeclaration, servers: ReadonlyMap<string, Server>) {
-        this.declaration = declaration;
+    private constructor(definition: UniverseDefinition, servers: ReadonlyMap<string, Server>) {
+        this.definition = definition;
         this.servers = servers;
     }
 
     /** Start the account and setting packages over the universe's database. */
     static async start(options: UniverseOptions): Promise<Universe> {
         // read the universe's options at the start time
-        const { origin, database, keyring, callKey, declaration } = options;
+        const { origin, database, keyring, callKey, definition } = options;
         const { clock, network } = options.environment;
         const now = clock.now();
 
@@ -122,15 +122,15 @@ export class Universe implements AsyncDisposable {
             Account.locate(directory.snapshot, account);
         const registry = Registry.of(directory, home, connect(forgePackage.id), clock);
 
-        // apply the residencies, then each step of the platform's declaration, once per run
+        // apply the residencies, then each step of the platform's definition, once per run
         const applied = apply.implement(async (step) => {
             const steps = [
                 {
                     name: "residencies",
                     apply: (objects: ObjectStore, at: number) =>
-                        Residency.apply(objects, declaration.residencies, at),
+                        Residency.apply(objects, definition.residencies, at),
                 },
-                ...new Operator(declaration.platform, declaration.stacks.residency).steps(),
+                ...new Operator(definition.platform, definition.stacks.residency).steps(),
             ];
             for (const each of steps) {
                 await step.run(each.name, schema.null(), async () => {
@@ -147,7 +147,7 @@ export class Universe implements AsyncDisposable {
             servers: [
                 accountServer({
                     resolver: new DnsOverHttps(),
-                    stacks: declaration.stacks,
+                    stacks: definition.stacks,
                     signIn: signIn.promise,
                 }),
                 settingServer({
@@ -177,9 +177,9 @@ export class Universe implements AsyncDisposable {
                 directory.publisher(scope, connect(objectPackage.id), () => clock.now()),
         });
 
-        // trust the universe as its own owner, and start applying its declaration unless a run applies it
+        // trust the universe as its own owner, and start applying its definition unless a run applies it
         await UniverseRole.trust(store, now);
-        const digest = await Digest.json(declaration);
+        const digest = await Digest.json(definition);
         await store.mutate(store.serving(apply.run), {
             id: RequestId.create(now),
             calls: [apply.start({ digest }, { key: digest, actor: Scope.universe })],
@@ -227,11 +227,11 @@ export class Universe implements AsyncDisposable {
         });
         connected.resolve((audience) => source.fetchSigned(audience));
 
-        // serve once the run applied the declaration, refusing a run that did not complete
+        // serve once the run applied the definition, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
             if (run.state !== "completed") {
-                throw new Error(`the run applying the declaration ${digest} is ${run.state}`, {
+                throw new Error(`the run applying the definition ${digest} is ${run.state}`, {
                     cause: run.failure,
                 });
             }
@@ -261,7 +261,7 @@ export class Universe implements AsyncDisposable {
                 }),
             ]),
         );
-        universe = new Universe(declaration, servers);
+        universe = new Universe(definition, servers);
 
         return universe;
     }
