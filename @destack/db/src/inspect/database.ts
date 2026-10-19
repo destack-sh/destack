@@ -3,7 +3,7 @@ import { PlanError } from "@destack/resource/error";
 import { graph } from "@destack/package";
 import { schema } from "@destack/schema";
 import { DatabaseKind, type Database } from "../declare/database.ts";
-import { planTables } from "../migration/plan.ts";
+import { changedTables, planTables } from "../migration/plan.ts";
 import { DatabaseState } from "../migration/state.ts";
 
 /** A declared database and its required tables, as the manifest records it. */
@@ -42,6 +42,7 @@ export const compareDatabase: Comparator = (before, after) => {
                 existing: applied.map((state) => state.table.name),
                 declared: later.tables[dialect],
                 dialect,
+                changed: changedTables(applied, later.tables[dialect]),
                 empty: new Set(),
             });
         } catch (error) {

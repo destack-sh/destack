@@ -67,8 +67,30 @@ export interface PlanInput {
     readonly dialect: Dialect;
     /** The database's namespace in a shared SQLite store, already part of the states' names. */
     readonly namespace?: string;
+    /** The applied tables whose declared state differs, by applied name. */
+    readonly changed: ReadonlySet<string>;
     /** The applied tables holding no rows, whose changes convert and fill nothing. */
     readonly empty: ReadonlySet<string>;
+}
+
+/** List the applied tables whose declared state differs, by applied name. */
+export function changedTables(
+    applied: readonly TableState[],
+    declared: readonly TableState[],
+): Set<string> {
+    // compare each declared table with the applied one it keeps or renames
+    const changed = new Set<string>();
+    for (const entry of declared) {
+        const previous = applied.find(
+            (each) =>
+                each.table.name === entry.table.name || each.table.name === entry.moved?.table,
+        );
+        if (previous !== undefined && canonicalize(previous) !== canonicalize(entry)) {
+            changed.add(previous.table.name);
+        }
+    }
+
+    return changed;
 }
 
 /** Plan a database's migration, or report every problem to fix. */
@@ -155,8 +177,8 @@ function planDeclared(
                 problems.push({ target: Address.join("table", name), detail });
             }
         }
-        // change an applied table
-        else {
+        // change an applied table whose declared state differs
+        else if (input.changed.has(previous.table.name)) {
             steps.push(...planChange(state, previous, input.empty.has(name), problems));
         }
     }

@@ -1,4 +1,4 @@
-import { canonicalize, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
@@ -19,7 +19,7 @@ import {
     type TableState,
 } from "../migration/state.ts";
 import { applyPlan } from "../migration/apply.ts";
-import { planTables, type TablePlan } from "../migration/plan.ts";
+import { changedTables, planTables, type TablePlan } from "../migration/plan.ts";
 import { mergeStates, type Merge } from "../migration/merge.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
@@ -324,22 +324,14 @@ export class DatabaseConnection<
         const { namespace } = this.state;
         const applied = await readState(this);
         const declared = state.declared.map((entry) => namespaceState(entry, namespace));
-        const changing = declared.flatMap((entry) => {
-            const previous = applied.find(
-                (each) =>
-                    each.table.name === entry.table.name || each.table.name === entry.moved?.table,
-            );
-
-            return previous !== undefined && canonicalize(previous) !== canonicalize(entry)
-                ? [previous.table.name]
-                : [];
-        });
+        const changed = changedTables(applied, declared);
 
         return planTables({
             applied,
             existing: await readTables(this),
             declared,
-            empty: await readEmpty(this, changing),
+            changed,
+            empty: await readEmpty(this, [...changed]),
             conflicts: (state.conflicts ?? []).map((conflict) => ({
                 ...conflict,
                 table: relation(conflict.table, namespace),
