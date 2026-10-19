@@ -2,11 +2,7 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a1441c-7a6d-7444-b168-a063d720a275",
     "language": "typescript",
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "runtimes": ["browser", "bun", "workerd"],
     "stamps": {
         "defineWorkflow": {
             "module": 1
@@ -14,16 +10,10 @@
     },
     "exports": {
         "./server": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": [
-                "browser",
-                "bun"
-            ]
+            "runtimes": ["bun"]
         }
     },
     "declarations": {
