@@ -6,10 +6,11 @@ author: "Florian"
 ---
 
 > [!ABSTRACT]
-> Destack unifies the boring things you need for personal software into one "software engine": DB, UI, sync, auth, access, telemetry, relay, forge.
-> To standardise software production and support malleability and hackability, Destack establishes _one_ standard way of doing everything using boring technologies (Git, SQLite, TypeScript, HTML/CSS, OTel, etc.).
+> Destack unifies the boring things personal software needs into one "software engine": DB, UI, multiplayer, auth, observability, tunneling, infra, packaging.
+> We standardise software production with _one_ way of doing application software, powered by established boring technologies.
 >
-> own your apps, control your contexts, use your agents for everything
+> You can use our first-party apps for common use cases, remix and build completely custom apps on a trusted foundation, and give your ephemeral apps a standardised home.
+> Destack is built to be hackable with Git, SQLite, TypeScript, HTML/CSS, OTel, so integration and migration are one prompt.
 >
 > [Skip to The Destack](#the-destack)
 
