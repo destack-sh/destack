@@ -6,7 +6,7 @@ import { PackageStore, Retention, encodeManifest } from "@destack/build/store";
 import { Snapshot } from "@destack/db";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { type BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import type { PackageRelease, PackageId } from "@destack/package";
 import { PackageDescription } from "@destack/runtime";
 import { Digest, type Identifier, schema } from "@destack/schema";
@@ -80,6 +80,21 @@ export class BuildStore {
         return new BuildStore(packages, (request, now) =>
             BucketLease.presign(host, reference, request, now),
         );
+    }
+
+    /** Read a published build from the store, or through the registry without storing it. */
+    async read(
+        registry: Pick<Registry, "locate">,
+        packageId: PackageId,
+        manifest: string,
+    ): Promise<BuildReader> {
+        // read a stored build, else stream the published one's files from where the registry locates them
+        if (await this.packages.contains(manifest)) {
+            return this.packages.contents(manifest);
+        }
+        const { location, fetch } = await registry.locate(packageId, manifest);
+
+        return BuildReader.open(location, fetch);
     }
 
     /** Read a published build, copying it from the registry into the store first. */
@@ -181,7 +196,7 @@ export class BuildStore {
         return { kind: "stored", digest };
     }
 
-    /** Expire the builds retention drops, keep the rest as the store's root, and sweep. */
+    /** Expire the builds retention drops, root the rest, sweep, and answer the kept builds. */
     async sweep(
         objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate">,
         retention: (space: string) => Promise<number>,
@@ -206,21 +221,22 @@ export class BuildStore {
 
         // keep the store's retained builds as its root and sweep what no root retains
         await this.packages.root(objects.principal.id, retained);
-        await this.packages.sweep(Retention.of(await this.packages.roots()), before);
+        const roots = await this.packages.roots();
+        await this.packages.sweep(Retention.of(roots), before);
 
-        return retained;
+        return roots;
     }
 }
 
 /** List the releases a build depends on that declare a package, leaving libraries out. */
 export async function installableReleases(
     reader: BuildReader,
-    open: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
+    read: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
 ): Promise<PackageRelease[]> {
     const installable = await Promise.all(
         (await reader.releases()).map(async (release) => {
-            const opened = await open(release.package.id, release.manifest);
-            const declared = await PackageDescription.of(opened);
+            const dependency = await read(release.package.id, release.manifest);
+            const declared = await PackageDescription.of(dependency);
 
             return declared === undefined ? [] : [release];
         }),

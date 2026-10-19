@@ -139,7 +139,7 @@ export async function declaredStack(
     reader: BuildReader,
     name: string,
     settings: Readonly<Record<string, JsonValue>>,
-    open: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
+    read: (packageId: PackageId, manifest: string) => Promise<BuildReader>,
 ): Promise<JsonObject> {
     // find the symbols the package exports under the name
     const modules = await reader.modules();
@@ -194,12 +194,12 @@ export async function declaredStack(
     const closures = await Promise.all(
         Object.values(pinned).map(async (installed) => {
             // read the installation's package and the packages only its optional capabilities need
-            const build = await open(installed.package.id, installed.package.manifest);
+            const build = await read(installed.package.id, installed.package.manifest);
             const description = await PackageDescription.of(build);
             const optional = new Set(Installation.optionalPackages(description));
 
             // keep its installable dependencies the stack leaves out
-            return (await installableReleases(build, open)).filter(
+            return (await installableReleases(build, read)).filter(
                 (release) =>
                     !declaredPackages.has(release.package.id) && !optional.has(release.package.id),
             );

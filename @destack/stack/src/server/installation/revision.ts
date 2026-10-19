@@ -21,10 +21,10 @@ export function implementInstallationRevision(builds: BuildStore, registry: Regi
                 const built = await Build.require(call, space.identifier(call.scope), buildId);
                 const reader = await builds.packages.contents(built.manifest);
 
-                // read the installable packages it depends on, at the releases it compiled against
-                const open = (dependency: PackageId, manifest: string) =>
-                    builds.open(registry, dependency, manifest);
-                const dependencies = await installableReleases(reader, open);
+                // read the installable packages it depends on, at the releases it compiled against, without storing them
+                const read = (dependency: PackageId, manifest: string) =>
+                    builds.read(registry, dependency, manifest);
+                const dependencies = await installableReleases(reader, read);
 
                 return next(
                     call.with({

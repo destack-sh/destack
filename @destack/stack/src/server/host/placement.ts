@@ -268,13 +268,13 @@ export class PlacementController implements Controller {
 
     /** Copy a stack's pinned build into the build store and read the space its export declares. */
     async #declared(stack: StackSource): Promise<JsonObject> {
-        // copy the stack's build and its dependencies' builds from the registry and evaluate the export
+        // copy the stack's build, evaluate its export, and read its installations' builds without storing them
         const { builds, registry } = this.#options;
-        const open = (packageId: PackageId, manifest: string) =>
-            builds.open(registry, packageId, manifest);
-        const reader = await open(stack.package.id, stack.manifest);
+        const reader = await builds.open(registry, stack.package.id, stack.manifest);
+        const read = (packageId: PackageId, manifest: string) =>
+            builds.read(registry, packageId, manifest);
 
-        return declaredStack(reader, stack.export, stack.settings, open);
+        return declaredStack(reader, stack.export, stack.settings, read);
     }
 
     /** Install a space's stack at its pinned build, and submit the space its export declares. */

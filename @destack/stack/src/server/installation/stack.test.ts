@@ -723,14 +723,14 @@ test("install the installable packages a stack's installations depend on, leavin
     const builds = new Map(
         [vault, newer, library, notes, pages].map((each) => [each.manifest, each.build]),
     );
-    const open = async (_packageId: PackageId, manifest: string) =>
+    const read = async (_packageId: PackageId, manifest: string) =>
         present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
 
     // install a stack's notes with its installable dependency, and refuse notes beside pages
     const definition = StackDefinition.collections(
-        await declaredStack(await installingStack([notes]), "space", {}, open),
+        await declaredStack(await installingStack([notes]), "space", {}, read),
     );
-    const refused = await declaredStack(await installingStack([notes, pages]), "space", {}, open)
+    const refused = await declaredStack(await installingStack([notes, pages]), "space", {}, read)
         .then(() => undefined)
         .catch((error: unknown) => (error instanceof Error ? error.message : error));
     expect([Object.keys(definition.installations).toSorted(), refused]).toEqual([
