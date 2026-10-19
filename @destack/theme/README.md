@@ -7,15 +7,15 @@
 defineTheme({ name: "notes", base: "sand", accent: "orange", density: "compact" });
 Palette.of("indigo").tone(0.95); // OKLCH tones from a seed, where Radix has twelve steps
 theme.resolve("light", 1).color("mutedForeground"); // roles solved for APCA contrast
-theme.variables("system", preferences); // custom properties, where Radix has a <Theme> component
+theme.variables(display); // custom properties, where Radix has a <Theme> component
 ```
 
 ## Contrast
 
-`contrast` in a person's preferences runs from 0, the APCA bronze floors, to 1, and `defineTheme` refuses a role below its floor.
+`contrast` in a person's display runs from 0, the APCA bronze floors, to 1, and `defineTheme` refuses a role below its floor.
 
 ```ts
-theme.variables("light", { ...DEFAULT_PREFERENCES, contrast: 0.5 });
+theme.variables({ ...DEFAULT_DISPLAY, appearance: "light", contrast: 0.5 });
 ```
 
 ## Role overrides
@@ -39,7 +39,7 @@ defineTheme({
 ```tsx
 const row = theme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
 
-<li style={row.variables("system", preferences)}>Groceries</li>;
+<li style={row.variables(display)}>Groceries</li>;
 ```
 
 ## Swatches
@@ -71,5 +71,5 @@ import "@destack/theme/theme.css";
 `destackTheme` is the theme of views whose packages declare none.
 
 ```ts
-destackTheme.variables("system", DEFAULT_PREFERENCES);
+destackTheme.variables(DEFAULT_DISPLAY);
 ```

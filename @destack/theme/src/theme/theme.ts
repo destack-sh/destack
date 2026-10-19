@@ -3,14 +3,7 @@ import { present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
-import {
-    DENSITY_SCALES,
-    Density,
-    TEXT_SCALES,
-    type Appearance,
-    type Contrast,
-    type Preferences,
-} from "./preference.ts";
+import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
 import {
     BACKGROUND_LIGHTNESS,
     COLOR_ROLES,
@@ -232,16 +225,17 @@ export class Theme {
         return resolution;
     }
 
-    /** Compute a theme root's custom properties for an appearance and a person's preferences. */
-    variables(appearance: Appearance, preferences: Preferences): ThemeStyle {
+    /** Compute a theme root's custom properties for a person's display. */
+    variables(display: Display): ThemeStyle {
         // let the appearance drive light-dark() and native controls
+        const { appearance } = display;
         const style: ThemeStyle = {
             "color-scheme": appearance === "system" ? "light dark" : appearance,
         };
 
         // resolve the roles with the person's accent over the theme's own at their contrast
         const css = (name: RoleName) =>
-            this.#css(name, preferences.contrast, preferences.accent ?? undefined);
+            this.#css(name, display.contrast, display.accent ?? undefined);
         for (const entry of TOKENS.family("color").entries) {
             style[entry.variable] = css(RoleName.parse(entry.key));
         }
@@ -253,13 +247,13 @@ export class Theme {
         for (const preset of ACCENT_PRESETS) {
             for (const part of SWATCH_PARTS) {
                 const entry = TOKENS.entry(["swatch", `${preset}${capitalize(part)}`]);
-                style[entry.variable] = this.#css(SWATCH_ROLES[part], preferences.contrast, preset);
+                style[entry.variable] = this.#css(SWATCH_ROLES[part], display.contrast, preset);
             }
         }
 
-        // scale every other token by the theme and the person's preferences
+        // scale every other token by the theme and the person's display
         for (const family of TOKENS.families) {
-            const factor = this.#factor(family.name, preferences);
+            const factor = this.#factor(family.name, display);
             if (factor === undefined) {
                 continue;
             }
@@ -271,7 +265,7 @@ export class Theme {
         }
 
         // apply the theme's fonts and corners and the person's motion
-        this.#customize(style, preferences);
+        this.#customize(style, display);
 
         return style;
     }
@@ -362,10 +356,10 @@ export class Theme {
     }
 
     /** Select the length factor of a token family. */
-    #factor(family: string, preferences: Preferences): number | undefined {
+    #factor(family: string, display: Display): number | undefined {
         const scaling = Number.parseInt(this.definition.scaling ?? DEFAULT_SCALING, 10) / 100;
         const density =
-            DENSITY_SCALES[preferences.density ?? this.definition.density ?? DEFAULT_DENSITY];
+            DENSITY_SCALES[display.density ?? this.definition.density ?? DEFAULT_DENSITY];
         switch (family) {
             case "color":
             case "surface":
@@ -378,7 +372,7 @@ export class Theme {
             case "radius":
                 return scaling * RADIUS_SCALES[this.definition.radius ?? DEFAULT_RADIUS];
             case "text":
-                return scaling * TEXT_SCALES[preferences.textSize];
+                return scaling * TEXT_SCALES[display.textSize];
             case "font":
             case "weight":
             case "stroke":
@@ -391,7 +385,7 @@ export class Theme {
     }
 
     /** Set the theme's font stacks and full radius, and the person's motion. */
-    #customize(style: ThemeStyle, preferences: Preferences): void {
+    #customize(style: ThemeStyle, display: Display): void {
         // replace the token text font with the theme's, dropping the tracking that fits only the token font
         const fonts = this.definition.fonts;
         if (fonts?.text !== undefined) {
@@ -420,8 +414,8 @@ export class Theme {
         }
 
         // pin the motion scale the stylesheet otherwise reads from the device
-        if (preferences.motion !== "system") {
-            style[MOTION_VARIABLE] = preferences.motion === "full" ? "1" : "0";
+        if (display.motion !== "system") {
+            style[MOTION_VARIABLE] = display.motion === "full" ? "1" : "0";
         }
     }
 }

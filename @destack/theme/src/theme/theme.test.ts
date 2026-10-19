@@ -4,7 +4,7 @@ import { defineTheme } from "../declare/index.ts";
 import { apca, Color, Palette } from "../palette/index.ts";
 import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "../preset/index.ts";
 import {
-    DEFAULT_PREFERENCES,
+    DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
     ROLE_NAMES,
     RoleName,
@@ -231,7 +231,7 @@ test("raise every reading role's contrast continuously with the person's level",
     expect(reads).toEqual([[], [], [], [], []]);
     expect(muted).toEqual(muted.toSorted((left, right) => left - right));
     expect(
-        standard.variables("light", { ...DEFAULT_PREFERENCES, contrast: 0.5 })[
+        standard.variables({ ...DEFAULT_DISPLAY, appearance: "light", contrast: 0.5 })[
             "--destack-color-muted-foreground"
         ],
     ).toBe(
@@ -263,7 +263,7 @@ test("check the roles a theme replaces like every other role", async () => {
         },
         { package: notes },
     );
-    const style = replaced.variables("system", DEFAULT_PREFERENCES);
+    const style = replaced.variables(DEFAULT_DISPLAY);
     expect([
         style["--destack-color-background"],
         style["--destack-surface-base"],
@@ -352,7 +352,7 @@ test("resolve the default theme to the color values tokens.json shows", () => {
 
 test("emit one swatch per colorful preset as the roles it takes as accent, at the values tokens.json shows", () => {
     // read each swatch token's light and dark value and the theme's property at the standard contrast
-    const style = standard.variables("system", { ...DEFAULT_PREFERENCES, contrast: 0 });
+    const style = standard.variables({ ...DEFAULT_DISPLAY, contrast: 0 });
     const swatches = TOKENS.family("swatch").entries.map((entry) => {
         const light = entry.token.$type === "color" ? hex(entry.token.$value) : "";
         const dark =
@@ -384,7 +384,7 @@ test("emit one swatch per colorful preset as the roles it takes as accent, at th
 
 test("emit the default theme's custom properties for the system appearance", () => {
     // follow the device's contrast through color-mix() and its motion through the duration scale
-    expect(withoutSwatches(standard.variables("system", DEFAULT_PREFERENCES))).toEqual({
+    expect(withoutSwatches(standard.variables(DEFAULT_DISPLAY))).toEqual({
         "color-scheme": "light dark",
         "--destack-color-background": "light-dark(#fcfdfe, #131314)",
         "--destack-color-foreground": "light-dark(#1f2021, #ededf2)",
@@ -544,10 +544,7 @@ test("resolve a seed accent's roles from the palette grown from it", () => {
     const seeded = defineTheme({ name: "violet", accent: "#7c3aed" }, { package: notes });
 
     // only the accent roles and the chart series picked around the accent change against the default theme
-    const changed = changes(
-        seeded.variables("system", DEFAULT_PREFERENCES),
-        standard.variables("system", DEFAULT_PREFERENCES),
-    );
+    const changed = changes(seeded.variables(DEFAULT_DISPLAY), standard.variables(DEFAULT_DISPLAY));
     expect(Object.keys(changed)).toEqual(
         [
             "primary",
@@ -573,7 +570,7 @@ test("override the theme with the person's accent, density, text size, contrast 
         { name: "dense", accent: "orange", density: "compact" },
         { package: notes },
     );
-    const preferences = {
+    const display = {
         textSize: "xxxLarge",
         density: "spacious",
         contrast: 1,
@@ -582,7 +579,7 @@ test("override the theme with the person's accent, density, text size, contrast 
     } as const;
 
     // the person's grass accent replaces orange at the most contrast, and spacious replaces compact
-    const style = theme.variables("dark", preferences);
+    const style = theme.variables({ ...display, appearance: "dark" });
     const color = (name: RoleName) => {
         const light = theme.resolve("light", 1, "grass").color(name);
         const dark = theme.resolve("dark", 1, "grass").color(name);
@@ -592,10 +589,7 @@ test("override the theme with the person's accent, density, text size, contrast 
     expect(
         ROLE_NAMES.filter((name) => style[TOKENS.entry(["color", name]).variable] !== color(name)),
     ).toEqual([]);
-    const changed = changes(
-        withoutSwatches(style),
-        standard.variables("system", DEFAULT_PREFERENCES),
-    );
+    const changed = changes(withoutSwatches(style), standard.variables(DEFAULT_DISPLAY));
     expect(
         Object.fromEntries(
             Object.entries(changed).filter(([name]) => !name.startsWith("--destack-color-")),
@@ -622,8 +616,8 @@ test("apply the theme's radius, scaling and fonts", () => {
         { package: notes },
     );
     const changed = changes(
-        theme.variables("light", DEFAULT_PREFERENCES),
-        standard.variables("light", DEFAULT_PREFERENCES),
+        theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
+        standard.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
     );
 
     // scale every length by 90% and the radii by the full treatment's 1.5 on top, and drop the token font's tracking
@@ -679,8 +673,8 @@ test("weigh the text styles a theme changes by their weight tokens", () => {
     // point each changed style's weight at the named weight token and leave every other value
     expect(
         changes(
-            theme.variables("light", DEFAULT_PREFERENCES),
-            standard.variables("light", DEFAULT_PREFERENCES),
+            theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
+            standard.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
         ),
     ).toEqual({
         "--destack-text-title1-font-weight": "var(--destack-weight-medium)",

@@ -52,8 +52,10 @@ export const Motion = schema.enum(["system", "full", "reduced"]);
 /** The motion of transitions. */
 export type Motion = schema.Infer<typeof Motion>;
 
-/** The display preferences of a person, each read from its setting. */
-export const Preferences = schema.object({
+/** How a person wants pages displayed, each choice read from its setting. */
+export const Display = schema.object({
+    /** The appearance. */
+    appearance: Appearance,
     /** The text size. */
     textSize: TextSize,
     /** The density, or null for the theme's own. */
@@ -65,11 +67,12 @@ export const Preferences = schema.object({
     /** The accent, or null for the theme's own. */
     accent: Seed.nullable(),
 });
-/** The display preferences of a person. */
-export type Preferences = schema.Infer<typeof Preferences>;
+/** How a person wants pages displayed. */
+export type Display = schema.Infer<typeof Display>;
 
-/** The preferences of a person who changed none: each setting's default. */
-export const DEFAULT_PREFERENCES: Preferences = {
+/** The display of a person who changed nothing: each setting's default. */
+export const DEFAULT_DISPLAY: Display = {
+    appearance: "system",
     textSize: "medium",
     density: null,
     contrast: "system",
