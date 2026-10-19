@@ -28,8 +28,11 @@ export const DatabaseKind = defineResourceKind("database", {
     spec: DatabaseSpec,
     state: DatabaseState,
 });
-/** A named database dependency. */
-export type DatabaseDescription = schema.Infer<typeof DatabaseKind.description>;
+
+/** A declared database and its required tables, as the manifest records it. */
+export const DatabaseDescription = DatabaseKind.description.extend(DatabaseState.shape);
+/** A declared database and its required tables, as the manifest records it. */
+export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
 
 /** Opens databases of one provider inside a workload, typed by each declaration's models. */
 export interface DatabaseConnector {
@@ -45,7 +48,10 @@ export interface DatabaseConnector {
 /** A database declaration. */
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
-> extends ResourceDeclaration<DatabaseConnection<Models>, DatabaseDescription> {
+> extends ResourceDeclaration<
+    DatabaseConnection<Models>,
+    schema.Infer<typeof DatabaseKind.description>
+> {
     /** The tables of the database, its own and replicated ones, without foreign keys to others. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads name. */
@@ -58,7 +64,7 @@ export class Database<
     /** Create the declaration. */
     constructor(
         owner: Package,
-        description: DatabaseDescription,
+        description: schema.Infer<typeof DatabaseKind.description>,
         tables: readonly Table[],
         relations: Relations<Models>,
     ) {

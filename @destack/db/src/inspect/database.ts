@@ -2,21 +2,15 @@ import { Address, type Comparator, type Plan, type Step } from "@destack/resourc
 import { PlanError } from "@destack/resource/error";
 import { graph } from "@destack/package";
 import { schema } from "@destack/schema";
-import { DatabaseKind, type Database } from "../declare/database.ts";
+import { type Database, DatabaseDescription } from "../declare/database.ts";
 import { changedTables, planTables } from "../migration/plan.ts";
-import { DatabaseState } from "../migration/state.ts";
-
-/** A declared database and its required tables, as the manifest records it. */
-export const DatabaseDeclaration = DatabaseKind.description.extend(DatabaseState.shape);
-/** A declared database and its required tables, as the manifest records it. */
-export type DatabaseDeclaration = schema.Infer<typeof DatabaseDeclaration>;
 
 /** A table's state in one dialect, as a database declaration records it. */
-type TableState = DatabaseDeclaration["tables"][keyof DatabaseDeclaration["tables"]][number];
+type TableState = DatabaseDescription["tables"][keyof DatabaseDescription["tables"]][number];
 
 /** Describe a declared database. */
-export function describeDatabase(database: Database): DatabaseDeclaration {
-    return DatabaseDeclaration.parse({
+export function describeDatabase(database: Database): DatabaseDescription {
+    return DatabaseDescription.parse({
         name: database.name,
         kind: database.kind,
         spec: database.spec,
@@ -27,8 +21,8 @@ export function describeDatabase(database: Database): DatabaseDeclaration {
 /** Plan a database's table changes between releases in every dialect, the steps both share once. */
 export const compareDatabase: Comparator = (before, after) => {
     // read both releases' databases, whose table states carry their own releases
-    const earlier = DatabaseDeclaration.parse(before.description);
-    const later = DatabaseDeclaration.parse(after.description);
+    const earlier = DatabaseDescription.parse(before.description);
+    const later = DatabaseDescription.parse(after.description);
 
     // plan the tables in each dialect under the database's address
     const database = Address.join("database", later.name);
