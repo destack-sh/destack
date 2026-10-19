@@ -383,7 +383,7 @@ test("replicate the scope object row of a home's parent before the home is born"
     onTestFinished(() => home.close());
     const authorizer = new Authorizer(policies, homeMappings, {
         partition: "personal",
-        replicates: (table) => table === accountTable || table === spaceTable,
+        replicated: new Set([accountTable, spaceTable]),
     });
 
     // request the chain of a home before it is born, its account alone
@@ -399,4 +399,32 @@ test("replicate the scope object row of a home's parent before the home is born"
     expect(replicas.map((replica) => replica.where.get(spaceTable))).toEqual([
         { id: { in: ["account-1"] } },
     ]);
+});
+
+test("leave out of a chain replica the rows of a replicated type its source does not store", () => {
+    // request the policies inherited down the chain from a source storing them and from one that does not
+    const request = Authorizer.chainSubscription({
+        name: Authorizer.chainReplica("personal"),
+        scope: "account-1",
+        below: "personal",
+        parameters: {
+            local: [],
+            replicated: [policy.typeReference],
+            via: [],
+            between: [],
+            types: TYPES,
+        },
+    });
+    const storing = new Authorizer(policies, homeMappings);
+    const relating = new Authorizer(policies, homeMappings, {
+        tables: new Set(
+            homeMappings.map((mapping) => mapping.table).filter((table) => table !== policyTable),
+        ),
+    });
+
+    // replicate the policy rows only from the source storing their table
+    expect([
+        storing.replicateChain(request).tables.includes(policyTable),
+        relating.replicateChain(request).tables.includes(policyTable),
+    ]).toEqual([true, false]);
 });

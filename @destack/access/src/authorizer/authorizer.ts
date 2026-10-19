@@ -157,6 +157,8 @@ export class Authorizer {
     readonly lag: number;
     /** The one partition whose scopes' access this database stores, every partition when absent. */
     readonly partition: string | undefined;
+    /** The tables the database holds rows of, every mapped one when absent. */
+    readonly #tables: ReadonlySet<Table> | undefined;
     /** The object types whose access rows live in this database, rather than as replicas. */
     readonly local: readonly ObjectTypeReference[];
     /** The object types replicated from scopes above: inherited rows and stored scope types. */
@@ -181,8 +183,10 @@ export class Authorizer {
         options: {
             /** How long an access replica may go without hearing from its home, in milliseconds. */
             readonly lag?: number;
-            /** Decide whether the database replicates a table's rows from their home. */
-            readonly replicates?: (table: Table) => boolean;
+            /** The tables whose rows the database replicates from their homes, none when absent. */
+            readonly replicated?: ReadonlySet<Table>;
+            /** The tables the database holds rows of, every mapped one when absent. */
+            readonly tables?: ReadonlySet<Table>;
             /** The one partition whose scopes' access the database stores, else every one. */
             readonly partition?: string;
         } = {},
@@ -221,6 +225,7 @@ export class Authorizer {
         this.moving = Authorizer.#listedPermissions(types, "moving");
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.partition = options.partition;
+        this.#tables = options.tables;
         this.#compiler = new Compiler(this);
 
         // register the declared mappings and the mappings every database has
@@ -232,10 +237,10 @@ export class Authorizer {
         }
 
         // list the types whose access rows this database stores, and the types it stores replicas of
-        const replicates = options.replicates ?? (() => false);
-        this.local = this.#localTypes(replicates);
-        this.replicated = this.#replicatedTypes(replicates);
-        this.scoped = this.#scopedTypes(replicates);
+        const replicated = options.replicated ?? new Set<Table>();
+        this.local = this.#localTypes(replicated);
+        this.replicated = this.#replicatedTypes(replicated);
+        this.scoped = this.#scopedTypes(replicated);
         this.global = this.#globalTypes();
 
         // expand the subject sets roles may bind to
@@ -372,10 +377,11 @@ export class Authorizer {
     }
 
     /** List the mapped types whose access rows live in this database. */
-    #localTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
+    #localTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
-                (mapping) => !accessTables.includes(mapping.table) && !replicates(mapping.table),
+                (mapping) =>
+                    !accessTables.includes(mapping.table) && !replicated.has(mapping.table),
             )
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
@@ -384,12 +390,12 @@ export class Authorizer {
     }
 
     /** List the mapped types this database replicates: inherited and replicated scope types. */
-    #replicatedTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
+    #replicatedTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
                     mapping.inherited !== undefined ||
-                    (replicates(mapping.table) &&
+                    (replicated.has(mapping.table) &&
                         mapping.policy.definition.scope === true &&
                         mapping.table !== Scope.table),
             )
@@ -400,11 +406,11 @@ export class Authorizer {
     }
 
     /** List the replicated types whose rows live in a scope, beside inherited and scope types. */
-    #scopedTypes(replicates: (table: Table) => boolean): ObjectTypeReference[] {
+    #scopedTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
-                    replicates(mapping.table) &&
+                    replicated.has(mapping.table) &&
                     mapping.inherited === undefined &&
                     mapping.policy.definition.scope !== true &&
                     mapping.scope !== undefined,
@@ -1017,8 +1023,12 @@ export class Authorizer {
             scopes,
         ]);
 
-        // add the rows of each replicated type this database stores
-        const stored = parameters.replicated.filter((type) => this.mapping(type) !== undefined);
+        // add the rows of each replicated type this database stores, as it has no rows of others
+        const stored = parameters.replicated.filter((type) => {
+            const mapping = this.mapping(type);
+
+            return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);
+        });
         const replicated = stored.flatMap((type) => this.#replicatedRows(type, scopes, via));
         const owned = new Set(
             stored
