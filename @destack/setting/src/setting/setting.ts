@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Package, PackageId, DeclarationName } from "@destack/package";
+import { Package, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { BuildCache, type BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
@@ -77,7 +77,7 @@ export const SettingMetadata = schema.object({
 });
 
 /** The serializable fields of a setting description beside its scope. */
-const description = SettingMetadata.extend({
+const fields = SettingMetadata.extend({
     /** The declaring package. */
     package: Package,
     /** The value's JSON Schema. */
@@ -90,9 +90,9 @@ const description = SettingMetadata.extend({
 
 /** A setting declaration as manifests describe it. */
 export const SettingDescription = schema.discriminatedUnion("scope", [
-    SettingScope.options[0].extend(description.shape),
-    SettingScope.options[1].extend(description.shape),
-    SettingScope.options[2].extend(description.shape),
+    SettingScope.options[0].extend(fields.shape),
+    SettingScope.options[1].extend(fields.shape),
+    SettingScope.options[2].extend(fields.shape),
 ]);
 /** A setting declaration as manifests describe it. */
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
@@ -150,7 +150,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return setting;
     }
 
-    /** Find each written value's setting in the build `open` opens for it, reading each build once. */
+    /** Find a written value's setting in the build `open` opens for it, reading each build once. */
     static declared(
         open: (
             written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,

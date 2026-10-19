@@ -79,8 +79,8 @@ async function requireDeclared(
     // check it against its setting's declaration at its placement
     const placement = SettingPlacement.of(value);
     const reference = { packageId: value.packageId, name: value.name };
-    const setting = await declared({ ...placement, ...reference, release: value.release });
-    setting.requireWrite(
+    const declaration = await declared({ ...placement, ...reference, release: value.release });
+    declaration.requireWrite(
         { ...placement, mode: value.mode, value: value.value, release: value.release },
         value.scope,
     );
