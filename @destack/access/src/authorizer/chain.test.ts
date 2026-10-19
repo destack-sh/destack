@@ -27,7 +27,7 @@ import { openFixture, userSubject } from "../test/database.ts";
 import { Clock } from "@destack/environment";
 
 /** The replica of the accounts' chains stored for the placement follower. */
-const PLACEMENT_REPLICA = { name: Authorizer.chainReplica("placement"), below: "placement" };
+const PLACEMENT_REPLICA = { name: Authorizer.chainReplica("placement"), target: "placement" };
 
 /** The object types whose universe relationships the tests' decisions read: every test type's. */
 const TYPES = policies.map((each) => each.typeReference);
@@ -88,7 +88,7 @@ test("replicate a space's chain up to the universe from a relay, with the polici
                     ({ after }, signal) =>
                         feed.subscribe(authorizer.replicateChain(request).queries, after, signal),
                     controller.signal,
-                    { clock: Clock.system, subscription: request },
+                    { clock: Clock.system, subscription: request, audience: "contained" },
                 ),
         );
     };
@@ -132,7 +132,7 @@ test("replicate a space's chain up to the universe from a relay, with the polici
                 Authorizer.chainSubscription({
                     name: "chain",
                     scope: "universe",
-                    below: "personal",
+                    target: "personal",
                     parameters: {
                         local: [...app.authorizer.local],
                         replicated: [],
@@ -251,7 +251,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
         name: Authorizer.chainReplica("placement"),
         publication: CHAIN_PUBLICATION,
         scope: "universe",
-        below: "placement",
+        target: "placement",
         parameters: {
             local: [...app.authorizer.local],
             replicated: [{ packageId: policy.definition.packageId, type: policy.definition.name }],
@@ -325,7 +325,11 @@ async function followChain(
 ): Promise<void> {
     // resume from the replica's position, reshaping from its reflected parameters
     const replica = authorizer.replicateChain(request);
-    await replica.register(database, { subscription: request, clock: Clock.system });
+    await replica.register(database, {
+        subscription: request,
+        audience: "contained",
+        clock: Clock.system,
+    });
     const { after, previous } = await replica.resume(database, request);
     const reflected =
         previous === undefined
@@ -349,7 +353,11 @@ async function followChain(
         }
     }
     await Array.fromAsync(
-        replica.apply(database, pages, { clock: Clock.system, subscription: request }),
+        replica.apply(database, pages, {
+            clock: Clock.system,
+            subscription: request,
+            audience: "contained",
+        }),
     );
 }
 
@@ -406,7 +414,7 @@ test("leave out of a chain replica the rows of a replicated type its source does
     const request = Authorizer.chainSubscription({
         name: Authorizer.chainReplica("personal"),
         scope: "account-1",
-        below: "personal",
+        target: "personal",
         parameters: {
             local: [],
             replicated: [policy.typeReference],

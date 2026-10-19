@@ -847,12 +847,12 @@ export class Authorizer {
                     : above
                 : [scope, ...above];
 
-        // replicate each scope's rows for the scope below
+        // replicate each scope's rows for the target scope
         return scopes.map((replicated) =>
             Authorizer.chainSubscription({
                 name: Authorizer.chainReplica(scope),
                 scope: replicated,
-                below: scope,
+                target: scope,
                 parameters: {
                     local: [...this.local],
                     replicated: [...this.replicated],
@@ -871,7 +871,7 @@ export class Authorizer {
             /** The replica's name, one record per follower. */
             readonly name: string;
             /** The scope the replica is stored for, the follower or the scope it lives in. */
-            readonly below: string;
+            readonly target: string;
         },
         via: readonly { readonly id: string; readonly scope: string | null }[],
         types: readonly ObjectTypeReference[],
@@ -901,7 +901,7 @@ export class Authorizer {
         return Authorizer.chainSubscription({
             name: replica.name,
             scope: Scope.universe.id,
-            below: replica.below,
+            target: replica.target,
             parameters: {
                 local: [...this.local],
                 // take the scopes' own rows from the follower's replica of the universe
@@ -924,14 +924,14 @@ export class Authorizer {
         });
     }
 
-    /** Build the chain replica's name for the scope below, one record per follower. */
-    static chainReplica(below: string): string {
-        return `${CHAIN_PUBLICATION}:${below}`;
+    /** Build the chain replica's name for a target scope, one record per follower. */
+    static chainReplica(target: string): string {
+        return `${CHAIN_PUBLICATION}:${target}`;
     }
 
-    /** Build the replica name of the outside chains a scope below reads. */
-    static viaReplica(below: string): string {
-        return `${CHAIN_PUBLICATION}:${below}:via`;
+    /** Build the replica name of the outside chains a target scope reads. */
+    static viaReplica(target: string): string {
+        return `${CHAIN_PUBLICATION}:${target}:via`;
     }
 
     /** Request a scope's chain replica: access rows, inherited rows and own object. */

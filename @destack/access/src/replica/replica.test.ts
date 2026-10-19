@@ -61,7 +61,7 @@ function chainOf(authorizer: Authorizer, scope: string) {
     const subscription = Authorizer.chainSubscription({
         name: Authorizer.chainReplica(scope),
         scope,
-        below: scope,
+        target: scope,
         parameters: {
             local: [...authorizer.local],
             replicated: [...authorizer.replicated],
@@ -301,7 +301,7 @@ async function replicate(
 ): Promise<void> {
     // read the pages up to the source's head
     const { replica, subscription } = chain;
-    await replica.register(database, { subscription, clock: Clock.system });
+    await replica.register(database, { subscription, audience: "contained", clock: Clock.system });
     const head = await feed.database.log.position();
     const after = from === "snapshot" ? undefined : await replica.position(database);
     const pages = [];
