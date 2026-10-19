@@ -27,6 +27,7 @@ import accountPackage from "@destack/account/package";
 import { Provisioned } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import {
+    Change,
     type DatabaseConnection,
     defineDatabase,
     type Dialect,
@@ -34,7 +35,7 @@ import {
     Snapshot,
     Transaction,
 } from "@destack/db";
-import { MemoryContentStore, TestDatabase, TestSeed } from "@destack/db/test";
+import { MemoryContentStore, TestDatabase, TestTemplate } from "@destack/db/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -45,7 +46,13 @@ import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { until } from "@destack/runtime/timer";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import type { StackClient } from "../client/index.ts";
-import { type BuildUpload, Database, MAIN_DATABASE, SPACE_PROVIDER } from "../object/index.ts";
+import {
+    type BuildUpload,
+    Database,
+    Installation,
+    MAIN_DATABASE,
+    SPACE_PROVIDER,
+} from "../object/index.ts";
 import { BuildStore } from "../server/installation/build.ts";
 import { StackDefinition } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -76,39 +83,46 @@ export const spaceDatabase = defineDatabase({
 });
 
 /** The fixture's space on its cloud machine, owned by the owner, with its main database. */
-const SPACE_SEED = new TestSeed(async ({ database }) => {
-    // keep the account's scope and the space within it, owned by the owner and itself
-    const now = Date.now();
-    await replicateAccount(database);
-    await keepSpace(database);
+export const SPACE_TEMPLATE = new TestTemplate({
+    name: "stack.space",
+    tables: spaceDatabase,
+    value: schema.null(),
+    write: async ({ database }) => {
+        // keep the account's scope and the space within it, owned by the owner and itself
+        const now = Date.now();
+        await replicateAccount(database);
+        await keepSpace(database);
 
-    // keep the replica of the cloud machine serving the residency and of the space placed in it
-    await database.insert(machine.table).values({
-        id: ids.cloud,
-        scope: ids.platform,
-        name: "cloud",
-        kind: "cloud",
-        residencyId: "eu",
-        providerCode: "cloudflare",
-        location: "eu",
-        createdAt: now,
-        updatedAt: now,
-    });
-    await placeSpace(database);
+        // keep the replica of the cloud machine serving the residency and of the space placed in it
+        await database.insert(machine.table).values({
+            id: ids.cloud,
+            scope: ids.platform,
+            name: "cloud",
+            kind: "cloud",
+            residencyId: "eu",
+            providerCode: "cloudflare",
+            location: "eu",
+            createdAt: now,
+            updatedAt: now,
+        });
+        await placeSpace(database);
 
-    // keep the space's main database, as its birth gives it
-    await database.insert(object.database.table).values({
-        id: Identifier.create("database"),
-        scope: ids.space,
-        name: MAIN_DATABASE,
-        definitionPackageId: spaceDatabase.package.id,
-        definitionVersion: spaceDatabase.package.version,
-        definitionName: spaceDatabase.name,
-        spec: spaceDatabase.spec,
-        placement: { provider: SPACE_PROVIDER },
-        createdAt: now,
-        updatedAt: now,
-    });
+        // keep the space's main database, as its birth gives it
+        await database.insert(object.database.table).values({
+            id: Identifier.create("database"),
+            scope: ids.space,
+            name: MAIN_DATABASE,
+            definitionPackageId: spaceDatabase.package.id,
+            definitionVersion: spaceDatabase.package.version,
+            definitionName: spaceDatabase.name,
+            spec: spaceDatabase.spec,
+            placement: { provider: SPACE_PROVIDER },
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        return null;
+    },
 });
 
 /** Record a test space's call events in its database, their segments in memory. */
@@ -159,6 +173,8 @@ export const ids = {
 export class StackFixture implements AsyncDisposable {
     /** The test database. */
     readonly #test: TestDatabase;
+    /** The connection the machine's database declares its tables on. */
+    readonly #database: DatabaseConnection;
     /** The closing of the machine's database, absent while open. */
     #closed: Promise<void> | undefined;
     /** The machine's content store, absent until opened. */
@@ -175,21 +191,32 @@ export class StackFixture implements AsyncDisposable {
     #replicating: Promise<void> = Promise.resolve();
 
     /** Keep an opened test database. */
-    private constructor(test: TestDatabase) {
+    private constructor(test: TestDatabase, database: DatabaseConnection = test.database) {
         this.#test = test;
+        this.#database = database;
     }
 
     /** The machine's database. */
     get database(): DatabaseConnection {
-        return this.#test.database;
+        return this.#database;
     }
 
-    /** Open the fixture's cloud machine keeping the fixture's space, replicated from its seed. */
+    /** Open the fixture's cloud machine keeping the fixture's space, copied from its template. */
     static async open(options: StackFixtureOptions = {}): Promise<StackFixture> {
+        // copy the space's template
         const { database = spaceDatabase, dialect = "sqlite" } = options;
-        const { storage } = await TestDatabase.seeded(dialect, database, SPACE_SEED);
+        const { storage } = await TestDatabase.copy(dialect, SPACE_TEMPLATE);
+        if (database === spaceDatabase) {
+            return StackFixture.#closing(storage);
+        }
 
-        return StackFixture.#closing(storage);
+        // migrate it to the test's own tables beside the stack's, connecting with them
+        await storage.database.migrate(database.tables, {
+            replicated: database.replicated,
+            others: "keep",
+        });
+
+        return StackFixture.#closing(storage, await storage.connect(database));
     }
 
     /** Open a machine keeping no space, such as the target of a move. */
@@ -202,8 +229,8 @@ export class StackFixture implements AsyncDisposable {
     }
 
     /** Keep a machine's database, closed after the test. */
-    static #closing(test: TestDatabase): StackFixture {
-        const fixture = new StackFixture(test);
+    static #closing(test: TestDatabase, database?: DatabaseConnection): StackFixture {
+        const fixture = new StackFixture(test, database);
         onTestFinished(() => fixture[Symbol.asyncDispose]());
 
         return fixture;
@@ -262,23 +289,45 @@ export class StackFixture implements AsyncDisposable {
             repositories: null,
             follows: [],
             external: await this.index(),
-            served: (spaceId) => this.served(spaceId),
             ...overrides,
         };
     }
 
-    /** Read the revisions a space serves, as a space restarted on every change serves them. */
-    async served(
+    /** Control a space as its machine does, serving its installed revisions at each change. */
+    host(store: ObjectStore, spaceId: Identifier<"space">): Controller {
+        const watches = [object.installation.table, object.binding.table, object.database.table];
+
+        return {
+            name: "host",
+            watches,
+            keys: (change) => (watches.some((table) => Change.of(change, table)) ? [spaceId] : []),
+            list: async () => [spaceId],
+            reconcile: async () => {
+                await this.serveInstalled(store, spaceId);
+
+                return undefined;
+            },
+        };
+    }
+
+    /** Serve a space's installed revisions through its store, as its machine's start does. */
+    async serveInstalled(
+        store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock">,
         spaceId: Identifier<"space">,
-    ): Promise<ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>> {
+    ): Promise<void> {
+        // read the revisions main applied, as the machine's start serves them
         const builds = await this.builds();
         const installed = await Database.installed(
             Snapshot.live(this.database),
             spaceId,
             (manifest) => builds.packages.contents(manifest),
         );
+        const revisions = new Map(
+            installed.map((entry) => [entry.installation.id, entry.revisionId]),
+        );
 
-        return new Map(installed.map((entry) => [entry.installation.id, entry.revisionId]));
+        // record what the space serves
+        await Installation.serve(store, spaceId, revisions);
     }
 
     /** Call the account objects machines read, with every person at home in one space. */

@@ -25,7 +25,7 @@ import {
     type Step,
     Upgrade,
 } from "@destack/resource";
-import { canonicalize, type Identifier, present, schema, Version } from "@destack/schema";
+import { canonicalize, present, schema, Version } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
 import {
     InstallationBindingSpec,
@@ -51,6 +51,9 @@ import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
 
+/** The condition of an installation whose bound targets are each ready. */
+const BOUND = { status: "true", reason: "Bound", message: "every bound target is ready" } as const;
+
 /** The description of a declaration of a kind other than resource: its name and specification. */
 const OtherDescription = schema.object({ name: DeclarationName }).catchall(schema.json());
 
@@ -68,14 +71,7 @@ export interface ApplicationOptions {
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
     readonly database: DatabaseConnection;
-    /** Read the revision this start of a space serves each of its installations at. */
-    readonly served: ServedRevisions;
 }
-
-/** Read the revision this start of a space serves each of its installations at. */
-export type ServedRevisions = (
-    spaceId: Identifier<"space">,
-) => Promise<ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>>;
 
 /** What a revision rolls out. */
 interface RolloutPlan {
@@ -263,15 +259,16 @@ export class Application {
 
     /** Attach the application's needs, wait for its space, grant, drain and activate. */
     async #rollOut(revision: InstallationRevision, rollout: RolloutPlan): Promise<void> {
-        // attach what the installation owns and wait for targets not ready to capture
+        // wait for a provider of each kind no provider here serves yet
         const call = this.#context;
         const target = this.#context.target;
         const { build, workloads, fresh, replaced, needs, description } = rollout;
-        await this.#options.binder.attach(call, target, needs);
-        if (!(await this.#options.binder.ready(call, target, needs))) {
-            const message = "bound targets wait for their resources";
+        const unprovided = this.#options.binder.unprovided(needs);
+        if (unprovided.length > 0) {
+            const message = `waiting for a provider of ${unprovided.join(", ")} resources`;
             await call.observe(installation, target, {
                 conditions: {
+                    bound: { status: "false", reason: "WaitingForResources", message },
                     ready: { status: "false", reason: "WaitingForResources", message },
                 },
             });
@@ -279,11 +276,26 @@ export class Application {
             return;
         }
 
-        // wait for the space to serve the revision and the packages whose types its grants name
+        // attach what the installation owns and wait for targets not ready to capture
+        await this.#options.binder.attach(call, target, needs);
+        if (!(await this.#options.binder.ready(call, target, needs))) {
+            const message = "bound targets wait for their resources";
+            await call.observe(installation, target, {
+                conditions: {
+                    bound: { status: "false", reason: "WaitingForResources", message },
+                    ready: { status: "false", reason: "WaitingForResources", message },
+                },
+            });
+
+            return;
+        }
+
+        // wait for the space to serve the revision once its targets are bound, and the packages whose types its grants name
         const unserved = await this.#describeUnserved(revision, description);
         if (unserved !== undefined) {
             await call.observe(installation, target, {
                 conditions: {
+                    bound: BOUND,
                     ready: { status: "false", reason: "WaitingForSpace", message: unserved },
                 },
             });
@@ -312,6 +324,7 @@ export class Application {
         // observe the revision applied
         await call.observe(installation, target, {
             conditions: {
+                bound: BOUND,
                 ready: {
                     status: "true",
                     reason: "Deployed",
@@ -423,21 +436,30 @@ export class Application {
         // wait for the revision itself
         const call = this.#context;
         const { target } = call;
-        const served = await this.#options.served(target.scope);
-        if (served.get(target.id) !== revision.id) {
+        if (target.servedRevisionId !== revision.id) {
             return `waiting for the space to serve revision ${revision.id}`;
         }
 
-        // wait for each package the application needs, whose types its grants name
+        // wait for each package the application needs, and for the types its space grant names
         const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
-        const waiting = Installation.needed(target, revision, description).filter(
-            (entry) =>
-                !rows.some((row) => row.packageId === entry.package.id && served.has(row.id)),
-        );
+        const waiting = Installation.needed(target, revision, description)
+            .filter(
+                (entry) =>
+                    !rows.some(
+                        (row) =>
+                            row.packageId === entry.package.id && row.servedRevisionId !== null,
+                    ),
+            )
+            .map((entry) => entry.package.name);
+        const granted = Installation.permissions(target, description, "installation").space ?? [];
+        const unknown = granted
+            .filter((permission) => call.authorizer.find(permission) === undefined)
+            .map((permission) => `${permission.packageId}/${permission.type}`);
+        const unserved = [...new Set([...waiting, ...unknown])];
 
-        return waiting.length === 0
+        return unserved.length === 0
             ? undefined
-            : `waiting for the space to serve ${waiting.map((entry) => entry.package.name).join(", ")}`;
+            : `waiting for the space to serve ${unserved.join(", ")}`;
     }
 
     /** Describe the databases a build declares, which the space's main database refuses. */
@@ -675,7 +697,7 @@ export class Application {
             );
             const { builds, registry } = this.#options;
             const earlier = await registry.find(target.packageId, upgrade.from);
-            reader = await builds.open(registry, target.packageId, earlier);
+            reader = await builds.read(registry, target.packageId, earlier);
         }
 
         return { kind: "planned", plan: { steps } };
@@ -844,7 +866,7 @@ export class Application {
                 .filter((dependency) => needed.has(dependency.package.id))
                 .map(async (dependency) => {
                     const { id } = dependency.package;
-                    const reader = await builds.open(registry, id, dependency.manifest);
+                    const reader = await builds.read(registry, id, dependency.manifest);
 
                     return ObjectDescription.installed(await reader.declarations());
                 }),

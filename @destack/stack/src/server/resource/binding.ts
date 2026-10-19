@@ -265,6 +265,15 @@ export class Binder {
         });
     }
 
+    /** List the kinds of some needs no provider here serves yet, which wait until one does. */
+    unprovided(needs: readonly ResourceNeed[]): string[] {
+        const kinds = needs
+            .map((need) => need.kind)
+            .filter((kind) => !this.#resources.has(kind) && !this.#served.has(kind));
+
+        return [...new Set(kinds)];
+    }
+
     /** Bind each declaration no stack binding satisfies to a target the installation owns. */
     async attach(
         context: MethodContext,
@@ -354,17 +363,21 @@ export class Binder {
                 continue;
             }
 
-            // wait for a target whose row has not arrived
-            const kind = Binder.#kind(bound.target, this.#kinds);
+            // ready a target its served kind prepares once its row arrived
             const served = this.#served.get(need.kind);
-            if (
-                !(await context.read(kind.object.table).findFirst({ where: { id: bound.target } }))
-            ) {
-                isReady = false;
+            if (served !== undefined) {
+                const row = await context
+                    .read(served.object.table)
+                    .findFirst({ where: { id: bound.target } });
+                isReady =
+                    row !== undefined && (await served.ready(context, bound, need)) && isReady;
             }
-            // ready a target its served kind prepares
-            else if (served !== undefined) {
-                isReady = (await served.ready(context, bound, need)) && isReady;
+            // ready a resource once its provider provisioned it
+            else {
+                const kind = Binder.#kind(bound.target, this.#resources.values());
+                const id = kind.object.identifier(bound.target);
+                const row = await context.read(kind.object.table).findFirst({ where: { id } });
+                isReady = row !== undefined && row.reference !== null && isReady;
             }
         }
 

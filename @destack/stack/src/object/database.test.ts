@@ -9,7 +9,7 @@ import { binding, Database, database, installation, installationRevision } from 
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
-test("serve an installation once the space's main database applied its tables, while a later plan waits too, and none before or without main", async () => {
+test("serve an installation once its targets are bound and the space's main database applied its tables, while a later plan waits too, and none before or without main", async () => {
     // install notes at a revision declaring a note type, bound to main
     const fixture = await StackFixture.open();
     const { database: connection } = fixture;
@@ -59,10 +59,28 @@ test("serve an installation once the space's main database applied its tables, w
             entry.declarations.map((each) => each.name),
         ]);
 
-    // serve nothing while main has not applied the notes' tables
+    // serve nothing while the notes' targets are not bound, though main applied their tables
     await connection
         .update(database.table)
-        .set({ states: [await Digest.json(STATE)] })
+        .set({ states: [await Digest.json(STATE)], appliedStates: [await Digest.json(STATE)] })
+        .where(eq(database.table.id, main.id));
+    const unbound = await served();
+
+    // serve nothing while main has not applied the notes' tables, their targets bound
+    const isBound = {
+        status: "true" as const,
+        reason: "Bound",
+        message: "",
+        observedGeneration: 1,
+        lastTransitionAt: now,
+    };
+    await connection
+        .update(installation.table)
+        .set({ conditions: { bound: isBound } })
+        .where(eq(installation.table.id, ids.notes));
+    await connection
+        .update(database.table)
+        .set({ appliedStates: [] })
         .where(eq(database.table.id, main.id));
     const unapplied = await served();
 
@@ -85,7 +103,8 @@ test("serve an installation once the space's main database applied its tables, w
     await connection.delete(database.table).where(eq(database.table.id, main.id));
     const unborn = await served();
 
-    expect({ unapplied, applied, waiting, unborn }).toEqual({
+    expect({ unbound, unapplied, applied, waiting, unborn }).toEqual({
+        unbound: [],
         unapplied: [],
         applied: [[ids.notes, ["note"]]],
         waiting: [[ids.notes, ["note"]]],

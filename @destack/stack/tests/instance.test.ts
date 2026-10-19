@@ -339,13 +339,22 @@ async function serveControllers(
         authorizer: store.authorizer,
         deployments: {
             reconcile: async (id: string) => {
-                // deploy, apply the space's resources, and deploy again once the space serves the revision
+                // attach, provision the space's resources, record the targets bound, and deploy once the space serves the bound revision
+                await fixture.serveInstalled(store, ids.space);
                 await reconcile(store, "installation", { id });
                 await reconcileResources(store, ids.space);
+                await fixture.serveInstalled(store, ids.space);
+                await reconcile(store, "installation", { id });
+                await fixture.serveInstalled(store, ids.space);
 
                 return reconcile(store, "installation", { id });
             },
-            deploy: (id: string) => reconcile(store, "installation", { id }),
+            deploy: async (id: string) => {
+                // deploy once the space serves the bound revision
+                await fixture.serveInstalled(store, ids.space);
+
+                return reconcile(store, "installation", { id });
+            },
         },
         instances: {
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
@@ -354,6 +363,8 @@ async function serveControllers(
                     database,
                     [
                         ...store.controllers(),
+                        // serve the installed revisions, as the space's machine does
+                        fixture.host(store, ids.space),
                         // write main's desired states, as the space's consumer controller does
                         ...(nth(served.packages, 0).controllers ?? []).filter(
                             (controller) => controller.name === "consumer",
@@ -495,7 +506,7 @@ test("bind an application's tables to the space's main database, start its insta
     const { runtime, deployments, instances, resources } = await serveControllers(fixture);
     await deployments.deploy(notes.id);
 
-    // activate nothing while main has not applied the notes' tables the space would serve
+    // activate nothing while main is not provisioned yet
     const mainDatabase = nth(await database.select().from(object.database.table), 0);
     const [waiting] = await database
         .select()
@@ -508,15 +519,15 @@ test("bind an application's tables to the space's main database, start its insta
     }).toEqual({
         started: 0,
         deployments: [],
-        ready: ["WaitingForSpace", `waiting for the space to serve revision ${waiting?.revisionId}`],
+        ready: ["WaitingForResources", "bound targets wait for their resources"],
     });
 
-    // apply main, deploy once the space serves the revision, and start the instance
+    // provision and apply main, deploy once the space serves the bound revision, and start the instance
     const provisioned = await database.log.position();
     await resources.reconcile(ids.space);
     await deployments.deploy(notes.id);
-    const deployed = nth(await database.select().from(object.deployment.table), 0);
     await instances.settle(provisioned);
+    const deployed = nth(await database.select().from(object.deployment.table), 0);
     const applied = nth(await database.select().from(object.database.table), 0);
     const attached = nth(await database.select().from(object.binding.table), 0);
     const running = nth(await database.select().from(object.instance.table), 0);
@@ -1663,4 +1674,23 @@ test("deploy an application without a package only its optional capability needs
         without: ["Deployed", "1 workloads deployed"],
         allowed: ["UninstalledDependency", "capability vault-sync needs @acme/vault installed"],
     });
+});
+
+test("wait for a provider of a kind no provider here serves yet, naming the kind", async () => {
+    // install notes binding a vault, whose provider no installation here serves yet
+    const fixture = await StackFixture.open();
+    const credentials: Declared = {
+        definer: runtimePackage,
+        name: "credentials",
+        description: { name: "credentials", kind: "vault", spec: {} },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, credentials]));
+    const { deployments } = await serveControllers(fixture);
+
+    // wait rather than fail, naming the kind
+    await deployments.reconcile(notes.id);
+    expect(await readiness(fixture.database, notes.id)).toEqual([
+        "WaitingForResources",
+        "waiting for a provider of vault resources",
+    ]);
 });

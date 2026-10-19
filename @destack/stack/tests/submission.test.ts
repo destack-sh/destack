@@ -317,7 +317,12 @@ test("wait for an approval of an application's upgrade across every release sinc
     const read = () => owner.installation.get({ spaceId: ids.space, id: notes.id });
 
     // apply the first release and wait on the upgrade to the last
-    const deploy = () => reconcile(store, "installation", { id: notes.id });
+    const deploy = async () => {
+        // record the targets bound, then deploy once the space serves the bound revision
+        await reconcile(store, "installation", { id: notes.id });
+        await fixture.serveInstalled(store, ids.space);
+        await reconcile(store, "installation", { id: notes.id });
+    };
     await submit("2026.9.0");
     await deploy();
     const deployed = (await read()).conditions["ready"]?.reason;
@@ -401,7 +406,12 @@ test("refuse a build of another package, and block an upgrade from a release tha
     const read = () => owner.installation.get({ spaceId: ids.space, id: notes.id });
 
     // refuse the fork's build at once
-    const deploy = () => reconcile(store, "installation", { id: notes.id });
+    const deploy = async () => {
+        // record the targets bound, then deploy once the space serves the bound revision
+        await reconcile(store, "installation", { id: notes.id });
+        await fixture.serveInstalled(store, ids.space);
+        await reconcile(store, "installation", { id: notes.id });
+    };
     await submit(release("2026.9.0"), release("2026.9.0"));
     await deploy();
     const deployed = (await read()).conditions["ready"]?.reason;

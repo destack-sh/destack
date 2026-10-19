@@ -1,5 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import {
+    AccessContext,
+    Caller,
     Grant,
     type GrantPermission,
     none,
@@ -27,8 +29,9 @@ import {
     defineObject,
     field,
     ObjectError,
+    Observation,
 } from "@destack/object";
-import type { Stack } from "@destack/object/server";
+import type { ObjectStore, Stack } from "@destack/object/server";
 import {
     ComputeDefinition,
     DeclarationName,
@@ -50,6 +53,7 @@ import {
     schema,
 } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/runtime/request";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { Scope } from "@destack/sync";
@@ -131,6 +135,8 @@ export const installation = defineObject(
             spaceStack: field.string(Digest).optional(),
             /** The revision fully applied, absent before the first application. */
             appliedRevision: field.reference(() => installationRevision).optional(),
+            /** The revision the space serves, absent before it serves one. */
+            servedRevision: field.reference(() => installationRevision).optional(),
             /** The revision applied before the applied one, which a rollback follows again. */
             previousRevision: field.reference(() => installationRevision).optional(),
             /** Whether the installation should serve requests. */
@@ -423,7 +429,7 @@ export const Installation = {
     /** List the package's capabilities an installation has: required and allowed optional ones. */
     enabled(
         row: Pick<Installation, "capabilities" | "allowed">,
-        description: PackageDescription | undefined,
+        description: Pick<PackageDescription, "capabilities"> | undefined,
     ): string[] {
         const allowed = Installation.capabilities(row);
 
@@ -509,7 +515,7 @@ export const Installation = {
     /** Merge what a delegator lends an installation: its package's and capabilities' sets. */
     permissions(
         row: Pick<Installation, "capabilities" | "allowed">,
-        description: PackageDescription | undefined,
+        description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
         delegator: keyof PermissionRequest,
     ): PermissionSet {
         // gather the package's set and each enabled capability's
@@ -537,6 +543,37 @@ export const Installation = {
                 return once.length === 0 ? [] : [[scope, once]];
             }),
         );
+    },
+
+    /** Record the revision a space serves each of its installations at, none for the others. */
+    async serve(
+        store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock">,
+        spaceId: Identifier<"space">,
+        revisions: ReadonlyMap<string, string>,
+    ): Promise<void> {
+        // observe each installation whose served revision changed, as the space's store
+        const rows = await Snapshot.live(store.database)
+            .read(installation.table)
+            .findMany({ where: { scope: spaceId } });
+        const calls = rows.flatMap((row) => {
+            const served = revisions.get(row.id) ?? null;
+
+            return row.servedRevisionId === served
+                ? []
+                : [
+                      Observation.call(installation, row, {
+                          conditions: {},
+                          fields: { servedRevisionId: served },
+                      }),
+                  ];
+        });
+        if (calls.length > 0) {
+            const now = store.clock.now();
+            await store.mutate(AccessContext.of(Caller.of(store.principal), now), {
+                id: RequestId.create(now),
+                calls,
+            });
+        }
     },
 
     /** Upsert an installation's role in its space and its space's grant to what it may do. */
@@ -603,11 +640,11 @@ export const Installation = {
         const declared = await Setting.list(reader);
         const placed = declared.filter((setting) => setting.definition.scope === "space");
         const resolved = await Promise.all(
-            placed.map(async (declared): Promise<[string, JsonValue]> => [
-                DeclarationReference.key(declared.reference),
+            placed.map(async (setting): Promise<[string, JsonValue]> => [
+                DeclarationReference.key(setting.reference),
                 schema
                     .json()
-                    .parse(await SettingValue.resolve(Snapshot.live(database), declared, target)),
+                    .parse(await SettingValue.resolve(Snapshot.live(database), setting, target)),
             ]),
         );
 

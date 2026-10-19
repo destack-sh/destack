@@ -21,6 +21,8 @@ await client.installation.approve({ spaceId, id, requestId, plan: await Plan.dig
 await client.installation.rollBack({ spaceId, id, requestId }); // the release applied before
 // a token of the installation, asked by an assertion its key signs (RFC 7523), as Kubernetes' TokenRequest
 await asserted.installation.token({ spaceId, id, requestId, audience });
+// the revision the space serves each installation at, the status its host records as Kubernetes' Pod.status
+await Installation.serve(store, spaceId, revisions); // Installation.servedRevision
 ```
 
 ## Declarations
@@ -76,6 +78,7 @@ A machine keeps every build and pulled release of its spaces by manifest digest 
 const builds = await BuildStore.of(host, { scope: machine, bucketId });
 const reader = await BuildStore.installed(builds, snapshot, spaceId, packageId);
 const release = await BuildStore.open(builds, registry, packageId, manifest); // copied from the registry once
+const declared = await builds.read(registry, packageId, manifest); // stored, else streamed without storing
 const retained = await BuildStore.sweep(builds, objects, retention, now, before);
 ```
 
@@ -170,12 +173,13 @@ export const shop = defineStack({
 
 ## Tests
 
-`StackFixture` opens a machine's space database with one space and serves it.
+`StackFixture` copies a machine's space database with one space from the run's `SPACE_TEMPLATE`, serves it, and stands in for the machine serving installed revisions.
 
 ```ts
 import { ids, StackFixture } from "@destack/stack/test";
 
 const fixture = await StackFixture.open();
+const host = fixture.host(store, ids.space); // a controller recording Installation.servedRevision, as a host would
 const owner = (await fixture.serve())(ids.owner);
 await owner.installation.create({
     spaceId: ids.space,

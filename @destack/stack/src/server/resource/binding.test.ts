@@ -13,7 +13,7 @@ import { serveSpace } from "../index.ts";
 import { ids, reconcile, StackFixture, TestSpaceDatabaseHost } from "../../test/index.ts";
 
 test("deploy an installation capturing each binding at its target's generation or its pinned version, and relate it to the captured resources", async () => {
-    // keep two resources at different generations bound by one installation with one binding pinned
+    // keep two provisioned resources at different generations bound by one installation with one binding pinned
     const fixture = await StackFixture.open();
     const { database } = fixture;
     const now = Date.now();
@@ -27,6 +27,8 @@ test("deploy an installation capturing each binding at its target's generation o
         definitionName: name,
         spec: { replicated: [] },
         generation,
+        provider: "sqlite",
+        reference: `${name}.db`,
     });
     const [ledger, archive, spare] = [
         resource("ledger", 3),
@@ -56,7 +58,7 @@ test("deploy an installation capturing each binding at its target's generation o
         .insert(object.binding.table)
         .values([bind("ledger", ledger.id, null), bind("archive", archive.id, 4)]);
 
-    // follow the release and deploy it, capturing the bindings
+    // follow the release, record its targets bound, and deploy it once the space serves it, capturing the bindings
     const [inserted] = await database
         .insert(object.installationRevision.table)
         .values({
@@ -84,6 +86,8 @@ test("deploy an installation capturing each binding at its target's generation o
             ],
         }),
     ).store;
+    await reconcile(store, "installation", { id: ids.notes });
+    await fixture.serveInstalled(store, ids.space);
     await reconcile(store, "installation", { id: ids.notes });
 
     // run the unpinned binding at the target's generation and the pinned one at its pin

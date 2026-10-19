@@ -58,7 +58,6 @@ import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
 import { RetentionController, type SweepCache } from "./resource/retention.ts";
 import { hookAdapter } from "./installation/hook.ts";
-import type { ServedRevisions } from "./installation/application.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
@@ -134,8 +133,6 @@ export interface SpaceOptions {
     readonly follows: readonly Follow[];
     /** The storage of the machine's external object types: its builds' graphs. */
     readonly external: ExternalStorage;
-    /** Read the revision this start of a space serves each of its installations at. */
-    readonly served: ServedRevisions;
     /** The live sockets of the machine's spaces. */
     readonly sockets: SocketRegistry;
     /** The clock the machine reads time at. */
@@ -309,7 +306,6 @@ function ownObjects(
             issuer: options.keystore.issuer(options.database, options.principal.id),
             isEnforcingEntitlements: options.isEnforcingEntitlements,
             database: options.database,
-            served: options.served,
         }),
         implementInstallationRevision(builds, registry),
         binder.declare(),

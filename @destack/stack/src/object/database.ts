@@ -1,10 +1,9 @@
 import { DatabaseKind, type Select, type Snapshot, type Transaction } from "@destack/db";
-import { defineObject } from "@destack/object";
+import { defineObject, OBJECT_DECLARATION, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { Digest, type Identifier, present } from "@destack/schema";
 import { RESOURCE_DECLARATION } from "@destack/resource";
-import { OBJECT_DECLARATION } from "@destack/object/inspect";
 import { binding } from "./binding.ts";
 import { Build, build } from "./build.ts";
 import {
@@ -111,11 +110,11 @@ export const Database = {
             ),
         );
 
-        // serve each installation at its revision once main applied its tables, else at the revision it deployed last
+        // serve each installation at its revision once its targets are bound and main applied its tables, else at the revision it deployed last
         const applied = new Set(main.appliedStates);
         const served = await Promise.all(
             installations.map(async (entry) => {
-                // serve a revision declaring no object types at once, and one declaring some once main applied them
+                // serve a bound revision declaring no object types at once, and one declaring some once main applied them
                 const latest =
                     entry.revisionId === null ? undefined : declared.get(entry.revisionId);
                 const tables = bindings.find(
@@ -124,8 +123,12 @@ export const Database = {
                         each.name === MAIN_DATABASE &&
                         each.target === main.id,
                 );
+                const isBound =
+                    Observation.isCurrent(entry, "bound") &&
+                    entry.conditions["bound"]?.status === "true";
                 const isApplied =
                     latest !== undefined &&
+                    isBound &&
                     (!latest.some((each) => each.kind === OBJECT_DECLARATION) ||
                         (tables !== undefined && applied.has(await Digest.json(tables.state))));
                 const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
@@ -141,11 +144,11 @@ export const Database = {
 
         return served.flat().flatMap(({ installation: entry, revisionId }) => {
             const declarations = present(declared.get(revisionId), `revision ${revisionId}`);
-            const isBound = declarations
+            const hasBindings = declarations
                 .filter((each) => each.kind === RESOURCE_DECLARATION)
                 .every((each) => bound.has(`${entry.id}:${entry.packageId}:${each.name}`));
 
-            return isBound ? [{ installation: entry, revisionId, declarations }] : [];
+            return hasBindings ? [{ installation: entry, revisionId, declarations }] : [];
         });
     },
 };
