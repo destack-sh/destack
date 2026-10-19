@@ -237,13 +237,13 @@ export const prices: Readonly<Record<string, Price>> = {
     ClickUp: seat(7, "Unlimited, annual"),
     Excalidraw: seat(6, "Excalidraw+, annual"),
     FigJam: seat(3, "Professional, annual"),
-    Mural: seat(9.99, "Team+, annual"),
     Lucid: seat(10, "Lucidspark Team, annual"),
     "Cal.com": seat(12, "Teams, annual"),
     "Proton Mail": seat(9.99, "Mail Professional, annual"),
     Coda: seat(30, "Team, annual"),
     Trello: seat(5, "Standard, annual"),
     Asana: seat(10.99, "Starter, annual"),
+    IFTTT: seat(2.99, "Pro, annual"),
     Airtable: seat(20, "Team, annual"),
     Miro: seat(16, "Business, annual"),
     Dropbox: seat(15, "Standard, annual"),
@@ -260,6 +260,7 @@ export const prices: Readonly<Record<string, Price>> = {
     Typeform: flat(56, "Plus, annual"),
     Discord: flat(0, "Free"),
     Thunderbird: flat(0, "Free"),
+    tldraw: flat(0, "Free"),
     WhatsApp: flat(0, "Free"),
 
     // one person's plan, or the team plan from a second person on, billed annually

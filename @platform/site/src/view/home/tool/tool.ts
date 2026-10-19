@@ -10,6 +10,7 @@ import { Coda } from "./coda";
 import { ClickUp } from "./clickup";
 import { Discord } from "./discord";
 import { Excalidraw } from "./excalidraw";
+import { Ifttt } from "./ifttt";
 import { Excel } from "./excel";
 import { FigJam } from "./figjam";
 import { Confluence } from "./confluence";
@@ -22,6 +23,7 @@ import { Obsidian } from "./obsidian";
 import { Outlook } from "./outlook";
 import { OutlookCalendar } from "./outlookcalendar";
 import { PowerAutomate } from "./powerautomate";
+import { ProtonCalendar } from "./protoncalendar";
 import { ProtonMail } from "./protonmail";
 import { Word } from "./word";
 import { Gmail } from "./gmail";
@@ -30,7 +32,6 @@ import { Lovable } from "./lovable";
 import { Make } from "./make";
 import { Lucid } from "./lucid";
 import { Miro } from "./miro";
-import { Mural } from "./mural";
 import { N8n } from "./n8n";
 import { Notion, NotionDatabase } from "./notion";
 import { Replit } from "./replit";
@@ -38,6 +39,7 @@ import { Slack } from "./slack";
 import { Superhuman } from "./superhuman";
 import { Teams } from "./teams";
 import { Thunderbird } from "./thunderbird";
+import { Tldraw } from "./tldraw";
 import { Trello } from "./trello";
 import { V0 } from "./v0";
 import { WhatsApp } from "./whatsapp";
@@ -298,6 +300,17 @@ export const tools: readonly Tool[] = [
         relation: { kind: "bridge", status: "two-way sync" },
         page: OutlookCalendar,
     },
+    {
+        name: "Proton Calendar",
+        category: "calendar",
+        icon: "protoncalendar",
+        tint: "#6d4aff",
+        subscription: "Proton Mail",
+        tab: "Proton Calendar",
+        site: "calendar.proton.me/u/0/week/2025/10/20",
+        relation: { kind: "bridge", status: "events read by link" },
+        page: ProtonCalendar,
+    },
 
     // mail
     {
@@ -437,15 +450,15 @@ export const tools: readonly Tool[] = [
         page: FigJam,
     },
     {
-        name: "Mural",
+        name: "tldraw",
         category: "canvas",
-        icon: "mural",
-        tint: "#ff0b47",
-        subscription: "Mural",
-        tab: "Destack launch plan | Mural",
-        site: "app.mural.co/t/symbol/m/symbol/destack-launch",
+        icon: "tldraw",
+        tint: "#1d1d1d",
+        subscription: "tldraw",
+        tab: "Destack launch plan | tldraw",
+        site: "www.tldraw.com/f/qY7rBw2hT1kZ",
         relation: { kind: "replace" },
-        page: Mural,
+        page: Tldraw,
     },
     {
         name: "Lucid",
@@ -514,6 +527,17 @@ export const tools: readonly Tool[] = [
         site: "make.powerautomate.com/environments/Default/flows/welcome",
         relation: { kind: "replace" },
         page: PowerAutomate,
+    },
+    {
+        name: "IFTTT",
+        category: "workflows",
+        icon: "ifttt",
+        tint: "#000000",
+        subscription: "IFTTT",
+        tab: "Post new waitlist signups to #launch and welcome them by email - IFTTT",
+        site: "ifttt.com/applets/Rk3vT9qa-post-new-waitlist-signups-to-launch",
+        relation: { kind: "replace" },
+        page: Ifttt,
     },
 
     // builder
