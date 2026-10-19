@@ -14,11 +14,14 @@ const GERMAN = Catalog.of(
     t`Unread`.package,
 );
 
-/** Render an element as a mounted view whose host opens bob's home in a locale. */
+/** The source language's localization, without catalogs. */
+const SOURCE = Localization.of(SOURCE_LOCALE, []);
+
+/** Render an element as a mounted view whose host opens bob's home, under a localization. */
 function drawInHome(
     home: Home,
     element: () => JSX.Element,
-    catalogs: readonly Catalog[] = [],
+    localization: Localization,
 ): HTMLElement {
     const container = document.createElement("main");
     document.body.append(container);
@@ -35,7 +38,7 @@ function drawInHome(
                     throw new TypeError(`the inbox cannot call ${path}`);
                 },
             },
-            Localization.of(home.context.locale ?? SOURCE_LOCALE, catalogs),
+            localization,
         ),
     );
 
@@ -53,7 +56,7 @@ function rows(container: Element): string[] {
 
 test("list the person's notifications from their home and mark one read when opened", async () => {
     const home = await openHome();
-    const container = drawInHome(home, () => <NotificationInbox />);
+    const container = drawInHome(home, () => <NotificationInbox />, SOURCE);
     await expect
         .poll(() => rows(container))
         .toEqual(["unread: Unread 1 mention", "unread: Unread 1 mention"]);
@@ -68,13 +71,17 @@ test("list the person's notifications from their home and mark one read when ope
 
 test("count the person's unread notifications in every space, or in one", async () => {
     const home = await openHome();
-    const container = drawInHome(home, () => (
-        <>
-            <NotificationBadge />
-            <NotificationBadge space={home.context.space} />
-            <NotificationBadge space="space-019f5530-8000-7000-8000-0000000000ff" />
-        </>
-    ));
+    const container = drawInHome(
+        home,
+        () => (
+            <>
+                <NotificationBadge />
+                <NotificationBadge space={home.context.space} />
+                <NotificationBadge space="space-019f5530-8000-7000-8000-0000000000ff" />
+            </>
+        ),
+        SOURCE,
+    );
 
     // count both unread notifications in the view's space, and none elsewhere
     await expect
@@ -92,16 +99,15 @@ test("count the person's unread notifications in every space, or in one", async 
 
 test("count and label unread notifications in the German catalog the package ships", async () => {
     const home = await openHome();
-    const german = { ...home, context: { ...home.context, locale: "de-AT" } };
     const container = drawInHome(
-        german,
+        home,
         () => (
             <>
                 <NotificationBadge />
                 <NotificationInbox />
             </>
         ),
-        [GERMAN],
+        Localization.of("de-AT", [GERMAN]),
     );
 
     // read the spoken count and each row's hidden state in German, and the summary as written
