@@ -68,6 +68,16 @@ await signIn.email("bea@example.com", ask, {
 }); // signs Bea up
 ```
 
+## Tokens for a person
+
+A signed-in `Login` exchanges its session for a package's token (RFC 8693), acting for the person through a delegate under their grant, the consent `Login.grant` stores.
+
+```ts
+const asked = await login.granted(installation, permissions); // the unexpiring grant of exactly these, if any
+const grant = await login.grant(installation, permissions); // the person's consent, reusing that grant
+const token = await login.token(notes.id, { spaceId, grants: [grant.id] }); // stamped with the universe's position (Zanzibar's zookie)
+```
+
 ## Machines
 
 `MachineIdentity` enrolls a machine and signs its calls to the universe.
