@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { DEFAULT_PREFERENCES } from "@destack/theme";
+import { DEFAULT_DISPLAY } from "@destack/theme";
 import type { ParentProps } from "@destack/view";
 import { AppearanceScript, Font, Viewport } from "@destack/view/document";
 import { HydrationScript } from "@destack/web/render";
@@ -7,7 +7,7 @@ import { mono, sans, sansItalics } from "./font.ts";
 import { theme } from "./theme.ts";
 
 /** The theme root's custom properties, following the system appearance until one is picked. */
-const themeStyle = theme.variables("system", DEFAULT_PREFERENCES);
+const themeStyle = theme.variables(DEFAULT_DISPLAY);
 
 /** The page's root styles: clip sideways overflow and keep the page from bouncing past its ends. */
 const styles = style.create({

@@ -1,4 +1,4 @@
-import { DEFAULT_PREFERENCES } from "@destack/theme";
+import { DEFAULT_DISPLAY } from "@destack/theme";
 import { defineTheme } from "@destack/theme/declare";
 import { mono, sans } from "./font.ts";
 
@@ -22,4 +22,4 @@ export const theme = defineTheme({
 });
 
 /** The dark theme root of surfaces that stay night in both appearances, like the goo cells. */
-export const night = theme.variables("dark", DEFAULT_PREFERENCES);
+export const night = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark" });
