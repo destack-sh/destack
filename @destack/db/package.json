@@ -10,6 +10,7 @@
         "./postgres": "./src/postgres/index.ts",
         "./bun": "./src/bun/index.ts",
         "./test": "./src/test/index.ts",
+        "./test/run": "./src/test/run.ts",
         "./channel/socket": "./src/channel/socket.ts",
         "./sqlite": "./src/sqlite/index.ts",
         "./browser": "./src/browser/index.ts",

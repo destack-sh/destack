@@ -1,5 +1,6 @@
 import { type JsonValue, schema } from "@destack/schema";
 import type * as declaration from "../declare/database.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 import type { Model } from "../query/model.ts";
 import type { Table } from "../table/table.ts";
 import type { TestDatabase } from "./database.ts";
@@ -46,6 +47,8 @@ export class TestTemplate<
     readonly name: string;
     /** The tables it migrates. */
     readonly tables: declaration.Database<Models> | readonly Table[];
+    /** The dialects tests copy it in, every test dialect when absent. */
+    readonly dialects: readonly Dialect[] | undefined;
     /** The value every copy shares, as its JSON form crosses from the run to the tests. */
     readonly value: schema.Schema<Value>;
     /** Write the rows into the migrated database, returning the value every copy shares. */
@@ -55,12 +58,14 @@ export class TestTemplate<
     constructor(fields: {
         readonly name: string;
         readonly tables: declaration.Database<Models> | readonly Table[];
+        readonly dialects?: readonly Dialect[];
         readonly value: schema.Schema<Value>;
         readonly write: (storage: TestDatabase<Models>) => Promise<Value>;
     }) {
         // keep the fields
         this.name = fields.name;
         this.tables = fields.tables;
+        this.dialects = fields.dialects;
         this.value = fields.value;
         this.write = fields.write;
     }

@@ -110,13 +110,14 @@ export class TestDatabase<
         return TestDatabase.#sqliteFile(declared, tables, options);
     }
 
-    /** Copy a template's image in the run, with the value its write returned. */
+    /** Copy a template's image in the run or in given images, with its write's value. */
     static async copy<Models extends Readonly<Record<string, Model>>, Value extends JsonValue>(
         dialect: Dialect,
         template: TestTemplate<Value, Models>,
+        images: ImageIndex | undefined = inject("templates"),
     ): Promise<{ readonly storage: TestDatabase<Models>; readonly value: Value }> {
         // read the template's image in the run, refusing a template no setup of the run lists
-        const image = inject("templates")?.[template.name]?.[dialect];
+        const image = images?.[template.name]?.[dialect];
         if (image === undefined) {
             throw new TypeError(
                 `the run has no ${dialect} image of template ${template.name}: list it in its package's test templates`,

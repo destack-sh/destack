@@ -30,7 +30,9 @@ async function write(
     }
     const images: Record<string, Record<string, unknown>> = {};
     for (const template of templates) {
-        for (const dialect of TEST_DIALECTS) {
+        for (const dialect of TEST_DIALECTS.filter(
+            (each) => template.dialects?.includes(each) ?? true,
+        )) {
             const image = await TestDatabase.image(template, dialect, { id, directory });
             images[template.name] = { ...images[template.name], [dialect]: image };
         }
