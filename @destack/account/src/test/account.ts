@@ -81,7 +81,7 @@ import {
 } from "../object/index.ts";
 import { JWT_BEARER, SESSION_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
-import { accountServer, Operator, OperatorDeclaration, UniverseRole } from "../server/index.ts";
+import { accountServer, Operator, OperatorDefinition, UniverseRole } from "../server/index.ts";
 import { accountDatabase } from "../stack/index.ts";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
@@ -256,13 +256,13 @@ export interface AccountTemplateOptions<World extends JsonValue> {
     readonly world: {
         /** What the world's copies share, as its JSON form crosses to the tests. */
         readonly value: schema.Schema<World>;
-        /** Write the world over the served fixture. */
-        readonly write: (accounts: AccountFixture) => Promise<World>;
+        /** Write the world over the served fixture, keeping files in a run's directory. */
+        readonly write: (accounts: AccountFixture, directory: string) => Promise<World>;
     };
 }
 
 /** What an account template's copies share: its write's keys, stacks and homes, and its world. */
-type AccountTemplateValue<World extends JsonValue> = {
+export type AccountTemplateValue<World extends JsonValue> = {
     /** The keychains' secrets the write ended with. */
     readonly keys: AccountKeysValue;
     /** The stacks spaces are born with. */
@@ -377,7 +377,7 @@ export class AccountFixture implements AsyncDisposable {
                 homes: schema.enum(["fixture", "machine"]),
                 world: world.value,
             }),
-            write: async (storage) => {
+            write: async (storage, directory) => {
                 // write and serve the fixture's rows, then the world over them
                 const served = { ...options.serve, stacks, homes };
                 const keys = await AccountFixture.#write(storage, served);
@@ -387,7 +387,7 @@ export class AccountFixture implements AsyncDisposable {
                     keys,
                     homes,
                 );
-                const value = await world.write(accounts);
+                const value = await world.write(accounts, directory);
                 await accounts.close();
 
                 return { keys: keys.value(), stacks, homes, world: value };
@@ -396,14 +396,18 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Write and serve the fixture's rows in a fresh database, as a simulation builds its own. */
-    static async create(options: AccountFixtureOptions = {}): Promise<AccountFixture> {
-        // write the fixture's rows with the default stacks and homes
+    static async create(
+        options: AccountFixtureOptions &
+            Partial<Pick<AccountTemplateOptions<null>, "stacks" | "homes">> = {},
+    ): Promise<AccountFixture> {
+        // write the fixture's rows with the given stacks and homes, the defaults when absent
         const storage = await TestDatabase.create(
             options.dialect ?? present(TEST_DIALECTS.at(-1), "the last test dialect"),
             accountDatabase,
             { isMigrated: true },
         );
-        const served = { ...options, stacks: STACKS, homes: "fixture" as const };
+        const { stacks = STACKS, homes = "fixture", ...rest } = options;
+        const served = { ...rest, stacks, homes };
         const keys = await AccountFixture.#write(storage, served);
 
         // serve them
@@ -591,6 +595,8 @@ export class AccountFixture implements AsyncDisposable {
             readonly subject?: string;
             /** The chain of grants to act under, space-delimited. */
             readonly grants?: string;
+            /** The person's session the token lives within. */
+            readonly session?: string;
         },
     ): Promise<{ accessToken: string; expiresAt: number }> {
         // post the subject token for the package's resource
@@ -1054,7 +1060,7 @@ export class AccountFixture implements AsyncDisposable {
 
         // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
-        const definition = await AccountFixture.#platformDeclaration(keys.cloud);
+        const definition = await AccountFixture.#platformDefinition(keys.cloud);
         const served = await AccountFixture.#serve(storage, keys, options, definition);
         const fixture = await AccountFixture.#over(storage, served, keys, options.homes);
 
@@ -1114,9 +1120,9 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Declare the platform with a cloud machine per residency. */
-    static async #platformDeclaration(
+    static async #platformDefinition(
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
-    ): Promise<OperatorDeclaration> {
+    ): Promise<OperatorDefinition> {
         return {
             name: "Destack",
             residencyId: "eu",
@@ -1136,7 +1142,7 @@ export class AccountFixture implements AsyncDisposable {
         storage: TestDatabase,
         keys: AccountKeys,
         options: ServeOptions,
-        platform?: OperatorDeclaration,
+        platform?: OperatorDefinition,
     ): Promise<Served> {
         // compose the universe's store of the account and setting packages, signing in once it exists
         const { database } = storage;
@@ -1462,7 +1468,7 @@ async function cloudMachine(
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
-): Promise<OperatorDeclaration["machines"][number]> {
+): Promise<OperatorDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
     const { publicKey } = await new MachineIdentity(id, keychain, Clock.system).generate();

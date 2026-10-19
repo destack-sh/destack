@@ -55,6 +55,8 @@ const ExchangeRequest = schema.looseObject({
     space: schema.identifier("space").exactOptional(),
     /** The person to act as, or for under their grant to the caller, as a subject key. */
     subject: schema.string().min(1).exactOptional(),
+    /** The person's session the token lives within, refused once it ends. */
+    session: schema.identifier("session").exactOptional(),
     /** The chain of grants to act under, space-delimited. */
     grants: schema
         .string()
@@ -103,7 +105,24 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
             },
         );
 
-        return Issuance.issue(input, authentication, {
+        // stamp a token acting under grants with the universe's position, which its readers wait for (Zanzibar's zookie)
+        const stamped =
+            authentication.caller.grants.length === 0
+                ? authentication
+                : {
+                      ...authentication,
+                      credential: {
+                          ...authentication.credential,
+                          watermarks: [
+                              {
+                                  scope: Scope.universe.id,
+                                  ...(await options.database.log.position()),
+                              },
+                          ],
+                      },
+                  };
+
+        return Issuance.issue(input, stamped, {
             now,
             lifetimes: options.lifetimes,
             scopes: [],
@@ -139,7 +158,18 @@ async function describe(
             now,
         );
         const expiries = granted.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY);
-        const lapse = Math.min(...lapses, ...expiries);
+        const ending =
+            asked.session === undefined
+                ? []
+                : [
+                      await sessionEnd(
+                          transaction,
+                          asked.session,
+                          subject ?? verified.caller.subject,
+                          now,
+                      ),
+                  ];
+        const lapse = Math.min(...lapses, ...expiries, ...ending);
         const lapsing = Number.isFinite(lapse) ? { lapse } : {};
         if (granted.length > 0 && asked.space === undefined) {
             return {
@@ -570,4 +600,28 @@ async function requireChain(
     }
 
     return chain;
+}
+
+/** Read when a person's session ends, refusing one that ended or is another person's. */
+async function sessionEnd(
+    transaction: DatabaseConnection,
+    sessionId: Identifier<"session">,
+    person: Subject,
+    now: number,
+): Promise<number> {
+    // require the person's session, unrevoked and unexpired
+    const found = await Transaction.reading(transaction)
+        .read(object.session.table)
+        .findFirst({ where: { id: sessionId } });
+    const isActive =
+        found !== undefined &&
+        principal.user.is(person) &&
+        found.userId === person.id &&
+        found.revokedAt === null &&
+        found.expiresAt > now;
+    if (!isActive) {
+        throw new CallError("UNAUTHORIZED", { message: "the person's session ended" });
+    }
+
+    return found.expiresAt;
 }

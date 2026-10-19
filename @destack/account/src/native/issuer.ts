@@ -104,6 +104,8 @@ export interface TokenBinding {
     readonly subject?: Subject;
     /** The chain of grants the token acts under. */
     readonly grants?: readonly Identifier<"grant">[];
+    /** The person's session the token lives within, ending with it. */
+    readonly session?: Identifier<"session">;
 }
 
 /** The issuer a native device signs people in with, by redirect or device code. */
@@ -322,6 +324,7 @@ export class Issuer {
             ...(bound.spaceId === undefined ? {} : { space: bound.spaceId }),
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
             ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
+            ...(bound.session === undefined ? {} : { session: bound.session }),
         });
         if (!response.ok) {
             const { error, error_description: description } = await Issuer.#read(
