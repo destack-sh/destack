@@ -1,6 +1,6 @@
 import { type Identifier, Instant, JsonValue, nth, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { Scope, Subject } from "@destack/sync";
+import { Scope, Subject, Watermark } from "@destack/sync";
 import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { ANONYMOUS, principal } from "../declare/principal.ts";
@@ -113,6 +113,8 @@ const credentialSchema = schema.object({
         .exactOptional(),
     /** Trusted attributes access policies read, such as IAM's condition keys. */
     attributes: schema.record(schema.string(), Attribute).exactOptional(),
+    /** The log positions its grants were written at, which decisions under it wait for. */
+    watermarks: schema.array(Watermark).min(1).exactOptional(),
 });
 /** The credential a request presented. */
 export type Credential = schema.Infer<typeof credentialSchema>;
