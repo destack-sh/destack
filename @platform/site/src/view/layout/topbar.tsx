@@ -22,7 +22,6 @@ import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
 import { home, pendingDestinations, primaryDestinations } from "./navigation";
 import { AppearanceToggle } from "./appearance";
-import { screen } from "./screen.stylex";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { commandEvents } from "./command";
@@ -64,7 +63,7 @@ export function TopBar() {
             <Sheet open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
                 <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
                     {/* set the brand in a cell of starry space */}
-                    <Goo xstyle={styles.brandCell}>
+                    <Goo isFlush xstyle={styles.brandCell}>
                         <Link href={home.href} {...style.attrs(text.subheadline, styles.brand)}>
                             <Mark />
                             Destack
@@ -76,7 +75,7 @@ export function TopBar() {
                         aria-label="Primary navigation"
                         {...style.attrs(text.subheadline, styles.navigation)}
                     >
-                        {pendingDestinations.map(({ label, icon }) => (
+                        {pendingDestinations.map(({ label }) => (
                             <button
                                 type="button"
                                 disabled
@@ -88,8 +87,7 @@ export function TopBar() {
                                     styles.pending,
                                 )}
                             >
-                                <Icon icon={icon} xstyle={styles.icon} />
-                                <span {...style.attrs(styles.label)}>{label}</span>
+                                {label}
                             </button>
                         ))}
                         {primaryDestinations.map((destination) => (
@@ -102,14 +100,15 @@ export function TopBar() {
                                     active()?.href === destination.href && styles.active,
                                 )}
                             >
-                                <Icon icon={destination.icon} xstyle={styles.icon} />
-                                <span {...style.attrs(styles.label)}>{destination.label}</span>
+                                {destination.label}
                             </Link>
                         ))}
                     </nav>
 
                     {/* offer the desktop download in the brand's colour, opposite the brand */}
-                    <DownloadCell xstyle={styles.download} />
+                    <Goo isFlush xstyle={styles.download}>
+                        <DownloadCell />
+                    </Goo>
 
                     {/* put search, appearance, your home space and sign in into four cells on the right edge */}
                     {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
@@ -121,6 +120,7 @@ export function TopBar() {
                             size="icon"
                             disabled
                             aria-label="Your home space, soon"
+                            xstyle={styles.idle}
                         >
                             <Icon icon={house} xstyle={styles.tool} />
                         </Button>
@@ -129,7 +129,7 @@ export function TopBar() {
                             size="icon"
                             disabled
                             aria-label="Sign in, soon"
-                            xstyle={styles.account}
+                            xstyle={[styles.idle, styles.account]}
                         >
                             <Icon icon={user} xstyle={styles.tool} />
                         </Button>
@@ -233,6 +233,7 @@ const styles = style.create({
         fontWeight: weight.semibold,
         gap: "0.625rem",
         height: "100%",
+        justifyContent: "center",
         paddingInline: frame.inset,
     },
     navigation: {
@@ -245,30 +246,19 @@ const styles = style.create({
     },
     link: {
         alignItems: "center",
-        color: {
-            default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.muted },
         },
+        color: color.foreground,
         display: "flex",
-        gap: "0.5rem",
+        fontWeight: weight.medium,
         justifyContent: "center",
-    },
-    icon: {
-        display: "block",
-        flexShrink: 0,
-        height: "18px",
-        width: "18px",
-    },
-    label: {
-        clipPath: { default: null, [screen.belowDesktop]: "inset(50%)" },
-        height: { default: null, [screen.belowDesktop]: "1px" },
-        overflow: { default: null, [screen.belowDesktop]: "hidden" },
-        position: { default: null, [screen.belowDesktop]: "absolute" },
-        whiteSpace: { default: null, [screen.belowDesktop]: "nowrap" },
-        width: { default: null, [screen.belowDesktop]: "1px" },
+        transitionDuration: "120ms",
+        transitionProperty: "background-color",
     },
     active: {
-        fontWeight: weight.semibold,
+        boxShadow: `inset 0 -2px 0 ${color.primary}`,
     },
     tool: {
         width: "20px",
@@ -281,18 +271,19 @@ const styles = style.create({
         gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
         justifyItems: "center",
     },
+    idle: {
+        opacity: { default: 1, ":disabled": 1 },
+    },
     account: {
         display: { default: "inline-flex", [media.maxMd]: "none" },
     },
     download: {
         gridColumn: "9 / span 2",
-        display: { default: "flex", [media.maxMd]: "none" },
+        display: { default: "block", [media.maxMd]: "none" },
     },
     pending: {
-        backgroundColor: "transparent",
         borderWidth: 0,
-        color: color.mutedForeground,
-        cursor: "not-allowed",
+        cursor: "default",
         fontFamily: font.text,
     },
     menuButton: {

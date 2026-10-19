@@ -35,7 +35,7 @@ export const home: Destination = { href: "/", label: "Home", keybinding: "alt+h"
 
 /** The primary site destinations. */
 export const primaryDestinations: readonly Destination[] = [
-    { href: "/docs/", label: "Documentation", keybinding: "alt+d", icon: bookOpen },
+    { href: "/docs/", label: "Docs", keybinding: "alt+d", icon: bookOpen },
     { href: "/blog/", label: "Blog", keybinding: "alt+b", icon: megaphone },
 ];
 

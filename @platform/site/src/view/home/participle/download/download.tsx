@@ -34,11 +34,11 @@ export function createDownloads() {
 }
 
 /** Render the desktop download link. */
-export function DownloadCell(properties: { xstyle?: style.Styles }) {
+export function DownloadCell() {
     const { selected } = createDownloads();
 
     return (
-        <div {...style.attrs(styles.root, properties.xstyle)}>
+        <div {...style.attrs(styles.root)}>
             <Show
                 when={selected()}
                 fallback={
@@ -91,18 +91,17 @@ function SystemIcon(properties: { target: Download["target"] | undefined }) {
 /** Download cell and platform menu styles. */
 const styles = style.create({
     root: {
-        backgroundColor: color.primary,
-        color: color.primaryForeground,
         display: "flex",
+        height: "100%",
         position: "relative",
     },
 
     action: {
         alignItems: "center",
-        backgroundColor: "transparent",
-        borderWidth: 0,
-        color: "inherit",
-        cursor: "pointer",
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
         display: "flex",
         flexGrow: 1,
         fontFamily: font.text,
@@ -110,19 +109,12 @@ const styles = style.create({
         fontWeight: 600,
         gap: "0.5rem",
         justifyContent: "center",
-        paddingInline: 0,
         position: "relative",
         zIndex: 1,
-        ":hover > svg": { translate: "0 2px" },
-        ":active > svg": { translate: "0 5px" },
     },
     system: {
         flexShrink: 0,
         height: "1.125rem",
-        transition: {
-            default: "translate 160ms cubic-bezier(0.3, 1.6, 0.5, 1)",
-            [media.motionReduce]: "none",
-        },
         width: "1.125rem",
     },
 });
