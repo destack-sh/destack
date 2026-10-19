@@ -35,9 +35,6 @@ export const ProcedureAccess = schema.object({
 /** The access and audit requirements of a procedure. */
 export type ProcedureAccess = schema.Infer<typeof ProcedureAccess>;
 
-/** The declared requirements and conversions of each procedure, parsed once. */
-const METAS = new WeakMap<object, ProcedureMeta>();
-
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
 export const ProcedureMeta = Object.assign(
     ProcedureAccess.extend({
@@ -47,15 +44,9 @@ export const ProcedureMeta = Object.assign(
             .exactOptional(),
     }),
     {
-        /** Read a procedure's declared requirements and conversions, parsing them once. */
+        /** Read a procedure's declared requirements and conversions. */
         of(procedure: { readonly "~orpc": { readonly meta: unknown } }): ProcedureMeta {
-            let meta = METAS.get(procedure);
-            if (meta === undefined) {
-                meta = ProcedureMeta.parse(procedure["~orpc"].meta);
-                METAS.set(procedure, meta);
-            }
-
-            return meta;
+            return ProcedureMeta.parse(procedure["~orpc"].meta);
         },
     },
 );
