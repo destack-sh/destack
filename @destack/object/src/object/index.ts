@@ -29,6 +29,7 @@ export {
 } from "./object.ts";
 export { ObjectConstraint } from "./constraint.ts";
 export {
+    OBJECT_DECLARATION,
     ObjectTypePool,
     ObjectDescription,
     type BuilderCall,

@@ -16,7 +16,6 @@ import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
 import { INTRINSIC } from "./intrinsic.ts";
-import { OBJECT_DECLARATION } from "../inspect/object.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -26,6 +25,9 @@ const LAZY_PATHS: readonly (readonly string[])[] = [
 
 /** The builders taking lazy function references, such as `field.reference(() => note)`. */
 const LAZY_BUILDERS: ReadonlySet<string> = new Set(["reference"]);
+
+/** The kind of the declarations `defineObject` makes, as manifests list them. */
+export const OBJECT_DECLARATION = "object";
 
 /** A builder call as written: the builder's name and its arguments. */
 export interface BuilderCall {

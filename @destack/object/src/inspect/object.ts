@@ -4,9 +4,6 @@ import { schema, type JsonValue } from "@destack/schema";
 import { ObjectDescription } from "../object/description.ts";
 import { ObjectType } from "../object/object.ts";
 
-/** The kind of the declarations `defineObject` makes, as manifests list them. */
-export const OBJECT_DECLARATION = "object";
-
 /** Describe an object type for the manifest, as the data it is declared from. */
 export function describeObject(object: ObjectType): ObjectDescription {
     return object.describe();
