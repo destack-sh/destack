@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Catalog, t } from "@destack/locale";
+import { Catalog, Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Loading, type JSX } from "@destack/view";
 import { renderView } from "@destack/view/test";
@@ -35,7 +35,7 @@ function drawInHome(
                     throw new TypeError(`the inbox cannot call ${path}`);
                 },
             },
-            catalogs,
+            Localization.of(home.context.locale ?? SOURCE_LOCALE, catalogs),
         ),
     );
 
