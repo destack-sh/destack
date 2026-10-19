@@ -117,11 +117,11 @@ export const grant = new Policy(OWNER, {
             subjects: [principal.user, principal.machine, principal.client, principal.installation],
             onDelete: "cascade",
         },
-        space: { subjects: [principal.space], onDelete: "cascade" },
+        "delegate-space": { subjects: [principal.space], onDelete: "cascade" },
     },
     permissions: {
         create: none(),
-        read: union(relation("delegator"), relation("delegate")),
+        read: union(relation("delegator"), relation("delegate"), relation("delegate-space")),
         revoke: relation("delegator"),
     },
 });
