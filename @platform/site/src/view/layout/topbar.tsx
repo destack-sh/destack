@@ -1,5 +1,6 @@
 import { Icon } from "@destack/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
+import house from "@destack/icon/phosphor/house";
 import list from "@destack/icon/phosphor/list";
 import user from "@destack/icon/phosphor/user";
 import xIcon from "@destack/icon/phosphor/x";
@@ -10,6 +11,7 @@ import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
+import { createAppearance } from "@destack/view/document";
 import { Link, useLocation } from "@destack/view/router";
 
 import { CommandPalette } from "./palette";
@@ -30,6 +32,9 @@ export function TopBar() {
     // hold the route and the phone menu
     const location = useLocation();
     const [isMenuOpen, setIsMenuOpen] = createSignal(false);
+
+    // hold the visitor's appearance, which the toggle and the command palette both set
+    const appearance = createAppearance();
 
     // dismiss the phone menu when the desktop navigation becomes available
     const isDesktop = createMediaQuery("(min-width: 768px)");
@@ -106,12 +111,26 @@ export function TopBar() {
                     {/* offer the desktop download in the brand's colour, opposite the brand */}
                     <DownloadCell xstyle={styles.download} />
 
-                    {/* keep search, appearance and sign in together on the right edge */}
-                    {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                    {/* put search, appearance, your home space and sign in into four cells on the right edge */}
+                    {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
                     <div {...style.attrs(styles.tools)}>
-                        <CommandPalette />
-                        <AppearanceToggle />
-                        <Button variant="ghost" size="icon" disabled aria-label="Sign in, soon">
+                        <CommandPalette appearance={appearance} />
+                        <AppearanceToggle appearance={appearance} />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled
+                            aria-label="Your home space, soon"
+                        >
+                            <Icon icon={house} xstyle={styles.tool} />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled
+                            aria-label="Sign in, soon"
+                            xstyle={styles.account}
+                        >
                             <Icon icon={user} xstyle={styles.tool} />
                         </Button>
                         <SheetTrigger
@@ -173,6 +192,15 @@ export function TopBar() {
                                 <Icon icon={arrowRight} />
                             </Link>
                         ))}
+
+                        {/* sign in here on phones, where the bar gives its cell to the menu */}
+                        <span
+                            aria-disabled="true"
+                            {...style.attrs(styles.menuLink, styles.menuPending)}
+                        >
+                            Sign in
+                            <span {...style.attrs(styles.soon)}>Soon</span>
+                        </span>
                     </nav>
                 </SheetContent>
             </Sheet>
@@ -248,14 +276,13 @@ const styles = style.create({
     },
     tools: {
         alignItems: "center",
-        display: "flex",
+        display: "grid",
         gridColumn: { default: "11 / span 2", [media.maxMd]: "span 2" },
-        justifyContent: { default: "flex-end", [media.maxMd]: "flex-end" },
-        paddingInline: {
-            default: "0.75rem",
-            [screen.belowDesktop]: "0.25rem",
-            [media.maxMd]: "0.25rem",
-        },
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        justifyItems: "center",
+    },
+    account: {
+        display: { default: "inline-flex", [media.maxMd]: "none" },
     },
     download: {
         gridColumn: "9 / span 2",

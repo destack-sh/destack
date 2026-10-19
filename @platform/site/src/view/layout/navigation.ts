@@ -2,7 +2,6 @@ import type { IconBodies } from "@destack/icon";
 import bookOpen from "@destack/icon/phosphor/book-open";
 import house from "@destack/icon/phosphor/house";
 import discordLogo from "@destack/icon/phosphor/discord-logo";
-import envelopeSimple from "@destack/icon/phosphor/envelope-simple";
 import githubLogo from "@destack/icon/phosphor/github-logo";
 import linkedinLogo from "@destack/icon/phosphor/linkedin-logo";
 import megaphone from "@destack/icon/phosphor/megaphone";
@@ -60,12 +59,6 @@ export const socialDestinations: readonly Destination[] = [
         label: "Discord",
         keybinding: "alt+c",
         icon: discordLogo,
-    },
-    {
-        href: "mailto:florian@symbol.industries",
-        label: "Email",
-        keybinding: "alt+e",
-        icon: envelopeSimple,
     },
 ];
 
