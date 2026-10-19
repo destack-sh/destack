@@ -17,7 +17,7 @@ import { testEvents } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { LocalBucket } from "@destack/bucket/bun";
 import { type ObjectReference, Scope, type Subject, Uplink } from "@destack/sync";
-import { TestDatabase } from "@destack/db/test";
+import { type ImageIndex, TestDatabase } from "@destack/db/test";
 import { Package, PackageName, type PackageId } from "@destack/package";
 import { type Select, Snapshot } from "@destack/db";
 import { History, Vocabulary } from "@destack/resource";
@@ -215,8 +215,8 @@ export class PackageFixture implements AsyncDisposable {
         });
     }
 
-    /** Open an empty forge on sqlite with the owner's account. */
-    static async open(): Promise<PackageFixture> {
+    /** Open an empty forge on sqlite with the owner's account, from the run's or given images. */
+    static async open(images?: ImageIndex): Promise<PackageFixture> {
         // open the databases and bucket in a fresh directory
         const directory = await mkdtemp(join(tmpdir(), "destack-forge-"));
         const storage = await TestDatabase.create("sqlite", homeDatabase, {
@@ -225,6 +225,7 @@ export class PackageFixture implements AsyncDisposable {
         const accounts = await AccountFixture.open({
             dialect: "sqlite",
             policies: [packageObject.policy],
+            ...(images === undefined ? {} : { images }),
         });
         const bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
 

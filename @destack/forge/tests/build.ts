@@ -1,6 +1,8 @@
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ImageIndex } from "@destack/db/test";
+import { TestRun } from "@destack/db/test/run";
 import { nth, zip } from "@destack/schema";
 import {
     FIXTURE_RELEASES,
@@ -10,13 +12,13 @@ import {
 } from "./fixture/package.ts";
 
 /** Build each fixture release into a directory, publishing it for its dependents. */
-async function build(builds: string): Promise<void> {
+async function build(builds: string, images: ImageIndex): Promise<void> {
     const directory = await mkdtemp(join(tmpdir(), "destack-forge-sources-"));
     try {
         // replicate every source and start its builder at once, since booting a builder takes most of its first build
         await using stack = new AsyncDisposableStack();
         const [forge, ...sources] = await Promise.all([
-            PackageFixture.open(),
+            PackageFixture.open(images),
             ...FIXTURE_RELEASES.map(([name]) => FixtureSource.open(name, directory)),
         ]);
         stack.use(forge);
@@ -47,12 +49,9 @@ async function build(builds: string): Promise<void> {
     }
 }
 
-/** The directory the builds go into, the first argument. */
-const [, , destination] = process.argv;
-if (destination === undefined) {
-    throw new TypeError("missing builds directory argument");
+/** The directory the builds go into and the run's template image index, the arguments. */
+const [, , destination, index] = process.argv;
+if (destination === undefined || index === undefined) {
+    throw new TypeError("missing builds directory or template index argument");
 }
-await build(destination);
-
-// end the process, which releases the schemas claimed on the test PostgreSQL server until then
-process.exit(0);
+await build(destination, await TestRun.read(index));
