@@ -20,6 +20,8 @@ import {
 export class HookServer implements HookHandler {
     /** The types whose hooks the server runs. */
     readonly types: readonly ObjectType[];
+    /** The types the hooks' calls may name: the routed ones, their attachments and references. */
+    readonly objects: readonly ObjectType[];
     /** Send a hook's request to the store in its mutation's session. */
     readonly #session: (request: SessionRequest) => Promise<HandlerAnswer>;
     /** The server context of the installation the sandbox runs as. */
@@ -34,10 +36,12 @@ export class HookServer implements HookHandler {
         /** The server context of the installation the sandbox runs as. */
         readonly server: ServerContext;
     }) {
-        this.types = options.packages
+        // run the hooks of the routed types, answering calls to them, their attachments and what they refer to
+        const routed = options.packages
             .flatMap((served) => Object.values(served.objects))
-            .filter((routed) => routed instanceof ObjectType)
-            .filter((type) => Object.keys(type.hooks).length > 0);
+            .filter((type) => type instanceof ObjectType);
+        this.types = routed.filter((type) => Object.keys(type.hooks).length > 0);
+        this.objects = HookServer.#attached(routed);
         this.#session = (request) => options.session(request);
         this.#server = options.server;
     }
@@ -121,7 +125,7 @@ export class HookServer implements HookHandler {
                 server: this.#server,
                 ...(record.base === undefined ? {} : { base: record.base }),
             },
-            objects: this.types,
+            objects: this.objects,
             replicas: [],
             ...(record.requestId === undefined ? {} : { requestId: record.requestId }),
             prepared:
@@ -259,5 +263,20 @@ export class HookServer implements HookHandler {
     /** Send a request to the store in a mutation's session, throwing its failure. */
     async #request(mutation: string, request: SessionRequest["request"]): Promise<JsonValue> {
         return HandlerAnswer.result(await this.#session({ mutation, request }));
+    }
+
+    /** List some types with their attachments, transitively, and the types they refer to. */
+    static #attached(types: readonly ObjectType[]): ObjectType[] {
+        // walk the attachments of each type found
+        const attached: ObjectType[] = [...types];
+        const pending = types.flatMap((type) => type.attachments.map((each) => each.object));
+        for (let type = pending.shift(); type !== undefined; type = pending.shift()) {
+            if (!attached.some((each) => each.same(type))) {
+                attached.push(type);
+                pending.push(...type.attachments.map((each) => each.object));
+            }
+        }
+
+        return [...attached, ...ObjectType.referenced(attached)];
     }
 }

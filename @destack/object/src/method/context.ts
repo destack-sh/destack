@@ -1,6 +1,7 @@
 import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
 import {
     AccessContext,
+    type Authorizer,
     Caller,
     type Creation,
     type Decision,
@@ -394,6 +395,17 @@ export class MethodContext<
 
         // refuse a prediction, whose replica has no event log
         throw new TypeError(`${this.object.name}.${this.name} reads events in its store`);
+    }
+
+    /** The authorizer of the store serving the call, refusing outside a store. */
+    get authorizer(): Authorizer {
+        // read the store's authorizer
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(`${this.object.name}.${this.name} reads its store's authorizer`);
+        }
+
+        return location.authorization.authorizer;
     }
 
     /** List a page of the subjects of a type with a permission on an object. */
