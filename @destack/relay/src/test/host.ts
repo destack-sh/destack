@@ -154,6 +154,8 @@ export class RelayHost {
             readonly partitions: (
                 partition: string,
             ) => Promise<Pick<RelayPackageOptions, "database" | "events">>;
+            /** Report a failure of the root's or a partition's server, beside its telemetry. */
+            readonly report?: (error: unknown) => void;
         },
     ): RelayHost {
         // the root once served, and the host once started
@@ -217,7 +219,7 @@ export class RelayHost {
         };
 
         // hand names to the relay, leaving open the sockets its tunnels accept
-        const { environment, port, partitions: openPartition, ...relay } = options;
+        const { environment, port, partitions: openPartition, report, ...relay } = options;
         const { clock, network } = environment;
         const listener = network.serve({
             hostname: "127.0.0.1",
@@ -304,6 +306,7 @@ export class RelayHost {
                     request.headers.has(SELF_HEADER) ? self(clock.now()) : undefined,
                 authorizeMachine: async () => {},
                 drainTimeout: DRAIN_MILLISECONDS,
+                ...(report === undefined ? {} : { report }),
             });
 
             return { implementation, server };
