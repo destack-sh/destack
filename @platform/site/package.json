@@ -6,9 +6,9 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "scripts": {
-        "build": "bun run generate && bun run build/main.ts build",
+        "build": "bun run generate && bun --preload @destack/package/bun/preload build/main.ts build",
         "check": "bun run typecheck && bun run lint && bun run format-check && bun run test && bun run build",
-        "dev": "bun run generate && bun run build/main.ts dev",
+        "dev": "bun run generate && bun --preload @destack/package/bun/preload build/main.ts dev",
         "format": "destack-check format src build scripts content.ts",
         "format-check": "destack-check format-check src build scripts content.ts",
         "lint": "destack-check check src build scripts content.ts",
