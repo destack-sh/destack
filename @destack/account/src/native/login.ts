@@ -10,6 +10,7 @@ import type { Clock } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/runtime";
+import { Bookmark, type Watermark } from "@destack/runtime/bookmark";
 import { type ClientOptions, createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -154,9 +155,16 @@ export class Login {
     }
 
     /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
-    async grant(delegate: Subject, permissions: readonly GrantPermission[]): Promise<GrantClaim> {
+    async grant(
+        delegate: Subject,
+        permissions: readonly GrantPermission[],
+    ): Promise<GrantClaim & { readonly watermarks: Watermark[] }> {
         // reuse the person's unexpiring grant of exactly these permissions to the delegate
-        const accounts = this.accounts();
+        const bookmark = new Bookmark();
+        const accounts = createClient(accountPackage, {
+            ...this.universe(accountPackage.id),
+            bookmark,
+        });
         const items = await Array.fromAsync(
             ListPage.all(accounts.grant.list, {
                 userId: this.subject.id,
@@ -178,7 +186,7 @@ export class Login {
                 permissions: [...permissions],
             }));
 
-        return { id: grant.id, scope: this.subject.id };
+        return { id: grant.id, scope: this.subject.id, watermarks: [...bookmark.watermarks] };
     }
 
     /** Send a request with the person's access token for a package under a binding. */
