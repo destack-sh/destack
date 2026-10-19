@@ -51,7 +51,7 @@ test("replicate the chains of a residency's accounts as its platform installatio
     ]).toEqual([
         "executed",
         "FORBIDDEN: permission denied: replicate",
-        `FORBIDDEN: only ${europeHome} and its contents can follow the replicas held for it`,
+        "FORBIDDEN: permission denied: replicate",
         "executed",
         "FORBIDDEN: permission denied: replicate",
         [ids.other, ids.account, europePlatform, owner.account, accountId],

@@ -97,14 +97,14 @@ const UNIVERSE_ROLE = {
 /** The component name of the operator's calls. */
 const OPERATOR_COMPONENT = "operator";
 
-/** The store the universe applies the operator's declaration through, as itself. */
+/** The store the universe applies the operator's definition through, as itself. */
 export type OperatorStore = Pick<
     ObjectStore,
     "database" | "principal" | "serving" | "mutate" | "authorize" | "clock"
 >;
 
 /** The organisation operating the universe as it declares it, with its cloud machines. */
-export const OperatorDeclaration = schema.object({
+export const OperatorDefinition = schema.object({
     /** The organisation's display name, such as Destack. */
     name: schema.string().min(1),
     /** The jurisdiction the organisation stores its data in. */
@@ -138,9 +138,9 @@ export const OperatorDeclaration = schema.object({
     ),
 });
 /** The organisation operating the universe as it declares it. */
-export type OperatorDeclaration = schema.Infer<typeof OperatorDeclaration>;
+export type OperatorDefinition = schema.Infer<typeof OperatorDefinition>;
 
-/** A step applying part of the operator's declaration, again without effect once applied. */
+/** A step applying part of the operator's definition, again without effect once applied. */
 export interface OperatorStep {
     /** The step's name, unique among the steps. */
     readonly name: string;
@@ -191,19 +191,19 @@ export const UniverseRole = {
 /** The organisation operating the universe, applied with the stack of its homes. */
 export class Operator {
     /** The operating organisation and its machines as declared. */
-    readonly declaration: OperatorDeclaration;
+    readonly definition: OperatorDefinition;
     /** The stack each residency's home runs. */
     readonly stack: StackSource;
 
-    /** Create the operator from its declaration and its homes' stack. */
-    constructor(declaration: OperatorDeclaration, stack: StackSource) {
-        this.declaration = declaration;
+    /** Create the operator from its definition and its homes' stack. */
+    constructor(definition: OperatorDefinition, stack: StackSource) {
+        this.definition = definition;
         this.stack = stack;
     }
 
     /** Read the handle of the operator's account in a residency. */
     static handle(
-        definition: Pick<OperatorDeclaration, "handle" | "residencyId">,
+        definition: Pick<OperatorDefinition, "handle" | "residencyId">,
         code: ResidencyCode,
     ): AccountHandle {
         return AccountHandle.parse(
@@ -211,7 +211,7 @@ export class Operator {
         );
     }
 
-    /** List the steps applying the declaration, in order. */
+    /** List the steps applying the definition, in order. */
     steps(): readonly OperatorStep[] {
         return [
             { name: "machines", apply: (store, now) => this.declareMachines(store, now) },
@@ -234,14 +234,14 @@ export class Operator {
 
     /** Create the missing declared cloud machines in the universe, publishing their origins. */
     async declareMachines(store: OperatorStore, now: number): Promise<void> {
-        // skip an empty declaration
-        if (this.declaration.machines.length === 0) {
+        // skip an empty definition
+        if (this.definition.machines.length === 0) {
             return;
         }
 
         // read the declared machines that exist, refusing one stored at another origin than declared
         const snapshot = Snapshot.live(store.database);
-        const ids = this.declaration.machines.map((entry) => entry.id);
+        const ids = this.definition.machines.map((entry) => entry.id);
         const existing = await snapshot
             .read(machine.table)
             .findMany({ where: { id: { in: ids } } });
@@ -250,8 +250,8 @@ export class Operator {
             .findMany({ where: { id: { in: ids } } });
         for (const row of existing) {
             const declared = present(
-                this.declaration.machines.find((entry) => entry.id === row.id),
-                `the declaration of ${row.id}`,
+                this.definition.machines.find((entry) => entry.id === row.id),
+                `the definition of ${row.id}`,
             );
             const origin = published.find((entry) => entry.id === row.id)?.url;
             if (origin !== declared.origin) {
@@ -260,7 +260,7 @@ export class Operator {
                 });
             }
         }
-        const missing = this.declaration.machines.filter(
+        const missing = this.definition.machines.filter(
             (entry) => !existing.some((row) => row.id === entry.id),
         );
 
@@ -301,9 +301,9 @@ export class Operator {
             [
                 organisation.call("create", {
                     ...organisation.in(Scope.universe.id),
-                    name: this.declaration.name,
-                    handle: this.declaration.handle,
-                    residencyId: this.declaration.residencyId,
+                    name: this.definition.name,
+                    handle: this.definition.handle,
+                    residencyId: this.definition.residencyId,
                     stack: this.stack,
                 }),
             ],
@@ -339,7 +339,7 @@ export class Operator {
         // relate the operator's residency's cloud machines as the organisation's publishing administrators
         const organisationId = await requireOrganisation(store);
         await authorize(store, organisationId, now, (authorization) =>
-            relatePublishingMachines(authorization, this.declaration, organisationId),
+            relatePublishingMachines(authorization, this.definition, organisationId),
         );
     }
 
@@ -348,7 +348,7 @@ export class Operator {
         // claim each reserved handle for the organisation, which lives in the universe
         const organisationId = await requireOrganisation(store);
         const owner = Scope.universe.id;
-        const claims = this.declaration.reserved.map((handle) => ({
+        const claims = this.definition.reserved.map((handle) => ({
             ...Claim.key(account, "handle", [handle]),
             packageId: account.typeReference.packageId,
             objectId: organisationId,
@@ -374,8 +374,8 @@ export class Operator {
         const existing = await store.database
             .select({ handle: account.table.handle })
             .from(account.table)
-            .where(inArray(account.table.handle, [...this.declaration.publishers]));
-        const missing = this.declaration.publishers.filter(
+            .where(inArray(account.table.handle, [...this.definition.publishers]));
+        const missing = this.definition.publishers.filter(
             (handle) => !existing.some((row) => row.handle === handle),
         );
         if (missing.length > 0) {
@@ -387,7 +387,7 @@ export class Operator {
                         handle,
                         name: handle,
                         kind: "shared",
-                        residencyId: this.declaration.residencyId,
+                        residencyId: this.definition.residencyId,
                     }),
                 ),
                 now,
@@ -400,7 +400,7 @@ export class Operator {
         const organisationId = await requireOrganisation(store);
         for (const entry of await Residency.list(store.database)) {
             // read the operator's account in the residency
-            const handle = Operator.handle(this.declaration, entry.id);
+            const handle = Operator.handle(this.definition, entry.id);
             const [existing] = await store.database
                 .select({ id: account.table.id })
                 .from(account.table)
@@ -464,7 +464,7 @@ export class Operator {
         // read the invitations to the operator's email on the organisation
         const organisationId = await requireOrganisation(store);
         const object = organisation.reference(Scope.universe.id, organisationId);
-        const contact = Contact.subject(Contact.email(this.declaration.operator));
+        const contact = Contact.subject(Contact.email(this.definition.operator));
         const invitations = await Invitation.readOn(Snapshot.live(store.database), object, contact);
 
         // keep an accepted or pending invitation
@@ -583,7 +583,7 @@ async function relateWildcards(authorization: Authorization): Promise<void> {
 /** Make the operator's residency's cloud machines the organisation's administrators. */
 async function relatePublishingMachines(
     authorization: Authorization,
-    definition: OperatorDeclaration,
+    definition: OperatorDefinition,
     organisationId: Identifier<"organisation">,
 ): Promise<void> {
     // read the administrators the residency's machines are

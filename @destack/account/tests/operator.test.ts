@@ -5,7 +5,7 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { MachineIdentity } from "../src/client/machine-identity.ts";
 import { account, endpoint, key, machine, organisation, space } from "../src/object/index.ts";
-import { Operator, OperatorDeclaration } from "../src/server/index.ts";
+import { Operator, OperatorDefinition } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
 import { Digest, Identifier, present } from "@destack/schema";
 import {
@@ -21,7 +21,7 @@ import { Directory } from "../src/address/index.ts";
 import { Clock } from "@destack/environment";
 
 /** The platform organisation of the fixture's universe, declaring no cloud machines. */
-const PLATFORM: OperatorDeclaration = {
+const PLATFORM: OperatorDefinition = {
     name: "Destack",
     residencyId: "eu",
     operator: OPERATOR_EMAIL,
@@ -119,7 +119,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
     // declare a cloud machine for each residency
     await using fixture = await AccountFixture.open();
     const [europe, america] = [await declare(), await declare()];
-    const definition: OperatorDeclaration = {
+    const definition: OperatorDefinition = {
         ...PLATFORM,
         machines: [
             {
