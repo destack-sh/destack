@@ -315,7 +315,7 @@ test.for(TEST_DIALECTS)(
             local,
             (from, signal) => feed.subscribe(folders.queries, from.after, signal),
             controller.signal,
-            { clock: Clock.system, subscription },
+            { clock: Clock.system, subscription, audience: "contained" },
         );
         const head = await source.log.position();
         const signal = AbortSignal.timeout(5000);
@@ -974,7 +974,7 @@ test.for(TEST_DIALECTS)(
                 (row) => row.id,
             );
 
-        // include a shared row in a replica for the readers below and one for alice, and another row in a contained one
+        // include a shared row in a replica for the target's readers and one for alice, and another row in a contained one
         const left = new Replica({ name: "left", scope: "inbox", tables: [note] });
         const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
         const chain = new Replica({ name: "chain", scope: "inbox", tables: [note] });
@@ -998,13 +998,13 @@ test.for(TEST_DIALECTS)(
         await replicate(right, local, snapshot(1, ["shared", "z"]));
         await replicate(chain, local, snapshot(1, ["contained"]));
 
-        // match the rows the readers below see, alice those decided for her too, and other scopes' readers none
-        const included = async (below: string, reader: Subject | undefined) =>
+        // match the rows the target's readers see, alice those decided for her too, and other scopes' readers none
+        const included = async (target: string, reader: Subject | undefined) =>
             (
                 await local
                     .select({ id: note.id })
                     .from(note)
-                    .where(Replica.includes(note, below, reader))
+                    .where(Replica.includes(note, target, reader))
                     .orderBy(asc(note.id))
             ).map((row) => row.id);
         expect([
@@ -1043,10 +1043,12 @@ test.for(TEST_DIALECTS)(
         const right = new Replica({ name: "right", scope: "inbox", tables: [note] });
         await left.register(local, {
             subscription: inboxSubscription("left"),
+            audience: "contained",
             clock: Clock.system,
         });
         await right.register(local, {
             subscription: inboxSubscription("right"),
+            audience: "contained",
             clock: Clock.system,
         });
         await replicate(left, local, snapshot(["a", "shared"]));
@@ -1284,7 +1286,7 @@ function noteInsert(id: string) {
 
 /** Build the subscription a named replica of the inbox follows. */
 function inboxSubscription(name: string) {
-    return { name, publication: "notes", scope: "inbox", below: "reader", parameters: {} };
+    return { name, publication: "notes", scope: "inbox", target: "reader", parameters: {} };
 }
 
 /** Build a task of a project in a state. */
@@ -1315,7 +1317,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
         name: "notes",
         publication: "queries",
         scope: "inbox",
-        below: "inbox",
+        target: "inbox",
         parameters: { queries: { open: { object: "note" } } },
     };
     const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
@@ -1323,7 +1325,13 @@ test("resume a subscription from the replica's position, reshape one of other pa
     // complete a snapshot of the subscription
     await notes.register(local, { clock: Clock.system });
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
-    await Array.fromAsync(notes.apply(local, [snapshot], { clock: Clock.system, subscription }));
+    await Array.fromAsync(
+        notes.apply(local, [snapshot], {
+            clock: Clock.system,
+            subscription,
+            audience: "contained",
+        }),
+    );
 
     // resume it, reshape it under other parameters, and snapshot another publication or name, each with the replica's own log
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
@@ -1348,7 +1356,7 @@ test("report a replica current for the request it completed a run of, and for a 
         name: "notes",
         publication: "queries",
         scope: "inbox",
-        below: "inbox",
+        target: "inbox",
         parameters: { queries: { open: { object: "note" } } },
     };
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
@@ -1362,13 +1370,23 @@ test("report a replica current for the request it completed a run of, and for a 
     // report neither before the first run, then only the completed request
     await notes.register(local, { clock: Clock.system });
     const registered = await current();
-    await Array.fromAsync(notes.apply(local, [snapshot], { clock: Clock.system, subscription }));
+    await Array.fromAsync(
+        notes.apply(local, [snapshot], {
+            clock: Clock.system,
+            subscription,
+            audience: "contained",
+        }),
+    );
     const completed = await current();
 
     // report the reshaped request once a run of it completes, and no longer the first
     const next = { ...snapshot, position: { ...position, sequence: 5 } };
     await Array.fromAsync(
-        notes.apply(local, [next], { clock: Clock.system, subscription: reshaped }),
+        notes.apply(local, [next], {
+            clock: Clock.system,
+            subscription: reshaped,
+            audience: "contained",
+        }),
     );
     expect({ registered, completed, reshaped: await current() }).toEqual({
         registered: [false, false],

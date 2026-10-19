@@ -35,7 +35,13 @@ test("stream through a client's replica procedures as the follower, and send a f
     // stream a replica, send a change an installation signs, and a query the space signs
     const pages = await Array.fromAsync(
         uplink.stream(
-            { name: "notes", scope: "inbox", below: "inbox", publication: "notes", parameters: {} },
+            {
+                name: "notes",
+                scope: "inbox",
+                target: "inbox",
+                publication: "notes",
+                parameters: {},
+            },
             AbortSignal.timeout(1000),
         ),
     );

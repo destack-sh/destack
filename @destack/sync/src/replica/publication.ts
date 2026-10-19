@@ -16,8 +16,8 @@ export const Subscription = schema.object({
     publication: schema.string().min(1),
     /** The replicated scope. */
     scope: schema.string().min(1),
-    /** The scope the follower serves, whose principal the source decides for. */
-    below: schema.string().min(1),
+    /** The scope the replica is for, whose principal the source decides the rows for. */
+    target: schema.string().min(1),
     /** The principal the source decides the rows for on the follower's behalf. */
     subject: Subject.exactOptional(),
     /** The publication's parameters, which its declaration parses. */

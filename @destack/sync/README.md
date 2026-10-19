@@ -46,7 +46,7 @@ const board = definePublication({
 const subscription = board.subscription({
     name: "board",
     scope,
-    below: spaceId,
+    target: spaceId,
     parameters: { board: boardId },
 });
 await board

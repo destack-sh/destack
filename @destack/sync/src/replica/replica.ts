@@ -83,24 +83,6 @@ export const replica = defineTable(
         name: text("name").primaryKey(),
         /** The scope whose rows the replica keeps. */
         scope: text("scope").primaryKey(),
-        /** The publication of the last completed run's subscription, absent without one. */
-        publication: text("publication"),
-        /** The scope the subscription's follower serves. */
-        below: text("below"),
-        /** The package of the principal the source decides the rows for. */
-        subjectPackageId: identifier("subject_package_id", "package"),
-        /** The type of the principal decided for. */
-        subjectType: text("subject_type"),
-        /** The scope of the principal decided for. */
-        subjectScope: text("subject_scope"),
-        /** The identifier of the principal decided for. */
-        subjectId: text("subject_id"),
-        /** The relation whose members the subject set is, absent for one principal. */
-        subjectRelation: text("subject_relation"),
-        /** The subscription's parameters, which its publication parses. */
-        parameters: json("parameters", schema.jsonObject()),
-        /** Whose access its source decides the rows by, absent without a subscription. */
-        audience: text("audience").validate(PublicationAudience),
         /** The scopes the replica reads, nearest first, absent until its source sends them. */
         scopes: json("scopes", schema.array(schema.string())),
         /** The layout digest of the replicated tables' logged columns. */
@@ -137,9 +119,50 @@ export const replicaPosition = defineTable(
     },
 );
 
-/** A replica's registration with its position. */
+/** The subscription a replica follows, recorded as it registers and by each completed run. */
+export const replicaSubscription = defineTable(
+    "replica_subscription",
+    {
+        /** The replica's name. */
+        name: text("name").primaryKey(),
+        /** The scope whose rows the replica keeps. */
+        scope: text("scope").primaryKey(),
+        /** The publication the replica follows. */
+        publication: text("publication").notNull(),
+        /** The scope the replica is for. */
+        target: text("target").notNull(),
+        /** The package of the principal the source decides the rows for, absent for none. */
+        subjectPackageId: identifier("subject_package_id", "package"),
+        /** The type of the principal decided for, absent for none. */
+        subjectType: text("subject_type"),
+        /** The scope of the principal decided for, absent for none. */
+        subjectScope: text("subject_scope"),
+        /** The identifier of the principal decided for, absent for none. */
+        subjectId: text("subject_id"),
+        /** The relation whose members the subject set is, absent for one principal. */
+        subjectRelation: text("subject_relation"),
+        /** The subscription's parameters, which its publication parses. */
+        parameters: json("parameters", schema.jsonObject()).notNull(),
+        /** Whose access its source decides the rows by. */
+        audience: text("audience").validate(PublicationAudience).notNull(),
+    },
+    {
+        log: {},
+    },
+);
+
+/** A replica's registration with its position and subscription. */
 type ReplicaRecord = Select<typeof replica> &
-    Omit<Select<typeof replicaPosition>, "name" | "scope">;
+    Omit<Select<typeof replicaPosition>, "name" | "scope"> & {
+        /** The subscription it follows, absent for a replica without one. */
+        readonly subscription: SubscriptionRecord | undefined;
+    };
+
+/** Join a replica's registration to its subscription, by the replica's name and scope. */
+const SUBSCRIBED = and(
+    eq(replicaSubscription.name, replica.name),
+    eq(replicaSubscription.scope, replica.scope),
+);
 
 /** Join a replica's registration to its position, by the replica's name and scope. */
 const POSITIONED = and(
@@ -212,6 +235,7 @@ export const replicaRow = defineTable(
 /** The tables of a database with replicas. */
 export const replicaTables: readonly Table[] = [
     replica,
+    replicaSubscription,
     replicaPosition,
     replicaPage,
     replicaResult,
@@ -361,13 +385,13 @@ export class Replica {
     }
 
     /** Match the rows of a table keyed by a text `id` in the replicas a reader sees, as SQL. */
-    static includes(table: Table, below: string, caller: Subject | undefined): SQL {
+    static includes(table: Table, target: string, caller: Subject | undefined): SQL {
         // match the row's key in the replicas the reader sees
         const sqlName = table[TABLE].sqlName;
         const key = sql`'["' || ${sqlName} || '","' || ${table[TABLE].column("id")} || '"]'`;
-        const seen = Replica.#seen(below, caller);
+        const seen = Replica.#seen(target, caller);
 
-        return sql`EXISTS (SELECT 1 FROM ${replicaRow} INNER JOIN ${replica} ON ${replica.name} = ${replicaRow.name} AND ${replica.scope} = ${replicaRow.scope} WHERE ${replicaRow.table} = ${sqlName} AND ${replicaRow.key} = ${key} AND ${seen})`;
+        return sql`EXISTS (SELECT 1 FROM ${replicaRow} INNER JOIN ${replicaSubscription} ON ${replicaSubscription.name} = ${replicaRow.name} AND ${replicaSubscription.scope} = ${replicaRow.scope} WHERE ${replicaRow.table} = ${sqlName} AND ${replicaRow.key} = ${key} AND ${seen})`;
     }
 
     /** List the keys of some rows of a table that the replicas a reader sees include. */
@@ -375,15 +399,18 @@ export class Replica {
         database: DatabaseConnection,
         table: Table,
         rows: readonly Row[],
-        below: string,
+        target: string,
         caller: Subject | undefined,
     ): Promise<ReadonlySet<string>> {
         const included = await database
             .select({ key: replicaRow.key })
             .from(replicaRow)
             .innerJoin(
-                replica,
-                and(eq(replica.name, replicaRow.name), eq(replica.scope, replicaRow.scope)),
+                replicaSubscription,
+                and(
+                    eq(replicaSubscription.name, replicaRow.name),
+                    eq(replicaSubscription.scope, replicaRow.scope),
+                ),
             )
             .where(
                 and(
@@ -392,30 +419,30 @@ export class Replica {
                         replicaRow.key,
                         rows.map((row) => Key.name(table, row)),
                     ),
-                    Replica.#seen(below, caller),
+                    Replica.#seen(target, caller),
                 ),
             );
 
         return new Set(included.map((row) => row.key));
     }
 
-    /** Match the replicas a reader below a scope sees: decided for its readers, or the caller. */
-    static #seen(below: string, caller: Subject | undefined): SQL {
-        // match the replicas served below the scope, decided for its readers or for the calling principal
-        const isBelow = eq(replica.below, below);
-        const isReader = eq(replica.audience, "reader");
+    /** Match the replicas a reader of a scope sees: decided for its readers, or the caller. */
+    static #seen(target: string, caller: Subject | undefined): SQL {
+        // match the replicas for the scope, decided for its readers or for the calling principal
+        const isTarget = eq(replicaSubscription.target, target);
+        const isReader = eq(replicaSubscription.audience, "reader");
         const isCaller =
             caller === undefined
                 ? undefined
                 : and(
-                      eq(replica.audience, "caller"),
-                      eq(replica.subjectPackageId, caller.packageId),
-                      eq(replica.subjectType, caller.type),
-                      eq(replica.subjectScope, caller.scope),
-                      eq(replica.subjectId, caller.id),
+                      eq(replicaSubscription.audience, "caller"),
+                      eq(replicaSubscription.subjectPackageId, caller.packageId),
+                      eq(replicaSubscription.subjectType, caller.type),
+                      eq(replicaSubscription.subjectScope, caller.scope),
+                      eq(replicaSubscription.subjectId, caller.id),
                   );
 
-        return and(isBelow, or(isReader, isCaller));
+        return and(isTarget, or(isReader, isCaller));
     }
 
     /** Take rows a database pruned out of every replica including them. */
@@ -444,24 +471,30 @@ export class Replica {
     /** List the tables of the database's replicas by scope, or of those a reader sees. */
     static async tables(
         database: DatabaseConnection,
-        ...reader: [] | [below: string, caller: Subject | undefined]
+        ...reader: [] | [target: string, caller: Subject | undefined]
     ): Promise<readonly { readonly scope: string; readonly tables: readonly string[] }[]> {
         // list no replicas in a database without them
         if (!database.tables.includes(replica)) {
             return [];
         }
 
-        return database
-            .select({ scope: replica.scope, tables: replica.tables })
-            .from(replica)
-            .where(reader.length === 0 ? undefined : Replica.#seen(...reader));
+        // list every replica, or those a reader sees by their subscriptions
+        const columns = { scope: replica.scope, tables: replica.tables };
+
+        return reader.length === 0
+            ? database.select(columns).from(replica)
+            : database
+                  .select(columns)
+                  .from(replica)
+                  .innerJoin(replicaSubscription, SUBSCRIBED)
+                  .where(Replica.#seen(...reader));
     }
 
     /** List the scopes whose rows of a table the replicas have, or those a reader sees. */
     static async scopes(
         database: DatabaseConnection,
         table: Table,
-        ...reader: [] | [below: string, caller: Subject | undefined]
+        ...reader: [] | [target: string, caller: Subject | undefined]
     ): Promise<string[]> {
         // take the scopes of the replicas with the table
         const sqlName = table[TABLE].sqlName;
@@ -576,7 +609,7 @@ export class Replica {
         subscription: Subscription,
     ): Promise<boolean> {
         const record = await Replica.#find(database, subscription.name, subscription.scope);
-        const recorded = record === undefined ? undefined : Replica.subscriptionOf(record);
+        const recorded = record?.subscription;
 
         return (
             record !== undefined &&
@@ -593,14 +626,19 @@ export class Replica {
         scope: string,
     ): Promise<ReplicaRecord | undefined> {
         const [record] = await database
-            .select({ registration: replica, position: replicaPosition })
+            .select({
+                registration: replica,
+                position: replicaPosition,
+                subscription: replicaSubscription,
+            })
             .from(replica)
             .innerJoin(replicaPosition, POSITIONED)
+            .leftJoin(replicaSubscription, SUBSCRIBED)
             .where(and(eq(replica.name, name), eq(replica.scope, scope)));
 
         return record === undefined
             ? undefined
-            : Replica.#merge(record.registration, record.position);
+            : Replica.#merge(record.registration, record.position, record.subscription);
     }
 
     /** Refuse relaying a replica that has no position yet. */
@@ -654,7 +692,7 @@ export class Replica {
         const origins = new Map<string, Origin>();
         for (const { scope, record } of await Replica.#keeping(database, scopes)) {
             const origin = Replica.#origin(record);
-            if (origin === undefined || record.publication !== publication) {
+            if (origin === undefined || record.subscription?.publication !== publication) {
                 continue;
             }
 
@@ -679,6 +717,7 @@ export class Replica {
             .select()
             .from(replica)
             .innerJoin(replicaPosition, POSITIONED)
+            .leftJoin(replicaSubscription, SUBSCRIBED)
             .leftJoin(
                 replicaRow,
                 and(
@@ -695,9 +734,10 @@ export class Replica {
         for (const {
             replica: registration,
             replica_position: position,
+            replica_subscription: subscription,
             replica_row: included,
         } of rows) {
-            const record = Replica.#merge(registration, position);
+            const record = Replica.#merge(registration, position, subscription);
             const kept = [
                 ...(scopes.includes(record.scope) ? [record.scope] : []),
                 ...(included === null ? [] : [found(keys, included.key)]),
@@ -721,7 +761,10 @@ export class Replica {
     }
 
     /** Read a record's source position, absent before a first snapshot or after a layout change. */
-    #recordedPosition(record: ReplicaRecord | undefined, layout: string): LogPosition | undefined {
+    #recordedPosition(
+        record: Pick<ReplicaRecord, "epoch" | "sequence" | "layout"> | undefined,
+        layout: string,
+    ): LogPosition | undefined {
         return record === undefined ||
             record.epoch === null ||
             record.sequence === null ||
@@ -734,7 +777,7 @@ export class Replica {
     async inspect(database: DatabaseConnection): Promise<ReplicaInspection> {
         // read the record, its subscription, staged pages and groups
         const row = await this.#record(database);
-        const subscription = row === undefined ? undefined : Replica.subscriptionOf(row);
+        const subscription = row?.subscription;
         const [staged] = await database
             .select({ pages: count() })
             .from(replicaPage)
@@ -766,9 +809,7 @@ export class Replica {
 
     /** Read the subscription of the replica's last completed run, if any. */
     async subscribed(database: DatabaseConnection): Promise<SubscriptionRecord | undefined> {
-        const record = await this.#record(database);
-
-        return record === undefined ? undefined : Replica.subscriptionOf(record);
+        return (await this.#record(database))?.subscription;
     }
 
     /** Resume a subscription from the replica. */
@@ -932,13 +973,22 @@ export class Replica {
         if (
             registration === undefined ||
             position === undefined ||
-            this.#recordedPosition(Replica.#merge(registration, position), layout) === undefined
+            this.#recordedPosition({ ...position, layout: registration.layout }, layout) ===
+                undefined
         ) {
             throw new SyncError("STALE", `replica of ${this.scope} has no position yet`);
         }
 
-        // drop the replica's registration and position, and its staged pages, groups and included rows as the transaction commits
+        // drop the replica's records now, and its staged pages, groups and rows on commit
+        const subscription = await transaction.read(replicaSubscription).findFirst({ where: key });
         await transaction.write({ table: replica, before: registration, after: null });
+        if (subscription !== undefined) {
+            await transaction.write({
+                table: replicaSubscription,
+                before: subscription,
+                after: null,
+            });
+        }
         await transaction.write({ table: replicaPosition, before: position, after: null });
         transaction.record(async (database) => {
             await database.delete(replicaPage).where(this.#match(replicaPage));
@@ -951,16 +1001,18 @@ export class Replica {
     async register(database: DatabaseConnection, options: RegisterOptions): Promise<void> {
         const { subscription, audience, clock } = options;
         await database.transaction(async (transaction) => {
+            // record the replica, and the subscription it follows if any
             const key = { name: this.name, scope: this.scope };
             await transaction
                 .insert(replica)
-                .values({
-                    ...key,
-                    ...Replica.subscriptionColumns(subscription),
-                    audience: audience ?? null,
-                    tables: [...this.#replicated.keys()],
-                })
+                .values({ ...key, tables: [...this.#replicated.keys()] })
                 .onConflictDoNothing();
+            if (subscription !== undefined) {
+                await transaction
+                    .insert(replicaSubscription)
+                    .values({ ...key, ...Replica.subscriptionColumns(subscription, audience) })
+                    .onConflictDoNothing();
+            }
             await transaction
                 .insert(replicaPosition)
                 .values({ ...key, epoch: null, sequence: null, confirmedAt: clock.now() })
@@ -982,6 +1034,9 @@ export class Replica {
                     await transaction.delete(replicaResult).where(this.#match(replicaResult));
                     await transaction.delete(replicaPage).where(this.#match(replicaPage));
                     await transaction.delete(replicaPosition).where(this.#match(replicaPosition));
+                    await transaction
+                        .delete(replicaSubscription)
+                        .where(this.#match(replicaSubscription));
                     await transaction.delete(replica).where(this.#match(replica));
                 });
             },
@@ -991,13 +1046,9 @@ export class Replica {
 
     /** List the subscriptions of a database's replicas, leaving out replicas without one. */
     static async subscriptions(database: DatabaseConnection): Promise<SubscriptionRecord[]> {
-        const records = await database.select().from(replica);
+        const rows = await database.select().from(replicaSubscription);
 
-        return records.flatMap((record) => {
-            const subscription = Replica.subscriptionOf(record);
-
-            return subscription === undefined ? [] : [subscription];
-        });
+        return rows.map((row) => Replica.subscriptionOf(row));
     }
 
     /** Apply one stream of pages, staging each run until it completes. */
@@ -1154,17 +1205,25 @@ export class Replica {
         };
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
-            ...(subscription === undefined ? {} : Replica.subscriptionColumns(subscription)),
-            ...(audience === undefined ? {} : { audience }),
             layout: await this.#layout,
             tables: [...this.#replicated.keys()],
         };
 
-        // write the registration, then the position, and drop the staged pages
+        // write the registration, subscription and position, and drop the staged pages
         await transaction
             .insert(replica)
             .values({ ...key, ...registration })
             .onConflictDoUpdate({ target: [replica.name, replica.scope], set: registration });
+        if (subscription !== undefined) {
+            const columns = Replica.subscriptionColumns(subscription, audience);
+            await transaction
+                .insert(replicaSubscription)
+                .values({ ...key, ...columns })
+                .onConflictDoUpdate({
+                    target: [replicaSubscription.name, replicaSubscription.scope],
+                    set: columns,
+                });
+        }
         await transaction
             .insert(replicaPosition)
             .values({ ...key, confirmedAt: record?.confirmedAt ?? clock.now(), ...position })
@@ -1612,6 +1671,7 @@ export class Replica {
     #match(
         table:
             | typeof replica
+            | typeof replicaSubscription
             | typeof replicaPosition
             | typeof replicaPage
             | typeof replicaResult
@@ -1685,30 +1745,25 @@ export class Replica {
         );
     }
 
-    /** Write a subscription as a replica's columns, all absent without one. */
-    static subscriptionColumns(subscription: Subscription | undefined) {
-        const subject = subscription?.subject;
+    /** Write a subscription as its replica's subscription columns. */
+    static subscriptionColumns(subscription: Subscription, audience: PublicationAudience) {
+        const { subject } = subscription;
 
         return {
-            publication: subscription?.publication ?? null,
-            below: subscription?.below ?? null,
+            publication: subscription.publication,
+            target: subscription.target,
             subjectPackageId: subject?.packageId ?? null,
             subjectType: subject?.type ?? null,
             subjectScope: subject?.scope ?? null,
             subjectId: subject?.id ?? null,
             subjectRelation: subject?.relation ?? null,
-            parameters: subscription?.parameters ?? null,
+            parameters: subscription.parameters,
+            audience,
         };
     }
 
-    /** Read the subscription a replica's columns keep, absent without one. */
-    static subscriptionOf(row: Select<typeof replica>): SubscriptionRecord | undefined {
-        // keep no subscription for a replica without a publication
-        const { publication, below, parameters } = row;
-        if (publication === null || below === null || parameters === null) {
-            return undefined;
-        }
-
+    /** Read the subscription a replica's subscription row keeps. */
+    static subscriptionOf(row: Select<typeof replicaSubscription>): SubscriptionRecord {
         // read the principal decided for, when one is
         const subject =
             row.subjectPackageId === null ||
@@ -1726,11 +1781,11 @@ export class Replica {
 
         return {
             name: row.name,
-            publication,
+            publication: row.publication,
             scope: row.scope,
-            below,
+            target: row.target,
             ...(subject === undefined ? {} : { subject }),
-            parameters,
+            parameters: row.parameters,
         };
     }
 
@@ -1958,12 +2013,17 @@ export class Replica {
         }
     }
 
-    /** Merge a replica's registration with its position. */
+    /** Merge a replica's registration with its position and subscription. */
     static #merge(
         registration: Select<typeof replica>,
         position: Select<typeof replicaPosition>,
+        subscription: Select<typeof replicaSubscription> | null,
     ): ReplicaRecord {
-        return { ...position, ...registration };
+        return {
+            ...position,
+            ...registration,
+            subscription: subscription === null ? undefined : Replica.subscriptionOf(subscription),
+        };
     }
 }
 
@@ -1997,22 +2057,31 @@ interface GroupWrite {
 }
 
 /** How a replica registers in a database. */
-export interface RegisterOptions {
-    /** The subscription the replica follows, absent for a replica without a subscription. */
-    readonly subscription?: Subscription;
-    /** Whose access the source decides the rows by, absent without a subscription. */
-    readonly audience?: PublicationAudience;
+export type RegisterOptions = {
     /** The clock the replica confirms its position at. */
     readonly clock: Clock;
-}
+} & (
+    | {
+          /** The subscription the replica follows. */
+          readonly subscription: Subscription;
+          /** Whose access the source decides the rows by. */
+          readonly audience: PublicationAudience;
+      }
+    | {
+          /** No subscription, for a replica without one. */
+          readonly subscription?: undefined;
+          /** No audience, for a replica without a subscription. */
+          readonly audience?: undefined;
+      }
+);
 
 /** How a replica applies its source's pages. */
-export interface ApplyOptions extends RegisterOptions {
+export type ApplyOptions = RegisterOptions & {
     /** The client's predictions to rebase. */
     readonly prediction?: Prediction;
     /** Open the machine-bound values a fenced source sealed to this replica. */
     readonly open?: (table: Table, row: Row) => Promise<Row>;
-}
+};
 
 /** The home position of a replica's rows. */
 export interface Origin {
