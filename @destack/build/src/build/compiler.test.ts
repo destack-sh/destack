@@ -52,8 +52,8 @@ test("rebuild a web application with emitted assets and restore every output", a
         file,
         'import first from "./first.svg?url";\nimport second from "./second.svg?url";\n' +
             original.replace(
-                '<main style={theme.variables("light", DEFAULT_PREFERENCES)}>',
-                '<main style={theme.variables("light", DEFAULT_PREFERENCES)}><img src={first} /><img src={second} />',
+                '<main style={theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" })}>',
+                '<main style={theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" })}><img src={first} /><img src={second} />',
             ),
     );
     await writeFile(file, source);

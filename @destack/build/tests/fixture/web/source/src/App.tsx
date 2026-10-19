@@ -1,5 +1,5 @@
 import { createSignal, onSettled } from "@destack/view";
-import { DEFAULT_PREFERENCES } from "@destack/theme";
+import { DEFAULT_DISPLAY } from "@destack/theme";
 import "@destack/view/styles";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
@@ -20,7 +20,7 @@ export default function App() {
     });
 
     return (
-        <main style={theme.variables("light", DEFAULT_PREFERENCES)}>
+        <main style={theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" })}>
             <h1 {...style.attrs(styles.title)}>Hello Destack</h1>
             <button onClick={() => setCount(count() + 1)}>Count: {count()}</button>
         </main>

@@ -7,7 +7,7 @@ import { comparePath } from "../build/serialization.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
-import { DependencyName, Package, PackageDefinition } from "@destack/package";
+import { DependencyName, Package, PackageDefinition, type PackageId } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { modulePackage, relativePath } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
@@ -259,14 +259,14 @@ class DependencyRecorder {
         path: string,
         key: string,
     ): Promise<void> {
-        // match installed code to the resolver's immutable release
+        // match installed code to the resolver's immutable release, bundling a Destack release's catalogs once
         const resolution = this.resolutions[key] ?? this.resolutions[source.name];
         if (resolution || path.split(sep).includes("node_modules")) {
-            this.description.packages[key] = this.#release(
-                source,
-                key,
-                "unresolved bundled dependency",
-            );
+            const release = this.#release(source, key, "unresolved bundled dependency");
+            if (this.description.packages[key] === undefined && "id" in release.package) {
+                await this.#bundleCatalogs(source.directory, release.package.id);
+            }
+            this.description.packages[key] = release;
 
             return;
         }
@@ -319,10 +319,16 @@ class DependencyRecorder {
 
     /** Keep an unpublished dependency's catalogs in its snapshot and in the build. */
     async #keepCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
-        const owner = this.project.packageJson.package.id;
         for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
-            // describe the catalog in the snapshot, and write it where views of the build read it
             addFile(snapshot, await PackageFile.describe(path, "application/json", bytes));
+        }
+        await this.#bundleCatalogs(directory, snapshot.package.id);
+    }
+
+    /** Write a bundled package's catalogs where the build's views read them. */
+    async #bundleCatalogs(directory: string, packageId: PackageId): Promise<void> {
+        const owner = this.project.packageJson.package.id;
+        for (const [, bytes] of await readCatalogs(directory, packageId)) {
             const catalog = Catalog.parse(JSON.parse(new TextDecoder().decode(bytes)));
             this.files.set(Catalog.path(catalog, owner), bytes);
         }
