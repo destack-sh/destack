@@ -109,6 +109,8 @@ export interface ServerContext {
     readonly fetch: (request: Request) => Promise<Response>;
     /** The URL callers reach the installation at, its packages mounted below. */
     readonly url: string;
+    /** Run the installation's controllers once this settles, at once when absent. */
+    readonly activation?: Promise<void>;
 }
 
 /** The packages of one workload and what it does with its host's deliveries. */

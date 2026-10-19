@@ -13,6 +13,7 @@ import { reportError, reportReconciliation } from "./error.ts";
 import { type Alarm, ControlLoop, type Controller } from "../control/index.ts";
 import { copyRequest } from "../request/index.ts";
 import { Clock, LONGEST_DELAY } from "@destack/environment";
+import { until } from "../timer/index.ts";
 
 /** The seconds a starting server delays a request, and a client then waits before retrying. */
 const STARTING_RETRY_SECONDS = 1;
@@ -41,6 +42,8 @@ export class Server implements AsyncDisposable {
     readonly #reconciling = new AbortController();
     /** The running controllers and the readiness wait. */
     #controlled?: Promise<void>;
+    /** The running controllers, settled once they stop. */
+    #running?: Promise<void>;
     /** The loop running the controllers, absent without controllers. */
     readonly #loop?: ControlLoop;
 
@@ -113,10 +116,15 @@ export class Server implements AsyncDisposable {
     static start(options: ServerOptions): Server {
         // create the server, run its controllers and wait for its readiness in the background
         const server = new Server(options);
-        server.#controlled = Promise.all([
-            server.#loop?.run(server.#reconciling.signal),
-            server.#serve(),
-        ]).then(() => undefined);
+        server.#running = (async () => {
+            // run the controllers once activated, as a workload's next start once it is current, unless stopped before
+            const signal = server.#reconciling.signal;
+            await Promise.race([options.activation, until(signal)]);
+            if (!signal.aborted) {
+                await server.#loop?.run(signal);
+            }
+        })();
+        server.#controlled = Promise.all([server.#running, server.#serve()]).then(() => undefined);
 
         // stop serving once readiness or the controllers fail
         server.#controlled.catch((error: unknown) => {
@@ -128,6 +136,12 @@ export class Server implements AsyncDisposable {
         });
 
         return server;
+    }
+
+    /** Stop the controllers at once, keeping the server's requests served until it drains. */
+    async stopControllers(): Promise<void> {
+        this.#reconciling.abort();
+        await this.#running?.catch(() => undefined);
     }
 
     /** Serve at once without a readiness wait, else once ready. */
@@ -549,6 +563,8 @@ export interface PackageImplementation extends Omit<HandlerOptions<RequestContex
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
+    /** Start the controllers once this settles, at once when absent. */
+    readonly activation?: Promise<void>;
 }
 
 /** Attach the request's watermarks to its response. */

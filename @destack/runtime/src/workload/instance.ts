@@ -18,30 +18,34 @@ import { CallKey } from "../request/index.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
 import type { Clock } from "@destack/environment";
 
-/** A running workload instance, serving its current generation. */
+/** A running workload instance, serving its current start. */
 export class WorkloadInstance implements AsyncDisposable {
     /** The workload the instance runs. */
     readonly #workload: Workload;
-    /** The hosting configuration each generation starts with. */
+    /** The hosting configuration of each start. */
     readonly #options: WorkloadInstanceOptions;
     /** The shutdown controller. */
     readonly #controller: AbortController;
     /** The clock placing the servers' alarms on the host's one wake-up, absent without one. */
     readonly #clock: AlarmClock | undefined;
-    /** The generation serving requests. */
-    #current: Generation;
-    /** The reload in progress, which a further reload waits for. */
-    #reloading: Promise<void> = Promise.resolve();
+    /** The start serving requests. */
+    #current: WorkloadStart;
+    /** The start in progress, absent while none runs. */
+    #starting: Promise<void> | undefined;
+    /** The one start a reload during the running start folds into, absent while none waits. */
+    #next: Promise<void> | undefined;
+    /** The retired starts still draining beside the current one. */
+    readonly #draining = new Set<Promise<void>>();
     /** The shutdown. */
     #closing?: Promise<void>;
 
-    /** Create the instance with its workload, hosting, shutdown, clock and first generation. */
+    /** Create the instance with its workload, hosting, shutdown, clock and first start. */
     private constructor(
         workload: Workload,
         options: WorkloadInstanceOptions,
         controller: AbortController,
         clock: AlarmClock | undefined,
-        current: Generation,
+        current: WorkloadStart,
     ) {
         // set what each further start needs, and the start serving now
         this.#workload = workload;
@@ -56,38 +60,79 @@ export class WorkloadInstance implements AsyncDisposable {
         workload: Workload,
         options: WorkloadInstanceOptions,
     ): Promise<WorkloadInstance> {
-        // start the first generation, which reloads through the instance once it exists
+        // start the workload once, reloading through the instance once it exists
         const clock = options.alarm === undefined ? undefined : new AlarmClock(options.alarm);
         const controller = new AbortController();
         let instance: WorkloadInstance | undefined;
-        const first = await Generation.start(workload, options, clock, {
-            signal: controller.signal,
-            reload: () => present(instance, "the started instance").reload(),
-            shutdown: () => controller.abort(),
-        });
+        const first = await WorkloadStart.start(
+            workload,
+            options,
+            clock,
+            {
+                signal: controller.signal,
+                reload: () => present(instance, "the started instance").reload(),
+                shutdown: () => controller.abort(),
+            },
+            Promise.resolve(),
+        );
         instance = new WorkloadInstance(workload, options, controller, clock, first);
 
         return instance;
     }
 
-    /** Start the workload again, serve the new generation once started, then drain the old one. */
+    /** Start the workload again, folding reloads during a start into one start after it. */
     reload(): Promise<void> {
-        this.#reloading = this.#reloading.then(async () => {
-            // go on serving the current generation while the next one starts
-            this.signal.throwIfAborted();
-            const next = await Generation.start(this.#workload, this.#options, this.#clock, {
-                signal: this.signal,
-                reload: () => this.reload(),
-                shutdown: () => this.shutdown(),
+        // start at once, else once the running start ends, once for every reload meanwhile
+        if (this.#starting === undefined) {
+            return this.#start();
+        }
+        this.#next ??= this.#starting
+            .catch(() => undefined)
+            .then(() => {
+                this.#next = undefined;
+
+                return this.#start();
             });
 
-            // switch to the next generation and drain the previous one
+        return this.#next;
+    }
+
+    /** Start the workload again, serving the next start and draining the previous one beside it. */
+    #start(): Promise<void> {
+        const starting = (async () => {
+            // go on serving the current start while the next one starts with its controllers idle
+            this.signal.throwIfAborted();
+            const activation = Promise.withResolvers<void>();
+            const next = await WorkloadStart.start(
+                this.#workload,
+                this.#options,
+                this.#clock,
+                {
+                    signal: this.signal,
+                    reload: () => this.reload(),
+                    shutdown: () => this.shutdown(),
+                },
+                activation.promise,
+            );
+
+            // switch to the next start, running one start's controllers at a time
             const previous = this.#current;
             this.#current = next;
-            await previous.close();
+            await previous.stopControllers();
+            activation.resolve();
+
+            // drain the previous start, reporting one that fails to drain
+            const draining = previous
+                .close()
+                .catch((error: unknown) => this.#options.report(error));
+            this.#draining.add(draining);
+            void draining.then(() => this.#draining.delete(draining));
+        })();
+        this.#starting = starting.finally(() => {
+            this.#starting = undefined;
         });
 
-        return this.#reloading;
+        return this.#starting;
     }
 
     /** The shutdown signal. */
@@ -131,7 +176,7 @@ export class WorkloadInstance implements AsyncDisposable {
         await this.#current.alarm(deadline);
     }
 
-    /** Dispatch a request to a package the current generation serves. */
+    /** Dispatch a request to a package the current start serves. */
     fetch(
         handle: PackageHandle,
         request: Request,
@@ -143,7 +188,12 @@ export class WorkloadInstance implements AsyncDisposable {
     /** Close the workload. */
     close(): Promise<void> {
         this.shutdown();
-        this.#closing ??= this.#reloading.catch(() => undefined).then(() => this.#current.close());
+        this.#closing ??= (async () => {
+            // close once the starts in progress ended and the retired starts drained
+            await (this.#next ?? this.#starting)?.catch(() => undefined);
+            await Promise.all(this.#draining);
+            await this.#current.close();
+        })();
 
         return this.#closing;
     }
@@ -155,7 +205,7 @@ export class WorkloadInstance implements AsyncDisposable {
 }
 
 /** One start of a workload: its servers and handlers, and the resources it releases. */
-class Generation {
+class WorkloadStart {
     /** The served packages and their servers by package id. */
     readonly #packages = new Map<
         string,
@@ -180,12 +230,13 @@ class Generation {
         options: WorkloadInstanceOptions,
         clock: AlarmClock | undefined,
         host: Pick<WorkloadContext, "signal" | "reload" | "shutdown">,
-    ): Promise<Generation> {
+        activation: Promise<void>,
+    ): Promise<WorkloadStart> {
         // abort the start with its instance
-        const generation = new Generation();
-        host.signal.addEventListener("abort", () => generation.shutdown(), { once: true });
+        const start = new WorkloadStart();
+        host.signal.addEventListener("abort", () => start.shutdown(), { once: true });
         if (host.signal.aborted) {
-            generation.shutdown();
+            start.shutdown();
         }
         try {
             // start the workload
@@ -196,27 +247,27 @@ class Generation {
                 clock: options.clock,
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
                 ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
-                signal: generation.#controller.signal,
+                signal: start.#controller.signal,
                 shutdown: () => host.shutdown(),
                 reload: () => host.reload(),
                 report: (error) => options.report(error),
-                defer: (dispose) => generation.#cleanup.defer(dispose),
+                defer: (dispose) => start.#cleanup.defer(dispose),
             });
 
             // start a server per package and take the handlers
             for (const served of implementation.packages) {
-                generation.#serve(served, options, clock);
+                start.#serve(served, options, clock, activation);
             }
-            generation.#sockets = implementation.sockets;
-            generation.#hooks = implementation.hooks;
-            generation.#webhooks = implementation.webhooks;
+            start.#sockets = implementation.sockets;
+            start.#hooks = implementation.hooks;
+            start.#webhooks = implementation.webhooks;
 
             // reject a cancelled start
-            generation.#controller.signal.throwIfAborted();
+            start.#controller.signal.throwIfAborted();
         } catch (error) {
             // release a failed start
             try {
-                await generation.close();
+                await start.close();
             } catch (cleanup) {
                 throw new AggregateError([error, cleanup], "workload startup and cleanup failed", {
                     cause: cleanup,
@@ -225,7 +276,7 @@ class Generation {
             throw error;
         }
 
-        return generation;
+        return start;
     }
 
     /** Start the server of one served package, refusing a duplicate. */
@@ -233,6 +284,7 @@ class Generation {
         served: PackageImplementation,
         options: WorkloadInstanceOptions,
         clock: AlarmClock | undefined,
+        activation: Promise<void>,
     ): void {
         // refuse a cancelled start and a package served twice
         this.#controller.signal.throwIfAborted();
@@ -250,6 +302,10 @@ class Generation {
             clock: options.clock,
             report: (error) => options.report(error),
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
+            activation:
+                served.activation === undefined
+                    ? activation
+                    : Promise.all([activation, served.activation]).then(() => undefined),
         });
         this.#packages.set(handle.id, { handle, server });
     }
@@ -257,6 +313,13 @@ class Generation {
     /** The served packages, in workload order. */
     get packages(): readonly PackageHandle[] {
         return [...this.#packages.values()].map((served) => served.handle);
+    }
+
+    /** Stop every server's controllers at once, keeping its requests served until it drains. */
+    async stopControllers(): Promise<void> {
+        await Promise.all(
+            [...this.#packages.values()].map(({ server }) => server.stopControllers()),
+        );
     }
 
     /** Report whether the start serves a package. */

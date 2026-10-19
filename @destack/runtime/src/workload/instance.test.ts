@@ -1,7 +1,13 @@
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { Authorizer } from "@destack/access";
+import { defineTable, text } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
+import { expect, onTestFinished, test } from "@destack/test";
+import type { Controller } from "../control/index.ts";
+import { Health } from "../health/index.ts";
+import { Server } from "../server/index.ts";
 import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { Package } from "@destack/package";
@@ -28,6 +34,13 @@ const second = PackageHandle.of(
     }),
     {},
 );
+/** A logged table giving the controllers' database its change log. */
+const marker = defineTable(
+    "instance_marker",
+    { id: text("id").primaryKey(), scope: text("scope").notNull() },
+    { log: {} },
+);
+
 /** A publisher streaming no replicas. */
 const publisher = {
     stream: () => {
@@ -311,7 +324,7 @@ test("give a starting workload its server context", async () => {
     expect([instance.packages, received]).toEqual([[], server]);
 });
 
-test("serve the next start once a reload starts it, then release the previous start's resources", async () => {
+test("serve the next start once a reload starts it, drain the previous start beside it, and release both by close", async () => {
     // start a workload serving the first package, then the second after a reload
     const events: string[] = [];
     let starts = 0;
@@ -340,12 +353,150 @@ test("serve the next start once a reload starts it, then release the previous st
     );
     expect(instance.packages).toEqual([first]);
 
-    // switch to the next start and release only the previous one
+    // switch to the next start
     await instance.reload();
     expect(instance.packages).toEqual([second]);
-    expect(events).toEqual(["release 1"]);
 
-    // release the next start at close
+    // release the previous start once drained, and the next one at close
     await instance.close();
     expect(events).toEqual(["release 1", "release 2"]);
+});
+
+test("fold the reloads requested during a start into one start after it", async () => {
+    // start a workload whose second start waits until released
+    let starts = 0;
+    const gate = Promise.withResolvers<void>();
+    const instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: async () => {
+                starts += 1;
+                if (starts === 2) {
+                    await gate.promise;
+                }
+
+                return { packages: [{ package: first, router: {} }] };
+            },
+        }),
+        {
+            clock: Clock.system,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
+            resources: hosting.resources,
+            server,
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+        },
+    );
+
+    // request three reloads while the second start runs, then let it finish
+    const running = instance.reload();
+    const folded = [instance.reload(), instance.reload(), instance.reload()];
+    gate.resolve();
+    await Promise.all([running, ...folded]);
+
+    // start once more for the three reloads
+    expect(starts).toBe(3);
+    await instance.close();
+});
+
+test("run one start's controllers at a time, stopping the previous start's before the next start's run", async () => {
+    // record each start's controller running and stopping, over an access database
+    const storage = await TestDatabase.create("sqlite", [marker], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const events: string[] = [];
+    const running = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+    let starts = 0;
+    const instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: () => {
+                const start = ++starts;
+                const controller: Controller = {
+                    name: "follower",
+                    mode: "follow",
+                    watches: [],
+                    keys: () => [],
+                    list: async () => ["key"],
+                    reconcile: async (_key, { signal }) => {
+                        events.push(`run ${start}`);
+                        running[start - 1]?.resolve();
+                        await new Promise((resolve) => {
+                            signal.addEventListener("abort", resolve, { once: true });
+                        });
+                        events.push(`stop ${start}`);
+
+                        return undefined;
+                    },
+                };
+
+                return {
+                    packages: [
+                        {
+                            package: first,
+                            router: {},
+                            controllers: [controller],
+                            access: {
+                                authorizer: new Authorizer([], []),
+                                database: storage.database,
+                            },
+                        },
+                    ],
+                };
+            },
+        }),
+        {
+            clock: Clock.system,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
+            resources: hosting.resources,
+            server,
+            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+        },
+    );
+
+    // reload once the first start's controller runs, then wait for the second one's
+    await running[0]?.promise;
+    await instance.reload();
+    await running[1]?.promise;
+    await instance.close();
+
+    // stop the first start's controller before the second start's runs
+    expect(events).toEqual(["run 1", "stop 1", "run 2", "stop 2"]);
+});
+
+test("close a server whose controllers were never activated, running none of them", async () => {
+    // start a server whose controllers wait for an activation that never comes
+    const storage = await TestDatabase.create("sqlite", [marker], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const runs: string[] = [];
+    const controller: Controller = {
+        name: "never",
+        watches: [],
+        keys: () => [],
+        list: async () => ["key"],
+        reconcile: async (key) => {
+            runs.push(key);
+
+            return undefined;
+        },
+    };
+    const started = Server.start({
+        ...hosting,
+        package: first,
+        clock: Clock.system,
+        health: new Health(first.name),
+        drainTimeout: 100,
+        router: {},
+        controllers: [controller],
+        access: { authorizer: new Authorizer([], []), database: storage.database },
+        activation: new Promise<void>(() => {}),
+    });
+
+    // close it at once, as a retired start's server closes
+    await started.close();
+    expect(runs).toEqual([]);
 });

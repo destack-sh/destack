@@ -83,6 +83,8 @@ server.at(Egress.address(alias, spaceId)); // another installation by its alias,
 await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
 request.headers.get(FORWARDED_URL_HEADER); // a route's request at ROUTE_PATH, handed to the workload's own package
 await instance.fetch(rooms, request); // a request to one served package
+await instance.reload(); // serve the next start once started, drain the previous beside it, fold reloads meanwhile
+{ package: rooms, router: {}, controllers, activation }; // run its controllers once activation settles
 ```
 
 ## Bindings
