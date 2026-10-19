@@ -56,18 +56,39 @@ const spans = createMemo(() => observability.span.list({ scope, where: `trace = 
 
 ## Page origin
 
-`useOrigin` calls a path below the page's origin with the page's credential: a shell page's token, else its cookies; the machine forwards each path as the person.
+`useOrigin` calls a path below the page's origin with its session cookie, and the origin calls each path as the person under their grant to the installation.
 
 ```ts
 import { useOrigin } from "@destack/view";
-import { PACKAGE_PATH, PackageMount, SpaceMount } from "@destack/runtime";
+import { PACKAGE_PATH, PackageMount } from "@destack/runtime";
+import { HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
 
 const origin = useOrigin();
-createClient(
-    stackPackage,
-    origin(`${PACKAGE_PATH}${SpaceMount.path(spaceId)}${PackageMount.path(stackPackage.id)}`),
-);
+createClient(notesPackage, origin(PACKAGE_PATH)); // the installation's own package
+createClient(stackPackage, origin(`${PLATFORM_PATH}${PackageMount.path(stackPackage.id)}`)); // a service its views declare
 createClient(settings, origin(`${HOME_PATH}/${userId}`)); // where a change of the person's own rows goes
+```
+
+## Launches
+
+A host launches a view at its installation's origin with the person's token, which the origin trades for its session cookie; `ViewAddress` and `ObjectAddress` are what a launch opens.
+
+```ts
+import { ViewAddress, type Address } from "@destack/view/declare";
+
+const board: Address = { space: "home--acme", installation: "tasks", view: "board", path: "/" };
+const note: Address = { space: "home--acme", object: note.reference(spaceId, id) }; // the view presenting it
+ViewAddress.url(board, "https://tasks--home--acme.destack.space", token); // …/board?token=…
+```
+
+## Mounting
+
+The origin's document carries the view's `ViewContext`, and the build's module mounts the view with its package's theme and commands.
+
+```ts
+ViewContext.document(context, view.entrypoint); // <script id="destack-view">{"installation":…}</script>
+await mount(view, { commands: [{ packageId, name: "archive", keybinding: "mod+e" }], theme }); // generated
+// catalogs load by package from the build: /locale/de.json, /locale/<package>/de.json
 ```
 
 ## Commands
@@ -263,15 +284,15 @@ export function Archived(properties: { count: number; notebook: string }) {
 <LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
 ```
 
-## Display preferences
+## Display
 
-`resolveDisplay` resolves a person's appearance and display preferences from the `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings.
+`resolveDisplay` resolves a person's `Display` from the `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings, their device's own values first, which a page presents with its theme, in the person's language, beside their keybindings.
 
 ```ts
 import { resolveDisplay } from "@destack/view/setting";
 
-const { appearance, preferences } = resolveDisplay(selection, values, chain);
-const style = theme.variables(appearance, preferences);
+const display = resolveDisplay(selection, values, chain, device); // device: the device's own values
+const style = theme.variables(display);
 ```
 
 ## Styles
@@ -308,7 +329,7 @@ const unmount = renderView(
     Notes,
     element,
     { context, clients: new Map([[context.space, client]]), packages: new Map(), origin },
-    catalogs,
+    Localization.of("de", catalogs),
 );
 ```
 

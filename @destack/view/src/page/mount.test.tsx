@@ -1,4 +1,4 @@
-import { t } from "@destack/locale";
+import { type LocaleTag, Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -42,7 +42,7 @@ const CONTEXT: ViewContext = {
 /** The message the status shows. */
 const SAVED = t`Saved ${"3"} notes`;
 
-/** The launch's catalogs: this package's German translation of the status. */
+/** The catalogs of this package: its German translation of the status. */
 const CATALOGS: readonly Catalog[] = [
     { package: SAVED.package, locale: "de", messages: { [SAVED.id]: "{$p0} Notizen gespeichert" } },
 ];
@@ -54,14 +54,14 @@ function Status() {
     return <p>{`${locale.tag}: ${locale.render(SAVED)}`}</p>;
 }
 
-/** Render the status into a detached element and read its text. */
-function readText(context: ViewContext): string {
+/** Render the status into a detached element in a language and read its text. */
+function readText(locale: LocaleTag): string {
     const element = document.createElement("div");
     const dispose = renderView(
         Status,
         element,
-        { context, clients: new Map(), packages: new Map(), origin: noOrigin },
-        CATALOGS,
+        { context: CONTEXT, clients: new Map(), packages: new Map(), origin: noOrigin },
+        Localization.of(locale, CATALOGS),
     );
     const text = element.textContent;
     dispose();
@@ -69,8 +69,8 @@ function readText(context: ViewContext): string {
     return text;
 }
 
-test("render in the person's locale from the view's context with the launch's catalogs, the source language when the host names none", () => {
-    expect([readText(CONTEXT), readText({ ...CONTEXT, locale: "de-AT" })]).toEqual([
+test("render a view under its localization, translated by its package's catalog and in the source language without one", () => {
+    expect([readText(SOURCE_LOCALE), readText("de-AT")]).toEqual([
         `en: Saved ${OPEN}3${CLOSE} notes`,
         `de-AT: ${OPEN}3${CLOSE} Notizen gespeichert`,
     ]);
@@ -139,7 +139,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         Count,
         element,
         { context: CONTEXT, clients: new Map(), packages, origin: noOrigin },
-        [],
+        Localization.of(SOURCE_LOCALE, []),
     );
 
     // read the count through the declared package's mount
@@ -161,7 +161,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         ),
         refused,
         { context: CONTEXT, clients: new Map(), packages: new Map(), origin: noOrigin },
-        [],
+        Localization.of(SOURCE_LOCALE, []),
     );
     expect(refused.textContent).toBe(
         "TypeError: the view does not declare package @example/counter",

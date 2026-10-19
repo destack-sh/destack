@@ -11,7 +11,7 @@ import { schema } from "@destack/schema";
 import {
     Appearance,
     Contrast,
-    DEFAULT_PREFERENCES,
+    DEFAULT_DISPLAY,
     Density,
     Motion,
     Seed,
@@ -20,8 +20,8 @@ import {
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 
-/** The theme settings an environment sets, each the person's default when absent. */
-const ThemeSettings = schema.object({
+/** The display an environment sets, each choice the person's default when absent. */
+const EnvironmentDisplay = schema.object({
     /** The appearance. */
     appearance: Appearance.exactOptional(),
     /** The text size. */
@@ -58,7 +58,7 @@ export function renderExample<Properties extends object>(
     // read the environment's locale and theme settings
     const environment = frame.environment ?? {};
     const locale = LocaleTag.parse(environment.locale ?? SOURCE_LOCALE);
-    const { appearance = "system", ...preferences } = ThemeSettings.parse(environment.theme ?? {});
+    const display = EnvironmentDisplay.parse(environment.theme ?? {});
     const theme = frame.theme ?? destackTheme;
 
     // frame the example in the locale and the direction components read, styled with the theme's variables and the width
@@ -69,7 +69,7 @@ export function renderExample<Properties extends object>(
     container.dataset["slot"] = "example";
     container.lang = locale;
     container.dir = localization.direction;
-    const style = theme.variables(appearance, { ...DEFAULT_PREFERENCES, ...preferences });
+    const style = theme.variables({ ...DEFAULT_DISPLAY, ...display });
     for (const [name, value] of Object.entries(style)) {
         container.style.setProperty(name, value);
     }

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Compiler, readDependencies } from "@destack/build";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
+import { destackTheme } from "@destack/theme/declare";
 import { viewExtension } from "./build.ts";
 import { viewPlugins } from "./plugin.ts";
 
@@ -104,8 +105,8 @@ test(
     },
 );
 
-test("generate the module mounting a view from the export declaring it, and describe it with its package's browser capabilities", () => {
-    // compile a browser output of a package declaring one view, using the network and the camera
+test("generate the module mounting a view with its package's theme and commands, and describe it with its package's browser capabilities", () => {
+    // compile a browser output of a package declaring one view, a theme and two commands, using the network and the camera
     const owner = Package.parse({
         id: "package-01996ab0-0000-7000-8000-00000000000c",
         name: "@example/app",
@@ -131,6 +132,27 @@ test("generate the module mounting a view from the export declaring it, and desc
             packages: [],
         },
     };
+    const declared = (
+        declaration: "theme" | "command",
+        declaring: Package,
+        name: string,
+        description: DeclarationDescription["description"],
+    ): DeclarationDescription => ({
+        ...view,
+        name,
+        kind: declaration,
+        package: declaration === "theme" ? destackTheme.package : view.package,
+        symbol: { package: declaring, symbol: { module: "src/view.ts", name } },
+        description,
+    });
+    const command = (name: string, keybinding?: string) => ({
+        title: name,
+        packageId: owner.id,
+        type: "note",
+        method: name,
+        ...(keybinding === undefined ? {} : { keybinding }),
+    });
+    const ocean = { name: "ocean", package: owner };
     const entries = new Map<string, string>();
     const compilation: Compilation = {
         package: owner,
@@ -138,7 +160,13 @@ test("generate the module mounting a view from the export declaring it, and desc
         exports: {},
         runtime: "browser",
         sandbox: { network: { connect: ["api.github.com"] }, camera: {} },
-        declarations: [view],
+        declarations: [
+            view,
+            declared("theme", owner, "ocean", ocean),
+            declared("command", owner, "complete", command("complete", "mod+enter")),
+            declared("command", owner, "archive", command("archive")),
+            declared("command", kind, "pin", command("pin")),
+        ],
         modules: [],
         locate: () => ({ file: "/package/src/view.ts", export: "main" }),
         entry: (entrypoint, module) => entries.set(entrypoint, module),
@@ -162,13 +190,17 @@ test("generate the module mounting a view from the export declaring it, and desc
         declarations: () => [],
     });
 
-    // import the declaring module and mount its view
+    // import the declaring module and mount its view with the package's own theme and commands
+    const commands = [
+        { packageId: owner.id, name: "complete", keybinding: "mod+enter" },
+        { packageId: owner.id, name: "archive" },
+    ];
     expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
         ["./view/main"],
         [
             'import { mount } from "@destack/view/browser";',
             'import { main as view } from "/package/src/view.ts";',
-            "await mount(view);",
+            `await mount(view, ${JSON.stringify({ commands, theme: ocean })});`,
         ],
         {
             views: {

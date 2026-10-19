@@ -1,14 +1,14 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type { SettingSelection } from "@destack/setting";
 import { defineSetting, type SettingDefinition } from "@destack/setting/declare";
-import type { SettingValue } from "@destack/setting/object";
+import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import {
     Appearance,
     Contrast,
-    DEFAULT_PREFERENCES,
+    DEFAULT_DISPLAY,
     Density,
     Motion,
-    type Preferences,
+    type Display,
     Seed,
     TextSize,
 } from "@destack/theme";
@@ -36,7 +36,7 @@ export const textSize = defineSetting({
     title: "Text size",
     description: "Read text smaller or larger.",
     schema: TextSize,
-    default: DEFAULT_PREFERENCES.textSize,
+    default: DEFAULT_DISPLAY.textSize,
     ...PREFERENCE,
 });
 
@@ -47,7 +47,7 @@ export const density = defineSetting({
     description:
         "Pack controls and content compactly or spaciously, or keep each app's own density.",
     schema: Density.nullable(),
-    default: DEFAULT_PREFERENCES.density,
+    default: DEFAULT_DISPLAY.density,
     ...PREFERENCE,
 });
 
@@ -57,7 +57,7 @@ export const contrast = defineSetting({
     title: "Contrast",
     description: "Follow the device's contrast or set how far text, lines and graphics stand out.",
     schema: Contrast,
-    default: DEFAULT_PREFERENCES.contrast,
+    default: DEFAULT_DISPLAY.contrast,
     ...PREFERENCE,
 });
 
@@ -67,7 +67,7 @@ export const motion = defineSetting({
     title: "Motion",
     description: "Use the system motion preference, or show or remove transitions.",
     schema: Motion,
-    default: DEFAULT_PREFERENCES.motion,
+    default: DEFAULT_DISPLAY.motion,
     ...PREFERENCE,
 });
 
@@ -77,17 +77,9 @@ export const accent = defineSetting({
     title: "Accent color",
     description: "Use each app's own accent, or one accent color in every app.",
     schema: Seed.nullable(),
-    default: DEFAULT_PREFERENCES.accent,
+    default: DEFAULT_DISPLAY.accent,
     ...PREFERENCE,
 });
-
-/** The appearance and preferences a person sees an interface in. */
-export interface Display {
-    /** The appearance. */
-    readonly appearance: Appearance;
-    /** The display preferences. */
-    readonly preferences: Preferences;
-}
 
 /** The settings a person's display comes from. */
 export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
@@ -99,20 +91,19 @@ export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
     textSize,
 ].map((setting) => setting.reference);
 
-/** Resolve the display of a selection from the values placed along its scope chain. */
+/** Resolve the display of a selection from the values along its scope chain and on its device. */
 export function resolveDisplay(
     selection: SettingSelection,
     values: readonly SettingValue[],
     chain: readonly string[],
+    device: readonly DeviceSettingValue[],
 ): Display {
     return {
-        appearance: appearance.resolve(selection, values, chain).value,
-        preferences: {
-            accent: accent.resolve(selection, values, chain).value,
-            contrast: contrast.resolve(selection, values, chain).value,
-            density: density.resolve(selection, values, chain).value,
-            motion: motion.resolve(selection, values, chain).value,
-            textSize: textSize.resolve(selection, values, chain).value,
-        },
+        appearance: appearance.resolve(selection, values, chain, device).value,
+        accent: accent.resolve(selection, values, chain, device).value,
+        contrast: contrast.resolve(selection, values, chain, device).value,
+        density: density.resolve(selection, values, chain, device).value,
+        motion: motion.resolve(selection, values, chain, device).value,
+        textSize: textSize.resolve(selection, values, chain, device).value,
     };
 }

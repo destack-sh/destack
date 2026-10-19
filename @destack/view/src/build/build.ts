@@ -5,7 +5,8 @@ import type {
     Plugin,
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, Sandbox } from "@destack/package";
-import { ViewDescription } from "@destack/package/manifest";
+import { CommandDescription, ViewDescription } from "@destack/package/manifest";
+import { destackTheme } from "@destack/theme/declare";
 import { SolidApplication } from "./application.ts";
 import { fontPlugin } from "./font.ts";
 import { imagePlugin } from "./image.ts";
@@ -36,7 +37,7 @@ export const viewExtension: BuildExtension = {
             compilation.entry(`./view/${view.name}`, `${PREFIX}${view.name}`);
         }
 
-        return [mountPlugin(views)];
+        return [mountPlugin(views, compilation)];
     },
     describe(compilation, compiled) {
         // describe each view by its emitted chunk, browser abilities and presented types
@@ -122,8 +123,32 @@ function locate(compilation: Compilation): LocatedView[] {
     return views;
 }
 
-/** Resolve and load the generated module mounting each view in the browser. */
-function mountPlugin(views: readonly LocatedView[]): Plugin {
+/** Load the generated module mounting each view with its package's theme and commands. */
+function mountPlugin(views: readonly LocatedView[], compilation: Compilation): Plugin {
+    // read the theme and the commands with their key combinations the package declares
+    const own = compilation.declarations.filter(
+        (declaration) => declaration.symbol.package.id === compilation.package.id,
+    );
+    const theme = own.find(
+        (declaration) =>
+            declaration.kind === "theme" && declaration.package.id === destackTheme.package.id,
+    )?.description;
+    const commands = own
+        .filter(
+            (declaration) =>
+                declaration.kind === "command" && declaration.package.name === VIEW_PACKAGE,
+        )
+        .map((declaration) => {
+            const { keybinding } = CommandDescription.parse(declaration.description);
+
+            return {
+                packageId: compilation.package.id,
+                name: declaration.name,
+                ...(keybinding === undefined ? {} : { keybinding }),
+            };
+        });
+    const declared = JSON.stringify({ commands, ...(theme === undefined ? {} : { theme }) });
+
     return {
         name: VIEW_PACKAGE,
         resolveId: {
@@ -141,7 +166,7 @@ function mountPlugin(views: readonly LocatedView[]): Plugin {
                     [
                         `import { mount } from "${VIEW_PACKAGE}/browser";`,
                         `import { ${view.export} as view } from ${JSON.stringify(view.file)};`,
-                        "await mount(view);",
+                        `await mount(view, ${declared});`,
                     ].join("\n")
                 );
             },

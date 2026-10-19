@@ -115,6 +115,14 @@ export const Accelerator = Object.assign(
 /** A key combination in the keybinding syntax editors write. */
 export type Accelerator = schema.Infer<typeof Accelerator>;
 
+/** A key combination bound to a command, by the command's settings key. */
+export interface Keybinding {
+    /** The command's key, as `<package>/<name>`. */
+    readonly command: string;
+    /** The key combination running it. */
+    readonly keybinding: Accelerator;
+}
+
 /** A key press as a keyboard event reports it. */
 export interface KeyPress {
     /** The key's value. */

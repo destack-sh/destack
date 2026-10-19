@@ -1,5 +1,4 @@
-import { Package, PackageId } from "@destack/package";
-import { MemoryBuild } from "@destack/package/test";
+import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Accelerator, type KeyPress } from "./accelerator.ts";
@@ -187,35 +186,6 @@ function thrown(read: () => unknown): readonly [string, string] {
     }
     throw new TypeError("the read returned");
 }
-
-test("read the commands a build declares with their keybindings, leaving out another kind's declarations", async () => {
-    // declare two commands of the tasks, one with keys, and a setting of another kind's package
-    const command = (name: string, keybinding?: string) => ({
-        kind: "command",
-        kindPackageId: import.meta.destack.package.id,
-        name,
-        description: {
-            title: name,
-            packageId: TASKS,
-            type: "task",
-            method: name,
-            ...(keybinding === undefined ? {} : { keybinding }),
-        },
-    });
-    const build = await MemoryBuild.of(
-        Package.parse({ id: TASKS, name: "@example/tasks", version: "2026.9.0" }),
-        [
-            command("complete", "mod+enter"),
-            command("archive"),
-            { kind: "command", kindPackageId: NOTES, name: "pin", description: {} },
-        ],
-    );
-
-    expect(await Palette.commands(build)).toEqual([
-        { packageId: TASKS, name: "complete", keybinding: "mod+enter" },
-        { packageId: TASKS, name: "archive", keybinding: undefined },
-    ]);
-});
 
 test("read a command's keybinding: the person's own, none once unbound, else the declared one", () => {
     const complete = { packageId: TASKS, name: "complete" };

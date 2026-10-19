@@ -1,6 +1,7 @@
 import { DeclarationName, ModuleMetadata, type Package, PackageId } from "@destack/package";
 import type { CallableName, ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
+import { Accelerator } from "../palette/accelerator.ts";
 
 /** A command as its package defines it: a named call of one object type's method. */
 export interface CommandDefinition<Object extends ObjectType = ObjectType> {
@@ -80,3 +81,11 @@ export const CommandReference = Object.assign(
 );
 /** A command's identity across installations. */
 export type CommandReference = schema.Infer<typeof CommandReference>;
+
+/** A command a package declares, with the key combination it declares. */
+export const CommandDeclaration = CommandReference.extend({
+    /** The key combination the package declares, absent for none. */
+    keybinding: Accelerator.exactOptional(),
+});
+/** A command a package declares, with its key combination. */
+export type CommandDeclaration = schema.Infer<typeof CommandDeclaration>;

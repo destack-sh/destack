@@ -1,3 +1,4 @@
+import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
@@ -130,7 +131,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                 packages: new Map(),
                 origin: noOrigin,
             },
-            [],
+            Localization.of(SOURCE_LOCALE, []),
         ),
     );
     await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
@@ -167,7 +168,7 @@ test("fail access to an object type the view's space does not hold into the erro
                 packages: new Map(),
                 origin: noOrigin,
             },
-            [],
+            Localization.of(SOURCE_LOCALE, []),
         ),
     );
     expect(element.textContent).toBe("the client has no object board");

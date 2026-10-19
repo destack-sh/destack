@@ -1,10 +1,5 @@
-import { Accelerator, isCommandPlatform } from "./accelerator.ts";
-import {
-    COMMAND_PARAMETER,
-    FOCUS_PARAMETER,
-    OPEN_PATH,
-    type ViewDisplay,
-} from "../declare/context.ts";
+import { Accelerator, isCommandPlatform, type Keybinding } from "./accelerator.ts";
+import { COMMAND_PARAMETER, FOCUS_PARAMETER, OPEN_PATH } from "../declare/context.ts";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";
@@ -46,7 +41,7 @@ const CLOSE_ACTION = "palette.close";
 export function listenForCommands(
     signal: AbortSignal,
     localization: () => Localization,
-    keybindings: () => ViewDisplay["keybindings"],
+    keybindings: () => readonly Keybinding[],
 ): void {
     // open the palette, at a command its keybinding runs
     const isCommand = isCommandPlatform();
