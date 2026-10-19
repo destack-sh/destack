@@ -10,7 +10,6 @@ import type { Clock } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/runtime";
-import { Bookmark, type Watermark } from "@destack/runtime/bookmark";
 import { type ClientOptions, createClient } from "@destack/runtime/client";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -154,17 +153,13 @@ export class Login {
             );
     }
 
-    /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
-    async grant(
+    /** Find the person's unexpiring grant of exactly some permissions to a delegate. */
+    async granted(
         delegate: Subject,
         permissions: readonly GrantPermission[],
-    ): Promise<GrantClaim & { readonly watermarks: Watermark[] }> {
-        // reuse the person's unexpiring grant of exactly these permissions to the delegate
-        const bookmark = new Bookmark();
-        const accounts = createClient(accountPackage, {
-            ...this.universe(accountPackage.id),
-            bookmark,
-        });
+    ): Promise<GrantClaim | undefined> {
+        // list the person's grants to the delegate and keep the unexpiring one of exactly these permissions
+        const accounts = createClient(accountPackage, this.universe(accountPackage.id));
         const items = await Array.fromAsync(
             ListPage.all(accounts.grant.list, {
                 userId: this.subject.id,
@@ -176,17 +171,27 @@ export class Login {
             (grant) => grant.expiresAt === null && canonicalize(grant.permissions) === wanted,
         );
 
-        // grant them otherwise
-        const grant =
-            kept ??
-            (await accounts.grant.create({
-                userId: this.subject.id,
-                requestId: RequestId.create(this.#clock.now()),
-                delegate,
-                permissions: [...permissions],
-            }));
+        return kept === undefined ? undefined : { id: kept.id, scope: this.subject.id };
+    }
 
-        return { id: grant.id, scope: this.subject.id, watermarks: [...bookmark.watermarks] };
+    /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
+    async grant(delegate: Subject, permissions: readonly GrantPermission[]): Promise<GrantClaim> {
+        // reuse the person's unexpiring grant of exactly these permissions
+        const kept = await this.granted(delegate, permissions);
+        if (kept !== undefined) {
+            return kept;
+        }
+
+        // grant them otherwise
+        const accounts = createClient(accountPackage, this.universe(accountPackage.id));
+        const created = await accounts.grant.create({
+            userId: this.subject.id,
+            requestId: RequestId.create(this.#clock.now()),
+            delegate,
+            permissions: [...permissions],
+        });
+
+        return { id: created.id, scope: this.subject.id };
     }
 
     /** Send a request with the person's access token for a package under a binding. */
