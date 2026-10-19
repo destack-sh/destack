@@ -1,3 +1,4 @@
+import { Package } from "@destack/package";
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -65,6 +66,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     // serve renaming with the permission
     const procedures = {
         rename: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: vault.permission("rename"),
             audit: false,
@@ -118,7 +120,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         },
     });
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://vault.test",
             fetch: (request) => server.fetch(request),

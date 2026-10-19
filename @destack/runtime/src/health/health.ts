@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { Package } from "@destack/package";
 import { Observable } from "../observable/index.ts";
 import { defineProcedure, eventIterator } from "../runtime/runtime.ts";
 
@@ -86,10 +87,20 @@ export const HealthDescription = schema.object({
 
 /** The health procedures. */
 export const health = {
-    check: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+    check: defineProcedure({
+        package: Package.of(import.meta.destack.package),
+        authentication: "public",
+        permission: "anyone",
+        audit: false,
+    })
         .route({ method: "GET", path: "/health" })
         .output(HealthDescription),
-    watch: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+    watch: defineProcedure({
+        package: Package.of(import.meta.destack.package),
+        authentication: "public",
+        permission: "anyone",
+        audit: false,
+    })
         .route({ method: "GET", path: "/health/watch" })
         .output(eventIterator(HealthDescription)),
 };

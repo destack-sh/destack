@@ -4,6 +4,7 @@
 
 ```ts
 const list = defineProcedure({
+    package: Package.of(pages), // the package whose releases its callers speak
     authentication: "identity",
     permission: page.permission("read"),
     audit: false,

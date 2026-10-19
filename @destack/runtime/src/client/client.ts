@@ -8,7 +8,7 @@ import { injectContext, telemetry } from "@destack/telemetry";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
 import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../runtime/index.ts";
-import type { PackageHandle } from "../declare/package.ts";
+import { ProcedureMeta } from "../procedure/procedure.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { CallTelemetry } from "../procedure/call-telemetry.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../bookmark/index.ts";
@@ -24,10 +24,11 @@ export type ClientOptions<Context extends ClientContext = Record<never, never>> 
         readonly bookmark?: Bookmark;
     };
 
-/** What a client calls: a package's handle, typed by its router. */
-export type ClientTarget<Definition extends ProcedureRouter> = Pick<PackageHandle, "version"> & {
+/** What a client calls: a router of procedures, such as a package handle's. */
+export interface ClientTarget<Definition extends ProcedureRouter> {
+    /** The procedures, each naming the package whose release its calls speak. */
     readonly router: Definition;
-};
+}
 
 /** A typed HTTP client of a package, as createClient creates it. */
 export type ClientOf<
@@ -40,8 +41,17 @@ export function createClient<
     Definition extends ProcedureRouter,
     Context extends ClientContext = Record<never, never>,
 >(target: ClientTarget<Definition>, options: ClientOptions<Context>): Client<Definition, Context> {
-    // create the client telemetry
+    // create the client telemetry, and read each called procedure's release once
     const instruments = new CallTelemetry("client");
+    const releases = new Map<string, string>();
+    const releaseOf = (path: readonly string[]) => {
+        // read a path's release the first time it is called
+        const key = path.join(".");
+        const release = releases.get(key) ?? ProcedureMeta.at(target.router, path).package.version;
+        releases.set(key, release);
+
+        return release;
+    };
 
     // create the HTTP transport
     const link = new OpenAPILink<Context>(target.router, {
@@ -53,7 +63,7 @@ export function createClient<
                 // send the trace, the release and the required watermarks
                 const headers = call.request.headers;
                 injectContext(headers);
-                headers.set(VERSION_HEADER, target.version);
+                headers.set(VERSION_HEADER, releaseOf(call.path));
                 const bookmark = options.bookmark;
                 if (bookmark !== undefined && bookmark.watermarks.length > 0) {
                     headers.set(BOOKMARK_HEADER, bookmark.format());

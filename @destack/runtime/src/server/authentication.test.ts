@@ -2,7 +2,7 @@ import { AccessFixture } from "@destack/access/test";
 import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Identifier, schema } from "@destack/schema";
-import { PackageId } from "@destack/package";
+import { PackageId, Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
     accessTables,
@@ -38,6 +38,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
         // serve one procedure in every scope
         const definition = {
             read: defineProcedure({
+                package: Package.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -72,7 +73,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
             }),
         });
         const client = createClient(
-            { version: fixturePackage.version, router: definition },
+            { router: definition },
             {
                 url: "https://fixture.test",
                 fetch: (request) => server.fetch(request),
@@ -93,6 +94,7 @@ test("verify a credential the package verifies before the host, which answers ev
     // serve the caller's name, the package verifying its own key and refusing a revoked one
     const definition = {
         me: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user] },
             audit: false,
@@ -122,7 +124,7 @@ test("verify a credential the package verifies before the host, which answers ev
     });
     const me = (headers: Record<string, string>) =>
         createClient(
-            { version: fixturePackage.version, router: definition },
+            { router: definition },
             { url: "https://fixture.test", headers, fetch: (request) => server.fetch(request) },
         ).me();
 
@@ -151,6 +153,7 @@ test("serve a caller handed over in-process while it is current for this package
     // serve the caller's name to callers handed over by in-process code
     const definition = {
         me: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user] },
             audit: false,
@@ -171,7 +174,7 @@ test("serve a caller handed over in-process while it is current for this package
     });
     const me = (authentication: Authentication) =>
         createClient(
-            { version: fixturePackage.version, router: definition },
+            { router: definition },
             {
                 url: "https://fixture.test",
                 fetch: (request) => server.fetch(request, authentication),
@@ -254,6 +257,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const key = schema.object({ id: schema.string() });
     const procedures = {
         me: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: "access",
@@ -261,6 +265,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             .route({ method: "GET", path: "/me" })
             .output(schema.string()),
         read: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "public",
             permission: note.permission("read"),
             audit: "access",
@@ -269,6 +274,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             .input(key)
             .output(schema.string()),
         watch: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "public",
             permission: note.permission("read"),
             audit: "access",
@@ -408,7 +414,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // forward the original credential
     let bearer: string | undefined = credentials.get(owner.id);
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://notes.example",
             headers: () =>

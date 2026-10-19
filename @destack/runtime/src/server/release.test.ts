@@ -1,3 +1,4 @@
+import { Package } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
@@ -12,6 +13,7 @@ import { Clock } from "@destack/environment";
 
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
 const search = defineProcedure({
+    package: Package.of(fixturePackage),
     authentication: "public",
     permission: "anyone",
     audit: false,
@@ -79,5 +81,56 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         "CONFLICT: package @destack/fixture no longer serves releases before 2026.8.0",
         "BAD_REQUEST: package @destack/fixture requires Destack-Version",
         "BAD_REQUEST: invalid Destack-Version: next",
+    ]);
+});
+
+test("speak the release of the package defining a procedure, which the served package's retirement leaves alone", async () => {
+    // serve another package's echo procedure from the fixture package, at a later release than the fixture's
+    const protocol = Package.parse({
+        id: "package-019f7480-0000-7000-8000-000000000002",
+        name: "@destack/protocol",
+        version: "2026.11.0",
+    });
+    const echo = defineProcedure({
+        package: protocol,
+        authentication: "public",
+        permission: "anyone",
+        audit: false,
+    })
+        .route({ method: "POST", path: "/echo" })
+        .input(schema.object({ text: schema.string() }))
+        .output(schema.object({ text: schema.string() }));
+    const implementation = implement({ echo });
+    await using server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        package: served,
+        router: implementation.router({
+            echo: implementation.echo.handler(({ input }) => input),
+        }),
+        health: new Health("echo"),
+        drainTimeout: 1000,
+    });
+    const call = async (release: string) => {
+        const request = new Request("https://test.local/echo", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+                authorization: "alice",
+                [VERSION_HEADER]: release,
+            },
+            body: JSON.stringify({ text: "hi" }),
+        });
+        const body: unknown = await (await server.fetch(request)).json();
+        const failure = Failure.safeParse(body);
+
+        return failure.success ? `${failure.data.code}: ${failure.data.message}` : body;
+    };
+
+    // answer the protocol's releases, an old one beside the fixture's retirement, and refuse a newer one
+    expect([await call("2026.11.0"), await call("2026.7.0"), await call("2026.12.0")]).toEqual([
+        { text: "hi" },
+        { text: "hi" },
+        "CONFLICT: package @destack/protocol serves 2026.11.0, but the caller uses 2026.12.0",
     ]);
 });

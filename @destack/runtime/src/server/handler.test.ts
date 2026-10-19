@@ -1,3 +1,4 @@
+import { Package } from "@destack/package";
 import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -80,6 +81,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     });
     const procedures = {
         read: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: notes.permission("read"),
             audit: "access",
@@ -119,7 +121,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         },
     });
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -142,7 +144,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // record a denial without running the handler
     const denied = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -164,7 +166,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     // answer a concealed denial as a missing resource
     const bodies: unknown[] = [];
     const concealed = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -195,7 +197,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         },
     });
     const blocked = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -273,6 +275,7 @@ test("withhold streamed values after access revocation", async () => {
     const outcomes: string[] = [];
     const procedures = {
         watch: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: "access",
@@ -307,7 +310,7 @@ test("withhold streamed values after access revocation", async () => {
         },
     });
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -337,7 +340,12 @@ test("withhold streamed values after access revocation", async () => {
 test("answer a failure thrown by a handler with the status its code declares", async () => {
     // throw the SERVICE_UNAVAILABLE code from a handler
     const procedures = {
-        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        read: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/read" })
             .output(schema.string()),
     };
@@ -355,7 +363,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
     // answer 503 Service Unavailable with the code and message
     const statuses: number[] = [];
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {
@@ -380,7 +388,12 @@ test("answer a failure thrown by a handler with the status its code declares", a
 test("answer a lower package's failure with the call error it names, and an unknown failure as internal", async () => {
     // throw a database failure, an access challenge and an unknown failure from handlers
     const procedures = {
-        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        read: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/read" })
             .input(schema.object({ failure: schema.enum(["duplicate", "challenge", "unknown"]) }))
             .output(schema.string()),
@@ -403,7 +416,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
         health: new Health("read"),
     });
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {

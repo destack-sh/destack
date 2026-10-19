@@ -2,7 +2,7 @@ import { none, Policy } from "@destack/access";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
-import { PackageId } from "@destack/package";
+import { PackageId, Package } from "@destack/package";
 import { defineAdapter, definePackage, type ObjectDeclaration } from "../declare/package.ts";
 import type { ProcedureRouter } from "../runtime/index.ts";
 import { defineProcedure } from "../procedure/index.ts";
@@ -42,6 +42,7 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
 /** A procedure without requirements. */
 const procedure = (convert?: Readonly<Record<string, Readonly<Record<string, Expression>>>>) =>
     defineProcedure({
+        package: Package.of(import.meta.destack.package),
         authentication: "public",
         permission: "anyone",
         audit: false,

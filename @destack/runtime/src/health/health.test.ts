@@ -25,7 +25,7 @@ test("stream current health and subsequent readiness changes", async () => {
 
     // connect a client
     const client = createClient(
-        { version: fixturePackage.version, router: { health } },
+        { router: { health } },
         {
             url: "https://test.local",
             fetch: async (request) => {

@@ -1,9 +1,13 @@
 import { oc } from "@orpc/contract";
 import { DECLARED_ERRORS } from "../error/error.ts";
 import { schema, Version } from "@destack/schema";
+import { Package } from "@destack/package";
 import { Expression } from "@destack/db";
 import { PermissionReference, type Permission, type Policy } from "@destack/access/declare";
 import { ObjectTypeReference } from "@destack/sync";
+
+/** A procedure, as its requirements are read from it. */
+const PROCEDURE = schema.looseObject({ "~orpc": schema.looseObject({ meta: schema.unknown() }) });
 
 /** Who may call a procedure. */
 export const ProcedurePermission = schema.union([
@@ -36,23 +40,39 @@ export const ProcedureAccess = schema.object({
 export type ProcedureAccess = schema.Infer<typeof ProcedureAccess>;
 
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
-export const ProcedureMeta = Object.assign(
-    ProcedureAccess.extend({
-        /** The input fields each release computes from an earlier input's fields. */
-        convert: schema
-            .record(Version, schema.record(schema.string().min(1), Expression.schema))
-            .exactOptional(),
-    }),
-    {
-        /** Read a procedure's declared requirements and conversions. */
-        of(procedure: { readonly "~orpc": { readonly meta: unknown } }): ProcedureMeta {
-            return ProcedureMeta.parse(procedure["~orpc"].meta);
-        },
-    },
-);
+const procedureMeta = ProcedureAccess.extend({
+    /** The package defining the procedure, whose releases its callers speak. */
+    package: Package,
+    /** The input fields each release computes from an earlier input's fields. */
+    convert: schema
+        .record(Version, schema.record(schema.string().min(1), Expression.schema))
+        .exactOptional(),
+});
 
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
-export type ProcedureMeta = schema.Infer<typeof ProcedureMeta>;
+export const ProcedureMeta = Object.assign(procedureMeta, {
+    /** Read a procedure's declared requirements and conversions. */
+    of(procedure: { readonly "~orpc": { readonly meta: unknown } }): ProcedureMeta {
+        return procedureMeta.parse(procedure["~orpc"].meta);
+    },
+
+    /** Read the requirements of the procedure at a path of a router. */
+    at(router: object, path: readonly string[]): ProcedureMeta {
+        // walk the router to the procedure
+        let found: unknown = router;
+        for (const segment of path) {
+            found =
+                typeof found === "object" && found !== null
+                    ? Reflect.get(found, segment)
+                    : undefined;
+        }
+        const procedure = PROCEDURE.parse(found);
+
+        return procedureMeta.parse(procedure["~orpc"].meta);
+    },
+});
+/** A procedure's declared requirements and the conversions of inputs from earlier releases. */
+export type ProcedureMeta = schema.Infer<typeof procedureMeta>;
 
 /** Declare a procedure with its access requirements and the conversions of earlier inputs. */
 export function defineProcedure(

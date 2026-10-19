@@ -1,3 +1,4 @@
+import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -37,7 +38,12 @@ test("capture a handler's unknown failure once where it happens, and never again
 
     // fail a handler
     const procedures = {
-        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        read: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/read" })
             .output(schema.string()),
     };
@@ -52,7 +58,7 @@ test("capture a handler's unknown failure once where it happens, and never again
         health: new Health("read"),
     });
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: async (request) => {

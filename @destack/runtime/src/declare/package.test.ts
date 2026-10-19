@@ -7,13 +7,19 @@ import { Capability } from "../runtime/description.ts";
 
 /** A procedure every object type shares. */
 const push = defineProcedure({
+    package: Package.of(import.meta.destack.package),
     authentication: "identity",
     permission: { principals: [principal.user, principal.machine, principal.installation] },
     audit: false,
 });
 
 /** A procedure of the note type. */
-const create = defineProcedure({ authentication: "public", permission: "anyone", audit: false });
+const create = defineProcedure({
+    package: Package.of(import.meta.destack.package),
+    authentication: "public",
+    permission: "anyone",
+    audit: false,
+});
 
 /** A note type routing its own create beside the shared push. */
 const note: ObjectDeclaration = {

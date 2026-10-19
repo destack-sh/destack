@@ -20,6 +20,7 @@ import {
     type JsonSchema,
 } from "@destack/schema";
 import { Expression } from "@destack/db";
+import type { Package } from "@destack/package";
 import type { PackageHandle } from "../declare/package.ts";
 import { VERSION_HEADER } from "../request/request.ts";
 import { CallError } from "../error/index.ts";
@@ -101,14 +102,19 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             init: (handler) => {
                 handler.clientInterceptors ??= [];
                 handler.clientInterceptors.unshift((call) => {
-                    // refuse unserved releases and convert earlier inputs as JSON
-                    const caller = RequestHandler.#requireRelease(call.context.request, served);
+                    // refuse releases the procedure's package does not serve, and convert earlier inputs as JSON
+                    const meta = RequestHandler.#meta(metas, call.path);
+                    const caller = RequestHandler.#requireRelease(
+                        call.context.request,
+                        meta.package,
+                        served,
+                    );
                     const input = RequestHandler.#convert(
                         call.procedure,
-                        RequestHandler.#meta(metas, call.path),
+                        meta,
                         call.input,
                         caller,
-                        served.version,
+                        meta.package.version,
                     );
 
                     return call.next({ ...call, input });
@@ -131,10 +137,11 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 }),
             async (interception) => {
                 // check access before the handler
-                const { convert: _convert, ...access } = RequestHandler.#meta(
-                    metas,
-                    interception.path,
-                );
+                const {
+                    convert: _convert,
+                    package: _package,
+                    ...access
+                } = RequestHandler.#meta(metas, interception.path);
                 const procedure: ProcedureContext<State> = {
                     access,
                     path: interception.path,
@@ -168,12 +175,13 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         return header === null ? "absent" : Version.safeParse(header).success ? header : "invalid";
     }
 
-    /** Require a request's release to be within the releases the package serves. */
-    static #requireRelease(request: Request, served: PackageHandle): Version {
-        // read the caller's release
+    /** Require a request's release within those of the procedure's package the server serves. */
+    static #requireRelease(request: Request, defining: Package, served: PackageHandle): Version {
+        // read the caller's release, and the oldest one a served package's own procedures take
         const header = request.headers.get(VERSION_HEADER);
         const caller = header === null ? undefined : Version.safeParse(header).data;
-        const { name, version, since } = served;
+        const { name, version } = defining;
+        const since = defining.id === served.id ? served.since : undefined;
 
         // require a release
         if (header === null) {

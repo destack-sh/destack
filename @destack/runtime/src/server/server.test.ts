@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { PackageId } from "@destack/package";
+import { PackageId, Package } from "@destack/package";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Health, health } from "../health/index.ts";
@@ -33,6 +33,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     let requests = 0;
     const procedures = {
         watch: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
@@ -68,7 +69,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     const controller = new AbortController();
     try {
         const client = createClient(
-            { version: fixturePackage.version, router: procedures },
+            { router: procedures },
             {
                 url: "https://test.local",
                 headers: { authorization: "alice" },
@@ -110,6 +111,7 @@ test.for([
         let isRevoked = false;
         const procedures = {
             watch: defineProcedure({
+                package: Package.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -156,7 +158,7 @@ test.for([
         // read every value until the stream ends
         try {
             const client = createClient(
-                { version: fixturePackage.version, router: procedures },
+                { router: procedures },
                 {
                     url: "https://test.local",
                     headers: { authorization: "alice" },
@@ -189,7 +191,12 @@ test("drain complete HTTP response streams before reporting the server stopped",
     const readiness = new Health("reader");
     const procedures = {
         health,
-        read: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        read: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/read" })
             .output(eventIterator(schema.string())),
     };
@@ -272,7 +279,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
 
     // start a stream before shutdown
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -316,7 +323,12 @@ test("drain complete HTTP response streams before reporting the server stopped",
 test("end a stream that follows its context signal once the server drains, stopping within the deadline", async () => {
     // declare a stream that yields until its context signal aborts
     const procedures = {
-        follow: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        follow: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/follow" })
             .output(eventIterator(schema.string())),
     };
@@ -340,7 +352,7 @@ test("end a stream that follows its context signal once the server drains, stopp
 
     // open the stream, then drain the server
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -365,7 +377,12 @@ test("end a request's context signal once its response is answered", async () =>
     // keep the context of a call that answers at once
     let seen: RequestContext | undefined;
     const procedures = {
-        get: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        get: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/answer" })
             .output(schema.string()),
     };
@@ -388,7 +405,7 @@ test("end a request's context signal once its response is answered", async () =>
 
     // call it in process, where the request's own signal never ends
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -406,7 +423,12 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const procedures = {
-        get: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        get: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "GET", path: "/work" })
             .output(schema.string()),
     };
@@ -438,7 +460,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 
     // reject unauthenticated requests
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             fetch: (request) => server.fetch(request),
@@ -455,7 +477,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 
     // accept an authenticated request
     const authorized = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -491,6 +513,7 @@ test("return observed watermarks and require them on the client's later requests
     // observe write watermarks and require read watermarks
     const procedures = {
         write: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
@@ -498,6 +521,7 @@ test("return observed watermarks and require them on the client's later requests
             .route({ method: "POST", path: "/write" })
             .output(schema.object({})),
         read: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
@@ -524,7 +548,7 @@ test("return observed watermarks and require them on the client's later requests
     try {
         const bookmark = new Bookmark();
         const client = createClient(
-            { version: fixturePackage.version, router: procedures },
+            { router: procedures },
             {
                 url: "https://test.local",
                 headers: { authorization: "alice" },
@@ -546,6 +570,7 @@ test("require the watermarks a caller's credential carries beside its bookmark's
     const granted = { scope: "universe", epoch: "epoch-1", sequence: 3 };
     const procedures = {
         read: defineProcedure({
+            package: Package.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user] },
             audit: false,
@@ -575,7 +600,7 @@ test("require the watermarks a caller's credential carries beside its bookmark's
         // read the watermarks a request requires, with and without a bookmark of its own
         const read = (header?: string) =>
             createClient(
-                { version: fixturePackage.version, router: procedures },
+                { router: procedures },
                 {
                     url: "https://test.local",
                     headers: {
@@ -602,6 +627,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
         let running = 0;
         const procedures = {
             follow: defineProcedure({
+                package: Package.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -639,7 +665,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
 
         // abort the call at the moment under test
         const client = createClient(
-            { version: fixturePackage.version, router: procedures },
+            { router: procedures },
             {
                 url: "https://test.local",
                 headers: { authorization: "alice" },
@@ -696,7 +722,12 @@ async function collectGarbage(): Promise<void> {
 test("report a handler's invalid output as an internal failure and a caller's invalid input as its own", async () => {
     // serve a procedure whose handler breaks its output schema
     const routes = {
-        echo: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        echo: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "POST", path: "/echo" })
             .input(schema.object({ text: schema.string().min(3) }))
             .output(schema.object({ text: schema.string().min(3) })),
@@ -712,7 +743,7 @@ test("report a handler's invalid output as an internal failure and a caller's in
         }),
     });
     const client = createClient(
-        { version: fixturePackage.version, router: routes },
+        { router: routes },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -732,7 +763,12 @@ test("report a handler's invalid output as an internal failure and a caller's in
 test("delay a request while starting and answer it once ready, and refuse it with a retry pause past the window", async () => {
     // serve a procedure behind a readiness the test opens
     const routes = {
-        echo: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+        echo: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: false,
+        })
             .route({ method: "POST", path: "/echo" })
             .input(schema.object({ text: schema.string() }))
             .output(schema.object({ text: schema.string() })),
@@ -754,7 +790,7 @@ test("delay a request while starting and answer it once ready, and refuse it wit
         }),
     });
     const client = createClient(
-        { version: fixturePackage.version, router: routes },
+        { router: routes },
         {
             url: "https://test.local",
             headers: { authorization: "alice" },
@@ -783,7 +819,12 @@ test("delay a request while starting and answer it once ready, and refuse it wit
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
     // serve an audited procedure to a caller with a credential for another package
     const procedures = {
-        get: defineProcedure({ authentication: "public", permission: "anyone", audit: "access" })
+        get: defineProcedure({
+            package: Package.of(fixturePackage),
+            authentication: "public",
+            permission: "anyone",
+            audit: "access",
+        })
             .route({ method: "GET", path: "/work" })
             .output(schema.string()),
     };
@@ -811,7 +852,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
 
     // answer unauthorized, recording the failed authentication
     const client = createClient(
-        { version: fixturePackage.version, router: procedures },
+        { router: procedures },
         { url: "https://test.local", fetch: (request) => server.fetch(request) },
     );
     expect(await settle(client.get())).toBe(
