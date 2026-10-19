@@ -7,6 +7,22 @@ export const AuditActionName = schema
     .string()
     .regex(/^[a-z][A-Za-z0-9]*(?:\.[a-z][A-Za-z0-9]*)+$/u);
 
+/** An action as the manifest describes it. */
+export const AuditActionDescription = schema.object({
+    /** The package-local noun.verb action name. */
+    name: AuditActionName,
+    /** The declaring package. */
+    package: Package,
+    /** A short description. */
+    description: schema.string().exactOptional(),
+    /** The JSON Schema of the object each call acts on. */
+    target: schema.json(),
+    /** The JSON Schema of the action details. */
+    details: schema.json(),
+});
+/** An action as the manifest describes it. */
+export type AuditActionDescription = schema.Infer<typeof AuditActionDescription>;
+
 /** A typed action declared by a package. */
 export interface AuditAction<
     Target extends schema.Schema<AuditTarget> = schema.Schema<AuditTarget>,

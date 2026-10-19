@@ -1,22 +1,5 @@
-import { schema, toJsonSchema, type JsonValue } from "@destack/schema";
-import { AuditActionName, type AuditAction } from "../audit/action.ts";
-import { Package } from "@destack/package";
-
-/** A serializable action declaration. */
-export const AuditActionDescription = schema.object({
-    /** The package-local noun.verb action name. */
-    name: AuditActionName,
-    /** The declaring package. */
-    package: Package,
-    /** A short description. */
-    description: schema.string().exactOptional(),
-    /** The JSON Schema of the object each call acts on. */
-    target: schema.json(),
-    /** The JSON Schema of the action details. */
-    details: schema.json(),
-});
-/** A serializable action declaration. */
-export type AuditActionDescription = schema.Infer<typeof AuditActionDescription>;
+import { toJsonSchema, type JsonValue } from "@destack/schema";
+import { type AuditAction, AuditActionDescription } from "../audit/action.ts";
 
 /** Describe an action. */
 export function describeAuditAction(action: AuditAction): AuditActionDescription {

@@ -8,7 +8,7 @@
             "runtimes": ["browser"]
         },
         "./inspect": {
-            "runtimes": ["browser", "bun"]
+            "runtimes": ["bun"]
         },
         "./server": {
             "runtimes": ["bun", "workerd"]
