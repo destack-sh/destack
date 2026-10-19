@@ -72,8 +72,8 @@ export type RelayImplementation = PackageImplementation & {
 export function implementRelay(options: RelayPackageOptions): RelayImplementation {
     // route names at the root, and run a machine's tunnel in its partition
     const { server } = options;
-    const below = server.space;
-    const isRoot = server.partition === undefined || server.partition === below;
+    const space = server.space;
+    const isRoot = server.partition === undefined || server.partition === space;
 
     return isRoot
         ? implementRoot(options)
@@ -84,7 +84,7 @@ export function implementRelay(options: RelayPackageOptions): RelayImplementatio
 function implementRoot(options: RelayPackageOptions): RelayImplementation {
     // implement the tunnel rows, whose renames and closes reach the machine's partition
     const { server } = options;
-    const below = server.space;
+    const space = server.space;
     const tunnels = tunnel.implement({
         methods: {
             rename: async (call, next) => {
@@ -135,11 +135,11 @@ function implementRoot(options: RelayPackageOptions): RelayImplementation {
         ],
         // root the chain above the home space where its row lives
         chain: async (view) => {
-            const [row] = await Scope.read(view, [below]);
+            const [row] = await Scope.read(view, [space]);
 
             return row === undefined ? undefined : { kind: "home", parent: row.parent };
         },
-        principal: principal.installation.reference(below, server.installation),
+        principal: principal.installation.reference(space, server.installation),
         policies: [account],
         database: options.database,
         callKey: options.callKey,
@@ -153,7 +153,7 @@ function implementRoot(options: RelayPackageOptions): RelayImplementation {
     const relay = new Relay({
         ...options,
         store: objects,
-        itself: server.at(Egress.address(server.name, below)),
+        itself: server.at(Egress.address(server.name, space)),
     });
 
     // serve the package, handing a route's requests to the router, running the names' controller
@@ -176,8 +176,8 @@ function implementRoot(options: RelayPackageOptions): RelayImplementation {
 function implementPartition(options: RelayPackageOptions, partition: string): RelayImplementation {
     // serve the tunnel's connection rows in its partition, answering the root's calls alone
     const { server } = options;
-    const below = server.space;
-    const self = principal.installation.reference(below, server.installation);
+    const space = server.space;
+    const self = principal.installation.reference(space, server.installation);
     const universe = Uplink.of(() => options.accounts.store);
     const objects: ObjectStore = new ObjectStore({
         servers: [
@@ -207,7 +207,7 @@ function implementPartition(options: RelayPackageOptions, partition: string): Re
         publisher: (home) =>
             home === Scope.universe.id
                 ? universe
-                : server.publisherAt(Egress.address(server.name, below), relayPackage.id),
+                : server.publisherAt(Egress.address(server.name, space), relayPackage.id),
     });
 
     // run the machine's tunnel over the partition's sockets
