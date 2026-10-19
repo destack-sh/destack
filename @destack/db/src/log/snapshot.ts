@@ -220,24 +220,26 @@ export class Snapshot {
             ),
             "image",
         );
-        const read = await tupleRead(table, columns, this.database.dialect).values(this.database, {
+        const isPositioned = this.position !== undefined;
+        const dialect = this.database.dialect;
+        const read = await tupleRead(table, columns, dialect, isPositioned).values(this.database, {
             tuples: JSON.stringify(tuples),
         });
+        const offset = isPositioned ? HEAD_COLUMNS.length : 0;
         const [epoch, latest, horizon] = read[0] ?? [];
-        const sequence = this.#require(
-            LogColumn.text(epoch),
-            latestOf(LogColumn.nullableInteger(latest), LogColumn.integer(horizon)),
-        );
+        const sequence = isPositioned
+            ? this.#require(
+                  LogColumn.text(epoch),
+                  latestOf(LogColumn.nullableInteger(latest), LogColumn.integer(horizon)),
+              )
+            : undefined;
 
         // decode the rows
-        const dialect = this.database.dialect;
         const selected = Object.entries(table[TABLE].logged);
-        const key =
-            HEAD_COLUMNS.length +
-            selected.findIndex(([property]) => property === table[TABLE].key[0]);
+        const key = offset + selected.findIndex(([property]) => property === table[TABLE].key[0]);
         const rows = read
             .filter((values) => values[key] !== null)
-            .map((values) => decodeValues(selected, values.slice(HEAD_COLUMNS.length), dialect));
+            .map((values) => decodeValues(selected, values.slice(offset), dialect));
         const images = await this.#since(table, sequence);
 
         // keep unchanged rows and matching images
@@ -548,22 +550,26 @@ export class Snapshot {
             ]),
         );
 
-        return {
-            head: headFields(this.database.dialect),
-            row: { ...table[TABLE].logged, ...extras },
-        };
+        // select the log's head beside the rows only at a position, which a live read never checks
+        const row = { ...table[TABLE].logged, ...extras };
+
+        return this.position === undefined
+            ? { row }
+            : { head: headFields(this.database.dialect), row };
     }
 
     /** Take the rows of a read and its head's sequence, absent when live or without rows. */
-    #take(read: readonly { readonly head: Head; readonly row: Row }[]): {
+    #take(read: readonly { readonly head?: Head; readonly row: Row }[]): {
         readonly rows: Row[];
         readonly sequence: number | undefined;
     } {
+        // take the sequence of the first row's head, which only a positioned read selects
         const [first] = read;
+        const head = first?.head;
         const sequence =
-            this.position === undefined || first === undefined
+            head === undefined
                 ? undefined
-                : this.#require(first.head.epoch, latestOf(first.head.logged, first.head.horizon));
+                : this.#require(head.epoch, latestOf(head.logged, head.horizon));
 
         return { rows: read.map((entry) => entry.row), sequence };
     }
@@ -685,28 +691,43 @@ async function decides(
     );
 }
 
-/** Build the statement reading the head and the rows with listed tuples. */
-function tupleRead(table: Table, columns: readonly string[], dialect: Dialect): Statement {
-    return table[TABLE].statement(`tuple:${dialect}:${columns.join(",")}`, () => {
-        // join each tuple to its rows and keep a head row for an empty tuple
+/** Build the statement reading the rows with listed tuples, beside the log's head at a position. */
+function tupleRead(
+    table: Table,
+    columns: readonly string[],
+    dialect: Dialect,
+    isPositioned: boolean,
+): Statement {
+    const name = `tuple:${dialect}:${isPositioned ? "head" : "live"}:${columns.join(",")}`;
+
+    return table[TABLE].statement(name, () => {
+        // join each tuple to its rows, keeping a head row for an empty tuple at a position
         const loggedColumns = Object.values(table[TABLE].logged);
         const head = sql.join(
-            HEAD_COLUMNS.map((name) => sql`head.${sql.identifier(name)}`),
+            HEAD_COLUMNS.map((column) => sql`head.${sql.identifier(column)}`),
             sql`, `,
         );
+        const selected = isPositioned
+            ? sql`${head}, ${sql.join(loggedColumns, sql`, `)}`
+            : sql.join(loggedColumns, sql`, `);
 
-        return new Statement(
-            (value) => sql`SELECT ${head}, ${sql.join(loggedColumns, sql`, `)}
-                FROM (${selectHead(dialect)}) AS head
-                CROSS JOIN ${jsonElements(value("tuples"), "wanted")}
+        return new Statement((value) => {
+            // read the tuples beside the head at a position
+            const wanted = jsonElements(value("tuples"), "wanted");
+            const source = isPositioned
+                ? sql`(${selectHead(dialect)}) AS head CROSS JOIN ${wanted}`
+                : wanted;
+
+            return sql`SELECT ${selected}
+                FROM ${source}
                 LEFT JOIN ${table} ON ${sql.join(
                     columns.map(
                         (column, index) =>
                             sql`${table[TABLE].column(column)} = ${elementValue(table[TABLE].column(column), index, dialect)}`,
                     ),
                     sql` AND `,
-                )}`,
-        );
+                )}`;
+        });
     });
 }
 

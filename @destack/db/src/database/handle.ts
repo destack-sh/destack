@@ -85,13 +85,18 @@ export const DatabaseHandle = {
         await database.apply(plan);
     },
 
+    /** Describe the tables some desired states declare together. */
+    tables(desired: readonly (readonly TableState[])[]): Table[] {
+        return mergeStates(desired).declared.map((state) => Table.describe(state));
+    },
+
     /** Open the tables of the desired states, reopening them with tables beside once migrated. */
     async open(
         connect: Connect,
         desired: readonly (readonly TableState[])[],
     ): Promise<DatabaseHandle> {
         // open the desired tables and reopen them with the tables beside once migrated
-        const described = mergeStates(desired).declared.map((state) => Table.describe(state));
+        const described = DatabaseHandle.tables(desired);
         let database = await connect(described);
         const handle: DatabaseHandle = {
             get database() {
