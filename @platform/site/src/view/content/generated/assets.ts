@@ -6,12 +6,12 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../../../public/_content/docs/setup/index.json?raw").then(
             (module) => module.default,
         ),
-    "/_content/tree/26997ae9f9c39725a00acc61b52e397eaa575b18c208d2b1149eebce75323ffe.json": () =>
-        import("../../../../public/_content/tree/26997ae9f9c39725a00acc61b52e397eaa575b18c208d2b1149eebce75323ffe.json?raw").then(
+    "/_content/tree/9bbcb3be4bf31fcf22bcacc3dedd279e5dd88b5365729fbe7f005c52d407d4c7.json": () =>
+        import("../../../../public/_content/tree/9bbcb3be4bf31fcf22bcacc3dedd279e5dd88b5365729fbe7f005c52d407d4c7.json?raw").then(
             (module) => module.default,
         ),
-    "/_content/tree/66fff74db5de4760838bab6f7b14ee012851722408049856c2e2ddd7fb4ebd57.json": () =>
-        import("../../../../public/_content/tree/66fff74db5de4760838bab6f7b14ee012851722408049856c2e2ddd7fb4ebd57.json?raw").then(
+    "/_content/tree/b5b4fd432664dd7e1f3001fe3c04d27b609fcae9c61deebcc7e2ac64dd2c1748.json": () =>
+        import("../../../../public/_content/tree/b5b4fd432664dd7e1f3001fe3c04d27b609fcae9c61deebcc7e2ac64dd2c1748.json?raw").then(
             (module) => module.default,
         ),
     "/_content/tree/c0f66583508180752f49d9a538c84c5bab263b9e17e567f30fbc12aa4c495d4d.json": () =>

@@ -410,6 +410,7 @@ const styles = style.create({
         fontSize: { default: "1.25rem", [media.maxSm]: "1.125rem" },
         justifySelf: "stretch",
         lineHeight: 1.55,
+        rowGap: space[4],
     },
     skip: {
         alignItems: "center",
