@@ -8,7 +8,7 @@ import { readExpectations, applyExpectations } from "./expectation.ts";
 import { checkConfiguration, lintConfiguration, settingsRoot } from "./configuration.ts";
 import { runTool } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
-import { CheckResult, type Diagnostic } from "../inspect/diagnostic.ts";
+import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";

@@ -1,4 +1,4 @@
-import type { Diagnostic } from "../inspect/diagnostic.ts";
+import type { Diagnostic } from "../diagnostic/diagnostic.ts";
 
 /** Words whose trailing period does not end a sentence. */
 const ABBREVIATIONS = /(?:^|[\s(])(?:e\.g|i\.e|etc|vs|cf|approx|incl|Mr|Ms|Dr|St|No)\.$/u;

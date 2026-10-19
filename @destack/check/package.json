@@ -11,7 +11,7 @@
         "./command": "./src/main.ts",
         ".": "./src/index.ts",
         "./lint": "./src/lint/index.ts",
-        "./inspect": "./src/inspect/index.ts",
+        "./diagnostic": "./src/diagnostic/index.ts",
         "./error": "./src/error/index.ts",
         "./toolchain": "./src/toolchain/index.ts",
         "./workspace": "./src/workspace/index.ts",

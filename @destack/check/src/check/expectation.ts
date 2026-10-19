@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { Definition, type Expectation } from "@destack/package";
-import type { Diagnostic } from "../inspect/index.ts";
+import type { Diagnostic } from "../diagnostic/index.ts";
 import { readManifest } from "./manifest.ts";
 
 /** An expectation and the directory of the destack.json that declares it. */
