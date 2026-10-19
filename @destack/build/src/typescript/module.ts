@@ -27,8 +27,8 @@ import {
 } from "@destack/package/code";
 import { declaredName, SymbolInspector } from "./symbol.ts";
 import { PackageFile } from "@destack/package/file";
-import type { TestDeclaration } from "@destack/test/inspect";
-import { inspectErrors } from "@destack/check/inspect";
+import type { TestDeclaration } from "./test.ts";
+import { inspectErrors } from "@destack/check/diagnostic";
 import { collectTests } from "./test.ts";
 import { collectDeclarations, ConstructorCatalog } from "./declaration.ts";
 import type { PackageSource } from "../source/index.ts";

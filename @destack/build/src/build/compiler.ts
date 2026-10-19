@@ -25,7 +25,7 @@ import {
     type RequestedBuild,
     writeMessage,
 } from "./message.ts";
-import type { InspectOptions } from "../inspect/inspection.ts";
+import type { InspectOptions } from "../inspection/inspection.ts";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";

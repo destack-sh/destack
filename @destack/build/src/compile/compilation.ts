@@ -125,7 +125,7 @@ export class OutputCompilation implements Compilation {
 
     /** The package the build compiles. */
     get package(): Package {
-        return this.project.declaration.package;
+        return this.project.packageJson.package;
     }
 
     /** The package's source directory. */
@@ -145,7 +145,7 @@ export class OutputCompilation implements Compilation {
 
     /** What the package's workloads and views always use beyond the bare sandbox. */
     get sandbox(): Sandbox {
-        return this.project.declaration.definition.sandbox ?? {};
+        return this.project.packageJson.definition.sandbox ?? {};
     }
 
     /** Locate the module and export of one of the package's declarations. */
@@ -545,7 +545,7 @@ export class OutputCompilation implements Compilation {
             specifier.startsWith("/") ||
             specifier.startsWith("\0") ||
             specifier.startsWith("#") ||
-            DependencyName.of(specifier) === project.declaration.package.name
+            DependencyName.of(specifier) === project.packageJson.package.name
         ) {
             return true;
         }
@@ -572,11 +572,11 @@ export class OutputCompilation implements Compilation {
         output: PackageOutput,
     ): boolean {
         // require a declared dependency
-        const { declaration } = this.project;
+        const { packageJson } = this.project;
         const groups = [
-            declaration.dependencies,
-            declaration.peerDependencies,
-            declaration.optionalDependencies,
+            packageJson.dependencies,
+            packageJson.peerDependencies,
+            packageJson.optionalDependencies,
         ];
         if (!groups.some((requirements) => Object.hasOwn(requirements, dependency))) {
             const by = importer === undefined ? "" : `, imported by ${importer}`;

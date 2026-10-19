@@ -2,7 +2,7 @@ import { BuildError } from "../error/index.ts";
 import { type DependencyResolution, PackageDefinition, TEST_EXPORT } from "@destack/package";
 import type { History } from "@destack/resource";
 import type { PackageStore } from "../store/index.ts";
-import { mapExports, readPackageDescription } from "../source/source.ts";
+import { mapExports, readPackageJson } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, schema, type Version } from "@destack/schema";
@@ -275,11 +275,11 @@ export async function readOutputs(
     names?: readonly string[],
 ): Promise<Readonly<Record<string, ModuleOptions>>> {
     // read the runtimes every export but the test layer compiles for
-    const declaration = await readPackageDescription(directory);
+    const packageJson = await readPackageJson(directory);
     const runtimes = new Set(
-        Object.keys(mapExports(declaration))
+        Object.keys(mapExports(packageJson))
             .filter((name) => name !== TEST_EXPORT)
-            .flatMap((name) => PackageDefinition.runtimes(declaration.definition, name)),
+            .flatMap((name) => PackageDefinition.runtimes(packageJson.definition, name)),
     );
 
     // compile each as one bundled module named after it, in the runtimes' declared order

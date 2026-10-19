@@ -163,7 +163,7 @@ class DependencyRecorder {
 
         // record project sources with their runtimes and unresolved imports
         if (isProject) {
-            const declared = this.project.declaration.definition.runtimes;
+            const declared = this.project.packageJson.definition.runtimes;
             this.locations.set(id, {
                 kind: "source",
                 path: `${local}${query}`,
@@ -319,7 +319,7 @@ class DependencyRecorder {
 
     /** Keep an unpublished dependency's catalogs in its snapshot and in the build. */
     async #keepCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
-        const owner = this.project.declaration.package.id;
+        const owner = this.project.packageJson.package.id;
         for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
             // describe the catalog in the snapshot, and write it where views of the build read it
             addFile(snapshot, await PackageFile.describe(path, "application/json", bytes));
@@ -516,16 +516,16 @@ function requireDeclared(source: PackageSource, importer: string, name: string):
         !local.startsWith("../") &&
         !isAbsolute(local) &&
         !local.split("/").includes("node_modules");
-    const declaration = source.declaration;
-    if (!isAuthored || name === declaration.package.name) {
+    const packageJson = source.packageJson;
+    if (!isAuthored || name === packageJson.package.name) {
         return;
     }
 
     // refuse a dependency no requirement group names
     const groups = [
-        declaration.dependencies,
-        declaration.peerDependencies,
-        declaration.optionalDependencies,
+        packageJson.dependencies,
+        packageJson.peerDependencies,
+        packageJson.optionalDependencies,
     ];
     if (!groups.some((requirements) => Object.hasOwn(requirements, name))) {
         throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${name}`);

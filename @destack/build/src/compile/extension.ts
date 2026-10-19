@@ -7,11 +7,11 @@ import {
     runtimeConditions,
     type TransformContext,
 } from "@destack/package/build";
-import { PackageDefinition, type PackageDescription, PackageExport } from "@destack/package";
+import { PackageDefinition, type PackageJson, PackageExport } from "@destack/package";
 import { registerModulePlugin } from "@destack/package/bun";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildError } from "../error/index.ts";
-import { readPackageDescription, selectExport } from "../source/index.ts";
+import { readPackageJson, selectExport } from "../source/index.ts";
 import { present, schema } from "@destack/schema";
 
 /** The exports and requirements of a package.json. */
@@ -54,17 +54,17 @@ export interface LoadedExtension {
 /** Load each extension of the runtime dependency closure once in alphabetical order. */
 export async function loadExtensions(
     directory: string,
-    declaration: PackageDescription,
+    packageJson: PackageJson,
     options: { readonly development?: boolean } = {},
 ): Promise<LoadedExtension[]> {
     // walk the Destack packages the package requires at runtime, directly or through each other
-    const own = declaration.package.name;
+    const own = packageJson.package.name;
     const locator = new PackageLocator();
     const packages = new Map<string, { directory: string; definition: PackageDefinition }>();
     const pending: { name: string; directory: string; requirements: Requirements }[] = [
-        { name: own, directory, requirements: declaration },
+        { name: own, directory, requirements: packageJson },
     ];
-    packages.set(own, { directory, definition: declaration.definition });
+    packages.set(own, { directory, definition: packageJson.definition });
     for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
         for (const name of requiredNames(entry.requirements)) {
             // visit each package once
@@ -98,7 +98,7 @@ export async function loadExtensions(
 
     // add the package's own development dependencies in development, without walking through them
     if (options.development === true) {
-        for (const name of Object.keys(declaration.devDependencies)) {
+        for (const name of Object.keys(packageJson.devDependencies)) {
             const installed = packages.has(name) ? undefined : locator.directory(name, directory);
             const path = installed === undefined ? undefined : join(installed, "destack.json");
             if (installed !== undefined && path !== undefined && existsSync(path)) {
@@ -124,8 +124,8 @@ export async function loadExtensions(
 
 /** Load the dependency closure extensions' module transforms for development. */
 export async function loadTransforms(context: TransformContext): Promise<PluginOption[]> {
-    const declaration = await readPackageDescription(context.directory);
-    const loaded = await loadExtensions(context.directory, declaration, { development: true });
+    const packageJson = await readPackageJson(context.directory);
+    const loaded = await loadExtensions(context.directory, packageJson, { development: true });
 
     return transformPlugins(
         loaded.map((entry) => entry.extension),

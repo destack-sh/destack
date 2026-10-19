@@ -5,7 +5,7 @@ import { present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { buildPackage, type PackageBuild } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
-import { readPackageDescription } from "../src/source/index.ts";
+import { readPackageJson } from "../src/source/index.ts";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -136,7 +136,7 @@ test("apply the extension of a transitive dependency once in a build of a packag
     const root = await writeApplication();
     const directory = join(root, "application");
     try {
-        const loaded = await loadExtensions(directory, await readPackageDescription(directory));
+        const loaded = await loadExtensions(directory, await readPackageJson(directory));
         await using build = await buildPackage({
             directory,
             dependencies: {},
@@ -185,9 +185,9 @@ test("load a development dependency's own extension in development without walki
     const directory = join(root, "site");
     try {
         // load the site's extensions in development and in a release build
-        const declaration = await readPackageDescription(directory);
-        const development = await loadExtensions(directory, declaration, { development: true });
-        const release = await loadExtensions(directory, declaration);
+        const packageJson = await readPackageJson(directory);
+        const development = await loadExtensions(directory, packageJson, { development: true });
+        const release = await loadExtensions(directory, packageJson);
         expect([
             development.map((entry) => entry.directory),
             release.map((entry) => entry.directory),

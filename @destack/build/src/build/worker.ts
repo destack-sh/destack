@@ -1,5 +1,5 @@
 import { readFile, realpath } from "node:fs/promises";
-import type { TestDeclaration } from "@destack/test/inspect";
+import type { TestDeclaration } from "../typescript/test.ts";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -28,10 +28,10 @@ import {
     type TypeScriptInspection,
     TypeScriptCompiler,
 } from "../typescript/index.ts";
-import { inspectModules, type InspectOptions } from "../inspect/inspection.ts";
+import { inspectModules, type InspectOptions } from "../inspection/inspection.ts";
 import { Upgrade, type History } from "@destack/resource";
 import { Evaluation, kindKey, selectDeclarations } from "../declaration/index.ts";
-import { PackageSource, readPackageDescription } from "../source/index.ts";
+import { PackageSource, readPackageJson } from "../source/index.ts";
 import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
 import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
@@ -174,7 +174,7 @@ export class CompilerWorker implements AsyncDisposable {
         // evaluate the collected domain declarations
         const evaluation = await Evaluation.evaluate(declarations, project);
 
-        return inspectModules(project.declaration.package, modules, tests, evaluation.declarations);
+        return inspectModules(project.packageJson.package, modules, tests, evaluation.declarations);
     }
 
     /** Identify a build's non-module inputs: toolchain, extensions, manifests and catalogs. */
@@ -199,8 +199,8 @@ export class CompilerWorker implements AsyncDisposable {
     /** Derive the cache keys of a build without checking, evaluating or compiling it. */
     async plan(options: BuildOptions): Promise<BuildKeys> {
         // plan the outputs with the extensions of the package's dependency closure
-        const declaration = await readPackageDescription(options.directory);
-        const loaded = await loadExtensions(options.directory, declaration);
+        const packageJson = await readPackageJson(options.directory);
+        const loaded = await loadExtensions(options.directory, packageJson);
         const planned = expand(
             options.outputs,
             loaded.map((entry) => entry.extension),
@@ -210,7 +210,7 @@ export class CompilerWorker implements AsyncDisposable {
         const identities = new Identities();
         const { toolchain, extensions, manifests, catalogs } = await this.#identifyInputs(
             options.directory,
-            declaration.package.id,
+            packageJson.package.id,
             loaded,
             identities,
         );
@@ -236,7 +236,7 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // digest the template a template package publishes
-        const template = declaration.definition.template
+        const template = packageJson.definition.template
             ? await digestTemplate(options.directory)
             : null;
 
@@ -266,8 +266,8 @@ export class CompilerWorker implements AsyncDisposable {
         cache: TransformCache | undefined,
     ): Promise<{ build: PackageBuild; outputs: Record<string, CachedOutput> }> {
         // plan the outputs with the extensions of the package's dependency closure
-        const declaration = await readPackageDescription(options.directory);
-        const extensions = (await loadExtensions(options.directory, declaration)).map(
+        const packageJson = await readPackageJson(options.directory);
+        const extensions = (await loadExtensions(options.directory, packageJson)).map(
             (entry) => entry.extension,
         );
         const planned = expand(options.outputs, extensions);
@@ -455,7 +455,7 @@ export class CompilerWorker implements AsyncDisposable {
             const project = await this.#project(options, output);
 
             // refuse a package that changes identity while the build runs
-            const identity = project.declaration.package;
+            const identity = project.packageJson.package;
             if (source !== undefined && !isSamePackage(source, identity)) {
                 throw new BuildError("BUILD_FAILED", "package changed during build");
             }
@@ -715,7 +715,7 @@ export class CompilerWorker implements AsyncDisposable {
     ): Promise<void> {
         // require every dependency declaration at its exact resolved version
         const { project, inspection, evaluation } = inspected;
-        const source = project.declaration.package;
+        const source = project.packageJson.package;
         for (const declaration of selectDeclarations(
             evaluation.declarations,
             source,
@@ -788,7 +788,7 @@ function retainGraphInputs(
 
 /** Read the package every inspected output opens. */
 function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package {
-    return present(inspected.values().next().value, "an inspected output").project.declaration
+    return present(inspected.values().next().value, "an inspected output").project.packageJson
         .package;
 }
 
@@ -797,7 +797,7 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
     // keep the authored bytes of the version they name
     const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
     const manifest = schema.jsonObject().parse(JSON.parse(authored));
-    const { version } = project.declaration.package;
+    const { version } = project.packageJson.package;
     if (manifest["version"] === version) {
         return new TextEncoder().encode(authored);
     }
@@ -966,7 +966,7 @@ async function retain(
         }
 
         // retain template assets, leaving package.json to its release's copy below
-        if (project.declaration.definition.template) {
+        if (project.packageJson.definition.template) {
             const template = await Template.read(project.directory);
             for (const [path, bytes] of template.files) {
                 if (path !== "package.json") {
@@ -983,7 +983,7 @@ async function retain(
         );
 
         // retain the package's catalogs
-        const owner = project.declaration.package.id;
+        const owner = project.packageJson.package.id;
         for (const [path, bytes] of await readCatalogs(project.directory, owner)) {
             files.retain(path, bytes);
         }

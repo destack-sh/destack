@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schema } from "@destack/schema";
-import { TestDeclaration } from "@destack/test/inspect";
+import { TestDeclaration } from "../src/typescript/test.ts";
 import { Compiler } from "../src/build/compiler.ts";
 import { Fixture } from "./fixture.ts";
 

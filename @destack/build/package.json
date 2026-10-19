@@ -13,7 +13,6 @@
         "./local": "./src/local/index.ts",
         "./template": "./src/template/index.ts",
         ".": "./src/index.ts",
-        "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts",
         "./store": "./src/store/index.ts"
     },

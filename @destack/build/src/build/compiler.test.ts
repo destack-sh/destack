@@ -19,7 +19,7 @@ import * as workload from "../../tests/fixture/workload/request.ts";
 import { formatSource } from "@destack/check";
 import { Vocabulary } from "@destack/resource";
 import { Commit, present } from "@destack/schema";
-import { DatabaseDeclaration } from "@destack/db/inspect";
+import { DatabaseDescription } from "@destack/db";
 import { LocalBucket } from "@destack/bucket/bun";
 import { PackageStore } from "../store/index.ts";
 
@@ -148,7 +148,7 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
             "the edited build's resource",
         );
         const { description: before, ...expected } = baseline;
-        const renamed = DatabaseDeclaration.parse(before);
+        const renamed = DatabaseDescription.parse(before);
         for (const dialect of ["sqlite", "postgresql"] as const) {
             // rename the column in the table
             const [state] = present(renamed.tables[dialect], `the ${dialect} tables`);
@@ -156,7 +156,7 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
             present(columns[1], "the title column").name = "heading";
         }
         const { description: after, ...rebuilt } = actual;
-        expect({ ...rebuilt, description: DatabaseDeclaration.parse(after) }).toEqual({
+        expect({ ...rebuilt, description: DatabaseDescription.parse(after) }).toEqual({
             ...expected,
             description: renamed,
         });
@@ -453,7 +453,7 @@ async function read(path: string): Promise<string> {
             ),
             "the resource",
         );
-        const { tables } = DatabaseDeclaration.parse(declared.description);
+        const { tables } = DatabaseDescription.parse(declared.description);
         const [state] = present(tables.sqlite, "the sqlite tables");
         const columns = present(state, "the note table").table.columns;
         expect(columns.map((column) => column.name)).toEqual([

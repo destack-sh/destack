@@ -16,7 +16,7 @@ import {
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
-import type { TestDeclaration } from "@destack/test/inspect";
+import { schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 
 /** The statements and expressions that register tests only on some executions. */
@@ -34,6 +34,26 @@ const CONDITIONAL_KINDS = new Set([
 
 /** The test function members that return or reconfigure a test function instead of registering. */
 const FIXTURE_MODIFIERS = new Set(["extend", "override", "scoped"]);
+
+/** A statically identified test or suite declaration. */
+export const TestDeclaration = schema.object({
+    /** Whether the call declares a case or a suite. */
+    kind: schema.enum(["test", "suite"]),
+    /** The literal title or parameterized title pattern. */
+    name: schema.string(),
+    /** The titles of the enclosing suites, outermost first. */
+    suites: schema.array(schema.string()),
+    /** The source file relative to the package root. */
+    file: schema.string(),
+    /** The inclusive UTF-16 source offset. */
+    start: schema.number().int().min(0),
+    /** The exclusive UTF-16 source offset. */
+    end: schema.number().int().min(0),
+    /** Chained options such as skip, only, concurrent, or each. */
+    modifiers: schema.array(schema.string()),
+});
+/** A statically identified test or suite declaration. */
+export type TestDeclaration = schema.Infer<typeof TestDeclaration>;
 
 /** A call registering a test or suite, with the modifiers between it and the called name. */
 interface TestCall {

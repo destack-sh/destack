@@ -1,6 +1,6 @@
 import { graph, type Package } from "@destack/package";
 import type { SourceRange } from "@destack/package/source";
-import type { TestDeclaration } from "@destack/test/inspect";
+import type { TestDeclaration } from "../typescript/test.ts";
 
 /** The tests a build declares with the package defining their kinds. */
 export interface TestSource {

@@ -1,16 +1,11 @@
 import { mkdtemp, realpath, rm, stat, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, isAbsolute } from "node:path";
-import { type InspectOptions } from "../inspect/inspection.ts";
+import { type InspectOptions } from "../inspection/inspection.ts";
 import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import { linkDependencies, ReleasedPackage } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
-import {
-    PackageDefinition,
-    PackageDescription,
-    type PackageExport,
-    TEST_EXPORT,
-} from "@destack/package";
+import { PackageDefinition, PackageJson, type PackageExport, TEST_EXPORT } from "@destack/package";
 import { type JsonObject, type JsonValue, schema, type Version } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
@@ -23,8 +18,8 @@ export interface PackageSource extends AsyncDisposable {
     configuration: string;
     /** The absolute package directory. */
     directory: string;
-    /** Combined authored package declarations, at the versions the build releases. */
-    declaration: PackageDescription;
+    /** The package.json and destack.json, at the versions the build releases. */
+    packageJson: PackageJson;
     /** The versions the build releases its source packages at, by package name. */
     versions: Readonly<Record<string, Version>>;
     /** Source files keyed by public export name. */
@@ -50,8 +45,8 @@ export const PackageSource = {
             versions?: Readonly<Record<string, Version>>;
         },
     ): Promise<PackageSource> {
-        // read the package declaration
-        const definition = await readPackageDeclaration(
+        // read the package.json and destack.json and select the runtime's exports
+        const definition = await readPackageSource(
             options.directory,
             options.runtime,
             options.entries,
@@ -140,17 +135,17 @@ function compilerSettings(
     }
 }
 
-/** Read package manifests at the versions a build releases, and select exports for one runtime. */
-async function readPackageDeclaration(
+/** Read a package at the versions a build releases, selecting its exports for one runtime. */
+async function readPackageSource(
     directory: string,
     runtime: Runtime,
     entries: Readonly<Record<string, string>> | undefined,
     versions: Readonly<Record<string, Version>>,
 ): Promise<Omit<PackageSource, "configuration" | "entries" | typeof Symbol.asyncDispose>> {
-    // read the package's manifests
+    // read the package.json and destack.json
     directory = await realpath(directory);
-    const declaration = await readPackageDescription(directory, versions);
-    const definition = declaration.definition;
+    const packageJson = await readPackageJson(directory, versions);
+    const definition = packageJson.definition;
 
     // select package exports using the runtime's standard conditions
     const conditions = new Set(["import", "default", ...runtimeConditions(runtime)]);
@@ -159,7 +154,7 @@ async function readPackageDeclaration(
         ? Object.fromEntries(
               Object.entries(entries).map(([name, path]) => [name, `./${PackagePath.parse(path)}`]),
           )
-        : mapExports(declaration);
+        : mapExports(packageJson);
     const exports: Record<string, string> = {};
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
@@ -168,7 +163,7 @@ async function readPackageDeclaration(
             continue;
         }
 
-        // select the export's type declaration and runtime module
+        // select the export's type packageJson and runtime module
         const type = selectType(entry, typeConditions);
         if (type !== undefined) {
             types[name] = resolve(directory, type);
@@ -186,7 +181,7 @@ async function readPackageDeclaration(
 
     return {
         directory,
-        declaration,
+        packageJson,
         versions,
         exports,
         types,
@@ -257,11 +252,11 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
 }
 
-/** Read a package's manifests into its description, at the version a build releases it at. */
-export async function readPackageDescription(
+/** Read a package's package.json and destack.json, at the version a build releases it at. */
+export async function readPackageJson(
     directory: string,
     versions: Readonly<Record<string, Version>> = {},
-): Promise<PackageDescription> {
+): Promise<PackageJson> {
     // read package.json and destack.json
     const metadata = schema
         .jsonObject()
@@ -269,7 +264,7 @@ export async function readPackageDescription(
     const configuration = PackageDefinition.read(
         await readFile(resolve(directory, "destack.json"), "utf8"),
     );
-    const declaration = PackageDescription.parse({
+    const packageJson = PackageJson.parse({
         package: {
             id: configuration.id,
             name: metadata["name"],
@@ -283,11 +278,11 @@ export async function readPackageDescription(
         optionalDependencies: field(metadata, "optionalDependencies"),
         devDependencies: field(metadata, "devDependencies"),
     });
-    const definition = declaration.definition;
+    const definition = packageJson.definition;
 
     // require each runtime override to name an export of package.json
     const overridden = Object.keys(definition.exports ?? {});
-    const exported = overridden.length === 0 ? {} : mapExports(declaration);
+    const exported = overridden.length === 0 ? {} : mapExports(packageJson);
     const stale = overridden.find((name) => !Object.hasOwn(exported, name));
     if (stale !== undefined) {
         throw new PackageError(
@@ -305,13 +300,13 @@ export async function readPackageDescription(
     }
 
     // associate peer metadata with authored dependency requirements
-    for (const name of Object.keys(declaration.peerDependenciesMeta)) {
-        if (!Object.hasOwn(declaration.peerDependencies, name)) {
+    for (const name of Object.keys(packageJson.peerDependenciesMeta)) {
+        if (!Object.hasOwn(packageJson.peerDependencies, name)) {
             throw new PackageError("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
         }
     }
 
-    return declaration;
+    return packageJson;
 }
 
 /** Read a package.json field, an empty object when absent. */
@@ -320,11 +315,9 @@ function field(metadata: JsonObject, name: string): JsonValue {
 }
 
 /** Key a package's exports by export name, such as `.` and `./server`. */
-export function mapExports(
-    declaration: PackageDescription,
-): Readonly<Record<string, PackageExport>> {
+export function mapExports(packageJson: PackageJson): Readonly<Record<string, PackageExport>> {
     // require exports
-    const authored = declaration.exports;
+    const authored = packageJson.exports;
     if (authored === undefined) {
         throw new PackageError(
             "INVALID_DEFINITION",

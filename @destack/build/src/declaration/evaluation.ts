@@ -200,7 +200,7 @@ async function evaluateEntry(
                 entryPlugin(source),
                 modulePlugin(project.versions),
                 ...transformPlugins(
-                    (await loadExtensions(project.directory, project.declaration)).map(
+                    (await loadExtensions(project.directory, project.packageJson)).map(
                         (loaded) => loaded.extension,
                     ),
                     {

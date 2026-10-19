@@ -2,7 +2,7 @@ import { type Package, DeclarationDescription } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph, PackageInspection } from "@destack/package/code";
-import { TestDeclaration } from "@destack/test/inspect";
+import { TestDeclaration } from "../typescript/test.ts";
 
 /** Source and resolution settings for package inspection. */
 export interface InspectOptions {

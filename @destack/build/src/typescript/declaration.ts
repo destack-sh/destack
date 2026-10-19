@@ -27,7 +27,7 @@ import { BuildError, isMissing } from "../error/index.ts";
 import { schema, type Version } from "@destack/schema";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePackage } from "../source/dependency.ts";
-import type { TestDeclaration } from "@destack/test/inspect";
+import type { TestDeclaration } from "./test.ts";
 
 import type { DeclarationExport, FunctionExport, Inspector } from "../declaration/declaration.ts";
 import type { SymbolInspector } from "./symbol.ts";

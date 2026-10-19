@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { schema } from "@destack/schema";
-import { TestDeclaration } from "@destack/test/inspect";
+import { TestDeclaration } from "./test.ts";
 import { Compiler } from "../build/compiler.ts";
 
 /** The packages of the inspected workspace, by identity. */
