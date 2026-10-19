@@ -119,6 +119,13 @@ export const Sandbox = Object.assign(sandboxSchema, {
         });
     },
 
+    /** Write the Permissions Policy allowing a page exactly the browser abilities of a sandbox. */
+    policy(sandbox: Sandbox): string {
+        return BROWSER_SANDBOX.map(
+            (name) => `${name}=${sandbox[name] === undefined ? "()" : "(self)"}`,
+        ).join(", ");
+    },
+
     /** Select the abilities a workload or view uses, refusing undeclared ones. */
     select(declared: Sandbox, names: readonly SandboxName[]): Sandbox {
         // refuse a name the package does not declare

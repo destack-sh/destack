@@ -9,6 +9,9 @@ import { type BuildContents, BuildWriter } from "../manifest/writer.ts";
 /** The module declarations live in unless they name one, the package's entry. */
 const ENTRY_MODULE = "src/index.ts";
 
+/** The schema address of a build's destack.json in memory, the release the fixtures declare. */
+const DEFINITION_SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
+
 /** The parts of a declaration a fixture gives, its moniker and symbol filled from its module. */
 const Declared = Declaration.omit({ moniker: true, symbol: true });
 
@@ -52,9 +55,21 @@ export const MemoryBuild = {
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
         } = {},
     ): Promise<BuildReader> {
-        // write each declaring module, describing its declarations at their symbols
+        // write the package's npm and Destack definitions, as every build has, unless given
         const { files: further, ...rest } = contents;
         const files = new Map(further);
+        const encoder = new TextEncoder();
+        const definitions = {
+            "package.json": { name: owner.name, version: owner.version, type: "module" },
+            "destack.json": { $schema: DEFINITION_SCHEMA, id: owner.id, language: "typescript" },
+        };
+        for (const [path, definition] of Object.entries(definitions)) {
+            if (!files.has(path)) {
+                files.set(path, encoder.encode(JSON.stringify(definition)));
+            }
+        }
+
+        // write each declaring module, describing its declarations at their symbols
         const graph: Module[] = [];
         for (const [path, values] of Map.groupBy(
             declared,
@@ -84,6 +99,9 @@ export const MemoryBuild = {
             });
         }
 
-        return await MemoryBuild.write(files, { ...rest, package: owner, graph });
+        // record the package by its identity, name and version
+        const { id, name, version } = owner;
+
+        return await MemoryBuild.write(files, { ...rest, package: { id, name, version }, graph });
     },
 };
