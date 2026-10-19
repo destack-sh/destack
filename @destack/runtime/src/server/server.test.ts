@@ -11,7 +11,8 @@ import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
 import { Observable } from "../observable/index.ts";
 import { CallError } from "../error/index.ts";
 import type { RequestContext } from "./context.ts";
-import { Bookmark, Watermark } from "../bookmark/index.ts";
+import { Bookmark, BOOKMARK_HEADER } from "../bookmark/index.ts";
+import { Watermark } from "@destack/sync";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
 
@@ -535,6 +536,60 @@ test("return observed watermarks and require them on the client's later requests
         await client.write();
         expect(bookmark.watermarks).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
         expect(await client.read()).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
+    } finally {
+        await server.close();
+    }
+});
+
+test("require the watermarks a caller's credential carries beside its bookmark's", async () => {
+    // authenticate callers whose credentials carry the position their grant was written at
+    const granted = { scope: "universe", epoch: "epoch-1", sequence: 3 };
+    const procedures = {
+        read: defineProcedure({
+            authentication: "identity",
+            permission: { principals: [principal.user] },
+            audit: false,
+        })
+            .route({ method: "GET", path: "/read" })
+            .output(schema.array(Watermark)),
+    };
+    const implementation = implement(procedures).$context<RequestContext>();
+    const server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        authenticate: async (request: Request) => {
+            const authentication = await hosting.authenticate(request);
+
+            return {
+                ...authentication,
+                credential: { ...authentication.credential, watermarks: [granted] },
+            };
+        },
+        health: new Health("bookmark"),
+        drainTimeout: 1000,
+        router: implementation.router({
+            read: implementation.read.handler(({ context }) => [...context.bookmark.watermarks]),
+        }),
+    });
+    try {
+        // read the watermarks a request requires, with and without a bookmark of its own
+        const read = (header?: string) =>
+            createClient(
+                { version: fixturePackage.version, router: procedures },
+                {
+                    url: "https://test.local",
+                    headers: {
+                        authorization: "alice",
+                        ...(header === undefined ? {} : { [BOOKMARK_HEADER]: header }),
+                    },
+                    fetch: (request) => server.fetch(request),
+                },
+            ).read();
+        const own = { scope: "space-1", epoch: "epoch-1", sequence: 7 };
+        expect([await read(), await read(JSON.stringify([own]))]).toEqual([
+            [granted],
+            [own, granted],
+        ]);
     } finally {
         await server.close();
     }

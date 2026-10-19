@@ -43,6 +43,7 @@ const tokenIdentity = Caller.schema.pick({ subject: true, groups: true, contacts
         assurance: true,
         deployments: true,
         attributes: true,
+        watermarks: true,
     }),
 });
 
@@ -62,6 +63,7 @@ export const TokenIdentity = Object.assign(tokenIdentity, {
                     assurance: credential.assurance,
                     deployments: credential.deployments,
                     attributes: credential.attributes,
+                    watermarks: credential.watermarks,
                 }),
             }),
         );

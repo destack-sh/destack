@@ -36,7 +36,7 @@ export class RequestContext {
     readonly signal: AbortSignal;
     /** The digests of the presented link secrets. */
     readonly linkSecrets: readonly string[];
-    /** The watermarks the caller requires. */
+    /** The watermarks the caller requires, its credential's among them. */
     readonly bookmark: Bookmark;
     /** The clock calls run at. */
     readonly clock: Clock;
@@ -70,6 +70,11 @@ export class RequestContext {
         this.linkSecrets = linkSecrets;
         this.clock = options.clock;
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
+
+        // require the positions the credential's grants were written at
+        for (const watermark of authentication?.credential.watermarks ?? []) {
+            this.bookmark.observe(watermark);
+        }
 
         // authorize the current caller in the request's scope under the package's policies
         this.authorization =
