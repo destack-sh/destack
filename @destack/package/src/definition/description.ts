@@ -24,8 +24,8 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
     ]),
 );
 
-/** Package declarations combined from package.json and destack.json. */
-export const PackageDescription = schema.object({
+/** A package's package.json, with its destack.json as its definition. */
+export const PackageJson = schema.object({
     /** The stable package ID, current name, and version. */
     package: Package,
     /** Destack language, targets, workloads, and compute settings. */
@@ -50,5 +50,5 @@ export const PackageDescription = schema.object({
     devDependencies: REQUIREMENTS,
 });
 
-/** Package declarations consumed by build and registry tooling. */
-export type PackageDescription = schema.Infer<typeof PackageDescription>;
+/** A package's package.json, with its destack.json as its definition. */
+export type PackageJson = schema.Infer<typeof PackageJson>;
