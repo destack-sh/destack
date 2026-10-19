@@ -219,9 +219,10 @@ export class Server implements AsyncDisposable {
 
             return this.#respond(this.#headers(response), controller, signal);
         } catch (error) {
-            // release the request and report failures
+            // release the request and report failures, rethrowing those of a cancelled request
+            const isCancelled = signal.aborted;
             this.#finish(controller);
-            if (signal.aborted) {
+            if (isCancelled) {
                 throw error;
             }
 
@@ -446,6 +447,9 @@ export class Server implements AsyncDisposable {
 
     /** Release a request. */
     #finish(controller: AbortController): void {
+        // end the request's signal, and what waits on it
+        controller.abort(new DOMException("the request finished", "AbortError"));
+
         // wake shutdown after the last request
         this.#requests.delete(controller);
         if (this.#closing && !this.#requests.size) {

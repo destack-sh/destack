@@ -360,6 +360,46 @@ test("end a stream that follows its context signal once the server drains, stopp
     expect(server.health.status).toBe("stopped");
 });
 
+test("end a request's context signal once its response is answered", async () => {
+    // keep the context of a call that answers at once
+    let seen: RequestContext | undefined;
+    const procedures = {
+        get: defineProcedure({ authentication: "public", permission: "anyone", audit: false })
+            .route({ method: "GET", path: "/answer" })
+            .output(schema.string()),
+    };
+    const implementation = implement(procedures).$context<RequestContext>();
+    const router = implementation.router({
+        get: implementation.get.handler(({ context }) => {
+            seen = context;
+
+            return "answered";
+        }),
+    });
+    const server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        router,
+        health: new Health("answerer"),
+        drainTimeout: 5000,
+    });
+    onTestFinished(() => server.close());
+
+    // call it in process, where the request's own signal never ends
+    const client = createClient(
+        { version: fixturePackage.version, router: procedures },
+        {
+            url: "https://test.local",
+            headers: { authorization: "alice" },
+            fetch: (request) => server.fetch(request),
+        },
+    );
+    const answer = await client.get();
+
+    // end the context's signal, and the waits bound to it, with the answer
+    expect([answer, seen?.signal.aborted]).toEqual(["answered", true]);
+});
+
 test("serialize authentication failures and preserve drain timeout causes", async () => {
     // leave a request open past the drain deadline
     const waiting = Promise.withResolvers<void>();
