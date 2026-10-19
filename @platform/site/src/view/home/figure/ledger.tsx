@@ -64,9 +64,7 @@ export type LedgerRow = {
     marks: readonly ItemMark[];
     /** The colour of the row's block: its vendor's accent, or the engine's signal once owned. */
     tint: string;
-    /** What the row means, shown as its title. */
-    note: string;
-    /** The plan the row is billed on, shown with its note when pointed at. */
+    /** The plan the row is billed on, shown when pointed at. */
     plan: string;
     /** Whether nothing does the row's job yet, so it fades. */
     isEmpty: boolean;
@@ -156,7 +154,7 @@ export function Ledger(properties: {
                         <For each={properties.rows} keyed={false}>
                             {(row, index) => (
                                 <li
-                                    title={`${row().note}\n${row().plan}`}
+                                    title={row().plan}
                                     onPointerEnter={(event) => point(event, index)}
                                     onPointerLeave={(event) => point(event, undefined)}
                                     onClick={() => properties.onPress(index)}

@@ -86,9 +86,7 @@ export function Participle(properties: {
                             />
                         }
                     >
-                        <Label>
-                            {properties.isOpen ? "Your space, per usage" : "Rent, per seat"}
-                        </Label>
+                        <Label>{properties.isOpen ? "Paid by usage" : "Paid per seat"}</Label>
                     </LabelRow>
                     <Bill
                         isWindow

@@ -30,7 +30,7 @@ export function PastParticiple(properties: {
                     number={2}
                     isOpen={properties.isOpen}
                     stacked="every app on its own stack"
-                    destacked="every app on one stack"
+                    destacked="every app in one stack"
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>

@@ -122,14 +122,12 @@ export function entryOf(source: Source): Entry {
             label: source.label,
             mark: { icon: source.icon, tint: source.tint },
             name: source.name,
-            note: `your ${source.data}, kept in ${source.name}`,
             price: { kind: "bundled", basis: `kept in ${source.name}` },
         },
         destacked: {
             label: source.label,
             mark: { icon: source.icon, tint: source.tint },
             name: source.name,
-            note: `your ${source.data}, synced into your ${source.table} table`,
             price: { kind: "included" },
         },
     };

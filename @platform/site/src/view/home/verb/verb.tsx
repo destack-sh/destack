@@ -258,8 +258,8 @@ export function Verb(properties: {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="nine apps, rented as silos"
-                destacked="nine apps, owned as one space"
+                stacked="nine apps, nine silos"
+                destacked="nine apps, one space"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -305,7 +305,7 @@ export function Verb(properties: {
                     }
                 >
                     <Fade isOpen={isOpenAt(0)}>
-                        <Label>{isOpenAt(0) ? "Your space, per usage" : "Rent, per seat"}</Label>
+                        <Label>{isOpenAt(0) ? "Paid by usage" : "Paid per seat"}</Label>
                     </Fade>
                 </LabelRow>
                 <Bill

@@ -324,16 +324,6 @@ function relationsOf(picked: readonly Tool[]) {
     ] as const;
 }
 
-/** Write what a row's app does with the picked tools, as the bill notes it. */
-function noteOf(picked: readonly Tool[]) {
-    // join the sides that have tools, or note the app as included
-    const parts = relationsOf(picked)
-        .filter(([, related]) => related.length > 0)
-        .map(([verb, related]) => `${verb} ${listOf(related)}`);
-
-    return parts.length === 0 ? "included" : parts.join(" · ");
-}
-
 /** Move every mark of the wall from its last place to its new one, and return the new places. */
 function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
     // measure the new places against the wall
@@ -449,17 +439,12 @@ function entryOf(label: string, doers: readonly Tool[], app: App, price: Price):
                     : doers.length === 1
                       ? first.name
                       : `${doers.length} apps`,
-            note:
-                first === undefined
-                    ? "pick one to compare"
-                    : doers.map((tool) => tool.name).join(", "),
             price,
         },
         destacked: {
             label,
             mark: { app: app.icon },
             name: app.name,
-            note: noteOf(doers),
             price: { kind: "included" },
         },
     };

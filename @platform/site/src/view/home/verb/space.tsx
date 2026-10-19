@@ -32,8 +32,6 @@ export const viewers: readonly Viewer[] = ["Me", "Agent", "Public"];
 type Holding = {
     /** What a team rents for the row. */
     category: Category;
-    /** What renting it means for you, shown as its title. */
-    note: string;
     /** The app of your space that does the job. */
     destacked: Item;
 };
@@ -42,100 +40,82 @@ type Holding = {
 const holdings: readonly Holding[] = [
     {
         category: "documents",
-        note: "anyone with the link can read it",
         destacked: {
             label: "Docs",
             mark: { app: "pages" },
             name: "Pages",
-            note: "only the people you pick can read it",
             price: { kind: "included" },
         },
     },
     {
         category: "tables",
-        note: "rows copied in from every other app",
         destacked: {
             label: "Databases",
             mark: { app: "table" },
             name: "Tables",
-            note: "rows read live from every app",
             price: { kind: "included" },
         },
     },
     {
         category: "tasks",
-        note: "a paid seat for every viewer",
         destacked: {
             label: "Tasks",
             mark: { app: "tasks" },
             name: "Tasks",
-            note: "a free seat for every viewer",
             price: { kind: "included" },
         },
     },
     {
         category: "calendar",
-        note: "free times copied, never live",
         destacked: {
             label: "Calendar",
             mark: { app: "calendar" },
             name: "Calendar",
-            note: "free times read live, never copied",
             price: { kind: "included" },
         },
     },
     {
         category: "chat",
-        note: "a guest invite for every channel",
         destacked: {
             label: "Chat",
             mark: { app: "chat" },
             name: "Chat",
-            note: "one sign-in for every channel",
             price: { kind: "included" },
         },
     },
     {
         category: "mail",
-        note: "the waitlist pasted in by hand",
         destacked: {
             label: "Mail",
             mark: { app: "mail" },
             name: "Mail",
-            note: "the waitlist mailed from its table",
             price: { kind: "included" },
         },
     },
     {
         category: "canvas",
-        note: "plans drawn apart from the work",
         destacked: {
             label: "Whiteboard",
             mark: { app: "canvas" },
             name: "Canvas",
-            note: "plans linked to the tasks they draw",
             price: { kind: "included" },
         },
     },
     {
         category: "workflows",
-        note: "a zap for every pair of apps, billed by the task",
         destacked: {
             label: "Automation",
             mark: { app: "sync" },
             name: "Workflows",
-            note: "workflows on your own data, billed by use",
             price: { kind: "included" },
         },
     },
     {
         category: "builder",
-        note: "a waitlist built on Replit, its signups in a database of its own",
         destacked: {
             label: "Custom",
             mark: { app: "build" },
             name: "Waitlist",
-            note: "a waitlist built in your space, its signups in your tables",
             price: { kind: "included" },
         },
     },
@@ -161,7 +141,6 @@ export function holdingsWith(source: Source, lineup: Lineup): readonly Entry[] {
                 label: holding.destacked.label,
                 mark: { icon: tool.icon, tint: tool.tint },
                 name: tool.name,
-                note: holding.note,
                 price: priceOf(tool.subscription),
             },
             destacked: holding.destacked,

@@ -42,8 +42,8 @@ const command: Form = {
         highlight: ["programmable", "composable"],
         sentence: (
             <>
-                One API for everything in <em>your</em> space, for you and your agents, with your
-                rules.
+                One API for everything in <em>your</em> space, for you and your agents, on your
+                terms.
             </>
         ),
     },
@@ -149,7 +149,7 @@ export function Command(properties: { isOpen: boolean }) {
                 >
                     <Label>
                         {properties.isOpen
-                            ? "Your agent, one integration"
+                            ? "Your agent, one connection"
                             : "Your agent, one connector per app"}
                     </Label>
                 </LabelRow>

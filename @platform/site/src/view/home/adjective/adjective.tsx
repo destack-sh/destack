@@ -104,8 +104,8 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="myriad apps, opaque components, low visibility"
-                destacked="every app, every component, every moment"
+                stacked="five tools, five black boxes"
+                destacked="one app, one glass box"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

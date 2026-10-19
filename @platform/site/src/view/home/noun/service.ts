@@ -63,8 +63,6 @@ export const vendors: readonly Service[] = [
 type Slot = {
     /** What the app rents a service for. */
     category: ServiceCategory;
-    /** What renting it means for the app, shown as its title. */
-    note: string;
     /** The engine's part that does the job. */
     destacked: Item;
 };
@@ -73,89 +71,73 @@ type Slot = {
 const slots: readonly Slot[] = [
     {
         category: "identity",
-        note: "sign-in and roles in a vendor of their own",
         destacked: {
             label: "Identity",
             mark: { app: "accounts" },
             name: "Accounts",
-            note: "one sign-in and one permission model",
             price: { kind: "included" },
         },
     },
     {
         category: "secrets",
-        note: "keys pasted into every service",
         destacked: {
             label: "Secrets",
             mark: { app: "vault" },
             name: "Vault",
-            note: "keys kept in one vault",
             price: { kind: "included" },
         },
     },
     {
         category: "database",
-        note: "a second backend to keep in step",
         destacked: {
             label: "Database",
             mark: { app: "storage" },
             name: "Database",
-            note: "one backend, always in step",
             price: { kind: "included" },
         },
     },
     {
         category: "messaging",
-        note: "an extra SDK just for email",
         destacked: {
             label: "Messaging",
             mark: { app: "notify" },
             name: "Notifications",
-            note: "one notification system for all apps",
             price: { kind: "included" },
         },
     },
     {
         category: "jobs",
-        note: "a worker fleet beside the app",
         destacked: {
             label: "Jobs",
             mark: { app: "sync" },
             name: "Workflows",
-            note: "workflows running inside the app",
             price: { kind: "included" },
         },
     },
     {
         category: "analytics",
-        note: "events sent to their cloud",
         destacked: {
             label: "Analytics",
             mark: { app: "telemetry" },
             name: "Telemetry",
-            note: "events and errors in your space",
             price: { kind: "included" },
         },
     },
     {
         category: "hosting",
-        note: "runs only in their cloud",
         destacked: {
             label: "Hosting",
             mark: { app: "hosts" },
             name: "Hosting",
-            note: "runs on your laptop, server or cloud",
             price: { kind: "included" },
         },
     },
     {
         category: "code",
-        note: "a pipeline of its own",
         destacked: {
             label: "Code",
             mark: { app: "source" },
             name: "Forge",
-            note: "one pipeline for all apps",
             price: { kind: "included" },
         },
     },
@@ -211,7 +193,6 @@ export function entriesWith(lineup: ServiceLineup): readonly Entry[] {
                 label: slot.destacked.label,
                 mark: vendor.mark,
                 name: vendor.name,
-                note: slot.note,
                 price: priceOf(vendor.name),
             },
             destacked: slot.destacked,

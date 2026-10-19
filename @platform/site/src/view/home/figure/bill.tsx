@@ -68,7 +68,6 @@ export function Bill(properties: {
                 name: item.name,
                 marks: marksOf(item.mark),
                 tint: isOwned(index) ? palette.signal : line.tint,
-                note: item.note,
                 plan: isOwned(index) ? "Billed per usage" : planOf(item),
                 isEmpty: isEmptyOf(line.entry.stacked.mark) && !isOwned(index),
                 badge: isOwned(index) ? properties.badgeOf?.(index + 1) : undefined,

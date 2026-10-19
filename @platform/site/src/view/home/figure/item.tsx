@@ -12,7 +12,7 @@ export type ItemMark =
     | { app: string }
     | { placeholder: string };
 
-/** One item of a bill: a label for its job, its mark and name, a note, and its price. */
+/** One item of a bill: a label for its job, its mark and name, and its price. */
 export type Item = {
     /** The job the item does, set as the mono label. */
     label: string;
@@ -20,8 +20,6 @@ export type Item = {
     mark: ItemMark | readonly ItemMark[];
     /** The product rented for the job, or the app of your space that does it. */
     name: string;
-    /** What the item means for you, shown as its title. */
-    note: string;
     /** What the item costs a month. */
     price: Price;
 };

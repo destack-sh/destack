@@ -134,16 +134,16 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={3}
                 isOpen={properties.isOpen}
-                stacked="your app, on eight rented services"
-                destacked="your app, on one engine you own"
+                stacked="your app on eight rented services"
+                destacked="your app on one engine you own"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {isOpenAt(0)
-                        ? "Your app, running on one engine"
-                        : "Your app, running on eight vendors"}
+                        ? "Your app, built on one engine"
+                        : "Your app, stitched across eight services"}
                 </Label>
                 <div {...style.attrs(styles.window)}>
                     <XRay rented={rented()} isOpenAt={isOpenAt} lit={lit()} onLight={setLit} />
