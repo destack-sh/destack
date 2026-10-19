@@ -164,8 +164,7 @@ await database.log
 
 ## Leases and rate limits
 
-`Lease` gives a key's slots to holders until they lapse, fencing a lapsed holder by epoch as Kubernetes leader election does, reading the slots and taking one in a second statement.
-`Bucket` takes rate tokens by the generic cell rate algorithm in one statement, reading the wait only when it refuses.
+`Lease` fences a key's lapsed holders by epoch as Kubernetes leader election does, and `Bucket` takes rate tokens by the generic cell rate algorithm in one statement.
 
 ```ts
 const taken = await Lease.acquire(database, { name: "controller:sync", key, holder, duration: 15_000, now });
@@ -206,11 +205,12 @@ test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
 });
 ```
 
-## Seeded tests
+## Templates
 
-`TestDatabase.seeded` copies a template a `TestSeed` writes once per process.
+A `TestTemplate` is the rows tests start with: its package's run setup writes its image once per run, and `TestDatabase.copy` hands each test a copy.
 
 ```ts
-const seed = new TestSeed(async (storage) => keepFixture(storage.database));
-const { storage, value } = await TestDatabase.seeded(dialect, [note], seed);
+export const templates = [new TestTemplate({ name: "notes.fixture", tables: [note], value: schema.null(), write: keepFixture })];
+export default TestRun.setup(new URL("./templates.ts", import.meta.url)); // src/test/setup.ts, the config's globalSetup
+const { storage, value } = await TestDatabase.copy(dialect, fixture);
 ```
