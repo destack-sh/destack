@@ -228,10 +228,11 @@ Use the idiomatic vocabulary with zero fluff:
 - **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), admit, keep.
 
 Keep names symmetric and general:
-- **WN20** Names of related logic SHOULD be symmetric.
-- **WN21** Names should share common and consistent prefixes (whether implicit namespaces or explicit preambles) at common layers (e.g., the sibling noun for `LocalKeyring` should be `LocalKeyringReader`, not just `KeyringReader` if it's specific to `LocalKeyring`)
-- **WN22** Names SHOULD NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet, and generalisations SHOULD NOT introduce arbitrary interfaces only to avoid `x_for_y`.
-- **WN23** Names MAY keep `x_for_y` in data transcription.
+- **WN20** Names of related logic and state SHOULD be symmetric (across nouns, verbs, adjectives, etc.).
+- **WN21** Names should share common and consistent prefixes (whether implicit namespaces or explicit preambles) at common layers (e.g., the sibling noun for `LocalKeyring` should be `LocalKeyringReader`, not just `KeyringReader` if it's specific to `LocalKeyring`).
+- **WN22** Names and particularly nouns SHOULD prefer shorter cleaner composable names (that are potentially namespaced, e.g. `gpu.Display` is preferable over `GpuDisplay`); dual or triple nouns SHOULD be avoided where feasible.
+- **WN23** Names SHOULD NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet, and generalisations SHOULD NOT introduce arbitrary interfaces only to avoid `x_for_y`.
+- **WN24** Names MAY keep `x_for_y` in data transcription.
 
 Write words out properly:
 - **WN30** Names MUST write words out, including variables: `extension`, not `ext`; `directory`, not `dir`. (`destack/prevent-abbreviations`)
