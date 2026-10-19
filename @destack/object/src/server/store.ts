@@ -1,4 +1,4 @@
-import { graph, Package } from "@destack/package";
+import { graph, Package, type PackageId } from "@destack/package";
 import type { EventStore } from "@destack/event";
 import {
     Authorizer,
@@ -536,8 +536,11 @@ export class ObjectStore {
         this.feed = followed.feed;
         this.known = ObjectStore.known(options.objects, options.policies ?? []);
 
-        // implement each served package, the first one running the store's own controllers
-        this.packages = served.map((entry, index) => this.#implementPackage(entry, index === 0));
+        // implement each served package, the first one also running the store's own controllers
+        const servedIds = new Set(served.map((entry) => entry.package.id));
+        this.packages = served.map((entry, index) =>
+            this.#implementPackage(entry, index === 0, servedIds),
+        );
     }
 
     /** Read the implementation of a package the store serves, refusing one it serves not. */
@@ -618,22 +621,13 @@ export class ObjectStore {
                     ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
                 ],
                 subscriptions: async () => {
-                    // follow the follows' keys, then the chains, gating like the follows that brought them
+                    // follow the follows' keys, then the chains
                     const followed = await ObjectStore.#followSubscriptions(this, follows, {
                         below,
                         publisher: reach,
                     });
-                    const gating = (name: string) =>
-                        followed.find((entry) => entry.subscription.name === name)
-                            ?.isReadinessGate !== false;
                     const chained = (await this.source.chains(below)).map(
-                        ({ subscription, home, brought }) => ({
-                            subscription,
-                            publisher: reach(home),
-                            ...(brought === undefined
-                                ? {}
-                                : { isReadinessGate: brought.some(gating) }),
-                        }),
+                        ({ subscription, home }) => ({ subscription, publisher: reach(home) }),
                     );
 
                     return [...chained, ...followed];
@@ -809,9 +803,9 @@ export class ObjectStore {
         }
 
         return ObjectPolicy.authorizer(
-            objects,
-            [...(options.policies ?? []), ...attached],
-            (table) => options.database.replicates(table),
+            [...objects, ...attached],
+            options.policies ?? [],
+            new Set(options.database.tables.filter((table) => options.database.replicates(table))),
             options.partition,
         );
     }
@@ -1142,7 +1136,7 @@ export class ObjectStore {
                 await this.enter(context, input.scope);
                 await this.#reachHomes(context, input.scope, input.homes);
 
-                return this.watermark(input.scope);
+                return this.watermark();
             }),
             call: store.call.handler(async ({ input, context }) => {
                 // read in the given scope
@@ -1221,7 +1215,7 @@ export class ObjectStore {
                   { writerId: WriterId.parse(named) },
               )
             : await this.mutate(caller, { id: schema.string().parse(named), calls: [call] });
-        context.observed.observe(await this.watermark(scope));
+        context.observed.observe(await this.watermark());
 
         return written;
     }
@@ -1841,7 +1835,7 @@ export class ObjectStore {
             }
         }
 
-        return { outcomes, watermark: await this.watermark(scope) };
+        return { outcomes, watermark: await this.watermark() };
     }
 
     /** Find the served replica of an object type with the store's handlers. */
@@ -2061,8 +2055,22 @@ export class ObjectStore {
         return (await this.#readHomeAll(sent)).receive(sent, signer);
     }
 
-    /** List the controllers the served objects need. */
+    /** List the controllers the served objects need: the store's own, then each type's. */
     controllers(): readonly Controller[] {
+        return [...this.#storeControllers(), ...this.#objectControllers(() => true)];
+    }
+
+    /** List the controllers of the types a filter selects by their package's id. */
+    #objectControllers(isSelected: (packageId: PackageId) => boolean): Controller[] {
+        return [...this.objects, ...this.#provisioned].flatMap((object) =>
+            object.controller === undefined || !isSelected(object.package.id)
+                ? []
+                : [ObjectController.control(this, object, object.controller)],
+        );
+    }
+
+    /** List the store's own controllers, from compaction to its branch. */
+    #storeControllers(): Controller[] {
         // compact the log, and pick the controllers the objects need
         const isRecoverable = this.objects.some(
             (object) => object.lifecycle.recoverable !== undefined,
@@ -2084,11 +2092,6 @@ export class ObjectStore {
             ...(isExpiring ? [new ExpiringController(this)] : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
             ...(this.subscriber === undefined ? [] : [this.source.controller(this.subscriber)]),
-            ...[...this.objects, ...this.#provisioned].flatMap((object) =>
-                object.controller === undefined
-                    ? []
-                    : [ObjectController.control(this, object, object.controller)],
-            ),
             ...(this.branch === undefined
                 ? []
                 : [
@@ -2264,15 +2267,17 @@ export class ObjectStore {
         }
     }
 
-    /** Read the watermark the scope's log has now. */
-    async watermark(scope: string): Promise<Watermark> {
+    /** Read the position the store's log has now, under the scope its database is home to. */
+    async watermark(): Promise<Watermark> {
+        const scope = ObjectStore.#below(this.#partition, this.principal);
+
         return { scope, ...(await this.database.log.position()) };
     }
 
-    /** Wait until the scope's log or a replica has the watermark. */
+    /** Wait until the store's own log or a replica of another scope's log has the watermark. */
     async #reach(scope: string, watermark: Watermark, signal: AbortSignal): Promise<boolean> {
-        // wait on the scope's own log
-        if (watermark.scope === scope) {
+        // wait on the store's own log
+        if (watermark.scope === ObjectStore.#below(this.#partition, this.principal)) {
             if (watermark.epoch !== (await this.database.log.epoch())) {
                 throw new DatabaseError(
                     "STALE_EPOCH",
@@ -3467,21 +3472,32 @@ export class ObjectStore {
     #implementPackage(
         entry: StorePackage,
         isFirst: boolean,
+        servedIds: ReadonlySet<PackageId>,
     ): PackageImplementation & { readonly objects: ObjectStore } {
-        // implement the package with its controllers, the first one also running the store's own
+        // run the package's types' controllers, the first package also the store's own and unserved types'
         const { controllers = [], adapters = {}, access, responseHeaders } = entry.definition;
-        const own = isFirst ? this.controllers() : [];
+        const own = [
+            ...(isFirst ? this.#storeControllers() : []),
+            ...this.#objectControllers(
+                (packageId) =>
+                    packageId === entry.package.id || (isFirst && !servedIds.has(packageId)),
+            ),
+        ];
         const built = controllers.map((controller) => controller(this));
         const implemented = this.implement(entry.package, entry.objects, [...own, ...built]);
 
         // answer the package's adapters below its mount
         const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
 
+        // run the controllers of a package served at an installation once its host activates it
+        const activation = entry.server?.activation;
+
         return {
             ...implemented,
             ...(access === undefined ? {} : { access }),
             ...(responseHeaders === undefined ? {} : { responseHeaders }),
             ...(fetch === undefined ? {} : { fetch }),
+            ...(activation === undefined ? {} : { activation }),
         };
     }
 

@@ -33,12 +33,12 @@ export async function request<Type extends ObjectType, Name extends CallableName
         return store.query(context.access(), call);
     }
 
-    // write through a one-call mutation under the request or the writer, and report the scope's watermark
+    // write through a one-call mutation under the request or the writer, and report the store's watermark
     const id = requestId ?? RequestId.create(store.clock.now());
     const options = writerId === undefined ? {} : { writerId };
     const [written] = await store.mutate(context.access(), { id, calls: [call] }, options);
     if (object.route.field !== undefined) {
-        context.observed.observe(await store.watermark(scope));
+        context.observed.observe(await store.watermark());
     }
 
     return written;

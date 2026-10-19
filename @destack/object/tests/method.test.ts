@@ -154,7 +154,7 @@ test.each(TEST_DIALECTS)(
         // create once per request identifier, replaying the original result
         const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
         const created = await execute("create", creation);
-        expect(observed().watermarks.at(-1)).toEqual(await store.watermark(spaceId));
+        expect(observed().watermarks.at(-1)).toEqual(await store.watermark());
         expect(await execute("create", creation)).toEqual(created);
 
         // take a chosen identifier and refuse a taken one
