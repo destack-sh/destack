@@ -24,6 +24,6 @@ export const ifttt = style.defineConsts({
     switch: "#222222",
     /** Text on a filled colour. */
     onAccent: "#ffffff",
-    /** The typeface the site sets, or the nearest one a machine has. */
-    face: '"Avenir Next", Avenir, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    /** The typeface the site sets, Museo Sans Rounded, or the nearest one a machine has. */
+    face: '"Museo Sans Rounded", Nunito, "Avenir Next", Avenir, -apple-system, sans-serif',
 });
