@@ -15,7 +15,7 @@ import {
     LOG_TRANSACTION,
 } from "./schema.ts";
 import { createLog } from "./trigger.ts";
-import { latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
+import { committedEntry, latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
@@ -328,6 +328,25 @@ export class Log {
         return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
     }
 
+    /** Read the position of a scope's latest change to some tables, the horizon once compacted. */
+    async changed(tables: readonly Table[], scope: string): Promise<LogPosition> {
+        // read the newest committed entry of the scope in the tables through the log's scope index
+        const head = await this.#readHead();
+        const names = tables.map((table) => sql`${table[TABLE].sqlName}`);
+        const [row] =
+            names.length === 0
+                ? []
+                : await this.database.all(sql`
+            SELECT sequence FROM ${sql.relation(LOG)} AS entry
+            WHERE scope = ${scope} AND "table" IN (${sql.join(names, sql`, `)})
+                AND sequence IS NOT NULL AND ${committedEntry(this.database.dialect, sql`entry`)}
+            ORDER BY sequence DESC LIMIT 1
+        `);
+        const sequence = row === undefined ? null : LogColumn.integer(row["sequence"]);
+
+        return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
+    }
+
     /** Read the position of the latest commit. */
     async #latest(): Promise<LogPosition> {
         const head = await this.#readHead();
@@ -487,9 +506,9 @@ export class Log {
         return { changes, sequence };
     }
 
-    /** Read the open transaction's identity, absent outside a writing transaction. */
+    /** Read the open transaction's identity, stamping it, absent outside a transaction or a log. */
     async transaction(): Promise<string | undefined> {
-        return await this.database.driver.transaction?.id;
+        return await this.database.driver.transaction?.identity.id();
     }
 
     /** Read the open transaction's changes before commit. */
@@ -546,22 +565,49 @@ export class Log {
         return this.database.state.commits.until(check, signal);
     }
 
-    /** Yield each page past a sequence, with its selected changes, until the signal aborts. */
+    /** Yield each page of selected changes past a sequence, or every advance, until aborted. */
     async *follow<Definition extends Table>(
         selection: ChangeSelection<Definition>,
         signal: AbortSignal,
+        options: {
+            /** Whether to yield each advance as a page without changes, as a keepalive. */
+            readonly isAdvancing?: boolean;
+        } = {},
     ): AsyncGenerator<ChangePage<Definition>> {
-        // yield each advance, also past commits of other tables, then wait
+        // yield each page with changes, or each advance as a keepalive, then wait for the next commit to read
+        const tables = new Set(selection.tables.map((table) => table[TABLE].sqlName));
         let after = selection.after;
         while (!signal.aborted) {
             const page = await this.read({ ...selection, after });
-            if (page.sequence > after) {
-                after = page.sequence;
+            const isYielded =
+                page.changes.length > 0 || (options.isAdvancing === true && page.sequence > after);
+            after = Math.max(after, page.sequence);
+            if (isYielded) {
                 yield page;
-            } else {
-                await this.wait(after + 1, signal);
+            }
+            // wait for a commit past the page, of the selected tables unless advancing
+            else {
+                await this.#commitPast(
+                    after,
+                    options.isAdvancing === true ? undefined : tables,
+                    signal,
+                );
             }
         }
+    }
+
+    /** Wait for a commit past a sequence, of some tables if given. */
+    #commitPast(
+        sequence: number,
+        tables: ReadonlySet<string> | undefined,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        return this.until(
+            async (committed) =>
+                (tables === undefined || [...committed].some((table) => tables.has(table))) &&
+                (await this.position()).sequence > sequence,
+            signal,
+        );
     }
 
     /** Place a consumer's slot at a sequence, keeping later changes until a time. */

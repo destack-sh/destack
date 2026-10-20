@@ -1,10 +1,13 @@
 import type { TransactionState } from "./transaction.ts";
+import { present } from "@destack/schema";
+import { LogColumn } from "../log/position.ts";
+import type { ReadCache } from "../log/cache.ts";
 import type { ConnectionState } from "./connection.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
 import type { Session } from "./session.ts";
-import { closeTransaction, openTransaction } from "../log/transaction.ts";
+import { TransactionIdentity } from "../log/transaction.ts";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
@@ -27,19 +30,31 @@ export class DatabaseDriver {
     readonly state: ConnectionState;
     /** The active transaction state, when present. */
     readonly transaction: TransactionState | undefined;
-    /** The operations submitted through this driver outside a transaction. */
-    #operations = 0;
+    /** The operations submitted outside a transaction, shared by a connection's sharing driver. */
+    readonly meter: Meter;
+    /** Whether reads of shared tables outside a transaction go through the shared caches. */
+    readonly isSharing: boolean;
+    /** The shared tables' version at the first shared read, below which no shared read goes. */
+    #version: Promise<Version> | undefined;
 
     /** Create the driver. */
-    constructor(session: Session, state: ConnectionState, transaction?: TransactionState) {
+    constructor(
+        session: Session,
+        state: ConnectionState,
+        transaction?: TransactionState,
+        options: DriverOptions = {},
+    ) {
+        // keep the session, the connection's state, the transaction, the meter and whether reads share a version
         this.session = session;
         this.state = state;
         this.transaction = transaction;
+        this.meter = options.meter ?? { operations: 0 };
+        this.isSharing = options.isSharing ?? false;
     }
 
     /** The operations submitted through this driver outside a transaction. */
     get operations(): number {
-        return this.#operations;
+        return this.meter.operations;
     }
 
     /** The SQL dialect. */
@@ -52,7 +67,7 @@ export class DatabaseDriver {
         // count the statement, and the operation the connection submits outside a transaction
         this.state.statements += 1;
         if (this.transaction === undefined) {
-            this.#operations += 1;
+            this.meter.operations += 1;
         }
 
         // classify failures, and record the statement's duration
@@ -79,7 +94,10 @@ export class DatabaseDriver {
         const written =
             tables.length === 0 ? new Set(this.state.cascades.keys()) : this.#cascade(tables);
 
-        return this.commit(() => this.#identified(operation), written);
+        // stamp a write that may log, of a table with triggers or of unknown tables
+        const isLogging = tables.length === 0 || this.state.isLogging(written);
+
+        return this.commit(() => this.#identified(operation, isLogging), written);
     }
 
     /** Submit work that commits on its own and writes some tables, such as a transaction. */
@@ -111,19 +129,27 @@ export class DatabaseDriver {
 
     /** Read every row of a bound statement as an array of values. */
     values(statement: DriverStatement): Promise<unknown[][]> {
-        return this.#query(statement, (session) =>
-            session.values(statement.text, statement.parameters),
-        );
+        const read = () =>
+            this.#query(statement, (session) =>
+                session.values(statement.text, statement.parameters),
+            );
+
+        return this.#isShared(statement)
+            ? this.#share(statement, this.state.valueCache, read)
+            : read();
     }
 
     /** Read every row of a bound statement by column name. */
     all(statement: DriverStatement): Promise<Record<string, unknown>[]> {
-        return this.#query(statement, (session) =>
-            session.all(statement.text, statement.parameters),
-        );
+        const read = () =>
+            this.#query(statement, (session) => session.all(statement.text, statement.parameters));
+
+        return this.#isShared(statement)
+            ? this.#share(statement, this.state.recordCache, read)
+            : read();
     }
 
-    /** Run a bound write of the listed tables, identified on SQLite outside a transaction. */
+    /** Run a bound write of the listed tables. */
     async execute(statement: DriverStatement): Promise<void> {
         this.transaction?.assertActive();
         await this.write(
@@ -144,6 +170,80 @@ export class DatabaseDriver {
             : this.write((session) => failing(statement, query(session)), statement.tables);
     }
 
+    /** Decide whether a sharing driver's statement reads only shared tables. */
+    #isShared(statement: DriverStatement): boolean {
+        const { shared } = this.state;
+
+        return (
+            this.isSharing &&
+            statement.isRead &&
+            this.transaction === undefined &&
+            statement.tables.length > 0 &&
+            statement.tables.every((table) => shared.has(table))
+        );
+    }
+
+    /** Read a statement once per log position of its tables, answering each caller a copy. */
+    async #share<Row>(
+        statement: DriverStatement,
+        cache: ReadCache<Row[]>,
+        read: () => Promise<Row[]>,
+    ): Promise<Row[]> {
+        // read the shared tables' latest sequences once, with the epoch and the horizon
+        const { epoch, horizon, latest, applied } = await (this.#version ?? this.#readVersion());
+
+        // share the statement's rows at its tables' latest change, or past compaction at the horizon
+        const sequence = Math.max(
+            horizon,
+            ...statement.tables.map((table) =>
+                present(latest.get(table), `the version of ${table}`),
+            ),
+        );
+        // key the read by each of its tables' migrations, which change predefined rows without the log
+        const migrations = statement.tables.map((table) =>
+            present(applied.get(table), `the migration of ${table}`),
+        );
+        const key = `${migrations.join(",")} ${statement.text} ${JSON.stringify(statement.parameters, encodeKey)}`;
+        const rows = await cache.get(key, read, { epoch, sequence });
+
+        return structuredClone(rows);
+    }
+
+    /** Read the shared tables' version for this driver's shared reads, again after a failure. */
+    #readVersion(): Promise<Version> {
+        // read the latest sequence of each shared table, with the epoch and the horizon
+        const text = present(this.state.versionStatement, "the shared tables' version statement");
+        const reading = this.run(() => this.session.values(text, [])).then(([row = []]) => ({
+            epoch: LogColumn.text(row[0]),
+            horizon: LogColumn.integer(row[1]),
+            latest: new Map(
+                [...this.state.shared].map((table, index) => [
+                    table,
+                    LogColumn.nullableInteger(row[index + 2]) ?? 0,
+                ]),
+            ),
+            applied: new Map(
+                [...this.state.shared].map((table, index) => [
+                    table,
+                    present(
+                        LogColumn.nullableInteger(row[index + 2 + this.state.shared.size]),
+                        `the migration state of ${table}`,
+                    ),
+                ]),
+            ),
+        }));
+        this.#version = reading;
+
+        // forget a failed read so the next shared read tries again
+        reading.catch(() => {
+            if (this.#version === reading) {
+                this.#version = undefined;
+            }
+        });
+
+        return reading;
+    }
+
     /** List the tables writes to some tables change, through triggers and referential actions. */
     #cascade(tables: readonly string[]): Set<string> {
         const written = new Set<string>();
@@ -162,27 +262,36 @@ export class DatabaseDriver {
         return written;
     }
 
-    /** Run a write outside a transaction as one identified SQLite transaction. */
-    async #identified<Value>(operation: (session: Session) => Promise<Value>): Promise<Value> {
-        // run other writes as they are
-        if (this.session.dialect !== "sqlite" || this.transaction !== undefined) {
+    /** Run a write after stamping its transaction's log identity. */
+    async #identified<Value>(
+        operation: (session: Session) => Promise<Value>,
+        isLogging: boolean,
+    ): Promise<Value> {
+        // run a write of unlogged tables, or a PostgreSQL one outside a transaction, as it is
+        if (!isLogging || (this.transaction === undefined && this.session.dialect !== "sqlite")) {
             return await operation(this.session);
         }
+        // stamp the enclosing transaction ahead of its first logged write, keeping statement order
+        else if (this.transaction !== undefined) {
+            await this.transaction.identity.stamp();
 
-        // run the write in a transaction
-        return await this.session.transaction(
-            async (transaction) => {
-                // mark, write and unmark the transaction
-                const marked = await openTransaction(transaction, this.state);
-                const result = await operation(transaction);
-                if (marked !== undefined) {
-                    await closeTransaction(transaction, this.state);
-                }
+            return await operation(this.session);
+        }
+        // run a SQLite write in a stamped transaction of its own
+        else {
+            return await this.session.transaction(
+                async (transaction) => {
+                    // stamp, write and clear the transaction
+                    const identity = new TransactionIdentity(transaction, this.state);
+                    await identity.stamp();
+                    const result = await operation(transaction);
+                    await identity.close();
 
-                return result;
-            },
-            { isReadOnly: false, isolationLevel: "serializable" },
-        );
+                    return result;
+                },
+                { isReadOnly: false, isolationLevel: "serializable" },
+            );
+        }
     }
 }
 
@@ -201,4 +310,35 @@ async function failing<Value>(statement: DriverStatement, pending: Promise<Value
             cause: error,
         });
     }
+}
+
+/** How a driver counts and shares its reads. */
+export interface DriverOptions {
+    /** Whether reads of shared tables outside a transaction go through the shared caches. */
+    readonly isSharing?: boolean;
+    /** The count of operations to add to, a new one when absent. */
+    readonly meter?: Meter;
+}
+
+/** A count of the operations drivers submit outside a transaction. */
+interface Meter {
+    /** The operations submitted. */
+    operations: number;
+}
+
+/** The shared tables' log version: the epoch, the horizon and each table's latest sequence. */
+interface Version {
+    /** The log's epoch. */
+    readonly epoch: string;
+    /** The compaction horizon, past every compacted change. */
+    readonly horizon: number;
+    /** The latest sequence each shared table was written at, by SQL name. */
+    readonly latest: ReadonlyMap<string, number>;
+    /** Each shared table's migration version, its last apply's time, by SQL name. */
+    readonly applied: ReadonlyMap<string, number>;
+}
+
+/** Encode a shared read's parameters as a key, bigints apart from strings. */
+function encodeKey(_key: string, value: unknown): unknown {
+    return typeof value === "bigint" ? { bigint: String(value) } : value;
 }

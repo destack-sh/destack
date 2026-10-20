@@ -391,15 +391,18 @@ async function readName(database: DatabaseConnection): Promise<string> {
     return present(row, "the current database").name;
 }
 
-/** Record the applied state of one table within a database's namespace. */
+/** Record the applied state of one table, its applied time past the previous one on every apply. */
 export function writeState(state: TableState, appliedAt: number, namespace?: string): string {
     // keep the conversions, so a rebuilt release runs only the ones it adds
     const encoded = literal(JSON.stringify(state));
+    const table = quote(relation(STATE, namespace));
 
-    return `INSERT INTO ${quote(relation(STATE, namespace))} ("table", package_id, state, applied_at)
+    return `INSERT INTO ${table} ("table", package_id, state, applied_at)
         VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})
         ON CONFLICT ("table") DO UPDATE SET package_id = excluded.package_id,
-            state = excluded.state, applied_at = excluded.applied_at`;
+            state = excluded.state,
+            applied_at = CASE WHEN excluded.applied_at > ${table}.applied_at
+                THEN excluded.applied_at ELSE ${table}.applied_at + 1 END`;
 }
 
 /** Forget the applied state of a dropped table within a database's namespace. */

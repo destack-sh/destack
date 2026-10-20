@@ -186,20 +186,20 @@ type ComparableOf<Value> =
     Exclude<JsonOf<Value>, null> extends Comparable ? Exclude<JsonOf<Value>, null> : never;
 
 /** A condition on a known row's fields and relations. */
-type KnownCondition<Row, Relations> = {
+type KnownCondition<Row, Related> = {
     readonly [Name in keyof Row as [ComparableOf<Row[Name]>] extends [never] ? never : Name]?:
         | ComparableOf<Row[Name]>
         | Placeholder
         | FieldCondition<ComparableOf<Row[Name]>>;
-} & { readonly [Name in keyof Relations]?: true | Relations[Name] } & {
+} & { readonly [Name in keyof Related]?: true | Related[Name] } & {
     /** Require the row's searched text to contain each word, as a word's prefix. */
     readonly SEARCH?: string;
     /** Require every condition. */
-    readonly AND?: readonly KnownCondition<Row, Relations>[];
+    readonly AND?: readonly KnownCondition<Row, Related>[];
     /** Require any condition. */
-    readonly OR?: readonly KnownCondition<Row, Relations>[];
+    readonly OR?: readonly KnownCondition<Row, Related>[];
     /** Negate a condition. */
-    readonly NOT?: KnownCondition<Row, Relations>;
+    readonly NOT?: KnownCondition<Row, Related>;
 };
 
 /** An entry of a condition in its JSON form. */
@@ -222,8 +222,8 @@ export type OpenCondition = { readonly [name: string]: OpenEntry };
 /** A predicate over a row. */
 export type Condition<
     Row = Readonly<Record<string, Scalar>>,
-    Relations = Readonly<Record<never, never>>,
-> = string extends keyof Row ? OpenCondition : KnownCondition<Row, Relations>;
+    Related = Readonly<Record<never, never>>,
+> = string extends keyof Row ? OpenCondition : KnownCondition<Row, Related>;
 
 /** The schema of a condition as plain JSON, its placeholders in their JSON form. */
 const conditionSchema: schema.Schema<JsonCondition> = schema.lazy(() =>

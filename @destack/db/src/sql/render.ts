@@ -20,8 +20,14 @@ import {
     type SQLWrapper,
 } from "./sql.ts";
 
-/** The start of a statement that only reads: SELECT after any space. */
-const READ = /^\s*SELECT\b/iu;
+/** The start of a statement that may only read: SELECT, or common tables ahead of one. */
+const READ = /^\s*(?:SELECT|WITH)\b/iu;
+
+/** A verb that writes, as a main statement, a common table's body or a row lock. */
+const WRITING = /\b(?:INSERT|UPDATE|DELETE)\b|\bREPLACE\s+INTO\b/iu;
+
+/** A statement's quoted parts: string literals and quoted identifiers. */
+const QUOTED = /'(?:[^']|'')*'|"(?:[^"]|"")*"/gu;
 
 /** A statement's text and positional parameters, some of them filled by name when it runs. */
 export interface StatementTemplate {
@@ -31,7 +37,7 @@ export interface StatementTemplate {
     readonly parameters: readonly (DriverValue | Placeholder)[];
     /** The SQL tables the statement reads through tables, columns and relations, unqualified. */
     readonly tables: readonly string[];
-    /** Whether the statement only reads, as a statement starting with SELECT does. */
+    /** Whether the statement only reads: it selects, with no writing verb. */
     readonly isRead: boolean;
 }
 
@@ -43,7 +49,7 @@ export interface DriverStatement {
     readonly parameters: readonly DriverValue[];
     /** The SQL tables the statement reads through tables, columns and relations, unqualified. */
     readonly tables: readonly string[];
-    /** Whether the statement only reads, as a statement starting with SELECT does. */
+    /** Whether the statement only reads: it selects, with no writing verb. */
     readonly isRead: boolean;
 }
 
@@ -68,7 +74,7 @@ export function render(
         tables: named,
     });
     const tables = [...named];
-    const isRead = READ.test(text);
+    const isRead = isReading(text);
     if (commons.size === 0) {
         return { text, parameters, tables, isRead };
     }
@@ -334,4 +340,11 @@ function define(table: CommonTable, target: Target): string {
     }
 
     return table.name;
+}
+
+/** Report whether a statement only reads: it selects, with no writing verb outside its quotes. */
+function isReading(text: string): boolean {
+    const bare = text.replace(QUOTED, "''");
+
+    return READ.test(bare) && !WRITING.test(bare);
 }

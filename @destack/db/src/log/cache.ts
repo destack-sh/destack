@@ -1,74 +1,104 @@
-/** Reads of one kind, kept until the log invalidates them or they are least recently used. */
-export class ReadCache<Value> {
-    /** The most values kept. */
-    readonly #capacity: number;
-    /** The values read, least recently used first. */
-    readonly #values = new Map<string, { readonly value: Value }>();
-    /** The reads running, by key. */
-    readonly #reading = new Map<string, Promise<Value>>();
+import { LogPosition } from "./position.ts";
 
-    /** Keep at most some values. */
-    constructor(capacity: number) {
+/** Reads of one kind, each kept at the log position it was read at, least recently used dropped. */
+export class ReadCache<Value> {
+    /** The most weight the kept values have together. */
+    readonly #capacity: number;
+    /** The most weight one kept value has. */
+    readonly #maximum: number;
+    /** Weigh a value, such as by its rows. */
+    readonly #weigh: (value: Value) => number;
+    /** The values read with their positions and weights, least recently used first. */
+    readonly #values = new Map<string, Entry<Value> & { readonly weight: number }>();
+    /** The reads running, by key. */
+    readonly #reading = new Map<string, Entry<Promise<Value>>>();
+    /** The weight of the kept values. */
+    #weight = 0;
+
+    /** Keep values up to a total weight, each at most a maximum weight. */
+    constructor(capacity: number, maximum: number, weigh: (value: Value) => number) {
         this.#capacity = capacity;
+        this.#maximum = maximum;
+        this.#weigh = weigh;
     }
 
-    /** Read a value from memory, or once through a read that lookups of the same key share. */
-    get(key: string, read: () => Promise<Value>): Promise<Value> {
-        // answer a kept value, marking it used last
+    /** Read a value at a position or later, from memory or once through a shared read. */
+    get(key: string, read: () => Promise<Value>, position: LogPosition): Promise<Value> {
+        // answer a value kept at the position or later, marking it used last
         const kept = this.#values.get(key);
-        if (kept !== undefined) {
+        if (kept !== undefined && !LogPosition.isAfter(position, kept.position)) {
             this.#values.delete(key);
             this.#values.set(key, kept);
 
             return Promise.resolve(kept.value);
         }
 
-        // answer a running read
+        // answer a running read at the position or later
         const running = this.#reading.get(key);
-        if (running !== undefined) {
-            return running;
+        if (running !== undefined && !LogPosition.isAfter(position, running.position)) {
+            return running.value;
         }
 
-        // keep the read's value unless the key was forgotten meanwhile
+        // read anew, keeping the value unless a newer one is kept meanwhile
         const reading: Promise<Value> = read().then(
             (value) => {
-                if (this.#reading.get(key) === reading) {
+                // finish the running read, and keep its value unless a newer one is kept
+                const newest = this.#values.get(key);
+                if (this.#reading.get(key)?.value === reading) {
                     this.#reading.delete(key);
-                    this.#keep(key, value);
+                }
+                if (newest === undefined || !LogPosition.isAfter(newest.position, position)) {
+                    this.#keep(key, value, position);
                 }
 
                 return value;
             },
             (error: unknown) => {
-                if (this.#reading.get(key) === reading) {
+                if (this.#reading.get(key)?.value === reading) {
                     this.#reading.delete(key);
                 }
                 throw error;
             },
         );
-        this.#reading.set(key, reading);
+        this.#reading.set(key, { value: reading, position });
 
         return reading;
     }
 
-    /** Forget the value under a key. */
-    forget(key: string): void {
-        this.#values.delete(key);
-        this.#reading.delete(key);
-    }
+    /** Keep a read value, dropping the least recently used ones past the capacity. */
+    #keep(key: string, value: Value, position: LogPosition): void {
+        // replace the key's value, keeping none heavier than the maximum
+        this.#forget(key);
+        const weight = this.#weigh(value);
+        if (weight > this.#maximum) {
+            return;
+        }
 
-    /** Forget every value. */
-    clear(): void {
-        this.#values.clear();
-        this.#reading.clear();
-    }
-
-    /** Keep a read value, dropping the least recently used one past the capacity. */
-    #keep(key: string, value: Value): void {
-        this.#values.set(key, { value });
-        const oldest = this.#values.keys().next();
-        if (this.#values.size > this.#capacity && oldest.done !== true) {
-            this.#values.delete(oldest.value);
+        // keep the value last, dropping the oldest past the capacity
+        this.#values.set(key, { value, position, weight });
+        this.#weight += weight;
+        for (const oldest of this.#values.keys()) {
+            if (this.#weight <= this.#capacity) {
+                break;
+            }
+            this.#forget(oldest);
         }
     }
+
+    /** Drop a kept value and its weight. */
+    #forget(key: string): void {
+        const kept = this.#values.get(key);
+        if (kept !== undefined) {
+            this.#values.delete(key);
+            this.#weight -= kept.weight;
+        }
+    }
+}
+
+/** A value with the log position it was read at. */
+interface Entry<Value> {
+    /** The value. */
+    readonly value: Value;
+    /** The log position it was read at. */
+    readonly position: LogPosition;
 }

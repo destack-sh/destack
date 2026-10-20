@@ -54,7 +54,7 @@ export class Database<
 > {
     /** The tables of the database, its own and replicated ones, without foreign keys to others. */
     readonly tables: readonly Table[];
-    /** The relations of the tables, which relational reads name. */
+    /** The relations of the tables, which relational reads follow. */
     readonly relations: Relations<Models>;
     /** The SQL names of the tables the database replicates from their owning package. */
     readonly replicated: ReadonlySet<string>;
@@ -135,7 +135,7 @@ export function defineDatabase<
         names.set(sqlName, table);
     }
 
-    // require relations among the database's tables
+    // require the relations among the database's tables
     const relations = definition.relations ?? new Relations<Models>();
     const kept = new Set(names.values());
     for (const [name, table] of Object.entries(relations.tables)) {

@@ -118,6 +118,11 @@ export class Snapshot {
         this.#reads = reads;
     }
 
+    /** The record of the snapshot's reads, absent for a view that records none. */
+    get reads(): ReadSet | undefined {
+        return this.#reads;
+    }
+
     /** Whether reads go to the live database: no position, no overlay and no recording. */
     get isLive(): boolean {
         return (

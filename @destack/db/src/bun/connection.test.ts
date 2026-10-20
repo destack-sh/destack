@@ -3,15 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
 import { socketChannel } from "../channel/socket.ts";
-import { defineTable, text } from "../index.ts";
+import { setting } from "./test/setting.ts";
 import { connectBunSqlite } from "./connection.ts";
 
-/** A logged setting without a scope column. */
-const setting = defineTable(
-    "setting",
-    { name: text("name").primaryKey(), value: text("value").notNull() },
-    { log: {} },
-);
+/** The preload that gives a child process's modules their package. */
+const PRELOAD = "@destack/package/bun/preload";
 
 test("wake a file's readers on a commit another process announces on the file's channel", async () => {
     // open the file here, with its log under a space's scope
@@ -31,18 +27,21 @@ test("wake a file's readers on a commit another process announces on the file's 
         AbortSignal.timeout(5000),
     );
     const script = `
-        import { Database } from "bun:sqlite";
         import { socketChannel } from ${JSON.stringify(join(import.meta.dirname, "../channel/socket.ts"))};
-        const database = new Database(${JSON.stringify(path)});
-        database.run("INSERT INTO destack__db__setting (name, value) VALUES ('theme', 'dark')");
-        database.close();
+        import { connectBunSqlite } from ${JSON.stringify(join(import.meta.dirname, "connection.ts"))};
+        import { setting } from ${JSON.stringify(join(import.meta.dirname, "test/setting.ts"))};
+        const database = await connectBunSqlite(${JSON.stringify(path)}, [setting]);
+        await database.insert(setting).values({ name: "theme", value: "dark" });
+        await database.close();
         const channel = socketChannel(${JSON.stringify(`${path}#log`)});
         const stop = channel.listen(() => {}, () => {
             channel.notify({ kind: "commit", tables: ["destack__db__setting"] });
             setTimeout(() => { stop(); }, 50);
         });
     `;
-    const child = Bun.spawn([process.execPath, "-e", script], { stderr: "pipe" });
+    const child = Bun.spawn([process.execPath, "--preload", PRELOAD, "-e", script], {
+        stderr: "pipe",
+    });
     expect([await child.exited, await new Response(child.stderr).text()]).toEqual([0, ""]);
     expect(await waiting).toBe(true);
 });

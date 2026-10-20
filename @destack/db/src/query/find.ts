@@ -66,17 +66,17 @@ export class ModelQueryBuilder<Entity extends Model = Model> {
     readonly #connection: DatabaseConnection;
     /** The read table. */
     readonly #table: Table;
-    /** The schema's relations, which `with`, conditions and extras reference. */
+    /** The relations that `with`, conditions and extras follow. */
     readonly #relations: Relations;
 
-    /** Read a table through a connection by the schema's relations. */
+    /** Read a table through a connection by its relations. */
     constructor(connection: DatabaseConnection, table: Table, relations: Relations) {
         this.#connection = connection;
         this.#table = table;
         this.#relations = relations;
     }
 
-    /** Read each table the relations name through a connection. */
+    /** Read each table the relations relate through a connection. */
     static of<Models extends Readonly<Record<string, Model>>>(
         connection: DatabaseConnection,
         relations: Relations<Models>,

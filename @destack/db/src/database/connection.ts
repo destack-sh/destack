@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
-import { DatabaseDriver } from "./driver.ts";
+import { DatabaseDriver, type DriverOptions } from "./driver.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -14,6 +14,7 @@ import {
     readEmpty,
     readState,
     readTables,
+    STATE,
     unappliedTables,
     type DeclareOptions,
     type TableState,
@@ -23,11 +24,13 @@ import { changedTables, planTables, type TablePlan } from "../migration/plan.ts"
 import { mergeStates, type Merge } from "../migration/merge.ts";
 import type { Selection } from "../query/selection.ts";
 import { type TransactionOptions, TransactionState } from "./transaction.ts";
-import { closeTransaction, openTransaction } from "../log/transaction.ts";
+import { TransactionIdentity } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { Transaction } from "../log/commit.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
-import { LOG_TOPIC } from "../log/schema.ts";
+import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
+import { ReadCache } from "../log/cache.ts";
+import { literal, quote } from "../dialect/quote.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
@@ -37,6 +40,12 @@ import { Relations } from "../query/relation.ts";
 import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
+
+/** The rows each read cache keeps: 1 MB of 0.5 KB rows and 4 MB of 2 KB keys, 10 MB for two. */
+const CACHED_ROWS = 2048;
+
+/** The most rows one cached read has, as a resolve reads a few dozen. */
+const SHARED_ROWS = 64;
 
 /** The referential actions that write the referencing rows. */
 const WRITING_ACTIONS: ReadonlySet<string> = new Set(["cascade", "set null", "set default"]);
@@ -49,7 +58,7 @@ export class DatabaseConnection<
     readonly driver: DatabaseDriver;
     /** The tables the database declares, in declaration order. */
     readonly tables: readonly Table[];
-    /** The relations the database declares, which relational reads reference. */
+    /** The relations the database declares, which relational reads follow. */
     readonly relations: Relations<Models>;
     /** The physical connection state. */
     readonly state: ConnectionState;
@@ -67,12 +76,27 @@ export class DatabaseConnection<
 
     /** Open a connection on the same session that counts the operations it submits. */
     metered(): DatabaseConnection<Models> {
-        const driver = new DatabaseDriver(this.driver.session, this.state, this.driver.transaction);
+        return this.#copy({ isSharing: this.driver.isSharing });
+    }
+
+    /** Open a connection on the same session whose shared reads go through the shared caches. */
+    sharing(): DatabaseConnection<Models> {
+        return this.#copy({ isSharing: true, meter: this.driver.meter });
+    }
+
+    /** Open a connection on the same session and transaction with other driver options. */
+    #copy(options: DriverOptions): DatabaseConnection<Models> {
+        const driver = new DatabaseDriver(
+            this.driver.session,
+            this.state,
+            this.driver.transaction,
+            options,
+        );
 
         return new DatabaseConnection(driver, this.tables, this.relations);
     }
 
-    /** Read the tables the relations name. */
+    /** Read the tables the relations relate. */
     get query(): Queries<Models> {
         this.#query ??= ModelQueryBuilder.of(this, this.relations);
 
@@ -227,9 +251,11 @@ export class DatabaseConnection<
         return sql`(${sql.join(columns, sql`, `)}) IN (SELECT ${sql.join(values, sql`, `)} FROM ${jsonElements(tuples, "wanted")})`;
     }
 
-    /** Execute a SQL script in one round trip as a write of every declared table. */
+    /** Execute a script in one round trip: DDL and pragmas alone, or a transaction's writes. */
     async executeScript(script: string): Promise<void> {
+        // stamp an enclosing transaction
         const every = new Set(this.state.cascades.keys());
+        await this.driver.transaction?.identity.stamp();
         await this.driver.commit(() => this.driver.session.exec(script), every);
     }
 
@@ -342,8 +368,8 @@ export class DatabaseConnection<
     }
 
     /** Apply a plan in one transaction and record the declared state. */
-    apply(plan: TablePlan): Promise<void> {
-        return applyPlan(this, plan);
+    async apply(plan: TablePlan): Promise<void> {
+        await applyPlan(this, plan);
     }
 
     /** Commit a callback, or roll back on failure or its own rollback, then resolve undefined. */
@@ -361,14 +387,13 @@ export class DatabaseConnection<
         const signal = signals.length ? AbortSignal.any(signals) : undefined;
         signal?.throwIfAborted();
 
-        // open the transaction or savepoint, deferring constraints and marking the outermost SQLite write for the log
+        // open the transaction, or a savepoint sharing the outermost one's writes and identity
         const isNested = this.driver.transaction !== undefined;
         const written = this.driver.transaction?.written ?? new Set<string>();
         const execute = () =>
             this.driver.session.transaction(
                 async (session) => {
                     // defer constraints to the commit when asked, sent ahead of the work
-                    const isWriting = !isNested && options.isReadOnly !== true;
                     const deferring =
                         options.constraints === "deferred"
                             ? session.run(
@@ -379,32 +404,29 @@ export class DatabaseConnection<
                               )
                             : undefined;
 
-                    // give the outermost write its log identity: a SQLite marker, else PostgreSQL's transaction id
-                    const marked =
-                        session.dialect === "sqlite" && isWriting
-                            ? await openTransaction(session, this.state)
-                            : undefined;
-                    const id =
-                        session.dialect === "postgresql" && isWriting
-                            ? DatabaseConnection.#assignIdentity(session)
-                            : Promise.resolve(marked ?? (await this.driver.transaction?.id));
+                    // give the outermost transaction its log identity, stamped at its first logged write
+                    const identity =
+                        this.driver.transaction?.identity ??
+                        new TransactionIdentity(session, this.state);
+                    const isStamped = identity.isStamped;
 
-                    // run the work, surfacing a failure of the statements sent ahead of it first
-                    const opening: Promise<unknown>[] =
-                        deferring === undefined ? [id] : [deferring, id];
+                    // run the work, forgetting a stamp its rolled back savepoint undid
                     const result = await this.#transact(
                         session,
                         operation,
                         written,
-                        id,
+                        identity,
                         signal,
                     ).catch(async (error: unknown) => {
-                        await Promise.all(opening);
+                        await deferring;
+                        if (isNested && !isStamped) {
+                            identity.unstamp();
+                        }
                         throw error;
                     });
-                    await Promise.all(opening);
-                    if (marked !== undefined) {
-                        await closeTransaction(session, this.state);
+                    await deferring;
+                    if (!isNested) {
+                        await identity.close();
                     }
 
                     return result;
@@ -433,22 +455,15 @@ export class DatabaseConnection<
         }, signal);
     }
 
-    /** Assign the open PostgreSQL transaction its identity, which its log entries carry. */
-    static async #assignIdentity(session: Session): Promise<string> {
-        const [row] = await session.all("SELECT pg_current_xact_id()::TEXT AS id", []);
-
-        return schema.string().parse(row?.["id"]);
-    }
-
     /** Bind a transaction session and drain its queries. */
     #transact<Value>(
         session: Session,
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         written: Set<string>,
-        id: Promise<string | undefined>,
+        identity: TransactionIdentity,
         signal?: AbortSignal,
     ): Promise<Value> {
-        const state = new TransactionState(written, id, signal);
+        const state = new TransactionState(written, identity, signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state),
             this.tables,
@@ -496,6 +511,22 @@ export class ConnectionState {
     readonly namespace: string | undefined;
     /** The searched tables whose full-text rows SQLite writes keep, by SQL name. */
     readonly searched: ReadonlyMap<string, Table>;
+    /** The SQL names of the tables without change triggers: unlogged ones and the log's own. */
+    readonly unlogged: ReadonlySet<string>;
+    /** The SQL names of the tables whose reads transactions share through the read caches. */
+    readonly shared: ReadonlySet<string>;
+    /** The statement reading the shared tables' log version, absent without shared tables. */
+    readonly versionStatement: string | undefined;
+    /** The cache of `values` reads of shared tables, by statement, each at its tables' version. */
+    readonly valueCache = new ReadCache<unknown[][]>(CACHED_ROWS, SHARED_ROWS, (rows) =>
+        Math.max(1, rows.length),
+    );
+    /** The cache of `all` reads of shared tables, by statement, each at its tables' version. */
+    readonly recordCache = new ReadCache<Record<string, unknown>[]>(
+        CACHED_ROWS,
+        SHARED_ROWS,
+        (rows) => Math.max(1, rows.length),
+    );
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
     /** Whether the database keeps a log. */
@@ -528,11 +559,30 @@ export class ConnectionState {
         const logged = tables
             .filter((table) => table[TABLE].retention !== "none")
             .map((table) => table[TABLE].sqlName);
+        this.unlogged = new Set([
+            ...tables
+                .filter((table) => table[TABLE].retention === "none")
+                .map((table) => table[TABLE].sqlName),
+            ...LOG_TABLES,
+        ]);
+        this.shared = new Set(
+            tables.filter((table) => table[TABLE].isShared).map((table) => table[TABLE].sqlName),
+        );
+        this.versionStatement = versionStatement(
+            [...this.shared],
+            options.dialect,
+            options.namespace,
+        );
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
             new Set(options.announcer === "database" ? logged : []),
             [...this.cascades.keys()],
         );
+    }
+
+    /** Report whether a write of some tables may log, writing one with change triggers. */
+    isLogging(written: ReadonlySet<string>): boolean {
+        return [...written].some((table) => !this.unlogged.has(table));
     }
 
     /** Submit an operation. */
@@ -566,6 +616,38 @@ export class ConnectionState {
 
         return this.#closing;
     }
+}
+
+/** Write the statement reading the epoch, the horizon, and each table's sequence and migration. */
+function versionStatement(
+    tables: readonly string[],
+    dialect: Dialect,
+    namespace: string | undefined,
+): string | undefined {
+    // read nothing without shared tables
+    if (tables.length === 0) {
+        return undefined;
+    }
+
+    // take each table's latest sequence through the log's table index, in the tables' order
+    const name = (table: string) =>
+        quote(relation(table, dialect === "sqlite" ? namespace : undefined));
+    const latest = tables.map(
+        (table) => `(SELECT max(sequence) FROM ${name(LOG)} WHERE "table" = ${literal(table)})`,
+    );
+
+    // take each table's latest migration, as its state records it
+    const state = quote(relation(STATE, namespace));
+    const applied = tables.map(
+        (table) =>
+            `(SELECT applied_at FROM ${state} WHERE "table" = ${literal(relation(table, namespace))})`,
+    );
+
+    // read them after the epoch and the horizon, in one row
+    const epoch = `(SELECT epoch FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
+    const horizon = `(SELECT sequence FROM ${name(LOG_HORIZON)} WHERE slot = 1)`;
+
+    return `SELECT ${[epoch, horizon, ...latest, ...applied].join(", ")}`;
 }
 
 /** List the tables a write to each table changes, itself first, through triggers and actions. */

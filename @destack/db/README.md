@@ -1,6 +1,6 @@
 # @destack/db
 
-`@destack/db` is Drizzle's query builder and relational queries v2 on SQLite and PostgreSQL, `/bun`, `/postgres` and `/cloudflare` are its drivers for Bun SQLite, Postgres.js and Durable Object storage, `/browser` is SQLite Wasm shared between tabs, and `Filter` reads Google's AIP-160 filters.
+`@destack/db` runs Drizzle's query builder on SQLite and PostgreSQL, with drivers for Bun, Postgres.js, Durable Objects and the browser (`/browser`), and `Filter` reads Google's AIP-160 filters.
 
 ```ts
 // Drizzle's select
@@ -50,7 +50,7 @@ export const note = defineTable(
 
 ## Predefined rows
 
-A table's `predefined` rows are identical in every database: migrations upsert them unlogged, writes to them fail, and replicas leave them alone.
+A table's `predefined` rows are the same in every database, and writes to them fail.
 
 ```ts
 export const role = defineTable("role", columns, {
@@ -68,7 +68,7 @@ await Transaction.run(database, (transaction) =>
 
 ## Full-text search
 
-A table's `fullText` columns keep a full-text index, and `SEARCH` matches rows whose text has each word as a word's prefix.
+A table's `fullText` columns keep a search index, and `SEARCH` matches rows that contain each word as a prefix.
 
 ```ts
 export const note = defineTable("note", columns, { log: {}, fullText: ["title", "body"] });
@@ -81,7 +81,7 @@ note[TABLE].requireFullText().matches(row, SearchText.query("lov ada")); // the 
 
 ## Databases
 
-`defineDatabase` declares the tables a package owns and the tables it replicates, and `defineRelations` relates them as Drizzle's `defineRelations` does.
+`defineDatabase` declares the tables a package owns and replicates, and `defineRelations` relates them, as Drizzle's does.
 
 ```ts
 export const relations = defineRelations({ project, task }, (r) => ({
@@ -95,7 +95,7 @@ const database = work.get(context);
 
 ## Connections
 
-`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL, and a `DurableObjectDatabaseHost` opens the databases of a Durable Object's storage behind its one queue.
+`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL, and `DurableObjectDatabaseHost` opens one in a Durable Object.
 
 ```ts
 const file = await connectBunSqlite("work.db", work);
@@ -105,7 +105,7 @@ const storage = new DurableObjectDatabaseHost(state.storage).connect(work, { nam
 
 ## Sealed columns
 
-`sensitive()` columns are sealed at rest with AES-GCM-SIV under a key derived from the database's scope identity, `sensitive("deterministic")` alike for equal values so a lookup finds them, and a database is keyed once before it reads or writes them.
+`sensitive()` columns are encrypted at rest under a key derived from the database's scope, and `sensitive("deterministic")` columns can still be looked up.
 
 ```ts
 const credential = defineTable("credential", {
@@ -129,7 +129,7 @@ await database.apply(plan);
 
 ## Transactions
 
-`Transaction.open` reads at a snapshot and buffers writes, each a `RowChange`, checking unique keys once per table and committing only when nothing it read changed, and every view reads through Drizzle's `findMany` and `findFirst`.
+`Transaction.open` reads at a snapshot, buffers its writes, and commits only when nothing it read changed.
 
 ```ts
 const transaction = await Transaction.open(database);
@@ -144,9 +144,18 @@ await transaction.write(
 await transaction.commit();
 ```
 
+## Shared reads
+
+A table declared `log: { isShared: true }` lets transactions share their reads of it, each read kept at its tables' latest change until a commit writes them.
+
+```ts
+export const member = defineTable("member", columns, { log: { isShared: true } });
+const transaction = await Transaction.open(database); // reads shared tables through database.sharing()
+```
+
 ## Log
 
-`database.log.follow` reads the committed changes of logged tables in commit order, and `database.log.at` reads them as they were at a position.
+`database.log.follow` reads the committed changes of logged tables in order, and `database.log.at` reads the tables as of a position.
 
 ```ts
 const position = await database.log.position();
@@ -164,10 +173,16 @@ await database.log
 
 ## Leases and rate limits
 
-`Lease` fences a key's lapsed holders by epoch as Kubernetes leader election does, and `Bucket` takes rate tokens by the generic cell rate algorithm in one statement.
+`Lease` fences a key's old holders by epoch, as Kubernetes leader election does, and `Bucket` takes rate tokens by the generic cell rate algorithm.
 
 ```ts
-const taken = await Lease.acquire(database, { name: "controller:sync", key, holder, duration: 15_000, now });
+const taken = await Lease.acquire(database, {
+    name: "controller:sync",
+    key,
+    holder,
+    duration: 15_000,
+    now,
+});
 await Lease.release(database, { holder, name: "controller:sync" });
 const outcome = await Bucket.take(database, {
     name: "method:notes/post.create",
@@ -207,10 +222,17 @@ test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
 
 ## Templates
 
-A `TestTemplate` is the rows tests start with: its package's run setup writes its image once per run, and `TestDatabase.copy` hands each test a copy.
+A `TestTemplate` is the rows tests start with, written once per run and copied into each test by `TestDatabase.copy`.
 
 ```ts
-export const templates = [new TestTemplate({ name: "notes.fixture", tables: [note], value: schema.null(), write: keepFixture })];
+export const templates = [
+    new TestTemplate({
+        name: "notes.fixture",
+        tables: [note],
+        value: schema.null(),
+        write: keepFixture,
+    }),
+];
 export default TestRun.setup(new URL("./templates.ts", import.meta.url)); // src/test/setup.ts, the config's globalSetup
 const { storage, value } = await TestDatabase.copy(dialect, fixture);
 ```

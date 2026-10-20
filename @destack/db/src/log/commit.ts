@@ -84,6 +84,24 @@ export class ReadSet {
         this.#matches.set(name, [...matches, { match: Predicate.compile(predicate, table), kind }]);
     }
 
+    /** Record every read another set recorded, keeping the stronger read of a key. */
+    add(other: ReadSet): void {
+        // take the other set's tables, keys and scans
+        for (const [name, table] of other.#tables) {
+            this.#tables.set(name, table);
+        }
+        for (const [name, keys] of other.#keys) {
+            const own = this.#keys.get(name) ?? new Map<string, ReadKind>();
+            for (const [key, kind] of keys) {
+                own.set(key, own.get(key) === "row" ? "row" : kind);
+            }
+            this.#keys.set(name, own);
+        }
+        for (const [name, matches] of other.#matches) {
+            this.#matches.set(name, [...(this.#matches.get(name) ?? []), ...matches]);
+        }
+    }
+
     /** The tables the transaction read. */
     get tables(): readonly Table[] {
         return [...this.#tables.values()];
@@ -115,7 +133,7 @@ export class ReadSet {
         return isKeyRead || isScanned;
     }
 
-    /** Keep a table by its SQL name, answering the name. */
+    /** Keep a table by its SQL name and return the name. */
     #table(table: Table): string {
         const name = table[TABLE].sqlName;
         this.#tables.set(name, table);
@@ -128,6 +146,8 @@ export class ReadSet {
 export class ChangeSet {
     /** The written rows, by table and key name. */
     readonly #rows = new Map<string, RowChange>();
+    /** The writes so far, by table SQL name. */
+    readonly #writes = new Map<string, number>();
 
     /** Record a write of one row: before, null for a creation, and after, null for a removal. */
     write({ table, before, after }: RowChange): void {
@@ -143,9 +163,19 @@ export class ChangeSet {
         }
         const name = Key.name(table, image);
 
-        // keep the row's first image before and its latest after
+        // keep the row's first image before and its latest after, counting the write
         const first = this.#rows.get(name);
         this.#rows.set(name, { table, before: first === undefined ? before : first.before, after });
+        const sqlName = table[TABLE].sqlName;
+        this.#writes.set(sqlName, (this.#writes.get(sqlName) ?? 0) + 1);
+    }
+
+    /** Count the writes of some tables so far, rewrites included. */
+    writes(tables: readonly Table[]): number {
+        return tables.reduce(
+            (count, table) => count + (this.#writes.get(table[TABLE].sqlName) ?? 0),
+            0,
+        );
     }
 
     /** The rows that differ from their images before the set, in write order. */
@@ -462,7 +492,7 @@ export class ChangeSet {
 
 /** A transaction in progress over a database: its start position, reads and writes. */
 export class Transaction {
-    /** The database the transaction reads and commits to. */
+    /** The database the transaction reads and commits to, sharing reads of shared tables. */
     readonly database: DatabaseConnection;
     /** The transaction's start position, checked against the log at commit, null if read-only. */
     readonly #base: LogPosition | null;
@@ -479,7 +509,7 @@ export class Transaction {
 
     /** Start a transaction at a position, or one that only reads at null. */
     constructor(database: DatabaseConnection, base: LogPosition | null) {
-        this.database = database;
+        this.database = database.sharing();
         this.#base = base;
     }
 

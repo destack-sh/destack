@@ -1,4 +1,5 @@
 import { DatabaseError, isAborted, wraps } from "../error/index.ts";
+import type { TransactionIdentity } from "../log/transaction.ts";
 
 /** The lifetime of a transaction callback and its queries. */
 export class TransactionState {
@@ -12,13 +13,13 @@ export class TransactionState {
     readonly signal: AbortSignal | undefined;
     /** The SQL names of the tables the outermost transaction writes, which its commit announces. */
     readonly written: Set<string>;
-    /** The identity the outermost writing transaction's log entries carry, absent without one. */
-    readonly id: Promise<string | undefined>;
+    /** The outermost transaction's log identity, stamped at its first write. */
+    readonly identity: TransactionIdentity;
 
     /** Create the state, recording its writes and identity as the outermost transaction's. */
-    constructor(written: Set<string>, id: Promise<string | undefined>, signal?: AbortSignal) {
+    constructor(written: Set<string>, identity: TransactionIdentity, signal?: AbortSignal) {
         this.written = written;
-        this.id = id;
+        this.identity = identity;
         this.signal = signal;
     }
 

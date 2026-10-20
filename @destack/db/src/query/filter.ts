@@ -24,7 +24,7 @@ type Token =
 
 /** How a filter reads its fields and values. */
 export interface FilterOptions {
-    /** The fields a filter may name, any when absent. */
+    /** The fields a filter may use, any when absent. */
     readonly fields?: ReadonlySet<string>;
     /** The values `@name` stands for, such as `@me` for the person. */
     readonly values?: Readonly<Record<string, Comparable>>;

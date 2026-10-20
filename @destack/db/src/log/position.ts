@@ -101,9 +101,7 @@ export function headFields(dialect: Dialect): {
     const log = sql.relation(LOG);
     const logged =
         dialect === "sqlite"
-            ? sql`(SELECT sequence FROM ${log} AS entry
-                WHERE NOT EXISTS (SELECT 1 FROM ${sql.relation(LOG_TRANSACTION)} AS marker
-                    WHERE marker.slot = 1 AND marker.id = entry."transaction")
+            ? sql`(SELECT sequence FROM ${log} AS entry WHERE ${committedEntry(dialect, sql`entry`)}
                 ORDER BY sequence DESC LIMIT 1)`
             : sql`(SELECT max(sequence) FROM ${log})`;
 
@@ -116,6 +114,14 @@ export function headFields(dialect: Dialect): {
             (value) => LogColumn.integer(value),
         ),
     };
+}
+
+/** Require a log entry to be committed: outside SQLite's open transaction. */
+export function committedEntry(dialect: Dialect, entry: SQL): SQL {
+    return dialect === "sqlite"
+        ? sql`NOT EXISTS (SELECT 1 FROM ${sql.relation(LOG_TRANSACTION)} AS marker
+            WHERE marker.slot = 1 AND marker.id = ${entry}."transaction")`
+        : sql`TRUE`;
 }
 
 /** Select the log's head in one row: its epoch, latest sequence and horizon. */

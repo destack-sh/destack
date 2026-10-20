@@ -27,6 +27,16 @@ export const LOG_REPLICA = "__destack_log_replica";
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
+/** The log's own tables, which have no change triggers. */
+export const LOG_TABLES: readonly string[] = [
+    LOG,
+    LOG_HORIZON,
+    LOG_SLOT,
+    LOG_EPOCH,
+    LOG_REPLICA,
+    LOG_TRANSACTION,
+];
+
 /** The channel name of logged commits. */
 export const LOG_TOPIC = "log";
 

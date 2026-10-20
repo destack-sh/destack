@@ -26,9 +26,7 @@ export async function rebuildTree(
 
     // lock the source against parent changes
     if (database.dialect === "postgresql") {
-        await database.run(
-            sql`LOCK TABLE ${sql.identifier(tree.table)} IN SHARE ROW EXCLUSIVE MODE`,
-        );
+        await database.run(sql`LOCK TABLE ${sql.relation(tree.table)} IN SHARE ROW EXCLUSIVE MODE`);
     }
 
     // read every parent link, validate every chain and stage every path
@@ -38,7 +36,7 @@ export async function rebuildTree(
     await stagePaths(database, staged, scopes);
 
     // remove stale paths and add missing ones
-    const ancestors = sql.identifier(tree.ancestors);
+    const ancestors = sql.relation(tree.ancestors);
     await database.run(sql`DELETE FROM ${ancestors}
         WHERE NOT EXISTS (SELECT 1 FROM ${staged} WHERE ${same(staged, ancestors)})`);
     await database.run(sql`INSERT INTO ${ancestors} (scope, ancestor, descendant, depth)
@@ -55,7 +53,7 @@ async function readParents(
     // read every parent link
     const rows = await database.execute(
         sql`SELECT ${sql.identifier(tree.id)} AS id, ${sql.identifier(tree.scope)} AS scope,
-            ${sql.identifier(tree.parent)} AS parent FROM ${sql.identifier(tree.table)}`,
+            ${sql.identifier(tree.parent)} AS parent FROM ${sql.relation(tree.table)}`,
         schema.object({
             id: schema.string(),
             scope: schema.string(),

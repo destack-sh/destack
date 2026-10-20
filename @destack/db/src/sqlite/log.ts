@@ -36,7 +36,7 @@ function createSQLiteLog(epoch: string, scope?: string, namespace?: string): rea
     return [
         `CREATE TABLE IF NOT EXISTS ${log} (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-            "transaction" TEXT,
+            "transaction" TEXT NOT NULL,
             "table" TEXT NOT NULL,
             key TEXT NOT NULL,
             operation TEXT NOT NULL,
@@ -49,6 +49,7 @@ function createSQLiteLog(epoch: string, scope?: string, namespace?: string): rea
         )`,
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_compaction`)} ON ${log}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
+        `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_table`)} ON ${log}("table", sequence)`,
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_HORIZON)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),

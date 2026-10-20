@@ -108,7 +108,7 @@ test("refuse a transaction's client kept past it, even while a later transaction
     ]);
 });
 
-test("count the rows a Durable Object's statements write and read, each in the one measure following them", async () => {
+test("count the rows a Durable Object's statements read and write, each in the one measure following them", async () => {
     const worker = await start();
 
     // count the insert's rows as workerd counts them, its key index entries included, the three notes read back, and nothing after
@@ -117,7 +117,7 @@ test("count the rows a Durable Object's statements write and read, each in the o
         200,
         {
             counts: [
-                [17, 8],
+                [0, 6],
                 [3, 0],
                 [0, 0],
             ],

@@ -2,8 +2,9 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
-import { Change, defineTable, eq, TABLE, text } from "../../index.ts";
+import { Change, eq, TABLE } from "../../index.ts";
 import { changeTables, lease, note, reading, revision } from "./fixture.ts";
+import { setting } from "../../bun/test/setting.ts";
 
 /** The concurrent writers of the PostgreSQL numbering test: four per pool, filling both pools. */
 const WRITERS = 8;
@@ -151,17 +152,34 @@ test.for(TEST_DIALECTS)("log committed changes of %s tables in commit order", as
         received.done === true ? [] : received.value.changes.map((change) => change.key),
     ).toEqual([{ id: "c" }]);
 
-    // advance past a commit of another table without its changes
-    const advancing = following.next();
+    // yield another table's commit to an advancing follow alone
+    const advancing = database.log.follow(
+        { tables: [note], after: (await database.log.position()).sequence },
+        controller.signal,
+        { isAdvancing: true },
+    );
+    const [skipped, advanced] = [following.next(), advancing.next()];
     await database
         .insert(revision)
         .values({ scope: "inbox", noteId: "c", number: 1, title: "First" });
-    expect(await advancing).toEqual({
-        done: false,
-        value: { changes: [], sequence: (await database.log.position()).sequence },
-    });
+    const other = (await database.log.position()).sequence;
+    const keepalive = await advanced;
+
+    // yield the next note to the follow that skipped the other table's commit
+    await database.insert(note).values({ ...first, id: "d" });
+    const noted = await skipped;
+    expect(
+        [keepalive, noted].map((page) =>
+            page.done === true
+                ? undefined
+                : [page.value.changes.map((change) => change.key), page.value.sequence],
+        ),
+    ).toEqual([
+        [[], other],
+        [[{ id: "d" }], (await database.log.position()).sequence],
+    ]);
     controller.abort();
-    expect((await following.next()).done).toBe(true);
+    expect([(await following.next()).done, (await advancing.next()).done]).toEqual([true, true]);
 });
 
 test.for(TEST_DIALECTS)(
@@ -547,12 +565,6 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "log the rows of a table without a scope column under its database's scope on %s",
     async (dialect) => {
-        const setting = defineTable(
-            "setting",
-            { name: text("name").primaryKey(), value: text("value").notNull() },
-            { log: {} },
-        );
-
         // refuse writing the rows while the database has no scope
         const unscoped = await TestDatabase.create(dialect, [setting]);
         onTestFinished(() => unscoped.close());
@@ -582,6 +594,45 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("migrate after a transaction that created the log rolled back, as no log remains", async () => {
+    // create the log and the table in a transaction that rolls back
+    const storage = await TestDatabase.create("sqlite", [setting]);
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const rolledBack = await database
+        .transaction(async (transaction) => {
+            await transaction.log.create("space-a");
+            await transaction.migrate([setting]);
+            throw new Error("roll back");
+        })
+        .catch((error: unknown) => (error instanceof Error ? error.message : "unknown"));
+
+    // migrate the table again without a log
+    await database.migrate([setting]);
+    expect({ rolledBack, tables: await database.unapplied([setting]) }).toEqual({
+        rolledBack: "roll back",
+        tables: [],
+    });
+});
+
+test("log a transaction's writes once it creates the log after stamping without one", async () => {
+    // stamp a transaction before the log exists, create the log, then write a logged row
+    const storage = await TestDatabase.create("sqlite", [setting]);
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.transaction(async (transaction) => {
+        await transaction.log.create("space-a");
+        await transaction.migrate([setting]);
+        await transaction.insert(setting).values({ name: "theme", value: "dark" });
+    });
+
+    // log the write under its transaction
+    const changes = await database.log.read({ tables: [setting], after: 0 });
+    expect(changes.changes.map((change) => [change.operation, change.scope])).toEqual([
+        ["insert", "space-a"],
+    ]);
+});
 
 test.for(TEST_DIALECTS)(
     "log the insertions of an append-only %s table alone, refusing its updates",
@@ -618,5 +669,45 @@ test.for(TEST_DIALECTS)(
             true,
             [{ id: "b", value: 2 }],
         ]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "read the position of a scope's latest change to some tables, past later changes to others, on %s",
+    async (dialect) => {
+        // write a note and a revision in the inbox, then a note in the archive
+        const { database } = await open(dialect);
+        await database.insert(note).values({ ...first, id: "n" });
+        const noted = await database.log.position();
+        await database
+            .insert(revision)
+            .values({ scope: "inbox", noteId: "n", number: 1, title: "R" });
+        const revised = await database.log.position();
+        await database.insert(note).values({ ...first, id: "m", scope: "archive" });
+        const archived = await database.log.position();
+        const changed = {
+            notes: await database.log.changed([note], "inbox"),
+            both: await database.log.changed([note, revision], "inbox"),
+            archive: await database.log.changed([note], "archive"),
+            none: await database.log.changed([], "inbox"),
+            own: await database.transaction(async (transaction) => {
+                // leave out the transaction's own uncommitted write
+                await transaction.insert(note).values({ ...first, id: "o" });
+
+                return await transaction.log.changed([note], "inbox");
+            }),
+        };
+
+        // place the inbox's notes at the horizon once compaction removed the notes' changes
+        const owned = await database.log.position();
+        await database.log.compact(Date.now() + 1000, Date.now());
+        expect({ ...changed, compacted: await database.log.changed([note], "inbox") }).toEqual({
+            notes: noted,
+            both: revised,
+            archive: archived,
+            none: { epoch: archived.epoch, sequence: 0 },
+            own: noted,
+            compacted: owned,
+        });
     },
 );

@@ -77,18 +77,18 @@ type RelationJoin = Relation & { readonly on: KeyPath | JunctionPath };
 /** The rows a relational read keeps of a table along a path, every row when absent. */
 export type Filter = (table: Table, path: Path) => SQL | undefined;
 
-/** The schema's relations by table, as queries list them, with relational read tables. */
+/** A database's relations by table, and the tables relational reads use. */
 export class Relations<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > {
     /** The models of the named tables, as relational reads type them. */
     declare readonly _: { readonly models: Models };
-    /** The tables relational reads name, by name. */
+    /** The tables relational reads use, by name. */
     readonly tables: Readonly<Record<string, Table>>;
     /** The relations of each table, by name. */
     readonly #tables: ReadonlyMap<Table, Readonly<Record<string, Relation>>>;
 
-    /** Keep the relations of each table, and the tables relational reads name. */
+    /** Keep the relations of each table, and the tables relational reads use. */
     constructor(
         relations: ReadonlyMap<Table, Readonly<Record<string, Relation>>> = new Map(),
         tables: Readonly<Record<string, Table>> = {},
@@ -163,14 +163,14 @@ export class Relations<
 
 /** The SQL subqueries reading a table's related rows, each correlated to the table's row. */
 class Subquery {
-    /** The schema's relations. */
+    /** The relations the subqueries follow. */
     readonly #relations: Relations;
     /** The table whose rows the subqueries correlate to. */
     readonly #table: Table;
     /** The rows the read keeps of each table along a path. */
     readonly #filter: Filter;
 
-    /** Read a table's related rows through the schema's relations, keeping the filter's rows. */
+    /** Read a table's related rows through the relations, keeping the filter's rows. */
     constructor(relations: Relations, table: Table, filter: Filter) {
         this.#relations = relations;
         this.#table = table;
@@ -352,27 +352,27 @@ export type RelationBuilder<Tables extends Readonly<Record<string, Table>>> = {
 type RelationMap<Tables> = { readonly [Name in keyof Tables]?: Readonly<Record<string, Relation>> };
 
 /** The models of a schema's tables, as relational reads type them. */
-export type ModelsOf<Tables extends Readonly<Record<string, Table>>, Relations> = {
-    readonly [Name in keyof Tables]: TableModel<Tables, Relations, Name>;
+export type ModelsOf<Tables extends Readonly<Record<string, Table>>, Defined> = {
+    readonly [Name in keyof Tables]: TableModel<Tables, Defined, Name>;
 };
 
 /** The model of one table: its selected row, and the related tables' models. */
 type TableModel<
     Tables extends Readonly<Record<string, Table>>,
-    Relations,
+    Defined,
     Name extends keyof Tables,
 > = {
     readonly row: Select<Tables[Name]>;
     readonly value: Select<Tables[Name]>;
-    readonly relations: Name extends keyof Relations
+    readonly relations: Name extends keyof Defined
         ? {
-              readonly [Key in keyof Relations[Name]]: Relations[Name][Key] extends Relation<
+              readonly [Key in keyof Defined[Name]]: Defined[Name][Key] extends Relation<
                   infer Target,
                   infer Cardinality
               >
                   ? Cardinality extends "one"
-                      ? One<TableModel<Tables, Relations, NameOf<Tables, Target>>>
-                      : Many<TableModel<Tables, Relations, NameOf<Tables, Target>>>
+                      ? One<TableModel<Tables, Defined, NameOf<Tables, Target>>>
+                      : Many<TableModel<Tables, Defined, NameOf<Tables, Target>>>
                   : never;
           }
         : {};
@@ -387,7 +387,7 @@ type NameOf<Tables extends Readonly<Record<string, Table>>, Target> = {
         : never;
 }[keyof Tables];
 
-/** Declare a schema's relations by table. */
+/** Declare the relations of some tables, by table. */
 export function defineRelations<
     const Tables extends Readonly<Record<string, Table>>,
     const Defined extends RelationMap<Tables> = {},
