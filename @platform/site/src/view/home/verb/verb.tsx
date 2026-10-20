@@ -62,7 +62,7 @@ const verb: Form = {
         sentence: undefined,
         points: [
             { label: "Own your apps", href: "#verb" },
-            { label: "Make your own", href: "#noun" },
+            { label: "Build custom software", href: "#noun" },
             { label: "Integrate your agents", href: "#imperative" },
         ],
         action: { label: "Get your personal superapp", href: "#present-participle" },
