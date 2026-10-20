@@ -27,12 +27,12 @@
         "@destack/error": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*"
     },
     "devDependencies": {
-        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }
