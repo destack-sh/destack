@@ -26,15 +26,15 @@ const sceneTime = 5200;
 /** The milliseconds from the water fully draining to the first scene change. */
 const firstSceneTime = 1200;
 /** The milliseconds between neighbouring cards turning over, left to right. */
-const flipStagger = 60;
+const flipStagger = 35;
 /** The milliseconds after the stack opens before its apps turn into view. */
-const openFlipAt = 500;
+const openFlipAt = 280;
 /** The milliseconds a card's ink takes to fade out before handing over its box, or to fade in. */
-const inkFade = 320;
+const inkFade = 200;
 /** The milliseconds a card takes to turn over and show the card replacing it. */
-const flipTime = 600;
+const flipTime = 360;
 /** The milliseconds cards take to travel between places. */
-const moveTime = 600;
+const moveTime = 380;
 
 /** The humans, agents, silos, and apps the scenes arrange. */
 export const entities: Record<string, Entity> = {
@@ -201,9 +201,9 @@ const slots = new Map(
 /** The silos, which ride the icebergs today. */
 const vendors = new Set(slots.keys());
 /** The milliseconds a silo takes to rise after the one it replaces starts to sink. */
-const swapDelay = 400;
+const swapDelay = 240;
 /** The milliseconds a silo waits to rise again after the water returns. */
-const landingDelay = 900;
+const landingDelay = 520;
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -662,7 +662,7 @@ export function Remix(properties: {
     };
 
     // wake the cables after the layout changes or the layer comes into view, and rest them while off screen
-    const wake = { until: 0, isVisible: true };
+    const wake = { until: 0, isVisible: true, resume: () => {} };
     const resizes = makeResizeObserver(() => {
         wake.until = performance.now() + 300;
     });
@@ -670,6 +670,9 @@ export function Remix(properties: {
         for (const entry of entries) {
             wake.isVisible = entry.isIntersecting;
             wake.until = performance.now() + 300;
+            if (entry.isIntersecting) {
+                wake.resume();
+            }
         }
     });
 
@@ -1095,9 +1098,14 @@ export function Remix(properties: {
             if (drag()) {
                 wake.until = now + 1500;
             }
-            animationFrame = requestAnimationFrame(loop);
+
+            // keep looping while on screen, and rest until the layer comes back into view
+            animationFrame = wake.isVisible ? requestAnimationFrame(loop) : undefined;
         };
         animationFrame = requestAnimationFrame(loop);
+        wake.resume = () => {
+            animationFrame ??= requestAnimationFrame(loop);
+        };
 
         // retrace after the layout changes or the layer comes into view, and rest while off screen
         resizes.observe(layer);
@@ -1152,11 +1160,11 @@ export function Remix(properties: {
                                 ],
                                 {
                                     ...span(placement()),
-                                    top:
-                                        placement().row === 0
-                                            ? `calc(100% / 6 + ${userDrop}px)`
-                                            : "50%",
-                                    ...follow(motion(isVendor, placement()), held()),
+                                    ...follow(
+                                        motion(isVendor, placement()),
+                                        held(),
+                                        travelOf(placement()),
+                                    ),
                                 },
                             )}
                         >
@@ -1182,9 +1190,9 @@ const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 /** The length of the dash of light that runs down a cable, as a share of the cable. */
 const pulseLength = 0.12;
 /** The milliseconds the dash of light takes to run down a cable. */
-const pulseTime = 600;
+const pulseTime = 400;
 /** The milliseconds after a cable appears before its dash of light starts. */
-const pulseDelay = 150;
+const pulseDelay = 90;
 /** A merged card settling into place from slightly smaller. */
 const land = style.keyframes({
     from: { opacity: 0, scale: "0.98" },
@@ -1194,12 +1202,21 @@ const sinkDepth = "8rem";
 /** The easing of a vendor app sinking under the water. */
 const sink = "cubic-bezier(0.5, 0, 0.9, 0.6)";
 
-/** Return the left edge and width of a card's span, as CSS lengths within the layer. */
+/** Return a card's place, as offsets a transform moves it by, and its width within the layer. */
 function span(place: Placement) {
     return {
-        left: `calc(${frame.cell} * ${place.left})`,
+        "--x": `calc(${frame.cell} * ${place.left})`,
+        "--y":
+            place.row === 0
+                ? `calc(${frame.cellRow} * ${layerRows} / 6 + ${userDrop}px)`
+                : `calc(${frame.cellRow} * ${layerRows} / 2)`,
         width: `calc(${frame.cell} * ${place.width})`,
     };
+}
+
+/** Return how a card travels to a new place: at once while parked, or over the move's time. */
+function travelOf(place: Placement): string {
+    return place.step === "park" ? "0ms" : `${moveTime}ms ${easing} ${place.delay}ms`;
 }
 
 /** Return the centre of a card's span in pixels, for a given cell width. */
@@ -1220,7 +1237,7 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
                   translate: "0 0",
                   rotate: "0deg",
                   scale: "1",
-                  transition: `opacity 300ms ease ${place.delay}ms, translate ${moveTime}ms ${easing} ${place.delay}ms, rotate ${moveTime}ms ${easing} ${place.delay}ms, scale 500ms ${easing} ${place.delay}ms`,
+                  transition: `opacity 200ms ease ${place.delay}ms, translate ${moveTime}ms ${easing} ${place.delay}ms, rotate ${moveTime}ms ${easing} ${place.delay}ms, scale 320ms ${easing} ${place.delay}ms`,
               }
             : {
                   opacity: "0",
@@ -1228,7 +1245,7 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
                   rotate: "5deg",
                   scale: "1",
                   "pointer-events": "none",
-                  transition: `translate 600ms ${sink}, rotate 600ms ${sink}, opacity 400ms ease 200ms`,
+                  transition: `translate 380ms ${sink}, rotate 380ms ${sink}, opacity 260ms ease 120ms`,
               };
     }
 
@@ -1253,11 +1270,11 @@ function motion(isVendor: boolean, place: Placement): Record<string, string> {
     // travel cards whole or morph them into each other: a card going away fades its ink out, then hands its box over to the card
     //  taking its place, whose ink fades in, so the boxes never blink
     const swap = swapOf(place);
-    const move = `left ${moveTime}ms ${easing} ${place.delay}ms, top ${moveTime}ms ${easing} ${place.delay}ms, width ${moveTime}ms ${easing} ${place.delay}ms, opacity 0ms linear ${place.step === "stay" ? 0 : swap}ms`;
+    const move = `width ${moveTime}ms ${easing} ${place.delay}ms, opacity 0ms linear ${place.step === "stay" ? 0 : swap}ms`;
     // fade in a card that grows out of a merge as it takes over
     const landing: Record<string, string> =
         isShown && place.isLate && place.step !== "park"
-            ? { animation: `${land} 320ms ${easing} ${swap}ms both` }
+            ? { animation: `${land} 220ms ${easing} ${swap}ms both` }
             : {};
 
     return {
@@ -1296,14 +1313,15 @@ function inkOf(isVendor: boolean, place: Placement): Ink {
 function follow(
     entrance: Record<string, string>,
     held: { x: number; y: number } | undefined,
+    travel: string,
 ): Record<string, string> {
-    // spring the offset home on its own, apart from the entrance and exit delays
+    // move the card to its place and by any drag in one transform, so the compositor carries it
     const offset = held ? `translate(${held.x}px, ${held.y}px)` : "translate(0px, 0px)";
-    const release = held ? "transform 0ms" : `transform 400ms ${easing}`;
+    const release = held ? "transform 0ms" : `transform ${travel}`;
 
     return {
         ...entrance,
-        transform: `${offset} translateY(-50%)`,
+        transform: `translate(var(--x), var(--y)) ${offset} translateY(-50%)`,
         transition:
             entrance["transition"] === "none" ? release : `${entrance["transition"]}, ${release}`,
     };
@@ -1619,8 +1637,10 @@ const styles = style.create({
         cursor: "grab",
         display: "flex",
         justifyContent: "center",
+        left: 0,
         pointerEvents: "auto",
         position: "absolute",
+        top: 0,
         touchAction: "none",
         userSelect: "none",
     },

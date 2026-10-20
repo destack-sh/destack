@@ -28,10 +28,14 @@ const gooLag = 0.6;
 const swellTime = 1;
 /** The seconds the goo takes to sag back once the pointer leaves. */
 const sagTime = 2.4;
+/** The most device pixels the window-wide field draws: a 1920 by 1200 screen at 1x. */
+const GOO_PIXELS = 1920 * 1200;
 /** The milliseconds between goo cell measurements, in case the page shifts without resizing. */
 const remeasureTime = 1000;
-/** The milliseconds between frames while the goo only twinkles: thirty a second. */
-const twinklePace = 33;
+/** The milliseconds between frames while the goo eases toward the pointer: thirty a second. */
+const busyPace = 33;
+/** The milliseconds between frames while the goo only twinkles: ten a second, for slow stars. */
+const twinklePace = 100;
 /** The share of far star cells that hold a star. */
 const distantStars = "0.14";
 /** The share of near star cells that hold a star. */
@@ -232,6 +236,26 @@ export function GooField() {
         pageSize.observe(document.body);
         const stopResizing = makeEventListener(window, "resize", remeasure);
 
+        // follow which cells show, as far as their goo reaches, measuring them again as one comes in
+        const shown = new Set<Element>();
+        let isCleared = false;
+        const sight = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    // note a cell coming into view
+                    if (entry.isIntersecting) {
+                        shown.add(entry.target);
+                    }
+                    // forget a cell leaving it
+                    else {
+                        shown.delete(entry.target);
+                    }
+                }
+                remeasure();
+            },
+            { rootMargin: `${clipMargin}px` },
+        );
+
         // follow the pointer across the page
         const point = (event: PointerEvent) => {
             pointer.x = event.clientX;
@@ -249,7 +273,24 @@ export function GooField() {
                     islandCapacity,
                 );
                 measuredAt = Number.NEGATIVE_INFINITY;
+                sight.disconnect();
+                shown.clear();
+                for (const cell of cells) {
+                    sight.observe(cell);
+                }
             }
+
+            // rest while no cell shows, after clearing the goo once, so the page pays nothing for it
+            if (shown.size === 0) {
+                if (!isCleared) {
+                    mount.setUniforms({ u_islandCount: 0 });
+                    isCleared = true;
+                }
+                frameRequest = requestAnimationFrame(draw);
+
+                return;
+            }
+            isCleared = false;
             const scroll = { x: window.scrollX, y: window.scrollY };
             if (now - measuredAt > remeasureTime) {
                 measuredAt = now;
@@ -281,7 +322,9 @@ export function GooField() {
                 Math.abs(eased.pull - swell) > 0.02 ||
                 Math.hypot(eased.x - target.x, eased.y - target.y) > 1 ||
                 Math.abs(eased.charge - pageCharge.target) > 0.01;
-            if (isBusy || now - drawnAt >= twinklePace) {
+            const isMorphing = document.documentElement.dataset["morphing"] !== undefined;
+            const pace = isBusy ? busyPace : twinklePace;
+            if (!isMorphing && now - drawnAt >= pace) {
                 drawnAt = now;
 
                 // shade only around the islands, as far as their rim, swell and pull can reach
@@ -329,6 +372,7 @@ export function GooField() {
             stopPointing();
             stopResizing();
             pageSize.unobserve(document.body);
+            sight.disconnect();
         };
     };
 
@@ -337,6 +381,7 @@ export function GooField() {
             <Shader
                 fragmentShader={GOO_FRAGMENT}
                 uniforms={{ u_page: color.background }}
+                maxPixelCount={GOO_PIXELS}
                 xstyle={[styles.canvas, isFieldPainted() && styles.shown]}
                 onMount={start}
                 onFailure={reportFailure}

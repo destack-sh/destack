@@ -266,6 +266,11 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: "1" },
             ":focus-visible": "1",
         },
+        [caret.play]: {
+            default: "paused",
+            ":hover": { default: null, [media.hover]: "running" },
+            ":focus-visible": "running",
+        },
     },
     sweep: {
         animationDuration: "700ms",
@@ -283,6 +288,7 @@ const styles = style.create({
         animationDuration: "1.1s",
         animationIterationCount: "infinite",
         animationName: { default: blink, [media.motionReduce]: "none" },
+        animationPlayState: caret.play,
         opacity: { default: caret.opacity, [media.motionReduce]: 0 },
         display: "inline-block",
         height: "0.95em",

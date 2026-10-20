@@ -6,11 +6,11 @@ author: "Florian"
 ---
 
 > [!ABSTRACT]
-> Destack unifies the boring things personal software needs into one "software engine": DB, UI, multiplayer, auth, observability, tunneling, infra, packaging.
-> We standardise software production with _one_ way of doing application software, powered by established boring technologies.
+> Destack is a softare engine for building and deploying application software - like Unreal, but for general purpose software.
+> Think Github + NPM + Convex + Vercel + Sentry in a box, with all the boring integration already done: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry, and infra.
 >
-> You can use our first-party apps for common use cases, remix and build completely custom apps on a trusted foundation, and give your ephemeral apps a standardised home.
-> Destack is built to be hackable with Git, SQLite, TypeScript, HTML/CSS, OTel, so integration and migration are one prompt.
+> Integrate your agents into programmable first-party apps, and then remix your own custom apps on one trusted foundation.
+> Destack is built around one hackable "platform core" with open formats and standards, so integration and migration are just one prompt.
 >
 > [Skip to The Destack](#the-destack)
 
@@ -35,7 +35,7 @@ Instead, we got "APIs" and now "MCPs".
 The familiar features that make modern software "modern" - SaaS, multiplayer, multi-vendor, multi-cloud, heterogeneity - also make it hostile to agents.
 Fragmenting context and siloing control as thoroughly as the old stack does is exactly the opposite of what personalised, malleable, intelligence-infused software needs. 
 
-So, half a century after the last software crisis, the computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
+Half a century after the last software crisis, the computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
 Once again, we get to retrace from the beginning, reconsider what programming even means, and reshape what 21st-century software should look like.
 
 # Higher Order Programming
@@ -72,7 +72,7 @@ Code is still there, it's still relevant, but - thanks to game engines - you can
 
 # The Software Engine
 
-General purpose software is now hitting the same issues that game developers have long solved.
+General purpose software is now hitting the same issues that games have long solved.
 The principal components of modern software have ossified, but they're scattered and reconstituted a thousand different ways.
 General software needs its own "software engine": _integrated_ "platform software" with building blocks for a new level of "userland software". 
 

@@ -356,7 +356,7 @@ const styles = style.create({
         textDecorationSkipInk: "none",
         textDecorationThickness: "0.08em",
         textUnderlineOffset: "0.2em",
-        transitionDuration: { default: "420ms", [media.motionReduce]: "0ms" },
+        transitionDuration: { default: "280ms", [media.motionReduce]: "0ms" },
         transitionProperty: "color, font-weight, text-decoration-color, text-decoration-thickness",
         transitionTimingFunction: "ease",
     },

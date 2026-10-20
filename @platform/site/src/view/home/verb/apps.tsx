@@ -1425,7 +1425,7 @@ const styles = style.create({
     },
     changed: {
         backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
-        transitionDuration: "400ms",
+        transitionDuration: "250ms",
         transitionProperty: "background-color",
     },
     approval: {

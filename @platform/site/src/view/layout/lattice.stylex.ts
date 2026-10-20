@@ -24,6 +24,8 @@ export const lattice = style.create({
 
     /** A homepage section one screen tall on desktop, so every section shares one height. */
     section: {
+        containIntrinsicSize: "auto 56rem",
+        contentVisibility: "auto",
         height: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 

@@ -706,7 +706,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                     [
                                         styles.band,
                                         styles.row(dryRows + index + 1),
-                                        styles.cascade(`${240 + index * 80}ms`),
+                                        styles.cascade(`${140 + index * 45}ms`),
                                     ],
                                     {
                                         "--band-reveal": `var(--reveal-${dryRows + index})`,
@@ -1137,7 +1137,7 @@ const styles = style.create({
         letterSpacing: "0.1em",
         lineHeight: "1rem",
         textTransform: "uppercase",
-        transition: `color 300ms ${easing}`,
+        transition: `color 200ms ${easing}`,
         whiteSpace: "nowrap",
     },
     numberLit: {
@@ -1159,7 +1159,7 @@ const styles = style.create({
         backgroundColor: `color-mix(in srgb, ${palette.signal} 8%, transparent)`,
         gridColumn: "1 / -1",
         pointerEvents: "none",
-        transition: `opacity 300ms ${easing}`,
+        transition: `opacity 200ms ${easing}`,
         zIndex: 3,
         display: { default: null, [screen.belowDesktop]: "none" },
     },
@@ -1192,7 +1192,7 @@ const styles = style.create({
     },
     sunkCard: {
         gridArea: "1 / 1",
-        transition: { default: `translate 500ms ${easing} 200ms`, [media.motionReduce]: "none" },
+        transition: { default: `translate 320ms ${easing} 80ms`, [media.motionReduce]: "none" },
         width: "100%",
     },
     sunkSlot: {
@@ -1267,7 +1267,7 @@ const styles = style.create({
         position: "absolute",
         right: 0,
         top: `calc(${frame.stage} * ${dryRows} - 1px)`,
-        transition: `opacity 400ms ${easing}`,
+        transition: `opacity 260ms ${easing}`,
         zIndex: 2,
     },
     poolGone: {
@@ -1278,23 +1278,23 @@ const styles = style.create({
     },
     tapeGone: {
         opacity: 0,
-        transition: `opacity 400ms ${easing} 100ms`,
+        transition: `opacity 240ms ${easing} 60ms`,
     },
     tapeBack: {
-        transition: `opacity 300ms ${easing} 600ms`,
+        transition: `opacity 200ms ${easing} 320ms`,
     },
     ice: {
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        transition: `opacity 400ms ${easing}`,
+        transition: `opacity 260ms ${easing}`,
         zIndex: 0,
     },
     water: {
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        transition: `opacity 400ms ${easing}`,
+        transition: `opacity 260ms ${easing}`,
         zIndex: 2,
     },
 });

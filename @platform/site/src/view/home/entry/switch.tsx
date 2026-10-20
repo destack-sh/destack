@@ -158,10 +158,10 @@ export function BottomBar(properties: { isOpen: boolean }) {
 
 /** The knob's periodic nudge toward destacked. */
 const nudge = style.keyframes({
-    "0%, 80%, 100%": { translate: "0 0" },
-    "86%": { translate: "0.5rem 0" },
-    "91%": { translate: "0.125rem 0" },
-    "95%": { translate: "0.25rem 0" },
+    "0%, 80%, 100%": { transform: "translateX(0)" },
+    "86%": { transform: "translateX(0.5rem)" },
+    "91%": { transform: "translateX(0.125rem)" },
+    "95%": { transform: "translateX(0.25rem)" },
 });
 
 /** The switch styles. */

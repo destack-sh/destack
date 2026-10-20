@@ -28,7 +28,7 @@ const styles = style.create({
     },
     text: {
         gridArea: "1 / 1",
-        transition: { default: "opacity 240ms ease", [media.motionReduce]: "none" },
+        transition: { default: "opacity 180ms ease", [media.motionReduce]: "none" },
     },
     hidden: {
         opacity: 0,

@@ -11,7 +11,8 @@ import {
 } from "../figure/price";
 import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { createEffect } from "@destack/view";
+import { createEffect, createSignal } from "@destack/view";
+import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { agentPrompt, setupGuide } from "../../content/site";
 import { Favicon } from "../figure/glyph";
@@ -149,7 +150,7 @@ const makes: readonly Make[] = [
 const MAKE_COUNT = 2;
 
 /** The milliseconds a mark takes to move to its new place. */
-const moveTime = 560;
+const moveTime = 340;
 
 /** The milliseconds between one mark's move and the next. */
 const moveStep = 18;
@@ -164,21 +165,22 @@ export function ToolWall(properties: {
     onPick: (tool: Tool) => void;
 }) {
     // hold the wall and where each mark sat at the last layout
-    let wall: HTMLOListElement | undefined;
+    const [wall, setWall] = createSignal<HTMLOListElement>();
     let places = new Map<string, DOMRect>();
 
     // find a row's picked tools
     const pickedOf = (row: Row) => row.tools.filter((tool) => properties.picks.includes(tool));
 
     // move each mark from where it sat to where it sits now, once the new layout has painted
+    //  and only on screen: off screen it forgets its places, and measures them again on its way in
+    const isShown = createVisibilityObserver(wall, { initialValue: false });
     createEffect(
-        () => ({ isOpen: properties.isOpen, picks: properties.picks }),
-        () => {
+        () => ({ isOpen: properties.isOpen, picks: properties.picks, isShown: isShown() }),
+        (state) => {
             const frame = requestAnimationFrame(() => {
-                if (!wall) {
-                    return;
-                }
-                places = move(wall, places);
+                const element = wall();
+                places =
+                    element && state.isShown ? move(element, places) : new Map<string, DOMRect>();
             });
 
             return () => cancelAnimationFrame(frame);
@@ -192,7 +194,7 @@ export function ToolWall(properties: {
                 <span {...style.attrs(browserStyles.lights)} />
             </div>
 
-            <ol ref={wall} {...style.attrs(styles.wall)}>
+            <ol ref={setWall} {...style.attrs(styles.wall)}>
                 {/* column heads, as tall as the bill's beside it so the rows line up */}
                 <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
                     <span {...style.attrs(styles.label)}>Job</span>

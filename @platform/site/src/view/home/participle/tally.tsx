@@ -15,7 +15,7 @@ import type { Tool } from "../tool/tool";
 import { lineCount, tallyOf, ToolWall } from "./wall";
 
 /** The milliseconds between the steps of the bill's switch, one per line. */
-const stepTime = 60;
+const stepTime = 30;
 
 /** Draw the tools you pick beside their bill, rented per seat or paid by usage, as a figure. */
 export function Tally(properties: {

@@ -7,7 +7,7 @@ const BERG_CAPACITY = 3;
 export const WATER_SPILL = 8;
 
 /** The milliseconds a full drain or fill takes. */
-export const TRAVEL = 700;
+export const TRAVEL = 450;
 
 /** The layers the water fragment draws: the ice behind the cards, and the water over them. */
 export type WaterLayer = "ice" | "water";
