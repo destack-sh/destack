@@ -49,7 +49,7 @@ export const PLANS = {
     go: {
         name: t`Go`,
         description: t`All of Destack without caps, with early access.`,
-        prices: Fee.prices({ USD: 800, CAD: 1100, EUR: 800, CHF: 800, GBP: 800, AUD: 1200 }),
+        prices: Fee.prices({ USD: 800, CAD: 1100, EUR: 800, CHF: 800, GBP: 800, AUD: 1300 }),
         productFeatures: {
             database: database.grant(null),
             storage: storage.grant(null),
@@ -65,7 +65,7 @@ export const PLANS = {
     plus: {
         name: t`Plus`,
         description: t`Go, with custom domains and email support.`,
-        prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3000 }),
+        prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3200 }),
         productFeatures: {
             database: database.grant(null),
             storage: storage.grant(null),
@@ -88,7 +88,7 @@ export const PLANS = {
             EUR: 10_000,
             CHF: 10_000,
             GBP: 10_000,
-            AUD: 15_000,
+            AUD: 16_000,
         }),
         productFeatures: {
             database: database.grant(null),

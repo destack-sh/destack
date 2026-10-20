@@ -4,7 +4,7 @@ Declare Destack's plans as products, its units by resource, its price book, the 
 
 ## Plans
 
-`PLANS` lists Free, every account's default product, and Go, Plus and Pro at round local fees, 8, 20 and 100 a month in USD, EUR, CHF and GBP, 11, 28 and 140 in CAD, and 12, 30 and 150 in AUD, named and described as messages, each fee including as much usage; Go lifts the caps and adds early access, Plus adds custom domains and email support, and Pro adds dedicated machines and priority support, every plan keeping events for longer.
+`PLANS` lists Free, every account's default product, and Go, Plus and Pro at round local fees, 8, 20 and 100 a month in USD, EUR, CHF and GBP, 11, 28 and 140 in CAD, and 13, 32 and 160 in AUD, named and described as messages, each fee including as much usage; Go lifts the caps and adds early access, Plus adds custom domains and email support, and Pro adds dedicated machines and priority support, every plan keeping events for longer.
 
 ```ts
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
