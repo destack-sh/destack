@@ -47,19 +47,21 @@ const cards = defineView({
     component: async () => ({ default: Cards }),
 });
 
+/** The view holding two cards. */
+export const cardsTwoCards = defineExample({
+    of: cards,
+    name: "two-cards",
+    description: "the view holding two cards",
+    objects: {
+        space: [
+            { object: card, method: "create", input: { title: "Bread" } },
+            { object: card, method: "create", input: { title: "Apples" } },
+        ],
+    },
+});
+
 test("render a view's example over the objects its declared calls bring about", async () => {
-    // declare an example of the view holding two cards
-    const cardsTwoCards = defineExample({
-        of: cards,
-        name: "two-cards",
-        description: "the view holding two cards",
-        objects: {
-            space: [
-                { object: card, method: "create", input: { title: "Bread" } },
-                { object: card, method: "create", input: { title: "Apples" } },
-            ],
-        },
-    });
+    // render the example of the view holding two cards
     const element = document.createElement("main");
     onTestFinished(renderExample(element, { example: cardsTwoCards }));
 

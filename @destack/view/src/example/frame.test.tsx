@@ -25,7 +25,7 @@ function Greeting(properties: GreetingProperties): JSX.Element {
 }
 
 /** A loud greeting of Ada. */
-const greetingLoud = defineExample({
+export const greetingLoud = defineExample({
     of: Greeting,
     name: "loud",
     description: "a loud greeting of Ada",
