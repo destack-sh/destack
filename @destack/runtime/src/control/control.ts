@@ -164,6 +164,12 @@ export class ControlLoop {
     #idle: (() => void)[] = [];
     /** Whether every controller was listed once since the loop started. */
     #isListed = false;
+    /** The log sequence the follow consumed, moved forward by the follow and by idle checks. */
+    #followed = 0;
+    /** Aborts once an idle check found the follow behind a compaction, making it list again. */
+    #relisting = new AbortController();
+    /** The logged tables the controllers watch, which the follow reads. */
+    readonly #watched: readonly Table[];
     /** Whether the loop stopped, after which nothing more runs. */
     #isStopped = false;
     /** The waiters for a change of each reconciling key, by controller. */
@@ -206,6 +212,9 @@ export class ControlLoop {
                 duration: options.lease.duration ?? LEASE_MILLISECONDS,
             };
         }
+        this.#watched = [
+            ...new Set(controllers.flatMap((controller) => controller.watches ?? [])),
+        ].filter((table) => table[TABLE].retention !== "none");
         for (const controller of controllers) {
             this.#due.set(controller, new Map());
             this.#failures.set(controller, new Map());
@@ -247,7 +256,7 @@ export class ControlLoop {
         }
     }
 
-    /** Settle once no key is due now or reconciling, or at a deadline. */
+    /** Settle once nothing is due or reconciling and every change is followed, or at a deadline. */
     idle(deadline?: number): Promise<void> {
         // settle at once when the loop stopped
         if (this.#isStopped) {
@@ -288,9 +297,7 @@ export class ControlLoop {
 
     /** List every controller and follow the watched logged tables. */
     async #follow(signal: AbortSignal): Promise<void> {
-        const tables = [
-            ...new Set(this.controllers.flatMap((controller) => controller.watches ?? [])),
-        ].filter((table) => table[TABLE].retention !== "none");
+        const tables = this.#watched;
         let listed = this.controllers;
         while (!signal.aborted) {
             // read the position before listing
@@ -298,15 +305,18 @@ export class ControlLoop {
             for (const controller of listed) {
                 await this.#refresh(controller);
             }
+            this.#followed = after;
             this.#isListed = true;
             this.#wake();
             if (tables.length === 0) {
                 return;
             }
 
-            // follow the changes after the listing
+            // follow the changes after the listing until stopped or asked to list again
+            this.#relisting = new AbortController();
+            const following = AbortSignal.any([signal, this.#relisting.signal]);
             try {
-                for await (const page of this.database.log.follow({ tables, after }, signal)) {
+                for await (const page of this.database.log.follow({ tables, after }, following)) {
                     for (const controller of this.controllers) {
                         // find the changes the controller watches
                         const watched = controller.watches ?? [];
@@ -331,9 +341,16 @@ export class ControlLoop {
                         }
                     }
 
-                    // let other tasks run before the next page
+                    // record the consumed sequence for idle waiters, and let other tasks run
+                    this.#followed = Math.max(this.#followed, page.sequence);
+                    this.#wake();
                     await yieldToEventLoop();
                 }
+
+                // list the watching controllers again once an idle check asked
+                listed = this.controllers.filter((controller) =>
+                    (controller.watches ?? []).some((table) => tables.includes(table)),
+                );
             } catch (error) {
                 // list again after compaction the controllers following the tables
                 if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
@@ -476,6 +493,37 @@ export class ControlLoop {
         }
     }
 
+    /** Report whether the follow consumed every watched change, moving its cursor to the head. */
+    async #isFollowed(): Promise<boolean> {
+        // take a loop without logged tables as followed
+        if (this.#watched.length === 0) {
+            return true;
+        }
+
+        // read one watched change past the cursor, asking the follow to list again past a compaction
+        try {
+            const page = await this.database.log.read({
+                tables: this.#watched,
+                after: this.#followed,
+                limit: 1,
+            });
+            const isFollowed = page.changes.length === 0;
+            if (isFollowed) {
+                this.#followed = Math.max(this.#followed, page.sequence);
+            }
+
+            return isFollowed;
+        } catch (error) {
+            // list again behind a compaction, else fail
+            if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+                this.#relisting.abort();
+
+                return false;
+            }
+            throw error;
+        }
+    }
+
     /** Start due keys and sleep until more are due. */
     async #work(signal: AbortSignal): Promise<void> {
         while (!signal.aborted) {
@@ -496,8 +544,14 @@ export class ControlLoop {
             else {
                 await this.#schedule(this.#busy ?? due ?? skipped);
 
-                // settle idle waiters once nothing reconciles
-                if (this.#isListed && this.#reconciling.size === 0) {
+                // settle idle waiters once all work is done and followed
+                if (
+                    this.#idle.length > 0 &&
+                    this.#isListed &&
+                    this.#reconciling.size === 0 &&
+                    (await this.#isFollowed()) &&
+                    !this.#woken.signal.aborted
+                ) {
                     for (const resolve of this.#idle.splice(0)) {
                         resolve();
                     }

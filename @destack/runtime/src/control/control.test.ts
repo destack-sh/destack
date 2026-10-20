@@ -10,6 +10,9 @@ import { VirtualClock } from "@destack/environment/simulation";
 /** The commits of rows a follower's list never reads, about 30 ms of SQLite commits. */
 const STRESS_COMMITS = 300;
 
+/** The event loop turns a test gives the loop to act on, ten times the few a settle takes. */
+const QUIET_TURNS = 20;
+
 /** The jobs a controller reconciles. */
 const job = defineTable(
     "controller_job",
@@ -20,6 +23,18 @@ const job = defineTable(
         scope: text("scope").notNull(),
         /** The desired number of runs. */
         runs: integer("runs").notNull(),
+    },
+    { log: {} },
+);
+
+/** Logged notes no controller watches. */
+const note = defineTable(
+    "controller_note",
+    {
+        /** The note's name. */
+        id: text("id").primaryKey(),
+        /** The space with the note. */
+        scope: text("scope").notNull(),
     },
     { log: {} },
 );
@@ -295,7 +310,7 @@ test("list a controller of an unlogged table again after a commit to its table a
     await expect.poll(() => ({ ...listings })).toEqual({ claims: 3, tickets: 3 });
 });
 
-test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay", async () => {
+test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay, and settle idle once relisted", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -349,11 +364,15 @@ test("list again after compaction only the controllers following the compacted t
     await database.insert(job).values({ id: "second", scope: "space", runs: 1 });
     const now = Date.now();
     await database.log.compact(now + 1, now);
+
+    // wait idle across the compaction, which settles once the follower lists again
+    const idling = loop.idle();
+    await yieldToEventLoop();
     release.resolve();
+    await idling;
 
     // list the jobs again, and leave the sweep to the delay it returned
-    await expect.poll(() => listed).toEqual(["jobs", "sweep", "jobs"]);
-    expect(swept).toEqual(["stores"]);
+    expect({ listed, swept }).toEqual({ listed: ["jobs", "sweep", "jobs"], swept: ["stores"] });
 });
 
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
@@ -828,6 +847,212 @@ test("set the host's alarm at the earliest due or skipped key, clear it once not
 
     // settle a waiter at once after the loop stopped
     await expect(loop.idle()).resolves.toBeUndefined();
+});
+
+test("settle idle only after reconciling the keys of every watched change committed before the call", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const reconciled: string[] = [];
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
+        list: async () => [],
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], { clock: Clock.system, report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await loop.idle();
+
+    // commit changes one after another, each followed by an idle wait seeing its key reconciled
+    const seen: string[][] = [];
+    for (const id of ["first", "second", "third"]) {
+        await database.insert(job).values({ id, scope: "space", runs: 1 });
+        await loop.idle();
+        seen.push([...reconciled]);
+    }
+    expect(seen).toEqual([["first"], ["first", "second"], ["first", "second", "third"]]);
+});
+
+test("hold idle while the follow is still keying a watched change, and settle once its key ran", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // hold the follow inside the keys of a change until released
+    const reconciled: string[] = [];
+    const keying = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: async (change) => {
+            keying.resolve();
+            await release.promise;
+
+            return Change.of(change, job) ? [Change.image(change).id] : [];
+        },
+        list: async () => [],
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return undefined;
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], { clock: Clock.system, report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await loop.idle();
+
+    // commit a change and wait idle while the follow keys it
+    await database.insert(job).values({ id: "changed", scope: "space", runs: 1 });
+    await keying.promise;
+    let isSettled = false;
+    const idling = loop.idle().then(() => {
+        isSettled = true;
+    });
+    for (let turn = 0; turn < QUIET_TURNS; turn++) {
+        await yieldToEventLoop();
+    }
+    const isSettledWhileKeying = isSettled;
+
+    // release the follow and settle once the key ran
+    release.resolve();
+    await idling;
+    expect({ isSettledWhileKeying, reconciled }).toEqual({
+        isSettledWhileKeying: false,
+        reconciled: ["changed"],
+    });
+});
+
+test("spend no statement on commits to tables no controller watches", async () => {
+    const storage = await TestDatabase.create("sqlite", [job, note], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
+        list: async () => [],
+        reconcile: async () => undefined,
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], { clock: Clock.system, report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await loop.idle();
+
+    // commit notes one at a time, letting the loop see each, and count every statement
+    const before = database.driver.state.statements;
+    for (let index = 0; index < QUIET_TURNS; index++) {
+        await database.insert(note).values({ id: `note-${index}`, scope: "space" });
+        await yieldToEventLoop();
+    }
+    expect(database.driver.state.statements - before).toBe(QUIET_TURNS);
+});
+
+test("settle idle once the log moved past a quiet watched table, also after compacting its last change", async () => {
+    const storage = await TestDatabase.create("sqlite", [job, note], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: (change) => (Change.of(change, job) ? [Change.image(change).id] : []),
+        list: async () => [],
+        reconcile: async () => undefined,
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], { clock: Clock.system, report: ignore });
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // change the watched table once, then only another one, compacting past the watched change
+    await database.insert(job).values({ id: "first", scope: "space", runs: 1 });
+    await loop.idle();
+    for (const id of ["one", "two", "three"]) {
+        await database.insert(note).values({ id, scope: "space" });
+    }
+    const now = Date.now();
+    await database.log.compact(now + 1, now);
+
+    // settle with the follow at the head
+    await expect(loop.idle()).resolves.toBeUndefined();
+});
+
+test("settle idle only after the key of a watched change committed while the alarm was being set", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // look at "later" again in a minute, which sets the alarm
+    const reconciled: string[] = [];
+    const keyed = Promise.withResolvers<void>();
+    const controller: Controller = {
+        name: "job",
+        watches: [job],
+        keys: (change) => {
+            keyed.resolve();
+
+            return Change.of(change, job) ? [Change.image(change).id] : [];
+        },
+        list: async () => ["later"],
+        reconcile: async (key) => {
+            reconciled.push(key);
+
+            return key === "later" ? 60_000 : undefined;
+        },
+    };
+
+    // commit a watched change while the alarm for "later" is set, holding it until the follow keyed it
+    let isChanged = false;
+    const alarm = {
+        setAlarm: async () => {
+            if (!isChanged && reconciled.length === 1) {
+                isChanged = true;
+                await database.insert(job).values({ id: "changed", scope: "space", runs: 1 });
+                await keyed.promise;
+                await yieldToEventLoop();
+            }
+        },
+        deleteAlarm: async () => {},
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        clock: Clock.system,
+        report: ignore,
+        alarm,
+    });
+    const idling = loop.idle();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // settle once the changed key ran too
+    await idling;
+    expect(reconciled).toEqual(["later", "changed"]);
 });
 
 test("reconcile a key named due while the worker's alarm is set, before it sleeps", async () => {
