@@ -15,7 +15,6 @@ import {
 import type { Meter } from "@destack/observability/meter";
 import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
-import type { PackageId } from "@destack/package";
 import { CallError, isCallError } from "@destack/runtime/error";
 import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";

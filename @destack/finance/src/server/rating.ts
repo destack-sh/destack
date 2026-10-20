@@ -2,7 +2,6 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type Call, ObjectReference } from "@destack/sync";
 import { EventTime } from "@destack/event";
 import type { MethodContext } from "@destack/object";
-import type { PackageId } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ReleaseReader } from "../release/reader.ts";

@@ -3,7 +3,6 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
-import type { PackageId } from "@destack/package";
 import { present, schema, Text } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import type { ReleaseReader } from "../release/reader.ts";

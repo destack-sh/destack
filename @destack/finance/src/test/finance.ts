@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { STACKS } from "@destack/account/test";
+import { STACKS, TestEntitlement } from "@destack/account/test";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import { AccessContext, anyone, Authentication, Caller, principal } from "@destack/access";
@@ -34,7 +34,7 @@ import { Digest, Identifier, JsonValue, present, schema } from "@destack/schema"
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
 import { Server } from "@destack/runtime/server";
-import { reconciliation, TestBearer, testCallKey } from "@destack/runtime/test";
+import { reconcileOnce, reconciliation, TestBearer, testCallKey } from "@destack/runtime/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import { type EventStore, EventTime } from "@destack/event";
 import { serversOf, testEvents } from "@destack/object/test";
@@ -224,6 +224,8 @@ export class FinanceFixture {
             policies: [account, organisation, residency],
             claims: { object: claim },
             database: test.database,
+            // follow the universe's entitlements through a publisher that sends nothing, as no universe runs here
+            publisher: () => TestEntitlement.publisher,
             events: this.events,
             callKey: testCallKey,
             origin: { package: Package.of(financePackage) },
@@ -651,13 +653,11 @@ export class FinanceFixture {
 
     /** Run an object type's controller over every pending key once. */
     async control(name: string): Promise<void> {
-        const controller = this.store.controllers().find((each) => each.name === name);
-        if (controller === undefined) {
-            throw new TypeError(`the ${name} controller is missing`);
-        }
-        for (const key of await controller.list()) {
-            await controller.reconcile(key, reconciliation());
-        }
+        const controller = present(
+            this.store.controllers().find((each) => each.name === name),
+            `the ${name} controller`,
+        );
+        await reconcileOnce(controller, this.store.database);
     }
 
     /** Stop serving and close the database, refusing exceptions no test took. */
