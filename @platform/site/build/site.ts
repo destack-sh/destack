@@ -1,4 +1,4 @@
-import { buildPackage, readDependencies } from "@destack/build";
+import { buildPackage, PackageBuild, readDependencies } from "@destack/build";
 import { DevelopmentServer, type MetadataOptions, type WebOptions } from "@destack/web/build";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import process from "node:process";
@@ -51,7 +51,7 @@ export async function run(command: string | undefined): Promise<void> {
     }
     // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
-        const build = await buildPackage({
+        await using build = await buildPackage({
             directory,
             outputs: { website: application },
             dependencies: await readDependencies(directory),
@@ -59,7 +59,7 @@ export async function run(command: string | undefined): Promise<void> {
         const output = join(directory, ".output");
         await rm(output, { recursive: true, force: true });
         await mkdir(output, { recursive: true });
-        await build.write(join(output, "package"));
+        await PackageBuild.write(build.reader, join(output, "package"));
         await mkdir(join(output, "public"), { recursive: true });
         const browser = build.manifest.outputs["website-browser"];
         if (browser === undefined) {
