@@ -32,8 +32,8 @@ const destackable: Form = {
         highlight: ["transparent", "hackable"],
         sentence: (
             <>
-                One obvious way to do, change, and observe <em>everything</em>, full stack: Git,
-                SQLite, TypeScript and OTel.
+                One obvious way to build, change, and monitor software, full stack: Git, SQLite,
+                TypeScript and OTel.
             </>
         ),
     },
@@ -103,7 +103,7 @@ export function Adjective(properties: { isOpen: boolean }) {
         >
             <Entry form={destackable} />
             <FigureLabel
-                number={4}
+                number={5}
                 isOpen={properties.isOpen}
                 stacked="five tools, five black boxes"
                 destacked="one app, one glass box"

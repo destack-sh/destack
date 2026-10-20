@@ -38,8 +38,8 @@ export function Home() {
             <Verb isOpen={isOpen()} picks={picks()} onChoose={choose} />
             <PastParticiple isOpen={isOpen()} onChange={setIsOpen} />
             <Noun isOpen={isOpen()} />
-            <Adjective isOpen={isOpen()} />
             <Command isOpen={isOpen()} />
+            <Adjective isOpen={isOpen()} />
             <Participle
                 isOpen={isOpen()}
                 picks={picks()}

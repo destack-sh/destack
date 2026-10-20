@@ -42,7 +42,7 @@ const command: Form = {
         highlight: ["programmable", "composable"],
         sentence: (
             <>
-                One API for everything in <em>your</em> space, for you and your agents, on your
+                One API for every app in <em>your</em> space — for you, for your agents, on your
                 terms.
             </>
         ),
@@ -109,7 +109,7 @@ export function Command(properties: { isOpen: boolean }) {
         >
             <Entry form={command} />
             <FigureLabel
-                number={5}
+                number={4}
                 isOpen={properties.isOpen}
                 stacked="two apps, two connectors"
                 destacked="two apps, one space"

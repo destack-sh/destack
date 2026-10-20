@@ -21,7 +21,7 @@ const pricing: Form = {
     pronunciation: "/ˈpraɪsɪŋ/",
     partOfSpeech: "noun",
     sense: {
-        definition: "own your data, rent the infrastructure",
+        definition: "own your software, rent the infrastructure",
         highlight: ["own", "rent"],
         sentence: "Every app comes included. You pay only for infrastructure. Leave anytime.",
     },

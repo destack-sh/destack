@@ -46,7 +46,8 @@ const noun: Form = {
     sense: {
         definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "absurdly integrated"],
-        sentence: "Auth, sync, workflows, telemetry — great personal software, out of the box.",
+        sentence:
+            "Auth, multiplayer, workflows, telemetry — great personal software, out of the box.",
     },
 };
 

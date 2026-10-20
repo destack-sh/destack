@@ -15,7 +15,7 @@ const participle: Form = {
     sense: {
         definition: "making all your software work as one",
         highlight: ["work as one"],
-        sentence: "Moving in takes just one prompt, one app at a time.",
+        sentence: "Moving in takes just one prompt, one app at a time. Just ask your agent.",
     },
 };
 
