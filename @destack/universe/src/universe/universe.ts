@@ -17,7 +17,7 @@ import forgePackage from "@destack/forge/package";
 import { type Keyring } from "@destack/identity";
 import type { MailTransport } from "@destack/message/email";
 import { call } from "@destack/object";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import objectServer, { defineServer, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId } from "@destack/package";
 import relayPackage from "@destack/relay/package";
 import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
@@ -145,6 +145,7 @@ export class Universe implements AsyncDisposable {
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const store: ObjectStore = new ObjectStore({
             servers: [
+                objectServer,
                 accountServer({
                     resolver: new DnsOverHttps(),
                     stacks: definition.stacks,
