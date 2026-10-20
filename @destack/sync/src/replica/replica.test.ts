@@ -1164,7 +1164,7 @@ test.for(TEST_DIALECTS)(
         await replicate(right, local, snapshot(["shared", "z"]));
 
         // drop the left replica and keep the right replica's rows and record
-        await left.drop(local);
+        await Replica.drop(local, left);
         expect([
             (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
                 (row) => row.id,
@@ -1559,7 +1559,7 @@ test.for(TEST_DIALECTS)(
         const replicated = await local.select().from(unit).orderBy(asc(unit.id));
 
         // drop the replica, which deletes the written unit and keeps the predefined one
-        await units.drop(local);
+        await Replica.drop(local, units);
         expect({
             included: included.map((row) => row.key),
             replicated,
@@ -1571,6 +1571,33 @@ test.for(TEST_DIALECTS)(
                 { id: "metre", scope: "inbox", name: "Metre" },
             ],
             kept: [{ id: "metre", scope: "inbox", name: "Metre" }],
+        });
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "drop a replica without its tables, with the rows of every table its record lists, on %s",
+    async (dialect) => {
+        const source = await open(dialect, [unit, ...replicaTables]);
+        const local = await openReplica(
+            dialect,
+            defineDatabase({ name: "replica", tables: replicaTables, replicated: [unit] }),
+        );
+        const feed = new Feed(source, [unit, replicaPosition], { clock: Clock.system });
+        await source.insert(unit).values({ id: "foot", scope: "inbox", name: "Foot" });
+        const units = new Replica({ name: "work", scope: "inbox", tables: [unit] });
+        await syncLabels(units, source, local, feed);
+
+        // drop it without its tables, keeping the predefined unit
+        await Replica.drop(local, { name: "work", scope: "inbox", tables: [] });
+        expect({
+            kept: await local.select().from(unit),
+            held: await local.select().from(replicaPosition),
+            isReplicated: await Replica.isReplicated(Snapshot.live(local), "inbox"),
+        }).toEqual({
+            kept: [{ id: "metre", scope: "inbox", name: "Metre" }],
+            held: [],
+            isReplicated: false,
         });
     },
 );

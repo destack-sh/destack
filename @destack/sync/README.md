@@ -88,7 +88,7 @@ A `Replica` keeps a copy of one scope's rows in another database.
 const board = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
 await board.follow(local, stream, signal, { subscription, audience, clock });
 await Replica.isSynced(local, "board", spaceId); // true once the first copy is complete
-await board.drop(local);
+await Replica.drop(local, board);
 ```
 
 ## Uplinks

@@ -1167,24 +1167,30 @@ export class Replica {
         });
     }
 
-    /** Drop the replica: delete its unshared rows and forget its record. */
-    async drop(database: DatabaseConnection): Promise<void> {
+    /** Drop a replica: delete the unshared rows of its tables and every recorded one, forget it. */
+    static async drop(
+        database: DatabaseConnection,
+        { name, scope, tables }: Pick<Replica, "name" | "scope" | "tables">,
+    ): Promise<void> {
+        const dropped = new Replica({ name, scope, tables });
         await database.transaction(
             async (transaction) => {
                 await transaction.log.asReplica(async () => {
-                    // take every included row out of the replica, those of tables it stopped replicating first
-                    const record = await this.#record(transaction);
-                    await this.#excludeAll(transaction, this.#retired(transaction, record));
-                    await this.#excludeAll(transaction, this.tables);
+                    // take every included row out, those of recorded tables it stopped replicating first
+                    const record = await dropped.#record(transaction);
+                    await dropped.#excludeAll(transaction, dropped.#retired(transaction, record));
+                    await dropped.#excludeAll(transaction, tables);
 
                     // forget the groups, staged pages and record
-                    await transaction.delete(replicaResult).where(this.#match(replicaResult));
-                    await transaction.delete(replicaPage).where(this.#match(replicaPage));
-                    await transaction.delete(replicaPosition).where(this.#match(replicaPosition));
+                    await transaction.delete(replicaResult).where(dropped.#match(replicaResult));
+                    await transaction.delete(replicaPage).where(dropped.#match(replicaPage));
+                    await transaction
+                        .delete(replicaPosition)
+                        .where(dropped.#match(replicaPosition));
                     await transaction
                         .delete(replicaSubscription)
-                        .where(this.#match(replicaSubscription));
-                    await transaction.delete(replica).where(this.#match(replica));
+                        .where(dropped.#match(replicaSubscription));
+                    await transaction.delete(replica).where(dropped.#match(replica));
                 });
             },
             { constraints: "deferred" },
