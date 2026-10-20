@@ -1,6 +1,7 @@
 import { DeclarationName, ModuleMetadata, type Package, PackageId } from "@destack/package";
 import type { CallableName, ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
+import { type BuildReader, CommandDescription, type Declared } from "@destack/package/manifest";
 import { Accelerator } from "../palette/accelerator.ts";
 
 /** A command as its package defines it: a named call of one object type's method. */
@@ -41,6 +42,11 @@ export class Command<Object extends ObjectType = ObjectType> {
         this.object = definition.object;
         this.method = definition.method;
         this.keybinding = definition.keybinding;
+    }
+
+    /** List the commands a build declares, as its manifest describes them. */
+    static declared(build: Pick<BuildReader, "declared">): Promise<Declared<CommandDescription>[]> {
+        return build.declared(import.meta.destack.package.id, "command", CommandDescription);
     }
 }
 

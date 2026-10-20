@@ -8,7 +8,9 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
-import { useQuery, useSpace } from "./index.ts";
+import { useQuery, useSetting, useSpace } from "./index.ts";
+import { defineSetting } from "@destack/setting/declare";
+import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
 import { Clock } from "@destack/environment";
 
@@ -172,4 +174,120 @@ test("fail access to an object type the view's space does not hold into the erro
         ),
     );
     expect(element.textContent).toBe("the client has no object board");
+});
+
+/** An editor mode the person sets, which a device may override. */
+const editor = defineSetting({
+    name: "editor.mode",
+    title: "Editor mode",
+    description: "Keyboard behavior in the editor.",
+    schema: schema.enum(["standard", "vim"]),
+    default: "standard",
+    scope: "user",
+    overrides: ["device"],
+    apply: "immediate",
+});
+
+/** The device the settings page runs on. */
+const DEVICE_ID = schema.identifier("device").parse("device-01996ab0-0000-7000-8000-000000000004");
+
+/** Show the person's editor mode. */
+function EditorMode() {
+    const mode = useSetting(editor);
+
+    return <p>{mode()}</p>;
+}
+
+test("show a setting's value for the page's person, and the device's value once it stores one", async () => {
+    // keep the person's settings and the device's own offline
+    const storage = await TestDatabase.create(
+        "sqlite",
+        ObjectClient.tables({ setting, deviceSetting }),
+    );
+    const offline = { url: "https://settings.test", fetch: () => new Promise<Response>(() => {}) };
+    const client = await ObjectClient.open({
+        clock: Clock.system,
+        database: storage.database,
+        objects: { setting, deviceSetting },
+        scope: CONTEXT.user.id,
+        caller: CONTEXT.user,
+        device: principal.device.reference(Scope.universe.id, DEVICE_ID),
+        endpoint: offline,
+        reconnect: () => offline,
+    });
+    onTestFinished(async () => {
+        await client.close();
+        await storage.close();
+    });
+
+    // show the default, then the value the device stores
+    const element = document.createElement("main");
+    onTestFinished(
+        renderView(
+            () => <EditorMode />,
+            element,
+            {
+                context: {
+                    ...CONTEXT,
+                    space: "space-01996ab0-0000-7000-8000-000000000005",
+                    installation: "installation-01996ab0-0000-7000-8000-000000000006",
+                    device: DEVICE_ID,
+                },
+                clients: new Map([[CONTEXT.user.id, client]]),
+                packages: new Map(),
+                origin: noOrigin,
+            },
+            Localization.of(SOURCE_LOCALE, []),
+        ),
+    );
+    await changed(element, () => element.textContent === "standard", RENDER_MILLISECONDS);
+    await client.mutate(deviceSetting).create({
+        packageId: editor.reference.packageId,
+        name: editor.reference.name,
+        value: "vim",
+        release: editor.package.version,
+    }).predicted;
+    await changed(element, () => element.textContent === "vim", RENDER_MILLISECONDS);
+});
+
+/** A space's language, which the space's members share rather than set for themselves. */
+const language = defineSetting({
+    name: "space.language",
+    title: "Language",
+    description: "The space's language.",
+    schema: schema.string(),
+    default: "en",
+    scope: "space",
+    overrides: [],
+    apply: "immediate",
+});
+
+test("refuse following a space's setting as the page's person into the error boundary", async () => {
+    // render a space setting through the person's settings
+    const client = await openClient();
+    const element = document.createElement("main");
+    onTestFinished(
+        renderView(
+            () => (
+                <Errored fallback={(error) => <p>{failureMessage(error())}</p>}>
+                    {(() => {
+                        useSetting(language);
+
+                        return <p>Language</p>;
+                    })()}
+                </Errored>
+            ),
+            element,
+            {
+                context: CONTEXT,
+                clients: new Map([[BOARD_ID, client]]),
+                packages: new Map(),
+                origin: noOrigin,
+            },
+            Localization.of(SOURCE_LOCALE, []),
+        ),
+    );
+    expect(element.textContent).toBe(
+        "useSetting follows the person's settings, not space ones: space.language",
+    );
 });
