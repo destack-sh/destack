@@ -18,7 +18,7 @@ import {
     ShaderMount,
     type ShaderResolution,
 } from "../mount/mount.ts";
-import { resolveValues, type ShaderValues } from "./value.ts";
+import { type ColorCache, resolveValues, type ShaderValues } from "./value.ts";
 
 /** The device preferences a theme's colors follow. */
 const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
@@ -143,6 +143,10 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     // hold still where the theme's motion scale, the person's motion setting, reads zero
     const isStill = createReducedMotion(canvas);
 
+    // keep the colors computed for the current theme, so animated values skip the style pass
+    let colors: ColorCache = new Map();
+    let colorTheme: unknown;
+
     // build the mount once the canvas exists, and again for a new fragment shader
     createEffect(
         () => ({ element: canvas(), fragment: properties.fragmentShader }),
@@ -155,6 +159,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
             void resolveValues(
                 untrack(() => properties.uniforms),
                 element,
+                colors,
             ).then((uniforms) => {
                 // drop a build a newer one replaced
                 if (!isCurrent) {
@@ -192,12 +197,18 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     // set the uniforms again as they or the theme's colors change, keeping only the newest
     createEffect(
         () => ({ running: mount(), uniforms: properties.uniforms, theme: theme() }),
-        ({ running, uniforms }) => {
+        ({ running, uniforms, theme: current }) => {
             if (running === undefined) {
                 return undefined;
             }
+
+            // compute the colors again only once the theme changes, as the values change every frame
+            if (current !== colorTheme) {
+                colors = new Map();
+                colorTheme = current;
+            }
             let isCurrent = true;
-            void resolveValues(uniforms, running.canvas).then((resolved) => {
+            void resolveValues(uniforms, running.canvas, colors).then((resolved) => {
                 if (isCurrent) {
                     running.setUniforms(resolved);
                 }

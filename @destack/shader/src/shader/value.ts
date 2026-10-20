@@ -25,16 +25,25 @@ export type ShaderValues = Readonly<Record<string, ShaderValue>>;
 /** The images loading or loaded, by address, so effects sharing an image load it once. */
 const images = new Map<string, Promise<HTMLImageElement>>();
 
+/** The colors computed for one theme, by their CSS text. */
+export type ColorCache = Map<string, Rgba>;
+
 /** Resolve colors to RGBA vectors as the element computes them, and load images. */
 export async function resolveValues(
     values: ShaderValues,
     element: Element,
+    colors: ColorCache,
 ): Promise<ShaderUniforms> {
-    // compute every color in one style pass, then resolve each value
+    // compute only the colors not computed for this theme yet, in one style pass
     const texts = Object.values(values).flatMap((value) =>
         typeof value === "string" ? [value] : isColorList(value) ? value : [],
     );
-    const colors = colorsOf(texts, element);
+    const missing = texts.filter((text) => !colors.has(text));
+    if (missing.length > 0) {
+        for (const [text, color] of colorsOf(missing, element)) {
+            colors.set(text, color);
+        }
+    }
     const entries = await Promise.all(
         Object.entries(values).map(async ([name, value]): Promise<[string, ShaderUniform]> => [
             name,
