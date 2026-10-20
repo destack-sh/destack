@@ -7,6 +7,7 @@ import * as document from "./page/document";
 import * as home from "./page/home";
 import * as missing from "./page/missing";
 import * as post from "./page/post";
+import * as pricing from "./page/pricing";
 
 /** The site's routes: every page inside the layout, the missing page last. */
 const routes = defineRoutes([
@@ -14,6 +15,7 @@ const routes = defineRoutes([
         component: Layout,
         children: [
             { path: "/", component: home.Home },
+            { path: "/pricing", component: pricing.Pricing },
             { path: "/blog", component: blog.Blog },
             { path: "/blog/:slug", component: post.Post, preload: post.preload },
             {

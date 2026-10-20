@@ -931,6 +931,7 @@ function renderPostRecord(post: CoveredPost) {
 function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[]) {
     const routes = [
         "/",
+        "/pricing/",
         "/blog/",
         ...posts.map((post) => post.route),
         ...documents.map((document) => document.route),

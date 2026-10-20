@@ -25,11 +25,11 @@ export interface Destination {
 /** A site destination that opens once it is live. */
 export type PendingDestination = Pick<Destination, "label" | "icon">;
 
-// TODO #Incomplete: open packages once the registry is live, and pricing once its page is
+// TODO #Incomplete: open packages once the registry is live
 /** The site's menu in order, each destination live or opening once it is. */
 export const menu: readonly (Destination | PendingDestination)[] = [
     { label: "Packages", icon: packageIcon },
-    { label: "Pricing", icon: tag },
+    { href: "/pricing/", label: "Pricing", keybinding: "alt+p", icon: tag },
     { href: "/docs/", label: "Docs", keybinding: "alt+d", icon: bookOpen },
     { href: "/blog/", label: "Blog", keybinding: "alt+b", icon: megaphone },
 ];

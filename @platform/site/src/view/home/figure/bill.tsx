@@ -7,7 +7,7 @@ import type { Option } from "./picker";
 import { type Scale, usageAt, usageCostOf } from "./price";
 import type { Stagger } from "./stagger";
 import { palette } from "../../palette.stylex";
-import { rates } from "../../content/generated/rates";
+import { rates } from "../../content/generated/pricing";
 
 /** The bytes in a gigabyte. */
 const GB = 1_000_000_000;

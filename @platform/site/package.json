@@ -14,7 +14,7 @@
         "lint": "destack-check check src build scripts content.ts",
         "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
-        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun --preload @destack/package/bun/preload scripts/generate-rates.ts && bun --preload @destack/package/bun/preload scripts/generate-content.ts"
+        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun --preload @destack/package/bun/preload scripts/generate-pricing.ts && bun --preload @destack/package/bun/preload scripts/generate-content.ts"
     },
     "dependencies": {
         "@destack/icon": "workspace:*",

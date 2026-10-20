@@ -4,7 +4,7 @@ import * as style from "@destack/style";
 const DARK_LIGHTNESS = 0.8;
 
 /** A glyph the browser and its pages draw. */
-type GlyphName =
+export type GlyphName =
     | "back"
     | "forward"
     | "reload"
@@ -49,7 +49,10 @@ type GlyphName =
     | "microphone"
     | "up"
     | "open"
-    | "remix";
+    | "remix"
+    | "chip"
+    | "bolt"
+    | "people";
 
 /** The strokes of each glyph, on a 24-unit grid. */
 const glyphs: Record<GlyphName, readonly string[]> = {
@@ -127,6 +130,24 @@ const glyphs: Record<GlyphName, readonly string[]> = {
     ],
     up: ["M12 19V5", "m5 12 7-7 7 7"],
     open: ["M7 17 17 7", "M7 7h10v10"],
+    chip: [
+        "M7 7h10v10H7z",
+        "M10 3v4",
+        "M14 3v4",
+        "M10 17v4",
+        "M14 17v4",
+        "M3 10h4",
+        "M3 14h4",
+        "M17 10h4",
+        "M17 14h4",
+    ],
+    bolt: ["M13 3 5 14h6l-1 7 8-11h-6z"],
+    people: [
+        "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+        "M3 20a6 6 0 0 1 12 0",
+        "M16 4.5a3.5 3.5 0 0 1 0 6.5",
+        "M18 14a6 6 0 0 1 3 6",
+    ],
 };
 
 /** Draw a glyph in the current colour, at a size in pixels. */
