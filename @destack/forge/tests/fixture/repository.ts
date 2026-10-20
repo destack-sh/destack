@@ -446,7 +446,7 @@ export class RepositoryFixture implements AsyncDisposable {
         disposal.defer(() => rm(directory, { recursive: true, force: true }));
         const storage = new LocalGitStorage(join(directory, "storage"));
         const bucket = disposal.use(
-            await LocalBucket.open(join(directory, "bucket"), "forge-test"),
+            await LocalBucket.open(join(directory, "bucket"), "forge-test", Clock.system),
         );
 
         // extend the residency home's store with the forge and the GitHub App against the stand-in
@@ -707,6 +707,9 @@ function connectionHome(spaces: readonly ConnectionSpace[], accountId: string): 
     return {
         async *stream(subscription, signal) {
             yield* await client.store.stream(subscription, { signal });
+        },
+        confirm: async (subscription, watermark) => {
+            await client.store.confirm({ subscription, watermark });
         },
     };
 }

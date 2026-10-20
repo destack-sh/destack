@@ -1,4 +1,5 @@
 import { expect, refusal, test } from "@destack/test";
+import { Clock } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBucket } from "@destack/bucket/bun";
 import { encodeManifest, PackageStore } from "@destack/build/store";
@@ -19,7 +20,11 @@ test("serve a release's build by its digest to its package's readers only, yanke
     // publish a private package, and copy its build by digest into another store as the owner
     await using forge = await openForge();
     const published = await forge.publish((await fixtureBuild("answer")).reader);
-    await using bucket = await LocalBucket.open(join(forge.state.directory, "copy"), "host-test");
+    await using bucket = await LocalBucket.open(
+        join(forge.state.directory, "copy"),
+        "host-test",
+        Clock.system,
+    );
     const copied = new PackageStore(bucket);
     const location = (digest: string) => ({
         manifest: digest,

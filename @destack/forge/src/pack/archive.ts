@@ -263,7 +263,7 @@ export class PackageArchive {
         const read = async function* (): AsyncGenerator<TarballEntry> {
             for (const [path, entry] of entries) {
                 const contents =
-                    entry instanceof Uint8Array ? entry : await PackageArchive.#load(source, entry);
+                    entry instanceof Uint8Array ? entry : await source.load(entry.path);
                 yield { path, contents };
             }
         };
@@ -291,17 +291,6 @@ export class PackageArchive {
                 integrity: `sha512-${new Uint8Array(sha512).toBase64()}`,
             },
         };
-    }
-
-    /** Read one build file and verify its exact bytes. */
-    static async #load(source: BuildReader, file: PackageFile): Promise<Uint8Array<ArrayBuffer>> {
-        // read the whole file
-        const contents = await source.load(file.path);
-
-        // refuse bytes other than the listed ones
-        await PackageFile.verify(file, contents);
-
-        return contents;
     }
 
     /** Describe the npm exports and exact dependencies of outputs the export conditions load. */

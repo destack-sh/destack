@@ -266,7 +266,11 @@ export class ForgeFixture implements AsyncDisposable {
         accounts: AccountFixture,
         home: ResidencyHome,
     ): Promise<ForgeFixture> {
-        const bucket = await LocalBucket.open(join(state.directory, "bucket"), "space-test");
+        const bucket = await LocalBucket.open(
+            join(state.directory, "bucket"),
+            "space-test",
+            Clock.system,
+        );
         const events = await testEvents(storage.database);
 
         return new ForgeFixture(state, storage, accounts, bucket, home, events);
