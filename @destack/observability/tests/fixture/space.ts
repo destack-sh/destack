@@ -19,7 +19,7 @@ import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import type { Controller } from "@destack/runtime/control";
 import { RequestId } from "@destack/runtime/request";
-import { reconciliation, subjectContext, testCallKey } from "@destack/runtime/test";
+import { reconcileOnce, subjectContext, testCallKey } from "@destack/runtime/test";
 import { present, schema } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import { mention, reply, thread } from "@destack/social";
@@ -291,9 +291,7 @@ export async function reconcile(observed: ObservedSpace, name: string): Promise<
         observed.controllers.find((each) => each.name === name),
         `the space's ${name} controller`,
     );
-    for (const key of await controller.list()) {
-        await controller.reconcile(key, reconciliation());
-    }
+    await reconcileOnce(controller, observed.store.database);
 }
 
 /** Write a package's build declaring its notifications, as its release describes them. */
