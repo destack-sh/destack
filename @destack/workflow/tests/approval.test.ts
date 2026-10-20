@@ -215,19 +215,11 @@ test("publish bob's note as bob once he approves alice's elevated change, and fa
     const { id } = schema.looseObject({ id: schema.string() }).parse(written);
     const parent = { packageId: note.package.id, type: note.name, id };
 
-    // look until a condition is true, giving the controllers a turn to see each commit
-    const eventually = async <Value>(look: () => Promise<Value | undefined>): Promise<Value> => {
-        for (let attempt = 0; attempt < 1000; attempt++) {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 0);
-            });
-            await fixture.until(() => true);
-            const found = await look();
-            if (found !== undefined) {
-                return found;
-            }
-        }
-        throw new TypeError("the change never reached the condition");
+    // look once the controllers settled
+    const whenSettled = async <Value>(look: () => Promise<Value | undefined>): Promise<Value> => {
+        await fixture.until(() => true);
+
+        return present(await look(), "the change's settled state");
     };
 
     // ask bob to publish it, approve as bob, and read how the change settled
@@ -243,14 +235,14 @@ test("publish bob's note as bob once he approves alice's elevated change, and fa
             }),
         ]);
         const { id: requestId } = schema.looseObject({ id: schema.string() }).parse(opened);
-        const asked = await eventually(async () =>
+        const asked = await whenSettled(async () =>
             (await fixture.store.database.select().from(approval.table)).find(
                 (row) => row.state === "requested",
             ),
         );
         await fixture.asBob([approval.call("approve", approval.target(asked))]);
 
-        return eventually(async () => {
+        return whenSettled(async () => {
             const rows = await fixture.store.database.select().from(changeRequest.table);
             const row = rows.find((each) => each.id === requestId && each.state !== "open");
 
@@ -310,17 +302,9 @@ test("refuse alice's agent a call her grant gives once approved, ask her in a ch
     });
 
     // approve as alice once asked, and publish the note through her agent
-    let asked: Approval | undefined;
-    for (let look = 0; look < 1000 && asked === undefined; look++) {
-        await new Promise((resolve) => {
-            setTimeout(resolve, 0);
-        });
-        await fixture.until(() => true);
-        [asked] = await fixture.store.database.select().from(approval.table);
-    }
-    if (asked === undefined) {
-        throw new TypeError("alice was not asked");
-    }
+    await fixture.until(() => true);
+    const [listed] = await fixture.store.database.select().from(approval.table);
+    const asked: Approval = present(listed, "alice's approval");
     await fixture.asAlice([approval.call("approve", approval.target(asked))]);
     await settle(fixture, "applied");
     const [published] = await fixture.store.database.select().from(note.table);

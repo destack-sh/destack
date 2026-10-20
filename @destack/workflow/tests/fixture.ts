@@ -245,15 +245,12 @@ export async function openServed<Input, Output>(
                 return rows;
             }
 
-            // move the clock to the next timer, else let a committed change reach the controllers
+            // move the clock to the next timer, failing once none is left
             const next = clock.next;
             if (next === undefined) {
-                await new Promise((resolve) => {
-                    setTimeout(resolve, 0);
-                });
-            } else {
-                clock.set(next);
+                break;
             }
+            clock.set(next);
         }
         const states = (await runs()).map(
             (row) =>
