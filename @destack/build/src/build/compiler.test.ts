@@ -1,10 +1,12 @@
 import { expect, test, vi } from "@destack/test";
+import { Clock } from "@destack/environment";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPackage, PackageBuild, Compiler, readDependencies } from "../index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
+import { PackageError } from "@destack/package/error";
 import { request } from "../../tests/fixture/library/request.ts";
 import * as resource from "../../tests/fixture/resource/request.ts";
 import {
@@ -200,7 +202,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         );
         await using edited = await builder.build(request);
         const editDirectory = join(directory, "edited");
-        await edited.write(editDirectory);
+        await PackageBuild.write(edited.reader, editDirectory);
         const editedModule = await importNotes(
             editDirectory,
             rootExport(edited.manifest, "library"),
@@ -271,22 +273,43 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         expect(await readFile(join(browser.directory, "src/note.ts"), "utf8")).toBe(browserSource);
 
         // remove source access before loading the distributed package
-        await build.write(destination);
+        await PackageBuild.write(build.reader, destination);
         await rm(source, { recursive: true });
         const restored = await PackageBuild.read(destination);
         expect(restored.manifest).toEqual(build.manifest);
 
         // preserve an existing distribution when the caller repeats a write
-        await expect(build.write(destination)).rejects.toMatchObject({ code: "EEXIST" });
+        await expect(PackageBuild.write(build.reader, destination)).rejects.toMatchObject({
+            code: "EEXIST",
+        });
         expect((await PackageBuild.read(destination)).manifest).toEqual(build.manifest);
+
+        // refuse writing a file whose bytes of the same size no longer match its digest
+        const changed = present(
+            (await build.reader.distributed()).find(
+                (file) => file.path !== rootExport(build.manifest, "library"),
+            ),
+            "a distributed file besides the library",
+        );
+        const original = await readFile(join(build.directory, changed.path));
+        const flipped = Uint8Array.from(original, (byte, index) => (index === 0 ? byte ^ 1 : byte));
+        await writeFile(join(build.directory, changed.path), flipped);
+        const corrupted = join(directory, "corrupted");
+        await expect(PackageBuild.write(build.reader, corrupted)).rejects.toEqual(
+            new PackageError("INVALID_FILE", `file digest mismatch: ${changed.path}`),
+        );
+        await writeFile(join(build.directory, changed.path), original);
 
         // leave no published manifest when an output cannot be written
         const failed = join(directory, "failed");
         await rm(join(build.directory, rootExport(build.manifest, "library")));
-        await expect(build.write(failed)).rejects.toMatchObject({ code: "ENOENT" });
+        await expect(PackageBuild.write(build.reader, failed)).rejects.toMatchObject({
+            code: "ENOENT",
+        });
         await expect(readFile(join(failed, "manifest.json"))).rejects.toMatchObject({
             code: "ENOENT",
         });
+
         const module = await importNotes(destination, rootExport(restored.manifest, "library"));
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
 
@@ -310,7 +333,11 @@ test("reuse cached builds and outputs, and compile what their keys miss", async 
         await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
             recursive: true,
         });
-        await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+        await using bucket = await LocalBucket.open(
+            join(directory, "bucket"),
+            "space-test",
+            Clock.system,
+        );
         const store = new PackageStore(bucket);
         await using builder = await Compiler.start(source);
         await using first = await builder.build({ ...request, store });
@@ -360,7 +387,11 @@ test("reuse cached outputs sharing source files once the build's commit changes"
         await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
             recursive: true,
         });
-        await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test");
+        await using bucket = await LocalBucket.open(
+            join(directory, "bucket"),
+            "space-test",
+            Clock.system,
+        );
         const store = new PackageStore(bucket);
         await using builder = await Compiler.start(source);
         const outputs = {
@@ -680,7 +711,7 @@ test("bundle an empty module for a host module a dependency's browser field repl
         await using builder = await Compiler.start(join(directory, "app"));
         const outputs = { server: { kind: "module", runtime: "workerd", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
-        await built.write(join(directory, "build"));
+        await PackageBuild.write(built.reader, join(directory, "build"));
         const module = await importBuilt(
             join(directory, "build"),
             rootExport(built.manifest, "server"),
@@ -751,7 +782,7 @@ test("compile a package with the build extension it declares", async () => {
         await using builder = await Compiler.start(directory);
         const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
-        await built.write(join(directory, "build"));
+        await PackageBuild.write(built.reader, join(directory, "build"));
         const module = await importBuilt(
             join(directory, "build"),
             rootExport(built.manifest, "library"),
@@ -816,7 +847,7 @@ test("bundle a dependency whose optional peer is absent, failing only once it is
         await using builder = await Compiler.start(join(directory, "app"));
         const outputs = { library: { kind: "module", runtime: "bun", bundle: true } } as const;
         await using built = await builder.build({ dependencies: {}, outputs });
-        await built.write(join(directory, "build"));
+        await PackageBuild.write(built.reader, join(directory, "build"));
         const module = await importBuilt(
             join(directory, "build"),
             rootExport(built.manifest, "library"),

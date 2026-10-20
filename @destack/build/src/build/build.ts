@@ -6,7 +6,7 @@ import { mapExports, readPackageJson } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, schema, type Version } from "@destack/schema";
-import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
@@ -89,18 +89,18 @@ export class PackageBuild implements AsyncDisposable {
         return new PackageBuild(manifest, directory, "retained");
     }
 
-    /** Write a build to a new directory and publish its manifest last. */
-    async write(directory: string): Promise<void> {
+    /** Write a build to a new directory, its manifest last, for the caller to move into place. */
+    static async write(reader: BuildReader, directory: string): Promise<void> {
         // require a new directory so a failed write cannot damage an existing build
         await mkdir(directory);
-        for (const file of await this.reader.distributed()) {
-            const destination = resolve(directory, file.path);
+        for (const file of await reader.distributed()) {
+            const destination = resolve(directory, PackagePath.parse(file.path));
             await mkdir(dirname(destination), { recursive: true });
-            await copyFile(resolve(this.directory, file.path), destination);
+            await writeFile(destination, await reader.load(file.path));
         }
 
         // make the build readable only after every file has been written
-        await writeFile(resolve(directory, "manifest.json"), JSON.stringify(this.manifest), {
+        await writeFile(resolve(directory, "manifest.json"), JSON.stringify(reader.manifest), {
             flag: "wx",
         });
     }

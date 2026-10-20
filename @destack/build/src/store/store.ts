@@ -25,6 +25,9 @@ const MANIFESTS_PREFIX = "manifests/";
 /** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
 const MARKS_KEY = "marks";
 
+/** The key of the instant the last sweep began on its machine's clock, kept close by NTP. */
+const SWEPT_KEY = "swept";
+
 /** The marks of the objects a sweep drops, by key. */
 const Marks = schema.record(schema.string(), Instant);
 
@@ -289,7 +292,7 @@ export class PackageStore {
     }
 
     /** Read the manifests every root retains. */
-    async roots(): Promise<ReadonlySet<string>> {
+    async retained(): Promise<ReadonlySet<string>> {
         const retained = new Set<string>();
         for await (const file of this.#list("roots/")) {
             // skip a root forgotten since the listing
@@ -316,15 +319,15 @@ export class PackageStore {
     async sweep(
         retained: Retention,
         before: Date,
-        files: Retention = Retention.none,
-        now: Date = new Date(),
+        files: Retention,
+        now: Date,
         marked: Date = now,
     ): Promise<void> {
         // list the objects retention drops
         const candidates = await this.#candidates(retained, before, files);
 
         // read the marks
-        const marks = await this.#marks();
+        const { marks, etag } = await this.#marks();
 
         // read the leases last
         const leases = await this.#leases();
@@ -361,10 +364,48 @@ export class PackageStore {
         await this.#delete(dropped);
 
         // replace the marks
-        await this.#writeMarks(next);
+        await this.#writeMarks(next, etag);
 
         // delete the cache entries naming a deleted manifest or file
         await this.#deleteDanglingEntries();
+    }
+
+    /** Sweep what no root retains once an interval passed, answering the retained builds. */
+    async sweepIfDue(
+        before: Date,
+        now: Date,
+        interval: number,
+    ): Promise<ReadonlySet<string> | undefined> {
+        // leave a sweep that began within the interval
+        const last = await this.bucket.get(SWEPT_KEY);
+        const began = last === null ? undefined : Instant.parse(await last.json());
+        if (began !== undefined && now.getTime() - began < interval) {
+            return undefined;
+        }
+
+        // claim this sweep unless a concurrent one claimed it first
+        try {
+            await this.bucket.put(SWEPT_KEY, JSON.stringify(now.getTime()), {
+                onlyIf: last === null ? { etagDoesNotMatch: "*" } : { etagMatches: last.etag },
+                httpMetadata: { contentType: "application/json" },
+            });
+        } catch (error) {
+            if (error instanceof BucketPreconditionError) {
+                return undefined;
+            }
+            throw error;
+        }
+
+        // sweep what the roots no longer retain, releasing the claim of a failed sweep for a retry
+        try {
+            const retained = await this.retained();
+            await this.sweep(Retention.of(retained), before, Retention.none, now);
+
+            return retained;
+        } catch (error) {
+            await this.bucket.delete(SWEPT_KEY);
+            throw error;
+        }
     }
 
     /** List the unretained manifests and the unlisted files stored before a moment, by key. */
@@ -428,16 +469,28 @@ export class PackageStore {
     }
 
     /** Replace the sweep marks, deleting the marks object when no mark remains. */
-    async #writeMarks(marks: Readonly<Record<string, number>>): Promise<void> {
+    async #writeMarks(
+        marks: Readonly<Record<string, number>>,
+        etag: string | undefined,
+    ): Promise<void> {
         // delete the marks object without marks
         if (Object.keys(marks).length === 0) {
-            await this.bucket.delete(MARKS_KEY);
+            if (etag !== undefined) {
+                await this.bucket.delete(MARKS_KEY);
+            }
         }
-        // write the remaining marks
+        // replace the marks this sweep read, leaving them to an overlapping sweep that wrote first
         else {
-            await this.bucket.put(MARKS_KEY, JSON.stringify(marks), {
-                httpMetadata: { contentType: "application/json" },
-            });
+            try {
+                await this.bucket.put(MARKS_KEY, JSON.stringify(marks), {
+                    onlyIf: etag === undefined ? { etagDoesNotMatch: "*" } : { etagMatches: etag },
+                    httpMetadata: { contentType: "application/json" },
+                });
+            } catch (error) {
+                if (!(error instanceof BucketPreconditionError)) {
+                    throw error;
+                }
+            }
         }
     }
 
@@ -563,10 +616,15 @@ export class PackageStore {
     }
 
     /** Read the marks the last sweep left, by key. */
-    async #marks(): Promise<Record<string, number>> {
+    async #marks(): Promise<{
+        readonly marks: Record<string, number>;
+        readonly etag: string | undefined;
+    }> {
         const object = await this.bucket.get(MARKS_KEY);
 
-        return object === null ? {} : Marks.parse(await object.json());
+        return object === null
+            ? { marks: {}, etag: undefined }
+            : { marks: Marks.parse(await object.json()), etag: object.etag };
     }
 
     /** Read every lease's expiry by its digest. */

@@ -48,7 +48,7 @@ test.concurrent.for(fixtures)(
 
         // load the complete distribution after removing its source checkout
         const destination = join(input.directory, "build");
-        await build.write(destination);
+        await PackageBuild.write(build.reader, destination);
         await rm(input.source, { recursive: true });
         const restored = await PackageBuild.read(destination);
         expect(restored.manifest).toEqual(build.manifest);
@@ -184,7 +184,7 @@ test.concurrent("release a build at a given version its manifest, package.json a
         versions: { "@destack/build-workload-fixture": "2026.9.0-dev.3" },
     });
     const destination = join(input.directory, "build");
-    await build.write(destination);
+    await PackageBuild.write(build.reader, destination);
     await rm(input.source, { recursive: true });
 
     // call its feed, which answers the version its modules carry, and read its package.json
