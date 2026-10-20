@@ -11,6 +11,7 @@ import {
     relation,
     Relationship,
     through,
+    union,
 } from "@destack/access";
 import { call } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
@@ -18,7 +19,7 @@ import { AccessFixture } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, type Identifier } from "@destack/schema";
-import { type Page, Scope } from "@destack/sync";
+import { type Page, Scope, type Subject } from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, field } from "../index.ts";
 import { ObjectAudience } from "./audience.ts";
@@ -203,6 +204,89 @@ test("decide again after changes of the caller's own access, and leave other ide
         [Scope.table],
     );
     expect(suspended).toEqual([true]);
+});
+
+/** Shelves of a space, read by their viewers. */
+const shelf = defineObject({
+    name: "shelf",
+    plural: "shelves",
+    scope: space,
+    fields: {},
+    relations: { viewer: { subjects: [principal.user] } },
+    permissions: { read: relation("viewer") },
+});
+
+/** Albums read by whoever reads the shelf a relationship puts them on. */
+const album = defineObject({
+    name: "album",
+    plural: "albums",
+    scope: space,
+    fields: {},
+    relations: { shelf: { subjects: [shelf] }, owner: { subjects: [principal.user] } },
+    permissions: { read: union(relation("owner"), through("shelf", "read")) },
+});
+
+test("decide again once a relationship an arrow follows changes, and leave another identity's relationship alone", async () => {
+    // store a space with a shelf and an album, following it as ada
+    const storage = await TestDatabase.create(
+        "sqlite",
+        [...space.tables, ...shelf.tables, ...album.tables, ...call.tables],
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await new AccessFixture(database).replicateScope(
+        space.reference(Scope.universe.id, spaceId),
+        "own",
+    );
+    const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
+    await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
+    const [shelfId, albumId] = [newId("shelf"), newId("album")];
+    await database.insert(shelf.table).values({ ...at, id: shelfId });
+    await database.insert(album.table).values({ ...at, id: albumId });
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: principal.space.reference(Scope.universe.id, spaceId),
+        servers: serversOf([space, shelf, album]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: album.package },
+    });
+    const audience = await ObjectAudience.of(
+        store,
+        spaceId,
+        AccessContext.of(Caller.of(ada), Date.now()),
+    );
+    const relate = async (name: string, subject: Subject) => {
+        const { sequence } = await database.log.position();
+        await database.insert(accessRelationship).values(
+            Relationship.encode(
+                {
+                    id: newId("relationship"),
+                    object: album.reference(spaceId, albumId),
+                    relation: name,
+                    subject,
+                    createdAt: 1,
+                    expiresAt: null,
+                },
+                spaceId,
+            ),
+        );
+        const { changes } = await database.log.read({
+            tables: [accessRelationship],
+            after: sequence,
+        });
+
+        return Promise.all(changes.map((change) => audience.decides(change)));
+    };
+
+    // decide again once the album goes on the shelf, and leave bob's ownership alone
+    expect({
+        shelved: await relate("shelf", shelf.reference(spaceId, shelfId)),
+        owned: await relate("owner", principal.user.reference(Scope.universe.id, "bob")),
+    }).toEqual({ shelved: [true], owned: [false] });
 });
 
 /** Build a fresh identifier of a type. */

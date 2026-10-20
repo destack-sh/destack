@@ -1,7 +1,6 @@
 import { users } from "./fixture/user.ts";
-import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessRelationship, principal } from "@destack/access";
+import { accessRelationship, principal, Relationship } from "@destack/access";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
@@ -30,17 +29,18 @@ test.each(TEST_DIALECTS)(
             .insert(comment.table)
             .values({ ...record, id: commentId, parentId: taskId, text: "Looks good" });
         await database.insert(accessRelationship).values(
-            [task.reference(spaceId, taskId), comment.reference(spaceId, commentId)].map(
-                (object) => ({
-                    ...record,
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    ...ObjectReference.columns("object", object),
-                    relation: "viewer",
-                    subjectPackageId: principal.user.definition.packageId,
-                    subjectType: principal.user.name,
-                    subjectScope: "universe",
-                    subjectId: users.bob,
-                }),
+            [task.reference(spaceId, taskId), comment.reference(spaceId, commentId)].map((object) =>
+                Relationship.encode(
+                    {
+                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", users.bob),
+                        createdAt: record.createdAt,
+                        expiresAt: null,
+                    },
+                    spaceId,
+                ),
             ),
         );
 

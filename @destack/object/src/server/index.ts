@@ -1,4 +1,6 @@
 export * from "./store.ts";
+export { ObjectSource } from "./source.ts";
+export { ObjectSink } from "./sink.ts";
 export * from "./authorization.ts";
 export * from "./stack.ts";
 export * from "../claim/reservation.ts";

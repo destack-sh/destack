@@ -4,7 +4,7 @@ import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope } from "@destack/sync";
-import { asc, eq, defineDatabase, type Change } from "@destack/db";
+import { asc, eq, defineDatabase, type Change, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
@@ -118,7 +118,7 @@ test.each(TEST_DIALECTS)(
         });
 
         // list one key per topic with work waiting, and key a changed pending object by its topic
-        const keys = await controller.list();
+        const keys = await controller.list(Snapshot.live(database));
         if (controller.keys === undefined) {
             throw new TypeError("the reminder controller keys no changes");
         }

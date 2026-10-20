@@ -7,12 +7,11 @@ import {
     Invitation,
     relation,
     Relationship,
-    RelationshipCondition,
     through,
     union,
 } from "@destack/access";
 import { AccessName, Subject } from "@destack/sync";
-import { Instant, schema } from "@destack/schema";
+import { Digest, Instant, schema } from "@destack/schema";
 import { type Method } from "../method/method.ts";
 import {
     PageShape,
@@ -52,8 +51,8 @@ export const SubjectShape = {
     subject: Subject,
     /** Optional expiry in UTC epoch milliseconds. */
     expiresAt: Instant.exactOptional(),
-    /** What a request must satisfy for the relationship to apply. */
-    conditions: RelationshipCondition.exactOptional(),
+    /** The digest of the link secret a request must present, for a share link. */
+    linkSecret: Digest.exactOptional(),
 };
 
 /** The fields relating a subject to an object through one relation or role, as sent. */

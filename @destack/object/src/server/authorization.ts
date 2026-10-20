@@ -39,6 +39,8 @@ const FREEING_KINDS: ReadonlySet<MethodKind> = new Set(["delete", "deleteMany", 
 export class Authorization extends access.Authorization {
     /** The caller's resolved access in the call's scope. */
     readonly access: Access;
+    /** The transaction's writes to the deciding tables when the access was resolved. */
+    readonly #writes: number;
 
     /** Authorize a caller in one transaction. */
     constructor(
@@ -49,6 +51,12 @@ export class Authorization extends access.Authorization {
     ) {
         super(authorizer, transaction, context, resolved);
         this.access = resolved;
+        this.#writes = transaction.changes.writes(authorizer.decidingTables);
+    }
+
+    /** Report whether the transaction wrote nothing the access was resolved from since. */
+    get isCurrent(): boolean {
+        return this.transaction.changes.writes(this.authorizer.decidingTables) === this.#writes;
     }
 
     /** Match the rows the caller holds a permission on, and a required one too, or "memory". */

@@ -337,6 +337,9 @@ test.each(TEST_DIALECTS)(
         const { storage, call } = await serveLabels(dialect);
         const state = storage.database.driver.state;
 
+        // create two labels first, warming the shared access reads
+        await call(users.frank, "createMany", { items: items(2) });
+
         // count the statements of creating one and a thousand labels, then of trashing the thousand
         const counted = async (run: () => Promise<unknown>) => {
             const before = state.statements;
@@ -357,9 +360,9 @@ test.each(TEST_DIALECTS)(
         // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
         const extra = dialect === "postgresql" ? 1 : 0;
         expect(statements).toEqual({
-            createOne: 16 + extra,
-            createThousand: 16 + extra,
-            trashThousand: 18 + extra,
+            createOne: 10 + extra,
+            createThousand: 10 + extra,
+            trashThousand: 12 + extra,
         });
     },
 );

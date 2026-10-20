@@ -7,6 +7,7 @@ import {
     Scope,
     Subject,
     SyncError,
+    ObjectTypeReference,
 } from "@destack/sync";
 import {
     AccessContext,
@@ -373,10 +374,15 @@ export class ObjectAudience implements Audience {
                 ...(relation === null ? {} : { relation }),
             });
 
-            // take every subject set, as the same run may add the caller to it, and the caller's identities
+            // take every subject set, the caller's identities and arrows, as one run may add the caller
+            const via = row["relation"];
+            const type = { packageId: row["objectPackageId"], type: row["objectType"] };
+
             return (
                 subject.relation !== undefined ||
-                this.#authorization.access.authority.isMember(subject)
+                this.#authorization.access.authority.isMember(subject) ||
+                (typeof via === "string" &&
+                    this.#authorization.authorizer.isArrow(ObjectTypeReference.parse(type), via))
             );
         });
     }

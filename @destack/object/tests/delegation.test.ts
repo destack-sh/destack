@@ -80,6 +80,7 @@ test("act for the space as its installation within the space's grant, refusing w
         fetch: (sent) => Promise.reject(new Error(`the probes reach no ${sent.url}`)),
         url: "https://probes--home.test",
         publisher: {
+            confirm: async () => {},
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
             },

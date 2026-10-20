@@ -2,6 +2,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { type Authentication, Caller, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import type { RequestContext } from "@destack/runtime/server";
+import type { Subject } from "@destack/sync";
 import { subjectContext, type SubjectContextOptions } from "@destack/runtime/test";
 
 /** The people object's tests sign in as, each by a fixed user identifier. */
@@ -41,10 +42,11 @@ export function userContext(
     return subjectContext(principal.user.reference("universe", user), scope, options);
 }
 
-/** Authenticate a request as the user of its bearer token, else as no one. */
+/** Authenticate a request as its bearer token's user in the vouched groups, else as no one. */
 export function bearerUser(
     audience: PackageId,
     scope: string,
+    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
 ): (request: Request) => Promise<Authentication | undefined> {
     return async (request) => {
         // read the user in the bearer token
@@ -57,7 +59,7 @@ export function bearerUser(
         const now = Date.now();
 
         return {
-            caller: Caller.of(subject),
+            caller: { ...Caller.of(subject), groups: groups.get(user) ?? [] },
             credential: {
                 kind: "session",
                 id: subject.id,

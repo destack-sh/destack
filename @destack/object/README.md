@@ -1,6 +1,6 @@
 # @destack/object
 
-`defineObject` declares an object type: a "higher order" table with access rules, methods, audit, history and branching built in, whose rows sync to clients automatically (with three-shaped joins!).
+`defineObject` declares an object type: a table with access rules, methods and history, whose rows sync to clients.
 
 ```ts
 export const page = defineObject({
@@ -29,7 +29,7 @@ const listed = client.query.page.findMany().subscribe(); // a client's live loca
 
 ## Objects
 
-`defineObject` declares a type inside its `scope`, the object type whose rows contain its rows, `.methods` completes it, and `implement` attaches its code (method handlers, a controller, a declaration handler): a handler in the type's own module also runs on clients as a prediction, one in a server module runs on the server alone.
+`defineObject` declares a type and `implement` gives it code, which also runs on clients unless it sits in a server module.
 
 ```ts
 import { relation } from "@destack/access";
@@ -79,7 +79,7 @@ const { predicted, confirmed } = client.mutate(page).archive({ id });
 
 ## Methods
 
-Every type derives `get` and `list` under `read`, and a type with a `write` permission derives `create`, `update` and `delete` under it: a declared method replaces its derived one, `false` removes one, and an `immutable` field is written at creation only.
+Every type gets `get` and `list`, a type with a `write` permission also gets `create`, `update` and `delete`, and `false` removes one.
 
 ```ts
 export const label = defineObject(
@@ -96,7 +96,7 @@ export const label = defineObject(
 
 ## References
 
-`field.reference` stores an object's identifier as `<name>Id`, while `field.object` and `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
+`field.reference` stores one type's identifier as `<name>Id`, and `field.object` or `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
 
 ```ts
 fields: {
@@ -115,7 +115,7 @@ const origin = ObjectReference.at("origin", row);
 
 ## Traits
 
-Each trait option of `defineObject` adds columns, permissions and methods to the type.
+A trait adds columns, permissions and methods to a type.
 
 ```ts
 defineObject({
@@ -132,7 +132,7 @@ defineObject({
 
 ## Controllers
 
-A type's `controller` works through its pending rows and says when to look again.
+A type's `controller` works through its pending rows, and says when to look again.
 
 ```ts
 export const reminder = base.reminder.implement({
@@ -153,7 +153,7 @@ export const reminderConditions = new Conditions(["Sent"]);
 
 ## Calls
 
-`type.call` makes a call of a method as a value, and `type.target` points it at the row it acts on.
+`type.call` builds a method call as a value, and `type.target` names the row it acts on.
 
 ```ts
 const rename = page.call("rename", { ...page.target(row), title: "Plans" });
@@ -162,7 +162,7 @@ const create = page.call("create", { spaceId, title: "Ideas" });
 
 ## Contexts
 
-A handler gets the `MethodContext` its method's declaration types: `input`, `target`, `caller`, and `read` and `mutate` in the call's transaction.
+A handler gets a `MethodContext` with the call's `input`, `target` and `caller`, and reads and writes in the call's transaction.
 
 ```ts
 const rename = method.mutation({
@@ -178,7 +178,7 @@ page.implement({
 
 ## Servers
 
-`defineServer` is the one way to serve a package: its handled types, controllers, providers, follows, external files and adapters; `at` serves it as an installation inside a store of other packages.
+`defineServer` serves a package's types, controllers and follows, and `at` serves it as one installation in a store.
 
 ```ts
 import { defineServer } from "@destack/object/server";
@@ -189,7 +189,7 @@ const vault = vaultServer.at(installation); // served as its installation in a s
 
 ## Stores
 
-`ObjectStore` serves package servers over one database: `query` reads, `mutate` runs calls in one transaction, once per id, and `packages` answers each package below its mount.
+`ObjectStore` serves packages over one database: `query` reads, and `mutate` runs calls in one transaction.
 
 ```ts
 import { ObjectStore } from "@destack/object/server";
@@ -210,7 +210,7 @@ await store.mutate(store.serving(page), { id: RequestId.create(), calls: [create
 
 ## Replicas
 
-A server follows a `defineShape` at fixed keys, at one key per row of its own, or on demand, and changes replicated rows at their home over the store's `Uplink`; every store also follows its scope's chain and, from the universe, the access grants delegated into its scope.
+A server follows a `defineShape` to keep a copy of rows that live in another store, and every store also follows its scope's chain and the universe's grants into it.
 
 ```ts
 import { defineShape, Follow } from "@destack/object";
@@ -234,9 +234,17 @@ const byTitle = Follow.of(cards, { onDemand: { ttl: { minutes: 10 } } });
 await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns
 ```
 
+## Watermarks
+
+`wait` waits until a store has caught up to a position in another store's log, and asks that store when it falls behind.
+
+```ts
+await store.wait({ scope: homeId, epoch, sequence }, signal); // asks the source only while behind
+```
+
 ## Events
 
-A type stored in the event log takes `storage: { kind: "events", … }`: `create` and `createMany` append its rows under the caller's `id` and `time`, internally or under a permission, the same `get` and `list` read them hot and flushed alike, also from a durable method's handler, and `series` folds them; a guarded field masks the personal values its schema marks.
+A type with `storage: { kind: "events" }` keeps its rows in the event log, where `create` appends and `series` folds them.
 
 ```ts
 export const call = defineObject(
@@ -297,7 +305,7 @@ await store.query(
 
 ## Call log
 
-The journal appends each audited call to the `call` events type, which object's own server serves wherever a store composes it.
+The journal records each audited call as a `call` event.
 
 ```ts
 import objectPackage from "@destack/object/package";
@@ -310,7 +318,7 @@ await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "
 
 ## Unique names
 
-An index declared `across` a scope holds its names unique across databases: a store reserves a write's names before it commits and confirms them after, through the `claimMethods` a claim type declares, and `Claim.lookup` finds the object owning a name.
+An index declared `across` a scope keeps its names unique across databases, and `Claim.lookup` finds a name's owner.
 
 ```ts
 indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
@@ -323,7 +331,7 @@ const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // {
 
 ## Partitions
 
-A scope type declaring `partition: true` stores each of its objects' contents in a partition of their own, served by one instance; a store serving one partition answers a call in another with a 421 naming the partition.
+A scope type with `partition: true` keeps each object's contents in its own partition, served by one instance, and a store answers a call for another partition with a 421 that names it.
 
 ```ts
 const room = defineObject({
@@ -347,7 +355,7 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`context.mutate` runs calls inside a handler's transaction, as the same caller or as the code itself (`context.self`: the installation serving the type, else the store's principal); `context.space()` acts for the space, as its installation under the space's grant; `context.enabled("push")` reads whether it has that capability.
+`context.mutate` runs more calls in a handler's transaction as the caller or the code itself (`context.self`), `context.space()` acts for the space, and `context.enabled` reads a capability.
 
 ```ts
 export const shelf = base.shelf.implement({
@@ -367,7 +375,7 @@ if (context.enabled("push")) await deliverPush(recipient);
 
 ## Descriptions
 
-`type.describe()` writes a type's definition as data, and `ObjectType.ofAll` declares the same types from it against the declarations it refers to.
+`type.describe()` writes a type's definition as data, and `ObjectType.ofAll` reads it back.
 
 ```ts
 const description = page.describe(); // { package, definition: { fields: { title: { $field: [...] } } } }
@@ -376,7 +384,7 @@ const [declared] = ObjectType.ofAll([description], [space, principal.user]);
 
 ## Clients
 
-`ObjectClient` replicates a scope's objects in a local database, follows queries live, and undoes, branches and diffs changes.
+`ObjectClient` keeps a scope's objects in a local database, follows queries live, and undoes changes.
 
 ```ts
 import { ObjectClient } from "@destack/object/client";

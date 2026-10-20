@@ -12,7 +12,6 @@ import {
     Caller,
     CONTAINED,
     principal,
-    accessRelationship,
 } from "@destack/access";
 import {
     type ObjectReference,
@@ -22,7 +21,10 @@ import {
     Subject,
 } from "@destack/sync";
 import {
+    Change,
+    Key,
     LogPosition,
+    ReadSet,
     Snapshot,
     TABLE,
     type DatabaseConnection,
@@ -32,7 +34,6 @@ import {
     Transaction,
     and,
     eq,
-    gt,
     lte,
 } from "@destack/db";
 import { objectUnmask } from "../audit/unmask.ts";
@@ -106,12 +107,13 @@ import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
+import { ObjectSink } from "./sink.ts";
 import { Provisioned } from "../trait/provisioned.ts";
 import { ResourceController, type ResourceControllerOptions } from "./provisioned.ts";
 import { ExpiringController } from "./expiring.ts";
 import { RecoverableController } from "./recoverable.ts";
 import { TrackedHistory } from "./tracked.ts";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller, Delta } from "@destack/runtime/control";
 import { Settlement } from "./settlement.ts";
 import { telemetry } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
@@ -172,8 +174,39 @@ export interface SubscriberOptions {
 
 /** The subscriptions a database follows for its replicas, each from its own publisher. */
 export interface Subscriber extends SubscriberOptions {
-    /** List the subscriptions of the store's chains and follows. */
-    readonly subscriptions: () => Promise<readonly SubscriberEntry[]>;
+    /** List the subscriptions of the store's chains and follows, reading through a view. */
+    readonly subscriptions: (view: Snapshot, delta?: Delta) => Promise<readonly SubscriberEntry[]>;
+}
+
+/** Where a watermark's history is in a store: the own log, a lost one, its replicas, or none. */
+export type WatermarkHistory =
+    | {
+          /** The store's own log in its current epoch. */
+          readonly kind: "own";
+      }
+    | {
+          /** An earlier epoch of the own log, or another log of a scope homed here. */
+          readonly kind: "stale";
+      }
+    | {
+          /** Replicas including or reading the scope. */
+          readonly kind: "replicated";
+          /** The replicas including the scope's rows. */
+          readonly including: readonly { readonly name: string; readonly scope: string }[];
+          /** The followed replicas of the scope or reading it. */
+          readonly followed: readonly sync.Subscription[];
+      }
+    | {
+          /** No home or replica of the scope here. */
+          readonly kind: "unknown";
+      };
+
+/** One source row's key of a row follow, with what reading the key read. */
+interface RowKey {
+    /** The key, absent for a row the follow asks nothing for. */
+    readonly key: FollowKey | undefined;
+    /** What reading the key read. */
+    readonly reads: ReadSet;
 }
 
 /** A call's prepared external work: the keyed call, parsed value and settlement, if any. */
@@ -273,6 +306,8 @@ type CallOptions = {
     readonly request?: CallRequest;
     /** The code making the call for a principal's own code, such as a controller's name. */
     readonly component?: string;
+    /** The authorizations the run resolved for its calls, by scope and caller. */
+    readonly authorizations: Map<string, Authorization>;
 };
 
 /** The options of an object store: its package servers over one database, and its call log. */
@@ -459,12 +494,14 @@ export class ObjectStore {
     readonly isAccessAudited: boolean;
     /** The replicas the objects stream to clients and databases below. */
     readonly source: ObjectSource;
+    /** The replicas the store follows into its database. */
+    readonly sink: ObjectSink;
     /** The shared grant readers, by scope and page position. */
     readonly #readers = new Map<string, TupleReader>();
-    /** The scopes each caller lives inside, read once per caller and database. */
-    readonly #inside = new WeakMap<Caller, Map<DatabaseConnection, Promise<readonly Subject[]>>>();
     /** The types the store's packages declare, without the chunk types serving their text. */
     readonly #declared: readonly ObjectType[];
+    /** Each row follow's keys by source row as last listed, with what each key read. */
+    readonly #rowKeys = new Map<Follow, Map<string, RowKey>>();
     /** The served packages' implementations, in the order of their servers. */
     readonly packages: readonly (PackageImplementation & { readonly objects: ObjectStore })[];
     /** The wait for the replicas gating readiness, shared by every implemented package. */
@@ -522,6 +559,7 @@ export class ObjectStore {
             AuditRecorder.scoped(this.journal, this.origin)(scope, caller, recording);
         this.isAccessAudited = options.isAccessAudited ?? false;
         this.source = new ObjectSource(this);
+        this.sink = new ObjectSink(this);
         this.clock = options.clock;
         this.branch = options.branch;
         this.#report = options.report ?? ((error) => ObjectStore.#rethrow(error));
@@ -619,13 +657,15 @@ export class ObjectStore {
                     // relist when the store acquires or evicts an on-demand key
                     ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
                 ],
-                subscriptions: async () => {
+                subscriptions: async (view, delta) => {
                     // follow the follows' keys, then the chains
                     const followed = await ObjectStore.#followSubscriptions(this, follows, {
                         target,
                         publisher: publisherOf,
+                        view,
+                        ...(delta === undefined ? {} : { delta }),
                     });
-                    const chained = (await this.source.chains(target)).map(
+                    const chained = (await this.sink.chains(target, view)).map(
                         ({ subscription, home }) => ({
                             subscription,
                             publisher: publisherOf(home),
@@ -736,6 +776,7 @@ export class ObjectStore {
     #uplink(): sync.Uplink {
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
+            confirm: (subscription, watermark) => this.source.confirm(subscription, watermark),
             receive: (mutation, signer) => {
                 // run the changes as the follower's principal
                 if (signer === undefined) {
@@ -976,9 +1017,7 @@ export class ObjectStore {
                 ),
             ),
             controllers,
-            ...(subscriber === undefined
-                ? {}
-                : { ready: (signal) => this.#awaitReady(subscriber, signal) }),
+            ...(subscriber === undefined ? {} : { ready: (signal) => this.#awaitReady(signal) }),
             router: this.router(routed),
         };
     }
@@ -1057,13 +1096,13 @@ export class ObjectStore {
     }
 
     /** Wait for the replicas gating readiness, checked once for all packages, or until stopped. */
-    async #awaitReady(subscriber: Subscriber, signal: AbortSignal): Promise<void> {
+    async #awaitReady(signal: AbortSignal): Promise<void> {
         // share one check of the replicas, checking again after the checking server stopped first
         const stopped = new Promise<boolean>((resolve) => {
             signal.addEventListener("abort", () => resolve(false), { once: true });
         });
         while (!signal.aborted) {
-            const readiness = (this.#readiness ??= this.#ready(subscriber, signal));
+            const readiness = (this.#readiness ??= this.#ready(signal));
             if (await Promise.race([readiness, stopped])) {
                 return;
             }
@@ -1073,23 +1112,25 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until every readiness replica is a complete snapshot, reporting sync until then. */
-    async #ready(subscriber: Subscriber, signal: AbortSignal): Promise<boolean> {
-        // wait on commits until every gating replica synced
+    /** Wait until every listed readiness replica is current, checked on replica record changes. */
+    async #ready(signal: AbortSignal): Promise<boolean> {
+        // check the listed gates now and after each replica record commit
         const { database } = this;
+        const records = new Set(sync.replicaRecordTables.map((table) => table[TABLE].sqlName));
 
-        return database.log.until(async () => {
-            // check each gating replica
-            const entries = await subscriber.subscriptions();
-            const gates = entries.filter(
-                ({ subscription, isReadinessGate }) =>
-                    isReadinessGate ?? this.source.isReadinessGate(subscription),
-            );
-            const synced = await Promise.all(
+        return database.log.until(async (committed) => {
+            // leave commits that change no replica's record
+            if (![...committed].some((table) => records.has(table))) {
+                return false;
+            }
+
+            // require each listed gating replica current
+            const gates = (await this.sink.followed()).filter((entry) => entry.isReadinessGate);
+            const current = await Promise.all(
                 gates.map(({ subscription }) => sync.Replica.isCurrent(database, subscription)),
             );
 
-            return synced.every(Boolean);
+            return current.every(Boolean);
         }, signal);
     }
 
@@ -1138,7 +1179,11 @@ export class ObjectStore {
                 await this.enter(context, input.scope);
                 await this.#waitForHomes(context, input.scope, input.homes);
 
-                return this.watermark();
+                // confirm the caller's own streams of the scope at the watermark
+                const watermark = await this.watermark();
+                this.source.confirmCaller(input.scope, context.authentication, watermark);
+
+                return watermark;
             }),
             call: store.call.handler(async ({ input, context }) => {
                 // read in the given scope
@@ -1174,6 +1219,12 @@ export class ObjectStore {
                     after === undefined ? subscription : { ...subscription, after },
                     context,
                 );
+            }),
+            confirm: store.confirm.handler(async ({ input, context }) => {
+                // confirm the caller's own subscription, as allowed to follow it
+                await this.source.confirmRequest(input.subscription, input.watermark, context);
+
+                return {};
             }),
             describe: store.describe.handler(({ input }) => ({
                 objects: this.describe(input.types),
@@ -1270,7 +1321,10 @@ export class ObjectStore {
                 calls: [{ object, name }],
             });
 
-            return this.#execute(reading, authorization, object, name, input, caller, { prepared });
+            return this.#execute(reading, authorization, object, name, input, caller, {
+                prepared,
+                authorizations: new Map(),
+            });
         };
 
         // read unaudited objects directly
@@ -1432,6 +1486,7 @@ export class ObjectStore {
         // run each call in order as the caller under the mutation's request, recorded under the component making it
         const recorded: CallOptions = {
             requestId: mutation.id,
+            authorizations: new Map(),
             ...(options.component === undefined ? {} : { component: options.component }),
         };
         const results: unknown[] = [];
@@ -1491,24 +1546,18 @@ export class ObjectStore {
             throw new TypeError(`${object.name} is stored outside the transaction`);
         }
 
-        // run it under the calling method's authorization, else allow the caller in its scope
+        // run it under the calling method's authorization while current, else the scope and caller's
         const scope = object.readScope(name, input);
         const authorization =
             parent !== undefined &&
             parent.context.caller === caller &&
-            parent.context.scope === scope
+            parent.context.scope === scope &&
+            parent.authorization.isCurrent
                 ? parent.authorization
-                : await this.authorizeHere(
-                      transaction,
-                      scope,
-                      caller,
-                      parent === undefined
-                          ? {
-                                links: await Scope.chain(transaction.view(), scope),
-                                calls: [{ object, name }],
-                            }
-                          : { now: parent.context.now, calls: [{ object, name }] },
-                  );
+                : await this.#authorizeCall(transaction, scope, caller, [{ object, name }], {
+                      ...(parent === undefined ? {} : { now: parent.context.now }),
+                      authorizations: options.authorizations,
+                  });
 
         return this.#execute(transaction, authorization, object, name, input, caller, options);
     }
@@ -1645,9 +1694,16 @@ export class ObjectStore {
             ? transaction.base
             : undefined;
         const executed: unknown[] = [];
+        const authorizations = new Map<string, Authorization>();
+        let current = authorization;
         for (const [index, call] of run.calls.entries()) {
+            // authorize the remaining calls again once an earlier call changed the caller's access
             progress.running = index;
+            current = current.isCurrent
+                ? current
+                : await this.#authorizeRun(transaction, { ...run, calls: run.calls.slice(index) });
             const options: CallOptions = {
+                authorizations,
                 prepared: run.prepared[index],
                 ...(from === undefined ? {} : { from }),
                 ...(call.as === undefined ? {} : { as: call.as }),
@@ -1659,7 +1715,7 @@ export class ObjectStore {
             executed.push(
                 await this.#execute(
                     transaction,
-                    authorization,
+                    current,
                     call.object,
                     call.name,
                     call.input,
@@ -1688,12 +1744,6 @@ export class ObjectStore {
         transaction.record(async (committing) => {
             // commit the prepared work
             await this.#commit(committing, run.prepared);
-
-            // release the relationships bound to the request, when it wrote any
-            const written = transaction.changes.writtenRows(accessRelationship).values();
-            if ([...written].some((row) => row?.["requestId"] === run.id)) {
-                await this.authorizer.release(committing, run.id);
-            }
 
             // commit the claimed names
             await reservation?.commit(committing);
@@ -1837,7 +1887,11 @@ export class ObjectStore {
             }
         }
 
-        return { outcomes, watermark: await this.watermark() };
+        // confirm the caller's own streams of the scope past its writes
+        const watermark = await this.watermark();
+        this.source.confirmCaller(scope, context.authentication, watermark);
+
+        return { outcomes, watermark };
     }
 
     /** Find the served replica of an object type with the store's handlers. */
@@ -2006,7 +2060,7 @@ export class ObjectStore {
         // find the replica of the call's table in its scope whose publisher receives changes
         const object = ObjectType.find(this.replicated, call);
         const scope = object?.readScope(call.method, call.input);
-        const entries = (await this.subscriber?.subscriptions()) ?? [];
+        const entries = await this.sink.followed();
         const home = entries.find(({ subscription, publisher }) => {
             const replica = this.source.buildReplica(subscription);
 
@@ -2093,7 +2147,7 @@ export class ObjectStore {
             ...(isRecoverable ? [new RecoverableController(this)] : []),
             ...(isExpiring ? [new ExpiringController(this)] : []),
             ...(isSettled ? [Settlement.controller(this)] : []),
-            ...(this.subscriber === undefined ? [] : [this.source.controller(this.subscriber)]),
+            ...(this.subscriber === undefined ? [] : [this.sink.controller(this.subscriber)]),
             ...(this.branch === undefined
                 ? []
                 : [
@@ -2135,26 +2189,12 @@ export class ObjectStore {
         caller: AccessContext,
         options: AuthorizeOptions = {},
     ): Promise<Authorization> {
-        // place the caller inside the scopes given, else those its principal's row places it, read once per caller and database
+        // place the caller inside the scopes given, else those its principal's row places it
         const { request, links } = options;
-        const database = transaction.database;
-        const read =
-            this.#inside.get(caller) ?? new Map<DatabaseConnection, Promise<readonly Subject[]>>();
-        this.#inside.set(caller, read);
-        const known =
+        const within =
             options.within === undefined
-                ? (read.get(database) ?? this.source.within(caller.subject, database))
-                : Promise.resolve(
-                      options.within.map((inside) => ({ ...inside, relation: CONTAINED })),
-                  );
-        if (options.within === undefined) {
-            read.set(database, known);
-        }
-        const within = await known.catch((error: unknown) => {
-            // forget a failed read, so the caller's next call reads again
-            read.delete(database);
-            throw error;
-        });
+                ? await this.source.within(caller.subject, transaction.database)
+                : options.within.map((inside) => ({ ...inside, relation: CONTAINED }));
 
         // bind the caller with the scopes it sits inside, at the work's time
         const now = options.now ?? this.clock.now();
@@ -2178,17 +2218,58 @@ export class ObjectStore {
         caller: AccessContext,
         options: AuthorizeHereOptions = {},
     ): Promise<Authorization> {
-        // resolve its access, then require a scope this store serves, moved only for moving calls
+        // resolve its access, then require a scope this store serves for the calls
         const { calls = [], ...authorizing } = options;
         const authorization = await this.authorize(transaction, scope, caller, authorizing);
+        this.#requireHere(authorization, calls);
+
+        return authorization;
+    }
+
+    /** Authorize a nested call once per run, scope and caller while current, requiring it here. */
+    async #authorizeCall(
+        transaction: Transaction,
+        scope: string,
+        caller: AccessContext,
+        calls: readonly { readonly object: ObjectType; readonly name: string }[],
+        options: {
+            readonly now?: number;
+            readonly authorizations: Map<string, Authorization>;
+        },
+    ): Promise<Authorization> {
+        // reuse the scope and caller's authorization while nothing it was resolved from changed
+        const { now, authorizations } = options;
+        const key = `${scope} ${Caller.key(caller)}`;
+        let authorization = authorizations.get(key);
+        if (authorization?.isCurrent !== true) {
+            authorization = await this.authorize(
+                transaction,
+                scope,
+                caller,
+                now === undefined
+                    ? { links: await Scope.chain(transaction.view(), scope) }
+                    : { now },
+            );
+            authorizations.set(key, authorization);
+        }
+
+        // require a scope this store serves for the call
+        this.#requireHere(authorization, calls);
+
+        return authorization;
+    }
+
+    /** Require a scope this store serves, moved only for moving calls, and the calls' methods. */
+    #requireHere(
+        authorization: Authorization,
+        calls: readonly { readonly object: ObjectType; readonly name: string }[],
+    ): void {
         authorization.requireHere(
             calls.map(({ object, name }) => object.permission(object.method(name).permission)),
             this.partition,
             calls.length === 0 ? undefined : (this.space ?? this.principal.id),
         );
         authorization.requireMethods(calls);
-
-        return authorization;
     }
 
     /** Enter a scope: require the pinned scope or one inside it, and wait for observed writes. */
@@ -2218,7 +2299,6 @@ export class ObjectStore {
         const chain = await this.#chainIds(scope);
         await this.#waitForAll(
             context,
-            scope,
             watermarks.filter((entry) => chain.has(entry.scope)),
         );
     }
@@ -2239,7 +2319,7 @@ export class ObjectStore {
         }
 
         // wait for each home's commit
-        await this.#waitForAll(context, scope, homes);
+        await this.#waitForAll(context, homes);
     }
 
     /** Read a scope and the scopes enclosing it, by identifier. */
@@ -2250,21 +2330,22 @@ export class ObjectStore {
     }
 
     /** Wait until the scope's log or its replicas hold each watermark, in a bounded wait each. */
-    async #waitForAll(
-        context: RequestContext,
-        scope: string,
-        watermarks: readonly Watermark[],
-    ): Promise<void> {
+    async #waitForAll(context: RequestContext, watermarks: readonly Watermark[]): Promise<void> {
         for (const watermark of watermarks) {
             const signal = AbortSignal.any([
                 context.signal,
                 AbortSignal.timeout(BOOKMARK_TIMEOUT_MILLISECONDS),
             ]);
-            const isAt = await this.#waitForPosition(scope, watermark, signal);
-            if (!isAt) {
-                throw new CallError("SERVICE_UNAVAILABLE", {
-                    message: `${watermark.scope} has not reached the required sequence`,
-                });
+            if (!(await this.wait(watermark, signal))) {
+                // refuse a scope still without a home or replica here, else the late position
+                const history = await this.history(watermark);
+                throw history.kind === "unknown"
+                    ? new CallError("NOT_FOUND", {
+                          message: `${watermark.scope} has no home or replica here`,
+                      })
+                    : new CallError("SERVICE_UNAVAILABLE", {
+                          message: `${watermark.scope} has not reached the required sequence`,
+                      });
             }
         }
     }
@@ -2274,26 +2355,67 @@ export class ObjectStore {
         return { scope: this.scope, ...(await this.database.log.position()) };
     }
 
-    /** Wait until the store's own log or a replica of another scope's log has the watermark. */
-    async #waitForPosition(
-        scope: string,
-        watermark: Watermark,
-        signal: AbortSignal,
-    ): Promise<boolean> {
-        // wait on the store's own log
-        if (watermark.scope === this.scope) {
-            if (watermark.epoch !== (await this.database.log.epoch())) {
-                throw new DatabaseError(
-                    "STALE_EPOCH",
-                    `${scope} no longer has the watermark's history`,
-                );
-            }
-
-            return await this.database.log.wait(watermark.sequence, signal);
+    /** Decide where a watermark's history is here: own log, an older one, replicas, or none. */
+    async history(watermark: Watermark): Promise<WatermarkHistory> {
+        // take the own log's current epoch for a scope the store serves, refusing an earlier one
+        const { database } = this;
+        const head = await database.log.position();
+        const isHome = await this.authorizer.isHome(Snapshot.live(database), watermark.scope);
+        const isServed = isHome || watermark.scope === this.scope;
+        if (isServed && watermark.log === head.log) {
+            return { kind: watermark.epoch === head.epoch ? "own" : "stale" };
+        }
+        // refuse another log for a scope homed here, which a move's lineage would continue
+        else if (isHome) {
+            return { kind: "stale" };
         }
 
-        // wait on the replica of an enclosing scope
-        return await sync.Replica.wait(this.database, watermark.scope, watermark, signal);
+        // take the replicas including the scope and the followed ones reading it
+        const including = await sync.Replica.including(database, watermark.scope);
+        const followed = (await this.sink.followed())
+            .filter(
+                ({ subscription, replica }) =>
+                    subscription.scope === watermark.scope ||
+                    replica.reads.includes(watermark.scope),
+            )
+            .map((entry) => entry.subscription);
+
+        return including.length === 0 && followed.length === 0
+            ? { kind: "unknown" }
+            : { kind: "replicated", including, followed };
+    }
+
+    /** Wait until the store's own log or its replicas of another scope's log have a watermark. */
+    async wait(watermark: Watermark, signal: AbortSignal): Promise<boolean> {
+        const history = await this.history(watermark);
+
+        // wait on the store's own log for a watermark it wrote in its current epoch
+        if (history.kind === "own") {
+            return await this.database.log.wait(watermark.sequence, signal);
+        }
+        // refuse a watermark of a history this store no longer has
+        else if (history.kind === "stale") {
+            throw new DatabaseError(
+                "STALE_EPOCH",
+                `${watermark.scope} no longer has the watermark's history`,
+            );
+        }
+        // wait through the replicas reading the scope, asking upstream for a position they miss
+        else {
+            const { including, followed } =
+                history.kind === "replicated" ? history : { including: [], followed: [] };
+            if (!(await sync.Replica.isAt(this.database, watermark.scope, watermark, followed))) {
+                await this.sink.request(watermark, [...including, ...followed]);
+            }
+
+            return await sync.Replica.wait(
+                this.database,
+                watermark.scope,
+                watermark,
+                signal,
+                followed,
+            );
+        }
     }
 
     /** The served durable object types. */
@@ -2354,7 +2476,7 @@ export class ObjectStore {
                             call.name,
                             call.input,
                             caller,
-                            { writerId, requestId },
+                            { writerId, requestId, authorizations: new Map() },
                         ),
                     );
                 }
@@ -2804,7 +2926,7 @@ export class ObjectStore {
         name: string,
         input: JsonObject,
         caller: AccessContext,
-        options: CallOptions = {},
+        options: CallOptions,
     ): Promise<unknown> {
         const attributes = { "destack.object.type": object.name, "destack.object.method": name };
 
@@ -2936,15 +3058,19 @@ export class ObjectStore {
         parent: MethodContext,
         options: CallOptions,
     ): Run {
+        // pass the call's options down, with the transaction's authorizations of nested calls
         const { from, writerId, requestId, component } = options;
+        const { authorizations } = options;
         const recorded: CallOptions = {
             ...(from === undefined ? {} : { from }),
             ...(writerId === undefined ? {} : { writerId }),
             ...(requestId === undefined ? {} : { requestId }),
             ...(component === undefined ? {} : { component }),
+            authorizations,
         };
 
         return async (entry, caller, mutates, code) => {
+            // run the nested call under the recorded options
             const result = await this.#runInside(
                 transaction,
                 entry,
@@ -2954,11 +3080,6 @@ export class ObjectStore {
                 { context: parent, authorization },
                 recorded,
             );
-
-            // decide the rest of the parent call on the access a nested mutation changed
-            if (mutates) {
-                authorization.renew();
-            }
 
             return result;
         };
@@ -3135,8 +3256,8 @@ export class ObjectStore {
     ): LogPosition | undefined {
         // parse the last event identifier
         if (lastEventId !== undefined) {
-            const [epoch, sequence] = lastEventId.split("/");
-            const position = LogPosition.safeParse({ epoch, sequence: Number(sequence) });
+            const [log, epoch, sequence] = lastEventId.split("/");
+            const position = LogPosition.safeParse({ log, epoch, sequence: Number(sequence) });
             if (!position.success) {
                 throw new CallError("BAD_REQUEST", {
                     message: `no page has event ${lastEventId}`,
@@ -3598,6 +3719,8 @@ export class ObjectStore {
         options: {
             readonly target: string;
             readonly publisher: (scope: string) => sync.Publisher;
+            readonly view: Snapshot;
+            readonly delta?: Delta;
         },
     ): Promise<SubscriberEntry[]> {
         // subscribe to the acquired keys of each on-demand follow, one replica per scope and subject
@@ -3615,7 +3738,7 @@ export class ObjectStore {
                     "keys" in follow
                         ? follow.keys
                         : "from" in follow
-                          ? await ObjectStore.#readKeys(store, follow)
+                          ? await store.#readKeys(follow, options.view, options.delta)
                           : [],
             })),
         );
@@ -3654,18 +3777,16 @@ export class ObjectStore {
     static async #onDemandSubscriptions(
         store: ObjectStore,
         follow: Extract<Follow, { readonly onDemand: unknown }>,
-        options: { readonly target: string; readonly publisher: (scope: string) => sync.Publisher },
+        options: {
+            readonly target: string;
+            readonly publisher: (scope: string) => sync.Publisher;
+            readonly view: Snapshot;
+        },
     ): Promise<SubscriberEntry[]> {
         // read the keys that have not lapsed
-        const rows = await store.database
-            .select()
-            .from(followKey)
-            .where(
-                and(
-                    eq(followKey.shape, follow.shape.name),
-                    gt(followKey.expiresAt, store.clock.now()),
-                ),
-            );
+        const rows = await options.view.read(followKey).findMany({
+            where: { shape: follow.shape.name, expiresAt: { gt: store.clock.now() } },
+        });
 
         // group their parameters by scope and subject
         const groups = new Map<string, { scope: string; subject: string; keys: object[] }>();
@@ -3700,18 +3821,60 @@ export class ObjectStore {
         return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;
     }
 
-    /** Read the keys of a follow over the store's own rows: one per row it reads. */
-    static async #readKeys(
-        store: ObjectStore,
+    /** Read a follow's keys over the store's own rows, again only for rows a change touched. */
+    async #readKeys(
         follow: RowFollow<object, ObjectType>,
+        view: Snapshot,
+        delta: Delta | undefined,
     ): Promise<FollowKey[]> {
         // read the rows of the store's own database the keys come from
-        const view = Snapshot.live(store.database);
-        const rows = await view.read(follow.from.table).findMany({ where: follow.where ?? {} });
+        const table = follow.from.table;
+        const rows = await view.read(table).findMany({ where: follow.where ?? {} });
 
-        // read each row's key
-        const found = await Promise.all(rows.map((row) => follow.key(row, view, store.space)));
+        // list the source rows the commit changed, whose keys read again
+        const changed = new Set(
+            (delta?.changes ?? [])
+                .filter((change) => Change.of(change, table))
+                .map((change) => Key.name(table, change.key)),
+        );
 
-        return found.filter((key) => key !== undefined);
+        // reuse a row's key while the row and what its key read stay unchanged, else read it again
+        const previous = this.#rowKeys.get(follow);
+        const listed = new Map<string, RowKey>();
+        const keys = await Promise.all(
+            rows.map(async (row) => {
+                // reuse the key while the row and what its key read stay unchanged
+                const name = Key.name(table, row);
+                const known = previous?.get(name);
+                const isReused =
+                    delta !== undefined &&
+                    known !== undefined &&
+                    !changed.has(name) &&
+                    !delta.changes.some((change) => known.reads.touches(change)) &&
+                    !known.reads.tables.some((read) => delta.unlogged.has(read[TABLE].sqlName));
+                const entry = isReused ? known : await this.#readKey(follow, row, view);
+
+                // list the row's entry, and its reads in the listing's
+                listed.set(name, entry);
+                view.reads?.add(entry.reads);
+
+                return entry.key;
+            }),
+        );
+        this.#rowKeys.set(follow, listed);
+
+        return keys.filter((key) => key !== undefined);
+    }
+
+    /** Read one source row's key, recording what the key read. */
+    async #readKey(
+        follow: RowFollow<object, ObjectType>,
+        row: Parameters<RowFollow<object, ObjectType>["key"]>[0],
+        view: Snapshot,
+    ): Promise<RowKey> {
+        const reads = new ReadSet();
+        const key = await follow.key(row, view.recording(reads), this.space);
+
+        return { key, reads };
     }
 }

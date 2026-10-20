@@ -2,7 +2,7 @@ import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { RequestId } from "@destack/runtime/request";
 import { CallError } from "@destack/runtime/error";
@@ -10,7 +10,7 @@ import { present, schema } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import { call, defineObject, field } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
-import { ObjectStore } from "./index.ts";
+import { ObjectSink, ObjectStore } from "./index.ts";
 import { Clock } from "@destack/environment";
 
 /** The space whose store replicates the people it joined. */
@@ -127,7 +127,7 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
         origin: { package: person.package },
     });
     const store: ObjectStore = new ObjectStore({
-        chain: async () => ({ kind: "follower" }),
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: space,
         servers: serversOf([label]),
@@ -150,7 +150,9 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
     );
     const controller = new AbortController();
     const key = present(
-        (await follower.list()).find((entry) => entry.endsWith(` ${Scope.universe.id}`)),
+        (await follower.list(Snapshot.live(store.database))).find(
+            (entry) => entry === `${ObjectSink.queriesName(spaceId)} ${Scope.universe.id}`,
+        ),
         "the universe's replica key",
     );
     const following = follower.reconcile(key, reconciliation(controller.signal));

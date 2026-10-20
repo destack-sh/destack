@@ -131,11 +131,9 @@ export const ObjectController = {
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
             ...(declared.mode === undefined ? {} : { mode: declared.mode }),
             keys,
-            list: async () => {
+            list: async (view) => {
                 // list the keys of every pending object
-                const rows = await Snapshot.live(store.database)
-                    .read(table)
-                    .findMany({ where: declared.pending });
+                const rows = await view.read(table).findMany({ where: declared.pending });
 
                 return [...new Set(rows.map((row) => canonicalize(readKey(row))))];
             },

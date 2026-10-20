@@ -4,13 +4,13 @@ import { accessRelationship, none, principal, relation, through } from "@destack
 import { call } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
-import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
+import { asc, type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope, type Uplink } from "@destack/sync";
 import { defineObject, field, Intrinsic } from "../index.ts";
-import { ObjectStore } from "./index.ts";
+import { ObjectSink, ObjectStore } from "./index.ts";
 import { Clock } from "@destack/environment";
 
 /** Refuse a change sent over the uplink, as these replicas receive none. */
@@ -71,7 +71,8 @@ const relationship = defineObject(Intrinsic.relationship.definition(person));
 /** Serve people and profiles over a database. */
 async function serve(database: DatabaseConnection, uplink?: Uplink) {
     return new ObjectStore({
-        chain: async () => (uplink === undefined ? undefined : { kind: "follower" }),
+        chain: async () =>
+            uplink === undefined ? undefined : { kind: "follower", parent: Scope.universe.id },
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([person, profile]),
@@ -148,6 +149,7 @@ test.each(TEST_DIALECTS)(
         const replicating: ObjectStore = await serve(space.database, {
             receive: refuseChanges,
             call: refuseQueries,
+            confirm: async () => {},
             stream: (asked, signal) =>
                 served.source.replicate(
                     asked,
@@ -163,14 +165,13 @@ test.each(TEST_DIALECTS)(
             "the replica controller",
         );
         const controller = new AbortController();
-        const keys = await follower.list();
-        const following = follower.reconcile(
-            present(keys.find(isUniverseKey), "the universe's key"),
-            reconciliation(controller.signal),
-        );
+        const keys = await follower.list(Snapshot.live(replicating.database));
+        const following = keys
+            .filter(isUniverseKey)
+            .map((key) => follower.reconcile(key, reconciliation(controller.signal)));
         onTestFinished(async () => {
             controller.abort();
-            await following.catch(() => undefined);
+            await Promise.allSettled(following);
         });
         const replicated = async () => {
             await Replica.wait(
@@ -291,7 +292,7 @@ test.each(TEST_DIALECTS)(
 
         // replicate the universe the space reads into its database, which serves only people and badges
         const replicating: ObjectStore = new ObjectStore({
-            chain: async () => ({ kind: "follower" }),
+            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             clock: Clock.system,
             principal: principal.space.reference(Scope.universe.id, spaceId),
             servers: serversOf([person, badge]),
@@ -299,6 +300,7 @@ test.each(TEST_DIALECTS)(
             uplink: {
                 receive: refuseChanges,
                 call: refuseQueries,
+                confirm: async () => {},
                 stream: (asked, signal) =>
                     served.source.replicate(
                         asked,
@@ -373,7 +375,7 @@ test.each(TEST_DIALECTS)(
             origin: { package: person.package },
         });
         const replicating: ObjectStore = new ObjectStore({
-            chain: async () => ({ kind: "follower" }),
+            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             clock: Clock.system,
             principal: spaceSubject,
             servers: serversOf([person]),
@@ -381,6 +383,7 @@ test.each(TEST_DIALECTS)(
             uplink: {
                 receive: refuseChanges,
                 call: refuseQueries,
+                confirm: async () => {},
                 stream: (asked, signal) =>
                     served.source.replicate(
                         asked,
@@ -441,14 +444,13 @@ async function follow(
         "the replica controller",
     );
     const controller = new AbortController();
-    const keys = await follower.list();
-    const following = follower.reconcile(
-        present(keys.find(isUniverseKey), "the universe's key"),
-        reconciliation(controller.signal),
-    );
+    const keys = await follower.list(Snapshot.live(replicating.database));
+    const following = keys
+        .filter(isUniverseKey)
+        .map((key) => follower.reconcile(key, reconciliation(controller.signal)));
     onTestFinished(async () => {
         controller.abort();
-        await following.catch(() => undefined);
+        await Promise.allSettled(following);
     });
 
     // wait for the replica to reach home
@@ -460,9 +462,9 @@ async function follow(
     );
 }
 
-/** Report whether a replica key follows the space's replica of the universe's rows. */
+/** Report whether a replica key follows the space's query of the universe's rows. */
 function isUniverseKey(key: string): boolean {
-    return key === `${spaceId} ${Scope.universe.id}`;
+    return key === `${ObjectSink.queriesName(spaceId)} ${Scope.universe.id}`;
 }
 
 /** Build the identifier of a numbered badge. */

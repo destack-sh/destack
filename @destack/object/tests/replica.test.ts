@@ -2,9 +2,7 @@ import { users } from "./fixture/user.ts";
 import {
     AccessContext,
     AccessError,
-    Authorizer,
     Caller,
-    grant,
     none,
     principal,
     relation,
@@ -22,7 +20,7 @@ import {
     ObjectReference,
     replica,
     Replica,
-    replicaRow,
+    replicaKey,
     replicaSubscription,
     replicaTables,
     Scope,
@@ -163,7 +161,7 @@ test("list and follow the mentions a home has as replicas of another space, from
                 "caller",
             ),
         });
-        await replicating.insert(replicaRow).values({
+        await replicating.insert(replicaKey).values({
             name: "mentions",
             scope: other,
             table,
@@ -413,7 +411,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             publication: store.source.chainPublication.name,
             scope: spaceId,
             target: spaceId,
-            parameters: { local: [], replicated: [], types: [] },
+            parameters: { local: [] },
         },
         subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
     );
@@ -421,7 +419,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     // refuse the parameters as the follower's own bad input, naming the missing fields
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
-        "invalid input: via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
+        "invalid input: scopes: invalid input: expected array, received undefined; types: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
     ]);
 });
 
@@ -688,23 +686,14 @@ test("answer a follow of a type the scope does not install with a complete page 
     ).toEqual([true, 0]);
 });
 
-test("answer a universe follow of a table no served type lists with a complete page of no rows", async () => {
-    // keep alice's grant to an installation of the space, in a space serving mentions alone
+test("answer a query follow of a type the store does not serve with a complete page of no rows", async () => {
+    // open a space serving mentions alone
     const storage = await TestDatabase.create("sqlite", [...mention.tables, ...callTables], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, spaceId);
-    const alice = principal.user.reference(Scope.universe.id, users.alice);
-    await new AccessFixture(database).replicateGrant(
-        alice,
-        principal.installation.reference(
-            spaceId,
-            "installation-01996ab0-0000-7000-8000-0000000000b1",
-        ),
-        [],
-    );
     const store = new ObjectStore({
         chain: async () => undefined,
         clock: Clock.system,
@@ -716,29 +705,21 @@ test("answer a universe follow of a table no served type lists with a complete p
         origin: { package: mention.package },
     });
 
-    // follow the grants delegated into the space as the space, which the grant lets read it
+    // follow the grants in the space as the space
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
-        Authorizer.universeSubscription({
+        store.source.queriesPublication.subscription({
             name: spaceId,
             scope: spaceId,
             target: spaceId,
-            parameters: {
-                rows: [
-                    {
-                        type: grant.typeReference,
-                        where: { delegateScope: spaceId },
-                        isEverywhere: true,
-                    },
-                ],
-            },
+            parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
         }),
         subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
     );
     const first = await pages.next();
 
-    // answer it as complete and empty, as no type the store serves lists the grant table
+    // answer it as complete and empty, as the store serves no grant type
     expect(
         first.done === true ? "ended" : [first.value.complete, first.value.changes.length],
     ).toEqual([true, 0]);

@@ -255,6 +255,22 @@ export const storeProcedures = {
         .route({ method: "POST", path: "/store/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
+    confirm: defineProcedure({
+        package: DEFINING_PACKAGE,
+        authentication: "public",
+        permission: "rows",
+        audit: false,
+    })
+        .route({ method: "POST", path: "/store/confirm" })
+        .input(
+            schema.object({
+                /** The subscription whose streams confirm the watermark. */
+                subscription: Subscription,
+                /** The watermark the follower waits for. */
+                watermark: Watermark,
+            }),
+        )
+        .output(schema.object({})),
     describe: defineProcedure({
         package: DEFINING_PACKAGE,
         authentication: "public",

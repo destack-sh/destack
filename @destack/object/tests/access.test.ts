@@ -132,6 +132,7 @@ test.for(TEST_DIALECTS)(
         expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
         const granting = await Transaction.open(database);
         const authorization = await store.authorize(granting, SPACE_ID, context.access());
+        const before = authorization.isCurrent;
         await Relationship.grant(
             {
                 object,
@@ -140,8 +141,15 @@ test.for(TEST_DIALECTS)(
             },
             authorization,
         );
+        const after = authorization.isCurrent;
         await granting.commit();
-        expect(await next()).toEqual([["destack__access__relationship", "insert", "member"]]);
+
+        // see the binding, and the authorization outdated by the write it made
+        expect([await next(), before, after]).toEqual([
+            [["destack__access__relationship", "insert", "member"]],
+            true,
+            false,
+        ]);
     },
 );
 

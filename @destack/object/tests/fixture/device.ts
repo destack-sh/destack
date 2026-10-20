@@ -13,6 +13,7 @@ import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { v7 } from "uuid";
 import { note, notebook, notesDatabase, notesPackage } from "./note.ts";
 import { principal } from "@destack/access";
+import type { Subject } from "@destack/sync";
 import { openSpace, spacePrincipal, unmoved } from "./space.ts";
 import { testCallKey } from "@destack/runtime/test";
 import { testEvents } from "../../src/test/index.ts";
@@ -25,7 +26,11 @@ export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 const DEVICE_OBJECTS = { notebook, note };
 
 /** Serve a space's notes to bearer-identified users, returning a client per user. */
-export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) {
+export async function serveNotes(
+    dialect: Dialect,
+    clock: Clock = Clock.system,
+    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
+) {
     // store the space's notes in memory
     const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -48,6 +53,7 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
             0,
         ),
         spaceId,
+        groups,
     );
 
     const connect = (user: Identifier<"user">) => createClient(notesPackage, served.endpoint(user));
@@ -56,7 +62,11 @@ export async function serveNotes(dialect: Dialect, clock: Clock = Clock.system) 
 }
 
 /** Serve objects over HTTP to bearer-identified users in a space, with each user's endpoint. */
-export function serveObjects(implementation: PackageImplementation, scope: string) {
+export function serveObjects(
+    implementation: PackageImplementation,
+    scope: string,
+    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
+) {
     // authenticate each request as the user its bearer credential identifies
     const server = Server.start({
         clock: Clock.system,
@@ -66,7 +76,7 @@ export function serveObjects(implementation: PackageImplementation, scope: strin
         health: new Health(implementation.package.name),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
-        authenticate: bearerUser(notesPackage.id, scope),
+        authenticate: bearerUser(notesPackage.id, scope, groups),
     });
     onTestFinished(() => server.close());
 

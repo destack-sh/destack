@@ -251,9 +251,9 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "share an object, challenge for stronger authentication, accept invitations and narrow agents to their grants on %s",
+    "share an object, accept invitations and narrow agents to their grants on %s",
     async (dialect) => {
-        const { clock, execute, events, act, step, delegate } = await serveTasks(dialect);
+        const { clock, execute, events, act, delegate } = await serveTasks(dialect);
         const created = await execute("create", {
             requestId: RequestId.create(Date.now()),
             title: "Ship the plan",
@@ -307,24 +307,6 @@ test.each(TEST_DIALECTS)(
             message: `no task ${created.id}`,
         });
         act(users.frank);
-
-        // challenge a viewer for step-up authentication and allow them after
-        await execute("grant", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "viewer",
-            subject: { ...viewer, id: users.ivan },
-            conditions: { assurance: 2 },
-        });
-        act(users.ivan);
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "INSUFFICIENT_AUTHENTICATION",
-            message: "authentication assurance is too low: authenticate again",
-            stepUp: { assurance: 2 },
-        });
-        step(2);
-        expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
-        step(1);
 
         // let a user without access ask for it, and apply it once the owner accepts
         act(users.heidi);
@@ -407,7 +389,6 @@ test.each(TEST_DIALECTS)(
             "task.create",
             "task.grant",
             "task.revoke",
-            "task.grant",
             "task.invite",
             "task.accept",
         ]);
@@ -1266,13 +1247,12 @@ async function serveTasks(dialect: Dialect) {
     // handle archiving
     const handled = handleArchive();
 
-    // decide as the current user at the current assurance, through the current delegate
+    // decide as the current user, through the current delegate
     let current = users.frank;
-    let level = 1;
     let agent: Subject | undefined;
     const sign = () =>
         userContext(current, spaceId, {
-            assurance: { level, authenticatedAt: Date.now() },
+            assurance: { level: 1, authenticatedAt: Date.now() },
             ...(agent === undefined
                 ? {}
                 : {
@@ -1315,11 +1295,6 @@ async function serveTasks(dialect: Dialect) {
         /** Act as a user. */
         act: (user: Identifier<"user">) => {
             current = user;
-            context = sign();
-        },
-        /** Authenticate at an assurance level. */
-        step: (assurance: number) => {
-            level = assurance;
             context = sign();
         },
         /** Act through a delegate under a stored grant of some permissions, or directly. */

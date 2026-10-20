@@ -1,4 +1,5 @@
-import { AccessContext, Caller, grant } from "@destack/access";
+import { Snapshot } from "@destack/db";
+import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { RequestId } from "@destack/runtime/request";
@@ -50,7 +51,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
     const publishers = new Map<string, Publisher>();
     const store = new ObjectStore({
         servers: [defineServer(pagesPackage, { follows: [plans, icons] })],
-        chain: async () => ({ kind: "follower" }),
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         origin: { package: Package.of(pagesPackage) },
         principal: spacePrincipal(spaceId),
@@ -60,6 +61,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         publisher: (scope) => {
             // use one publisher per scope
             const publisher = publishers.get(scope) ?? {
+                confirm: async () => {},
                 stream: () => (async function* () {})(),
             };
             publishers.set(scope, publisher);
@@ -78,14 +80,16 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
     await create("Plan", "📌");
     await create("Notes", null);
     const listed = async () =>
-        (await subscriber.subscriptions()).map(({ subscription, publisher }) => ({
-            name: subscription.name,
-            publication: subscription.publication,
-            scope: subscription.scope,
-            target: subscription.target,
-            parameters: subscription.parameters,
-            isScopePublisher: publisher === publishers.get(subscription.scope),
-        }));
+        (await subscriber.subscriptions(Snapshot.live(storage.database))).map(
+            ({ subscription, publisher }) => ({
+                name: subscription.name,
+                publication: subscription.publication,
+                scope: subscription.scope,
+                target: subscription.target,
+                parameters: subscription.parameters,
+                isScopePublisher: publisher === publishers.get(subscription.scope),
+            }),
+        );
     const first = await listed();
     await create("Ideas", "💡");
     const second = await listed();
@@ -107,39 +111,22 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         parameters: { queries: { "0:page": { object: "page", where: { icon: glyph } } } },
         isScopePublisher: true,
     });
-    // follow the store's own chain beside the follows, every link from the space's own publisher
+    // follow the store's own chain beside the follows, every link from the space's own publisher, with the grants at the universe
     const chain = (scope: string) => ({
         name: `chain:${spaceId}`,
         publication: "chain",
         scope,
         target: spaceId,
         parameters: {
-            local: [page.typeReference],
-            replicated: [],
+            scopes: [spaceId, Scope.universe.id],
+            local: scope === spaceId ? [page.typeReference] : [],
+            types: [],
             via: [],
             between: [],
-            types: store.source.reached(),
         },
         isScopePublisher: scope === spaceId,
     });
-    // follow the access grants delegated into the space from the universe
-    const grants = {
-        name: spaceId,
-        publication: "universe",
-        scope: Scope.universe.id,
-        target: spaceId,
-        parameters: {
-            rows: [
-                {
-                    type: grant.typeReference,
-                    where: { delegateScope: spaceId },
-                    isEverywhere: true,
-                },
-            ],
-        },
-        isScopePublisher: false,
-    };
-    const own = [chain(spaceId), chain(Scope.universe.id), grants];
+    const own = [chain(spaceId), chain(Scope.universe.id)];
     expect({
         first,
         second,

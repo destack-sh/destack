@@ -1,5 +1,5 @@
 import { users, userName } from "./fixture/user.ts";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { journal } from "../src/index.ts";
 import { eq } from "@destack/db";
 import { channelHub } from "@destack/db";
@@ -9,9 +9,10 @@ import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { schema, present } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
+import { getEventMeta } from "@destack/runtime";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, type Page } from "@destack/sync";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
@@ -552,6 +553,157 @@ test("decide checks on a device from its replica of the caller's access rows, an
     });
     await expect.poll(checks).toEqual([false, false, false]);
     expect(device.errors).toEqual([]);
+});
+
+test("decide checks on a device as the server decides them, for a group its authenticator vouches for", async () => {
+    const team = { ...principal.group.reference("universe", "team"), relation: "member" };
+    const { connect, endpoint } = await serveNotes(
+        "sqlite",
+        Clock.system,
+        new Map([[users.bob, [team]]]),
+    );
+    const alice = connect(users.alice);
+    const bob = connect(users.bob);
+
+    // share alice's notebook with the team bob is vouched into
+    const research = await alice.notebook.create({
+        spaceId,
+        requestId: RequestId.create(Date.now()),
+        name: "Research",
+    });
+    await alice.notebook.grant({
+        spaceId,
+        id: research.id,
+        requestId: RequestId.create(Date.now()),
+        relation: "editor",
+        subject: team,
+    });
+
+    // allow on the device exactly what the server allows bob
+    const device = await Device.open(users.bob, endpoint(users.bob));
+    device.online();
+    const checks = async () => [
+        await device.client.check(notebook, research.id, "read"),
+        await device.client.check(notebook, research.id, "write"),
+        await device.client.check(notebook, research.id, "manage"),
+    ];
+    expect((await bob.notebook.get({ spaceId, id: research.id })).name).toBe("Research");
+    await expect.poll(checks).toEqual([true, true, false]);
+    expect(device.errors).toEqual([]);
+});
+
+test("resume a store stream from the last event it sent, at that page's position", async () => {
+    const { connect, endpoint } = await serveNotes("sqlite");
+    const alice = connect(users.alice);
+    await alice.notebook.create({
+        spaceId,
+        requestId: RequestId.create(Date.now()),
+        name: "Research",
+    });
+    const store = ObjectClient.store(endpoint(users.alice));
+    const subscription = {
+        name: "access",
+        publication: "access",
+        scope: spaceId,
+        target: spaceId,
+        parameters: {},
+    };
+
+    // read a stream's first complete page and the event identifier it came with
+    const complete = async (lastEventId?: string) => {
+        const controller = new AbortController();
+        const options = lastEventId === undefined ? {} : { lastEventId };
+        const pages = await store.stream(subscription, { signal: controller.signal, ...options });
+        for await (const page of pages) {
+            if (page.complete) {
+                controller.abort();
+
+                return { reset: page.reset, position: page.position, id: getEventMeta(page)?.id };
+            }
+        }
+        throw new TypeError("the stream ended before a complete page");
+    };
+
+    // resume a second stream from the first one's event, at its position without starting over
+    const first = await complete();
+    const resumed = await complete(first.id);
+    const { log, epoch, sequence } = first.position;
+    expect([first, resumed]).toEqual([
+        { reset: true, position: first.position, id: `${log}/${epoch}/${sequence}` },
+        { reset: false, position: first.position, id: first.id },
+    ]);
+});
+
+test("restart a caller's access stream only on access changes concerning the caller", async () => {
+    const { connect, endpoint } = await serveNotes("sqlite");
+    const alice = connect(users.alice);
+    const research = await alice.notebook.create({
+        spaceId,
+        requestId: RequestId.create(Date.now()),
+        name: "Research",
+    });
+
+    // follow bob's access rows, keeping every page
+    const controller = new AbortController();
+    onTestFinished(() => controller.abort());
+    const pages: Page[] = [];
+    const store = ObjectClient.store(endpoint(users.bob));
+    const subscription = {
+        name: "access",
+        publication: "access",
+        scope: spaceId,
+        target: spaceId,
+        parameters: {},
+    };
+    const errors: unknown[] = [];
+    const following = (async () => {
+        for await (const page of await store.stream(subscription, { signal: controller.signal })) {
+            pages.push(page);
+        }
+    })().catch((error: unknown) => {
+        // keep failures other than the closing abort
+        if (!controller.signal.aborted) {
+            errors.push(error);
+        }
+    });
+    await expect.poll(() => pages.some((page) => page.complete)).toBe(true);
+
+    // share the notebook with carol, then with bob
+    const share = async (user: (typeof users)[keyof typeof users]) =>
+        await alice.notebook.grant({
+            spaceId,
+            id: research.id,
+            requestId: RequestId.create(Date.now()),
+            relation: "viewer",
+            subject: principal.user.reference("universe", user),
+        });
+    await share(users.carol);
+
+    // have bob's stream confirm the position past carol's share, so a restart for it would show first
+    const watermark = await ObjectClient.store(endpoint(users.alice)).watermark({
+        scope: spaceId,
+        homes: [],
+    });
+    await store.confirm({ subscription, watermark });
+    const isPast = () =>
+        pages.some(
+            (page) =>
+                page.complete &&
+                page.position.log === watermark.log &&
+                page.position.sequence >= watermark.sequence,
+        );
+    await expect.poll(isPast).toBe(true);
+    const resetsPastCarol = pages.filter((page) => page.reset).length;
+    const shared = await share(users.bob);
+
+    // start one snapshot for bob's own share alone, none for carol's
+    const isShared = () =>
+        pages.some((page) => page.changes.some((change) => change.row["id"] === shared.id));
+    await expect.poll(isShared).toBe(true);
+    expect([resetsPastCarol, pages.filter((page) => page.reset).length]).toEqual([1, 2]);
+    controller.abort();
+    await following;
+    expect(errors).toEqual([]);
 });
 
 test("show a notebook's relationships to everyone who reads it, and to no one else", async () => {

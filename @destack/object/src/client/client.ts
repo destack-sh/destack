@@ -1,5 +1,5 @@
 import { ObjectReference } from "@destack/sync";
-import type { Item, Subject } from "@destack/sync";
+import { type Item, Subject } from "@destack/sync";
 import {
     FindOptions,
     and,
@@ -1218,10 +1218,12 @@ export class ObjectClient<
         id: string,
         permission: PermissionOf<Object>,
     ): Promise<boolean> {
+        // decide as the source decides the access replica
+        const caller = await this.#callerContext(this.database);
         const authorization = new Authorization(
             this.#authorizer,
             Transaction.reading(this.database),
-            () => AccessContext.of(Caller.of(this.caller), this.clock.now()),
+            () => caller,
         );
         const decision = await authorization.check(
             object.permission(permission),
@@ -1229,6 +1231,14 @@ export class ObjectClient<
         );
 
         return decision.isAllowed;
+    }
+
+    /** Read the caller's access with the subjects the source decides the access replica for. */
+    async #callerContext(database: DatabaseConnection): Promise<AccessContext> {
+        const subjects = await this.access.subjects(database);
+        const groups = subjects.filter((subject) => !Subject.same(subject, this.caller));
+
+        return AccessContext.of({ ...Caller.of(this.caller), groups }, this.clock.now());
     }
 
     /** Push the queued mutations and follow subscriptions until aborted. */
@@ -2217,10 +2227,7 @@ export class ObjectClient<
             id: targetId,
             target: undefined,
             prepared: undefined,
-            caller: AccessContext.of(
-                this.caller === undefined ? Caller.anonymous() : Caller.of(this.caller),
-                this.clock.now(),
-            ),
+            caller: await this.#callerContext(database),
             location: { kind: "client", database },
             objects: this.objects,
             replicas: [],

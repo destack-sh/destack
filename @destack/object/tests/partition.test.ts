@@ -1,17 +1,18 @@
 import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { grant, none, principal, relation } from "@destack/access";
+import { none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { present, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
 import { testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import type { Uplink } from "@destack/sync";
+import { Scope, type Uplink } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, field, type ObjectType } from "../src/index.ts";
 import { ShareableMethod } from "../src/method/shareable.ts";
+import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
@@ -75,6 +76,7 @@ const seatsDatabase = defineDatabase({
 /** An uplink streaming and receiving nothing, named by who it stands for. */
 function idle(name: string): Uplink {
     return {
+        confirm: async () => {},
         stream: () => {
             throw new TypeError(`${name} streams no replicas`);
         },
@@ -143,7 +145,10 @@ test.each(TEST_DIALECTS)(
         const subscriptions = async (partition: string) => {
             const store = new ObjectStore({
                 servers: [defineServer(roomsPackage, {})],
-                chain: async () => ({ kind: "follower" }),
+                chain: async () => ({
+                    kind: "follower",
+                    parent: partition === spaceId ? Scope.universe.id : spaceId,
+                }),
                 clock: Clock.system,
                 origin: { package: Package.of(roomsPackage) },
                 callKey: testCallKey,
@@ -161,7 +166,7 @@ test.each(TEST_DIALECTS)(
                 },
             });
             const listed = present(store.subscriber?.subscriptions, "the store's subscriptions");
-            const entries = await listed();
+            const entries = await listed(Snapshot.live(storage.database));
 
             return entries.map((entry) => [
                 entry.subscription.name,
@@ -174,18 +179,16 @@ test.each(TEST_DIALECTS)(
             ]);
         };
 
-        // follow each link's chain and the access grants delegated into it from the universe
+        // follow each link's chain, which at the universe has the access grants delegated into it
         expect([await subscriptions(spaceId), await subscriptions(ROOM), reached]).toEqual([
             [
                 [`chain:${spaceId}`, spaceId, "machine"],
                 [`chain:${spaceId}`, "universe", "machine"],
-                [spaceId, "universe", "machine"],
             ],
             [
                 [`chain:${ROOM}`, ROOM, "root"],
                 [`chain:${ROOM}`, spaceId, "root"],
                 [`chain:${ROOM}`, "universe", "root"],
-                [ROOM, "universe", "root"],
             ],
             [`fixture--${spaceId} ${roomsPackage.id}`],
         ]);
@@ -205,7 +208,10 @@ test.each(TEST_DIALECTS)(
         const universeRows = async (partition?: string) => {
             const store = new ObjectStore({
                 servers: [defineServer(seatsPackage, {})],
-                chain: async () => ({ kind: "follower" }),
+                chain: async () => ({
+                    kind: "follower",
+                    parent: partition === undefined ? Scope.universe.id : spaceId,
+                }),
                 clock: Clock.system,
                 origin: { package: Package.of(seatsPackage) },
                 callKey: testCallKey,
@@ -219,21 +225,97 @@ test.each(TEST_DIALECTS)(
                 },
             });
 
-            return store.source.universeSubscription(partition ?? spaceId).parameters["rows"];
+            const listed = await store.sink.chains(
+                partition ?? spaceId,
+                Snapshot.live(storage.database),
+            );
+
+            return listed
+                .filter((entry) => entry.subscription.publication === QUERIES_PUBLICATION)
+                .map((entry) => entry.subscription.parameters["queries"]);
         };
 
-        // request every room at the root, and only the grants delegated into the room in its partition
+        // query every room at the root, and leave the rooms to a room's partition chain
         expect([await universeRows(), await universeRows(ROOM)]).toEqual([
-            [
-                { type: room.typeReference, where: {}, isEverywhere: true },
-                {
-                    type: grant.typeReference,
-                    where: { delegateScope: spaceId },
-                    isEverywhere: true,
-                },
-            ],
-            [{ type: grant.typeReference, where: { delegateScope: ROOM }, isEverywhere: true }],
+            [{ room: { object: room.name, scopes: "every" } }],
+            [],
         ]);
+    },
+);
+
+test.each(TEST_DIALECTS)(
+    "keep a home's chain subscriptions through an install, and change a follower's own scope by the types it now homes, on %s",
+    async (dialect) => {
+        // store the space's cards and pins, with pins installed later
+        const pin = defineObject({
+            name: "pin",
+            plural: "pins",
+            scope: space,
+            fields: { owner: field.reference(principal.user).caller() },
+            permissions: { read: relation("owner"), write: relation("owner") },
+        });
+        const declared = defineDatabase({
+            name: "main",
+            tables: [...card.tables, ...pin.tables, ...callTables],
+        });
+        const storage = await TestDatabase.create(dialect, declared, { isMigrated: true });
+        onTestFinished(() => storage.close());
+        await openSpace(storage.database, spaceId);
+        const idles = { machine: idle("machine"), root: idle("root") };
+        const chains = async (types: readonly ObjectType[], kind: "home" | "follower") => {
+            const store = new ObjectStore({
+                servers: serversOf(types),
+                chain: async () => ({ kind, parent: Scope.universe.id }),
+                clock: Clock.system,
+                origin: { package: card.package },
+                callKey: testCallKey,
+                events: await testEvents(storage.database),
+                database: storage.database,
+                server: {
+                    ...(await testServerContext(card.package, spaceId)),
+                    publisher: idles.machine,
+                    publisherAt: () => idles.root,
+                },
+            });
+            const listed = await store.sink.chains(spaceId, Snapshot.live(storage.database));
+
+            return listed
+                .map((entry) => entry.subscription)
+                .filter((subscription) => subscription.publication !== QUERIES_PUBLICATION)
+                .map((subscription) => [
+                    subscription.publication,
+                    subscription.scope,
+                    subscription.parameters,
+                ]);
+        };
+
+        // list the chain subscriptions before and after installing pins, for a home and a follower
+        const home = [await chains([card], "home"), await chains([card, pin], "home")];
+        const follower = [await chains([card], "follower"), await chains([card, pin], "follower")];
+        const changed = nth(follower, 1).filter(
+            (entry) =>
+                !nth(follower, 0).some(
+                    (before) => JSON.stringify(before) === JSON.stringify(entry),
+                ),
+        );
+
+        // keep the home's, and change only the follower's own scope by the types it homes
+        expect({ installed: nth(home, 1), changed }).toEqual({
+            installed: nth(home, 0),
+            changed: [
+                [
+                    "chain",
+                    spaceId,
+                    {
+                        scopes: [spaceId, Scope.universe.id],
+                        local: [card.typeReference, pin.typeReference],
+                        types: [],
+                        via: [],
+                        between: [],
+                    },
+                ],
+            ],
+        });
     },
 );
 

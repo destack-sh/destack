@@ -129,7 +129,7 @@ export const ObjectPolicy = {
             policy: type.policy,
             table: type.table,
             id: "id",
-            scope: "scope",
+            ...(type.isUniverseOnly ? {} : { scope: "scope" }),
             attributes: Object.fromEntries(
                 Object.keys(type.policy.definition.attributes).map((name) => [
                     name,
@@ -631,8 +631,6 @@ const RoleBinding = RoleRequest.extend({
     subject: Subject,
     /** The object in the scope the role is bound on, the scope itself when absent. */
     object: ObjectReference.exactOptional(),
-    /** What a request must meet for the binding to apply. */
-    conditions: access.RelationshipCondition.exactOptional(),
     /** The stack declaration managing the role and its binding. */
     manager: access.Manager.schema,
 });

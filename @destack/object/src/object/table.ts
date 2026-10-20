@@ -213,18 +213,18 @@ export const ObjectTable = {
         return defined;
     },
 
-    /** Log a table's changes: its history when tracked, only appends for the event log. */
+    /** Log a table's changes: tracked history, event appends, shared reads of principals. */
     readLog(definition: ObjectDefinition, storage: ObjectStorage) {
         // append only events
         if (storage === "events") {
             return { appendOnly: true };
         }
-        // record a tracked object's history
-        else if (definition.tracked !== undefined) {
-            return { retention: "history" as const };
-        }
 
-        return {};
+        // record tracked history, share principals' rows
+        return {
+            ...(definition.tracked === undefined ? {} : { retention: "history" as const }),
+            ...(definition.represents === undefined ? {} : { isShared: true }),
+        };
     },
 
     /** Build an object's columns: the record trait's, the scope, other traits' and the fields'. */

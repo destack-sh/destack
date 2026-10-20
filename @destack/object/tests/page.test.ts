@@ -211,7 +211,7 @@ test.each(TEST_DIALECTS)(
             requestId: RequestId.create(Date.now()),
             relation: "public",
             subject: anyone.reference("*", "*"),
-            conditions: { linkSecret: link.digest },
+            linkSecret: link.digest,
         });
         const visitor = connect({ "Destack-Link-Secret": link.secret });
         expect((await visitor.page.get({ spaceId, id: tools.id })).title).toBe("Tools");

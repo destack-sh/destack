@@ -94,13 +94,14 @@ async function openStores(): Promise<{
     // follow the cards by title from the home as the follower's space, and run its replicas
     const decided = { subject: spacePrincipal(followerId), parent: Scope.universe.id };
     const publisher = {
+        confirm: async () => {},
         receive: () => Promise.reject(new Error("the follower sends no changes")),
         call: () => Promise.reject(new Error("the follower sends no queries")),
         stream: (asked: Subscription, signal: AbortSignal) =>
             home.source.replicate(asked, asked.after, decided, signal),
     };
     const follower = new ObjectStore({
-        chain: async () => ({ kind: "follower" }),
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock,
         principal: spacePrincipal(followerId),
         servers: [defineServer(PackageHandle.of(card.package, {}), { follows: [byTitle] })],

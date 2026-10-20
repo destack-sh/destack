@@ -278,7 +278,7 @@ async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
 
 test("undo a revert by updating the reverted fields no one changed since back", () => {
     // restore the title and leave the later body change
-    const input = { spaceId, id: "page-1", at: { epoch: "epoch", sequence: 3 } };
+    const input = { spaceId, id: "page-1", at: { log: "log", epoch: "epoch", sequence: 3 } };
     const before = { title: "Roadmap", body: "final" };
     const after = { title: "Plan", body: "outline" };
     const { revert } = page.methods;

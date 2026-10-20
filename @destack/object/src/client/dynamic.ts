@@ -223,7 +223,7 @@ export class DynamicObjectClient {
             // stop the follow and drop the replica
             stopping.abort();
             await following.catch(() => {});
-            await replica.drop(database);
+            await sync.Replica.drop(database, replica);
         }
     }
 

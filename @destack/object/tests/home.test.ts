@@ -1,9 +1,9 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
-import { accessTables, Authorizer, none, principal } from "@destack/access";
+import { callTables, FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { accessTables, none, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase, eq } from "@destack/db";
+import { defineDatabase, eq, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/runtime";
@@ -26,6 +26,14 @@ const personId = schema.identifier("person").parse("person-01996ab0-0000-7000-80
 
 /** The person's room, whose machine replicates the person's preferences. */
 const roomId = schema.identifier("room").parse("room-01996ab0-0000-7000-8000-000000000032");
+
+/** A person outside the room's chain. */
+const otherPersonId = schema
+    .identifier("person")
+    .parse("person-01996ab0-0000-7000-8000-000000000033");
+
+/** How long a wait may take once the home confirms: 2 s, far below the feed's 10 s heartbeat. */
+const CONFIRM_MILLISECONDS = 2000;
 
 /** People, the scopes their preferences live in. */
 const person = defineObject({
@@ -130,21 +138,19 @@ async function serveHomes() {
         },
     );
     const replica: ObjectStore = new ObjectStore({
-        chain: async () => ({ kind: "follower" }),
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(roomId),
         servers: serversOf([preference]),
         policies: [person, room],
         database: replicateStorage.database,
         uplink: {
+            ...FeedPublisher.of(
+                feed,
+                (subscription) => replica.source.buildReplica(subscription).queries,
+            ),
             receive: refuseChanges,
             call: refuseQueries,
-            stream: (subscription, signal) =>
-                feed.subscribe(
-                    replica.source.buildReplica(subscription).queries,
-                    subscription.after,
-                    signal,
-                ),
         },
         callKey: testCallKey,
         events: await testEvents(replicateStorage.database),
@@ -172,6 +178,7 @@ async function serveHomes() {
 
     return {
         home,
+        replica,
         homeDatabase: homeStorage.database,
         writes,
         homeEndpoint: recorded("home", homeServer.server),
@@ -179,7 +186,7 @@ async function serveHomes() {
     };
 }
 
-/** Follow the replicas a room's store derives, the universe's rows and then its chain via them. */
+/** Follow the replicas a room's store derives: the universe's rows, then the chains via them. */
 async function followChain(
     replica: ObjectStore,
     database: TestDatabase["database"],
@@ -197,17 +204,21 @@ async function followChain(
         await Promise.allSettled(following);
     });
 
-    // follow the universe's rows first, then the chain via the scopes they bring, each to the home's head
+    // follow the listed replicas until the scopes their rows bring list no more, each to the home's head
     const head = await home.log.position();
     const followed = new Set<string>();
-    for (const name of [roomId, Authorizer.viaReplica(roomId)]) {
-        const key = present(
-            (await follower.list()).find((entry) => entry === `${name} ${Scope.universe.id}`),
-            `the replica key of ${name}`,
+    for (let isGrowing = true; isGrowing;) {
+        const keys = (await follower.list(Snapshot.live(database))).filter(
+            (entry) => !followed.has(entry),
         );
-        followed.add(key);
-        following.push(follower.reconcile(key, reconciliation(controller.signal)));
-        await Replica.wait(database, Scope.universe.id, head, controller.signal);
+        for (const key of keys) {
+            followed.add(key);
+            following.push(follower.reconcile(key, reconciliation(controller.signal)));
+        }
+        for (const scope of new Set(keys.map((key) => present(key.split(" ")[1], "a scope")))) {
+            await Replica.wait(database, scope, head, controller.signal);
+        }
+        isGrowing = keys.length > 0;
     }
 }
 
@@ -324,6 +335,57 @@ test("send a write of an enclosing scope's row to its home, predicted on the roo
         writes: ["home /store/push", "replica /store/watermark"],
         failures: [],
     });
+});
+
+test("wait through a replica for a home commit outside its rows, the home confirming the position at once", async () => {
+    // commit a person outside the room's chain at home
+    const served = await serveHomes();
+    await served.homeDatabase
+        .insert(person.table)
+        .values({ id: otherPersonId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    const head = await served.homeDatabase.log.position();
+
+    // wait through the room's store for the home's head, far within the feed's heartbeat
+    const isReached = await served.replica.wait(
+        { scope: personId, ...head },
+        AbortSignal.timeout(CONFIRM_MILLISECONDS),
+    );
+
+    // reach the position by the home's confirmation
+    expect(isReached).toBe(true);
+});
+
+test("wait on a store's own log for a watermark it wrote, in a scope another database homes", async () => {
+    // take the head of the room's store, whose room row a replica of the home keeps
+    const served = await serveHomes();
+    const head = await served.replica.database.log.position();
+
+    // reach it on the store's own log, far within the feed's heartbeat
+    expect(
+        await served.replica.wait(
+            { scope: roomId, ...head },
+            AbortSignal.timeout(CONFIRM_MILLISECONDS),
+        ),
+    ).toBe(true);
+});
+
+test("refuse to confirm a position of a scope with no home or replica in the store", async () => {
+    // ask the home to confirm a position of a scope it never saw
+    const served = await serveHomes();
+    const head = await served.homeDatabase.log.position();
+    const subscription = {
+        name: "nowhere",
+        publication: "nowhere",
+        scope: "space-nowhere",
+        target: roomId,
+        parameters: {},
+    };
+    const refused = await refusal(
+        served.home.source.confirm(subscription, { scope: "space-nowhere", ...head }),
+    );
+
+    // refuse the unknown scope
+    expect(refused).toEqual(["NOT_FOUND", "space-nowhere has no home or replica here"]);
 });
 
 test("refuse a mutation changing rows of two homes", async () => {

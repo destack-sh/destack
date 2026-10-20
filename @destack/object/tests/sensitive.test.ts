@@ -4,7 +4,7 @@ import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { reconcileOnce, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
@@ -106,9 +106,7 @@ test("hold a sensitive input out of the rows, the journal, the audit events, the
             (error: unknown) => error,
         );
     for (const controller of store.controllers()) {
-        for (const key of await controller.list()) {
-            await controller.reconcile(key, reconciliation());
-        }
+        await reconcileOnce(controller, store.database);
     }
     await telemetry.flush();
 
