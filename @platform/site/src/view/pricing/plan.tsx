@@ -30,14 +30,24 @@ const currencyNames: Readonly<Record<Currency, string>> = {
     AUD: "Australian dollars",
 };
 
-/** The tax each currency's prices state: included where consumer prices must include it. */
-const taxNotes: Readonly<Record<Currency, string>> = {
-    USD: "plus tax",
-    CAD: "plus tax",
-    EUR: "incl. VAT",
-    CHF: "incl. VAT",
-    GBP: "incl. VAT",
-    AUD: "incl. GST",
+/** The tax each audience's prices state per currency: included for people where the law asks it. */
+const taxNotes: Readonly<Record<Audience, Readonly<Record<Currency, string>>>> = {
+    personal: {
+        USD: "plus tax",
+        CAD: "plus tax",
+        EUR: "incl. VAT",
+        CHF: "incl. VAT",
+        GBP: "incl. VAT",
+        AUD: "incl. GST",
+    },
+    organisation: {
+        USD: "plus tax",
+        CAD: "plus tax",
+        EUR: "excl. VAT",
+        CHF: "excl. VAT",
+        GBP: "excl. VAT",
+        AUD: "excl. GST",
+    },
 };
 
 /** The days in a year, the retention shown as a year. */
@@ -145,7 +155,7 @@ export function PlansLabel(properties: {
                             <path d="m6 9 6 6 6-6" />
                         </svg>
                     </span>
-                    {taxNotes[properties.currency]}
+                    {taxNotes[properties.audience][properties.currency]}
                 </span>
                 <Toggle
                     isOn={properties.audience === "organisation"}

@@ -33,7 +33,7 @@ export const plans = [
     {
         key: "go",
         name: "Go",
-        fees: { USD: 8, CAD: 11, EUR: 8, CHF: 8, GBP: 8, AUD: 12 },
+        fees: { USD: 8, CAD: 11, EUR: 8, CHF: 8, GBP: 8, AUD: 13 },
         support: "community",
         retention: 30,
         isUncapped: true,
@@ -44,7 +44,7 @@ export const plans = [
     {
         key: "plus",
         name: "Plus",
-        fees: { USD: 20, CAD: 28, EUR: 20, CHF: 20, GBP: 20, AUD: 30 },
+        fees: { USD: 20, CAD: 28, EUR: 20, CHF: 20, GBP: 20, AUD: 32 },
         support: "email",
         retention: 90,
         isUncapped: true,
@@ -55,7 +55,7 @@ export const plans = [
     {
         key: "pro",
         name: "Pro",
-        fees: { USD: 100, CAD: 140, EUR: 100, CHF: 100, GBP: 100, AUD: 150 },
+        fees: { USD: 100, CAD: 140, EUR: 100, CHF: 100, GBP: 100, AUD: 160 },
         support: "priority",
         retention: 365,
         isUncapped: true,

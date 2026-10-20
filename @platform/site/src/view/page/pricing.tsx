@@ -45,8 +45,8 @@ const bill: Form = {
     pronunciation: "/bɪl/",
     partOfSpeech: "noun",
     sense: {
-        definition: "the price of a thousand little silos",
-        highlight: ["thousand little silos"],
+        definition: "the price of integration",
+        highlight: ["integration"],
         sentence: "Pick your tools. Compare a month of seats with a month of usage.",
     },
 };
