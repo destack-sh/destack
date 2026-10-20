@@ -15,7 +15,7 @@ import {
     Transaction,
 } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { defineObject, INTRINSIC, type ObjectType } from "@destack/object";
+import { defineObject, type ObjectType } from "@destack/object";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { callTables, testEvents } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
@@ -107,15 +107,12 @@ export const placementTable = defineTable(
 export const placement = defineObject({
     name: "placement",
     plural: "placements",
-    [INTRINSIC]: {
+    mapping: {
         table: placementTable,
-        mapping: {
-            table: placementTable,
-            id: "id",
-            scope: "scope",
-            attributes: {},
-            relations: { self: { column: "id", scope: Scope.universe.id } },
-        },
+        id: "id",
+        scope: "scope",
+        attributes: {},
+        relations: { self: { column: "id", scope: Scope.universe.id } },
     },
     relations: { self: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("self") },
