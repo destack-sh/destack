@@ -1,4 +1,5 @@
 import { TestTelemetry } from "@destack/telemetry/test";
+import { reconcileOnce } from "@destack/runtime/test";
 import {
     type ColumnBuilder,
     defineTable,
@@ -142,19 +143,8 @@ export class EventFixture implements AsyncDisposable {
 
     /** Reconcile every key each controller lists once, as the control loop would. */
     async settle(): Promise<void> {
-        const signal = new AbortController().signal;
         for (const controller of this.store.controllers) {
-            for (const key of await controller.list()) {
-                await controller.reconcile(key, {
-                    signal,
-                    changed: () =>
-                        new Promise<void>((resolve) => {
-                            signal.addEventListener("abort", () => {
-                                resolve();
-                            });
-                        }),
-                });
-            }
+            await reconcileOnce(controller, this.store.database);
         }
     }
 
