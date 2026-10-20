@@ -1,5 +1,5 @@
 import { TestTelemetry } from "@destack/telemetry/test";
-import { reconcileOnce } from "@destack/runtime/test";
+import { ControlLoop } from "@destack/runtime/control";
 import {
     type ColumnBuilder,
     defineTable,
@@ -106,6 +106,12 @@ export class EventFixture implements AsyncDisposable {
     readonly bucket = new MemoryBucket(this.clock);
     /** The telemetry keeping the exceptions the store captures. */
     readonly telemetry = TestTelemetry.register();
+    /** The stop of the store's control loop. */
+    readonly #stop = new AbortController();
+    /** The failures the store's controllers reported. */
+    readonly #failures: unknown[] = [];
+    /** The store's control loop and its run, started at the first settle. */
+    #controlled: { readonly loop: ControlLoop; readonly running: Promise<void> } | undefined;
 
     /** Hold opened events. */
     private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
@@ -141,15 +147,32 @@ export class EventFixture implements AsyncDisposable {
         );
     }
 
-    /** Reconcile every key each controller lists once, as the control loop would. */
+    /** Run the store's controllers in a control loop until they settle, failing on their errors. */
     async settle(): Promise<void> {
-        for (const controller of this.store.controllers) {
-            await reconcileOnce(controller, this.store.database);
+        // start the loop on the fixture's clock once
+        if (this.#controlled === undefined) {
+            const loop = new ControlLoop(this.store.database, this.store.controllers, {
+                clock: this.clock,
+                report: (_controller, _key, error) => this.#failures.push(error),
+            });
+            const running = loop.run(this.#stop.signal).catch((error: unknown) => {
+                this.#failures.push(error);
+            });
+            this.#controlled = { loop, running };
+        }
+
+        // wait until nothing is due, failing on the first reported error
+        await this.#controlled.loop.idle();
+        if (this.#failures.length > 0) {
+            throw this.#failures[0];
         }
     }
 
-    /** Close the database. */
+    /** Stop the control loop, then close the database. */
     async [Symbol.asyncDispose](): Promise<void> {
+        // stop the loop, then close the database and the telemetry
+        this.#stop.abort();
+        await this.#controlled?.running;
         await this.database.close();
         this.telemetry[Symbol.dispose]();
     }
