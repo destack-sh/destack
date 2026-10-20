@@ -12,14 +12,24 @@ import { PackageLocation, PackageManifest } from "./manifest.ts";
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
 
-/** A build's manifest and files, read through a file transport: a directory, store or registry. */
+/** A build's manifest and files, read through a file transport. */
 export class BuildReader {
     /** Manifest describing the stored package. */
     readonly manifest: PackageManifest;
     /** Stream one package file by its relative path, without keeping it whole in memory. */
     readonly stream: (path: string, signal?: AbortSignal) => Promise<ReadableStream<Uint8Array>>;
+    /** The dependency resolutions, read once. */
+    readonly #dependencies = new Once<Readonly<Record<string, DependencyResolution>>>();
+    /** The file list, read once. */
+    readonly #files = new Once<readonly PackageFile[]>();
+    /** The source map list, read once. */
+    readonly #sourceMaps = new Once<readonly SourceMapReference[]>();
+    /** The graph's index root, read once. */
+    readonly #graph = new Once<Root>();
     /** The graph file of each module, read once. */
-    #modules: Promise<Module[]> | undefined;
+    readonly #modules = new Once<readonly Module[]>();
+    /** The listed files by path, read once. */
+    readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
 
     /** Bind a manifest to local, registry or browser file access. */
     constructor(manifest: PackageManifest, stream: BuildReader["stream"]) {
@@ -27,16 +37,53 @@ export class BuildReader {
         this.stream = stream;
     }
 
-    /** Read one package file whole by its relative path. */
+    /** Read one distributed file whole by its relative path and verify its exact bytes. */
     async load(path: string, signal?: AbortSignal): Promise<Uint8Array<ArrayBuffer>> {
-        return new Uint8Array(await new Response(await this.stream(path, signal)).arrayBuffer());
+        // read at most the listed size, refusing a longer body before buffering it
+        const file = await this.file(path);
+        const bytes = new Uint8Array(file.size);
+        let size = 0;
+        for await (const chunk of await this.stream(path, signal)) {
+            if (size + chunk.byteLength > file.size) {
+                throw new PackageError("INVALID_FILE", `file size mismatch: ${path}`);
+            }
+            bytes.set(chunk, size);
+            size += chunk.byteLength;
+        }
+
+        // require the listed size and digest
+        await PackageFile.verify(file, bytes.subarray(0, size));
+
+        return bytes;
+    }
+
+    /** Read a distributed file's listing by its path, refusing an unlisted path. */
+    async file(path: string): Promise<PackageFile> {
+        // find the manifest's own references first, as the file list is one of them
+        const reference = this.references().find((file) => file.path === path);
+        if (reference !== undefined) {
+            return reference;
+        }
+
+        // find the path in the file list
+        const listed = await this.#listed.get(
+            async () => new Map((await this.files()).map((file) => [file.path, file])),
+        );
+        const file = listed.get(path);
+        if (file === undefined) {
+            throw new PackageError("INVALID_FILE", `package file not listed: ${path}`);
+        }
+
+        return file;
     }
 
     /** Read exact compiler dependency resolutions. */
-    dependencies() {
-        return this.read(
-            this.manifest.lists.dependencies,
-            schema.record(schema.string(), DependencyResolution),
+    dependencies(): Promise<Readonly<Record<string, DependencyResolution>>> {
+        return this.#dependencies.get(() =>
+            this.read(
+                this.manifest.lists.dependencies,
+                schema.record(schema.string(), DependencyResolution),
+            ),
         );
     }
 
@@ -50,13 +97,17 @@ export class BuildReader {
     }
 
     /** Read the source, executable and asset list. */
-    files() {
-        return this.read(this.manifest.lists.files, schema.array(PackageFile));
+    files(): Promise<readonly PackageFile[]> {
+        return this.#files.get(() =>
+            this.read(this.manifest.lists.files, schema.array(PackageFile)),
+        );
     }
 
     /** Read generated-file and source-map associations. */
-    sourceMaps() {
-        return this.read(this.manifest.lists.sourceMaps, schema.array(SourceMapReference));
+    sourceMaps(): Promise<readonly SourceMapReference[]> {
+        return this.#sourceMaps.get(() =>
+            this.read(this.manifest.lists.sourceMaps, schema.array(SourceMapReference)),
+        );
     }
 
     /** List the files the manifest lists directly. */
@@ -75,14 +126,14 @@ export class BuildReader {
 
     /** Read the index root of the build's graph. */
     graph(): Promise<Root> {
-        return this.read(this.manifest.lists.graph, Root);
+        return this.#graph.get(() => this.read(this.manifest.lists.graph, Root));
     }
 
     /** Read one module's graph file by its digest. */
     async module(digest: Digest): Promise<Module> {
         // verify the content address before parsing the file
         const path = `graph/${digest}.json`;
-        const bytes = await this.load(path);
+        const bytes = new Uint8Array(await new Response(await this.stream(path)).arrayBuffer());
         if ((await Digest.of(bytes)) !== digest) {
             throw new PackageError("INVALID_FILE", `file digest mismatch: ${path}`);
         }
@@ -91,12 +142,12 @@ export class BuildReader {
     }
 
     /** Read every module's graph file once. */
-    modules(): Promise<Module[]> {
-        this.#modules ??= this.graph().then((root) =>
-            Promise.all(Object.values(root.modules).map((digest) => this.module(digest))),
-        );
+    modules(): Promise<readonly Module[]> {
+        return this.#modules.get(async () => {
+            const root = await this.graph();
 
-        return this.#modules;
+            return Promise.all(Object.values(root.modules).map((digest) => this.module(digest)));
+        });
     }
 
     /** Read the package's declarations from its graph, without the members they derive. */
@@ -127,16 +178,12 @@ export class BuildReader {
             }));
     }
 
-    /** Verify a selected file before decoding its declared description type. */
+    /** Read a listed JSON file and parse it with a schema. */
     async read<Definition extends schema.Schema>(
         file: PackageFile,
         definition: Definition,
     ): Promise<schema.Output<Definition>> {
-        // verify the exact bytes before parsing external JSON
-        const bytes = await this.load(file.path);
-        await PackageFile.verify(file, bytes);
-
-        return definition.parse(decode(bytes));
+        return definition.parse(decode(await this.load(file.path)));
     }
 
     /** Open an immutable remote package and verify its root manifest. */
@@ -218,3 +265,19 @@ export type Declared<Description> = Omit<Declaration, "description"> & {
     /** The description, parsed by its reader. */
     readonly description: Description;
 };
+
+/** A value read on first use and read again after a failure. */
+export class Once<Value> {
+    /** The current read, if any. */
+    #read: Promise<Value> | undefined;
+
+    /** Return the value, reading it on first use and after a failure. */
+    get(read: () => Promise<Value>): Promise<Value> {
+        this.#read ??= read().catch((error: unknown) => {
+            this.#read = undefined;
+            throw error;
+        });
+
+        return this.#read;
+    }
+}

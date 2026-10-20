@@ -1,21 +1,19 @@
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import type * as graph from "../graph/index.ts";
-import type { BuildReader } from "../manifest/reader.ts";
+import { type BuildReader, Once } from "../manifest/reader.ts";
 import type { StackFrame } from "./frame.ts";
 
 /** Symbolicates stack frames against one build. */
 export class Symbolicator {
     /** The build the frames ran: its source maps, graph and files. */
     readonly #reader: Pick<BuildReader, "sourceMaps" | "graph" | "module" | "load">;
-    /** The loaded source maps by generated path. */
-    readonly #maps = new Map<string, Promise<TraceMap>>();
-    /** The build's generated files with their maps, read once. */
-    #references: Promise<readonly { generated: string; map: string }[]> | undefined;
+    /** The source maps by generated path, each read once. */
+    readonly #maps = new Map<string, Once<TraceMap>>();
 
     /** Each module's graph file and source line starts, by package path. */
     readonly #modules = new Map<
         string,
-        Promise<{ module: graph.Module; lines: number[] } | undefined>
+        Once<{ module: graph.Module; lines: number[] } | undefined>
     >();
 
     /** Symbolicate frames against a build. */
@@ -31,9 +29,8 @@ export class Symbolicator {
     /** Map one frame through the source map of the generated file it ran. */
     async #map(frame: StackFrame): Promise<StackFrame> {
         // find the generated file the frame's file ends with
-        this.#references ??= this.#reader.sourceMaps();
         const file = pathOf(frame.file);
-        const reference = (await this.#references).find((candidate) =>
+        const reference = (await this.#reader.sourceMaps()).find((candidate) =>
             file.endsWith(candidate.generated),
         );
         if (reference === undefined) {
@@ -41,14 +38,14 @@ export class Symbolicator {
         }
 
         // map the position to its original source
-        let map = this.#maps.get(reference.generated);
-        if (map === undefined) {
-            map = this.#reader
-                .load(reference.map)
-                .then((bytes) => new TraceMap(new TextDecoder().decode(bytes)));
-            this.#maps.set(reference.generated, map);
-        }
-        const original = originalPositionFor(await map, {
+        const once = this.#maps.get(reference.generated) ?? new Once<TraceMap>();
+        this.#maps.set(reference.generated, once);
+        const map = await once.get(async () => {
+            const bytes = await this.#reader.load(reference.map);
+
+            return new TraceMap(new TextDecoder().decode(bytes));
+        });
+        const original = originalPositionFor(map, {
             line: frame.line,
             column: frame.column - 1,
         });
@@ -135,30 +132,30 @@ export class Symbolicator {
 
     /** Read a module's graph file and the UTF-16 offsets its source lines start at. */
     #module(path: string): Promise<{ module: graph.Module; lines: number[] } | undefined> {
-        let found = this.#modules.get(path);
-        if (found === undefined) {
-            found = (async () => {
-                // find the module's graph file by its path
-                const digest = (await this.#reader.graph()).modules[path];
-                if (digest === undefined) {
-                    return undefined;
-                }
+        const once = this.#modules.get(path) ?? new Once();
+        this.#modules.set(path, once);
 
-                // measure its source's line starts
-                const source = new TextDecoder().decode(await this.#reader.load(path));
-                const lines = [0];
-                for (let index = 0; index < source.length; index++) {
-                    if (source[index] === "\n") {
-                        lines.push(index + 1);
-                    }
-                }
+        return once.get(() => this.#measure(path));
+    }
 
-                return { module: await this.#reader.module(digest), lines };
-            })();
-            this.#modules.set(path, found);
+    /** Read a module's graph file and measure its source's line starts, absent for no module. */
+    async #measure(path: string): Promise<{ module: graph.Module; lines: number[] } | undefined> {
+        // find the module's graph file by its path
+        const digest = (await this.#reader.graph()).modules[path];
+        if (digest === undefined) {
+            return undefined;
         }
 
-        return found;
+        // measure its source's line starts
+        const source = new TextDecoder().decode(await this.#reader.load(path));
+        const lines = [0];
+        for (let index = 0; index < source.length; index++) {
+            if (source[index] === "\n") {
+                lines.push(index + 1);
+            }
+        }
+
+        return { module: await this.#reader.module(digest), lines };
     }
 }
 

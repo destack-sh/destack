@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Digest } from "@destack/schema";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
@@ -46,15 +46,48 @@ test("refuse a module's graph file whose bytes differ from its digest", async ()
     );
 });
 
+test("refuse a distributed file whose bytes differ from its listing, and an unlisted path", async () => {
+    // serve a build's file as other bytes of its length, then as longer bytes
+    const source = new TextEncoder().encode("export {};\n");
+    const build = await MemoryBuild.write(new Map([["src/notes.js", source]]), { package: app });
+    const serving = (bytes: Uint8Array<ArrayBuffer>) =>
+        new BuildReader(build.manifest, (path) =>
+            path === "src/notes.js"
+                ? Promise.resolve(new Blob([bytes]).stream())
+                : build.stream(path),
+        );
+    const changed = new TextEncoder().encode("export {}!\n");
+    const longer = new TextEncoder().encode("export {};\nexport {};\n");
+
+    // refuse each, and a path the build does not list
+    expect([
+        await refusal(serving(changed).load("src/notes.js")),
+        await refusal(serving(longer).load("src/notes.js")),
+        await refusal(build.load("src/missing.js")),
+    ]).toEqual([
+        ["INVALID_FILE", "file digest mismatch: src/notes.js"],
+        ["INVALID_FILE", "file size mismatch: src/notes.js"],
+        ["INVALID_FILE", "package file not listed: src/missing.js"],
+    ]);
+});
+
 test("open a remote build by its manifest digest, and refuse other bytes and unsafe addresses", async () => {
-    // serve a build's manifest and one file over a fake endpoint
+    // serve a build's manifest and its distributed files over a fake endpoint
     const content = new TextEncoder().encode("export {};");
     const build = await MemoryBuild.write(new Map([["src/index.js", content]]), { package: app });
-    const bytes = await build.load("manifest.json");
-    const served = new Map([
-        ["https://registry.example/build/manifest.json", bytes],
-        ["https://registry.example/build/files/src/index.js", content],
-    ]);
+    const bytes = new Uint8Array(
+        await new Response(await build.stream("manifest.json")).arrayBuffer(),
+    );
+    const files = await Promise.all(
+        (await build.distributed()).map(
+            async (file) =>
+                [
+                    `https://registry.example/build/files/${file.path}`,
+                    await build.load(file.path),
+                ] as const,
+        ),
+    );
+    const served = new Map([["https://registry.example/build/manifest.json", bytes], ...files]);
     const fetch = async (input: URL) => {
         const body = served.get(input.href);
 
@@ -109,4 +142,58 @@ test("list the Destack releases a build resolved, leaving its npm dependencies o
     });
 
     expect(await build.releases()).toEqual([{ package: vault.package, manifest: vault.manifest }]);
+});
+
+test("read each list and the graph's modules once, and read a list again after a failed read", async () => {
+    // build an app declaring one declaration, and fail its first read of the file list
+    const build = await MemoryBuild.of(app, [
+        {
+            kind: "feature",
+            kindPackageId: app.id,
+            name: "export",
+            description: { label: "Export" },
+        },
+    ]);
+    const loaded: string[] = [];
+    let isFailing = true;
+    const reader = new BuildReader(build.manifest, async (path) => {
+        loaded.push(path);
+        if (path === build.manifest.lists.files.path && isFailing) {
+            isFailing = false;
+            throw new PackageError("INVALID_FILE", `package read failed: ${path}`);
+        }
+
+        return await build.stream(path);
+    });
+    const { lists } = build.manifest;
+    await expect(reader.files()).rejects.toThrow(
+        new PackageError("INVALID_FILE", `package read failed: ${lists.files.path}`),
+    );
+
+    // read every list and the declarations twice, loading each file once after the failed read
+    const read = () =>
+        Promise.all([
+            reader.dependencies(),
+            reader.files(),
+            reader.sourceMaps(),
+            reader.graph(),
+            reader.declarations(),
+        ]);
+    const first = await read();
+    const second = await read();
+    const [digest] = Object.values(first[3].modules);
+    expect(loaded.toSorted()).toEqual(
+        [
+            lists.files.path,
+            lists.dependencies.path,
+            lists.files.path,
+            lists.sourceMaps.path,
+            lists.graph.path,
+            `graph/${digest}.json`,
+        ].toSorted(),
+    );
+
+    // answer the second reads with the first reads' lists, deriving the same declarations
+    const isReused = second.slice(0, 4).map((value, index) => value === first[index]);
+    expect([isReused, second[4]]).toEqual([[true, true, true, true], first[4]]);
 });
