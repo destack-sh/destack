@@ -1,12 +1,13 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
+import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { ObjectClient } from "@destack/object/client";
 import type { ClientOptions } from "@destack/runtime/client";
 import type { Setting } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
-import { schema, Version } from "@destack/schema";
+import { type Identifier, schema, Version } from "@destack/schema";
 import { PackageId, DeclarationName } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
@@ -69,6 +70,16 @@ export const setting = defineObject({
 
 /** A setting value as its row stores it. */
 export type SettingValue = Select<typeof setting.table>;
+
+/** The values a scope's chain places for some settings, nearest first, and a device's own. */
+export interface SettingPlacement {
+    /** The scope and the scopes above it, nearest first. */
+    readonly chain: string[];
+    /** The values the chain places. */
+    readonly values: SettingValue[];
+    /** The device's own values, none without a device. */
+    readonly device: DeviceSettingValue[];
+}
 
 /** Reads of the setting values placed in a database. */
 export const SettingValue = {
@@ -177,7 +188,7 @@ export const SettingValue = {
                 ),
                 failed.promise,
             ]);
-            yield* SettingValue.follow(database, options.settings, scope, following);
+            yield* SettingValue.follow(database, options.settings, { scope }, following);
 
             // fail with the replica's failure, ending quietly once stopped
             if (failure !== undefined) {
@@ -191,28 +202,56 @@ export const SettingValue = {
         }
     },
 
-    /** Yield the values along a scope's chain for some settings, now and after each change. */
+    /** Yield settings' values along a scope's chain and on a device, now and after each change. */
     async *follow(
         database: DatabaseConnection,
         settings: readonly DeclarationReference[],
-        scope: string,
+        at: {
+            /** The scope whose chain places values. */
+            readonly scope: string;
+            /** The device whose own values come first, absent for none. */
+            readonly device?: Identifier<"device">;
+        },
         signal: AbortSignal,
-    ): AsyncGenerator<{ readonly chain: string[]; readonly values: SettingValue[] }> {
-        // yield the values now from the log's position
+    ): AsyncGenerator<SettingPlacement> {
+        // read the values along the chain and the device's own
+        const { scope, device } = at;
+        const named = settings.map((reference) => ({
+            packageId: reference.packageId,
+            name: reference.name,
+        }));
+        const read = async (): Promise<SettingPlacement> => ({
+            ...(await SettingValue.along(database, settings, scope)),
+            device:
+                device === undefined
+                    ? []
+                    : await Snapshot.live(database)
+                          .read(deviceSetting.table)
+                          .findMany({ where: { scope: device, OR: named } }),
+        });
+
+        // yield them now from the log's position, then after each page changing them
         const log = new Log(database);
         const { sequence } = await log.position();
-        const current = await SettingValue.along(database, settings, scope);
+        const current = await read();
         yield current;
-
-        // yield them again after each page changing setting values along the chain
         const pages = log.follow(
-            { tables: [setting.table], after: sequence, scopes: current.chain },
+            {
+                tables:
+                    device === undefined ? [setting.table] : [setting.table, deviceSetting.table],
+                after: sequence,
+                scopes: device === undefined ? current.chain : [...current.chain, device],
+            },
             signal,
         );
-        for await (const page of pages) {
-            if (page.changes.length > 0) {
-                yield await SettingValue.along(database, settings, scope);
+        const changes = pages[Symbol.asyncIterator]();
+        try {
+            while ((await changes.next()).done !== true) {
+                yield await read();
             }
+        } finally {
+            // stop following once the caller stops reading
+            await changes.return?.(undefined);
         }
     },
 };

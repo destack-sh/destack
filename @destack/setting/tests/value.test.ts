@@ -162,7 +162,7 @@ test.each(TEST_DIALECTS)(
         const followed = SettingValue.follow(
             storage.database,
             [editor.reference],
-            alice,
+            { scope: alice },
             stopping.signal,
         );
         const first = await followed.next();

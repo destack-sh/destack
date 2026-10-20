@@ -209,6 +209,44 @@ test("resolve a value the device stores over the user's own, off the server", as
     });
 });
 
+test("follow a person's values with the device's own, yielding again once the device's value changes", async () => {
+    // store device values for Alice's editor mode and for another setting
+    const storage = await Storage.open("sqlite");
+    onTestFinished(() => storage.close());
+    const personal = await follow(storage, alice);
+    const release = editor.package.version;
+    const created = await personal.mutate(deviceSetting).create({
+        ...named(editor),
+        value: "standard",
+        release,
+    }).predicted;
+    await personal.mutate(deviceSetting).create({
+        ...named(lineNumbers),
+        value: false,
+        release: lineNumbers.package.version,
+    }).predicted;
+
+    // follow the values along her chain and on the device, then change the device's value
+    const stopping = new AbortController();
+    onTestFinished(() => stopping.abort());
+    const steps = SettingValue.follow(
+        personal.database,
+        [editor.reference],
+        { scope: alice, device: schema.identifier("device").parse(created.scope) },
+        stopping.signal,
+    );
+    const first = await steps.next();
+    await personal.mutate(deviceSetting).update({ id: created.id, value: "vim" }).predicted;
+    const second = await steps.next();
+
+    // yield the device's value of the followed setting alone, each time it changes
+    expect(
+        [first, second].map((step) =>
+            step.done === true ? [] : step.value.device.map((row) => row.value),
+        ),
+    ).toEqual([["standard"], ["vim"]]);
+});
+
 test("replicate a person's values along their chain into a database, yielding each change, and fail with the replica's failure", async () => {
     const storage = await Storage.open("sqlite");
     onTestFinished(() => storage.close());
@@ -267,7 +305,7 @@ test("replicate a person's values along their chain into a database, yielding ea
                 : second.value.values.map((row) => schema.string().parse(row.value)),
         failure,
     }).toEqual({
-        first: { chain: [alice, Scope.universe.id], values: [] },
+        first: { chain: [alice, Scope.universe.id], values: [], device: [] },
         second: ["vim"],
         failure: "down",
     });
