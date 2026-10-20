@@ -1,5 +1,5 @@
 import { present } from "@destack/schema";
-import type { JSX } from "@destack/view";
+import { createMemo } from "@destack/view";
 
 import { isEmptyOf, type Item, type Lighting, type Line, marksOf } from "./item";
 import { type Cell, type Column, Ledger, type LedgerRow } from "./ledger";
@@ -31,6 +31,9 @@ const columns: readonly Column[] = [
     { caption: "Cost", unit: "$/mo", note: "US dollars a month", isQuiet: false },
 ];
 
+/** What a page reads across the bill: its own row, and the value it reads from each other row. */
+export type Trace = { row: number; links: ReadonlyMap<number, string> };
+
 /** Draw a figure's bill as a ledger of blocks: database, files, compute and cost. */
 export function Bill(properties: {
     isWindow: boolean;
@@ -40,7 +43,7 @@ export function Bill(properties: {
     isOpenAt: Stagger;
     lighting?: Lighting;
     onToggle?: (row: number) => void;
-    badgeOf?: (row: number) => JSX.Element;
+    trace?: Trace | undefined;
     optionsOf?: (row: number) => readonly Option[];
     onChoose?: (row: number, name: string) => void;
 }) {
@@ -70,25 +73,24 @@ export function Bill(properties: {
                 tint: isOwned(index) ? palette.signal : line.tint,
                 plan: isOwned(index) ? "Billed per usage" : planOf(item),
                 isEmpty: isEmptyOf(line.entry.stacked.mark) && !isOwned(index),
-                badge: isOwned(index) ? properties.badgeOf?.(index + 1) : undefined,
+                link: properties.trace?.links.get(index + 1),
                 options: isOwned(index) ? [] : (properties.optionsOf?.(index + 1) ?? []),
                 cells: cellsOf(line, properties.scale, isOwned(index)),
             };
         });
 
     // size each column to its widest figure at every dial setting in both states, so nothing shifts
-    const widths = () =>
-        columns.map((_, column) =>
-            Math.max(
-                ...properties.scales.flatMap((scale) =>
-                    properties.lines.flatMap((line) =>
-                        [false, true].map((isInSpace) =>
-                            lengthOf(present(cellsOf(line, scale, isInSpace)[column], "cell")),
-                        ),
-                    ),
-                ),
+    const widths = createMemo(() => {
+        const lengths = properties.scales.flatMap((scale) =>
+            properties.lines.flatMap((line) =>
+                [false, true].map((isInSpace) => cellsOf(line, scale, isInSpace).map(lengthOf)),
             ),
         );
+
+        return columns.map((_, column) =>
+            Math.max(...lengths.map((row) => present(row[column], "cell length"))),
+        );
+    });
 
     return (
         <Ledger
@@ -98,6 +100,7 @@ export function Bill(properties: {
             rows={rows()}
             isWhole={isWhole()}
             lit={lightOf(properties.lighting)}
+            traced={properties.trace === undefined ? undefined : properties.trace.row - 1}
             isPressable={properties.lighting !== undefined || properties.onToggle !== undefined}
             onPoint={(index) => properties.lighting?.onLight(rowOf(index))}
             onPress={press}

@@ -7,7 +7,7 @@ import { createSignal, For, type JSX, Show } from "@destack/view";
 import { browserStyles } from "../figure/browser";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Option } from "../figure/picker";
-import { assistant, chat, chatgpt, claude, gemini } from "./chat.stylex";
+import { assistant, chat, chatgpt, claude, gemini, grok } from "./chat.stylex";
 import {
     BEAT,
     CHARACTERS_PER_BEAT,
@@ -36,13 +36,14 @@ const serverNames: Readonly<Record<string, string>> = {
 };
 
 /** The assistants the chat takes the look of, in turn. */
-export const assistants = ["Claude", "ChatGPT", "Gemini"] as const;
+export const assistants = ["Claude", "ChatGPT", "Gemini", "Grok"] as const;
 
 /** Each assistant as the picker offers it, by its mark and colour. */
 export const assistantOptions: readonly Option[] = [
     { name: "Claude", mark: { icon: "claude", tint: "#c96442" } },
     { name: "ChatGPT", mark: { icon: "openai", tint: "#000000" } },
     { name: "Gemini", mark: { icon: "gemini", tint: "#4285f4" } },
+    { name: "Grok", mark: { icon: "grok", tint: "#000000" } },
 ];
 
 /** One assistant the chat can look like. */
@@ -130,6 +131,17 @@ export function AgentChat(properties: {
                         </span>
                     </span>
                 </Layer>
+                <Layer isShown={isShown("Grok")}>
+                    <span {...style.attrs(styles.bar)}>
+                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                        <Glyph name="sidebar" size={15} />
+                        <span {...style.attrs(styles.conversation)}>Launch day</span>
+                        <span {...style.attrs(styles.barEnd)}>
+                            <Glyph name="share" size={14} />
+                            <Glyph name="more" size={15} />
+                        </span>
+                    </span>
+                </Layer>
                 <Layer isShown={isShown("Gemini")}>
                     <span {...style.attrs(styles.bar)}>
                         <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
@@ -198,6 +210,20 @@ export function AgentChat(properties: {
                                 <Glyph name="dislike" size={14} />
                                 <Glyph name="share" size={14} />
                                 <Glyph name="more" size={14} />
+                            </span>
+                        ) : undefined}
+                    </Layer>
+                    <Layer isShown={isShown("Grok")}>
+                        {properties.moment.isWorking ? (
+                            <span {...style.attrs(styles.spinning)}>
+                                <Favicon icon="grok" tint={grok.ink} size={18} />
+                            </span>
+                        ) : isReplied() ? (
+                            <span {...style.attrs(styles.actions)}>
+                                <Glyph name="copy" size={14} />
+                                <Glyph name="reload" size={14} />
+                                <Glyph name="like" size={14} />
+                                <Glyph name="dislike" size={14} />
                             </span>
                         ) : undefined}
                     </Layer>
@@ -270,6 +296,29 @@ export function AgentChat(properties: {
                                     <span {...style.attrs(styles.geminiSend)}>
                                         <SendMark send={send()} />
                                     </span>
+                                )}
+                            </span>
+                        </span>
+                    </span>
+                </Layer>
+                <Layer isShown={isShown("Grok")}>
+                    <span {...style.attrs(styles.composer, styles.grokComposer)}>
+                        <Typed text={properties.moment.typing} placeholder="Ask Grok anything" />
+                        <span {...style.attrs(styles.composerRow)}>
+                            <Glyph name="plus" size={18} />
+                            <Connectors
+                                isOpen={properties.isOpen}
+                                connectors={properties.connectors}
+                            />
+                            <span {...style.attrs(styles.hint, styles.end)}>
+                                Fast
+                                <Glyph name="caret" size={10} />
+                            </span>
+                            <span {...style.attrs(styles.grokSend)}>
+                                {send() === "idle" ? (
+                                    <Glyph name="waveform" size={15} weight={2.25} />
+                                ) : (
+                                    <SendMark send={send()} />
                                 )}
                             </span>
                         </span>
@@ -537,27 +586,27 @@ function allowOf(grant: Grant, shown: Assistant): string {
 }
 
 /** The time a change of assistant takes to ease in. */
-const EASE = "560ms";
+const EASE = "320ms";
 
 /** The colour and shape properties that ease between assistants. */
 const EASED = "background-color, color, border-color, border-radius, box-shadow";
 
 /** The conversation settling into a new assistant's type, after a change from Claude or Gemini. */
 const settleEven = style.keyframes({
-    from: { filter: "blur(2px)", opacity: 0.4 },
-    to: { filter: "blur(0)", opacity: 1 },
+    from: { opacity: 0.4 },
+    to: { opacity: 1 },
 });
 
 /** The same settle under a second name, so each change of assistant runs it afresh. */
 const settleOdd = style.keyframes({
-    from: { filter: "blur(2px)", opacity: 0.35 },
-    to: { filter: "blur(0)", opacity: 1 },
+    from: { opacity: 0.35 },
+    to: { opacity: 1 },
 });
 
-/** A character or word arriving: faded and soft, then set. */
-const arrive = style.keyframes({
-    from: { filter: "blur(2px)", opacity: 0 },
-    to: { filter: "blur(0)", opacity: 1 },
+/** A typed character or a streamed word appearing, in place. */
+const appear = style.keyframes({
+    from: { opacity: 0 },
+    to: { opacity: 1 },
 });
 
 /** The light sweeping across a running tool's title. */
@@ -593,6 +642,19 @@ const themes = style.create({
         [chat.replyFont]: SANS,
         [chat.replySize]: "0.9375rem",
         [chat.replyLine]: "1.7",
+    },
+    Grok: {
+        [chat.canvas]: grok.canvas,
+        [chat.ink]: grok.ink,
+        [chat.muted]: grok.muted,
+        [chat.border]: grok.border,
+        [chat.field]: grok.field,
+        [chat.bubble]: grok.bubble,
+        [chat.bubbleRadius]: "24px",
+        [chat.bubbleCorner]: "8px",
+        [chat.replyFont]: SANS,
+        [chat.replySize]: "0.9375rem",
+        [chat.replyLine]: "1.65",
     },
     Gemini: {
         [chat.canvas]: gemini.canvas,
@@ -699,12 +761,24 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
+        contain: "layout paint",
         justifyContent: "flex-end",
-        maskImage: "linear-gradient(to bottom, transparent, black 1.5rem)",
         minHeight: 0,
         overflow: "hidden",
         paddingBlock: "0.5rem",
         paddingInline: "1.5rem",
+        position: "relative",
+        // fade the oldest messages out under a gradient, cheaper than masking a changing list
+        "::before": {
+            backgroundImage: `linear-gradient(to bottom, ${chat.canvas}, transparent)`,
+            content: '""',
+            height: "1.5rem",
+            insetInline: 0,
+            pointerEvents: "none",
+            position: "absolute",
+            top: 0,
+            zIndex: 1,
+        },
     },
     settleEven: {
         animationName: settleEven,
@@ -757,12 +831,12 @@ const styles = style.create({
     character: {
         animationDuration: { default: "120ms", [media.motionReduce]: "0ms" },
         animationFillMode: "backwards",
-        animationName: arrive,
+        animationName: appear,
     },
     word: {
         animationDuration: { default: "280ms", [media.motionReduce]: "0ms" },
         animationFillMode: "backwards",
-        animationName: arrive,
+        animationName: appear,
         animationTimingFunction: "ease-out",
     },
     shimmer: {
@@ -1052,6 +1126,17 @@ const styles = style.create({
         paddingBlock: "0.875rem",
         paddingInline: "1rem",
     },
+    grokComposer: {
+        backgroundColor: grok.composer,
+        borderColor: grok.border,
+        borderRadius: "24px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        color: chat.ink,
+        display: "grid",
+        paddingBlock: "0.875rem",
+        paddingInline: "1rem",
+    },
     geminiComposer: {
         backgroundColor: gemini.composer,
         borderRadius: "28px",
@@ -1142,6 +1227,16 @@ const styles = style.create({
         backgroundColor: chatgpt.send,
         borderRadius: "50%",
         color: chatgpt.sendInk,
+        display: "inline-flex",
+        height: "2rem",
+        justifyContent: "center",
+        width: "2rem",
+    },
+    grokSend: {
+        alignItems: "center",
+        backgroundColor: grok.send,
+        borderRadius: "50%",
+        color: grok.sendInk,
         display: "inline-flex",
         height: "2rem",
         justifyContent: "center",

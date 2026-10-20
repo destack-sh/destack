@@ -258,6 +258,7 @@ export function AppGlyph(properties: { name: string; isOn?: boolean }) {
 export function AppRail(properties: {
     open: string;
     apps: readonly (readonly [name: string, label: string])[];
+    morph: string | undefined;
     onOpen?: (name: string) => void;
 }) {
     return (
@@ -280,11 +281,16 @@ export function AppRail(properties: {
             {properties.apps.map(([name, label]) => (
                 <span
                     data-component="AppLink"
+                    data-morph-icon={properties.morph === undefined ? undefined : ""}
                     title={label}
                     onClick={() => properties.onOpen?.(name)}
-                    style={
-                        name === properties.open ? { "background-color": washOf(name) } : undefined
-                    }
+                    style={{
+                        "background-color": name === properties.open ? washOf(name) : undefined,
+                        "view-transition-name":
+                            properties.morph === undefined
+                                ? undefined
+                                : `${properties.morph}-icon-${name}`,
+                    }}
                     {...style.attrs(
                         appStyles.railButton,
                         properties.onOpen !== undefined && appStyles.railLink,

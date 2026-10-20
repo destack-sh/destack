@@ -2,7 +2,7 @@ import { Icon } from "@destack/icon";
 import { priceOf } from "../figure/price";
 import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
-import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createSignal } from "@destack/view";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
@@ -17,7 +17,6 @@ import { AgentAvatar } from "../figure/agent";
 import type { Category, Lineup, Tool } from "../tool/tool";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
-import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 /** A browser narrower than a phone screen, which then takes a phone browser's chrome. */
 const NARROW = "@container (max-width: 479px)";
@@ -160,26 +159,120 @@ type Remixing = {
 /** The job a row does: what a team rents a tool for, or your personal app's data. */
 export type Job = Category | "data";
 
-/** One page the browser shows: its row, its job, its path in your space, and who sees it. */
+/** One page the browser shows: its row, job, path in your space, viewers, and what it reads. */
 export type Page = {
     row: number;
     job: Job;
     path: string;
     viewers: readonly Viewer[];
+    links: readonly Link[];
 };
+
+/** A value a page shows from another app of your space: that app's job and the value. */
+type Link = readonly [job: Job, value: string];
 
 /** The pages the browser turns through, one per ledger row. */
 export const pages: readonly Page[] = [
-    { row: 1, job: "documents", path: "/launch", viewers: ["Me", "Agent"] },
-    { row: 2, job: "tables", path: "/press", viewers: ["Me", "Agent"] },
-    { row: 3, job: "tasks", path: "/tasks", viewers: ["Me"] },
-    { row: 4, job: "calendar", path: "/book", viewers: ["Me", "Agent", "Public"] },
-    { row: 5, job: "chat", path: "/chat", viewers: ["Me", "Agent"] },
-    { row: 6, job: "mail", path: "/mail", viewers: ["Me", "Agent"] },
-    { row: 7, job: "canvas", path: "/plan", viewers: ["Me", "Agent"] },
-    { row: 8, job: "workflows", path: "/workflows", viewers: ["Me", "Agent"] },
-    { row: 9, job: "builder", path: "/waitlist", viewers: ["Me", "Agent", "Public"] },
-    { row: 10, job: "data", path: "/data", viewers: ["Me", "Agent"] },
+    {
+        row: 1,
+        job: "documents",
+        path: "/launch",
+        viewers: ["Me", "Agent"],
+        links: [
+            ["tasks", "1 of 4 done"],
+            ["calendar", "Launch week"],
+        ],
+    },
+    {
+        row: 2,
+        job: "tables",
+        path: "/press",
+        viewers: ["Me", "Agent"],
+        links: [
+            ["calendar", "Call Wed 11:00"],
+            ["mail", "Last mail Oct 22"],
+        ],
+    },
+    {
+        row: 3,
+        job: "tasks",
+        path: "/tasks",
+        viewers: ["Me"],
+        links: [
+            ["documents", "Launch post"],
+            ["tables", "9 subscriptions"],
+            ["calendar", "Demo · Wed 11:00"],
+            ["chat", "Post in #launch"],
+            ["mail", "400 of 400 sent"],
+            ["workflows", "Runs Fri 09:00"],
+            ["builder", "1,840 waiting"],
+        ],
+    },
+    {
+        row: 4,
+        job: "calendar",
+        path: "/book",
+        viewers: ["Me", "Agent", "Public"],
+        links: [
+            ["tables", "Demo · Ines"],
+            ["tasks", "Go live · DST-17"],
+            ["mail", "Invites · 400"],
+        ],
+    },
+    {
+        row: 5,
+        job: "chat",
+        path: "/chat",
+        viewers: ["Me", "Agent"],
+        links: [
+            ["documents", "Launch page"],
+            ["tasks", "DST-14"],
+            ["calendar", "Wed 11:00"],
+        ],
+    },
+    {
+        row: 6,
+        job: "mail",
+        path: "/mail",
+        viewers: ["Me", "Agent"],
+        links: [["builder", "1,840 waiting"]],
+    },
+    {
+        row: 7,
+        job: "canvas",
+        path: "/plan",
+        viewers: ["Me", "Agent"],
+        links: [["tasks", "6 tasks"]],
+    },
+    {
+        row: 8,
+        job: "workflows",
+        path: "/workflows",
+        viewers: ["Me", "Agent"],
+        links: [
+            ["tables", "press-followup"],
+            ["mail", "invite-400"],
+            ["builder", "signup.create"],
+        ],
+    },
+    {
+        row: 9,
+        job: "builder",
+        path: "/waitlist",
+        viewers: ["Me", "Agent", "Public"],
+        links: [
+            ["documents", "Launch post"],
+            ["chat", "1 · #launch"],
+            ["mail", "Batch 1"],
+        ],
+    },
+    {
+        row: 10,
+        job: "data",
+        path: "/data",
+        viewers: ["Me", "Agent"],
+        links: [["workflows", "Every 15 minutes"]],
+    },
 ];
 
 /** Return the row of the page that does a job. */
@@ -214,6 +307,9 @@ function tabsOf(source: Source, vendor: Vendor | undefined, lineup: Lineup): rea
 /** Every app's row, for a browser that shows them all. */
 export const everyRow: readonly number[] = pages.map((page) => page.row);
 
+/** The glyphs the rail draws above its apps: search and the inbox. */
+const RAIL_TOOLS = ["search", "notify"] as const;
+
 /** The apps of your own space on its rail. */
 const sections: readonly (readonly [
     row: number,
@@ -233,6 +329,9 @@ const sections: readonly (readonly [
     [9, "Waitlist", "build", "#4f8a5b", ["Me", "Agent", "Public"]],
     [10, "Connections", "cloud", "#3d6fb0", ["Me", "Agent"]],
 ];
+
+/** Every glyph the rail draws, loaded before the space opens so the tab icons land on them. */
+const railGlyphs: readonly string[] = [...RAIL_TOOLS, ...sections.map(([, , glyph]) => glyph)];
 
 /** Draw your space in the cloud in a browser, one page at a time. */
 export function SpaceBrowser(properties: {
@@ -280,6 +379,15 @@ export function SpaceBrowser(properties: {
             data-morph={properties.name}
             {...style.attrs(browserStyles.browser)}
         >
+            {/* draw the rail's glyphs out of sight, so they are loaded when the space opens */}
+            <span aria-hidden="true" {...style.attrs(styles.preload)}>
+                {railGlyphs.map((glyph) => (
+                    <span
+                        style={{ "mask-image": `url(/diagram/${glyph}.svg)` }}
+                        {...style.attrs(styles.preloadGlyph)}
+                    />
+                ))}
+            </span>
             <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                 <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                 {properties.isOpenAt(1) ? (
@@ -310,7 +418,16 @@ export function SpaceBrowser(properties: {
                                 properties.rows.length <= 4 && browserStyles.tabSteady,
                             )}
                         >
-                            <Favicon icon={icon} tint={tint} />
+                            {/* carry the tab's icon to its app on the rail as the space opens */}
+                            <span
+                                data-morph-icon=""
+                                style={{
+                                    "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
+                                }}
+                                {...style.attrs(browserStyles.tabIcon)}
+                            >
+                                <Favicon icon={icon} tint={tint} />
+                            </span>
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
@@ -436,7 +553,7 @@ export function SpaceBrowser(properties: {
                 {isOpen() ? (
                     <div {...style.attrs(appStyles.app, styles.owned)}>
                         <AppRail
-                            open={openApp(properties.page)}
+                            open={appAt(properties.page.row)}
                             apps={sections
                                 .filter(
                                     ([row, , , , seen]) =>
@@ -444,6 +561,7 @@ export function SpaceBrowser(properties: {
                                         seen.includes(properties.viewer),
                                 )
                                 .map(([, name, icon]) => [icon, name] as const)}
+                            morph={properties.name}
                             onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
                         />
                         <main
@@ -527,11 +645,11 @@ function siteOf(page: Page, source: Source, vendor: Vendor | undefined, lineup: 
     return lineup(page.job).site;
 }
 
-/** Return the glyph of the app a page opens in your space. */
-function openApp(page: Page): string {
+/** Return the glyph of the app of your space on a ledger row. */
+function appAt(row: number): string {
     return present(
-        sections.find(([row]) => row === page.row),
-        "rail app of a page",
+        sections.find(([candidate]) => candidate === row),
+        "rail app of a row",
     )[2];
 }
 
@@ -598,88 +716,21 @@ function audienceOf(page: Page): string {
     return "Only you";
 }
 
-/** Mark where a row's faces sit, which the travelling presence moves to. */
-export function PresenceAnchor(properties: { row: number }) {
-    return <span data-presence-row={String(properties.row)} {...style.attrs(styles.anchor)} />;
-}
-
-/** Draw the people in the page the browser shows, travelling to its row. */
-export function Presence(properties: { row: number; isShown: boolean }) {
-    // hold the presence and where its row's anchor sits within the ledger
-    let element: HTMLSpanElement | undefined;
-    const [place, setPlace] = createSignal<{ x: number; y: number }>();
-    const page = () => present(pages[properties.row - 1], "row page");
-
-    // move to the anchor of the row on show, on each turn of the page and as the ledger resizes
-    const measure = (row: number) => {
-        // find the row's anchor, waiting until the presence and its ledger are laid out
-        const host = element?.offsetParent;
-        const anchor = host?.querySelector(`[data-presence-row="${String(row)}"]`);
-        if (!element || !host || !anchor) {
-            return;
-        }
-
-        // set the faces off from the anchor's start, centred on its line
-        const bounds = host.getBoundingClientRect();
-        const target = anchor.getBoundingClientRect();
-        setPlace({
-            x: target.left - bounds.left,
-            y: target.top - bounds.top + (target.height - element.offsetHeight) / 2,
-        });
-    };
-    createEffect(() => properties.row, measure);
-    const resizes = makeResizeObserver(() => measure(properties.row));
-    onSettled(() => {
-        // measure again as the ledger resizes
-        const host = element?.offsetParent;
-        if (host) {
-            resizes.observe(host);
-        }
-        measure(properties.row);
-    });
-
-    return (
-        <span
-            ref={element}
-            data-component="Presence"
-            aria-hidden="true"
-            style={{
-                translate:
-                    place() === undefined ? undefined : `${place()?.x ?? 0}px ${place()?.y ?? 0}px`,
-                opacity: properties.isShown && place() !== undefined ? "1" : "0",
-            }}
-            {...style.attrs(styles.presence)}
-        >
-            {page().viewers.map((viewer) =>
-                viewer === "Public" ? (
-                    <span title="Public" {...style.attrs(styles.face, styles.facePublic)}>
-                        <Glyph name="globe" size={12} />
-                    </span>
-                ) : (
-                    <span
-                        title={viewer === "Me" ? "Florian" : "Agent"}
-                        style={{
-                            "background-color": viewer === "Me" ? palette.teal : undefined,
-                        }}
-                        {...style.attrs(styles.face)}
-                    >
-                        {viewer === "Me" ? (
-                            <span
-                                style={{ "mask-image": "url(/diagram/user.svg)" }}
-                                {...style.attrs(styles.faceGlyph)}
-                            />
-                        ) : (
-                            <AgentAvatar size="fill" />
-                        )}
-                    </span>
-                ),
-            )}
-        </span>
-    );
-}
-
 /** The space styles. */
 const styles = style.create({
+    preload: {
+        height: "1px",
+        opacity: 0,
+        overflow: "hidden",
+        pointerEvents: "none",
+        position: "absolute",
+        width: "1px",
+    },
+    preloadGlyph: {
+        display: "block",
+        height: "1px",
+        width: "1px",
+    },
     owned: {
         height: "100%",
         inset: 0,
@@ -725,44 +776,6 @@ const styles = style.create({
         paddingInlineStart: "0.5rem",
         position: "absolute",
         zIndex: 2,
-    },
-    face: {
-        alignItems: "center",
-        borderColor: color.background,
-        borderRadius: "50%",
-        borderStyle: "solid",
-        borderWidth: "2px",
-        boxSizing: "content-box",
-        display: "inline-flex",
-        height: "1.25rem",
-        justifyContent: "center",
-        marginLeft: "-0.375rem",
-        width: "1.25rem",
-    },
-    faceGlyph: {
-        backgroundColor: palette.cream,
-        height: "0.75rem",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        width: "0.75rem",
-    },
-    anchor: {
-        display: "inline-block",
-        height: "1.25rem",
-        width: 0,
-    },
-    presence: {
-        display: "flex",
-        insetBlockStart: 0,
-        insetInlineStart: 0,
-        pointerEvents: "none",
-        position: "absolute",
-        transition: {
-            default: `translate 520ms cubic-bezier(0.3, 0.8, 0.3, 1), opacity 300ms ease`,
-            [media.motionReduce]: "none",
-        },
-        zIndex: 1,
     },
     overview: {
         alignContent: "start",
@@ -859,10 +872,6 @@ const styles = style.create({
         transform: "scale(0.8)",
         transformOrigin: "0 0",
         width: "125%",
-    },
-    facePublic: {
-        backgroundColor: color.muted,
-        color: color.mutedForeground,
     },
     private: {
         alignItems: "center",

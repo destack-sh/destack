@@ -290,7 +290,7 @@ export function RunScreen(properties: {
 
     return (
         <div {...style.attrs(appStyles.app, styles.app)}>
-            <AppRail open="telemetry" apps={rail} />
+            <AppRail open="telemetry" apps={rail} morph={undefined} />
             <article {...style.attrs(styles.page)}>
                 <AppHeader title="tx-91c">
                     <span {...style.attrs(appStyles.action, styles.wide)}>Thu 09:00 · Florian</span>

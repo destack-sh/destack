@@ -11,7 +11,7 @@ import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Fade } from "../figure/fade";
 import { Label, LabelRow } from "../entry/label";
 import { Dial, teams } from "../figure/dial";
-import { Bill } from "../figure/bill";
+import { Bill, type Trace } from "../figure/bill";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import {
     everyRow,
@@ -20,8 +20,6 @@ import {
     holdingsWith,
     rowOf,
     pages,
-    Presence,
-    PresenceAnchor,
     SpaceBrowser,
     type Viewer,
 } from "./space";
@@ -204,6 +202,15 @@ export function Verb(properties: {
             "shown page",
         );
 
+    // trace what the shown page reads from the other apps of your space, once it is yours
+    const trace = (): Trace | undefined =>
+        isOpenAt(1)
+            ? {
+                  row: page().row,
+                  links: new Map(page().links.map(([job, value]) => [rowOf(job), value])),
+              }
+            : undefined;
+
     // remix Tasks once on its own the first time its owned page shows
     createTimer(
         () => remix(TASKS_ROW),
@@ -319,11 +326,10 @@ export function Verb(properties: {
                     }))}
                     lighting={lighting}
                     isOpenAt={isOpenAt}
-                    badgeOf={(row) => <PresenceAnchor row={row} />}
+                    trace={trace()}
                     optionsOf={optionsOf}
                     onChoose={pick}
                 />
-                <Presence row={page().row} isShown={isOpenAt(1)} />
             </div>
         </section>
     );

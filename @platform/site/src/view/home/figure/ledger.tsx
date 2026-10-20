@@ -2,7 +2,7 @@ import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { For, type JSX, onSettled } from "@destack/view";
+import { createMemo, For, onSettled } from "@destack/view";
 
 import { browserStyles } from "./browser";
 import { Digits } from "./digits";
@@ -32,6 +32,9 @@ const NAME_WIDTH = "8.75rem";
 
 /** The least width of the name column in a narrow ledger, enough for a job and a short name. */
 const NARROW_NAME_WIDTH = "8rem";
+
+/** The milliseconds the trace's spine takes to reach one row further from the traced row. */
+const SPINE_STEP = 35;
 
 /** A ledger narrower than its name and figures at full size, as beside a tablet's wall. */
 const NARROW_LEDGER = "@container (max-width: 460px)";
@@ -79,11 +82,14 @@ export type LedgerRow = {
     isEmpty: boolean;
     /** The row's figures, one per column. */
     cells: readonly Cell[];
-    /** What sits beside the name, such as the faces in the page. */
-    badge: JSX.Element;
+    /** The value the traced row reads from this row, set in place of its label, or none. */
+    link: string | undefined;
     /** The products the row can show instead, its own among them, or none to choose from. */
     options: readonly Option[];
 };
+
+/** Where a row sits on a trace's spine: off it, at an end, joined between, or passed by. */
+type Spine = "none" | "start" | "end" | "join" | "pass";
 
 /** Draw a ledger: a stack of blocks, one per row, joined into one band once every row is owned. */
 export function Ledger(properties: {
@@ -93,6 +99,7 @@ export function Ledger(properties: {
     rows: readonly LedgerRow[];
     isWhole: boolean;
     lit: number | undefined;
+    traced: number | undefined;
     isPressable: boolean;
     onPoint: (row: number | undefined) => void;
     onPress: (row: number) => void;
@@ -114,6 +121,36 @@ export function Ledger(properties: {
         }
         scroller.scrollLeft = scroller.scrollWidth;
     });
+
+    // trace from the traced row to each row it reads, one spine segment per row between them
+    const ends = createMemo(() => {
+        const from = properties.traced;
+        const links = properties.rows.flatMap((row, index) =>
+            row.link === undefined ? [] : [index],
+        );
+
+        return from === undefined || links.length === 0 ? [] : [from, ...links];
+    });
+    const spineAt = (index: number): Spine => {
+        // leave rows outside the trace bare
+        const first = Math.min(...ends());
+        const last = Math.max(...ends());
+        if (ends().length === 0 || index < first || index > last) {
+            return "none";
+        }
+
+        // join the ends to the spine, and pass it through the rows between them
+        const isEnd = ends().includes(index);
+
+        return index === first ? "start" : index === last ? "end" : isEnd ? "join" : "pass";
+    };
+
+    // reach each row of the spine one step later the further it lies from the traced row, and leave at once
+    const spineDelayAt = (index: number) => {
+        const distance = Math.abs(index - (properties.traced ?? index));
+
+        return spineAt(index) === "none" ? "0ms" : `${distance * SPINE_STEP}ms`;
+    };
 
     // size each figure column at a caption tracking, the last one padded by the row's inset
     const tracks = (tracking: number) =>
@@ -187,6 +224,11 @@ export function Ledger(properties: {
                                     )}
                                 >
                                     <span {...style.attrs(styles.claim)}>
+                                        <span
+                                            aria-hidden="true"
+                                            style={{ "transition-delay": spineDelayAt(index) }}
+                                            {...style.attrs(styles.spine, spines[spineAt(index)])}
+                                        />
                                         {row().options.length > 1 ? (
                                             <InlinePicker
                                                 label={row().label}
@@ -242,7 +284,14 @@ function Claim(properties: { row: LedgerRow; isPicked: boolean }) {
         <>
             <Marks marks={properties.row.marks} />
             <span {...style.attrs(styles.names)}>
-                <span {...style.attrs(styles.label)}>{properties.row.label}</span>
+                <span
+                    {...style.attrs(
+                        styles.label,
+                        properties.row.link !== undefined && styles.labelLinked,
+                    )}
+                >
+                    {properties.row.link ?? properties.row.label}
+                </span>
                 <span {...style.attrs(styles.nameLine)}>
                     <b {...style.attrs(styles.name)}>
                         {properties.isPicked ? (
@@ -254,7 +303,6 @@ function Claim(properties: { row: LedgerRow; isPicked: boolean }) {
                             properties.row.name
                         )}
                     </b>
-                    {properties.row.badge}
                 </span>
             </span>
         </>
@@ -377,7 +425,7 @@ const styles = style.create({
         backgroundColor: ledgerVariables.fill,
         borderRadius: "4px",
         boxShadow: `inset 0 1.5px 0 ${color.background}, inset 0 -1.5px 0 ${color.background}`,
-        transitionDuration: { default: "480ms", [media.motionReduce]: "0ms" },
+        transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
         transitionProperty: "background-color, border-radius, box-shadow",
         transitionTimingFunction: "ease",
     },
@@ -396,6 +444,30 @@ const styles = style.create({
         color: color.mutedForeground,
         opacity: 0.55,
     },
+    spine: {
+        backgroundColor: ledgerVariables.tint,
+        insetInlineStart: "0.375rem",
+        opacity: 0,
+        position: "absolute",
+        transitionDuration: { default: "180ms", [media.motionReduce]: "0ms" },
+        transitionProperty: "opacity",
+        transitionTimingFunction: "ease",
+        width: "1.5px",
+        zIndex: 1,
+        "::after": {
+            backgroundColor: ledgerVariables.tint,
+            content: '""',
+            height: "1.5px",
+            insetInlineStart: 0,
+            position: "absolute",
+            width: "0.375rem",
+        },
+    },
+    labelLinked: {
+        color: ledgerVariables.tint,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
     claim: {
         alignItems: "center",
         backgroundColor: ledgerVariables.surface,
@@ -413,7 +485,7 @@ const styles = style.create({
         paddingBlock: { default: 0, [media.maxMd]: "0.5rem" },
         paddingInlineStart: ROW_INSET,
         position: "sticky",
-        transitionDuration: { default: "480ms", [media.motionReduce]: "0ms" },
+        transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
         transitionProperty: "border-color",
         transitionTimingFunction: "ease",
         zIndex: 1,
@@ -424,7 +496,7 @@ const styles = style.create({
             content: '""',
             inset: 0,
             position: "absolute",
-            transitionDuration: { default: "480ms", [media.motionReduce]: "0ms" },
+            transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
             transitionProperty: "background-color",
             transitionTimingFunction: "ease",
             zIndex: -1,
@@ -530,4 +602,13 @@ const styles = style.create({
         borderBottomWidth: stroke.border,
         height: chrome.toolbar,
     },
+});
+
+/** The spine's extent and end tick in each place a row takes on the trace. */
+const spines = style.create({
+    none: { bottom: 0, top: 0 },
+    start: { bottom: 0, opacity: 1, top: "50%", "::after": { top: 0 } },
+    end: { bottom: "50%", opacity: 1, top: 0, "::after": { bottom: 0 } },
+    join: { bottom: 0, opacity: 1, top: 0, "::after": { top: "50%" } },
+    pass: { bottom: 0, opacity: 1, top: 0, "::after": { display: "none" } },
 });

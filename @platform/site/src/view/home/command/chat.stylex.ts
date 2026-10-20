@@ -88,6 +88,28 @@ export const gemini = style.defineConsts({
     sendInk: "light-dark(#ffffff, #062e6f)",
 });
 
+/** Grok's colours, light and dark as it ships. */
+export const grok = style.defineConsts({
+    /** The window's background. */
+    canvas: "light-dark(#f9f8f7, #131211)",
+    /** The text. */
+    ink: "light-dark(#050505, #fcfcfc)",
+    /** Secondary text. */
+    muted: "light-dark(#6b6a68, #a3a2a0)",
+    /** Rules and frames. */
+    border: "light-dark(#e6e5e3, rgba(252, 252, 252, 0.06))",
+    /** A tool's opened request and response. */
+    field: "light-dark(#f1f0ee, #1b1a19)",
+    /** Your message's bubble. */
+    bubble: "light-dark(#efeeec, #262523)",
+    /** The composer's field. */
+    composer: "light-dark(#ffffff, #201f1d)",
+    /** The send button. */
+    send: "light-dark(#050505, #fcfcfc)",
+    /** The send button's arrow. */
+    sendInk: "light-dark(#fcfcfc, #050505)",
+});
+
 /** Claude's composer colours, light and dark as it ships. */
 export const claude = style.defineConsts({
     /** The composer's field. */

@@ -3,6 +3,7 @@ import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
 import { color, font } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 
 import { palette } from "../../palette.stylex";
@@ -110,21 +111,25 @@ export function XRay(properties: {
     onLight: (row: number | undefined) => void;
 }) {
     // hold the browser and the elements marked for the x-ray
-    let root: HTMLDivElement | undefined;
+    const [root, setRoot] = createSignal<HTMLDivElement>();
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
 
     // hold the app the browser shows, by its page
     const [row, setRow] = createSignal<Job>("documents");
     const app = () => appOf(row());
 
-    // measure every marked element against the browser
+    // measure every marked element against the browser, only while it shows
+    const isShown = createVisibilityObserver(root, { initialValue: false });
     const measure = () => {
-        if (!root) {
+        // require the browser on screen
+        const browser = root();
+        if (!browser || !isShown()) {
             return;
         }
+
         // measure each marked element the page shows above its fold
-        const bounds = root.getBoundingClientRect();
-        const marked = [...root.querySelectorAll<HTMLElement>("[data-xray]")];
+        const bounds = browser.getBoundingClientRect();
+        const marked = [...browser.querySelectorAll<HTMLElement>("[data-xray]")];
         const measured = marked
             .map((element) => {
                 const rectangle = element.getBoundingClientRect();
@@ -145,7 +150,7 @@ export function XRay(properties: {
             .filter((box) => !box.isHidden);
 
         // place each tag at the first corner of its outline that covers no text or other tag
-        const obstacles = textOf(root, bounds);
+        const obstacles = textOf(browser, bounds);
         const placed: Rectangle[] = [];
         setBoxes(
             measured.map(({ index, source, x, y, width, height }) => {
@@ -173,10 +178,11 @@ export function XRay(properties: {
         );
     };
 
-    // measure again as the browser resizes and once the space takes over the page
+    // measure again as the browser resizes, comes on screen, and once the space takes over the page
     const resizes = makeResizeObserver(measure);
     createEffect(
         () => [
+            isShown(),
             row(),
             properties.rented,
             properties.lit,
@@ -187,8 +193,9 @@ export function XRay(properties: {
         },
     );
     onSettled(() => {
-        if (root) {
-            resizes.observe(root);
+        const browser = root();
+        if (browser) {
+            resizes.observe(browser);
         }
         measure();
     });
@@ -202,9 +209,14 @@ export function XRay(properties: {
     const isHosted = () => properties.isOpenAt(9);
 
     return (
-        <div ref={root} data-component="XRay" {...style.attrs(browserStyles.browser, styles.root)}>
+        <div
+            ref={setRoot}
+            data-component="XRay"
+            data-morph="xray"
+            {...style.attrs(browserStyles.browser, styles.root)}
+        >
             {/* Tabs */}
-            <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
+            <div data-component="TabStrip" data-morph-strip {...style.attrs(browserStyles.strip)}>
                 <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                 {isOwned() ? (
                     <span
@@ -285,7 +297,7 @@ export function XRay(properties: {
             </div>
 
             {/* Page */}
-            <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
+            <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
                 <Fade
                     isOpen={isOwned()}
                     isLarge
@@ -295,6 +307,7 @@ export function XRay(properties: {
                         <AppRail
                             open={app()[1]}
                             apps={rail}
+                            morph={undefined}
                             onOpen={(icon) => setRow(rowOfApp(icon))}
                         />
                     ) : undefined}
@@ -311,7 +324,7 @@ export function XRay(properties: {
             </div>
 
             {/* X-ray */}
-            <div aria-hidden="true" {...style.attrs(styles.overlay)}>
+            <div aria-hidden="true" data-morph-tags {...style.attrs(styles.overlay)}>
                 {boxes().map((box) => (
                     <Mark
                         box={box}
@@ -680,7 +693,7 @@ const styles = style.create({
         boxSizing: "border-box",
         pointerEvents: "auto",
         position: "absolute",
-        transitionDuration: "320ms",
+        transitionDuration: "220ms",
         transitionProperty: "opacity, background-color, border-color, left, top, width, height",
         transitionTimingFunction: "ease",
     },
@@ -718,7 +731,7 @@ const styles = style.create({
         paddingInlineEnd: { default: "0.375rem", [NARROW]: "0.125rem" },
         paddingInlineStart: "0.125rem",
         position: "absolute",
-        transitionDuration: "320ms",
+        transitionDuration: "220ms",
         transitionProperty: "opacity, left, top",
         transitionTimingFunction: "ease",
         whiteSpace: "nowrap",

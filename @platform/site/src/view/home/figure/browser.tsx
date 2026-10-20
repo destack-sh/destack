@@ -45,6 +45,10 @@ export const browserStyles = style.create({
         marginRight: "0.875rem",
         width: "52px",
     },
+    tabIcon: {
+        display: "inline-flex",
+        flexShrink: 0,
+    },
     tab: {
         cursor: "pointer",
         alignItems: "center",

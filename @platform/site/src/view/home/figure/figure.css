@@ -33,7 +33,7 @@
 }
 
 :root[data-switched] [data-fade="small"] {
-    animation: flip-in 240ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: flip-in 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 [data-turn],
@@ -58,11 +58,85 @@
     view-transition-name: space-rail;
 }
 
+/* morph the x-ray and inspector browsers the same way: the rail slides in while the tabs and the page reshape */
+[data-morph="xray"] [data-component="AppRail"] {
+    view-transition-name: xray-rail;
+}
+
+[data-morph="xray"] [data-morph-strip] {
+    view-transition-name: xray-tabs;
+}
+
+[data-morph="xray"] [data-morph-page] {
+    view-transition-name: xray-page;
+}
+
+[data-morph="xray"] [data-morph-tags] {
+    view-transition-name: xray-tags;
+}
+
+[data-morph="inspect"] [data-component="AppRail"] {
+    view-transition-name: inspect-rail;
+}
+
+[data-morph="inspect"] [data-morph-strip] {
+    view-transition-name: inspect-tabs;
+}
+
+[data-morph="inspect"] [data-morph-page] {
+    view-transition-name: inspect-page;
+}
+
+[data-morph] [data-component="AppRail"] {
+    view-transition-class: rail;
+}
+
+[data-morph] [data-morph-strip],
+[data-morph] [data-morph-page],
+[data-morph] [data-morph-tags] {
+    view-transition-class: pane;
+}
+
+/* leave the morphing pages' own fades out, since the morph already brings them in */
+:root[data-switched] [data-morph="xray"] [data-fade],
+:root[data-switched] [data-fade]:has(> [data-morph="inspect"]) {
+    animation: none;
+}
+
 /* carry the page title from the rented site into your own app */
 [data-morph="space"] [data-morph-title],
 [data-morph="space"] [data-component="PageTitle"] {
     view-transition-name: space-title;
     width: fit-content;
+}
+
+/* move the tabs and the tab icons as they are, so neither stretches between its two sizes */
+[data-morph="space"] [data-component="Tab"] {
+    view-transition-class: space-tab;
+}
+
+[data-morph="space"] [data-morph-icon] {
+    view-transition-class: space-icon;
+}
+
+::view-transition-old(*.space-tab),
+::view-transition-new(*.space-tab),
+::view-transition-old(*.space-icon),
+::view-transition-new(*.space-icon) {
+    height: 100%;
+    object-fit: none;
+    object-position: left center;
+    width: 100%;
+}
+
+::view-transition-old(*.space-tab),
+::view-transition-old(*.pane) {
+    animation-duration: 160ms;
+}
+
+/* fly the tab icons above the page and the rail, which come later in the page and would cover them */
+::view-transition-group(*.space-icon) {
+    z-index: 1;
 }
 
 /* show the live page at once, so only the named parts morph and every figure keeps its own motion */
@@ -75,23 +149,25 @@
 }
 
 ::view-transition-group(*) {
-    animation-duration: 420ms;
+    animation-duration: 280ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 ::view-transition-old(space-page),
-::view-transition-new(space-page) {
+::view-transition-new(space-page),
+::view-transition-old(*.pane),
+::view-transition-new(*.pane) {
     height: 100%;
     object-fit: cover;
     object-position: left top;
 }
 
-::view-transition-new(space-rail) {
-    animation: rail-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+::view-transition-new(*.rail) {
+    animation: rail-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-::view-transition-old(space-rail) {
-    animation: rail-out 300ms cubic-bezier(0.4, 0, 1, 1) both;
+::view-transition-old(*.rail) {
+    animation: rail-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 @keyframes rail-in {
