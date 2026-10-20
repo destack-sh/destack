@@ -353,11 +353,7 @@ function Mark(properties: {
                         properties.isOwned
                             ? styles.markOwned(properties.accent)
                             : styles.markRented(properties.accent),
-                        properties.isLit
-                            ? styles.markLit(properties.accent)
-                            : properties.isOwned
-                              ? styles.markQuiet
-                              : styles.markPatch(properties.accent),
+                        properties.isLit ? styles.markLit(properties.accent) : styles.markQuiet,
                     ],
                     {
                         left: `${properties.box.x - PAD}px`,
@@ -701,10 +697,6 @@ const styles = style.create({
     markLit: (accent: string) => ({
         backgroundColor: `color-mix(in srgb, ${accent} 16%, transparent)`,
         borderColor: accent,
-    }),
-    markPatch: (accent: string) => ({
-        backgroundColor: `color-mix(in srgb, ${accent} 14%, transparent)`,
-        borderColor: `color-mix(in srgb, ${accent} 45%, transparent)`,
     }),
     markQuiet: {
         backgroundColor: "transparent",
