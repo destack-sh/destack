@@ -6,6 +6,8 @@ import {
     type Change,
     Lease,
     type LeaseOutcome,
+    ReadSet,
+    Snapshot,
 } from "@destack/db";
 import { nth, found } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -35,8 +37,8 @@ export interface Controller {
     readonly watches?: readonly Table[];
     /** List the keys a watched change affects, when reconciling. */
     readonly keys?: (change: Change) => readonly string[] | Promise<readonly string[]>;
-    /** List every key. */
-    readonly list: () => Promise<readonly string[]>;
+    /** List every key through the view; a follower gets the changes that list it again. */
+    readonly list: (view: Snapshot, delta?: Delta) => Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
     /** Whether a key converges and returns, or runs its process until stopped. */
@@ -46,6 +48,14 @@ export interface Controller {
         key: string,
         reconciliation: Reconciliation,
     ) => Promise<number | undefined>;
+}
+
+/** The writes that make a follower list again: logged changes and written unlogged tables. */
+export interface Delta {
+    /** The logged changes of its watched tables. */
+    readonly changes: readonly Change[];
+    /** The unlogged watched tables commits wrote, by SQL name. */
+    readonly unlogged: ReadonlySet<string>;
 }
 
 /** One running reconciliation of a key. */
@@ -122,6 +132,10 @@ export class ControlLoop {
     readonly #unavailable = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
     readonly #running = new Map<Controller, Map<string, AbortController>>();
+    /** What each following controller's last list read. */
+    readonly #reads = new Map<Controller, ReadSet>();
+    /** Each controller's latest listing, which the next one waits for. */
+    readonly #refreshing = new Map<Controller, Promise<void>>();
     /** The running reconciliations. */
     readonly #reconciling = new Set<Promise<void>>();
     /** The lease holder and duration, when instances share the loop. */
@@ -201,7 +215,9 @@ export class ControlLoop {
             });
         try {
             await Promise.all(
-                [this.#follow(running), this.#list(running), this.#work(running)].map(stopping),
+                [this.#follow(running), this.#listUnlogged(running), this.#work(running)].map(
+                    stopping,
+                ),
             );
         }
         // release this instance's leases and settle the idle waiters
@@ -270,9 +286,7 @@ export class ControlLoop {
             // read the position before listing
             const after = (await this.database.log.position()).sequence;
             for (const controller of listed) {
-                for (const key of await controller.list()) {
-                    this.enqueue(controller, key);
-                }
+                await this.#refresh(controller);
             }
             this.#isListed = true;
             this.#wake();
@@ -290,10 +304,11 @@ export class ControlLoop {
                             watched.includes(change.table),
                         );
 
-                        // list a following controller again once its tables changed
+                        // list a following controller again once a change touches what its list read
                         if (controller.mode === "follow") {
-                            if (changes.length > 0) {
-                                await this.#relist(controller);
+                            const reads = found(this.#reads, controller);
+                            if (changes.some((change) => reads.touches(change))) {
+                                await this.#refresh(controller, { changes, unlogged: new Set() });
                             }
                         }
                         // enqueue the keys each change touches
@@ -321,6 +336,60 @@ export class ControlLoop {
         }
     }
 
+    /** List a controller's keys again: relist a follower, enqueue a reconciler's keys. */
+    #refresh(controller: Controller, delta?: Delta): Promise<void> {
+        // run one listing of a controller at a time, in the order asked
+        const refreshing = (this.#refreshing.get(controller) ?? Promise.resolve()).then(() =>
+            controller.mode === "follow"
+                ? this.#relist(controller, delta)
+                : this.#enqueueListed(controller),
+        );
+        this.#refreshing.set(
+            controller,
+            refreshing.catch(() => {}),
+        );
+
+        return refreshing;
+    }
+
+    /** Enqueue each key a reconciling controller lists, leaving failing ones to their backoff. */
+    async #enqueueListed(controller: Controller): Promise<void> {
+        const failures = found(this.#failures, controller);
+        for (const key of await this.#list(controller)) {
+            if (!failures.has(key)) {
+                this.enqueue(controller, key);
+            }
+        }
+    }
+
+    /** List a controller's keys, keeping what a follower's list read, which it must watch. */
+    async #list(controller: Controller, delta?: Delta): Promise<readonly string[]> {
+        // list a reconciling controller through a plain live view
+        if (controller.mode !== "follow") {
+            return controller.list(Snapshot.live(this.database));
+        }
+
+        // record a follower's reads, refusing a read of a table it does not watch
+        const reads = new ReadSet();
+        const keys = await controller.list(Snapshot.live(this.database).recording(reads), delta);
+        const watched = new Set(controller.watches ?? []);
+        const unwatched = reads.tables.find((table) => !watched.has(table));
+        if (unwatched !== undefined) {
+            throw new TypeError(
+                `${controller.name} lists through ${unwatched[TABLE].name}, which it does not watch`,
+            );
+        }
+        // refuse a follower watching tables its list never reads, which would never list again
+        else if (watched.size > 0 && reads.tables.length === 0) {
+            throw new TypeError(
+                `${controller.name} follows tables its list never reads through its view`,
+            );
+        }
+        this.#reads.set(controller, reads);
+
+        return keys;
+    }
+
     /** List the keys a change touches. */
     async #keys(controller: Controller, change: Change): Promise<readonly string[]> {
         try {
@@ -328,12 +397,12 @@ export class ControlLoop {
         } catch (error) {
             this.#report(controller, change.table[TABLE].name, error);
 
-            return controller.list();
+            return this.#list(controller);
         }
     }
 
     /** List the controllers of unlogged tables again after each commit to one of those tables. */
-    async #list(signal: AbortSignal): Promise<void> {
+    async #listUnlogged(signal: AbortSignal): Promise<void> {
         // find each controller's unlogged tables
         const unlogged = new Map(
             this.controllers.map((controller) => [
@@ -352,19 +421,8 @@ export class ControlLoop {
                 found(unlogged, controller).some((table) => committed.has(table)),
             );
             for (const controller of listed) {
-                // stop and start a following controller's keys
-                if (controller.mode === "follow") {
-                    await this.#relist(controller);
-                }
-                // enqueue each listed key not failing
-                else {
-                    const failures = found(this.#failures, controller);
-                    for (const key of await controller.list()) {
-                        if (!failures.has(key)) {
-                            this.enqueue(controller, key);
-                        }
-                    }
-                }
+                const tables = found(unlogged, controller).filter((table) => committed.has(table));
+                await this.#refresh(controller, { changes: [], unlogged: new Set(tables) });
             }
 
             return false;
@@ -372,9 +430,9 @@ export class ControlLoop {
     }
 
     /** Stop the keys a controller's list dropped, and enqueue the listed ones not running. */
-    async #relist(controller: Controller): Promise<void> {
+    async #relist(controller: Controller, delta?: Delta): Promise<void> {
         // stop the running keys the list dropped
-        const listed = new Set(await controller.list());
+        const listed = new Set(await this.#list(controller, delta));
         const running = found(this.#running, controller);
         for (const [key, stop] of running) {
             if (!listed.has(key)) {

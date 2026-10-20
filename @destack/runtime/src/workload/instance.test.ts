@@ -43,6 +43,7 @@ const marker = defineTable(
 
 /** A publisher streaming no replicas. */
 const publisher = {
+    confirm: async () => {},
     stream: () => {
         throw new Error("the fixture publisher streams no replicas");
     },
@@ -416,8 +417,6 @@ test("run one start's controllers at a time, stopping the previous start's befor
                 const controller: Controller = {
                     name: "follower",
                     mode: "follow",
-                    watches: [],
-                    keys: () => [],
                     list: async () => ["key"],
                     reconcile: async (_key, { signal }) => {
                         events.push(`run ${start}`);

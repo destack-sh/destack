@@ -3,9 +3,12 @@ import { Change, defineTable, eq, integer, lease, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { nth, found } from "@destack/schema";
 import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
-import { yieldToEventLoop } from "../timer/index.ts";
+import { until, yieldToEventLoop } from "../timer/index.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
+
+/** The commits of rows a follower's list never reads, about 30 ms of SQLite commits. */
+const STRESS_COMMITS = 300;
 
 /** The jobs a controller reconciles. */
 const job = defineTable(
@@ -478,7 +481,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
         name: "follow",
         mode: "follow",
         watches: [job],
-        list: async () => (await database.select({ id: job.id }).from(job)).map((row) => row.id),
+        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
         concurrency: 8,
         reconcile: async (key, { signal }) => {
             started.push(key);
@@ -510,6 +513,68 @@ test("follow each listed key until its list drops it or the loop stops", async (
     expect(reported).toEqual([]);
 });
 
+test("list a following controller again only for a commit of a row its list read, past many it never read", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+
+    // follow the space's jobs, counting the listings
+    let listings = 0;
+    const controller: Controller = {
+        name: "follow",
+        mode: "follow",
+        watches: [job],
+        list: async (view) => {
+            listings += 1;
+
+            return (await view.read(job).findMany({ where: { scope: "space" } })).map(
+                (row) => row.id,
+            );
+        },
+        reconcile: async (_key, { signal }) => {
+            await until(signal);
+            throw signal.reason;
+        },
+    };
+    // see each change the loop reads, through a reconciler listed after the follower it waits on
+    const seen: unknown[] = [];
+    const watcher: Controller = {
+        name: "watcher",
+        watches: [job],
+        keys: (change) => {
+            seen.push(Change.after(change)?.["id"]);
+
+            return [];
+        },
+        list: async () => [],
+        reconcile: async () => undefined,
+    };
+    const stopping = new AbortController();
+    const reported: unknown[] = [];
+    const loop = new ControlLoop(database, [controller, watcher], {
+        clock: Clock.system,
+        report: (_controller, _key, error) => reported.push(error),
+    });
+    const running = loop.run(stopping.signal);
+    await expect.poll(() => listings).toBe(1);
+
+    // commit jobs of another scope one at a time, listing nothing again once the loop read them all
+    for (let index = 0; index < STRESS_COMMITS; index++) {
+        await database.insert(job).values({ id: `other-${index}`, scope: "other", runs: 1 });
+    }
+    await expect.poll(() => seen.includes(`other-${STRESS_COMMITS - 1}`)).toBe(true);
+    const unrelated = listings;
+
+    // add a job of the space
+    await database.insert(job).values({ id: "space-job", scope: "space", runs: 1 });
+    await expect.poll(() => listings).toBe(2);
+    stopping.abort();
+    await running;
+
+    // list again for the space's job alone, reporting nothing
+    expect({ unrelated, listings, reported }).toEqual({ unrelated: 1, listings: 2, reported: [] });
+});
+
 test("report a follow that ends unasked and retry it after a backoff", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -523,7 +588,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
         name: "brief",
         mode: "follow",
         watches: [job],
-        list: async () => ["brief"],
+        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
         reconcile: async () => {
             started.push(Date.now());
 
@@ -549,6 +614,29 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     });
 });
 
+test("refuse a follower whose list never reads its watched tables through its view", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // list a fixed key while watching jobs
+    const controller: Controller = {
+        name: "blind",
+        mode: "follow",
+        watches: [job],
+        list: async () => ["blind"],
+        reconcile: async () => undefined,
+    };
+    const loop = new ControlLoop(storage.database, [controller], {
+        clock: Clock.system,
+        report: () => {},
+    });
+
+    // fail the loop instead of never listing again
+    await expect(loop.run(new AbortController().signal)).rejects.toEqual(
+        new TypeError("blind follows tables its list never reads through its view"),
+    );
+});
+
 test("follow a key again once its list names it after it failed and was dropped", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());
@@ -562,7 +650,7 @@ test("follow a key again once its list names it after it failed and was dropped"
         mode: "follow",
         watches: [job],
         concurrency: 8,
-        list: async () => (await database.select({ id: job.id }).from(job)).map((row) => row.id),
+        list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
         reconcile: async (key, { signal }) => {
             started.push(key);
             if (started.length === 1) {

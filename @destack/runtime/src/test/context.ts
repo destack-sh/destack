@@ -3,10 +3,11 @@ import type { Caller, Credential } from "@destack/access";
 import { PackageId } from "@destack/package";
 import type { Subject } from "@destack/sync";
 import { ResourceContext } from "@destack/resource/context";
-import type { Reconciliation } from "../control/index.ts";
+import type { Controller, Reconciliation } from "../control/index.ts";
 import { type CallKey } from "../request/index.ts";
 import { RequestContext } from "../server/index.ts";
 import { Clock } from "@destack/environment";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 
 /** The package a hand-built test context addresses. */
 const AUDIENCE = PackageId.parse("package-01996ab0-0000-7000-8000-00000000c0de");
@@ -68,4 +69,18 @@ export function subjectContext(
 /** Build a reconciliation outside a control loop: stopped by a signal, its key never changing. */
 export function reconciliation(signal: AbortSignal = new AbortController().signal): Reconciliation {
     return { signal, changed: () => new Promise<void>(() => {}) };
+}
+
+/** Reconcile each key a controller lists once, returning the delays. */
+export async function reconcileOnce(
+    controller: Controller,
+    database: DatabaseConnection,
+): Promise<(number | undefined)[]> {
+    // list through a live view, then reconcile each key in turn
+    const delays: (number | undefined)[] = [];
+    for (const key of await controller.list(Snapshot.live(database))) {
+        delays.push(await controller.reconcile(key, reconciliation()));
+    }
+
+    return delays;
 }

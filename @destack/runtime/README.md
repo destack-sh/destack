@@ -102,7 +102,7 @@ const response = await github.get(context.resources).fetch("/repos/acme/app/issu
 
 ## Controllers
 
-`ControlLoop` runs `Controller`s over each listed key, converging a key in `reconcile` mode and following it in `follow` mode.
+`ControlLoop` converges keys in `reconcile` mode and follows them in `follow` mode, listing again once a change touches what the list read through its view.
 
 ```ts
 const expiry: Controller = {
@@ -112,7 +112,14 @@ const expiry: Controller = {
     list: async () => ["expiry"],
     reconcile: async () => ((await removeExpired()) ? 0 : undefined),
 };
-await new ControlLoop(database, [expiry], { clock, report }).run(signal);
+const live: Controller = {
+    name: "live",
+    mode: "follow",
+    watches: [session],
+    list: async (view) => (await view.read(session).findMany()).map((row) => row.id), // reads recorded
+    reconcile: (id, { signal }) => serve(id, signal),
+};
+await new ControlLoop(database, [expiry, live], { clock, report }).run(signal);
 ```
 
 ## Requests

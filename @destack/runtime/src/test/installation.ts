@@ -13,6 +13,7 @@ const IDLE: Uplink = {
         await until(signal);
         yield* [];
     },
+    confirm: async () => {},
     receive: () => Promise.reject(new Error("the idle machine cannot receive changes")),
     call: () => Promise.reject(new Error("the idle machine answers no queries")),
 };
