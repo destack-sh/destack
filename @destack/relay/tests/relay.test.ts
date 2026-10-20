@@ -1,3 +1,4 @@
+import accountPackage from "@destack/account/package";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { AccountFixture, ids, TestDirectory } from "@destack/account/test";
 import { machine } from "@destack/account/object";
@@ -211,7 +212,7 @@ test("route the name of a space whose account lives in another residency through
     const relay = await fixture.relay();
 
     // create an account in the us residency, with a space on the us cloud machine
-    const abroad = await accounts.user(ids.owner).account.create({
+    const abroad = await accounts.user(ids.owner, accountPackage).account.create({
         scope: ids.owner,
         requestId: RequestId.create(Date.now()),
         handle: `abroad-${fixture.space.slice(-8)}`,
@@ -235,7 +236,7 @@ test("route the name of a space whose account lives in another residency through
 
 test("route a request from an eu relay to a space on a personal machine tunnelled to a us relay", async () => {
     // create an account in the us residency, with a personal machine serving a space
-    const abroad = await accounts.user(ids.owner).account.create({
+    const abroad = await accounts.user(ids.owner, accountPackage).account.create({
         scope: ids.owner,
         requestId: RequestId.create(Date.now()),
         handle: `tunnelled-${Date.now().toString(36)}`,
@@ -263,7 +264,7 @@ test("route a request from an eu relay to a space on a personal machine tunnelle
 
 test("route a request from an eu relay to a machine's name in the us residency through the us relay with its tunnel, until the tunnel lapses", async () => {
     // create an account in the us residency, with a personal machine
-    const abroad = await accounts.user(ids.owner).account.create({
+    const abroad = await accounts.user(ids.owner, accountPackage).account.create({
         scope: ids.owner,
         requestId: RequestId.create(Date.now()),
         handle: `computer-${Date.now().toString(36)}`,
@@ -381,7 +382,7 @@ test("resolve a handle from the relay's replica after the account package rename
     expect(await fixture.request(relay, fixture.notes, "/")).toBe("hello GET /");
 
     // rename the account's handle as its owner, and rename it back afterwards for the other scenarios
-    const owner = accounts.user(ids.owner);
+    const owner = accounts.user(ids.owner, accountPackage);
     const rename = async (handle: string) => {
         const current = await owner.account.get({ scope: ids.owner, id: ids.account });
         await owner.account.update({
@@ -415,7 +416,7 @@ test("follow a machine's revocation, closing its tunnel at once, refusing it aga
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
     // revoke the machine as its owner
-    await accounts.user(ids.owner).machine.revoke({
+    await accounts.user(ids.owner, accountPackage).machine.revoke({
         scope: ids.account,
         id: fixture.machineId,
         requestId: RequestId.create(Date.now()),
@@ -457,7 +458,7 @@ test("close a machine's tunnel once its last key is revoked, recording why", asy
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
     // revoke the machine's only key as its owner
-    const owner = accounts.user(ids.owner);
+    const owner = accounts.user(ids.owner, accountPackage);
     const { items } = await owner.key.list({
         scope: ids.account,
         where: { parentId: fixture.machineId },
@@ -493,7 +494,7 @@ test("close a disabled machine's tunnel, and route to it again once it is enable
     expect(await fixture.request(relay, computer, "/")).toBe("hello GET /");
 
     // disable the machine as its owner, suspending its keys and closing its tunnel
-    const owner = accounts.user(ids.owner);
+    const owner = accounts.user(ids.owner, accountPackage);
     const target = { scope: ids.account, id: fixture.machineId };
     await owner.machine.disable({ ...target, requestId: RequestId.create(Date.now()) });
     await fixture.until(async () =>
