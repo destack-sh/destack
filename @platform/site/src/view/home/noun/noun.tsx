@@ -46,8 +46,7 @@ const noun: Form = {
     sense: {
         definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "absurdly integrated"],
-        sentence:
-            "Auth, data, workflows and views, shared by every app, so any app can build on the others.",
+        sentence: "Auth, sync, workflows, telemetry — great personal software, out of the box.",
     },
 };
 
@@ -134,8 +133,8 @@ export function Noun(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={3}
                 isOpen={properties.isOpen}
-                stacked="your app on eight rented services"
-                destacked="your app on one engine you own"
+                stacked="a simple app gluing eight services"
+                destacked="a simple app on Destack"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -203,15 +202,15 @@ function optionsOf(row: number): readonly Option[] {
     }));
 }
 
-/** Label the ledger by how much of the stack is rented: all of it, none of it, or some. */
+/** Label the ledger by how many bills the stack sends: eight, one, or some between. */
 function keyOf(rented: number) {
     if (rented === serviceCount) {
-        return "Eight services, eight rents";
+        return "Eight bills";
     } else if (rented === 0) {
-        return "Eight services, no rent";
+        return "One bill";
     }
 
-    return "Eight services, less rent";
+    return "Fewer bills";
 }
 
 /** The noun section styles. */

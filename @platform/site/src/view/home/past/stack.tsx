@@ -82,9 +82,12 @@ type Count = {
 const layers: readonly Layer[] = [
     {
         name: "Users",
-        claim: { today: "Bargain for entry", destack: "Sign in once" },
-        detail: { today: "Their accounts", destack: "OAuth" },
-        note: { today: "another account with every new app", destack: "one account for all apps" },
+        claim: { today: "Sign up everywhere", destack: "Sign in once" },
+        detail: { today: "Their accounts", destack: "OIDC, Passkeys" },
+        note: {
+            today: "another account with every new app",
+            destack: "one account and one set of permissions for every app",
+        },
         item: {
             today: ({ people, vendors }) => `${people * vendors} logins`,
             destack: ({ people }) => `${people} logins`,
@@ -92,11 +95,11 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Apps",
-        claim: { today: "Duct-tape your apps", destack: "Remix your apps" },
+        claim: { today: "Settle for what they ship", destack: "Make every app yours" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
         note: {
             today: "features arrive when they ship them",
-            destack: "features arrive when you ask for them",
+            destack: "features arrive when you or your agent add them",
         },
         item: {
             today: ({ vendors }) => `${vendors} roadmaps`,
@@ -105,11 +108,11 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Services",
-        claim: { today: "Wait on their roadmap", destack: "Build on one API" },
-        detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
+        claim: { today: "Call their APIs", destack: "Build on one API" },
+        detail: { today: "Private APIs", destack: "OpenAPI, JSON Schema" },
         note: {
             today: "integrations break when their API changes",
-            destack: "every app calls the same API",
+            destack: "apps build on each other without glue code",
         },
         item: {
             today: ({ vendors }) => `${vendors} APIs`,
@@ -119,10 +122,10 @@ const layers: readonly Layer[] = [
     {
         name: "Data",
         claim: { today: "Rent your data", destack: "Own your data" },
-        detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
+        detail: { today: "Vendor formats", destack: "SQL, S3, R2" },
         note: {
             today: "exports only in the formats they allow",
-            destack: "your agent reads all of it, within your rules",
+            destack: "keep your context and use it everywhere",
         },
         item: {
             today: ({ vendors }) => `${vendors} silos`,
@@ -131,9 +134,12 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Source",
-        claim: { today: "Accept a black box", destack: "Open it up" },
+        claim: { today: "Trust a black box", destack: "Fork any app" },
         detail: { today: "Closed source", destack: "Git, npm" },
-        note: { today: "code you can't read or change", destack: "code you can read and change" },
+        note: {
+            today: "code you can't read or change",
+            destack: "every app is a Git repository, yours to read and change",
+        },
         item: {
             today: ({ vendors }) => `${vendors} closed codebases`,
             destack: () => "open source",
@@ -141,9 +147,12 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Hosts",
-        claim: { today: "Host where they say", destack: "Host where you like" },
+        claim: { today: "Run where they let you", destack: "Run anywhere" },
         detail: { today: "Their cloud", destack: "Bun, Workers" },
-        note: { today: "prices set by their margins", destack: "prices set by your hardware" },
+        note: {
+            today: "prices set by their margins",
+            destack: "your laptop, your server or our cloud",
+        },
         item: {
             today: ({ vendors }) => `${vendors} clouds`,
             destack: () => "any machine",
@@ -1226,6 +1235,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
     },
     itemText: {
+        justifyItems: "end",
         fontFamily: font.code,
         fontSize: "0.75rem",
         letterSpacing: "0.02em",

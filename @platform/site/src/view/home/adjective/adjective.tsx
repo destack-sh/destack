@@ -32,7 +32,8 @@ const destackable: Form = {
         highlight: ["transparent", "hackable"],
         sentence: (
             <>
-                One obvious way to do, change, and observe <em>everything</em>.
+                One obvious way to do, change, and observe <em>everything</em>, full stack: Git,
+                SQLite, TypeScript and OTel.
             </>
         ),
     },
