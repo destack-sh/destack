@@ -189,8 +189,9 @@ export class DatabaseDriver {
         cache: ReadCache<Row[]>,
         read: () => Promise<Row[]>,
     ): Promise<Row[]> {
-        // read the shared tables' latest sequences once, with the epoch and the horizon
-        const { epoch, horizon, latest, applied } = await (this.#version ?? this.#readVersion());
+        // read the shared tables' latest sequences once, with the log, the epoch and the horizon
+        const { log, epoch, horizon, latest, applied } = await (this.#version ??
+            this.#readVersion());
 
         // share the statement's rows at its tables' latest change, or past compaction at the horizon
         const sequence = Math.max(
@@ -204,29 +205,30 @@ export class DatabaseDriver {
             present(applied.get(table), `the migration of ${table}`),
         );
         const key = `${migrations.join(",")} ${statement.text} ${JSON.stringify(statement.parameters, encodeKey)}`;
-        const rows = await cache.get(key, read, { epoch, sequence });
+        const rows = await cache.get(key, read, { log, epoch, sequence });
 
         return structuredClone(rows);
     }
 
     /** Read the shared tables' version for this driver's shared reads, again after a failure. */
     #readVersion(): Promise<Version> {
-        // read the latest sequence of each shared table, with the epoch and the horizon
+        // read the latest sequence of each shared table, with the log, the epoch and the horizon
         const text = present(this.state.versionStatement, "the shared tables' version statement");
         const reading = this.run(() => this.session.values(text, [])).then(([row = []]) => ({
-            epoch: LogColumn.text(row[0]),
-            horizon: LogColumn.integer(row[1]),
+            log: LogColumn.text(row[0]),
+            epoch: LogColumn.text(row[1]),
+            horizon: LogColumn.integer(row[2]),
             latest: new Map(
                 [...this.state.shared].map((table, index) => [
                     table,
-                    LogColumn.nullableInteger(row[index + 2]) ?? 0,
+                    LogColumn.nullableInteger(row[index + 3]) ?? 0,
                 ]),
             ),
             applied: new Map(
                 [...this.state.shared].map((table, index) => [
                     table,
                     present(
-                        LogColumn.nullableInteger(row[index + 2 + this.state.shared.size]),
+                        LogColumn.nullableInteger(row[index + 3 + this.state.shared.size]),
                         `the migration state of ${table}`,
                     ),
                 ]),
@@ -326,8 +328,10 @@ interface Meter {
     operations: number;
 }
 
-/** The shared tables' log version: the epoch, the horizon and each table's latest sequence. */
+/** The shared tables' log version: the log, epoch, horizon and each table's latest sequence. */
 interface Version {
+    /** The log's identifier. */
+    readonly log: string;
     /** The log's epoch. */
     readonly epoch: string;
     /** The compaction horizon, past every compacted change. */

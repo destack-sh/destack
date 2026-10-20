@@ -73,26 +73,35 @@ export const LogColumn = {
 
 /** The schema of a position in the log. */
 const logPositionSchema = schema.object({
+    /** The log's identifier, which a restore keeps. */
+    log: schema.string().min(1),
     /** The log's epoch, renewed when the database is restored. */
     epoch: schema.string().min(1),
     /** The log sequence within the epoch. */
     sequence: schema.number().int().nonnegative(),
 });
-/** A position in the log: an epoch and a sequence within it. */
+/** A position in a log: the log, an epoch and a sequence within it. */
 export type LogPosition = schema.Infer<typeof logPositionSchema>;
 
-/** A position in the log: an epoch and a sequence within it. */
+/** A position in a log: the log, an epoch and a sequence within it. */
 export const LogPosition = Object.assign(logPositionSchema, {
-    /** Report whether a position is later than another. */
+    /** Report whether a position is later than another of the same log, refusing another log's. */
     isAfter(position: LogPosition, other: LogPosition): boolean {
+        if (position.log !== other.log) {
+            throw new TypeError(
+                `positions of logs ${position.log} and ${other.log} do not compare`,
+            );
+        }
+
         return position.epoch === other.epoch
             ? position.sequence > other.sequence
             : position.epoch > other.epoch;
     },
 });
 
-/** The log's head as selection fields: epoch, latest sequence and horizon, read once each. */
+/** The log's head as selection fields: log, epoch, latest sequence and horizon, read once each. */
 export function headFields(dialect: Dialect): {
+    readonly log: SQL<string>;
     readonly epoch: SQL<string>;
     readonly logged: SQL<number | null>;
     readonly horizon: SQL<number>;
@@ -106,6 +115,9 @@ export function headFields(dialect: Dialect): {
             : sql`(SELECT max(sequence) FROM ${log})`;
 
     return {
+        log: sql`(SELECT log FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1)`.mapWith((value) =>
+            LogColumn.text(value),
+        ),
         epoch: sql`(SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1)`.mapWith((value) =>
             LogColumn.text(value),
         ),
@@ -124,11 +136,11 @@ export function committedEntry(dialect: Dialect, entry: SQL): SQL {
         : sql`TRUE`;
 }
 
-/** Select the log's head in one row: its epoch, latest sequence and horizon. */
+/** Select the log's head in one row: its log, epoch, latest sequence and horizon. */
 export function selectHead(dialect: Dialect): SQL {
     const head = headFields(dialect);
 
-    return sql`SELECT ${head.epoch} AS epoch, ${head.logged} AS logged, ${head.horizon} AS horizon`;
+    return sql`SELECT ${head.log} AS log, ${head.epoch} AS epoch, ${head.logged} AS logged, ${head.horizon} AS horizon`;
 }
 
 /** Read a head's latest sequence: the latest logged one, or the horizon. */

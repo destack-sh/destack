@@ -253,13 +253,12 @@ export class ChangeSet {
         reads: ReadSet,
         records: (transaction: DatabaseConnection) => Promise<void>,
     ): Promise<void> {
-        // validate reads before the lock and check references after the writes
+        // validate reads under the lock and check references after the writes
         await database.transaction(
             async (transaction) => {
-                // hold off other commits, and refuse once a later commit touched a read, in one round trip
-                const serialized = transaction.log.serialize();
+                // hold off other commits first, then refuse once a later commit touched a read
+                await transaction.log.serialize();
                 await ChangeSet.requireCurrent(transaction, base, reads);
-                await serialized;
 
                 // send the records, then each run of one table's changes, in one round trip
                 await Promise.all([

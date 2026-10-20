@@ -618,7 +618,7 @@ export class ConnectionState {
     }
 }
 
-/** Write the statement reading the epoch, the horizon, and each table's sequence and migration. */
+/** Write the statement reading the log, epoch, horizon, and each table's sequence and migration. */
 function versionStatement(
     tables: readonly string[],
     dialect: Dialect,
@@ -643,11 +643,12 @@ function versionStatement(
             `(SELECT applied_at FROM ${state} WHERE "table" = ${literal(relation(table, namespace))})`,
     );
 
-    // read them after the epoch and the horizon, in one row
+    // read them after the log, the epoch and the horizon, in one row
+    const log = `(SELECT log FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
     const epoch = `(SELECT epoch FROM ${name(LOG_EPOCH)} WHERE slot = 1)`;
     const horizon = `(SELECT sequence FROM ${name(LOG_HORIZON)} WHERE slot = 1)`;
 
-    return `SELECT ${[epoch, horizon, ...latest, ...applied].join(", ")}`;
+    return `SELECT ${[log, epoch, horizon, ...latest, ...applied].join(", ")}`;
 }
 
 /** List the tables a write to each table changes, itself first, through triggers and actions. */

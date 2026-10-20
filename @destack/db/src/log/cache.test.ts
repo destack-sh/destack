@@ -53,7 +53,7 @@ test("answer a position from a value read at it or later, reading a later positi
     await cache.get("a", read("a"), at(2));
     await cache.get("a", read("a"), at(1));
     await cache.get("a", read("a"), at(2));
-    await cache.get("a", read("a"), { epoch: "e2", sequence: 1 });
+    await cache.get("a", read("a"), { log: "l1", epoch: "e2", sequence: 1 });
 
     // keep b at its position, and nothing the predicate refuses
     await cache.get("b", read("b"), at(5));
@@ -99,5 +99,5 @@ test("keep values up to the cache's total weight, dropping the least recently us
 
 /** Build a position in the first epoch. */
 function at(sequence: number) {
-    return { epoch: "e1", sequence };
+    return { log: "l1", epoch: "e1", sequence };
 }

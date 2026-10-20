@@ -18,10 +18,10 @@ export const LOG_HORIZON = "__destack_log_horizon";
 /** The SQL name of the consumers' slots: each one's position, and when it stops keeping changes. */
 export const LOG_SLOT = "__destack_log_slot";
 
-/** The SQL name of the log's epoch. */
+/** The SQL name of the log's identity: its identifier, its epoch and the database's scope. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the replica write marker, with the origin of the replicated writes. */
+/** The SQL name of the replica write marker, held while a replica's transaction writes. */
 export const LOG_REPLICA = "__destack_log_replica";
 
 /** The SQL name of the open SQLite transaction's identity. */
@@ -43,7 +43,7 @@ export const LOG_TOPIC = "log";
 /** The prefix of the PostgreSQL notification channels of a database's connections. */
 export const CHANNEL_PREFIX = "destack_";
 
-/** The PostgreSQL notification channel of logged commits. */
+/** The prefix of a PostgreSQL schema's channel of logged commits, ended by the schema's hash. */
 export const LOG_CHANNEL = `${CHANNEL_PREFIX}${LOG_TOPIC}`;
 
 /** Describe the columns a table's change triggers record, absent for unlogged tables. */
@@ -108,7 +108,7 @@ export function loggedKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log's first epoch once, with the row scope of unscoped tables, keeping state. */
+/** Create the log once, its identifier its first epoch, with the row scope of unscoped tables. */
 export function createEpoch(epoch: string, scope?: string, namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
 
@@ -119,16 +119,16 @@ export function createEpoch(epoch: string, scope?: string, namespace?: string): 
             expires_at BIGINT NOT NULL
         )`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_REPLICA)} (
-            slot INTEGER PRIMARY KEY CHECK (slot = 1),
-            origin TEXT
+            slot INTEGER PRIMARY KEY CHECK (slot = 1)
         )`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_EPOCH)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
+            log TEXT NOT NULL,
             epoch TEXT NOT NULL,
             scope TEXT
         )`,
-        `INSERT INTO ${name(LOG_EPOCH)} (slot, epoch, scope)
-            VALUES (1, ${literal(epoch)}, ${scope === undefined ? "NULL" : literal(scope)})
+        `INSERT INTO ${name(LOG_EPOCH)} (slot, log, epoch, scope)
+            VALUES (1, ${literal(epoch)}, ${literal(epoch)}, ${scope === undefined ? "NULL" : literal(scope)})
             ON CONFLICT (slot) DO NOTHING`,
     ];
 }

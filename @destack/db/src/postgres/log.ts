@@ -6,7 +6,6 @@ import {
     LOG_CHANNEL,
     LOG_EPOCH,
     LOG_HORIZON,
-    LOG_REPLICA,
     type LogDialect,
     COMMIT_LOCK,
 } from "../log/schema.ts";
@@ -49,8 +48,7 @@ function createLogTables(): string[] {
             previous JSONB,
             scope TEXT NOT NULL,
             retention TEXT NOT NULL,
-            changed_at BIGINT NOT NULL,
-            origin TEXT
+            changed_at BIGINT NOT NULL
         )`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_compaction`)} ON ${log}(retention, changed_at)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
@@ -94,14 +92,14 @@ function createStamp(): string[] {
             WHERE ${log}.id = numbered.id;
             FOREACH name IN ARRAY tables LOOP
                 IF bytes + octet_length(name) + 3 > ${NOTIFICATION_BYTES} THEN
-                    PERFORM pg_notify('${LOG_CHANNEL}', json_build_object('kind', 'commit', 'tables', batch)::TEXT);
+                    PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch)::TEXT);
                     batch := '{}';
                     bytes := 0;
                 END IF;
                 batch := batch || name;
                 bytes := bytes + octet_length(name) + 3;
             END LOOP;
-            PERFORM pg_notify('${LOG_CHANNEL}', json_build_object('kind', 'commit', 'tables', batch)::TEXT);
+            PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch)::TEXT);
             PERFORM set_config('${STAMPED_SETTING}', NEW."transaction", true);
             RETURN NULL;
         END $$`,
@@ -132,7 +130,6 @@ function createRecord(): string {
             previous JSONB;
             now_ms BIGINT := floor(extract(epoch FROM clock_timestamp()) * 1000);
             transaction_id TEXT := pg_current_xact_id()::TEXT;
-            origin TEXT;
             old_row JSONB;
             new_row JSONB;
             old_key JSONB;
@@ -146,7 +143,6 @@ function createRecord(): string {
             IF TG_OP = 'UPDATE' AND old_row = new_row THEN RETURN NULL; END IF;
             ${recordedImage("old")}
             ${recordedImage("new")}
-            SELECT marker.origin INTO origin FROM ${quote(LOG_REPLICA)} AS marker WHERE marker.slot = 1;
             IF scope_column IS NULL THEN
                 SELECT scope INTO database_scope FROM ${quote(LOG_EPOCH)} WHERE slot = 1;
                 IF database_scope IS NULL THEN
@@ -164,14 +160,14 @@ function createRecord(): string {
                 WHERE entry.value IS DISTINCT FROM new_recorded -> entry.key;
             END IF;
             IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND (old_key <> new_key OR old_scope IS DISTINCT FROM new_scope)) THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, retention, changed_at, origin)
-                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, retention, now_ms, origin);
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", scope, retention, changed_at)
+                VALUES (transaction_id, TG_TABLE_NAME, old_key, 'delete', old_recorded, old_scope, retention, now_ms);
             END IF;
             IF TG_OP <> 'DELETE' THEN
-                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, retention, changed_at, origin)
+                INSERT INTO ${log}("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
                 VALUES (transaction_id, TG_TABLE_NAME, new_key,
                     CASE WHEN TG_OP = 'INSERT' OR old_key <> new_key OR old_scope IS DISTINCT FROM new_scope THEN 'insert' ELSE 'update' END,
-                    new_recorded, previous, new_scope, retention, now_ms, origin);
+                    new_recorded, previous, new_scope, retention, now_ms);
             END IF;
             RETURN NULL;
         END $$`;

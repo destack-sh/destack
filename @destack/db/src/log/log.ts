@@ -63,8 +63,6 @@ export type Write<Definition extends Table = Table> = {
 export type Change<Definition extends Table = Table> = Write<Definition> & {
     /** The change's position in commit order. */
     readonly sequence: number;
-    /** The origin of the writes a replica write replicated, absent for this database's writes. */
-    readonly origin?: string;
 };
 
 /** Read changes. */
@@ -142,8 +140,6 @@ interface LogEntry {
     readonly scope: string;
     /** The change time. */
     readonly changedAt: number;
-    /** The origin whose writes a replica's write replicated, null for the database's own. */
-    readonly origin: string | null;
 }
 
 /** The log's change entries. */
@@ -162,7 +158,6 @@ const LogEntry = {
             previous: previous === null ? null : LogColumn.object(previous, dialect),
             scope: LogColumn.text(row["scope"]),
             changedAt: LogColumn.integer(row["changed_at"]),
-            origin: LogColumn.nullableText(row["origin"]),
         };
     },
 
@@ -308,54 +303,47 @@ export class Log {
         return new Snapshot(this.database, position, rewind);
     }
 
-    /** Read the position of the latest commit, as a follower of an origin sees it when given. */
-    async position(origin?: string): Promise<LogPosition> {
+    /** Read the position of the latest commit. */
+    async position(): Promise<LogPosition> {
         // read the latest commit once per commit, and afresh inside a transaction seeing its own writes
-        if (origin === undefined) {
-            return this.database.driver.transaction === undefined
-                ? this.database.state.commits.head(() => this.#latest())
-                : this.#latest();
-        }
-
-        // read the latest change of another origin, or the horizon once compacted
-        const head = await this.#readHead();
-        const [other] = await this.database.all(sql`
-            SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
-            WHERE origin IS NULL OR origin <> ${origin}
-        `);
-        const sequence = LogColumn.nullableInteger(other?.["sequence"]);
-
-        return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
+        return this.database.driver.transaction === undefined
+            ? this.database.state.commits.head(() => this.#latest())
+            : this.#latest();
     }
 
-    /** Read the position of a scope's latest change to some tables, the horizon once compacted. */
-    async changed(tables: readonly Table[], scope: string): Promise<LogPosition> {
-        // read the newest committed entry of the scope in the tables through the log's scope index
+    /** Read the position of some scopes' latest change to some tables, or the horizon. */
+    async changed(tables: readonly Table[], scopes: readonly string[]): Promise<LogPosition> {
+        // read the newest committed entry of the scopes in the tables through the log's scope index
         const head = await this.#readHead();
         const names = tables.map((table) => sql`${table[TABLE].sqlName}`);
+        const scoped = sql.join(
+            scopes.map((scope) => sql`${scope}`),
+            sql`, `,
+        );
         const [row] =
-            names.length === 0
+            names.length === 0 || scopes.length === 0
                 ? []
                 : await this.database.all(sql`
             SELECT sequence FROM ${sql.relation(LOG)} AS entry
-            WHERE scope = ${scope} AND "table" IN (${sql.join(names, sql`, `)})
+            WHERE scope IN (${scoped}) AND "table" IN (${sql.join(names, sql`, `)})
                 AND sequence IS NOT NULL AND ${committedEntry(this.database.dialect, sql`entry`)}
             ORDER BY sequence DESC LIMIT 1
         `);
         const sequence = row === undefined ? null : LogColumn.integer(row["sequence"]);
 
-        return { epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
+        return { log: head.log, epoch: head.epoch, sequence: latestOf(sequence, head.horizon) };
     }
 
     /** Read the position of the latest commit. */
     async #latest(): Promise<LogPosition> {
         const head = await this.#readHead();
 
-        return { epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
+        return { log: head.log, epoch: head.epoch, sequence: latestOf(head.logged, head.horizon) };
     }
 
-    /** Read the log's head row: its epoch, latest sequence and horizon. */
+    /** Read the log's head row: its log, epoch, latest sequence and horizon. */
     async #readHead(): Promise<{
+        readonly log: string;
         readonly epoch: string;
         readonly logged: number | null;
         readonly horizon: number;
@@ -363,6 +351,7 @@ export class Log {
         const [row] = await this.database.all(selectHead(this.database.dialect));
 
         return {
+            log: LogColumn.text(row?.["log"]),
             epoch: LogColumn.text(row?.["epoch"]),
             logged: LogColumn.nullableInteger(row?.["logged"]),
             horizon: LogColumn.integer(row?.["horizon"]),
@@ -386,7 +375,7 @@ export class Log {
 
         return sequence === null
             ? committed
-            : { epoch: committed.epoch, sequence: Math.max(committed.sequence, sequence) };
+            : { ...committed, sequence: Math.max(committed.sequence, sequence) };
     }
 
     /** Read the open transaction's log identifier as an SQL expression. */
@@ -414,15 +403,13 @@ export class Log {
     }
 
     /** Write as a replica: log the rows a source already derived, deriving nothing again. */
-    async asReplica<Value>(run: () => Promise<Value>, origin?: string): Promise<Value> {
-        // mark the open transaction with the origin
+    async asReplica<Value>(run: () => Promise<Value>): Promise<Value> {
+        // mark the open transaction as a replica's
         if (!this.database.driver.transaction) {
             throw new TypeError("write as a replica inside a transaction");
         }
         const marker = sql.relation(LOG_REPLICA);
-        await this.database.run(
-            sql`INSERT INTO ${marker} (slot, origin) VALUES (1, ${origin ?? null})`,
-        );
+        await this.database.run(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
         const result = await run();
         await this.database.run(sql`DELETE FROM ${marker} WHERE slot = 1`);
 
@@ -436,15 +423,6 @@ export class Log {
                 sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(current_schema()))`,
             );
         }
-    }
-
-    /** Read the log's epoch. */
-    async epoch(): Promise<string> {
-        const [row] = await this.database.all(
-            sql`SELECT epoch FROM ${sql.relation(LOG_EPOCH)} WHERE slot = 1`,
-        );
-
-        return LogColumn.text(row?.["epoch"]);
     }
 
     /** Start a new epoch after a restore. */
@@ -494,7 +472,6 @@ export class Log {
         const dialect = this.database.dialect;
         const changes = entries.map((entry) => ({
             sequence: entry.sequence,
-            ...(entry.origin === null ? {} : { origin: entry.origin }),
             ...decodeChange(entry, tableOf(tables, entry.table), dialect),
         }));
 
@@ -535,7 +512,7 @@ export class Log {
                 ? sql`sequence IS NULL ORDER BY id`
                 : sql`true ORDER BY sequence`;
         const rows = await this.database.all(sql`
-            SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at, origin
+            SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
             FROM ${sql.relation(LOG)}
             WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
         `);
@@ -814,7 +791,7 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
                     (SELECT max(sequence) FROM ${log}) AS logged,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             ), entries AS (
-                SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at, origin
+                SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
                 FROM ${log}
                 WHERE sequence > ${value("after")}
                     ${isRest ? sql`AND "transaction" = ${value("transaction")}` : sql``}

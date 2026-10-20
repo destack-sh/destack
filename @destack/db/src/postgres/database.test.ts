@@ -10,7 +10,9 @@ import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { connectPostgres, reportNotice } from "./connection.ts";
 import { postgresChannel } from "./database.ts";
-import { TEST_DIALECTS } from "../test/database.ts";
+import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { note, revision } from "../log/test/fixture.ts";
+import { LOG_TOPIC } from "../log/schema.ts";
 
 /** The test server's address, absent where the test dialects leave PostgreSQL out. */
 const ADDRESS = TEST_DIALECTS.includes("postgresql")
@@ -35,7 +37,7 @@ test.skipIf(ADDRESS === undefined)(
         const received: Note[] = [];
         const joined = Promise.withResolvers<void>();
         const isReceived = Promise.withResolvers<void>();
-        const stop = typedChannel(postgresChannel(listener, name), Note).listen(
+        const stop = typedChannel(postgresChannel(listener, Promise.resolve(name)), Note).listen(
             (message) => {
                 received.push(message);
                 if (received.length === 2) {
@@ -53,7 +55,7 @@ test.skipIf(ADDRESS === undefined)(
 
         // send a small message and one of about 60 kB with multi-byte characters across fragments
         const large = "äöü€😀".repeat(5_000);
-        const channel = typedChannel(postgresChannel(sender, name), Note);
+        const channel = typedChannel(postgresChannel(sender, Promise.resolve(name)), Note);
         channel.notify({ from: "small", body: "hello" });
         channel.notify({ from: "large", body: large });
         await isReceived.promise;
@@ -172,6 +174,52 @@ test.skipIf(ADDRESS === undefined)(
             before: { keys: ["_", "a", "b"], plan: ["Limit", "Sort", "Seq Scan"] },
             after: { keys: ["B", "_", "a"], plan: ["Limit", "Index Scan"] },
         });
+    },
+);
+
+test.skipIf(ADDRESS === undefined)(
+    "announce a schema's commits on its own channel alone, never to a database of another schema",
+    async () => {
+        // keep two databases of other tables in two schemas of one server, listening to the second one's commits
+        const here = await TestDatabase.create("postgresql", [revision], { isMigrated: true });
+        const there = await TestDatabase.create("postgresql", [note], { isMigrated: true });
+        onTestFinished(async () => {
+            await Promise.all([here.close(), there.close()]);
+        });
+        const row = {
+            id: "a",
+            title: "First",
+            scope: "inbox",
+            summary: null,
+            views: 1n,
+            labels: [],
+            editedAt: 1,
+            attachment: new Uint8Array(),
+        };
+        const received: unknown[] = [];
+        const isReceived = Promise.withResolvers<void>();
+        const joined = Promise.withResolvers<void>();
+        const channel = there.database.state.openChannel?.(LOG_TOPIC);
+        if (channel === undefined) {
+            throw new Error("the database announces no commits");
+        }
+        const stop = channel.listen(
+            (message) => {
+                received.push(message);
+                isReceived.resolve();
+            },
+            () => joined.resolve(),
+        );
+        onTestFinished(stop);
+        await joined.promise;
+
+        // commit in the first schema, then in the second, receiving only the second one's commit
+        await here.database
+            .insert(revision)
+            .values({ scope: "inbox", noteId: "a", number: 1, title: "First" });
+        await there.database.insert(note).values(row);
+        await isReceived.promise;
+        expect(received).toEqual([{ kind: "commit", tables: [note[TABLE].sqlName] }]);
     },
 );
 

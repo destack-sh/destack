@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
-import { Change, eq, TABLE } from "../../index.ts";
+import { Change, eq, LogPosition, TABLE, Transaction } from "../../index.ts";
 import { changeTables, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
 
@@ -208,25 +208,25 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "log each replicated change under the origin whose writes it replicates, and read the latest position another origin's follower reaches, on %s",
+    "keep the log's identifier across a restore's new epoch, and refuse comparing positions of two logs, on %s",
     async (dialect) => {
-        // write a note here, then rename it as a replica of another database's writes
+        // renew the epoch as a restore does, beside another database's log
         const { database } = await open(dialect);
-        await database.insert(note).values(first);
-        const own = await database.log.position();
-        await database.transaction((transaction) =>
-            transaction.log.asReplica(async () => {
-                await transaction.update(note).set({ title: "Copied" }).where(eq(note.id, "a"));
-            }, "other"),
-        );
+        const { database: other } = await open(dialect);
+        const before = await database.log.position();
+        const renewed = await database.log.renew();
+        const after = await database.log.position();
+        const foreign = await other.log.position();
 
-        // tell the replicated change by its origin, which the other database's follower already has
-        const { changes } = await database.log.read({ tables: [note], after: 0 });
-        expect([
-            changes.map((change) => change.origin),
-            await database.log.position("other"),
-            (await database.log.position()).sequence > own.sequence,
-        ]).toEqual([[undefined, "other"], own, true]);
+        // keep the identifier, which is the first epoch, and order the epochs of one log
+        expect([after.log, after.epoch, LogPosition.isAfter(after, before)]).toEqual([
+            before.epoch,
+            renewed,
+            true,
+        ]);
+        expect(() => LogPosition.isAfter(after, foreign)).toThrow(
+            new TypeError(`positions of logs ${after.log} and ${foreign.log} do not compare`),
+        );
     },
 );
 
@@ -372,6 +372,43 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
         await late;
         const after = await database.log.read({ tables: [note], after: before.sequence });
         expect(after.changes.map((change) => change.key)).toEqual([{ id: "late" }]);
+    },
+);
+
+test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
+    "keep both of two postgresql transactions that read a row together and append to it, running the later again",
+    async () => {
+        const { database } = await open("postgresql");
+        await database.insert(note).values(first);
+
+        // read the row in both before either commits, and append to the title read
+        const both = Promise.withResolvers<void>();
+        let reads = 0;
+        const append = (suffix: string) =>
+            Transaction.run(database, async (transaction) => {
+                const [row] = await transaction.read(note).findMany({ where: { id: "a" } });
+                if (row === undefined) {
+                    throw new TypeError("the note is missing");
+                }
+                reads += 1;
+                if (reads === 2) {
+                    both.resolve();
+                }
+                await both.promise;
+                await transaction.write({
+                    table: note,
+                    before: row,
+                    after: { ...row, title: row.title + suffix },
+                });
+            });
+        await Promise.all([append("!"), append("?")]);
+
+        // keep both appends, the later one read again after the first, in one of the two orders
+        const [row] = await database
+            .select({ title: note.title })
+            .from(note)
+            .where(eq(note.id, "a"));
+        expect([[{ title: "First!?" }], [{ title: "First?!" }]]).toContainEqual([row]);
     },
 );
 
@@ -686,26 +723,26 @@ test.for(TEST_DIALECTS)(
         await database.insert(note).values({ ...first, id: "m", scope: "archive" });
         const archived = await database.log.position();
         const changed = {
-            notes: await database.log.changed([note], "inbox"),
-            both: await database.log.changed([note, revision], "inbox"),
-            archive: await database.log.changed([note], "archive"),
-            none: await database.log.changed([], "inbox"),
+            notes: await database.log.changed([note], ["inbox"]),
+            both: await database.log.changed([note, revision], ["inbox"]),
+            archive: await database.log.changed([note], ["archive"]),
+            none: await database.log.changed([], ["inbox"]),
             own: await database.transaction(async (transaction) => {
                 // leave out the transaction's own uncommitted write
                 await transaction.insert(note).values({ ...first, id: "o" });
 
-                return await transaction.log.changed([note], "inbox");
+                return await transaction.log.changed([note], ["inbox"]);
             }),
         };
 
         // place the inbox's notes at the horizon once compaction removed the notes' changes
         const owned = await database.log.position();
         await database.log.compact(Date.now() + 1000, Date.now());
-        expect({ ...changed, compacted: await database.log.changed([note], "inbox") }).toEqual({
+        expect({ ...changed, compacted: await database.log.changed([note], ["inbox"]) }).toEqual({
             notes: noted,
             both: revised,
             archive: archived,
-            none: { epoch: archived.epoch, sequence: 0 },
+            none: { ...archived, sequence: 0 },
             own: noted,
             compacted: owned,
         });

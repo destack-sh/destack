@@ -1,4 +1,5 @@
 import { errorCode } from "../error/error.ts";
+import { present } from "@destack/schema";
 import type postgres from "postgres";
 import { ConnectionState, DatabaseConnection, requireDistinct } from "../database/connection.ts";
 import type { Channel } from "../channel/channel.ts";
@@ -49,6 +50,16 @@ export class PostgresDatabase<
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
         passJsonText(client);
+
+        // name each channel within the pool's schema, as the log's notifications do
+        let schema: Promise<string> | undefined;
+        const channel = (name: string) => {
+            schema ??= client<{ hash: string }[]>`SELECT md5(current_schema()) AS hash`.then(
+                ([row]) => present(row, "the schema's hash").hash,
+            );
+
+            return schema.then((hash) => `${CHANNEL_PREFIX}${name}_${hash}`);
+        };
         super(
             new DatabaseDriver(
                 new PostgresSession(client),
@@ -57,7 +68,7 @@ export class PostgresDatabase<
                     openChannel:
                         writers === "sole"
                             ? undefined
-                            : (name) => postgresChannel(client, `${CHANNEL_PREFIX}${name}`),
+                            : (name) => postgresChannel(client, channel(name)),
                     announcer: "database",
                     tables: declared,
                     dialect: "postgresql",
@@ -89,25 +100,27 @@ function passJsonText(client: postgres.Sql): void {
 }
 
 /** Connect every party of a PostgreSQL notification channel with JSON messages. */
-export function postgresChannel(client: postgres.Sql, name: string): Channel<unknown> {
+export function postgresChannel(client: postgres.Sql, name: Promise<string>): Channel<unknown> {
     // collect the failures of notifications for the listeners
     const failures = new Set<(error: unknown) => void>();
     const send = (payload: string) =>
-        void client.notify(name, payload).catch((error: unknown) => {
-            // drop a notification a closed connection leaves nobody to send to
-            const code = errorCode(error);
-            if (code !== undefined && CLOSED_CODES.has(code)) {
-                return;
-            }
+        void name
+            .then((resolved) => client.notify(resolved, payload))
+            .catch((error: unknown) => {
+                // drop a notification a closed connection leaves nobody to send to
+                const code = errorCode(error);
+                if (code !== undefined && CLOSED_CODES.has(code)) {
+                    return;
+                }
 
-            // fail every listener, or fail loudly without one
-            if (failures.size === 0) {
-                throw error;
-            }
-            for (const fail of failures) {
-                fail(error);
-            }
-        });
+                // fail every listener, or fail loudly without one
+                if (failures.size === 0) {
+                    throw error;
+                }
+                for (const fail of failures) {
+                    fail(error);
+                }
+            });
 
     return {
         notify: (message) => notifyInFragments(send, message),
@@ -136,7 +149,7 @@ function notifyInFragments(send: (payload: string) => void, message: unknown): v
 /** Listen to a channel's notifications until stopped. */
 function listenToChannel(
     client: postgres.Sql,
-    name: string,
+    name: Promise<string>,
     failures: Set<(error: unknown) => void>,
     receive: (message: unknown) => void,
     resume: (() => void) | undefined,
@@ -146,7 +159,9 @@ function listenToChannel(
     if (fail !== undefined) {
         failures.add(fail);
     }
-    const listening = client.listen(name, reassembler(name, receive), () => resume?.());
+    const listening = name.then((resolved) =>
+        client.listen(resolved, reassembler(resolved, receive), () => resume?.()),
+    );
     listening.catch((error: unknown) => fail?.(error));
 
     // stop listening
