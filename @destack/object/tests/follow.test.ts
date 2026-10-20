@@ -2,6 +2,7 @@ import { VirtualClock } from "@destack/environment/simulation";
 import { reconciliation, subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { ControlLoop } from "@destack/runtime/control";
+import { definePackage } from "@destack/runtime";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     accessGrant,
@@ -31,7 +32,7 @@ import { Identifier, nth, present, schema } from "@destack/schema";
 
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
-import { until } from "@destack/runtime/timer";
+import { until, yieldToEventLoop } from "@destack/runtime/timer";
 import { Scope, Feed, Replica, type Page, type Subscription, type Watermark } from "@destack/sync";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
@@ -40,6 +41,9 @@ import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+
+/** The event loop turns a woken store gets to report ready early, ten times one check. */
+const READY_TURNS = 20;
 
 /** The source rows the incremental listing test follows: a thousand. */
 const STRESS_ROWS = 1000;
@@ -699,6 +703,126 @@ test("replicate a person's grant to an installation of the space from the univer
     // keep only the grant to the space's installation
     const kept = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
     expect(kept.map((row) => row.id)).toEqual([granted]);
+});
+
+test("serve a woken store only once its home confirms the replicas it held unheard past the lag", async () => {
+    // insert an account and its space at home
+    const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
+    const installed = await TestDatabase.create("sqlite", [...document.tables, ...callTables], {
+        isMigrated: true,
+    });
+    onTestFinished(async () => {
+        await Promise.all([home.close(), installed.close()]);
+    });
+    const access = new AccessFixture(home.database);
+    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(space.reference(accountId, spaceId), "own");
+
+    // serve the space over the installation's database under an hour's heartbeat
+    const events = await testEvents(installed.database);
+    const clock = new VirtualClock(Date.now());
+    const feed = new Feed(home.database, accessTables, { clock, heartbeat: 3_600_000 });
+    const open = (pages: Promise<unknown>): ObjectStore => {
+        const published = FeedPublisher.of(
+            feed,
+            (subscription) => store.source.buildReplica(subscription).queries,
+        );
+        const store: ObjectStore = new ObjectStore({
+            chain: async () => ({ kind: "follower", parent: accountId }),
+            clock,
+            principal: spacePrincipal(spaceId),
+            servers: serversOf([document]),
+            database: installed.database,
+            uplink: {
+                ...published,
+                // hold the universe chain's pages until released
+                async *stream(subscription, signal) {
+                    if (subscription.scope === Scope.universe.id) {
+                        await pages;
+                    }
+                    yield* published.stream(subscription, signal);
+                },
+                receive: refuseChanges,
+                call: refuseQueries,
+            },
+            callKey: testCallKey,
+            events,
+            origin: { package: document.package },
+        });
+
+        return store;
+    };
+    const follow = (store: ObjectStore, signal: AbortSignal) => {
+        const loop = new ControlLoop(
+            installed.database,
+            store.controllers().filter((each) => each.name === "replica"),
+            { clock, report: failing },
+        );
+
+        return loop.run(signal);
+    };
+
+    // follow the chain once, then stop as an evicted worker does and let a minute pass
+    const first = new AbortController();
+    const started = clock.now();
+    const followed = open(Promise.resolve());
+    const firstFollow = follow(followed, first.signal);
+    const isComplete = async () => {
+        const gates = (await followed.sink.followed()).filter((entry) => entry.isReadinessGate);
+        const current = await Promise.all(
+            gates.map(({ subscription }) =>
+                Replica.confirmedAt(installed.database, subscription).then(
+                    (at) => at !== undefined && at >= started,
+                ),
+            ),
+        );
+
+        return gates.length > 0 && current.every(Boolean);
+    };
+    await installed.database.log.until(isComplete, AbortSignal.timeout(5000));
+    first.abort();
+    await firstFollow;
+    clock.advance(60_000);
+
+    // wake a store over the same database, holding the universe's pages while the others arrive
+    const pages = Promise.withResolvers<void>();
+    const woken = open(pages.promise);
+    const handle = definePackage({ objects: { document } });
+    const ready = present(woken.implement(handle, [], []).ready, "the readiness wait");
+    const waking = new AbortController();
+    onTestFinished(() => waking.abort());
+    let isReady = false;
+    const readying = ready(waking.signal).then(() => {
+        isReady = true;
+    });
+    const following = follow(woken, waking.signal);
+    const now = clock.now();
+    const isOthersFresh = async () => {
+        const gates = (await woken.sink.followed()).filter(
+            (entry) => entry.isReadinessGate && entry.subscription.scope !== Scope.universe.id,
+        );
+        const fresh = await Promise.all(
+            gates.map(({ subscription }) =>
+                Replica.confirmedAt(installed.database, subscription).then(
+                    (at) => at !== undefined && at >= now,
+                ),
+            ),
+        );
+
+        return gates.length > 0 && fresh.every(Boolean);
+    };
+    await installed.database.log.until(isOthersFresh, AbortSignal.timeout(5000));
+    for (let turn = 0; turn < READY_TURNS; turn++) {
+        await yieldToEventLoop();
+    }
+    const isReadyBefore = isReady;
+
+    // release the pages, which confirm the replicas fresh and make the store ready
+    pages.resolve();
+    await readying;
+    waking.abort();
+    await following;
+    expect({ isReadyBefore, isReady }).toEqual({ isReadyBefore: false, isReady: true });
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {

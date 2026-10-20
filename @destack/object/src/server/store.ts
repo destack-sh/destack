@@ -1112,7 +1112,7 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until every listed readiness replica is current, checked on replica record changes. */
+    /** Wait until each readiness replica is confirmed within the lag, checked on record changes. */
     async #ready(signal: AbortSignal): Promise<boolean> {
         // check the listed gates now and after each replica record commit
         const { database } = this;
@@ -1124,13 +1124,14 @@ export class ObjectStore {
                 return false;
             }
 
-            // require each listed gating replica current
+            // require each listed gating replica confirmed by its home within the lag
             const gates = (await this.sink.followed()).filter((entry) => entry.isReadinessGate);
-            const current = await Promise.all(
-                gates.map(({ subscription }) => sync.Replica.isCurrent(database, subscription)),
+            const since = this.clock.now() - this.authorizer.lag;
+            const confirmed = await Promise.all(
+                gates.map(({ subscription }) => sync.Replica.confirmedAt(database, subscription)),
             );
 
-            return current.every(Boolean);
+            return confirmed.every((at) => at !== undefined && at >= since);
         }, signal);
     }
 

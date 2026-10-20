@@ -4,7 +4,8 @@ import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { reconcileOnce, testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/runtime/test";
+import { ControlLoop } from "@destack/runtime/control";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
@@ -105,10 +106,20 @@ test("hold a sensitive input out of the rows, the journal, the audit events, the
             () => undefined,
             (error: unknown) => error,
         );
-    for (const controller of store.controllers()) {
-        await reconcileOnce(controller, store.database);
-    }
+
+    // run the store's controllers until they settle, then flush the telemetry
+    const failures: unknown[] = [];
+    const stopping = new AbortController();
+    const loop = new ControlLoop(store.database, store.controllers(), {
+        clock: Clock.system,
+        report: (_controller, _key, error) => failures.push(error),
+    });
+    const running = loop.run(stopping.signal);
+    await loop.idle();
+    stopping.abort();
+    await running;
     await telemetry.flush();
+    expect(failures).toEqual([]);
 
     // read every place a call leaves a trace
     const audited = await auditedCalls(storage.database);
