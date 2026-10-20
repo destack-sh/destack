@@ -8,12 +8,12 @@ function names(policies: readonly { readonly name: string }[]): string[] {
 }
 
 test("include the policies declared policies reference, transitively", () => {
-    // declare notes and teams: note viewers reference groups of accounts
+    // declare notes viewed by groups of accounts, whose residents are regions' servers
     const authorizer = new Authorizer([node, team]);
 
     // include every intrinsic, declared and referenced policy once
     expect(names(authorizer.policies()).toSorted()).toEqual(
-        [...names(INTRINSIC_POLICIES), "node", "team", "group", "account"].toSorted(),
+        [...names(INTRINSIC_POLICIES), "node", "team", "group", "account", "region"].toSorted(),
     );
     expect(authorizer.policy(account.reference("universe", "account-1"))).toBe(account);
     expect(authorizer.policy(group.reference("space-1", "group-1"))).toBe(group);

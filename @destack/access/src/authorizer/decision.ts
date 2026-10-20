@@ -23,11 +23,7 @@ export const TupleFailure = schema.enum([
     "role",
     "pending",
     "expired",
-    "request",
-    "credential",
     "linkSecret",
-    "assurance",
-    "age",
     "arrow",
 ]);
 /** Why one tuple fails to allow the caller. */

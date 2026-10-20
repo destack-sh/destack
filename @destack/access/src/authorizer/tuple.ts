@@ -1,6 +1,6 @@
 import { AccessContext } from "../context/context.ts";
 import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
-import { type Match, Predicate, type Row, type Snapshot, TABLE } from "@destack/db";
+import { type Match, Predicate, type Row, type Snapshot, TABLE, type Select } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -8,7 +8,7 @@ import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
 import { type PermissionReference } from "../declare/policy.ts";
 import { accepts, type RelationDescription } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
+import { type RoleBinding, type accessRelationship } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";
@@ -102,7 +102,7 @@ export class TupleReader {
     /** The chains of the enclosed scopes the reader also decides rows of, by scope. */
     readonly #chains: Map<string, readonly ObjectReference[]>;
     /** The relationships of each object read so far, by object key. */
-    readonly #read: Map<string, Promise<RelationshipRow[]>>;
+    readonly #read: Map<string, Promise<Select<typeof accessRelationship>[]>>;
     /** The role bindings of each owner scope's chain read so far, by scope. */
     readonly #chainBound: Map<string, Promise<RoleBinding[]>>;
     /** The proper ancestors of each node read so far, by tree, scope and node. */
@@ -114,7 +114,7 @@ export class TupleReader {
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
         // start with empty state
         this.#chains = new Map<string, readonly ObjectReference[]>();
-        this.#read = new Map<string, Promise<RelationshipRow[]>>();
+        this.#read = new Map<string, Promise<Select<typeof accessRelationship>[]>>();
         this.#chainBound = new Map<string, Promise<RoleBinding[]>>();
         this.#ancestry = new Map<string, Promise<string[]>>();
         this.#loaded = new Map<string, Promise<Row | undefined>>();
@@ -134,7 +134,10 @@ export class TupleReader {
     }
 
     /** Note an object a call creates and the relationships its creation writes. */
-    creating(object: ObjectReference, relationships: readonly RelationshipRow[]): void {
+    creating(
+        object: ObjectReference,
+        relationships: readonly Select<typeof accessRelationship>[],
+    ): void {
         this.#read.set(ObjectReference.key(object), Promise.resolve([...relationships]));
     }
 
@@ -231,7 +234,7 @@ export class TupleReader {
         const objects = [
             ...new Map(reached.map((object) => [ObjectReference.key(object), object])).values(),
         ].filter((object) => !this.#read.has(ObjectReference.key(object)));
-        const byObject = new Map<string, RelationshipRow[]>(
+        const byObject = new Map<string, Select<typeof accessRelationship>[]>(
             objects.map((object) => [ObjectReference.key(object), []]),
         );
         for (const chunk of TupleReader.#chunks(objects)) {
@@ -648,7 +651,7 @@ export class TupleReader {
     async #throughRelationship(
         expression: Extract<AccessExpression, { kind: "through" }>,
         relation: RelationDescription,
-        entry: RelationshipRow,
+        entry: Select<typeof accessRelationship>,
         scope: string,
         trail: Trail,
     ): Promise<TupleTree[]> {
@@ -944,12 +947,15 @@ export class TupleReader {
     }
 
     /** Read the relationships on a mapped row's object. */
-    #rowRelationships(mapping: TableMapping, row: Row): Promise<RelationshipRow[]> {
+    #rowRelationships(
+        mapping: TableMapping,
+        row: Row,
+    ): Promise<Select<typeof accessRelationship>[]> {
         return this.#relationships(TupleReader.#object(mapping, row));
     }
 
     /** Read every relationship on one object once. */
-    #relationships(object: ObjectReference): Promise<RelationshipRow[]> {
+    #relationships(object: ObjectReference): Promise<Select<typeof accessRelationship>[]> {
         // reuse the relationships read before
         const key = ObjectReference.key(object);
         const known = this.#read.get(key);
@@ -1033,12 +1039,12 @@ export class TupleReader {
     }
 
     /** Reference the object a relationship relates. */
-    static #relatedObject(entry: RelationshipRow): ObjectReference {
+    static #relatedObject(entry: Select<typeof accessRelationship>): ObjectReference {
         return ObjectReference.at("object", entry);
     }
 
     /** Read a relationship's subject. */
-    static #subject(entry: RelationshipRow): Subject {
+    static #subject(entry: Select<typeof accessRelationship>): Subject {
         return {
             packageId: entry.subjectPackageId,
             type: entry.subjectType,

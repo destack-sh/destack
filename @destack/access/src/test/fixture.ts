@@ -50,14 +50,25 @@ const RECENT = { assurance: 2, maxAge: 15 * 60 * 1000 };
 /** The permissions the test scope and group types grant through roles. */
 const OBJECT_PERMISSIONS = { read: none(), update: none(), delete: none(), share: none() };
 
-/** Accounts: the root scopes of spaces, with users as members. */
+/** A universe jurisdiction whose machines and home serve the accounts residing in it. */
+export const region = new Policy(module4.package, {
+    name: "region",
+    relations: { machine: { subjects: [principal.user] }, home: { subjects: [principal.user] } },
+    permissions: {
+        server: union(relation("machine"), relation("home")),
+        serve: permission("server"),
+    },
+});
+
+/** Accounts: the root scopes of spaces, with users as members and regions' servers as residents. */
 export const account = new Policy(module4.package, {
     name: "account",
     relations: {
         member: { subjects: [principal.user] },
         root: { subjects: [principal.user], grantedBy: null },
+        resident: { subjects: [region.members("server")] },
     },
-    permissions: { ...OBJECT_PERMISSIONS, own: relation("root") },
+    permissions: { ...OBJECT_PERMISSIONS, own: relation("root"), serve: relation("resident") },
     grantedBy: "share",
     reserved: ["own"],
     elevated: { delete: RECENT, own: RECENT },
@@ -222,6 +233,11 @@ export const teamTable = defineTable(
     { constraints: (teams) => [index("example_team_member").on(teams.member)] },
 );
 
+/** Regions, objects living in the universe without a scope column. */
+export const regionTable = defineTable("example_region", {
+    id: text("id").primaryKey(),
+});
+
 /** Accounts, scope objects living in the universe. */
 export const accountTable = defineTable("example_account", {
     id: text("id").primaryKey(),
@@ -264,6 +280,7 @@ export const mappings: TableMapping[] = [
         inherited: { mode: "require" },
     },
     { policy: group, table: groupTable, id: "id", scope: "scope", attributes: {}, relations: {} },
+    { policy: region, table: regionTable, id: "id", attributes: {}, relations: {} },
     {
         policy: team,
         table: teamTable,
@@ -303,12 +320,13 @@ export const homeMappings: TableMapping[] = [
 ];
 
 /** The fixture's policies. */
-export const policies = [account, space, group, team, node, cell, entity, policy];
+export const policies = [region, account, space, group, team, node, cell, entity, policy];
 
 /** The fixture's application and access tables. */
 export const fixtureTables = [
     item,
     groupTable,
+    regionTable,
     teamTable,
     accountTable,
     spaceTable,

@@ -1,5 +1,14 @@
 import { expect, test } from "@destack/test";
-import { Snapshot, Transaction, eq, type DatabaseConnection, Table } from "@destack/db";
+import { v7 } from "uuid";
+import {
+    defineTable,
+    Snapshot,
+    Transaction,
+    eq,
+    type DatabaseConnection,
+    Table,
+    text,
+} from "@destack/db";
 import { nth, Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
@@ -13,10 +22,10 @@ import {
     LinkSecret,
     Policy,
     principal,
+    relation,
     through,
     AccessContext,
     Caller,
-    type RelationshipCondition,
     ANONYMOUS,
     Invitation,
     Relationship,
@@ -37,6 +46,9 @@ import {
 import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
 import { AccessFixture } from "../test/access.ts";
+
+/** The relationships of other subjects the stress test adds to a scope. */
+const STRESS_RELATIONSHIPS = 2000;
 
 /** Provide an isolated database with notes and an explicit editor grant. */
 const databaseTest = test.extend<{
@@ -596,95 +608,6 @@ databaseTest(
 );
 
 databaseTest(
-    "apply grants only under their request, session and authentication conditions",
-    async ({ fixture }) => {
-        const { database, authorizer, alice, bob } = fixture;
-        const grant = async (conditions: RelationshipCondition) =>
-            Authorization.run(
-                authorizer,
-                database,
-                () => alice,
-                (authorization) =>
-                    Relationship.grant(
-                        {
-                            object: node.reference("personal", "c"),
-                            relation: "viewer",
-                            subject: principal.user.reference("universe", "carol"),
-                            conditions,
-                        },
-                        authorization,
-                    ),
-            );
-        const carol: AccessContext = {
-            ...bob,
-            subject: principal.user.reference("universe", "carol"),
-            groups: [],
-        };
-        const readable = async (context: AccessContext) =>
-            readableNodes(database, authorizer, context);
-
-        // bind a grant to one request and one credential
-        const once = await grant({ request: "request-1" });
-        expect(await readable(carol)).toEqual([]);
-        expect(await readable({ ...carol, request: "request-1" })).toEqual(["c"]);
-        await authorizer.release(database, "request-1");
-        expect(await readable({ ...carol, request: "request-1" })).toEqual([]);
-        const bound = await grant({ credential: "session:1" });
-        expect(await readable({ ...carol, credential: sessionCredential("2", carol.now) })).toEqual(
-            [],
-        );
-        expect(await readable({ ...carol, credential: sessionCredential("1", carol.now) })).toEqual(
-            ["c"],
-        );
-        await Authorization.run(
-            authorizer,
-            database,
-            () => alice,
-            (authorization) => Relationship.revoke(bound.object, bound.id, authorization),
-        );
-
-        // require strong and recent authentication
-        await grant({ assurance: 2, maxAge: 300 });
-        expect(await readable(carol)).toEqual([]);
-        expect(
-            await readable({
-                ...carol,
-                credential: {
-                    ...sessionCredential("1", carol.now),
-                    assurance: { level: 1, authenticatedAt: 1000 },
-                },
-            }),
-        ).toEqual([]);
-        expect(
-            await readable({
-                ...carol,
-                credential: {
-                    ...sessionCredential("1", carol.now),
-                    assurance: { level: 2, authenticatedAt: 800 },
-                },
-            }),
-        ).toEqual(["c"]);
-        expect(
-            await readable({
-                ...carol,
-                credential: {
-                    ...sessionCredential("1", carol.now),
-                    assurance: { level: 3, authenticatedAt: 600 },
-                },
-            }),
-        ).toEqual([]);
-
-        // remove the consumed request grant
-        expect(
-            await database
-                .select()
-                .from(accessRelationship)
-                .where(eq(accessRelationship.id, schema.identifier("relationship").parse(once.id))),
-        ).toEqual([]);
-    },
-);
-
-databaseTest(
     "narrow a delegate to what its subject may and its grant gives, until the grant is revoked or lapses",
     async ({ fixture }) => {
         const { database, authorizer, alice, bob } = fixture;
@@ -892,6 +815,44 @@ databaseTest(
     },
 );
 
+databaseTest(
+    "resolve a caller in the same statements however many other subjects' relationships the scope has",
+    async ({ fixture }) => {
+        const { database, authorizer, bob } = fixture;
+        const resolve = async () => {
+            const before = database.driver.state.statements;
+            const access = await authorizer.resolve(Snapshot.live(database), "personal", bob);
+
+            return {
+                statements: database.driver.state.statements - before,
+                grants: [...access.grants.keys()],
+            };
+        };
+        const few = await resolve();
+
+        // relate many other subjects to notes of the scope, then resolve bob again
+        await database.insert(accessRelationship).values(
+            Array.from({ length: STRESS_RELATIONSHIPS }, (_, index) =>
+                Relationship.encode(
+                    {
+                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                        object: node.reference("personal", `stress-${index}`),
+                        relation: "editor",
+                        subject: userSubject(`stranger-${index}`),
+                        createdAt: bob.now,
+                        expiresAt: null,
+                    },
+                    "personal",
+                ),
+            ),
+        );
+        const many = await resolve();
+
+        // read the same statements and grants either way
+        expect(many).toEqual(few);
+    },
+);
+
 test("follow a scope relation of several scope types to the nearest scope only, and refuse one of a plain type", () => {
     // relate pins to the account or space they live in
     const pin = pinPolicy([account, space]);
@@ -1094,28 +1055,6 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
     expect(permitted.permitted.size).toBe(copies.filter((copy) => copy.locked === 0).length);
 });
 
-/** Read the nodes a context may read. */
-async function readableNodes(
-    database: DatabaseConnection,
-    authorizer: Authorizer,
-    context: AccessContext,
-): Promise<string[]> {
-    const readable = (
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    node.permission("read"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", context),
-                ),
-            )
-            .orderBy(item.id)
-    ).map((row) => row.id);
-
-    return readable;
-}
-
 /** Require the nodes of a type a context may edit to be exactly the expected ones. */
 async function expectEditable(
     database: DatabaseConnection,
@@ -1150,3 +1089,114 @@ function pinPolicy(scopes: readonly Policy[]): Policy {
 function chainLink(type: Policy) {
     return { packageId: type.definition.packageId, type: type.name };
 }
+
+test("refuse binding a role to a scope relation a field decides", () => {
+    // declare workspaces with tuple members and a lead stored in a column
+    const workspace = new Policy(module1.package, {
+        name: "workspace",
+        relations: { member: { subjects: [principal.user] }, lead: { subjects: [principal.user] } },
+        permissions: { join: relation("member"), lead: relation("lead") },
+        scope: true,
+    });
+    const table = defineTable("example_workspace", {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        lead: text("lead").notNull(),
+    });
+    const authorizer = new Authorizer(
+        [workspace],
+        [
+            {
+                policy: workspace,
+                table,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: { lead: { column: "lead", scope: "universe" } },
+            },
+        ],
+    );
+
+    // bind to the members, and refuse the lead
+    const bind = (name: string) => () =>
+        authorizer.validate(
+            {
+                object: workspace.reference("universe", "w"),
+                role: "role-1",
+                subject: { ...workspace.reference("universe", "w"), relation: name },
+            },
+            0,
+        );
+    expect(bind("member")).not.toThrow();
+    expect(bind("lead")).toThrow(
+        new AccessError(
+            "FORBIDDEN",
+            "a role cannot bind to workspace#lead: roles bind to subject sets and scope relations",
+        ),
+    );
+});
+
+databaseTest(
+    "refuse sharing with a group outside the object's scope chain",
+    async ({ fixture }) => {
+        const { database, authorizer, alice } = fixture;
+        const share = (scope: string) =>
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                (authorization) =>
+                    Relationship.grant(
+                        {
+                            object: node.reference("personal", "c"),
+                            relation: "viewer",
+                            subject: { ...group.reference(scope, "g"), relation: "member" },
+                        },
+                        authorization,
+                    ),
+            );
+
+        // share with a group of the node's scope, refusing another account's, also as a first subject
+        await share("personal");
+        const created = Authorization.run(
+            authorizer,
+            database,
+            () => alice,
+            (authorization) =>
+                authorization.create(node.reference("personal", "z"), {
+                    relationships: [
+                        {
+                            relation: "viewer",
+                            subject: { ...group.reference("account-2", "g"), relation: "member" },
+                        },
+                    ],
+                }),
+        );
+        const refused = new AccessError(
+            "FORBIDDEN",
+            "group#member in account-2 is outside the scope chain of personal",
+        );
+        await expect(share("account-2")).rejects.toEqual(refused);
+        await expect(created).rejects.toEqual(refused);
+    },
+);
+
+test("refuse universe subject sets that nest without end", () => {
+    // declare teams kept at the universe whose members may be teams
+    const team = new Policy(module1.package, {
+        name: "crew",
+        relations: { member: { subjects: [principal.user, "crew#member"] } },
+        permissions: { join: relation("member") },
+    });
+    const table = defineTable("example_crew", { id: text("id").primaryKey() });
+    const declare = () =>
+        new Authorizer([team], [{ policy: team, table, id: "id", attributes: {}, relations: {} }]);
+
+    // refuse the declaration, naming the cycle
+    expect(declare).toThrow(
+        new AccessError(
+            "INVALID_DECLARATION",
+            "universe subject sets nest without end: crew -> crew",
+        ),
+    );
+});

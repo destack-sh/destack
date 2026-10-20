@@ -13,7 +13,7 @@ import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
 
 import { AccessContext } from "../context/context.ts";
-import { Relationship, type RelationshipCondition } from "../relationship/relationship.ts";
+import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 
 import { accessInvitation } from "../invitation/table.ts";
@@ -32,8 +32,6 @@ type RelationshipFields = {
     readonly object: ObjectReference;
     /** The subject, absent while an offer awaits its recipient. */
     readonly subject?: Subject;
-    /** What a request must satisfy for the relationship to apply. */
-    readonly conditions?: RelationshipCondition;
 } & ({ readonly relation: string } | { readonly role: string });
 
 /** The first relationships of a new object and the owners of a new scope. */
@@ -61,6 +59,8 @@ export class Authorization {
     readonly #resolved: Map<string, Promise<Access>>;
     /** The caller's access in the scopes below each scope until renewed, absent outside it. */
     readonly #below: Map<string, Map<string, Access | undefined>>;
+    /** The transaction's writes to the deciding tables when the resolved access was read. */
+    #writes: number;
     /** The applied declaration, the only writer of its rows, null for direct access changes. */
     #manager: Manager | null;
 
@@ -75,6 +75,7 @@ export class Authorization {
         this.#resolved = new Map<string, Promise<Access>>();
         this.#below = new Map<string, Map<string, Access | undefined>>();
         this.#manager = null;
+        this.#writes = transaction.changes.writes(authorizer.decidingTables);
 
         // take the caller, reusing the access resolved in one scope
         this.authorizer = authorizer;
@@ -118,7 +119,8 @@ export class Authorization {
 
     /** Resolve the caller's access in a scope once per call: subject sets, roles, scope chain. */
     in(scope: string): Promise<Access> {
-        // resolve each scope once, until renewed
+        // resolve each scope once, until renewed or the deciding tables change
+        this.#renewChanged();
         const known = this.#resolved.get(scope);
         if (known !== undefined) {
             return known;
@@ -133,6 +135,14 @@ export class Authorization {
     renew(): void {
         this.#resolved.clear();
         this.#below.clear();
+        this.#writes = this.transaction.changes.writes(this.authorizer.decidingTables);
+    }
+
+    /** Renew the resolved access once the transaction wrote to the tables deciding it. */
+    #renewChanged(): void {
+        if (this.transaction.changes.writes(this.authorizer.decidingTables) !== this.#writes) {
+            this.renew();
+        }
     }
 
     /** Decide whether the caller has a permission on one object and until when. */
@@ -182,6 +192,7 @@ export class Authorization {
     /** Resolve the caller's access in a scope's enclosed scopes, in reads shared by all. */
     async descend(scope: string, below: readonly string[]): Promise<Map<string, Access>> {
         // resolve the scopes not resolved before together
+        this.#renewChanged();
         const known = this.#below.get(scope) ?? new Map<string, Access | undefined>();
         this.#below.set(scope, known);
         const missing = [...new Set(below)].filter((enclosed) => !known.has(enclosed));
@@ -220,7 +231,6 @@ export class Authorization {
         if (!isScope || (await this.authorizer.isLocal(this.transaction, object))) {
             await this.#relate(object, creation);
         }
-        this.renew();
     }
 
     /** Record a scope at its home as it is born, below its containing scopes, with its access. */
@@ -231,7 +241,6 @@ export class Authorization {
     ): Promise<void> {
         await this.#record(object, ancestors);
         await this.#relate(object, creation);
-        this.renew();
     }
 
     /** Forget a removed object's access here: relationships, a scope's row and own access. */
@@ -295,7 +304,6 @@ export class Authorization {
         if (scope !== undefined) {
             await this.transaction.write({ table: Scope.table, before: scope, after: null });
         }
-        this.renew();
     }
 
     /** Relate a local object's first subjects, and bind a scope's owner. */
@@ -315,6 +323,20 @@ export class Authorization {
             throw new AccessError("INVALID_CONTEXT", "only a scope can have owners");
         }
         const context = this.context();
+
+        // refuse a first subject set outside the object's scope chain, as a grant refuses it
+        const sets = [
+            creation.owner,
+            ...(creation.relationships ?? []).map((each) => each.subject),
+        ].filter((subject) => subject?.relation !== undefined);
+        const links = sets.length === 0 ? [] : await Scope.chain(this.snapshot, object.scope);
+        for (const subject of sets) {
+            await this.#requireInChain(
+                object,
+                subject,
+                links.map((link) => link.object.id),
+            );
+        }
 
         // relate the first subjects
         const relationships = this.authorizer.initialRelationships(object, creation, context.now);
@@ -398,6 +420,24 @@ export class Authorization {
         await this.authorizer.require(this.snapshot, permissions, scope, access);
     }
 
+    /** Refuse a subject set outside an object's scope chain, unless its rows live at this home. */
+    async #requireInChain(
+        object: ObjectReference,
+        subject: Subject | undefined,
+        chain: readonly string[],
+    ): Promise<void> {
+        const isOutside =
+            subject?.relation !== undefined &&
+            subject.scope !== "*" &&
+            ![Scope.universe.id, object.scope, ...chain].includes(subject.scope);
+        if (isOutside && !(await this.authorizer.isHome(this.snapshot, subject.scope))) {
+            throw new AccessError(
+                "FORBIDDEN",
+                `${subject.type}#${subject.relation} in ${subject.scope} is outside the scope chain of ${object.scope}`,
+            );
+        }
+    }
+
     /** Require the grant permission and every permission of a bound role. */
     async authorizeGrant(request: RelationshipFields): Promise<void> {
         // write only the access of a local object
@@ -407,6 +447,10 @@ export class Authorization {
         const scope = this.authorizer.governingScope(request.object);
         const access = await this.authorizer.resolve(this.snapshot, scope, this.context());
         const role = "role" in request ? request.role : undefined;
+
+        // refuse a subject set outside the object's scope chain, unless its rows live at this home
+        const chain = access.scopes.map((link) => link.id);
+        await this.#requireInChain(request.object, request.subject, chain);
         const required: PermissionReference[] = [
             this.#grantPermission(request.object, Authorization.#relation(request)),
         ];
@@ -493,7 +537,6 @@ export class Authorization {
             before: row,
             after: { ...row, ...changes },
         });
-        this.renew();
     }
 
     /** Refuse changing a declaration's managed row until detached. */

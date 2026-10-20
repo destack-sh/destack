@@ -1,10 +1,6 @@
 import { v7 } from "uuid";
 import {
-    and,
-    eq,
-    inArray,
     sql,
-    type DatabaseConnection,
     type Transaction,
     type SQL,
     type Table,
@@ -13,19 +9,23 @@ import {
     Predicate,
     Snapshot,
     TABLE,
+    Key,
+    type Relation,
     type Row,
-    combine,
+    type Select,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { schema, zip } from "@destack/schema";
 import {
     Replica,
+    replicaKey,
     Scope,
     type Subscription,
     type ScopeLink,
     Watch,
     ObjectReference,
     ObjectTypeReference,
+    type QuerySelection,
     Subject,
 } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
@@ -41,11 +41,12 @@ import { ACCESS_PACKAGE_ID, anyone, INTRINSIC_POLICIES } from "../declare/princi
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { AccessContext, Caller } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
-import { accessRelationship, type RelationshipRow } from "../relationship/table.ts";
+import { accessRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
 import { accessRole } from "../role/table.ts";
-import { accessTables, CHAIN_PUBLICATION, decisionTables } from "../replica/replica.ts";
+import { accessTables, decisionTables } from "../replica/replica.ts";
+import { accessGrant } from "../grant/table.ts";
 import { earliest, Access } from "./access.ts";
 import { Compiler } from "./compiler.ts";
 import { TupleCondition } from "./condition.ts";
@@ -59,43 +60,12 @@ const WILDCARD = "*";
 /** How long an unheard access replica lasts before refusal: three 10-second beats, in ms. */
 const LAG_MILLISECONDS = 30_000;
 
-/** The name of the publication replicating the universe's rows a scope reads. */
-export const UNIVERSE_PUBLICATION = "universe";
-
-/** The parameters of a chain replica. */
-export const ChainParameters = schema.object({
-    /** The object types whose access rows live in the follower's own database. */
-    local: schema.array(ObjectTypeReference),
-    /** The object types the follower replicates. */
-    replicated: schema.array(ObjectTypeReference),
-    /** The scopes an outside follower replicates, with the scope above and those between. */
-    via: schema.array(schema.string().min(1)),
-    /** The object types whose universe relationships the follower's decisions read. */
-    types: schema.array(ObjectTypeReference),
-    /** The scopes between the replicated ones and the scope above, as the follower knows them. */
-    between: schema.array(schema.string().min(1)),
-});
-/** The parameters of a chain replica. */
-export type ChainParameters = schema.Infer<typeof ChainParameters>;
-
-/** The parameters of a universe replica: each object type's rows, decided for their reader. */
-export const UniverseParameters = schema.object({
-    /** The rows of each object type. */
-    rows: schema.array(
-        schema.object({
-            /** The object type. */
-            type: ObjectTypeReference,
-            /** The rows replicated. */
-            where: Condition.schema,
-            /** The requested types whose rows these rows scope, absent for the replicated scope. */
-            within: schema.array(ObjectTypeReference).min(1).exactOptional(),
-            /** Whether rows are replicated from their own scope instead of the replicated scope. */
-            isEverywhere: schema.literal(true).exactOptional(),
-        }),
-    ),
-});
-/** The parameters of a replica of the universe's rows. */
-export type UniverseParameters = schema.Infer<typeof UniverseParameters>;
+/** The relation from a relationship naming a subject set to the relationships of that set. */
+const SUBJECTS: Relation = {
+    table: accessRelationship,
+    cardinality: "many",
+    on: { kind: "key", column: "objectKey", parent: "subjectSetKey" },
+};
 
 /** A table a chain replica reads: its row condition, absent for all rows, and its scopes. */
 type ChainTable = [Table, Condition | undefined, readonly string[]];
@@ -118,18 +88,39 @@ export interface ChainStep {
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
-/** The chain a scope's replicas cover: a home's above it, or a follower's from itself. */
-export type ChainOptions =
-    | {
-          /** A home, replicating the chain above it. */
-          readonly kind: "home";
-          /** The scope the home lives in, whose chain it replicates before it is born. */
-          readonly parent: string;
-      }
-    | {
-          /** A follower, replicating its chain from itself. */
-          readonly kind: "follower";
-      };
+/** The parameters of a chain replica: the target's chain, its local types and the outside. */
+export const ChainParameters = schema.object({
+    /** The target's chain, whose objects' universe relationships a chain replica reads. */
+    scopes: schema.array(schema.string().min(1)).readonly(),
+    /** The object types whose access rows the target homes, left out of its own scope's replica. */
+    local: schema.array(ObjectTypeReference).readonly(),
+    /** The scopes outside the target's chain a follower replicates via the universe. */
+    via: schema.array(schema.string().min(1)).readonly(),
+    /** The scopes between the outside ones and the universe, as the follower knows them. */
+    between: schema.array(schema.string().min(1)).readonly(),
+});
+/** The parameters of a chain replica. */
+export type ChainParameters = schema.Infer<typeof ChainParameters>;
+
+/** The parameters of an inherited replica: the object types and the scopes outside. */
+export const InheritedParameters = schema.object({
+    /** The object types whose rows the scope hands down or keeps. */
+    types: schema.array(ObjectTypeReference).min(1).readonly(),
+    /** The scopes outside the target's chain a follower replicates via the universe. */
+    via: schema.array(schema.string().min(1)).readonly(),
+    /** The scopes between the outside ones and the universe, as the follower knows them. */
+    between: schema.array(schema.string().min(1)).readonly(),
+});
+/** The parameters of an inherited replica. */
+export type InheritedParameters = schema.Infer<typeof InheritedParameters>;
+
+/** The chain a scope's replicas cover: the chain above a home, or a follower's from itself. */
+export interface ChainOptions {
+    /** The scope's place: its home, keeping its rows, or a follower, replicating them. */
+    readonly kind: "home" | "follower";
+    /** The scope's parent, where its chain continues. */
+    readonly parent: string;
+}
 
 /** Decide policies over their objects' tables, in SQL or in memory from grants. */
 export class Authorizer {
@@ -143,6 +134,8 @@ export class Authorizer {
     readonly moving: ReadonlySet<string>;
     /** Field relations that another relation uses as a subject set. */
     readonly fields: FieldRelation[];
+    /** The tables resolving a caller's access reads, whose writes renew it. */
+    readonly decidingTables: readonly Table[];
     /** The subject sets that relations accept and roles may bind to. */
     readonly memberships: SubjectType[];
     /** The permissions accepted as subject sets, by the type and relation of each relationship. */
@@ -155,6 +148,10 @@ export class Authorizer {
     readonly #inherited: Map<string, readonly ChainStep[]>;
     /** How long an access replica may go without its home before refusal, in milliseconds. */
     readonly lag: number;
+    /** How deep universe subject sets nest, as the universe's chain replica includes them. */
+    readonly setDepth: number;
+    /** The relations arrows follow, by permission key of their type and name. */
+    readonly #arrows = new Set<string>();
     /** The one partition whose scopes' access this database stores, every partition when absent. */
     readonly partition: string | undefined;
     /** The tables the database holds rows of, every mapped one when absent. */
@@ -165,8 +162,6 @@ export class Authorizer {
     readonly replicated: readonly ObjectTypeReference[];
     /** The replicated object types whose rows live in a scope. */
     readonly scoped: readonly ObjectTypeReference[];
-    /** The global principal types, outside scope chains. */
-    readonly global: readonly ObjectTypeReference[];
     /** The policies indexed by package and type. */
     readonly #policies: Map<string, Policy>;
     /** The subject types other types contribute to each open relation, by type and relation. */
@@ -210,7 +205,7 @@ export class Authorizer {
             this.#policies.set(Authorizer.#policyKey(type), type);
         }
 
-        // add contributing types to open relations and validate every referenced permission
+        // add contributing types to open relations, validate every permission and record its arrows
         for (const type of types) {
             this.#registerContributions(type);
         }
@@ -236,17 +231,19 @@ export class Authorizer {
             this.#validateScopeRelations(type);
         }
 
-        // list the types whose access rows this database stores, and the types it stores replicas of
+        // list the types whose access rows this database stores
         const replicated = options.replicated ?? new Set<Table>();
         this.local = this.#localTypes(replicated);
         this.replicated = this.#replicatedTypes(replicated);
         this.scoped = this.#scopedTypes(replicated);
-        this.global = this.#globalTypes();
 
-        // expand the subject sets roles may bind to
+        // expand the subject sets roles may bind to, and measure how deep universe sets nest
         const sets = this.#subjectSets();
+        this.setDepth = this.#setDepth();
         this.#expandMemberships(sets);
         this.#registerFieldSets(sets);
+        const fieldTables = this.fields.map((field) => field.mapping.table);
+        this.decidingTables = [...new Set([...decisionTables, accessGrant, ...fieldTables])];
 
         // require every declared relation of a mapped type to decide a permission
         this.#requireDeciding(types, sets);
@@ -421,16 +418,6 @@ export class Authorizer {
             }));
     }
 
-    /** List the types of global principals. */
-    #globalTypes(): ObjectTypeReference[] {
-        return [...this.#policies.values()]
-            .filter((policy) => policy.definition.isGlobal === true)
-            .map((policy) => ({
-                packageId: policy.definition.packageId,
-                type: policy.definition.name,
-            }));
-    }
-
     /** Collect the subject sets the declared relations accept, by key. */
     #subjectSets(): Map<string, PermissionReference> {
         return new Map(
@@ -453,12 +440,59 @@ export class Authorizer {
         );
     }
 
+    /** Measure how deep subject sets of universe objects nest, refusing a cycle among them. */
+    #setDepth(): number {
+        const roots = this.policies().flatMap((policy) =>
+            this.#universeSets(policy).map((subject) => this.#nesting(this.policy(subject), [])),
+        );
+
+        return Math.max(0, ...roots);
+    }
+
+    /** Measure how deep universe subject sets nest below a policy, refusing a cycle. */
+    #nesting(policy: Policy, path: readonly Policy[]): number {
+        // refuse a set type reached again along the path, naming the cycle
+        const key = ObjectTypeReference.key(policy.typeReference);
+        if (path.some((step) => ObjectTypeReference.key(step.typeReference) === key)) {
+            const cycle = [...path, policy].map((step) => step.name).join(" -> ");
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                `universe subject sets nest without end: ${cycle}`,
+            );
+        }
+
+        // follow each universe set its relations accept
+        const deeper = this.#universeSets(policy).map((subject) =>
+            this.#nesting(this.policy(subject), [...path, policy]),
+        );
+
+        return 1 + Math.max(0, ...deeper);
+    }
+
+    /** List the subject sets of universe types a policy's relations accept. */
+    #universeSets(policy: Policy): SubjectType[] {
+        return Object.values(policy.definition.relations)
+            .flatMap((relation) => relation.subjects)
+            .filter((subject) => subject.relation !== undefined && this.#isUniverseType(subject));
+    }
+
+    /** Report whether a type's objects live in the universe alone, which every chain includes. */
+    #isUniverseType(type: Pick<PermissionReference, "packageId" | "type">): boolean {
+        const mapping = this.mapping(type);
+
+        return mapping !== undefined && mapping.scope === undefined;
+    }
+
     /** Expand the declared sets and every scope's relations into the memberships roles bind to. */
     #expandMemberships(sets: ReadonlyMap<string, PermissionReference>): void {
-        // add every relation of each scope type to the declared sets
+        // add every tuple relation of each scope type to the declared sets
         const expanded = new Map(sets);
         for (const policy of this.policies().filter((each) => each.definition.scope === true)) {
-            for (const relation of Object.keys(policy.definition.relations)) {
+            const fields = this.mapping(policy.typeReference)?.relations ?? {};
+            const tuples = Object.keys(policy.definition.relations).filter(
+                (relation) => !Object.hasOwn(fields, relation),
+            );
+            for (const relation of tuples) {
                 const set = {
                     packageId: policy.definition.packageId,
                     type: policy.definition.name,
@@ -585,6 +619,11 @@ export class Authorizer {
                       ],
             ),
         );
+    }
+
+    /** Report whether arrows follow a relation of a type, so its tuples reach other objects. */
+    isArrow(type: Pick<PermissionReference, "packageId" | "type">, relation: string): boolean {
+        return this.#arrows.has(PermissionReference.key({ ...type, name: relation }));
     }
 
     /** Resolve the policy of a package-qualified object type. */
@@ -789,15 +828,22 @@ export class Authorizer {
         }
     }
 
-    /** Decide whether a snapshot's database stores a scope's own access rows. */
+    /** Decide whether a snapshot's database is a scope's home. */
     async isHome(snapshot: Snapshot, scope: string): Promise<boolean> {
-        const [row] = await Scope.read(snapshot, [scope]);
+        // keep the universe at the database of its partition alone
+        if (scope === Scope.universe.id) {
+            return this.partition === Scope.universe.id;
+        }
 
-        return (
-            row !== undefined &&
-            !this.#isElsewhere(row) &&
-            !(await Replica.isReplicated(snapshot, scope, accessRelationship))
-        );
+        // require the scope's row in this partition, written here and kept by no replica
+        const [row] = await Scope.read(snapshot, [scope]);
+        const kept = await snapshot.read(replicaKey).findFirst({
+            where: { table: Scope.table[TABLE].sqlName, key: Key.name(Scope.table, { scope }) },
+        });
+        const isCopied =
+            kept !== undefined || (await Replica.isReplicated(snapshot, scope, Scope.table));
+
+        return row !== undefined && !this.#isElsewhere(row) && !isCopied;
     }
 
     /** Decide whether a scope's row was created in another partition than this database's. */
@@ -825,219 +871,88 @@ export class Authorizer {
         }
     }
 
-    /** List the replica requests of the scopes above one, one per scope. */
-    async chain(
-        database: DatabaseConnection,
-        scope: string,
-        options: ChainOptions,
-        types: readonly ObjectTypeReference[],
-    ): Promise<Subscription[]> {
-        // read the ancestors the scope's row lists
-        const [replica] = await database
-            .select({ ancestors: Scope.table.ancestors })
-            .from(Scope.table)
-            .where(eq(Scope.table.scope, scope));
-        const above = replica === undefined ? [] : [...replica.ancestors, Scope.universe.id];
+    /** Build a chain replica: one scope's access rows for a target scope, or for scopes outside. */
+    replicateChain(
+        request: Pick<Subscription, "name" | "scope" | "target">,
+        parameters: ChainParameters,
+    ): Replica {
+        // read the replicated scope, and the outside scopes and those between for a follower
+        const { name, scope, target } = request;
+        const { local, via, between } = parameters;
+        const scopes = [scope, ...between, ...via];
+        const isGranting = scope === Scope.universe.id && via.length === 0;
+        const where = new Map<Table, Condition>();
 
-        // replicate a home's chain above it, its parent's until it is born, and a follower's from itself
-        const scopes =
-            options.kind === "home"
-                ? replica === undefined
-                    ? [options.parent]
-                    : above
-                : [scope, ...above];
-
-        // replicate each scope's rows for the target scope
-        return scopes.map((replicated) =>
-            Authorizer.chainSubscription({
-                name: Authorizer.chainReplica(scope),
-                scope: replicated,
-                target: scope,
-                parameters: {
-                    local: [...this.local],
-                    replicated: [...this.replicated],
-                    via: [],
-                    between: [],
-                    types: [...types],
-                },
-            }),
-        );
-    }
-
-    /** Request the one replica of the chains above a follower's outside scopes, in the universe. */
-    async chainVia(
-        database: DatabaseConnection,
-        replica: {
-            /** The replica's name, one record per follower. */
-            readonly name: string;
-            /** The scope the replica is stored for, the follower or the scope it lives in. */
-            readonly target: string;
-        },
-        via: readonly { readonly id: string; readonly scope: string | null }[],
-        types: readonly ObjectTypeReference[],
-        scoped: readonly ObjectTypeReference[] = this.scoped,
-        elsewhere: readonly ObjectTypeReference[] = [],
-    ): Promise<Subscription | undefined> {
-        // request nothing without a replicated scope or a universe relationship the decisions read
-        if (via.length === 0 && types.length === 0) {
-            return undefined;
+        // read the chain objects' universe relationships, and their subject sets' as deep as sets nest
+        const isUniverse = scope === Scope.universe.id;
+        if (isUniverse) {
+            const objects = [...new Set([scope, ...parameters.scopes, ...between, ...via])];
+            where.set(accessRelationship, {
+                OR: [{ scope: { ne: scope } }, { objectId: { in: objects } }],
+            });
+        }
+        // leave out of the target's own scope the access rows of the objects it homes
+        else if (local.length > 0) {
+            const homed = local.map((type) => ({
+                objectPackageId: type.packageId,
+                objectType: type.type,
+            }));
+            where.set(accessRelationship, { NOT: { OR: homed } });
         }
 
-        // read the ancestors of the replicated scopes' replicas and their containing scopes in one query
-        const replicated = new Set(via.map((object) => object.id));
-        const rows = await database
-            .select({ ancestors: Scope.table.ancestors })
-            .from(Scope.table)
-            .where(inArray(Scope.table.scope, [...replicated]));
-        const containing = [
-            ...via.flatMap((object) => (object.scope === null ? [] : [object.scope])),
-            ...rows.flatMap((row) => row.ancestors),
-        ];
-        const between = new Set(
-            containing.filter((scope) => scope !== Scope.universe.id && !replicated.has(scope)),
-        );
+        // read the grants to the target from every scope, at the universe of its own chain
+        if (isGranting) {
+            where.set(accessGrant, { delegateScope: target });
+        }
+        const tables = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
 
-        // replicate the chains up to the universe and the inherited rows in them
-        return Authorizer.chainSubscription({
-            name: replica.name,
-            scope: Scope.universe.id,
-            target: replica.target,
-            parameters: {
-                local: [...this.local],
-                // take the scopes' own rows from the follower's replica of the universe
-                replicated: [
-                    ...this.replicated.filter(
-                        (type) => this.requireMapping(type).inherited !== undefined,
-                    ),
-                    ...scoped,
-                ].filter(
-                    (type) =>
-                        !elsewhere.some(
-                            (other) =>
-                                other.packageId === type.packageId && other.type === type.type,
-                        ),
-                ),
-                via: [...replicated].toSorted(),
-                between: [...between].toSorted(),
-                types: [...types],
-            },
+        return new Replica({
+            name,
+            scope,
+            tables,
+            where,
+            scopes: new Map(
+                tables.map((table): [Table, readonly string[]] => [
+                    table,
+                    table === accessGrant ? [scope] : scopes,
+                ]),
+            ),
+            everywhere: new Set(isGranting ? [accessGrant] : []),
+            ...(isUniverse && this.setDepth > 0
+                ? {
+                      includes: new Map([
+                          [accessRelationship, Authorizer.#subjects(this.setDepth)],
+                      ]),
+                      relations: new Map([[accessRelationship, { subjects: SUBJECTS }]]),
+                  }
+                : {}),
         });
     }
 
-    /** Build the chain replica's name for a target scope, one record per follower. */
-    static chainReplica(target: string): string {
-        return `${CHAIN_PUBLICATION}:${target}`;
+    /** Nest the includes of the subjects' relationships some levels deep. */
+    static #subjects(depth: number): NonNullable<QuerySelection["with"]> {
+        return { subjects: depth === 1 ? true : { with: Authorizer.#subjects(depth - 1) } };
     }
 
-    /** Build the replica name of the outside chains a target scope reads. */
-    static viaReplica(target: string): string {
-        return `${CHAIN_PUBLICATION}:${target}:via`;
-    }
-
-    /** Request a scope's chain replica: access rows, inherited rows and own object. */
-    static chainSubscription(
-        request: Omit<Subscription, "publication" | "parameters" | "after"> & {
-            readonly parameters: ChainParameters;
-        },
-    ): Subscription {
-        return {
-            ...request,
-            publication: CHAIN_PUBLICATION,
-            parameters: Authorizer.#json(request.parameters),
-        };
-    }
-
-    /** Request the universe's rows a scope reads, decided for their reader. */
-    static universeSubscription(
-        request: Omit<Subscription, "publication" | "parameters" | "after"> & {
-            readonly parameters: UniverseParameters;
-        },
-    ): Subscription {
-        return {
-            ...request,
-            publication: UNIVERSE_PUBLICATION,
-            parameters: Authorizer.#json(request.parameters),
-        };
-    }
-
-    /** Build a scope's chain replica for a request. */
-    replicateChain(request: Pick<Subscription, "name" | "scope" | "parameters">): Replica {
-        const parameters = ChainParameters.parse(request.parameters);
-
-        return this.#chainReplica(request.name, request.scope, parameters);
-    }
-
-    /** Build the replica of the universe's rows a scope reads for a request. */
-    replicateUniverse(request: Pick<Subscription, "name" | "scope" | "parameters">): Replica {
-        const parameters = UniverseParameters.parse(request.parameters);
-
-        return this.#universeReplica(request.name, request.scope, parameters);
-    }
-
-    /** Write a request's parameters in JSON form. */
-    static #json(parameters: ChainParameters | UniverseParameters): Subscription["parameters"] {
-        return schema.jsonObject().parse(parameters);
-    }
-
-    /** Build a chain replica: access rows, replicated types' inherited rows and scopes' rows. */
-    #chainReplica(name: string, scope: string, parameters: ChainParameters): Replica {
-        // replicate the scope, and the replicated scopes and those between for a follower outside their chains
-        const { via } = parameters;
-        const scopes = [scope, ...parameters.between, ...via];
-
-        // leave out the access rows of the objects the follower stores, and of global principals living in the universe
-        const remote: Condition = {
-            NOT: {
-                OR: [
-                    ...parameters.local.map((type) => ({
-                        objectPackageId: type.packageId,
-                        objectType: type.type,
-                    })),
-                    ...this.global.map((type) => ({
-                        objectPackageId: type.packageId,
-                        objectType: type.type,
-                        objectScope: Scope.universe.id,
-                    })),
-                ],
-            },
-        };
-        // select the universe's relationships of the object types the follower's decisions read
-        const read: Condition = {
-            AND: [
-                remote,
-                {
-                    OR: [
-                        { scope: { ne: Scope.universe.id } },
-                        ...parameters.types.map((type) => ({
-                            scope: Scope.universe.id,
-                            objectPackageId: type.packageId,
-                            objectType: type.type,
-                        })),
-                    ],
-                },
-            ],
-        };
-        const access = decisionTables.map((table): ChainTable => [
-            table,
-            table === accessRelationship ? read : undefined,
-            scopes,
-        ]);
-
-        // add the rows of each replicated type this database stores, as it has no rows of others
-        const stored = parameters.replicated.filter((type) => {
+    /** Build an inherited replica: the typed rows a scope hands down or keeps outside. */
+    replicateInherited(
+        request: Pick<Subscription, "name" | "scope">,
+        parameters: InheritedParameters,
+    ): Replica {
+        // read each stored type's rows in the scope, or in a follower's outside scopes
+        const { name, scope } = request;
+        const { types, via, between } = parameters;
+        const stored = types.filter((type) => {
             const mapping = this.mapping(type);
 
             return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);
         });
-        const replicated = stored.flatMap((type) => this.#replicatedRows(type, scopes, via));
-        const owned = new Set(
-            stored
-                .filter((type) => this.requireMapping(type).policy.definition.scope === true)
-                .map((type) => this.#replicatedTable(type)),
+        const tables = stored.flatMap((type) =>
+            this.#replicatedRows(type, [scope, ...between, ...via], via),
         );
-
-        // replicate them under the request's name and scope, reading each table in its scopes
-        const tables = [...access, ...replicated];
+        const owned = stored
+            .filter((type) => this.requireMapping(type).policy.definition.scope === true)
+            .map((type) => this.#replicatedTable(type));
 
         return new Replica({
             name,
@@ -1051,8 +966,13 @@ export class Authorizer {
             scopes: new Map(
                 tables.map(([table, , living]): [Table, readonly string[]] => [table, living]),
             ),
-            everywhere: owned,
+            everywhere: new Set(owned),
         });
+    }
+
+    /** Decide whether a scope hands down rows of an object type. */
+    handsDown(type: ObjectTypeReference, scope: string): boolean {
+        return this.#replicatedRows(type, [scope], []).length > 0;
     }
 
     /** Select a replicated type's rows in a chain replica. */
@@ -1098,39 +1018,6 @@ export class Authorizer {
 
             return owned.length === 0 ? [] : [[table, { [mapping.id]: { in: owned } }, owned]];
         }
-    }
-
-    /** Build a universe replica: each requested type's rows, across the other rows' scopes. */
-    #universeReplica(name: string, scope: string, parameters: UniverseParameters): Replica {
-        // add each requested type's rows
-        const rows = parameters.rows.map(({ type, where }): [Table, Condition] => [
-            this.#replicatedTable(type),
-            where,
-        ]);
-
-        // replicate rows across the scopes of other requested rows, and replicate rows that live anywhere from every scope
-        const within = parameters.rows.flatMap(({ type, within: parents }): [Table, Table[]][] =>
-            parents === undefined
-                ? []
-                : [
-                      [
-                          this.#replicatedTable(type),
-                          parents.map((parent) => this.#replicatedTable(parent)),
-                      ],
-                  ],
-        );
-        const everywhere = parameters.rows.flatMap(({ type, isEverywhere }) =>
-            isEverywhere === true ? [this.#replicatedTable(type)] : [],
-        );
-
-        return new Replica({
-            name,
-            scope,
-            tables: rows.map(([table]) => table),
-            where: new Map(rows),
-            within: new Map(within),
-            everywhere: new Set(everywhere),
-        });
     }
 
     /** Read the table of a requested object type, refusing a type without a stored table. */
@@ -1192,7 +1079,7 @@ export class Authorizer {
         object: ObjectReference,
         creation: Creation,
         now: number,
-    ): RelationshipRow[] {
+    ): Select<typeof accessRelationship>[] {
         const scope = this.governingScope(object);
 
         return (creation.relationships ?? []).map((request) => {
@@ -1258,28 +1145,12 @@ export class Authorizer {
         ) {
             throw new AccessError(
                 "FORBIDDEN",
-                `a role cannot bind to ${subject.type}#${subject.relation}: it is not a declared subject set or scope relation`,
+                `a role cannot bind to ${subject.type}#${subject.relation}: roles bind to subject sets and scope relations`,
             );
         }
         // require a future expiry
         else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
             throw new AccessError("FORBIDDEN", "a relationship must expire in the future");
-        }
-    }
-
-    /** Remove the relationships bound to one request after it commits. */
-    async release(database: DatabaseConnection, requestId: string): Promise<void> {
-        // delete the request's relationships on local types
-        const types = this.local.map((type) =>
-            and(
-                eq(accessRelationship.objectPackageId, type.packageId),
-                eq(accessRelationship.objectType, type.type),
-            ),
-        );
-        if (types.length > 0) {
-            await database
-                .delete(accessRelationship)
-                .where(and(eq(accessRelationship.requestId, requestId), combine(types, "OR")));
         }
     }
 
@@ -2031,7 +1902,7 @@ export class Authorizer {
                     Authorizer.#validateCondition(expression, type);
                     break;
                 case "through":
-                    this.#validateThrough(type, expression, path);
+                    this.#registerThrough(type, expression, path);
                     break;
             }
         }
@@ -2048,8 +1919,8 @@ export class Authorizer {
         }
     }
 
-    /** Require an arrow to follow a relation to plain objects of types declaring the permission. */
-    #validateThrough(
+    /** Require an arrow to reach plain types declaring the permission, and record its relation. */
+    #registerThrough(
         type: Policy,
         expression: Extract<AccessExpression, { kind: "through" }>,
         path: ReadonlySet<string>,
@@ -2057,6 +1928,13 @@ export class Authorizer {
         // follow the relation to plain objects of types declaring the permission
         const definition = type.definition;
         const relation = this.relation(type, expression.relation);
+        this.#arrows.add(
+            PermissionReference.key({
+                packageId: definition.packageId,
+                type: definition.name,
+                name: expression.relation,
+            }),
+        );
         for (const subject of this.scopeTypes(type, expression.relation, expression.permission)) {
             if (subject.relation !== undefined || subject.wildcard) {
                 throw new AccessError(

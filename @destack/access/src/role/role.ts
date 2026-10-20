@@ -1,6 +1,5 @@
 import * as policies from "../declare/principal.ts";
 import { zip } from "@destack/schema";
-import type { RelationshipCondition } from "../relationship/relationship.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
@@ -305,7 +304,6 @@ export const Role = {
                 throw new AccessError("CONFLICT", "role name is already in use");
             }
             const record = await Role.read(authorization.transaction, scope.id, id);
-            authorization.renew();
 
             return Role.describe(record, request.permissions);
         });
@@ -354,7 +352,6 @@ export const Role = {
                     changes.permissions,
                 );
             }
-            authorization.renew();
 
             return Role.describe(
                 updated,
@@ -405,7 +402,6 @@ export const Role = {
                 before: record,
                 after: null,
             });
-            authorization.renew();
 
             return Role.describe(record, permissions);
         });
@@ -465,7 +461,6 @@ export const Role = {
                     request.permissions,
                 );
             }
-            authorization.renew();
 
             return Role.describe(updated, request.permissions);
         });
@@ -508,7 +503,6 @@ export const Role = {
 
             return Relationship.create(request, authorization);
         });
-        authorization.renew();
 
         return relationship;
     },
@@ -523,13 +517,11 @@ export const Role = {
             readonly subject: Subject;
             /** The object in the scope the role is bound on, the scope itself when absent. */
             readonly object?: ObjectReference;
-            /** What a request must meet for the binding to apply. */
-            readonly conditions?: RelationshipCondition;
         },
         authorization: Authorization,
     ): Promise<void> {
         // drop the binding and the role when it grants nothing
-        const { subject, object, conditions, ...request } = binding;
+        const { subject, object, ...request } = binding;
         if (request.permissions.length === 0) {
             await Relationship.replace({ scope: scope.id }, [], authorization);
             const existing = await authorization.transaction.read(accessRole).findFirst({
@@ -554,7 +546,6 @@ export const Role = {
                     object: object ?? scope,
                     role: role.id,
                     subject,
-                    ...(conditions === undefined ? {} : { conditions }),
                 },
             ],
             authorization,
@@ -577,7 +568,7 @@ function isBinding(
         Subject.same(relationship.object, request.object) &&
         Subject.same(relationship.subject, request.subject) &&
         relationship.expiresAt === null &&
-        relationship.conditions === undefined
+        relationship.linkSecret === undefined
     );
 }
 

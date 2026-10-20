@@ -1,5 +1,4 @@
 export {
-    RelationshipCondition,
     Relationship,
     type RelationshipRequest,
     type RelationshipSelection,

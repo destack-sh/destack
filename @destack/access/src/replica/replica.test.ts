@@ -26,11 +26,8 @@ import {
     space,
     spaceTable,
 } from "../test/fixture.ts";
-import { openFixture } from "../test/database.ts";
+import { openDatabase, openFixture } from "../test/database.ts";
 import { Clock } from "@destack/environment";
-
-/** The object types whose universe relationships the tests' decisions read: every test type's. */
-const TYPES = policies.map((each) => each.typeReference);
 
 /** The owner of the account and the space. */
 const alice: AccessContext = {
@@ -56,28 +53,29 @@ const carol: AccessContext = {
     linkSecrets: [],
 };
 
-/** Build a scope's chain replica for an authorizer's database, with its subscription. */
-function chainOf(authorizer: Authorizer, scope: string) {
-    const subscription = Authorizer.chainSubscription({
-        name: Authorizer.chainReplica(scope),
+/** Build a scope's own chain replica for an authorizer's database, with its subscription. */
+function chainOf(authorizer: Authorizer, scope: string, target = scope) {
+    const name = `${CHAIN_PUBLICATION}:${target}`;
+    const local = scope === target ? authorizer.local : [];
+    const parameters = { scopes: [target, scope], local: [...local], via: [], between: [] };
+    const subscription: Subscription = {
+        name,
+        publication: CHAIN_PUBLICATION,
         scope,
-        target: scope,
-        parameters: {
-            local: [...authorizer.local],
-            replicated: [...authorizer.replicated],
-            via: [],
-            between: [],
-            types: TYPES,
-        },
-    });
+        target,
+        parameters,
+    };
 
-    return { replica: authorizer.replicateChain(subscription), subscription };
+    return {
+        replica: authorizer.replicateChain({ name, scope, target }, parameters),
+        subscription,
+    };
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
     // open the universe's database with accounts and spaces, the space's own, and an app's with notes
-    const global = await openFixture();
-    const regional = await openFixture();
+    const global = await openDatabase();
+    const regional = await openDatabase();
     const app = await openFixture();
     onTestFinished(async () => {
         await Promise.all([global.close(), regional.close(), app.close()]);
@@ -204,8 +202,8 @@ test("relay an account's access through the space's database into an app's, and 
 
 test("write a home's own access at the home as it is born, beside the chain it replicates, and none where its creator stores its row", async () => {
     // create an account and its space owned by alice in the universe, which stores the space's row alone
-    const global = await openFixture();
-    const home = await openFixture();
+    const global = await openDatabase();
+    const home = await openDatabase();
     onTestFinished(async () => {
         await Promise.all([global.close(), home.close()]);
     });
@@ -225,19 +223,7 @@ test("write a home's own access at the home as it is born, beside the chain it r
 
     // replicate the home's chain before it is born, store its row, and receive it with its owner
     const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
-    const born = await spaces.chain(
-        home.database,
-        "personal",
-        { kind: "home", parent: "account-1" },
-        TYPES,
-    );
-    for (const subscription of born) {
-        await replicate(
-            home.database,
-            { replica: spaces.replicateChain(subscription), subscription },
-            feed,
-        );
-    }
+    await replicate(home.database, chainOf(spaces, "account-1", "personal"), feed);
     await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await Authorization.run(
         spaces,

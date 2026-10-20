@@ -12,7 +12,7 @@ import { Elevation } from "../context/elevation.ts";
 import { GrantPermission } from "../grant/permission.ts";
 import { Grant } from "../grant/grant.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import type { RelationshipRow, RoleBinding } from "../relationship/table.ts";
+import { type RoleBinding, type accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
 import { RoleGrant } from "../role/closure.ts";
@@ -772,7 +772,10 @@ export class Access {
     }
 
     /** Decide whether a relationship makes its subject a member of a set of some or all types. */
-    static #isMembership(row: RelationshipRow, sets: readonly SubjectType[] | undefined): boolean {
+    static #isMembership(
+        row: Select<typeof accessRelationship>,
+        sets: readonly SubjectType[] | undefined,
+    ): boolean {
         return (
             row.relation !== null &&
             (sets === undefined ||
@@ -854,5 +857,5 @@ type RoleRows = {
     /** The permissions the roles grant. */
     readonly permissions: readonly Select<typeof accessRolePermission>[];
     /** The relationships on the roles, such as their inclusions. */
-    readonly relationships: readonly RelationshipRow[];
+    readonly relationships: readonly Select<typeof accessRelationship>[];
 };

@@ -10,6 +10,9 @@ import { accessGrant } from "../grant/table.ts";
 /** The name of the publication replicating a scope's chain. */
 export const CHAIN_PUBLICATION = "chain";
 
+/** The name of the publication replicating one object type's rows a scope hands down. */
+export const INHERITED_PUBLICATION = "inherited";
+
 /** The access tables decisions read, parents first. */
 export const decisionTables: readonly Table[] = [
     Scope.table,

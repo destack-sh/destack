@@ -15,9 +15,9 @@ import {
 /** How long a test session credential lasts: a minute, longer than any test. */
 const CREDENTIAL_MILLISECONDS = 60_000;
 
-/** Open a migrated application database, PostgreSQL if configured, with users and one grant. */
-export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
-    // open the application database and authorize its objects
+/** Open a migrated database, PostgreSQL if configured, with two users and no rows. */
+export async function openDatabase(dialect = nth(TEST_DIALECTS, -1)) {
+    // open the database and authorize its objects
     const test = await TestDatabase.create(dialect, fixtureDatabase, { isMigrated: true });
     const { database } = test;
     const authorizer = new Authorizer(policies, mappings);
@@ -41,7 +41,14 @@ export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
         credential: sessionCredential("bob", 1000),
     };
 
-    // populate the migrated database and grant bob one note
+    return { test, database, authorizer, alice, bob, close: () => test.close() };
+}
+
+/** Open a migrated application database, PostgreSQL if configured, with its notes and one grant. */
+export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
+    // populate the database and grant bob one note
+    const opened = await openDatabase(dialect);
+    const { database, authorizer, alice } = opened;
     await database.insert(item).values(rows);
     await Authorization.run(
         authorizer,
@@ -58,7 +65,7 @@ export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
             ),
     );
 
-    return { test, database, authorizer, alice, bob, close: () => test.close() };
+    return opened;
 }
 
 /** Reference a globally identified user. */

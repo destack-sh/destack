@@ -56,16 +56,6 @@ export const accessInvitation = defineTable(
         subjectRelation: text("subject_relation"),
         /** The exclusive time the accepted relationship expires, in Unix milliseconds. */
         relationshipExpiresAt: integer("relationship_expires_at"),
-        /** The only request the accepted relationship applies to. */
-        requestId: text("request_id"),
-        /** The credential a call presents for the accepted relationship to apply. */
-        credential: text("credential"),
-        /** The digest of the link secret a request must present. */
-        linkSecret: text("link_secret"),
-        /** The minimum authentication assurance level. */
-        assurance: integer("assurance"),
-        /** The longest time since authentication, in milliseconds. */
-        maxAge: integer("max_age"),
         /** Why the inviting principal offers or asks for the relationship. */
         purpose: text("purpose"),
         /** The exclusive time the invitation lapses, in Unix milliseconds. */
@@ -74,7 +64,7 @@ export const accessInvitation = defineTable(
         status: text("status").validate(InvitationStatus).notNull().default("pending"),
     },
     {
-        log: { retention: "history" },
+        log: { retention: "history", isShared: true },
         constraints: (invitation) => [
             index("invitation_object").on(
                 invitation.objectPackageId,
@@ -116,10 +106,6 @@ export const accessInvitation = defineTable(
                     },
                 ],
             }),
-            check("invitation_assurance", {
-                assurance: { OR: [{ isNull: true }, { gte: 1, lte: 3 }] },
-            }),
-            check("invitation_max_age", { maxAge: { OR: [{ isNull: true }, { gt: 0 }] } }),
             check("invitation_status", { status: { in: [...INVITATION_STATUSES] } }),
             check("invitation_expiry", { expiresAt: { gt: { field: "createdAt" } } }),
         ],

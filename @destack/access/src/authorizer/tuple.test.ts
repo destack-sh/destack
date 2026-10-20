@@ -13,7 +13,6 @@ import {
     principal,
     AccessContext,
     type PermissionReference,
-    type RelationshipCondition,
     ANONYMOUS,
     Caller,
 } from "../index.ts";
@@ -65,6 +64,11 @@ function lifetime(createdAt: number, expiresAt: number | null) {
     };
 }
 
+/** Share a relationship through a link with this secret's digest, or directly. */
+function linkSecretOf(linkSecret: string | null) {
+    return linkSecret === null ? {} : { linkSecret };
+}
+
 test.for(TEST_DIALECTS)(
     "decide in memory exactly as the permission queries do, for objects and the relationships they share, for random access models on %s",
     async (dialect) => {
@@ -107,7 +111,7 @@ test.for(TEST_DIALECTS)(
         }
         await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
 
-        // relate subjects through every relation shape and condition
+        // relate subjects through every relation shape, with and without a share link
         const subjects: Subject[] = [
             user("bob"),
             user("carol"),
@@ -116,15 +120,7 @@ test.for(TEST_DIALECTS)(
             { ...team.reference("personal", "t1"), relation: "member" },
             anyone.reference("*", "*"),
         ];
-        const conditions: RelationshipCondition[] = [
-            {},
-            {},
-            { linkSecret: "c".repeat(64) },
-            { assurance: 2 },
-            { maxAge: 100 },
-            { request: "request-1" },
-            { credential: "session:1" },
-        ];
+        const linkSecrets: (string | null)[] = [null, null, "c".repeat(64)];
 
         // call with the request attributes the policies' conditions read
         const attributes = {
@@ -279,7 +275,7 @@ test.for(TEST_DIALECTS)(
                             ? pick([user("bob"), user("carol"), agent])
                             : pick(subjects),
                         ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
-                        ...(isMembership ? {} : { conditions: pick(conditions) }),
+                        ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
                     },
                     "personal",
                 );
@@ -491,7 +487,7 @@ test("explain which grants allow a caller and why the others fail", async () => 
                 subject: anyone.reference("*", "*"),
                 createdAt: 1,
                 expiresAt: null,
-                conditions: { linkSecret },
+                linkSecret,
             },
             "personal",
         ),

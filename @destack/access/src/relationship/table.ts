@@ -58,29 +58,20 @@ export const accessRelationship = defineTable(
         subjectId: text("subject_id").notNull(),
         /** The relation whose members are the subjects, for a subject set. */
         subjectRelation: text("subject_relation"),
+        /** The object's key, as `ObjectReference.key` writes it. */
+        objectKey: text("object_key").notNull(),
+        /** The key of the object whose set is the subject, absent for a direct subject. */
+        subjectSetKey: text("subject_set_key"),
         /** Optional expiry in UTC epoch milliseconds. */
         expiresAt: integer("expires_at"),
-        /** The only request the relationship applies to, until it commits. */
-        requestId: text("request_id"),
-        /** The credential a call presents for it to apply, such as a session or agent. */
-        credential: text("credential"),
-        /** The digest of the link secret a request must present. */
+        /** The digest of the link secret a request must present, for a share link. */
         linkSecret: text("link_secret"),
-        /** The minimum authentication assurance level. */
-        assurance: integer("assurance"),
-        /** The longest time since authentication, in milliseconds. */
-        maxAge: integer("max_age"),
     },
     {
-        log: { retention: "history" },
+        log: { retention: "history", isShared: true },
         constraints: (relationship) => [
-            index("relationship_request").on(relationship.requestId),
             index("relationship_expiry").on(relationship.expiresAt),
-            index("relationship_max_age").on(relationship.maxAge),
-            check("relationship_assurance", {
-                assurance: { OR: [{ isNull: true }, { gte: 1, lte: 3 }] },
-            }),
-            check("relationship_max_age", { maxAge: { OR: [{ isNull: true }, { gt: 0 }] } }),
+            index("relationship_object_key").on(relationship.objectKey),
             ...managerChecks("relationship", relationship),
             uniqueIndex("relationship_tuple")
                 .on(
@@ -95,11 +86,7 @@ export const accessRelationship = defineTable(
                     relationship.subjectScope,
                     relationship.subjectId,
                     relationship.subjectRelation,
-                    relationship.requestId,
-                    relationship.credential,
                     relationship.linkSecret,
-                    relationship.assurance,
-                    relationship.maxAge,
                 )
                 .nullsNotDistinct(),
             index("relationship_subject").on(
@@ -139,11 +126,8 @@ export const accessRelationship = defineTable(
     },
 );
 
-/** A relationship as `Relationship.encode` stores it, with subject and condition columns. */
-export type RelationshipRow = Select<typeof accessRelationship>;
-
 /** A relationship binding a role. */
-export type RoleBinding = RelationshipRow & { readonly roleId: string };
+export type RoleBinding = Select<typeof accessRelationship> & { readonly roleId: string };
 
 /** The relationship columns of the table or one of its aliases. */
 export type RelationshipColumnMap = Readonly<
@@ -162,11 +146,7 @@ export type RelationshipColumnMap = Readonly<
         | "subjectRelation"
         | "createdAt"
         | "expiresAt"
-        | "requestId"
-        | "credential"
-        | "linkSecret"
-        | "assurance"
-        | "maxAge",
+        | "linkSecret",
         SQLWrapper
     >
 >;

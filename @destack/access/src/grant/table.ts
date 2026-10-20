@@ -45,7 +45,7 @@ export const accessGrant = defineTable(
         expiresAt: integer("expires_at"),
     },
     {
-        log: { retention: "history" },
+        log: { retention: "history", isShared: true },
         constraints: (grant) => [
             // one grant per delegator and delegate, found by its delegator first
             uniqueIndex("grant_parties").on(

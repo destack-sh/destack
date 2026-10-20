@@ -23,40 +23,16 @@ import {
     type SQL,
     type Snapshot,
 } from "@destack/db";
-import { Instant, schema } from "@destack/schema";
+import { Digest, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
-import {
-    accessRelationship,
-    type RelationshipColumnMap,
-    type RelationshipRow,
-    type RoleBinding,
-} from "./table.ts";
+import { accessRelationship, type RelationshipColumnMap, type RoleBinding } from "./table.ts";
 
 /** A relationship as its row encodes it, before a manager and revision apply. */
 type EncodedRelationship = Omit<
     Select<typeof accessRelationship>,
     "revision" | "managerInstallationId" | "managerPackageId" | "managerName" | "detachedAt"
 >;
-
-/** What a request must satisfy for a relationship to apply, beyond its lifetime. */
-export const RelationshipCondition = schema.object({
-    /** Apply only to this request, and only until it commits. */
-    request: schema.string().min(1).exactOptional(),
-    /** Apply only to calls presenting this credential, as `<kind>:<id>`. */
-    credential: schema.string().min(1).exactOptional(),
-    /** Apply only when the request presents the link secret with this digest. */
-    linkSecret: schema
-        .string()
-        .regex(/^[0-9a-f]{64}$/u)
-        .exactOptional(),
-    /** Apply only when the caller authenticated at this assurance level or higher. */
-    assurance: schema.number().int().min(1).max(3).exactOptional(),
-    /** Apply only within this many milliseconds of the caller's authentication. */
-    maxAge: schema.number().int().positive().exactOptional(),
-});
-/** What a request must satisfy for a relationship to apply, beyond its lifetime. */
-export type RelationshipCondition = schema.Infer<typeof RelationshipCondition>;
 
 /** A relationship apart from its relation or role, which each kind of relationship extends. */
 export const relationshipBase = schema.object({
@@ -70,8 +46,8 @@ export const relationshipBase = schema.object({
     createdAt: Instant,
     /** The exclusive expiry time in Unix milliseconds, or null for no expiry. */
     expiresAt: Instant.nullable(),
-    /** What a request must satisfy for the relationship to apply. */
-    conditions: RelationshipCondition.exactOptional(),
+    /** The digest of the link secret a request must present, for a share link. */
+    linkSecret: Digest.exactOptional(),
 });
 
 /** The schema of a relationship: an object related to a subject by relation or role. */
@@ -96,8 +72,8 @@ export type RelationshipRequest = {
     readonly subject: Subject;
     /** Optional expiry in UTC epoch milliseconds. */
     readonly expiresAt?: number;
-    /** What a request must satisfy for the relationship to apply. */
-    readonly conditions?: RelationshipCondition;
+    /** The digest of the link secret a request must present, for a share link. */
+    readonly linkSecret?: Digest;
 } & ({ readonly relation: string } | { readonly role: string });
 
 /** An object related to a subject by a declared relation or bound role: schema and rows. */
@@ -116,42 +92,13 @@ export const Relationship = {
             ...Relationship.viaColumns(relationship),
             ...Relationship.subjectColumns(relationship.subject),
             expiresAt: relationship.expiresAt,
-            ...Relationship.conditionColumns(relationship.conditions),
+            linkSecret: relationship.linkSecret ?? null,
+            objectKey: ObjectReference.key(relationship.object),
+            subjectSetKey:
+                relationship.subject.relation === undefined
+                    ? null
+                    : ObjectReference.key(relationship.subject),
         };
-    },
-
-    /** Write what a request must satisfy as a row's condition columns. */
-    conditionColumns(
-        conditions: RelationshipCondition | undefined,
-    ): Pick<
-        Select<typeof accessRelationship>,
-        "requestId" | "credential" | "linkSecret" | "assurance" | "maxAge"
-    > {
-        return {
-            requestId: conditions?.request ?? null,
-            credential: conditions?.credential ?? null,
-            linkSecret: conditions?.linkSecret ?? null,
-            assurance: conditions?.assurance ?? null,
-            maxAge: conditions?.maxAge ?? null,
-        };
-    },
-
-    /** Read what a request must satisfy from a row's condition columns, absent for nothing. */
-    conditionsOf(
-        row: Pick<
-            Select<typeof accessRelationship>,
-            "requestId" | "credential" | "linkSecret" | "assurance" | "maxAge"
-        >,
-    ): { readonly conditions?: RelationshipCondition } {
-        const conditions = {
-            ...(row.requestId === null ? {} : { request: row.requestId }),
-            ...(row.credential === null ? {} : { credential: row.credential }),
-            ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
-            ...(row.assurance === null ? {} : { assurance: row.assurance }),
-            ...(row.maxAge === null ? {} : { maxAge: row.maxAge }),
-        };
-
-        return Object.keys(conditions).length === 0 ? {} : { conditions };
     },
 
     /** Read a row's subject from its subject columns. */
@@ -209,7 +156,7 @@ export const Relationship = {
             subject: Relationship.subjectOf(row),
             createdAt: row.createdAt,
             expiresAt: row.expiresAt,
-            ...Relationship.conditionsOf(row),
+            ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
         };
     },
 
@@ -217,7 +164,7 @@ export const Relationship = {
     async readByObject(
         snapshot: Snapshot,
         objects: readonly ObjectReference[],
-    ): Promise<RelationshipRow[]> {
+    ): Promise<Select<typeof accessRelationship>[]> {
         return snapshot.select(
             accessRelationship,
             ["objectPackageId", "objectType", "objectScope", "objectId"],
@@ -237,7 +184,7 @@ export const Relationship = {
             /** The one subject, subject set or wildcard with them, any by default. */
             readonly subject?: Subject;
         },
-    ): Promise<RelationshipRow[]> {
+    ): Promise<Select<typeof accessRelationship>[]> {
         // match the object, then each given field exactly
         const { relation, role, subject } = match;
 
@@ -260,7 +207,7 @@ export const Relationship = {
     async readBySubject(
         snapshot: Snapshot,
         subjects: readonly Subject[],
-    ): Promise<RelationshipRow[]> {
+    ): Promise<Select<typeof accessRelationship>[]> {
         // list each possible relationship subject, with the wildcards that match plain subjects
         const wanted = new Map<string, readonly (string | null)[]>();
         for (const subject of subjects) {
@@ -344,7 +291,7 @@ export const Relationship = {
     },
 
     /** Match the rows with an encoded relationship's tuple, as the unique tuple compares them. */
-    equal(row: EncodedRelationship): Condition<RelationshipRow> {
+    equal(row: EncodedRelationship): Condition<Select<typeof accessRelationship>> {
         return {
             ...Relationship.objectColumns(ObjectReference.at("object", row)),
             relation: Relationship.nullable(row.relation),
@@ -354,11 +301,7 @@ export const Relationship = {
             subjectScope: row.subjectScope,
             subjectId: row.subjectId,
             subjectRelation: Relationship.nullable(row.subjectRelation),
-            requestId: Relationship.nullable(row.requestId),
-            credential: Relationship.nullable(row.credential),
             linkSecret: Relationship.nullable(row.linkSecret),
-            assurance: Relationship.nullable(row.assurance),
-            maxAge: Relationship.nullable(row.maxAge),
         };
     },
 
@@ -367,8 +310,8 @@ export const Relationship = {
         transaction: Transaction,
         selection: RelationshipSelection,
         manager: Manager | null,
-    ): Promise<RelationshipRow[]> {
-        let covered: Condition<RelationshipRow>;
+    ): Promise<Select<typeof accessRelationship>[]> {
+        let covered: Condition<Select<typeof accessRelationship>>;
         // select a subject's relationships through a relation
         if ("objects" in selection) {
             covered = Relationship.heldThrough(selection);
@@ -388,7 +331,7 @@ export const Relationship = {
     },
 
     /** Match the relationships one declaration manages. */
-    managedBy(manager: Manager): Condition<RelationshipRow> {
+    managedBy(manager: Manager): Condition<Select<typeof accessRelationship>> {
         return {
             managerInstallationId: manager.installationId,
             managerPackageId: manager.packageId,
@@ -401,7 +344,7 @@ export const Relationship = {
         readonly objects: readonly ObjectTypeReference[];
         readonly relation: string;
         readonly subject: Subject;
-    }): Condition<RelationshipRow> {
+    }): Condition<Select<typeof accessRelationship>> {
         const columns = Relationship.subjectColumns(selection.subject);
 
         return {
@@ -457,7 +400,7 @@ export const Relationship = {
     },
 
     /** Decide whether a relationship binds a role. */
-    isBinding(row: RelationshipRow): row is RoleBinding {
+    isBinding(row: Select<typeof accessRelationship>): row is RoleBinding {
         return row.roleId !== null;
     },
 
@@ -468,7 +411,6 @@ export const Relationship = {
 
             return Relationship.create(request, authorization);
         });
-        authorization.renew();
 
         return relationship;
     },
@@ -501,7 +443,6 @@ export const Relationship = {
                 before: row,
                 after: null,
             });
-            authorization.renew();
 
             return relationship;
         });
@@ -521,7 +462,7 @@ export const Relationship = {
             {
                 ...request,
                 subject: anyone.reference("*", "*"),
-                conditions: { linkSecret: linkSecret.digest },
+                linkSecret: linkSecret.digest,
             },
             authorization,
         );
@@ -568,7 +509,6 @@ export const Relationship = {
                 await Relationship.create(request, authorization);
             }
         });
-        authorization.renew();
     },
 
     /** Insert a valid relationship under the caller's declaration, refusing duplicates. */
@@ -587,7 +527,7 @@ export const Relationship = {
             subject: request.subject,
             createdAt: context.now,
             expiresAt: request.expiresAt ?? null,
-            ...(request.conditions === undefined ? {} : { conditions: request.conditions }),
+            ...(request.linkSecret === undefined ? {} : { linkSecret: request.linkSecret }),
         };
 
         // insert it unless the same relationship exists
@@ -627,16 +567,14 @@ export type RelationshipSelection = {
     | Record<never, never>
 );
 
-/** Identify a relationship by its object, relation or role, subject, expiry and conditions. */
+/** Identify a relationship by its object, relation or role, subject, expiry and link secret. */
 function identity(relationship: RelationshipRequest | Relationship): string {
     return JSON.stringify([
         ObjectReference.key(relationship.object),
         Relationship.viaColumns(relationship),
         Subject.key(relationship.subject),
         relationship.expiresAt ?? null,
-        Object.entries(relationship.conditions ?? {}).toSorted(([left], [right]) =>
-            left.localeCompare(right),
-        ),
+        relationship.linkSecret ?? null,
     ]);
 }
 

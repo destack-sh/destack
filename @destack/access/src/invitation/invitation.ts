@@ -15,11 +15,7 @@ import {
 import { type Identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";
-import {
-    Relationship,
-    relationshipBase,
-    type RelationshipCondition,
-} from "../relationship/relationship.ts";
+import { Relationship, relationshipBase } from "../relationship/relationship.ts";
 import { accessInvitation, InvitationStatus } from "./table.ts";
 
 /** A relationship an invitation offers or asks for: by a declared relation, or a role binding. */
@@ -72,8 +68,6 @@ export interface InvitationRequest {
         readonly subject: Subject;
         /** Optional expiry in UTC epoch milliseconds. */
         readonly expiresAt?: number;
-        /** What a request must satisfy for the relationship to apply. */
-        readonly conditions?: RelationshipCondition;
     } & ({ readonly relation: string } | { readonly role: string });
     /** Why the inviting principal offers or asks for the relationship. */
     readonly purpose?: string;
@@ -217,7 +211,6 @@ export const Invitation = {
             ...Relationship.viaColumns(invited),
             ...Relationship.subjectColumns(invited.subject),
             relationshipExpiresAt: invited.expiresAt,
-            ...Relationship.conditionColumns(invited.conditions),
             ...ObjectReference.columns("inviter", invitation.inviter ?? undefined),
             purpose: invitation.purpose ?? null,
             expiresAt: invitation.expiresAt,
@@ -234,7 +227,6 @@ export const Invitation = {
                 ...Relationship.viaRelation(row),
                 subject: Relationship.subjectOf(row),
                 expiresAt: row.relationshipExpiresAt,
-                ...Relationship.conditionsOf(row),
             },
             inviter: row.inviterId === null ? null : ObjectReference.at("inviter", row),
             ...(row.purpose === null ? {} : { purpose: row.purpose }),
@@ -284,7 +276,6 @@ export const Invitation = {
                     ...Relationship.via(invited),
                     subject: invited.subject,
                     expiresAt: invited.expiresAt ?? null,
-                    ...(invited.conditions === undefined ? {} : { conditions: invited.conditions }),
                 },
                 inviter,
                 ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
@@ -348,7 +339,6 @@ export const Invitation = {
                 authorization,
             );
             await settle(id, "accepted", context.now, authorization);
-            authorization.renew();
 
             return relationship;
         });

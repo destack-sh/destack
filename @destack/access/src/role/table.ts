@@ -55,7 +55,7 @@ export const accessRole = defineTable(
         description: text("description").notNull(),
     },
     {
-        log: { retention: "history" },
+        log: { retention: "history", isShared: true },
         constraints: (role) => [
             ...managerChecks("role", role),
             unique("role_scope_name").on(role.scope, role.name),
@@ -84,7 +84,7 @@ export const accessRolePermission = defineTable(
         name: text("name").notNull(),
     },
     {
-        log: { retention: "history" },
+        log: { retention: "history", isShared: true },
         constraints: (permission) => [
             uniqueIndex("role_permission_name").on(
                 permission.roleId,

@@ -317,6 +317,54 @@ test("relate the members of a set in a field", async () => {
     expect(await readable(carol)).toEqual(["c"]);
 });
 
+test("decide anew once a transaction adds the caller to a group or to a set's field", async () => {
+    const { database, query, defineRole, relate } = await openRoleFixture();
+
+    // bind a reader on "a" to a group's members, and share "c" with a team's
+    const reader = await defineRole(1, [node.permission("read")]);
+    const engineering = group.reference("account-1", "engineering");
+    await relate({
+        object: node.reference("personal", "a"),
+        role: reader,
+        subject: { ...engineering, relation: "member" },
+    });
+    await relate({
+        object: node.reference("personal", "c"),
+        relation: "viewer",
+        subject: { ...team.reference("personal", "team-1"), relation: "member" },
+    });
+
+    // decide carol's reads before and after joining each set in one transaction
+    const decisions = await Authorization.run(
+        query,
+        database,
+        () => carol,
+        async (authorization) => {
+            const read = async (target: string) =>
+                (
+                    await authorization.check(
+                        node.permission("read"),
+                        node.reference("personal", target),
+                    )
+                ).isAllowed;
+            const before = [await read("a"), await read("c")];
+            await Relationship.create(
+                { object: engineering, relation: "member", subject: carol.subject },
+                authorization,
+            );
+            const joined = await read("a");
+            await authorization.transaction.write({
+                table: teamTable,
+                before: null,
+                after: { id: "team-1", scope: "personal", member: "carol" },
+            });
+
+            return [...before, joined, await read("c")];
+        },
+    );
+    expect(decisions).toEqual([false, false, true, true]);
+});
+
 test("bind only roles whose permissions the granting caller has", async () => {
     const { database, query, alice, defineRole } = await openRoleFixture();
 
@@ -396,7 +444,7 @@ test("bind only roles whose permissions the granting caller has", async () => {
     ).rejects.toMatchObject({
         code: "FORBIDDEN",
         message:
-            "a role cannot bind to node#viewer: it is not a declared subject set or scope relation",
+            "a role cannot bind to node#viewer: roles bind to subject sets and scope relations",
     });
 });
 
