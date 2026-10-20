@@ -42,7 +42,7 @@ function createTally(properties: { readonly marks: number }): Tally {
 }
 
 /** A tally starting at two marks. */
-const createTallyTwoMarks = defineExample({
+export const createTallyTwoMarks = defineExample({
     of: createTally,
     name: "two-marks",
     description: "a tally starting at two marks",
@@ -51,7 +51,7 @@ const createTallyTwoMarks = defineExample({
 });
 
 /** Mark a tally twice, then set it back. */
-const createTallyMarkTwice = defineScenario({
+export const createTallyMarkTwice = defineScenario({
     of: createTally,
     interaction: tallyInteraction,
     name: "mark-twice",
