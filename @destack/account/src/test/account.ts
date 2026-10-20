@@ -30,13 +30,12 @@ import { AccessFixture } from "@destack/access/test";
 import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
-import { ObjectStore } from "@destack/object/server";
+import objectServer, { ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
 import {
-    nth,
     canonicalize,
     Digest,
     found,
@@ -51,9 +50,9 @@ import { CallError } from "@destack/runtime/error";
 import { Health } from "@destack/runtime/health";
 import { Server, type PackageImplementation } from "@destack/runtime/server";
 import { testCallKey } from "@destack/runtime/test";
-import { createClient, type ClientOf } from "@destack/runtime/client";
+import { createClient, type ClientOf, type ClientTarget } from "@destack/runtime/client";
+import type { ProcedureRouter } from "@destack/runtime";
 import { Setting } from "@destack/setting";
-import settingPackage from "@destack/setting/package";
 import { settingServer } from "@destack/setting/server";
 import {
     AccountAuthentication,
@@ -498,7 +497,7 @@ export class AccountFixture implements AsyncDisposable {
             subject: principal.user.reference(Scope.universe.id, userId),
             ...(await this.#accountOf(userId)),
             session: token,
-            client: this.sessionClient(token),
+            client: this.sessionClient(token, accountPackage),
         };
     }
 
@@ -533,16 +532,19 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Connect a typed client acting as a stored user through a new session's access tokens. */
     async session(userId: Identifier<"user">): Promise<ClientOf<typeof accountPackage>> {
-        return this.sessionClient(await this.signIn(userId));
+        return this.sessionClient(await this.signIn(userId), accountPackage);
     }
 
-    /** Connect a typed client acting through a session's access tokens for the account package. */
-    sessionClient(sessionToken: string): ClientOf<typeof accountPackage> {
-        return createClient(accountPackage, {
-            url: ACCOUNTS_URL,
+    /** Connect a typed client of a universe package acting through a session's tokens. */
+    sessionClient<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
+        sessionToken: string,
+        handle: Handle,
+    ): ClientOf<Handle> {
+        return createClient<Handle["router"]>(handle, {
+            url: PackageMount.url(ORIGIN, handle.id),
             fetch: async (request: Request) => {
                 // replace the request's credential with the session's access token
-                const { accessToken } = await this.exchange(sessionToken, accountPackage.id);
+                const { accessToken } = await this.exchange(sessionToken, handle.id);
                 const headers = new Headers(request.headers);
                 headers.set("authorization", `Bearer ${accessToken}`);
 
@@ -694,7 +696,7 @@ export class AccountFixture implements AsyncDisposable {
         return {
             browser,
             session: token,
-            client: this.sessionClient(token),
+            client: this.sessionClient(token, accountPackage),
             id: userId,
             subject: principal.user.reference(Scope.universe.id, userId),
             ...(await this.#accountOf(userId)),
@@ -792,7 +794,7 @@ export class AccountFixture implements AsyncDisposable {
             this.objects.clock,
         );
         const enroller = accountId === this.platform ? ids.operator : ids.owner;
-        await identity.enroll(options.client ?? this.user(enroller), {
+        await identity.enroll(options.client ?? this.user(enroller, accountPackage), {
             scope: accountId,
             requestId: RequestId.create(this.objects.clock.now()),
             name: options.name ?? `machine-${identity.machineId.slice(-12)}`,
@@ -858,17 +860,20 @@ export class AccountFixture implements AsyncDisposable {
         };
     }
 
-    /** Connect to the account package as a stored user, verified by the fixture. */
-    user(userId: string): ClientOf<typeof accountPackage> {
+    /** Connect to a universe package as a stored user, verified by the fixture. */
+    user<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
+        userId: string,
+        handle: Handle,
+    ): ClientOf<Handle> {
         const subject = principal.user.reference(Scope.universe.id, userId);
         this.callers.set(userId, { kind: "fixture", id: userId, subject });
 
-        return this.connect(() => ({ [CALLER_HEADER]: userId }));
+        return this.connect(() => ({ [CALLER_HEADER]: userId }), handle);
     }
 
     /** Connect a typed client with an access token. */
     bearer(token: string): ClientOf<typeof accountPackage> {
-        return this.connect(() => ({ authorization: `Bearer ${token}` }));
+        return this.connect(() => ({ authorization: `Bearer ${token}` }), accountPackage);
     }
 
     /** Install a platform installation in a residency's home space. */
@@ -907,7 +912,7 @@ export class AccountFixture implements AsyncDisposable {
             subject: installation,
         });
 
-        return this.connect(() => ({ [CALLER_HEADER]: installation.id }));
+        return this.connect(() => ({ [CALLER_HEADER]: installation.id }), accountPackage);
     }
 
     /** Connect a caller that acts as a space or one of its installations. */
@@ -922,14 +927,17 @@ export class AccountFixture implements AsyncDisposable {
         return {
             id: subject.id,
             subject,
-            client: this.connect(() => ({ [CALLER_HEADER]: subject.id })),
+            client: this.connect(() => ({ [CALLER_HEADER]: subject.id }), accountPackage),
         };
     }
 
-    /** Connect a typed client of the account package sending the given headers. */
-    connect(headers: () => Record<string, string>): ClientOf<typeof accountPackage> {
-        return createClient(accountPackage, {
-            url: ACCOUNTS_URL,
+    /** Connect a typed client of a universe package sending the given headers. */
+    connect<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
+        headers: () => Record<string, string>,
+        handle: Handle,
+    ): ClientOf<Handle> {
+        return createClient<Handle["router"]>(handle, {
+            url: PackageMount.url(ORIGIN, handle.id),
             headers,
             fetch: (request) => this.fetch(request),
         });
@@ -1155,6 +1163,7 @@ export class AccountFixture implements AsyncDisposable {
         const opening = options.openRelease ?? AccountFixture.#opening(releases);
         const store = new ObjectStore({
             servers: [
+                objectServer,
                 accountServer({
                     resolver: { txt: async () => [] },
                     stacks: options.stacks,
@@ -1214,12 +1223,12 @@ export class AccountFixture implements AsyncDisposable {
 
         // serve each package to the callers the fixture verifies and to access tokens
         const callers = new Map<string, Verification>();
-        const accounts = nth(packages, 0);
-        const settings = nth(packages, 1);
-        const servers = new Map([
-            [accountPackage.id, AccountFixture.serve(accounts, database, callers, clock)],
-            [settingPackage.id, AccountFixture.serve(settings, database, callers, clock)],
-        ]);
+        const servers = new Map(
+            packages.map((implementation) => [
+                implementation.package.id,
+                AccountFixture.serve(implementation, database, callers, clock),
+            ]),
+        );
         for (const served of servers.values()) {
             await AccountFixture.#serving(served);
         }

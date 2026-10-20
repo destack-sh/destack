@@ -1,11 +1,10 @@
 import { none, principal, relation, Relationship, through, union } from "@destack/access";
 import { type Select } from "@destack/db";
-import { type MethodContext, defineObject, field } from "@destack/object";
+import { defineObject, field, type MethodContext, relationship } from "@destack/object";
 import { CallError } from "@destack/runtime/error";
 import { Scope } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { DEFAULT_MEMBER_ROLE, MEMBER_ROLES, organisation } from "./organisation.ts";
-import { relationship } from "./relationship.ts";
 
 /** The longest member title, in characters: a long job title with room to spare. */
 const TITLE_LENGTH = 200;

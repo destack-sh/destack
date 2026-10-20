@@ -1,7 +1,7 @@
 import { Relationship } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import { type Group, group } from "../object/group.ts";
-import { relationship } from "../object/relationship.ts";
+import { relationship } from "@destack/object";
 
 /** Implement groups. */
 export function implementGroup(): typeof group {

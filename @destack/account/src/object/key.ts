@@ -1,10 +1,10 @@
+import { Scope } from "@destack/sync";
 import { type Credential, none, permission, through, union } from "@destack/access";
 import { Condition, type Select, type Snapshot } from "@destack/db";
 import { MACHINE_KEY } from "@destack/runtime/authentication";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
-import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
-import { proof } from "./proof.ts";
+import { defineObject, field, type MethodContext, type ObjectType, proof } from "@destack/object";
 import { Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
@@ -154,7 +154,11 @@ export const Key = {
         const digest = await Digest.of(JSON.stringify([presented.thumbprint, presented.id]));
         await context
             .mutate(context.self, [
-                proof.call("create", { id: digest, expiresAt: presented.expiresAt }),
+                proof.call("create", {
+                    ...proof.in(Scope.universe.id),
+                    id: digest,
+                    expiresAt: presented.expiresAt,
+                }),
             ])
             .catch((error: unknown) => {
                 throw isCallError(error) && error.code === "CONFLICT"

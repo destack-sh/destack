@@ -111,9 +111,9 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     );
     const { publicKey } = await other.generate();
     expect([
-        await outcome(stranger.enroll(accounts.user(ids.stranger), enrolling)),
+        await outcome(stranger.enroll(accounts.user(ids.stranger, accountPackage), enrolling)),
         await outcome(
-            accounts.user(ids.owner).machine.enroll({
+            accounts.user(ids.owner, accountPackage).machine.enroll({
                 ...enrolling,
                 id: Identifier.create("machine"),
                 publicKey,
@@ -145,7 +145,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         );
     expect([
         await outcome(
-            namesake.enroll(accounts.user(ids.owner), {
+            namesake.enroll(accounts.user(ids.owner, accountPackage), {
                 ...enrolling,
                 requestId: RequestId.create(Date.now()),
                 name: taken,
@@ -155,7 +155,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         await rename("studio"),
         await rename("studio--main"),
         await outcome(
-            accounts.user(ids.owner).machine.rename({
+            accounts.user(ids.owner, accountPackage).machine.rename({
                 scope: accountId,
                 id: identity.machineId,
                 requestId: RequestId.create(Date.now()),
@@ -183,7 +183,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     const { publicKey: foreign, proof } = await impostor.generate();
     expect(
         await outcome(
-            accounts.user(ids.owner).key.create({
+            accounts.user(ids.owner, accountPackage).key.create({
                 scope: accountId,
                 requestId: RequestId.create(Date.now()),
                 parent: { ...machine.typeReference, id: identity.machineId },
@@ -194,7 +194,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     ).toBe("FORBIDDEN: permission denied: rotate");
 
     // revoke the machine as the owner
-    await accounts.user(ids.owner).machine.revoke({
+    await accounts.user(ids.owner, accountPackage).machine.revoke({
         scope: accountId,
         id: identity.machineId,
         requestId: RequestId.create(Date.now()),
@@ -207,7 +207,7 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
     const accountId = accounts.platform;
     const keys = new MemoryKeychain();
     const identity = new MachineIdentity(Identifier.create("machine"), keys, Clock.system);
-    await identity.enroll(accounts.user(ids.operator), {
+    await identity.enroll(accounts.user(ids.operator, accountPackage), {
         scope: accountId,
         requestId: RequestId.create(Date.now()),
         name: "edge",
@@ -282,7 +282,7 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
 
     // refuse every grant while the machine is disabled and grant again once enabled
     const status = (method: "disable" | "enable") =>
-        accounts.user(ids.operator).machine[method]({
+        accounts.user(ids.operator, accountPackage).machine[method]({
             scope: accountId,
             id: identity.machineId,
             requestId: RequestId.create(Date.now()),
@@ -293,7 +293,7 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
     expect([disabled, await grant(identity)]).toEqual([NO_STANDING_KEY, "executed"]);
 
     // refuse every grant once the operator revokes the machine
-    await accounts.user(ids.operator).machine.revoke({
+    await accounts.user(ids.operator, accountPackage).machine.revoke({
         scope: accountId,
         id: identity.machineId,
         requestId: RequestId.create(Date.now()),
@@ -309,7 +309,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
 
     // enroll a cloud machine on the same clock and take its token
     const identity = new MachineIdentity(Identifier.create("machine"), new MemoryKeychain(), clock);
-    await identity.enroll(fixture.user(ids.operator), {
+    await identity.enroll(fixture.user(ids.operator, accountPackage), {
         scope: fixture.platform,
         requestId: RequestId.create(Date.now()),
         name: "edge",
@@ -438,7 +438,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
     const identity = await accounts.enroll(ids.account);
     const change = (userId: string, name: "disable" | "drain" | "enable") =>
         outcome(
-            accounts.user(userId).machine[name]({
+            accounts.user(userId, accountPackage).machine[name]({
                 scope: ids.account,
                 id: identity.machineId,
                 requestId: RequestId.create(Date.now()),
@@ -462,7 +462,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
 
     // refuse a stranger changing the status and any change once the machine is revoked
     const stranger = await change(ids.stranger, "disable");
-    await accounts.user(ids.owner).machine.revoke({
+    await accounts.user(ids.owner, accountPackage).machine.revoke({
         scope: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(Date.now()),
@@ -495,7 +495,7 @@ test("rotate once for two identities of one machine rotating at once, ending on 
     const accountId = ids.account;
     const keys = new MemoryKeychain();
     const identity = new MachineIdentity(Identifier.create("machine"), keys, Clock.system);
-    await identity.enroll(accounts.user(ids.owner), {
+    await identity.enroll(accounts.user(ids.owner, accountPackage), {
         scope: accountId,
         requestId: RequestId.create(Date.now()),
         name: "racer",
@@ -557,7 +557,7 @@ test("authenticate a machine's token in a space it serves while its key stands, 
             { audience: AUDIENCE, universe: ISSUER, scope: spaceId, now: Date.now() },
         );
     const standing = (await authenticate())?.caller.subject;
-    await accounts.user(ids.owner).machine.revoke({
+    await accounts.user(ids.owner, accountPackage).machine.revoke({
         scope: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(Date.now()),

@@ -1,3 +1,4 @@
+import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, CHAIN_PUBLICATION, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
@@ -305,8 +306,8 @@ test("remove a space's delegated grants when the space is finalized", async () =
         principal.user.reference(Scope.universe.id, Identifier.create("user")),
     ];
     for (const delegate of delegates) {
-        await owner.client.grant.create({
-            userId: owner.id,
+        await fixture.sessionClient(owner.session, objectPackage).grant.create({
+            scope: owner.id,
             requestId: RequestId.create(Date.now()),
             delegate,
             permissions: [],
@@ -344,7 +345,9 @@ test("remove a space's delegated grants when the space is finalized", async () =
     });
 
     // leave the grants to the other space's installation and the person
-    const grants = (await owner.client.grant.list({ userId: owner.id })).items;
+    const grants = (
+        await fixture.sessionClient(owner.session, objectPackage).grant.list({ scope: owner.id })
+    ).items;
     expect(grants.map((grant) => ObjectReference.at("delegate", grant))).toEqual(
         delegates.slice(1),
     );

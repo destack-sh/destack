@@ -18,7 +18,11 @@ test("register clients with proven keys and revoke them with the sessions attach
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const againSession = await fixture.signIn(owner.id);
-    const again = { ...owner, session: againSession, client: fixture.sessionClient(againSession) };
+    const again = {
+        ...owner,
+        session: againSession,
+        client: fixture.sessionClient(againSession, accountPackage),
+    };
     const signedInOn = async () =>
         (
             await fixture.storage.database

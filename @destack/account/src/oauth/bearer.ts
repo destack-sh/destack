@@ -16,7 +16,7 @@ import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
 import { Issuance } from "./issuance.ts";
 import { PackageResource } from "./resource.ts";
-import { proof } from "../object/proof.ts";
+import { proof } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
 import type { Clock } from "@destack/environment";
@@ -63,7 +63,9 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         spend: async (digest, expiresAt, now) => {
             await options.objects.mutate(options.objects.serving(proof), {
                 id: RequestId.create(now),
-                calls: [proof.call("create", { id: digest, expiresAt })],
+                calls: [
+                    proof.call("create", { ...proof.in(Scope.universe.id), id: digest, expiresAt }),
+                ],
             });
         },
     });

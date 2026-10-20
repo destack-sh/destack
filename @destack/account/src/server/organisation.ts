@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import { CallError } from "@destack/runtime/error";
 import { account } from "../object/account.ts";
-import { invitation } from "../object/invitation.ts";
+import { invitation } from "@destack/object";
 import { member } from "../object/member.ts";
 import { MemberRole, organisation } from "../object/organisation.ts";
 

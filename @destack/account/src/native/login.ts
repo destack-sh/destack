@@ -17,6 +17,7 @@ import { canonicalize, type Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { Account } from "../object/account.ts";
 import { client } from "../object/client.ts";
+import objectPackage from "@destack/object/package";
 import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
 import type { SessionStore } from "./session.ts";
@@ -84,6 +85,11 @@ export class Login {
     /** Connect to the account package at the person's issuer. */
     accounts() {
         return createClient(accountPackage, this.universe(accountPackage.id));
+    }
+
+    /** Connect to the object package at the person's issuer, which serves their grants. */
+    objects() {
+        return createClient(objectPackage, this.universe(objectPackage.id));
     }
 
     /** Reach a package the universe serves at the person's issuer, such as settings. */
@@ -159,10 +165,9 @@ export class Login {
         permissions: readonly GrantPermission[],
     ): Promise<GrantClaim | undefined> {
         // list the person's grants to the delegate and keep the unexpiring one of exactly these permissions
-        const accounts = createClient(accountPackage, this.universe(accountPackage.id));
         const items = await Array.fromAsync(
-            ListPage.all(accounts.grant.list, {
-                userId: this.subject.id,
+            ListPage.all(this.objects().grant.list, {
+                scope: this.subject.id,
                 where: ObjectReference.columns("delegate", delegate),
             }),
         );
@@ -183,9 +188,8 @@ export class Login {
         }
 
         // grant them otherwise
-        const accounts = createClient(accountPackage, this.universe(accountPackage.id));
-        const created = await accounts.grant.create({
-            userId: this.subject.id,
+        const created = await this.objects().grant.create({
+            scope: this.subject.id,
             requestId: RequestId.create(this.#clock.now()),
             delegate,
             permissions: [...permissions],

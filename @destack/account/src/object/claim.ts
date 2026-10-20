@@ -1,5 +1,5 @@
 import { ANY_SCOPE, none, through, union } from "@destack/access";
-import { claimMethods, claimTable, defineObject, defineShape, INTRINSIC } from "@destack/object";
+import { claimMethods, claimTable, defineObject, defineShape } from "@destack/object";
 import { schema } from "@destack/schema";
 import { endpoint } from "./endpoint.ts";
 import { key } from "./key.ts";
@@ -12,18 +12,15 @@ export const claim = defineObject(
     {
         name: "claim",
         plural: "claims",
-        [INTRINSIC]: {
+        mapping: {
             table: claimTable,
-            mapping: {
-                table: claimTable,
-                id: "id",
-                scope: "scope",
-                attributes: {},
-                relations: {
-                    space: { column: "owner", scope: ANY_SCOPE },
-                    object: { column: "objectId", scope: ANY_SCOPE },
-                    account: { column: "owner", scope: ANY_SCOPE },
-                },
+            id: "id",
+            scope: "scope",
+            attributes: {},
+            relations: {
+                space: { column: "owner", scope: ANY_SCOPE },
+                object: { column: "objectId", scope: ANY_SCOPE },
+                account: { column: "owner", scope: ANY_SCOPE },
             },
         },
         scope: "universe",

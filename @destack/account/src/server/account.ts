@@ -6,7 +6,7 @@ import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { Account, HOME_SPACE, account } from "../object/account.ts";
 import { organisation } from "../object/organisation.ts";
-import { relationship } from "../object/relationship.ts";
+import { relationship } from "@destack/object";
 import { Residency } from "../object/residency.ts";
 import { space } from "../object/space.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";

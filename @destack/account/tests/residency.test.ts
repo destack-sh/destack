@@ -1,3 +1,4 @@
+import accountPackage from "../src/package.ts";
 import { accessRelationship, CHAIN_PUBLICATION, Relationship } from "@destack/access";
 import { and, eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
@@ -215,7 +216,7 @@ test("relate a cloud machine as a server of its residency when declared or enrol
     ];
 
     // release both once the operator revokes them
-    const operator = fixture.user(ids.operator);
+    const operator = fixture.user(ids.operator, accountPackage);
     for (const identity of [declared, enrolled]) {
         await operator.machine.revoke({
             scope: fixture.platform,

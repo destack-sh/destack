@@ -16,6 +16,7 @@ import { setting } from "@destack/setting/object";
 import { identityKey } from "../identity/index.ts";
 import { session } from "../object/session.ts";
 import { user } from "../object/user.ts";
+import objectPackage from "@destack/object/package";
 import accountPackage from "../package.ts";
 
 /** An expiring authentication challenge stored by the universe. */
@@ -250,8 +251,9 @@ export type OAuthAccessToken = Select<typeof oauthAccessToken>;
 export const accountDatabase = defineDatabase({
     name: "account",
     tables: [
-        // the package's objects
+        // the package's objects, and the access objects object's package serves beside them
         ...Object.values(accountPackage.objects).flatMap((type) => type.tables),
+        ...Object.values(objectPackage.objects).flatMap((type) => type.tables),
 
         // the authentication protocols' records
         verification,

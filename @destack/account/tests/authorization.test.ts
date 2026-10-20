@@ -17,6 +17,7 @@ import {
     Role,
 } from "@destack/access";
 import { schema, Identifier } from "@destack/schema";
+import { relationship, role } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import * as object from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
@@ -57,8 +58,8 @@ test("decide account access for its root, members, group members and installatio
                 object.organisation,
                 object.member,
                 object.group,
-                object.role,
-                object.relationship,
+                role,
+                relationship,
             ]),
             database,
             claims: { object: object.claim },
@@ -137,7 +138,7 @@ test("decide account access for its root, members, group members and installatio
                 { object: readers, relation: "member", subject: reader },
                 granting,
             );
-            const role = await Role.create(
+            const readingRole = await Role.create(
                 onAccount,
                 {
                     name: "reader",
@@ -149,13 +150,13 @@ test("decide account access for its root, members, group members and installatio
             const bound = await Relationship.grant(
                 {
                     object: onAccount,
-                    role: role.id,
+                    role: readingRole.id,
                     subject: { ...readers, relation: "member" },
                 },
                 granting,
             );
             await Relationship.grant(
-                { object: onAccount, role: role.id, subject: software },
+                { object: onAccount, role: readingRole.id, subject: software },
                 granting,
             );
 

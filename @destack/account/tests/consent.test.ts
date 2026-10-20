@@ -1,3 +1,4 @@
+import objectPackage from "@destack/object/package";
 import { principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
@@ -31,8 +32,8 @@ test("let an installation act for a person exactly as the grant the person's own
     const inbox = principal.installation.reference(spaceId, Identifier.create("installation"));
 
     // consent as the owner: grant the installation forgetting push subscriptions
-    const granted = await owner.client.grant.create({
-        userId: owner.id,
+    const granted = await fixture.sessionClient(owner.session, objectPackage).grant.create({
+        scope: owner.id,
         requestId: RequestId.create(Date.now()),
         delegate: inbox,
         permissions: [{ ...client.permission("unsubscribe"), scope: owner.id }],
@@ -70,10 +71,12 @@ test("let an installation act for a person exactly as the grant the person's own
     );
 
     // revoke the grant, refusing the token it was exchanged for and any new exchange
-    const listed = await owner.client.grant.list({ userId: owner.id });
+    const listed = await fixture
+        .sessionClient(owner.session, objectPackage)
+        .grant.list({ scope: owner.id });
     const grant = present(listed.items[0], "the owner's grant");
-    await owner.client.grant.revoke({
-        userId: owner.id,
+    await fixture.sessionClient(owner.session, objectPackage).grant.revoke({
+        scope: owner.id,
         id: grant.id,
         requestId: RequestId.create(Date.now()),
         revision: grant.revision,
@@ -113,8 +116,8 @@ test("stamp a token acting for a person under their grant with the universe's po
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
     const inbox = principal.installation.reference(spaceId, Identifier.create("installation"));
-    await owner.client.grant.create({
-        userId: owner.id,
+    await fixture.sessionClient(owner.session, objectPackage).grant.create({
+        scope: owner.id,
         requestId: RequestId.create(Date.now()),
         delegate: inbox,
         permissions: [{ ...client.permission("read"), scope: owner.id }],

@@ -1,3 +1,4 @@
+import objectPackage from "@destack/object/package";
 import { accessGrant, type GrantPermission, principal } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
@@ -74,7 +75,9 @@ test("issue a token client with its grant, act through it, and revoke both", asy
 
     // grant the token the permissions until its expiry, from the owner in their own scope
     const token = principal.client.reference(Scope.universe.id, issued.id);
-    const grants = async () => (await owner.client.grant.list({ userId: owner.id })).items;
+    const grants = async () =>
+        (await fixture.sessionClient(owner.session, objectPackage).grant.list({ scope: owner.id }))
+            .items;
     const [grant] = await grants();
     expect(await grants()).toEqual([
         {
@@ -219,7 +222,9 @@ test("refuse a personal access token whose grant lapsed", async () => {
     expect(await exchange()).toBe(owner.id);
 
     // lapse its grant just after its creation
-    const [grant] = (await owner.client.grant.list({ userId: owner.id })).items;
+    const [grant] = (
+        await fixture.sessionClient(owner.session, objectPackage).grant.list({ scope: owner.id })
+    ).items;
     const { id, createdAt } = present(grant, "the token's grant");
     await fixture.storage.database
         .update(accessGrant)

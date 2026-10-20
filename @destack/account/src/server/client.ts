@@ -1,5 +1,6 @@
 import { principal } from "@destack/access";
 import {
+    grant,
     type MethodContext,
     type MethodContextOf,
     type NextOf,
@@ -12,7 +13,6 @@ import { CallError } from "@destack/runtime/error";
 import { Placement } from "../object/placement.ts";
 import { account } from "../object/account.ts";
 import { organisation } from "../object/organisation.ts";
-import { grant } from "../object/grant.ts";
 import { OAuthConsent } from "../object/oauth-consent.ts";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof } from "@destack/identity";

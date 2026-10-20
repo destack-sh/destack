@@ -9,7 +9,7 @@ import type { Select } from "@destack/db";
 import { endpoint } from "../object/endpoint.ts";
 import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
-import { relationship } from "../object/relationship.ts";
+import { relationship } from "@destack/object";
 import { residency } from "../object/residency.ts";
 
 /** Implement machines. */

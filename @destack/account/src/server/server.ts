@@ -1,4 +1,3 @@
-import { proof } from "../object/proof.ts";
 import { defineServer, type PackageServer } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
@@ -55,7 +54,6 @@ export function accountServer(options: AccountOptions): PackageServer {
             implementResidency(),
             implementPlacement(),
             claim,
-            proof,
         ],
         adapters: { oauth: async (request) => (await options.signIn).handler(request) },
         responseHeaders: { "Cache-Control": "no-store" },
