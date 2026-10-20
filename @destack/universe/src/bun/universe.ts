@@ -44,7 +44,9 @@ export class BunUniverse implements AsyncDisposable {
         // open the database, the call events' bucket and the root keys
         await using stack = new AsyncDisposableStack();
         const database = stack.use(await connectPostgres(options.database, universeDatabase));
-        const events = stack.use(await LocalBucket.open(options.directory, "universe"));
+        const events = stack.use(
+            await LocalBucket.open(options.directory, "universe", options.environment.clock),
+        );
         const keyring = await LocalKeyring.read(options.rootKey);
         const key = CallKey.of(keyring);
 
