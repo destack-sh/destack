@@ -1,5 +1,5 @@
 import { STACKS } from "@destack/account/test";
-import { Table } from "@destack/db";
+import { Table, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
@@ -155,8 +155,10 @@ test.for(TEST_DIALECTS)(
 
         // list the home's follows of the account's spaces and of activities
         const recipientId = actors.alice.id;
-        const subscriptions =
-            (await present(home.store.subscriber, "the home's subscriber").subscriptions?.()) ?? [];
+        const subscriptions = await present(
+            home.store.subscriber,
+            "the home's subscriber",
+        ).subscriptions(Snapshot.live(home.store.database));
         const follows = subscriptions
             .map((entry) => entry.subscription)
             .map((subscription) => [

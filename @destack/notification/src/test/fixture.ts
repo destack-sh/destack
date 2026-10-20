@@ -51,10 +51,10 @@ import type { Setting } from "@destack/setting";
 import { setting } from "@destack/setting/object";
 import { settingServer, type SettingOptions } from "@destack/setting/server";
 import { PackageHandle } from "@destack/runtime";
-import { type Controller, ControlLoop } from "@destack/runtime/control";
+import { ControlLoop } from "@destack/runtime/control";
 import { RequestId } from "@destack/runtime/request";
 import {
-    reconciliation,
+    reconcileOnce,
     subjectContext,
     testCallKey,
     testServerContext,
@@ -63,7 +63,6 @@ import type { ServerContext } from "@destack/runtime/workload";
 import {
     type Mutation,
     type Uplink,
-    Replica,
     replicaPosition,
     replicaTables,
     Scope,
@@ -675,6 +674,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
             { ...subject, relation: "home" },
         ];
         const uplink: Uplink = {
+            confirm: async () => {},
             stream: idle,
             receive: (mutation: Mutation) => this.#receive(universeTest, mutation),
             // answer the person's queries at the universe's stand-in
@@ -721,6 +721,11 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                             clock: this.clock,
                             groups: homeSets,
                         }),
+                    ),
+                confirm: (request, watermark) =>
+                    (scope === this.spaceId ? this.store : universal).source.confirm(
+                        request,
+                        watermark,
                     ),
             }),
         });
@@ -853,12 +858,10 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     async dispatch(): Promise<void> {
         for (let round = 0; round < DISPATCH_ROUNDS; round++) {
             // wait for each home's replica of the space to catch up with its latest change
-            const position = await this.database.log.position(await this.database.log.epoch());
+            const position = await this.database.log.position();
             for (const home of this.#homes.values()) {
-                const isReplicated = await Replica.wait(
-                    home.test.database,
-                    this.spaceId,
-                    position,
+                const isReplicated = await home.store.wait(
+                    { scope: this.spaceId, ...position },
                     AbortSignal.timeout(REPLICA_TIMEOUT),
                 );
                 if (!isReplicated) {
@@ -870,10 +873,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
             const before = await this.#positions();
             const homes = [...this.#homes.values()];
             const stores = [this.store, ...homes.map((home) => home.store)];
-            const controllers = stores.flatMap((store) =>
-                store.controllers().filter((each) => DISPATCHED.has(each.name)),
-            );
-            await NotificationFixture.#reconcile(controllers);
+            await NotificationFixture.#reconcile(stores);
 
             // stop once a round changes nothing
             if ((await this.#positions()) === before) {
@@ -935,11 +935,12 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         return positions.join(" ");
     }
 
-    /** Reconcile every key some controllers list, once each. */
-    static async #reconcile(controllers: readonly Controller[]): Promise<void> {
-        for (const controller of controllers) {
-            for (const listed of await controller.list()) {
-                await controller.reconcile(listed, reconciliation(new AbortController().signal));
+    /** Reconcile every key the stores' dispatched controllers list, once each. */
+    static async #reconcile(stores: readonly ObjectStore[]): Promise<void> {
+        for (const store of stores) {
+            const dispatched = store.controllers().filter((each) => DISPATCHED.has(each.name));
+            for (const controller of dispatched) {
+                await reconcileOnce(controller, store.database);
             }
         }
     }
