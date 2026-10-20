@@ -17,11 +17,11 @@ Think GitHub + NPM + Convex + Vercel + Sentry in one box, with all the boring in
 The Destack comprises both the _software engine_ for building and running software _and_ first-party "p90" apps for classic SaaS applications, like Notion or Linear.
 All apps built on Destack - ours and yours - get the advantages of standardisation and integration out of the box "for free", and are thus fully programmable by your agents.
 
-You can run _your_ entire Destack - your own personal superapp - on a single SQLite instance on a CLoudflare worker, on your laptop, or on your server.
+You can run _your_ entire Destack - your own personal superapp - on a single SQLite instance on a Cloudflare worker, on your laptop, or on your server.
 Or you can let us host it for you. 
 Or any combination!
 
-Moving in is a single prompt, moving out is a single prompt - ask your agent:
+Moving in is a single prompt - just ask your agent:
 ```text
 Guide me through setting up Destack: https://destack.me
 ```
