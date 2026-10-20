@@ -193,7 +193,7 @@ function implementPartition(options: RelayPackageOptions, partition: string): Re
             }),
         ],
         // follow the tunnel's chain from the installation's root, which opens the tunnel and relates its server
-        chain: async () => ({ kind: "follower" }),
+        chain: async () => ({ kind: "follower", parent: space }),
         principal: self,
         // decide the connections under the tunnel's access, which the root stores and the partition replicates
         policies: [account, tunnel],
