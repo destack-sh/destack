@@ -537,8 +537,18 @@ test("return observed watermarks and require them on the client's later requests
         drainTimeout: 1000,
         router: implementation.router({
             write: implementation.write.handler(({ context }) => {
-                context.observed.observe({ scope: "space-1", epoch: "epoch-1", sequence: 7 });
-                context.observed.observe({ scope: "space-1", epoch: "epoch-1", sequence: 5 });
+                context.observed.observe({
+                    scope: "space-1",
+                    log: "log-1",
+                    epoch: "epoch-1",
+                    sequence: 7,
+                });
+                context.observed.observe({
+                    scope: "space-1",
+                    log: "log-1",
+                    epoch: "epoch-1",
+                    sequence: 5,
+                });
 
                 return {};
             }),
@@ -558,8 +568,12 @@ test("return observed watermarks and require them on the client's later requests
         );
         expect(await client.read()).toEqual([]);
         await client.write();
-        expect(bookmark.watermarks).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
-        expect(await client.read()).toEqual([{ scope: "space-1", epoch: "epoch-1", sequence: 7 }]);
+        expect(bookmark.watermarks).toEqual([
+            { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 },
+        ]);
+        expect(await client.read()).toEqual([
+            { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 },
+        ]);
     } finally {
         await server.close();
     }
@@ -567,7 +581,7 @@ test("return observed watermarks and require them on the client's later requests
 
 test("require the watermarks a caller's credential carries beside its bookmark's", async () => {
     // authenticate callers whose credentials carry the position their grant was written at
-    const granted = { scope: "universe", epoch: "epoch-1", sequence: 3 };
+    const granted = { scope: "universe", log: "log-1", epoch: "epoch-1", sequence: 3 };
     const procedures = {
         read: defineProcedure({
             package: Package.of(fixturePackage),
@@ -610,7 +624,7 @@ test("require the watermarks a caller's credential carries beside its bookmark's
                     fetch: (request) => server.fetch(request),
                 },
             ).read();
-        const own = { scope: "space-1", epoch: "epoch-1", sequence: 7 };
+        const own = { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 };
         expect([await read(), await read(JSON.stringify([own]))]).toEqual([
             [granted],
             [own, granted],

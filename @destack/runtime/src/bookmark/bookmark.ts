@@ -36,8 +36,8 @@ export class Bookmark {
         if (known === undefined) {
             this.#watermarks.push(watermark);
         }
-        // replace an older watermark of the scope
-        else if (LogPosition.isAfter(watermark, known)) {
+        // replace a watermark of the log the scope left, or an older one of its log
+        else if (watermark.log !== known.log || LogPosition.isAfter(watermark, known)) {
             this.#watermarks[index] = watermark;
         }
     }

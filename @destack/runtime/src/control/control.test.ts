@@ -614,6 +614,101 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     });
 });
 
+test("retry a failing follow at once when its revision changes, else only after its backoff", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values({ id: "job", scope: "space", runs: 1 });
+
+    // fail each follow at once, the job's runs its revision
+    const revisions = new Map<string, string>();
+    const started: string[] = [];
+    let listings = 0;
+    const controller: Controller = {
+        name: "failing",
+        mode: "follow",
+        watches: [job],
+        list: async (view) => {
+            const rows = await view.read(job).findMany();
+            for (const row of rows) {
+                revisions.set(row.id, String(row.runs));
+            }
+            listings += 1;
+
+            return rows.map((row) => row.id);
+        },
+        revision: (key) => revisions.get(key),
+        reconcile: async (key) => {
+            started.push(`${key}@${found(revisions, key)}`);
+            throw new Error("refused");
+        },
+    };
+
+    // run the loop at a frozen clock, so no backoff ever ends
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        clock: new VirtualClock(Date.now()),
+        report: ignore,
+    });
+    const running = loop.run(stopping.signal);
+    await expect.poll(() => started).toEqual(["job@1"]);
+
+    // change the job without its revision, which lists it again without a retry
+    const before = listings;
+    await database.update(job).set({ scope: "elsewhere" }).where(eq(job.id, "job"));
+    await expect.poll(() => listings).toBe(before + 1);
+    await yieldToEventLoop();
+    const unrevised = [...started];
+
+    // change its revision, which retries it at once
+    await database.update(job).set({ runs: 2 }).where(eq(job.id, "job"));
+    await expect.poll(() => started).toEqual(["job@1", "job@2"]);
+    expect(unrevised).toEqual(["job@1"]);
+    stopping.abort();
+    await running;
+});
+
+test("start a failing follow at once once its list drops it and lists it again, forgetting its failures", async () => {
+    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(job).values({ id: "job", scope: "space", runs: 1 });
+
+    // fail each follow at once, on a frozen clock so no backoff ends
+    const started: string[] = [];
+    let listings = 0;
+    const controller: Controller = {
+        name: "failing",
+        mode: "follow",
+        watches: [job],
+        list: async (view) => {
+            listings += 1;
+
+            return (await view.read(job).findMany()).map((row) => row.id);
+        },
+        reconcile: async (key) => {
+            started.push(key);
+            throw new Error("refused");
+        },
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(database, [controller], {
+        clock: new VirtualClock(Date.now()),
+        report: ignore,
+    });
+    const running = loop.run(stopping.signal);
+    await expect.poll(() => started).toEqual(["job"]);
+
+    // drop the job from the list, then list it again
+    const before = listings;
+    await database.delete(job).where(eq(job.id, "job"));
+    await expect.poll(() => listings).toBe(before + 1);
+    await database.insert(job).values({ id: "job", scope: "space", runs: 1 });
+    await expect.poll(() => started).toEqual(["job", "job"]);
+    stopping.abort();
+    await running;
+});
+
 test("refuse a follower whose list never reads its watched tables through its view", async () => {
     const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
     onTestFinished(() => storage.close());

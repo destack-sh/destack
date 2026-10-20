@@ -43,6 +43,8 @@ export interface Controller {
     readonly concurrency?: number;
     /** Whether a key converges and returns, or runs its process until stopped. */
     readonly mode?: "reconcile" | "follow";
+    /** Read a listed key's desired revision, whose change retries a failing key at once. */
+    readonly revision?: (key: string) => string | undefined;
     /** Converge one key and return the delay before looking again, or follow it until stopped. */
     readonly reconcile: (
         key: string,
@@ -56,6 +58,14 @@ export interface Delta {
     readonly changes: readonly Change[];
     /** The unlogged watched tables commits wrote, by SQL name. */
     readonly unlogged: ReadonlySet<string>;
+}
+
+/** A key's failures in a row, with the revision of its desired state at the last one. */
+interface Failure {
+    /** The failures in a row. */
+    readonly count: number;
+    /** The revision the controller read for the key as it failed, absent without revisions. */
+    readonly revision: string | undefined;
 }
 
 /** One running reconciliation of a key. */
@@ -127,7 +137,7 @@ export class ControlLoop {
     /** The due keys, earliest first. */
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
-    readonly #failures = new Map<Controller, Map<string, number>>();
+    readonly #failures = new Map<Controller, Map<string, Failure>>();
     /** When each key's peer first answered unavailable in its current run of failures. */
     readonly #unavailable = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
@@ -440,18 +450,27 @@ export class ControlLoop {
             }
         }
 
-        // unqueue the due keys the list dropped
+        // unqueue the due keys the list dropped, and forget their failures
         const due = found(this.#due, controller);
-        for (const key of due.keys()) {
+        const failures = found(this.#failures, controller);
+        const unavailable = this.#unavailable.get(controller);
+        for (const key of [...due.keys(), ...failures.keys()]) {
             if (!listed.has(key)) {
                 due.delete(key);
+                failures.delete(key);
+                unavailable?.delete(key);
             }
         }
 
-        // start the listed keys neither running nor failing
-        const failures = found(this.#failures, controller);
+        // start the listed keys not running, a failing one only once its desired state changed
         for (const key of listed) {
-            if (!running.has(key) && !failures.has(key)) {
+            const failure = failures.get(key);
+            const isRevised =
+                failure !== undefined && failure.revision !== controller.revision?.(key);
+            if (isRevised) {
+                failures.delete(key);
+            }
+            if (!running.has(key) && (failure === undefined || isRevised)) {
                 this.enqueue(controller, key);
             }
         }
@@ -603,8 +622,11 @@ export class ControlLoop {
             }
 
             // report and retry the failure, a peer's unavailability once it persists
-            const failed = (failures.get(work.key) ?? 0) + 1;
-            failures.set(work.key, failed);
+            const failed = (failures.get(work.key)?.count ?? 0) + 1;
+            failures.set(work.key, {
+                count: failed,
+                revision: work.controller.revision?.(work.key),
+            });
             if (this.#isReported(work, error)) {
                 this.#report(work.controller, work.key, error);
             }

@@ -4,7 +4,7 @@ export * from "../declare/index.ts";
 
 /** Describe event streams. */
 export { eventIterator } from "@orpc/contract";
-export { withEventMeta } from "@orpc/client";
+export { getEventMeta, withEventMeta } from "@orpc/client";
 
 export type {
     AnyContractRouter as ProcedureRouter,
