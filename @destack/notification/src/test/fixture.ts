@@ -53,12 +53,7 @@ import { settingServer, type SettingOptions } from "@destack/setting/server";
 import { PackageHandle } from "@destack/runtime";
 import { ControlLoop } from "@destack/runtime/control";
 import { RequestId } from "@destack/runtime/request";
-import {
-    reconcileOnce,
-    subjectContext,
-    testCallKey,
-    testServerContext,
-} from "@destack/runtime/test";
+import { subjectContext, testCallKey, testServerContext } from "@destack/runtime/test";
 import type { ServerContext } from "@destack/runtime/workload";
 import {
     type Mutation,
@@ -108,14 +103,6 @@ const SIGN_UP = { timeZone: "UTC", locale: "en" };
 const INSTALLATION = schema
     .identifier("installation")
     .parse("installation-019f5530-8000-7000-8000-0000000000f1");
-
-/** The controllers a dispatch reconciles, by name; replicas follow in the background. */
-const DISPATCHED = new Set([
-    "activity",
-    "announcement",
-    "message",
-    ...[deliver, summarize, scheduled].map((workflow) => workflow.run.name),
-]);
 
 /** The objects living in the person's home rather than the app's space. */
 const HOME_OBJECTS = new Set(["notification", "message"]);
@@ -243,6 +230,17 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     readonly #following = new AbortController();
     /** The work closed before the databases: the replicas and the inboxes. */
     readonly #followers: (() => Promise<void>)[] = [];
+    /** The control loops of each store's dispatched controllers, started at the first dispatch. */
+    readonly #dispatchers = new Map<
+        ObjectStore,
+        {
+            readonly stop: AbortController;
+            readonly running: Promise<void>;
+            readonly loop: ControlLoop;
+        }
+    >();
+    /** The failures the dispatched controllers reported. */
+    readonly #failures: unknown[] = [];
     /** The stand-in of the universe, opened with the first home. */
     #universe:
         | Promise<{
@@ -541,10 +539,13 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     /** Close the replicas and the inboxes, then the databases, once. */
     close(): Promise<void> {
         this.#closed ??= (async () => {
-            // end the replicas and the inboxes
+            // end the replicas, the inboxes and the dispatched controllers
             this.#following.abort();
             for (const follower of this.#followers) {
                 await follower();
+            }
+            for (const { running } of this.#dispatchers.values()) {
+                await running;
             }
 
             // close the homes' databases, then the space's
@@ -560,6 +561,13 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
 
     /** Move the clock by some minutes, letting the homes' follows confirm their replicas. */
     async wait(minutes: number): Promise<void> {
+        // stop the dispatched controllers as an evicted worker, which the next dispatch starts again
+        for (const { stop, running } of this.#dispatchers.values()) {
+            stop.abort();
+            await running;
+        }
+        this.#dispatchers.clear();
+
         // move the clock past the feeds' heartbeats, which repeat positions to caught-up follows
         this.clock.advance(minutes * 60_000);
         const now = this.clock.now();
@@ -854,7 +862,7 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         });
     }
 
-    /** Let the homes replicate the space's activities, reconciling the controllers' keys. */
+    /** Let the homes replicate the space's activities and the controllers settle. */
     async dispatch(): Promise<void> {
         for (let round = 0; round < DISPATCH_ROUNDS; round++) {
             // wait for each home's replica of the space to catch up with its latest change
@@ -869,11 +877,14 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                 }
             }
 
-            // reconcile every listed key of the space and the homes, their workflows' due runs among them
+            // let the space's and the homes' controllers settle, failing on their errors
             const before = await this.#positions();
             const homes = [...this.#homes.values()];
             const stores = [this.store, ...homes.map((home) => home.store)];
-            await NotificationFixture.#reconcile(stores);
+            await Promise.all(stores.map((store) => this.#dispatcher(store).idle()));
+            if (this.#failures.length > 0) {
+                throw this.#failures[0];
+            }
 
             // stop once a round changes nothing
             if ((await this.#positions()) === before) {
@@ -935,19 +946,34 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         return positions.join(" ");
     }
 
-    /** Reconcile every key the stores' dispatched controllers list, once each. */
-    static async #reconcile(stores: readonly ObjectStore[]): Promise<void> {
-        for (const store of stores) {
-            const dispatched = store.controllers().filter((each) => DISPATCHED.has(each.name));
-            for (const controller of dispatched) {
-                await reconcileOnce(controller, store.database);
-            }
+    /** Read the control loop of a store's dispatched controllers, started on first use. */
+    #dispatcher(store: ObjectStore): ControlLoop {
+        // reuse the store's running loop
+        const known = this.#dispatchers.get(store);
+        if (known !== undefined) {
+            return known.loop;
         }
+
+        // run the dispatched controllers until the fixture closes, collecting their failures
+        const dispatched = store.controllers().filter((each) => each.mode !== "follow");
+        const loop = new ControlLoop(store.database, dispatched, {
+            clock: this.clock,
+            report: (_controller, _key, error) => this.#failures.push(error),
+        });
+        const stop = new AbortController();
+        const running = loop
+            .run(AbortSignal.any([this.#following.signal, stop.signal]))
+            .catch((error: unknown) => {
+                this.#failures.push(error);
+            });
+        this.#dispatchers.set(store, { stop, running, loop });
+
+        return loop;
     }
 
     /** Follow a home's replicas of the space in the background until the fixture closes. */
     #replicate(home: Home): void {
-        const replicas = home.store.controllers().filter((each) => !DISPATCHED.has(each.name));
+        const replicas = home.store.controllers().filter((each) => each.mode === "follow");
         const running = new ControlLoop(home.test.database, replicas, {
             clock: this.clock,
             report: (_controller, _key, error) => {
