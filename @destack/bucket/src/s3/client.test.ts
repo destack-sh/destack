@@ -85,6 +85,7 @@ test("roundtrip every bucket operation through S3, answering as the bucket answe
     );
     const server = new S3Server({
         region: "auto",
+        clock: Clock.system,
         credentials: async () => undefined,
         open: async (name, accessKeyId) =>
             name === "files" && accessKeyId === ACCESS_KEY_ID ? bucket : undefined,

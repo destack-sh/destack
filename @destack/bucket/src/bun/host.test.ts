@@ -32,6 +32,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     });
     const server = new S3Server({
         region: "local",
+        clock: Clock.system,
         credentials: async (id) => (id === credentials.accessKeyId ? credentials : undefined),
         open: (name) => buckets.named(name),
     });
@@ -172,6 +173,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
     // refuse direct writes, multipart writes, presigned writes and their leases, while reads go on
     const server = new S3Server({
         region: "local",
+        clock: Clock.system,
         credentials: async (id) => (id === credentials.accessKeyId ? credentials : undefined),
         open: (name) => buckets.named(name),
     });

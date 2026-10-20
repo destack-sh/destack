@@ -25,12 +25,13 @@ export class S3Fixture implements AsyncDisposable {
     /** The directory with the buckets. */
     readonly #directory: string;
 
-    /** Serve the buckets. */
-    private constructor(directory: string, buckets: Map<string, LocalBucket>) {
+    /** Serve the buckets, checking signed requests against a clock. */
+    private constructor(directory: string, buckets: Map<string, LocalBucket>, clock: Clock) {
         this.#directory = directory;
         this.buckets = buckets;
         this.server = new S3Server({
             region: REGION,
+            clock,
             credentials: async (accessKeyId) =>
                 accessKeyId === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined,
             open: async (name) => buckets.get(name),
@@ -48,8 +49,8 @@ export class S3Fixture implements AsyncDisposable {
         });
     }
 
-    /** Open the files and archive buckets in a temporary directory. */
-    static async open(): Promise<S3Fixture> {
+    /** Open the files and archive buckets in a temporary directory, served at a clock's time. */
+    static async open(clock: Clock = Clock.system): Promise<S3Fixture> {
         const directory = await mkdtemp(join(tmpdir(), "destack-s3-"));
         const buckets = new Map([
             ["files", await LocalBucket.open(join(directory, "files"), "space-test", Clock.system)],
@@ -59,7 +60,7 @@ export class S3Fixture implements AsyncDisposable {
             ],
         ]);
 
-        return new S3Fixture(directory, buckets);
+        return new S3Fixture(directory, buckets, clock);
     }
 
     /** Create an AWS SDK client that sends its requests to the server. */

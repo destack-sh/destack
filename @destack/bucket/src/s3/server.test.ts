@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { expect, test } from "@destack/test";
+import { VirtualClock } from "@destack/environment/simulation";
 import { S3Signature } from "./signature.ts";
 import { CREDENTIALS, failure, REGION, S3Fixture } from "./test/fixture.ts";
 
@@ -110,6 +111,14 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
         name: "SignatureDoesNotMatch",
         status: 403,
     });
+});
+
+test("refuse a request signed an hour before the server's clock", async () => {
+    await using fixture = await S3Fixture.open(new VirtualClock(Date.now() + 3_600_000));
+    const read = fixture
+        .client()
+        .send(new GetObjectCommand({ Bucket: "files", Key: "readme.txt" }));
+    expect(await failure(read)).toEqual({ name: "RequestTimeTooSkewed", status: 403 });
 });
 
 test("answer failures with S3 error documents", async () => {

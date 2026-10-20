@@ -12,6 +12,7 @@ import type {} from "@destack/package/import-meta";
 import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
+import type { Clock } from "@destack/environment";
 
 /** The package serving buckets over S3, which a workload's calls to its buckets address. */
 export const S3_PACKAGE = import.meta.destack.package;
@@ -26,6 +27,8 @@ export interface S3ServerOptions {
     open: (bucketName: string, accessKeyId: string) => Promise<S3Bucket | undefined>;
     /** The CORS rules of every bucket. */
     cors?: CorsRule[];
+    /** The clock signed requests are checked against. */
+    clock: Clock;
 }
 
 /** Serve the S3 API path-style over buckets, answering failures with S3 error documents. */
@@ -38,6 +41,8 @@ export class S3Server {
     readonly #credentials: S3ServerOptions["credentials"];
     /** Open a bucket an access key can use. */
     readonly #open: S3ServerOptions["open"];
+    /** The clock signed requests are checked against. */
+    readonly #clock: Clock;
 
     /** Serve buckets in a region. */
     constructor(options: S3ServerOptions) {
@@ -46,6 +51,7 @@ export class S3Server {
         this.cors = options.cors ?? [];
         this.#credentials = options.credentials;
         this.#open = options.open;
+        this.#clock = options.clock;
     }
 
     /** The region clients sign requests for. */
@@ -59,7 +65,7 @@ export class S3Server {
             this.signature.authenticate(
                 request,
                 (accessKeyId) => this.#credentials(accessKeyId),
-                Date.now(),
+                this.#clock.now(),
             ),
         );
     }

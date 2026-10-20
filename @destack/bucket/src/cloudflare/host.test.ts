@@ -119,6 +119,7 @@ test.for(TEST_DIALECTS)(
         // write a file through a URL presigned at the located endpoint, and read it back the same way
         const server = new S3Server({
             region: "auto",
+            clock: Clock.system,
             credentials: async (id) => (id === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined),
             open: (name) => buckets.named(name),
         });
@@ -248,6 +249,7 @@ test.for(TEST_DIALECTS)(
         const { location } = await buckets.locate(reference, "write");
         const server = new S3Server({
             region: "auto",
+            clock: Clock.system,
             credentials: async (id) => (id === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined),
             open: (name) => buckets.named(name),
         });
