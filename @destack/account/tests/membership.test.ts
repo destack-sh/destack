@@ -1,15 +1,15 @@
 import { STACKS } from "../src/test/index.ts";
 import { AccessContext, accessTables, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { defineDatabase, Transaction, type DatabaseConnection } from "@destack/db";
+import { defineDatabase, Transaction, type DatabaseConnection, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { callTables } from "@destack/object/test";
+import { callTables, FeedPublisher } from "@destack/object/test";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/runtime";
 import { Package } from "@destack/package";
 import { Identifier, present } from "@destack/schema";
 import { reconciliation } from "@destack/runtime/test";
-import { Feed, Replica, Scope, type Subject } from "@destack/sync";
+import { Feed, Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     account,
@@ -112,20 +112,18 @@ async function openSpace() {
         policies: CHAIN_TYPES,
         database: spaceStorage.database,
         uplink: {
+            ...FeedPublisher.of(
+                feed,
+                (subscription) => replica.source.buildReplica(subscription).queries,
+            ),
             receive: () => Promise.reject(new Error("the replica receives no changes")),
             call: () => Promise.reject(new Error("the stand-in answers no queries")),
-            stream: (subscription, signal) =>
-                feed.subscribe(
-                    replica.source.buildReplica(subscription).queries,
-                    subscription.after,
-                    signal,
-                ),
         },
         origin: { package: Package.of(accountPackage) },
     });
 
     // follow the chain, then give the space its own scope below the replicated account
-    const follow = await following(replica, spaceStorage.database, universe);
+    const follow = await following(replica, universe);
     await follow();
     await new AccessFixture(spaceStorage.database).replicateScope(
         space.reference(ids.accountId, ids.spaceId),
@@ -202,7 +200,6 @@ async function insertAccount(universe: DatabaseConnection) {
 /** Follow a store's chain replicas, answering a wait until each caught up with the universe. */
 async function following(
     replica: ObjectStore,
-    database: DatabaseConnection,
     universe: DatabaseConnection,
 ): Promise<() => Promise<void>> {
     // follow each scope's replica until the test ends
@@ -218,18 +215,25 @@ async function following(
     });
 
     return async () => {
-        // follow every replica the store lists now, and wait until each reached the universe's head
+        // read the universe's head and start the replica deadline
         const head = await universe.log.position();
         const signal = AbortSignal.any([
             controller.signal,
             AbortSignal.timeout(REPLICA_MILLISECONDS),
         ]);
-        for (const key of await follower.list()) {
-            if (!followed.has(key)) {
-                followed.set(key, follower.reconcile(key, reconciliation(controller.signal)));
-            }
-            const scope = present(key.split(" ")[1], `the scope of ${key}`);
-            expect(await Replica.wait(database, scope, head, signal)).toBe(true);
+
+        // follow every replica the store lists now
+        const keys = await follower.list(Snapshot.live(replica.database));
+        for (const key of keys.filter((listed) => !followed.has(listed))) {
+            followed.set(key, follower.reconcile(key, reconciliation(controller.signal)));
+        }
+
+        // wait until each listed scope reached the universe's head
+        const scopes = new Set(
+            keys.map((key) => present(key.split(" ")[1], `the scope of ${key}`)),
+        );
+        for (const scope of scopes) {
+            expect(await replica.wait({ scope, ...head }, signal)).toBe(true);
         }
     };
 }

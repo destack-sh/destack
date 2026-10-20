@@ -224,7 +224,7 @@ export const Entitlement = {
     follow: space.follow(entitlementShape, {
         key: async (row, view) => {
             // follow nothing for a space this database does not serve
-            if (!(await Space.isServing(view.database, row.id))) {
+            if (!(await Space.isServing(view, row.id))) {
                 return undefined;
             }
 

@@ -1,5 +1,4 @@
 import {
-    and,
     eq,
     sql,
     type DatabaseConnection,
@@ -168,14 +167,15 @@ export const Space = {
     },
 
     /** Report whether a space's database serves the space now. */
-    async isServing(database: DatabaseConnection, spaceId: Identifier<"space">): Promise<boolean> {
-        // read the space while its database serves it
-        const [served] = await database
-            .select({ id: space.table.id })
-            .from(space.table)
-            .where(and(eq(space.table.id, spaceId), Space.served()));
+    async isServing(view: Pick<Snapshot, "read">, spaceId: Identifier<"space">): Promise<boolean> {
+        // read the space, its scope and a replica of it
+        const [row, scope, existing] = await Promise.all([
+            view.read(space.table).findFirst({ where: { id: spaceId } }),
+            view.read(Scope.table).findFirst({ where: { scope: spaceId } }),
+            view.read(replica).findFirst({ where: { scope: spaceId } }),
+        ]);
 
-        return served !== undefined;
+        return row !== undefined && scope?.fencedAt === null && existing === undefined;
     },
 
     /** Select the keys of the spaces within a space or account scope. */
@@ -205,14 +205,6 @@ export const Space = {
     /** Match a space a database has not given birth to by its identifier: no scope, no replica. */
     unborn(id: SQLWrapper = space.table.id): SQL {
         return sql`NOT EXISTS (SELECT 1 FROM ${Scope.table} WHERE ${Scope.table.scope} = ${id}) AND NOT EXISTS (SELECT 1 FROM ${replica} WHERE ${replica.scope} = ${id})`;
-    },
-
-    /** Decide whether a database serves a space, born or not: no replica of it and no fence. */
-    async isServed(id: string, view: Snapshot): Promise<boolean> {
-        const scope = await view.read(Scope.table).findFirst({ where: { scope: id } });
-        const existing = await view.read(replica).findFirst({ where: { scope: id } });
-
-        return existing === undefined && (scope === undefined || scope.fencedAt === null);
     },
 
     /** Read a space's row, refusing an unknown space. */

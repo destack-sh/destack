@@ -1,4 +1,4 @@
-import { AccessContext, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, CHAIN_PUBLICATION, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -105,13 +105,14 @@ test("place spaces where they are created, store names in them, let exactly a sp
     const following = new AbortController();
     const chain = await laptopSpace.client.store.stream(
         {
-            name: "chain",
+            name: CHAIN_PUBLICATION,
             scope: accountId,
             target: laptop,
-            publication: "chain",
+            publication: CHAIN_PUBLICATION,
             parameters: {
+                scopes: [],
                 local: [],
-                replicated: [
+                types: [
                     {
                         packageId: account.policy.definition.packageId,
                         type: account.policy.definition.name,
@@ -119,7 +120,6 @@ test("place spaces where they are created, store names in them, let exactly a sp
                 ],
                 via: [],
                 between: [],
-                types: [],
             },
         },
         { signal: following.signal },
@@ -439,17 +439,18 @@ function claims(caller: Actor) {
     };
 }
 
-/** Replicate the chain above a scope as a machine, for a target space if given, reporting a refusal. */
+/** Replicate a scope's chain as a machine, for a target space if given, reporting a refusal. */
 async function replicas(machine: Actor, scope: string, spaceId?: string): Promise<string> {
     const controller = new AbortController();
+    const target = spaceId ?? scope;
     const replicated = machine.client.store
         .stream(
             {
-                name: "chain",
+                name: CHAIN_PUBLICATION,
                 scope,
-                target: spaceId ?? scope,
-                publication: "chain",
-                parameters: { local: [], replicated: [], via: [], between: [], types: [] },
+                target,
+                publication: CHAIN_PUBLICATION,
+                parameters: { scopes: [target], local: [], types: [], via: [], between: [] },
             },
             { signal: controller.signal },
         )

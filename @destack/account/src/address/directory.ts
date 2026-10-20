@@ -100,15 +100,22 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** Stream follows of a space's rows from its object package, where its machine answers. */
     publisher(scope: string, fetch: Fetch, now: () => number): Publisher {
         const space = schema.identifier("space").parse(scope);
-        const locate = (at: number) => this.locate(space, at);
+        const connect = async () => {
+            // connect to the space's object package where its machine answers now
+            const located = await this.locate(space, now());
+            const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
+
+            return createClient(objectPackage, { url, fetch });
+        };
 
         return {
             stream: async function* (followed, signal) {
-                // reach the space's object package where its machine answers now
-                const located = await locate(now());
-                const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
-                const objects = createClient(objectPackage, { url, fetch });
+                const objects = await connect();
                 yield* await objects.store.stream(followed, { signal });
+            },
+            confirm: async (subscription, watermark) => {
+                const objects = await connect();
+                await objects.store.confirm({ subscription, watermark });
             },
         };
     }

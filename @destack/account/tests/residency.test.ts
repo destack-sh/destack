@@ -1,4 +1,4 @@
-import { accessRelationship, Relationship } from "@destack/access";
+import { accessRelationship, CHAIN_PUBLICATION, Relationship } from "@destack/access";
 import { and, eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
@@ -15,7 +15,7 @@ import {
 } from "../src/object/index.ts";
 import { AccountFixture, type Actor, ids, outcome } from "../src/test/index.ts";
 import { firstPage, place } from "./fixture.ts";
-import { Claim, Claimant, RESERVATION_MILLISECONDS } from "@destack/object";
+import { Claim, Claimant, QUERIES_PUBLICATION, RESERVATION_MILLISECONDS } from "@destack/object";
 
 /** The account type, as replicas name it. */
 const ACCOUNT_TYPE = {
@@ -267,17 +267,11 @@ test("relate an organisation's residents again when one of its accounts lives in
 /** Request the replica of an account's chain a platform installation stores for its space. */
 function chain(space: string, accountId: string) {
     return {
-        name: "chain",
+        name: CHAIN_PUBLICATION,
         scope: accountId,
         target: space,
-        publication: "chain",
-        parameters: {
-            local: [],
-            replicated: [ACCOUNT_TYPE],
-            via: [accountId],
-            between: [],
-            types: [],
-        },
+        publication: CHAIN_PUBLICATION,
+        parameters: { scopes: [], local: [], types: [], via: [accountId], between: [] },
     };
 }
 
@@ -306,8 +300,8 @@ async function accounts(caller: Actor, space: string): Promise<unknown[]> {
             name: space,
             scope: Scope.universe.id,
             target: space,
-            publication: "universe",
-            parameters: { rows: [{ type: ACCOUNT_TYPE, where: {}, isEverywhere: true }] },
+            publication: QUERIES_PUBLICATION,
+            parameters: { queries: { account: { object: ACCOUNT_TYPE.type, scopes: "every" } } },
         },
         { signal: controller.signal },
     );

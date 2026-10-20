@@ -1,13 +1,17 @@
-import { Snapshot } from "@destack/db";
+import { defineDatabase, Snapshot } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { Directory } from "../src/address/index.ts";
-import { Account } from "../src/object/index.ts";
+import { Account, endpoint, placement } from "../src/object/index.ts";
 import { AccountFixture, type Actor, ids, outcome } from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";
 import { isCallError } from "@destack/runtime/error";
+
+/** The spaces the stress test places, enough to tell reads per space from reads per call. */
+const STRESS_SPACES = 20;
 
 test("find and resolve an address over the directory's rows, list an account's placements to those reading it and to machines, and find nothing once the account's deletion was requested", async () => {
     // store a place called notes on a machine that publishes its URL
@@ -32,7 +36,7 @@ test("find and resolve an address over the directory's rows, list an account's p
     });
 
     // find the place and resolve its machine
-    const placement = { id: spaceId, scope: accountId, machine: machine.id, epoch: 1 };
+    const placed = { id: spaceId, scope: accountId, machine: machine.id, epoch: 1 };
     expect([
         await resolver.find(place, `notes--${handle}`),
         await resolver.find(place, `other--${handle}`),
@@ -40,14 +44,14 @@ test("find and resolve an address over the directory's rows, list an account's p
     ]).toEqual([
         place.reference(accountId, spaceId),
         undefined,
-        { id: spaceId, placement, url: "https://machine.test/" },
+        { id: spaceId, placement: placed, url: "https://machine.test/" },
     ]);
 
     // list the account's home, placed with the account on the residency's cloud machine, beside the space
     const home = { id: Account.home(accountId), scope: accountId, machine: ids.machine, epoch: 1 };
     expect([await placements(owner, accountId), await placements(machine, accountId)]).toEqual([
-        [home, placement],
-        [home, placement],
+        [home, placed],
+        [home, placed],
     ]);
 
     // conceal the account from an outsider, a machine of the outsider's account and an unknown account
@@ -127,6 +131,52 @@ test("read a space's address in its account for those reading the account, an or
         await addressOf(outsider, notes),
         await addressOf(outsider, board),
     ]).toEqual([`notes--${personal.handle}`, "board--initech", undefined, undefined]);
+});
+
+test("locate each of many spaces placed on a machine in two statements, its placement and its machine's endpoint", async () => {
+    // open a database of placements and endpoints
+    const storage = await TestDatabase.create(
+        "sqlite",
+        defineDatabase({ name: "directory", tables: [...placement.tables, ...endpoint.tables] }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+
+    // publish a machine's endpoint at its URL
+    const now = Date.now();
+    await database.insert(endpoint.table).values({
+        id: ids.machine,
+        scope: ids.account,
+        parentId: ids.machine,
+        url: "https://machine.test/",
+        relay: null,
+        createdAt: now,
+        updatedAt: now,
+    });
+
+    // place many spaces on the machine
+    const spaces = Array.from({ length: STRESS_SPACES }, () => Identifier.create("space"));
+    const placed = spaces.map((id) => ({ id, scope: ids.account, machine: ids.machine, epoch: 1 }));
+    await database.insert(placement.table).values(
+        placed.map(({ machine, ...rest }) => ({
+            ...rest,
+            machineId: machine,
+            createdAt: now,
+            updatedAt: now,
+        })),
+    );
+
+    // locate each through a connection counting its own statements
+    const reader = database.metered();
+    const directory = new Directory(Snapshot.live(reader));
+    const located = await Promise.all(spaces.map((id) => directory.locate(id, now)));
+
+    // read two rows per space: its placement and its machine's endpoint
+    expect({ statements: reader.driver.operations, located }).toEqual({
+        statements: 2 * STRESS_SPACES,
+        located: placed.map((each) => ({ placement: each, url: "https://machine.test/" })),
+    });
 });
 
 /** List the placements of an account a caller reads, as where each space runs. */

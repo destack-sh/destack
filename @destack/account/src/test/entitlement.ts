@@ -16,8 +16,9 @@ const TEST_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000
 
 /** Accounts' entitlements as a test writes them into a follower's replica. */
 export const TestEntitlement = {
-    /** A publisher that sends nothing, as the test writes the replicas itself. */
+    /** A publisher that sends nothing until stopped. */
     publisher: {
+        confirm: async () => {},
         stream: async function* (_subscription: Subscription, signal: AbortSignal) {
             await until(signal);
             yield* [];
@@ -46,7 +47,7 @@ export const TestEntitlement = {
             .onConflictDoNothing();
         await database
             .insert(replicaPosition)
-            .values({ ...key, epoch: "test", sequence: 1, confirmedAt: now })
+            .values({ ...key, log: "test", epoch: "test", sequence: 1, confirmedAt: now })
             .onConflictDoNothing();
 
         // replace the entitlement, a resource's under a test feature of its name

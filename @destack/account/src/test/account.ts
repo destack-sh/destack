@@ -86,8 +86,8 @@ import { accountDatabase } from "../stack/index.ts";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
 import { Browser } from "./browser.ts";
+import { TestEntitlement } from "./entitlement.ts";
 import type { Mail, MailOutcome, MailTransport } from "../better-auth/index.ts";
-import { until } from "@destack/runtime/timer";
 import { Clock } from "@destack/environment";
 
 /** The universe's origin. */
@@ -940,7 +940,7 @@ export class AccountFixture implements AsyncDisposable {
         // wait for each replica the installation requests from the account package, while it requests new ones
         const timeout = AbortSignal.timeout(SETTLE_MILLISECONDS);
         const signal = failure === undefined ? timeout : AbortSignal.any([timeout, failure]);
-        const head = await this.database.log.position(await objects.database.log.epoch());
+        const head = await this.database.log.position();
         const done = new Set<string>();
         for (let isGrowing = true; isGrowing;) {
             // follow the replicas of the account package the store requests now, as it follows them
@@ -949,14 +949,16 @@ export class AccountFixture implements AsyncDisposable {
 
             // wait for each to catch up and to complete a run of the request it has then
             for (const request of pending) {
-                const replica = objects.source.buildReplica(request);
-                const isCaught = await replica.wait(objects.database, head, signal);
+                const isCaught = await objects.wait({ scope: request.scope, ...head }, signal);
                 const isCurrent = await objects.database.log.until(async () => {
                     const latest = (await AccountFixture.#requests(objects)).find(
                         (each) => each.name === request.name && each.scope === request.scope,
                     );
 
-                    return latest === undefined || Replica.isCurrent(objects.database, latest);
+                    return (
+                        latest === undefined ||
+                        (await Replica.confirmedAt(objects.database, latest)) !== undefined
+                    );
                 }, signal);
 
                 // fail with the failure aborting the wait, or on a replica left behind
@@ -1163,7 +1165,7 @@ export class AccountFixture implements AsyncDisposable {
                     after: [],
                 }),
             ],
-            chain: async () => ({ kind: "follower" }),
+            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             principal: Scope.universe,
             partition: Scope.universe.id,
             policies: options.policies ?? [],
@@ -1174,12 +1176,7 @@ export class AccountFixture implements AsyncDisposable {
             events,
             origin: { package: Package.of(accountPackage) },
             // follow the residencies' homes through a publisher that sends nothing, as no finance runs here
-            publisher: () => ({
-                stream: async function* (_subscription, signal) {
-                    await until(signal);
-                    yield* [];
-                },
-            }),
+            publisher: () => TestEntitlement.publisher,
         });
         const { packages } = store;
 
@@ -1300,7 +1297,7 @@ export class AccountFixture implements AsyncDisposable {
     static async #requests(objects: ObjectStore): Promise<Subscription[]> {
         const subscriber = present(objects.subscriber, "the installation's subscriber");
 
-        return ((await subscriber.subscriptions?.()) ?? [])
+        return (await subscriber.subscriptions(Snapshot.live(objects.database)))
             .filter((entry) => entry.publisher === subscriber.uplink)
             .map((entry) => entry.subscription);
     }

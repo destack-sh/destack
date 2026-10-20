@@ -3,6 +3,7 @@ import { eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
 import { Scope, Subject, ObjectReference } from "@destack/sync";
 import { createClient } from "@destack/runtime/client";
+import { ObjectSink } from "@destack/object/server";
 import { RequestId } from "@destack/runtime/request";
 import { expect, refusal, test } from "@destack/test";
 import { account } from "../src/object/account.ts";
@@ -18,6 +19,9 @@ const VAULT = Identifier.create("package");
 
 /** One day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
+
+/** How long a chain replica's first page may take: 5 s, far above the milliseconds it takes. */
+const PAGE_MILLISECONDS = 5000;
 
 /** Issue a token client with its holder's grant, act through it within the grant, revoke both. */
 test("issue a token client with its grant, act through it, and revoke both", async () => {
@@ -297,14 +301,14 @@ test("follow a space's chain at the universe as the space, through the tokens it
     });
 
     // read the account's scope in the first page of the space's chain replica
-    const [chain] = await fixture.objects.authorizer.chain(
-        fixture.database,
-        spaceId,
-        { kind: "home", parent: accountId },
-        fixture.objects.source.reached(),
-    );
-    const stream = await accounts.store.stream(present(chain, "the space's chain"), {
-        signal: AbortSignal.timeout(5000),
+    const chain = fixture.objects.source.chainPublication.subscription({
+        name: ObjectSink.chainName(spaceId),
+        scope: accountId,
+        target: spaceId,
+        parameters: { scopes: [spaceId, accountId], local: [], types: [], via: [], between: [] },
+    });
+    const stream = await accounts.store.stream(chain, {
+        signal: AbortSignal.timeout(PAGE_MILLISECONDS),
     });
     const [page] = await Array.fromAsync(take(stream, 1));
     expect(

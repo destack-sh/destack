@@ -57,7 +57,7 @@ test.for(TEST_DIALECTS)(
         await database.insert(replica).values({ ...key, tables: [] });
         await database
             .insert(replicaPosition)
-            .values({ ...key, epoch: "epoch", sequence: 1, confirmedAt: now });
+            .values({ ...key, log: "log", epoch: "epoch", sequence: 1, confirmedAt: now });
         const rows = [
             metered("database", "blocked"),
             metered("storage", "within"),

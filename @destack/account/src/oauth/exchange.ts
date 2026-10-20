@@ -340,7 +340,7 @@ class SpaceVerification {
         const { subjects: expanded } = await Access.expand(
             snapshot,
             [subject],
-            { subject, now: this.now, linkSecrets: [] },
+            { now: this.now, linkSecrets: [] },
             authorizer,
             chain.map((link) => link.object),
         );
