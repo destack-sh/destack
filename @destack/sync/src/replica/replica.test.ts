@@ -784,17 +784,17 @@ test.for(TEST_DIALECTS)(
         await stream.next();
         expect(await state()).toEqual([["b", "stale"], undefined]);
 
-        // drop a broken stream's staged run
+        // drop a broken stream's staged run, applying the next stream's snapshot alone
         await stream.return(undefined);
         await replicate(notes, local, [
             {
-                reset: false,
+                reset: true,
                 complete: true,
                 changes: [noteInsert("c")],
                 position: { log: LOG, epoch, sequence: 2 },
             },
         ]);
-        expect(await state()).toEqual([["b", "c", "stale"], { log: LOG, epoch, sequence: 2 }]);
+        expect(await state()).toEqual([["c"], { log: LOG, epoch, sequence: 2 }]);
 
         // apply the snapshot and prune the left out rows
         await replicate(notes, local, snapshot);
@@ -1458,7 +1458,44 @@ test("resume a subscription from the replica's position, reshape one of other pa
     ]);
 });
 
-test("report a replica current for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
+test("read when the home last confirmed a replica's rows, absent before its first page, renewed by each later page", async () => {
+    const local = await openReplica("sqlite");
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const subscription = {
+        name: "notes",
+        publication: "queries",
+        scope: "inbox",
+        target: "inbox",
+        parameters: { queries: { open: { object: "note" } } },
+    };
+    const clock = new VirtualClock(1000);
+    const page = (sequence: number): Page => ({
+        reset: sequence === 4,
+        complete: true,
+        changes: [],
+        position: { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence },
+    });
+    const apply = (sequence: number) =>
+        Array.fromAsync(
+            notes.apply(local, [page(sequence)], { clock, subscription, audience: "contained" }),
+        );
+    const confirmed = () => Replica.confirmedAt(local, subscription);
+
+    // confirm at the snapshot's time, then renew with a later page
+    await notes.register(local, { clock });
+    const registered = await confirmed();
+    await apply(4);
+    const atSnapshot = await confirmed();
+    clock.advance(30_000);
+    await apply(5);
+    expect({ registered, atSnapshot, renewed: await confirmed() }).toEqual({
+        registered: undefined,
+        atSnapshot: 1000,
+        renewed: 31_000,
+    });
+});
+
+test("read a replica's confirmation for the request it completed a run of, and for a reshaped request only once a run of it completes", async () => {
     const local = await openReplica("sqlite");
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const subscription = {
@@ -1472,8 +1509,8 @@ test("report a replica current for the request it completed a run of, and for a 
     const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     const current = async () => [
-        await Replica.isCurrent(local, subscription),
-        await Replica.isCurrent(local, reshaped),
+        (await Replica.confirmedAt(local, subscription)) !== undefined,
+        (await Replica.confirmedAt(local, reshaped)) !== undefined,
     ];
 
     // report neither before the first run, then only the completed request

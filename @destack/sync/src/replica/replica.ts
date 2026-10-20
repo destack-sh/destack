@@ -708,20 +708,20 @@ export class Replica {
         return record !== undefined && Replica.#origin(record) !== undefined;
     }
 
-    /** Report whether a replica completed a run of a subscription as it is requested now. */
-    static async isCurrent(
+    /** Read when the home last confirmed a replica following a subscription, absent otherwise. */
+    static async confirmedAt(
         database: DatabaseConnection,
         subscription: Subscription,
-    ): Promise<boolean> {
+    ): Promise<number | undefined> {
+        // read the record's origin and the subscription it follows
         const record = await Replica.#find(database, subscription.name, subscription.scope);
+        const origin = record === undefined ? undefined : Replica.#origin(record);
         const recorded = record?.subscription;
-
-        return (
-            record !== undefined &&
-            Replica.#origin(record) !== undefined &&
+        const isFollowing =
             recorded !== undefined &&
-            canonicalize(recorded) === canonicalize(Replica.#subscribed(subscription))
-        );
+            canonicalize(recorded) === canonicalize(Replica.#subscribed(subscription));
+
+        return isFollowing ? origin?.confirmedAt : undefined;
     }
 
     /** Read a database's record of a named replica of a scope, absent before it follows. */
@@ -1357,7 +1357,7 @@ export class Replica {
         const isHome = relayed === undefined && (run.isSnapshot || record?.originLog === null);
         const position = {
             ...page.position,
-            ...Replica.#originColumns(relayed, isHome, clock.now()),
+            ...Replica.#originColumns(relayed, isHome, record, clock.now()),
         };
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
@@ -1388,7 +1388,7 @@ export class Replica {
         // write the position, and drop the run's staged pages
         await transaction
             .insert(replicaPosition)
-            .values({ ...key, confirmedAt: record?.confirmedAt ?? clock.now(), ...position })
+            .values({ ...key, ...position })
             .onConflictDoUpdate({
                 target: [replicaPosition.name, replicaPosition.scope],
                 set: position,
@@ -2157,19 +2157,18 @@ export class Replica {
         ];
     }
 
-    /** Write the home position a replica's rows reflect: a relaying source's, its own, or none. */
+    /** Write the home position a replica's rows reflect: relayed, its own, or the recorded one. */
     static #originColumns(
         relayed: Origin | undefined,
         isHome: boolean,
+        record: ReplicaRecord | undefined,
         now: number,
-    ):
-        | {
-              readonly originLog: string | null;
-              readonly originEpoch: string | null;
-              readonly originSequence: number | null;
-              readonly confirmedAt: number;
-          }
-        | {} {
+    ): {
+        readonly originLog: string | null;
+        readonly originEpoch: string | null;
+        readonly originSequence: number | null;
+        readonly confirmedAt: number;
+    } {
         // take a relaying source's position
         if (relayed !== undefined) {
             return {
@@ -2183,9 +2182,18 @@ export class Replica {
         else if (isHome) {
             return { originLog: null, originEpoch: null, originSequence: null, confirmedAt: now };
         }
+        // refuse a page past a snapshot without the record the snapshot wrote
+        else if (record === undefined) {
+            throw new TypeError("a replica's page past its snapshot has no record");
+        }
         // keep the recorded position
         else {
-            return {};
+            return {
+                originLog: record.originLog,
+                originEpoch: record.originEpoch,
+                originSequence: record.originSequence,
+                confirmedAt: record.confirmedAt,
+            };
         }
     }
 
