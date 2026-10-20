@@ -29,7 +29,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { Health } from "@destack/runtime/health";
 import { RequestId } from "@destack/runtime/request";
 import { Server, RequestContext } from "@destack/runtime/server";
-import { reconciliation, TestBearer, testCallKey } from "@destack/runtime/test";
+import { reconcileOnce, TestBearer, testCallKey } from "@destack/runtime/test";
 import { ControlLoop } from "@destack/runtime/control";
 import { expect, onTestFinished } from "@destack/test";
 import { type ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
@@ -752,12 +752,8 @@ export class ConnectionFixture {
         if (controller === undefined) {
             throw new TypeError("the connection package controls its connections");
         }
-        const waits: (number | undefined)[] = [];
-        for (const key of await controller.list()) {
-            waits.push(await controller.reconcile(key, reconciliation()));
-        }
 
-        return waits;
+        return reconcileOnce(controller, this.objects.database);
     }
 
     /** Follow the store's replicas in a control loop until the test ends. */

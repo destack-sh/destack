@@ -3,7 +3,7 @@ import { inArray } from "@destack/db";
 import { nth, present, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Replica, type ObjectReference } from "@destack/sync";
+import type { ObjectReference } from "@destack/sync";
 import { journal } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { authorizationRequest, connection, integration } from "../object/index.ts";
@@ -74,7 +74,7 @@ async function connect(
 
     // wait for the replica of the integration to match the home's head
     const head = await fixture.home.database.log.position();
-    await Replica.wait(space.database, fixture.registered.scope, head, fixture.signal);
+    await space.objects.wait({ scope: fixture.registered.scope, ...head }, fixture.signal);
 
     return connection.reference(space.scope.id, created.id);
 }
@@ -239,7 +239,7 @@ test("register the client of a space's connection without an integration at the 
     // register at home, wait for the replica, and complete through the home's client
     const { url } = await authorize(space, created.id);
     const head = await home.database.log.position();
-    await Replica.wait(space.database, home.scope.id, head, signal);
+    await space.objects.wait({ scope: home.scope.id, ...head }, signal);
     await complete(space, created.id, await home.server.approve(url));
     const [row] = await space.connections();
     const stored = await home.database.select().from(integration.table);
