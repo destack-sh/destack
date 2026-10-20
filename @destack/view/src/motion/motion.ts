@@ -11,10 +11,25 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
     // follow the device preference and the theme roots at and above the element
     const isPreferred = createMediaQuery(REDUCED_MOTION_QUERY);
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
+
+    // read the scale once per frame after a burst of changes, in one style pass
+    let isPending = false;
     createMutationObserver(
         () => findRoots(element()),
         { attributes: true, attributeFilter: ["style", "class"] },
-        () => setMutations((count) => count + 1),
+        () => {
+            // skip while a read is already scheduled
+            if (isPending) {
+                return;
+            }
+
+            // schedule one read for the next frame
+            isPending = true;
+            requestAnimationFrame(() => {
+                isPending = false;
+                setMutations((count) => count + 1);
+            });
+        },
     );
 
     return createMemo(() => {
