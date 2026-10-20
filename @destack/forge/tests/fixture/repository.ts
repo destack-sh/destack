@@ -1,3 +1,5 @@
+import objectPackage from "@destack/object/package";
+import accountPackage from "@destack/account/package";
 import { AccessFixture } from "@destack/access/test";
 import { Secret } from "@destack/vault";
 import { PackageMount, SpaceMount } from "@destack/runtime";
@@ -258,7 +260,7 @@ export class RepositoryFixture implements AsyncDisposable {
     /** Create an account of the owner with a reader and a stranger, once replicated. */
     async tenant(): Promise<Tenant> {
         // create the account as the owner
-        const owner = this.accounts.user(ids.owner);
+        const owner = this.accounts.user(ids.owner, accountPackage);
         const created = await owner.account.create({
             scope: ids.owner,
             requestId: RequestId.create(Date.now()),
@@ -270,8 +272,9 @@ export class RepositoryFixture implements AsyncDisposable {
 
         // let a reader read and pull its repositories
         const reader = schema.identifier("user").parse(Identifier.create("user"));
-        const role = await owner.role.create({
-            accountId: created.id,
+        const access = this.accounts.user(ids.owner, objectPackage);
+        const role = await access.role.create({
+            scope: created.id,
             requestId: RequestId.create(Date.now()),
             name: "reader",
             description: "Reads and pulls repositories",
@@ -569,7 +572,7 @@ export class RepositoryFixture implements AsyncDisposable {
     /** Create a space in an account through the account package, with its identity started. */
     async createSpace(accountId: Identifier<"account">): Promise<Identifier<"space">> {
         const id = schema.identifier("space").parse(Identifier.create("space"));
-        await this.accounts.user(ids.owner).space.create({
+        await this.accounts.user(ids.owner, accountPackage).space.create({
             accountId,
             id,
             requestId: RequestId.create(Date.now()),

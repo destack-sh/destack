@@ -1,3 +1,4 @@
+import accountPackage from "@destack/account/package";
 import { onTestFinished } from "vitest";
 import { ForgeFixture } from "../../src/test/index.ts";
 import { AccountFixture, ids } from "@destack/account/test";
@@ -59,7 +60,7 @@ export async function openUniverse(images?: ImageIndex): Promise<AccountFixture>
     });
 
     // create the owner's account
-    await accounts.user(ids.owner).account.create({
+    await accounts.user(ids.owner, accountPackage).account.create({
         scope: ids.owner,
         id: ACCOUNT_ID,
         requestId: RequestId.create(Date.now()),

@@ -1,3 +1,5 @@
+import objectPackage from "@destack/object/package";
+import accountPackage from "@destack/account/package";
 import { expect, refusal, test } from "@destack/test";
 import { Clock } from "@destack/environment";
 import { join } from "node:path";
@@ -96,9 +98,10 @@ test("authorize a manifest push from the forge's replica of the account, followi
 
     // refuse the stranger, grant them publishing at the account service and push once the replica follows
     const refused = await push();
-    const owner = forge.accounts.user(ids.owner);
-    const role = await owner.role.create({
-        accountId: ACCOUNT_ID,
+    const owner = forge.accounts.user(ids.owner, accountPackage);
+    const access = forge.accounts.user(ids.owner, objectPackage);
+    const role = await access.role.create({
+        scope: ACCOUNT_ID,
         requestId: RequestId.create(Date.now()),
         name: "publisher",
         description: "Publishes the account's packages",
