@@ -14,6 +14,7 @@ import {
     Predicate,
     type Row,
     type Table,
+    type LogPosition,
 } from "@destack/db";
 import { type MethodContext, ObjectType, type ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -470,7 +471,8 @@ class ChangeController<Input> implements Controller {
         const table = ChangeController.#table(this.#trigger);
         const log = new Log(database);
         const slot = `trigger/${this.#workflow.package.id}/${this.#workflow.name}/${this.#trigger.name}`;
-        const epoch = await log.epoch();
+        const { log: id, epoch } = await log.position();
+        const timeline = { log: id, epoch };
         const match =
             change.where === undefined
                 ? undefined
@@ -478,14 +480,19 @@ class ChangeController<Input> implements Controller {
                       Condition.resolve(change.where, Namespace.fields(table)),
                       table,
                   );
-        let after = (await log.slot(slot)) ?? (await this.#begin(slot, epoch));
+        let after = (await log.slot(slot)) ?? (await this.#begin(slot, timeline));
 
         // start each matching change's run page by page, advancing the slot after each page
         try {
             for (;;) {
                 const page = await log.read({ tables: [table], after });
                 for (const logged of page.changes) {
-                    const matching = ChangeController.#see(change.operations, logged, epoch, match);
+                    const matching = ChangeController.#see(
+                        change.operations,
+                        logged,
+                        timeline,
+                        match,
+                    );
                     if (matching !== undefined) {
                         await this.#start(matching, logged.changedAt);
                     }
@@ -516,7 +523,7 @@ class ChangeController<Input> implements Controller {
     }
 
     /** Start the slot at the log's head, first starting the runs of a snapshot's matching rows. */
-    async #begin(slot: string, epoch: string): Promise<number> {
+    async #begin(slot: string, timeline: Omit<LogPosition, "sequence">): Promise<number> {
         // start the slot at the head, or resume the snapshot begun at an earlier head
         const change = this.#trigger.change;
         const log = new Log(this.#store.database);
@@ -530,7 +537,7 @@ class ChangeController<Input> implements Controller {
         }
 
         // start a run for each matching row as created at the snapshot's reading, page by page
-        const snapshot = log.at({ epoch, sequence });
+        const snapshot = log.at({ ...timeline, sequence });
         const at = this.#store.clock.now();
         const table = ChangeController.#table(this.#trigger);
         let last: Row | undefined;
@@ -545,7 +552,7 @@ class ChangeController<Input> implements Controller {
             for (const row of rows) {
                 await this.#start(
                     {
-                        position: { epoch, sequence },
+                        position: { ...timeline, sequence },
                         operation: "create",
                         key: Key.of(table, row),
                         after: row,
@@ -594,7 +601,7 @@ class ChangeController<Input> implements Controller {
     static #see(
         operations: readonly ChangeOperation[],
         change: Change,
-        epoch: string,
+        timeline: Omit<LogPosition, "sequence">,
         match: Match | undefined,
     ): ObjectChange | undefined {
         // match each image and classify the change by the matching images
@@ -611,7 +618,7 @@ class ChangeController<Input> implements Controller {
         }
 
         return {
-            position: { epoch, sequence: change.sequence },
+            position: { ...timeline, sequence: change.sequence },
             operation,
             ...(before && image.before !== null ? { before: image.before } : {}),
             ...(after && image.after !== null ? { after: image.after } : {}),

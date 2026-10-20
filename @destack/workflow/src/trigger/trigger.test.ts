@@ -99,7 +99,7 @@ test("key each event, ordering changes as the log orders them", () => {
 /** Key a created change at a log position, at a snapshot row when given. */
 function changeKey(epoch: string, sequence: number, id?: string): string {
     return Trigger.key({
-        position: { epoch, sequence },
+        position: { log: "log-1", epoch, sequence },
         operation: "create",
         ...(id === undefined ? {} : { key: { id } }),
     });
