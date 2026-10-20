@@ -1,4 +1,4 @@
-import { ChainParameters, InheritedParameters } from "./authorizer.ts";
+import { ChainParameters } from "./authorizer.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, eq, Snapshot, type DatabaseConnection } from "@destack/db";
 import {
@@ -21,13 +21,14 @@ import {
     Authorizer,
     Caller,
     CHAIN_PUBLICATION,
-    INHERITED_PUBLICATION,
     Relationship,
 } from "../index.ts";
 import {
     account,
     accountTable,
     homeMappings,
+    cell,
+    item,
     node,
     policies,
     policy,
@@ -99,12 +100,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
     for (const scope of chain) {
         await follow(
             app.database,
-            chainOf(app.authorizer, authorizer, scope, "personal", chain),
-            feed,
-        );
-        await follow(
-            app.database,
-            inheritedOf(app.authorizer, authorizer, scope, "personal"),
+            chainOf(app.authorizer, authorizer, scope, "personal", chain, [policy.typeReference]),
             feed,
         );
     }
@@ -134,7 +130,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
     );
     await follow(
         app.database,
-        chainOf(app.authorizer, authorizer, "account-1", "personal", chain),
+        chainOf(app.authorizer, authorizer, "account-1", "personal", chain, [policy.typeReference]),
         feed,
     );
     expect(await replicated(app.database)).toEqual(await replicated(home.database));
@@ -145,7 +141,7 @@ test("replicate at the universe the relationships of the chain's objects alone, 
     const authorizer = new Authorizer(policies, homeMappings);
     const own = authorizer.replicateChain(
         { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
-        { scopes: ["personal", "account-1", "universe"], local: [], ...OWN },
+        { scopes: ["personal", "account-1", "universe"], local: [], types: [], ...OWN },
     );
     const outside = authorizer.replicateChain(
         {
@@ -153,7 +149,7 @@ test("replicate at the universe the relationships of the chain's objects alone, 
             scope: Scope.universe.id,
             target: "placement",
         },
-        { scopes: [], local: [], via: ["account-1"], between: [] },
+        { scopes: [], local: [], types: [], via: ["account-1"], between: [] },
     );
 
     // read the chain objects' universe relationships, and the target's grants on its chain
@@ -224,7 +220,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
 
     // replicate both accounts' access rows and the universe's in one stream, stored at each scope by the one record
     const via = (accounts: readonly string[]) =>
-        chainOf(app.authorizer, authorizer, Scope.universe.id, "placement", [], {
+        chainOf(app.authorizer, authorizer, Scope.universe.id, "placement", [], [], {
             via: accounts,
             between: [],
         });
@@ -256,27 +252,53 @@ test("replicate the chains of the accounts a follower outside them replicates in
 });
 
 test("replicate a scope object's own row from wherever it lives, and only from a source storing its type", () => {
-    // build the account's inherited replica of its type and policies, at every source
+    // build the account's chain replica of its type and policies, at every source
     const storing = new Authorizer(policies, homeMappings);
     const relating = new Authorizer(policies, homeMappings, {
         tables: new Set(
             homeMappings.map((mapping) => mapping.table).filter((table) => table !== policyTable),
         ),
     });
-    const inherited = (authorizer: Authorizer, type: ObjectTypeReference) =>
-        authorizer.replicateInherited(
-            { name: INHERITED_PUBLICATION, scope: "account-1" },
-            { types: [type], ...OWN },
+    const chained = (authorizer: Authorizer, type: ObjectTypeReference) =>
+        authorizer.replicateChain(
+            { name: CHAIN_PUBLICATION, scope: "account-1", target: "personal" },
+            { scopes: ["personal", "account-1", "universe"], local: [], types: [type], ...OWN },
         );
-    const own = inherited(storing, account.typeReference);
+    const own = chained(storing, account.typeReference);
 
     // replicate the account's row everywhere, and policy rows from their source alone
     expect([
         own.where.get(accountTable),
         own.everywhere.has(accountTable),
-        inherited(storing, policy.typeReference).tables.includes(policyTable),
-        inherited(relating, policy.typeReference).tables.includes(policyTable),
+        chained(storing, policy.typeReference).tables.includes(policyTable),
+        chained(relating, policy.typeReference).tables.includes(policyTable),
     ]).toEqual([{ id: { in: ["account-1"] } }, true, true, false]);
+});
+
+test("read one table of several types once in a chain replica, in the scopes of every type", () => {
+    // replicate node and cell rows, which share one table, via two outside scopes
+    const authorizer = new Authorizer(policies, homeMappings, { replicated: new Set([item]) });
+    const outside = authorizer.replicateChain(
+        {
+            name: `${CHAIN_PUBLICATION}:placement:via`,
+            scope: Scope.universe.id,
+            target: "placement",
+        },
+        {
+            scopes: [],
+            local: [],
+            types: [node.typeReference, cell.typeReference],
+            via: ["personal", "account-1"],
+            between: [],
+        },
+    );
+
+    // read the table once, without a condition, in both scopes
+    expect([
+        outside.tables.filter((table) => table === item).length,
+        outside.where.has(item),
+        outside.scopes.get(item),
+    ]).toEqual([1, false, ["personal", "account-1"]]);
 });
 
 /** A replica a test follows, with the subscription it registers under. */
@@ -298,6 +320,7 @@ function chainOf(
     scope: string,
     target: string,
     scopes: readonly string[],
+    types: ChainParameters["types"] = [],
     outside: Pick<ChainParameters, "via" | "between"> = OWN,
 ): Followed {
     const request = {
@@ -305,7 +328,7 @@ function chainOf(
         scope,
         target,
     };
-    const parameters = { scopes, local: [], ...outside };
+    const parameters = { scopes, local: [], types, ...outside };
 
     return {
         replica: follower.replicateChain(request, parameters),
@@ -317,33 +340,10 @@ function chainOf(
             parameters: {
                 scopes: [...scopes],
                 local: [],
+                types: types.map((type) => ({ ...type })),
                 via: [...outside.via],
                 between: [...outside.between],
             },
-        },
-    };
-}
-
-/** Build one scope's inherited replica for a target at the follower and the source. */
-function inheritedOf(
-    follower: Authorizer,
-    source: Authorizer,
-    scope: string,
-    target: string,
-): Followed {
-    const request = { name: `${INHERITED_PUBLICATION}:${target}`, scope };
-    const parameters = { types: [policy.typeReference], ...OWN };
-
-    return {
-        replica: follower.replicateInherited(request, parameters),
-        source: source.replicateInherited(request, parameters),
-        reflected: (previous) =>
-            source.replicateInherited(request, InheritedParameters.parse(previous)),
-        subscription: {
-            ...request,
-            target,
-            publication: INHERITED_PUBLICATION,
-            parameters: { types: [{ ...policy.typeReference }], via: [], between: [] },
         },
     };
 }

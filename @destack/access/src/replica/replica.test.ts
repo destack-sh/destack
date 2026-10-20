@@ -57,7 +57,13 @@ const carol: AccessContext = {
 function chainOf(authorizer: Authorizer, scope: string, target = scope) {
     const name = `${CHAIN_PUBLICATION}:${target}`;
     const local = scope === target ? authorizer.local : [];
-    const parameters = { scopes: [target, scope], local: [...local], via: [], between: [] };
+    const parameters = {
+        scopes: [target, scope],
+        local: [...local],
+        types: [],
+        via: [],
+        between: [],
+    };
     const subscription: Subscription = {
         name,
         publication: CHAIN_PUBLICATION,

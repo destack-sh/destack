@@ -88,12 +88,14 @@ export interface ChainStep {
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
 }
 
-/** The parameters of a chain replica: the target's chain, its local types and the outside. */
+/** The parameters of a chain replica: the target's chain, its types, and the outside scopes. */
 export const ChainParameters = schema.object({
     /** The target's chain, whose objects' universe relationships a chain replica reads. */
     scopes: schema.array(schema.string().min(1)).readonly(),
     /** The object types whose access rows the target homes, left out of its own scope's replica. */
     local: schema.array(ObjectTypeReference).readonly(),
+    /** The object types whose rows the scope hands down, or keeps for a follower outside. */
+    types: schema.array(ObjectTypeReference).readonly(),
     /** The scopes outside the target's chain a follower replicates via the universe. */
     via: schema.array(schema.string().min(1)).readonly(),
     /** The scopes between the outside ones and the universe, as the follower knows them. */
@@ -101,18 +103,6 @@ export const ChainParameters = schema.object({
 });
 /** The parameters of a chain replica. */
 export type ChainParameters = schema.Infer<typeof ChainParameters>;
-
-/** The parameters of an inherited replica: the object types and the scopes outside. */
-export const InheritedParameters = schema.object({
-    /** The object types whose rows the scope hands down or keeps. */
-    types: schema.array(ObjectTypeReference).min(1).readonly(),
-    /** The scopes outside the target's chain a follower replicates via the universe. */
-    via: schema.array(schema.string().min(1)).readonly(),
-    /** The scopes between the outside ones and the universe, as the follower knows them. */
-    between: schema.array(schema.string().min(1)).readonly(),
-});
-/** The parameters of an inherited replica. */
-export type InheritedParameters = schema.Infer<typeof InheritedParameters>;
 
 /** The chain a scope's replicas cover: the chain above a home, or a follower's from itself. */
 export interface ChainOptions {
@@ -391,10 +381,11 @@ export class Authorizer {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
-                    mapping.inherited !== undefined ||
-                    (replicated.has(mapping.table) &&
-                        mapping.policy.definition.scope === true &&
-                        mapping.table !== Scope.table),
+                    !accessTables.includes(mapping.table) &&
+                    (mapping.inherited !== undefined ||
+                        (replicated.has(mapping.table) &&
+                            mapping.policy.definition.scope === true &&
+                            mapping.table !== Scope.table)),
             )
             .map((mapping) => ({
                 packageId: mapping.policy.definition.packageId,
@@ -407,6 +398,7 @@ export class Authorizer {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
+                    !accessTables.includes(mapping.table) &&
                     replicated.has(mapping.table) &&
                     mapping.inherited === undefined &&
                     mapping.policy.definition.scope !== true &&
@@ -871,7 +863,7 @@ export class Authorizer {
         }
     }
 
-    /** Build a chain replica: one scope's access rows for a target scope, or for scopes outside. */
+    /** Build a chain replica: one scope's access and handed-down rows, for a target or outside. */
     replicateChain(
         request: Pick<Subscription, "name" | "scope" | "target">,
         parameters: ChainParameters,
@@ -904,20 +896,44 @@ export class Authorizer {
         if (isGranting) {
             where.set(accessGrant, { delegateScope: target });
         }
-        const tables = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
+        const access = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
+
+        // take the types the scope hands down, or keeps for a follower outside, that this database stores
+        const stored = parameters.types.filter((type) => {
+            const mapping = this.mapping(type);
+
+            return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);
+        });
+
+        // read each typed table once, with its condition
+        const typed = Authorizer.#merged(
+            stored.flatMap((type) => this.#replicatedRows(type, scopes, via)),
+        );
+        for (const [table, condition] of typed) {
+            if (condition !== undefined) {
+                where.set(table, condition);
+            }
+        }
+
+        // replicate the scope types' own rows from every scope
+        const tables = [...access, ...typed.map(([table]) => table)];
+        const owned = stored
+            .filter((type) => this.requireMapping(type).policy.definition.scope === true)
+            .map((type) => this.#replicatedTable(type));
 
         return new Replica({
             name,
             scope,
             tables,
             where,
-            scopes: new Map(
-                tables.map((table): [Table, readonly string[]] => [
+            scopes: new Map([
+                ...access.map((table): [Table, readonly string[]] => [
                     table,
                     table === accessGrant ? [scope] : scopes,
                 ]),
-            ),
-            everywhere: new Set(isGranting ? [accessGrant] : []),
+                ...typed.map(([table, , living]): [Table, readonly string[]] => [table, living]),
+            ]),
+            everywhere: new Set([...(isGranting ? [accessGrant] : []), ...owned]),
             ...(isUniverse && this.setDepth > 0
                 ? {
                       includes: new Map([
@@ -929,45 +945,33 @@ export class Authorizer {
         });
     }
 
+    /** Merge the typed reads of one table: any type's rows, in every type's scopes. */
+    static #merged(reads: readonly ChainTable[]): ChainTable[] {
+        // group the reads by table, keeping the first one's order
+        const merged = new Map<Table, ChainTable>();
+        for (const [table, condition, living] of reads) {
+            const known = merged.get(table);
+            // take the first type's read of a table
+            if (known === undefined) {
+                merged.set(table, [table, condition, living]);
+            }
+            // read every row once a type reads them all, else any type's rows, in the scopes of both
+            else {
+                const [, before, scoped] = known;
+                const either =
+                    before === undefined || condition === undefined
+                        ? undefined
+                        : { OR: [before, condition] };
+                merged.set(table, [table, either, [...new Set([...scoped, ...living])]]);
+            }
+        }
+
+        return [...merged.values()];
+    }
+
     /** Nest the includes of the subjects' relationships some levels deep. */
     static #subjects(depth: number): NonNullable<QuerySelection["with"]> {
         return { subjects: depth === 1 ? true : { with: Authorizer.#subjects(depth - 1) } };
-    }
-
-    /** Build an inherited replica: the typed rows a scope hands down or keeps outside. */
-    replicateInherited(
-        request: Pick<Subscription, "name" | "scope">,
-        parameters: InheritedParameters,
-    ): Replica {
-        // read each stored type's rows in the scope, or in a follower's outside scopes
-        const { name, scope } = request;
-        const { types, via, between } = parameters;
-        const stored = types.filter((type) => {
-            const mapping = this.mapping(type);
-
-            return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);
-        });
-        const tables = stored.flatMap((type) =>
-            this.#replicatedRows(type, [scope, ...between, ...via], via),
-        );
-        const owned = stored
-            .filter((type) => this.requireMapping(type).policy.definition.scope === true)
-            .map((type) => this.#replicatedTable(type));
-
-        return new Replica({
-            name,
-            scope,
-            tables: tables.map(([table]) => table),
-            where: new Map(
-                tables.flatMap(([table, where]): [Table, Condition][] =>
-                    where === undefined ? [] : [[table, where]],
-                ),
-            ),
-            scopes: new Map(
-                tables.map(([table, , living]): [Table, readonly string[]] => [table, living]),
-            ),
-            everywhere: new Set(owned),
-        });
     }
 
     /** Decide whether a scope hands down rows of an object type. */
