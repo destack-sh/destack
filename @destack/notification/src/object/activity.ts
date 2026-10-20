@@ -1,10 +1,10 @@
 import { intersection, principal, relation, through } from "@destack/access";
 import { type Select } from "@destack/db";
-import { defineObject, defineShape, field, ParentReference } from "@destack/object";
+import { defineObject, defineShape, field, ParentReference, relationship } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns, Subject } from "@destack/sync";
-import { relationship, space } from "@destack/account/object";
+import { space } from "@destack/account/object";
 
 import { ActionMetadata, ActionName, NotificationContent } from "../notification/content.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";

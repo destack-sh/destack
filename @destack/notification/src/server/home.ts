@@ -1,6 +1,6 @@
-import { Account, relationship, space, user } from "@destack/account/object";
+import { Account, space, user } from "@destack/account/object";
+import { Follow, relationship } from "@destack/object";
 import type { RowImage } from "@destack/db";
-import { Follow } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { accountSpaceShape, activityShape, relationshipShape } from "../object/activity.ts";

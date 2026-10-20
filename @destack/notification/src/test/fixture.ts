@@ -10,17 +10,8 @@ import {
     universe,
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import {
-    account,
-    claim,
-    client,
-    key,
-    relationship,
-    user,
-    space,
-    Account,
-} from "@destack/account/object";
-import { call, journal } from "@destack/object";
+import { account, claim, client, key, user, space, Account } from "@destack/account/object";
+import { call, journal, ObjectType, relationship } from "@destack/object";
 import {
     type Database,
     type DatabaseConnection,
@@ -40,7 +31,6 @@ import { message } from "@destack/message";
 import { implementEndpoint, implementMessage, type MessageOptions } from "@destack/message/server";
 import messagePackage from "@destack/message/package";
 import { messageTables } from "@destack/message/stack";
-import { ObjectType } from "@destack/object";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { serversOf, testEvents } from "@destack/object/test";
 import { type BuildReader } from "@destack/package/manifest";
