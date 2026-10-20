@@ -8,7 +8,7 @@ export const database = defineFeature({
     name: "database",
     description: "Bytes kept in databases.",
     kind: "metered",
-    allowance: "database",
+    resource: "database",
     meters: [meters.databaseBytes.reference],
     reset: "never",
 });
@@ -18,7 +18,7 @@ export const storage = defineFeature({
     name: "storage",
     description: "Bytes kept in buckets.",
     kind: "metered",
-    allowance: "storage",
+    resource: "storage",
     meters: [meters.storageBytes.reference],
     reset: "never",
 });
@@ -28,7 +28,7 @@ export const compute = defineFeature({
     name: "compute",
     description: "GB-seconds run per billing period.",
     kind: "metered",
-    allowance: "compute",
+    resource: "compute",
     meters: [meters.memory.reference],
     reset: "period",
 });
@@ -38,7 +38,7 @@ export const network = defineFeature({
     name: "network",
     description: "Bytes sent out per billing period.",
     kind: "metered",
-    allowance: "network",
+    resource: "network",
     meters: [meters.egress.reference],
     reset: "period",
 });
@@ -48,7 +48,7 @@ export const tenancy = defineFeature({
     name: "tenancy",
     description: "Where the account's spaces may run.",
     kind: "static",
-    allowance: "tenancy",
+    resource: "tenancy",
     value: schema.array(Tenancy),
 });
 
@@ -65,5 +65,20 @@ export const customDomains = defineFeature({
     name: "customDomains",
     description: "Serving spaces under the account's own domains.",
     kind: "boolean",
-    allowance: "domain",
+    resource: "domain",
+});
+
+/** The days an account's events stay, such as activity, history and logs, before they expire. */
+export const retention = defineFeature({
+    name: "retention",
+    description: "Days events stay before they expire.",
+    kind: "static",
+    value: schema.number().int().positive(),
+});
+
+/** New apps and features before everyone else. */
+export const earlyAccess = defineFeature({
+    name: "earlyAccess",
+    description: "New apps and features before everyone else.",
+    kind: "boolean",
 });

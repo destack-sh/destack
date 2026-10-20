@@ -1,4 +1,5 @@
-import { CatalogReference, Rate, type Sku } from "@destack/finance";
+import { DeclarationReference } from "@destack/package/declare";
+import { Rate, type Sku } from "@destack/finance";
 import { Fee } from "./book.ts";
 
 /** A SKU with its quantity in one unit of a priced meter, in the units of the SKU's own meter. */
@@ -10,19 +11,19 @@ export class PricingModel {
     readonly #components: ReadonlyMap<string, readonly Component[]>;
 
     /** Keep each meter's components. */
-    constructor(meters: readonly (readonly [CatalogReference, readonly Component[]])[]) {
+    constructor(meters: readonly (readonly [DeclarationReference, readonly Component[]])[]) {
         this.#components = new Map(
-            meters.map(([meter, components]) => [CatalogReference.key(meter), components]),
+            meters.map(([meter, components]) => [DeclarationReference.key(meter), components]),
         );
     }
 
     /** Read the components one unit of a meter costs, absent for a meter the model leaves out. */
-    components(meter: CatalogReference): readonly Component[] | undefined {
-        return this.#components.get(CatalogReference.key(meter));
+    components(meter: DeclarationReference): readonly Component[] | undefined {
+        return this.#components.get(DeclarationReference.key(meter));
     }
 
     /** Price a meter's quantity at each component's list price, in US cents. */
-    price(meter: CatalogReference, quantity: number): number {
+    price(meter: DeclarationReference, quantity: number): number {
         // require the meter's components
         const components = this.components(meter);
         if (components === undefined) {

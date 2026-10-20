@@ -7,7 +7,7 @@ import { PricingModel } from "./model.ts";
 const SOURCE = "https://destack.sh/pricing";
 
 /** The day the unit prices were set. */
-const OBSERVED_AT = "2026-10-12";
+const OBSERVED_AT = "2026-10-20";
 
 /** The units in a million, the quantity operations are priced per. */
 const MILLION = 1_000_000;
@@ -24,7 +24,7 @@ export const RESOURCES = ["Compute", "Database", "Storage", "Network"] as const;
 /** A resource people see Destack's usage as. */
 export type Resource = (typeof RESOURCES)[number];
 
-/** Memory, 0.06 credits per GB-hour held. */
+/** Memory, 0.09 credits per GB-hour held, double its cost on Cloudflare. */
 export const memoryUnit = defineSku({
     name: "destack.compute.memory",
     description: "Memory held while installations run.",
@@ -35,12 +35,12 @@ export const memoryUnit = defineSku({
     pricingUnit: "GB-hour",
     unitSize: GIGABYTE_HOUR_SECONDS,
     currency: CREDITS,
-    unitAmount: "6",
+    unitAmount: "9",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** CPU time, 0.03 credits per million CPU milliseconds. */
+/** CPU time, 0.04 credits per million CPU milliseconds, double its cost on Cloudflare. */
 export const cpuUnit = defineSku({
     name: "destack.compute.cpu",
     description: "CPU time spent on requests.",
@@ -51,12 +51,12 @@ export const cpuUnit = defineSku({
     pricingUnit: "million CPU milliseconds",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "3",
+    unitAmount: "4",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Requests, 0.60 credits per million. */
+/** Requests, 0.90 credits per million, double their cost on Cloudflare. */
 export const requestsUnit = defineSku({
     name: "destack.compute.requests",
     description: "Requests served.",
@@ -67,12 +67,12 @@ export const requestsUnit = defineSku({
     pricingUnit: "million requests",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "60",
+    unitAmount: "90",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Database bytes, 0.25 credits per GB-month. */
+/** Database bytes, 0.40 credits per GB-month, double their cost on Cloudflare. */
 export const databaseBytesUnit = defineSku({
     name: "destack.database.bytes",
     description: "Database storage, kept on average over the month.",
@@ -83,12 +83,12 @@ export const databaseBytesUnit = defineSku({
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
     currency: CREDITS,
-    unitAmount: "25",
+    unitAmount: "40",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Database rows read, 0.00125 credits per million. */
+/** Database rows read, 0.002 credits per million, double their cost on Cloudflare. */
 export const rowsReadUnit = defineSku({
     name: "destack.database.rows.read",
     description: "Database rows read.",
@@ -99,12 +99,12 @@ export const rowsReadUnit = defineSku({
     pricingUnit: "million rows",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "0.125",
+    unitAmount: "0.2",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Database rows written, 1.25 credits per million. */
+/** Database rows written, 2 credits per million, double their cost on Cloudflare. */
 export const rowsWrittenUnit = defineSku({
     name: "destack.database.rows.written",
     description: "Database rows written.",
@@ -115,12 +115,12 @@ export const rowsWrittenUnit = defineSku({
     pricingUnit: "million rows",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "125",
+    unitAmount: "200",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Storage bytes, 0.02 credits per GB-month. */
+/** Storage bytes, 0.03 credits per GB-month, double their cost on Cloudflare. */
 export const storageBytesUnit = defineSku({
     name: "destack.storage.bytes",
     description: "Bucket storage, kept on average over the month.",
@@ -131,12 +131,12 @@ export const storageBytesUnit = defineSku({
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
     currency: CREDITS,
-    unitAmount: "2",
+    unitAmount: "3",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Storage writes and lists, 6 credits per million. */
+/** Storage writes and lists, 9 credits per million, double their cost on Cloudflare. */
 export const storageWritesUnit = defineSku({
     name: "destack.storage.writes",
     description: "Bucket writes and lists.",
@@ -147,12 +147,12 @@ export const storageWritesUnit = defineSku({
     pricingUnit: "million operations",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "600",
+    unitAmount: "900",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });
 
-/** Storage reads, 0.50 credits per million. */
+/** Storage reads, 0.72 credits per million, double their cost on Cloudflare. */
 export const storageReadsUnit = defineSku({
     name: "destack.storage.reads",
     description: "Bucket reads.",
@@ -163,7 +163,7 @@ export const storageReadsUnit = defineSku({
     pricingUnit: "million operations",
     unitSize: MILLION,
     currency: CREDITS,
-    unitAmount: "50",
+    unitAmount: "72",
     source: SOURCE,
     observedAt: OBSERVED_AT,
 });

@@ -1,7 +1,7 @@
 import { CREDITS, type DecimalAmount } from "@destack/finance";
 
-/** The currencies Destack bills in: North America's and Europe's. */
-export const CURRENCIES = ["USD", "CAD", "EUR", "CHF", "GBP"] as const;
+/** The currencies Destack bills in: North America's, Europe's and Australia's. */
+export const CURRENCIES = ["USD", "CAD", "EUR", "CHF", "GBP", "AUD"] as const;
 
 /** A currency Destack bills in. */
 export type BillingCurrency = (typeof CURRENCIES)[number];
@@ -13,6 +13,7 @@ export const CREDIT_PRICES = {
     EUR: "1",
     CHF: "1",
     GBP: "1",
+    AUD: "1.5",
 } as const satisfies Readonly<Record<BillingCurrency, DecimalAmount>>;
 
 /** A monthly fee in minor units of each currency Destack bills. */

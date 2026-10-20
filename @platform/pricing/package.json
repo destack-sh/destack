@@ -4,24 +4,16 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Destack's plans and units, the features its plans grant, and the list prices of the providers it runs on and compares with.",
+    "description": "Destack's plans and units, the features its plans grant, and the list prices of the providers it runs on.",
     "exports": {
         ".": "./src/index.ts",
         "./cloudflare": "./src/vendor/cloudflare.ts",
-        "./aws": "./src/vendor/aws.ts",
-        "./azure": "./src/vendor/azure.ts",
-        "./gcp": "./src/vendor/gcp.ts",
         "./hetzner": "./src/vendor/hetzner.ts",
-        "./render": "./src/vendor/render.ts",
-        "./fly": "./src/vendor/fly.ts",
-        "./railway": "./src/vendor/railway.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts",
-        "refresh": "bun run scripts/refresh.ts",
-        "compare": "bun run scripts/compare.ts"
+        "refresh": "bun run scripts/refresh.ts"
     },
     "dependencies": {
         "@destack/account": "workspace:*",
@@ -32,8 +24,6 @@
         "@destack/stack": "workspace:*"
     },
     "devDependencies": {
-        "@destack/db": "workspace:*",
-        "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }
 }

@@ -2,36 +2,30 @@ import type { MachineSize } from "@destack/account/object";
 import { CREDITS, type Sku } from "@destack/finance";
 import { defineSku } from "@destack/finance/declare";
 import { machineHours } from "@destack/observability/meter";
-import { fly } from "../vendor/fly.ts";
 import { hetzner } from "../vendor/hetzner.ts";
-import { railway } from "../vendor/railway.ts";
-import { render } from "../vendor/render.ts";
 import type { MachineType, MachineVendor } from "../vendor/vendor.ts";
 
 /** The page publishing Destack's machine prices. */
 const SOURCE = "https://destack.sh/pricing";
 
 /** The day the machine prices were set. */
-const OBSERVED_AT = "2026-10-12";
+const OBSERVED_AT = "2026-10-20";
 
 /** A dedicated machine size: its resources, its credit cents per awake hour and its monthly cap. */
 export type Machine = MachineType & { readonly hourly: number; readonly monthly: number };
 
-/** Destack's dedicated machines by size, each double the one before, capped at 500 awake hours. */
+/** Destack's dedicated machines by size, each capped near twice its cost on its host. */
 export const MACHINES: Readonly<Record<MachineSize, Machine>> = {
-    small: { vcpus: 2, memory: 4, disk: 80, hourly: 5, monthly: 2500 },
-    medium: { vcpus: 4, memory: 8, disk: 160, hourly: 10, monthly: 5000 },
-    large: { vcpus: 8, memory: 16, disk: 320, hourly: 20, monthly: 10_000 },
-    xlarge: { vcpus: 16, memory: 32, disk: 640, hourly: 40, monthly: 20_000 },
+    small: { vcpus: 2, memory: 4, disk: 80, hourly: 8, monthly: 4000 },
+    medium: { vcpus: 4, memory: 8, disk: 160, hourly: 16, monthly: 8000 },
+    large: { vcpus: 8, memory: 16, disk: 320, hourly: 32, monthly: 16_000 },
+    xlarge: { vcpus: 16, memory: 32, disk: 640, hourly: 64, monthly: 32_000 },
 };
 
-/** The vendor hosting the dedicated machines, whose cost each cap keeps its margin over. */
+/** The vendor hosting the dedicated machines, whose cost each cap doubles. */
 export const MACHINE_HOST: MachineVendor = hetzner;
 
-/** The platforms whose cheapest equivalent machine each cap sits at or below. */
-export const MACHINE_COMPARABLES: readonly MachineVendor[] = [render, fly, railway];
-
-/** A small machine's awake hours, 0.05 credits each. */
+/** A small machine's awake hours, 0.08 credits each. */
 export const smallMachineUnit = defineSku({
     name: "destack.machine.small",
     description:
@@ -50,7 +44,7 @@ export const smallMachineUnit = defineSku({
     observedAt: OBSERVED_AT,
 });
 
-/** A medium machine's awake hours, 0.10 credits each. */
+/** A medium machine's awake hours, 0.16 credits each. */
 export const mediumMachineUnit = defineSku({
     name: "destack.machine.medium",
     description:
@@ -69,7 +63,7 @@ export const mediumMachineUnit = defineSku({
     observedAt: OBSERVED_AT,
 });
 
-/** A large machine's awake hours, 0.20 credits each. */
+/** A large machine's awake hours, 0.32 credits each. */
 export const largeMachineUnit = defineSku({
     name: "destack.machine.large",
     description:
@@ -88,7 +82,7 @@ export const largeMachineUnit = defineSku({
     observedAt: OBSERVED_AT,
 });
 
-/** An extra large machine's awake hours, 0.40 credits each. */
+/** An extra large machine's awake hours, 0.64 credits each. */
 export const xlargeMachineUnit = defineSku({
     name: "destack.machine.xlarge",
     description:
