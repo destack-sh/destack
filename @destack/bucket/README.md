@@ -31,11 +31,12 @@ const text = document ? await document.text() : undefined;
 `LocalBucket` keeps a bucket in a local directory, `R2Bucket` wraps a Workers R2 binding, and `MemoryBucket` keeps files in memory on a clock a test sets.
 
 ```ts
+import { Clock } from "@destack/environment";
 import { LocalBucket } from "@destack/bucket/bun";
 import { R2Bucket } from "@destack/bucket/cloudflare";
 import { MemoryBucket } from "@destack/bucket/test";
 
-await using local = await LocalBucket.open("./resources/files");
+await using local = await LocalBucket.open("./resources/files", undefined, Clock.system);
 const remote = new R2Bucket(environment.FILES);
 remote.takeOperations(); // { classA: 1, classB: 1 }, R2's billing classes
 const memory = new MemoryBucket(() => now);
@@ -49,7 +50,7 @@ const memory = new MemoryBucket(() => now);
 import { LocalBucketHost } from "@destack/bucket/bun";
 import { bucketProvider } from "@destack/bucket/provider";
 
-const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials });
+const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials, clock });
 const provider = bucketProvider(buckets, implementBucket(buckets));
 ```
 

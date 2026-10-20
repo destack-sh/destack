@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Clock } from "@destack/environment";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -77,7 +78,11 @@ test("roundtrip every bucket operation through S3, answering as the bucket answe
     // serve a local bucket over S3 to a client the host already authorized
     const directory = await mkdtemp(join(tmpdir(), "destack-s3-client-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    await using bucket = await LocalBucket.open(join(directory, "files"), ACCESS_KEY_ID);
+    await using bucket = await LocalBucket.open(
+        join(directory, "files"),
+        ACCESS_KEY_ID,
+        Clock.system,
+    );
     const server = new S3Server({
         region: "auto",
         credentials: async () => undefined,

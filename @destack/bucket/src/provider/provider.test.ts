@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Clock } from "@destack/environment";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { ResourceId } from "@destack/resource";
 import { tmpdir } from "node:os";
@@ -33,6 +34,7 @@ async function temporary(): Promise<string> {
 test("provision a bucket once and destroy it with its files", async () => {
     const directory = await temporary();
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
@@ -55,6 +57,7 @@ test("provision a bucket once and destroy it with its files", async () => {
 test("fence a bucket through its provider, reporting the one concurrent call that set the fence, and declare the sweep its host runs", async () => {
     const directory = await temporary();
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
@@ -88,6 +91,7 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
 test("open a bucket's catalogue under its space's scope, with the blobs its rows reference", async () => {
     const directory = await temporary();
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost"),
         region: "local",
@@ -121,8 +125,16 @@ test("snapshot a bucket's catalogue and files into a content-addressed store and
         region: "local",
         credentials: async () => CREDENTIALS,
     };
-    await using source = new LocalBucketHost({ directory: await temporary(), ...options });
-    await using target = new LocalBucketHost({ directory: await temporary(), ...options });
+    await using source = new LocalBucketHost({
+        clock: Clock.system,
+        directory: await temporary(),
+        ...options,
+    });
+    await using target = new LocalBucketHost({
+        clock: Clock.system,
+        directory: await temporary(),
+        ...options,
+    });
     const store = await LocalBlobStore.open(await temporary());
     const sending = bucketProvider(source, null);
     const receiving = bucketProvider(target, null);

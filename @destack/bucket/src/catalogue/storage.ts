@@ -1,4 +1,5 @@
 import { found } from "@destack/schema";
+import type { Clock } from "@destack/environment";
 import {
     and,
     asc,
@@ -45,6 +46,8 @@ export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["tra
 export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
+    /** The clock uploads expire by, retention ends by and files are stamped with. */
+    readonly clock: Clock;
 }
 
 /** A bucket's catalogue and the blobs its files keep. */
@@ -71,6 +74,11 @@ export class CatalogueStorage implements AsyncDisposable {
     /** Retain an opened catalogue and its blobs. */
     constructor(catalogue: Catalogue) {
         this.#catalogue = catalogue;
+    }
+
+    /** The clock uploads expire by, retention ends by and files are stamped with. */
+    get clock(): Clock {
+        return this.#catalogue.clock;
     }
 
     /** Select the blobs a segment or a part references, at most one batch of them. */
@@ -124,7 +132,7 @@ export class CatalogueStorage implements AsyncDisposable {
                     "consume or cancel bucket streams before closing storage",
                 );
             }
-            await this.collect();
+            await this.#expire();
 
             // release the catalogue
             await this.#catalogue.close();
@@ -132,14 +140,14 @@ export class CatalogueStorage implements AsyncDisposable {
         });
     }
 
-    /** Reclaim detached blobs after their last reader closes. */
-    async collect(): Promise<void> {
+    /** Expire the uploads past their time and reclaim their parts, as S3 lifecycle rules do. */
+    async #expire(): Promise<void> {
         // expire one upload at a time, each bounded by the 10000-part limit
         while (true) {
             const expired = await this.database
                 .select({ id: upload.id })
                 .from(upload)
-                .where(lte(upload.expires, Date.now()))
+                .where(lte(upload.expires, this.clock.now()))
                 .limit(1)
                 .get();
             if (!expired) {
@@ -157,14 +165,14 @@ export class CatalogueStorage implements AsyncDisposable {
             for (const entry of removed) {
                 this.retired.add(entry.blob);
             }
-            await this.#collectFiles();
+            await this.collect();
         }
 
-        await this.#collectFiles();
+        await this.collect();
     }
 
     /** Delete the retired blobs no reader, segment or part keeps. */
-    async #collectFiles(): Promise<void> {
+    async collect(): Promise<void> {
         // keep every blob while a writer may share one it has not yet published
         if (this.#holders > 0) {
             return;
@@ -276,7 +284,7 @@ export class CatalogueStorage implements AsyncDisposable {
         // clean the catalogue and the store while no writer runs
         const isIdle = await this.exclusive(async () => {
             // reclaim expired uploads, and stop while a writer runs
-            await this.collect();
+            await this.#expire();
             if (this.#holders > 0) {
                 return false;
             }
@@ -356,7 +364,7 @@ export class CatalogueStorage implements AsyncDisposable {
             .from(file)
             .where(eq(file.key, entry.key))
             .get();
-        if (previous?.retainUntil != null && previous.retainUntil > Date.now()) {
+        if (previous?.retainUntil != null && previous.retainUntil > this.clock.now()) {
             throw new BucketError("LOCKED", `file ${entry.key} is retained until its lock expires`);
         }
         await transaction.insert(file).values(entry).onConflictDoUpdate({

@@ -232,7 +232,13 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             // describe the file its blob becomes
             const segments = [{ blob: content.blob, nonce: content.nonce, size: content.size }];
             const entry = {
-                ...CatalogueBucket.#entryOf(key, content, options, identity),
+                ...CatalogueBucket.#entryOf(
+                    key,
+                    content,
+                    options,
+                    identity,
+                    this.#storage.clock.now(),
+                ),
                 storageClass,
                 ssecKeyMd5: customerKey?.md5 ?? null,
             };
@@ -275,6 +281,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         content: Content,
         options: BucketPutOptions,
         identity: Pick<BucketFile, "etag" | "version" | "uploaded"> | undefined,
+        now: number,
     ) {
         return {
             key,
@@ -282,7 +289,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             etag: identity?.etag ?? content.etag,
             digest: content.digest,
             size: content.size,
-            uploaded: identity?.uploaded.getTime() ?? Date.now(),
+            uploaded: identity?.uploaded.getTime() ?? now,
             httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
             customMetadata: options.customMetadata ?? {},
             retainUntil: options.retainUntil?.getTime() ?? null,
@@ -317,7 +324,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 ...entry,
                 key: destination,
                 version: crypto.randomUUID(),
-                uploaded: Date.now(),
+                uploaded: this.#storage.clock.now(),
                 httpMetadata:
                     options.httpMetadata === undefined
                         ? entry.httpMetadata
@@ -360,7 +367,9 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             const locked = await this.#storage.database
                 .select({ key: file.key })
                 .from(file)
-                .where(and(inArray(file.key, keys), gt(file.retainUntil, Date.now())));
+                .where(
+                    and(inArray(file.key, keys), gt(file.retainUntil, this.#storage.clock.now())),
+                );
             if (locked.length > 0) {
                 throw new BucketError(
                     "LOCKED",
@@ -393,7 +402,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         });
     }
 
-    /** Reclaim expired uploads and detached files after their last reader closes. */
+    /** Delete the retired blobs once no reader, segment or part keeps them. */
     async collect(): Promise<void> {
         await this.#storage.exclusive(() => this.#storage.collect());
     }

@@ -1,4 +1,5 @@
 import { present } from "@destack/schema";
+import { Clock } from "@destack/environment";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { expect, refusal, test } from "@destack/test";
@@ -8,17 +9,53 @@ import { join } from "node:path";
 import { type UploadedPart, StorageClass } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 
+/** The files the stress test puts, 1.6 ms each on macOS for the fsync of blob and directory. */
+const STRESS_FILES = 25;
+
+test("put, read and delete many files, keeping the blobs of the files left alone", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-stress-"));
+    try {
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
+
+        // put the files one at a time, read each back, then delete every other one
+        const keys = Array.from(
+            { length: STRESS_FILES },
+            (_, index) => `file-${String(index).padStart(4, "0")}`,
+        );
+        for (const key of keys) {
+            await bucket.put(key, `contents of ${key}`);
+        }
+        const read = await Promise.all(
+            keys.map(async (key) => present(await bucket.get(key), key).text()),
+        );
+        const kept = keys.filter((_, index) => index % 2 === 0);
+        await bucket.delete(keys.filter((_, index) => index % 2 === 1));
+        await bucket.sweep();
+
+        // read every file as written, and leave the kept files' blobs
+        expect({
+            read,
+            blobs: (await readdir(join(directory, "files"))).toSorted(),
+        }).toEqual({
+            read: keys.map((key) => `contents of ${key}`),
+            blobs: kept.map((key) => digestOf(`contents of ${key}`)).toSorted(),
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
 test("retain local files across reopen and failed streamed uploads", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-reopen-"));
     try {
         // refuse creating a bucket without the scope it belongs to
-        await expect(LocalBucket.open(directory)).rejects.toMatchObject({
+        await expect(LocalBucket.open(directory, undefined, Clock.system)).rejects.toMatchObject({
             code: "NO_SUCH_BUCKET",
             message: `no bucket at ${directory}`,
         });
 
         {
-            await using bucket = await LocalBucket.open(directory, "space-test");
+            await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
             await bucket.put("document", "original", {
                 httpMetadata: { contentType: "text/plain" },
             });
@@ -37,7 +74,7 @@ test("retain local files across reopen and failed streamed uploads", async () =>
                 message: "object checksum does not match its contents",
             });
         }
-        await using restored = await LocalBucket.open(directory, "space-test");
+        await using restored = await LocalBucket.open(directory, "space-test", Clock.system);
         const document = present(await restored.get("document"), "document");
         expect(await new Response(document.body).text()).toBe("original");
         expect(document.httpMetadata.contentType).toBe("text/plain");
@@ -50,6 +87,7 @@ test("retain local files across reopen and failed streamed uploads", async () =>
 test("recover the catalogue after terminating its host, and sweep its interrupted upload away", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-crash-"));
     const module = new URL("./index.ts", import.meta.url).href;
+    const environment = import.meta.resolve("@destack/environment");
     const child = Bun.spawn(
         [
             process.execPath,
@@ -59,8 +97,9 @@ test("recover the catalogue after terminating its host, and sweep its interrupte
             "--eval",
             `
             import { LocalBucket } from ${JSON.stringify(module)};
+            import { Clock } from ${JSON.stringify(environment)};
             setInterval(() => {}, 1000);
-            const bucket = await LocalBucket.open(${JSON.stringify(directory)}, "space-test");
+            const bucket = await LocalBucket.open(${JSON.stringify(directory)}, "space-test", Clock.system);
             await bucket.put("document", "committed");
             let sent = false;
             await bucket.put("document", new ReadableStream({
@@ -94,7 +133,7 @@ test("recover the catalogue after terminating its host, and sweep its interrupte
         await child.stdout.cancel();
 
         // reopen the bucket once the operating system releases the lock, keeping the interrupted write until a sweep
-        await using restored = await LocalBucket.open(directory, "space-test");
+        await using restored = await LocalBucket.open(directory, "space-test", Clock.system);
         const document = present(await restored.get("document"), "document");
         const reopened = (await readdir(join(directory, "files"))).length;
         expect([
@@ -116,7 +155,7 @@ test("close storage immediately after consuming or cancelling a body", async () 
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-close-"));
     try {
         for (const operation of ["consume", "cancel"] as const) {
-            await using bucket = await LocalBucket.open(directory, "space-test");
+            await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
             await bucket.put("document", new Uint8Array(128 * 1024));
             const file = present(await bucket.get("document"), "file");
             if (operation === "consume") {
@@ -136,7 +175,7 @@ test("sweep multiple batches of abandoned files without deleting files or upload
         let uploadId: string;
         let selected: UploadedPart;
         {
-            await using bucket = await LocalBucket.open(directory, "space-test");
+            await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
             await bucket.put("document", "retained");
             const upload = await bucket.createMultipartUpload("multipart");
             uploadId = upload.uploadId;
@@ -148,7 +187,7 @@ test("sweep multiple batches of abandoned files without deleting files or upload
             await writeFile(join(directory, "files", digestOf(`abandoned ${index}`)), "abandoned");
         }
         await writeFile(join(directory, "files", `.${crypto.randomUUID()}`), "interrupted");
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const reopened = (await readdir(join(directory, "files"))).length;
         expect([
             await present(await bucket.get("document"), "document").text(),
@@ -168,7 +207,7 @@ test("sweep multiple batches of abandoned files without deleting files or upload
 test("report reclamation failures separately from committed file replacements", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-collect-"));
     try {
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         await bucket.put("document", "original");
         const path = join(directory, "files", digestOf("original"));
         const retained = `${path}.retained`;
@@ -204,7 +243,7 @@ test("report reclamation failures separately from committed file replacements", 
 test("copy files by sharing their contents until the last reference goes", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-copy-"));
     try {
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const source = await bucket.put("source", "shared", {
             httpMetadata: { contentType: "text/plain" },
             customMetadata: { author: "alice" },
@@ -260,7 +299,7 @@ test("copy files by sharing their contents until the last reference goes", async
 test("record storage classes and refuse storage classes R2 does not offer", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-class-"));
     try {
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const cold = await bucket.put("cold", "rarely read", { storageClass: "InfrequentAccess" });
         expect({
             put: cold.storageClass,
@@ -285,7 +324,7 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
 test("encrypt files under customer keys, reading ranges with the key and refusing any other", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-customer-"));
     try {
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const ssecKey = "a1".repeat(32);
         const md5 = createHash("md5").update(Uint8Array.fromHex(ssecKey)).digest("base64");
         const text = "customer encrypted contents, longer than one AES block";
@@ -354,7 +393,7 @@ test("count the bytes a bucket's published files keep, a replaced file once and 
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-bytes-"));
     try {
         // publish two files, replace one and delete the other
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const empty = await bucket.bytes();
         await bucket.put("plans", "twelve bytes");
         await bucket.put("notes", "five!");
@@ -377,7 +416,7 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-lock-"));
     try {
         // lock a file for a moment beside an unlocked one
-        await using bucket = await LocalBucket.open(directory, "space-test");
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
         const retainUntil = new Date(Date.now() + 200);
         await bucket.put("audit/segment", "sealed", { retainUntil });
         await bucket.put("notes", "free");

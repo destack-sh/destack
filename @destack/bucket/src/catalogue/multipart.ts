@@ -33,7 +33,7 @@ import { CatalogueFile } from "./file.ts";
 import { CustomerKey } from "./encryption.ts";
 
 /** Retain incomplete uploads for seven days. */
-const UPLOAD_RETENTION = 7 * 24 * 60 * 60 * 1000;
+export const UPLOAD_RETENTION = 7 * 24 * 60 * 60 * 1000;
 /** Require five MiB for every multipart part except the last. */
 const MINIMUM_PART_SIZE = 5 * 1024 * 1024;
 
@@ -71,7 +71,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
         const uploadId = crypto.randomUUID();
 
-        // register the upload in an unfenced bucket after reclaiming earlier writes
+        // register the upload in an unfenced bucket after deleting retired blobs
         await storage.exclusive(async () => {
             storage.checkWritable();
             await storage.collect();
@@ -79,7 +79,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 id: uploadId,
                 key,
                 state: "active",
-                expires: Date.now() + UPLOAD_RETENTION,
+                expires: storage.clock.now() + UPLOAD_RETENTION,
                 storageClass,
                 ssecKeyMd5: customerKey?.md5 ?? null,
                 options: {
@@ -129,7 +129,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     .where(
                         and(
                             eq(upload.state, "active"),
-                            gt(upload.expires, Date.now()),
+                            gt(upload.expires, storage.clock.now()),
                             gte(key, prefix),
                             end === undefined ? undefined : lt(key, end),
                             after,
@@ -177,7 +177,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 size: content.size,
                 etag: content.version,
                 md5: content.etag,
-                uploaded: Date.now(),
+                uploaded: this.#storage.clock.now(),
             };
 
             // publish only if the upload remains active
@@ -320,7 +320,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             size: ordered.reduce((total, entry) => total + entry.size, 0),
             etag: multipartEtag(ordered),
             digest: {},
-            uploaded: Date.now(),
+            uploaded: this.#storage.clock.now(),
             httpMetadata: metadata.options.httpMetadata ?? {},
             customMetadata: metadata.options.customMetadata ?? {},
             storageClass: metadata.storageClass,
@@ -360,7 +360,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     and(
                         eq(upload.id, this.uploadId),
                         eq(upload.key, this.key),
-                        gt(upload.expires, Date.now()),
+                        gt(upload.expires, this.#storage.clock.now()),
                     ),
                 )
                 .get();
@@ -400,7 +400,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     eq(upload.id, this.uploadId),
                     eq(upload.key, this.key),
                     eq(upload.state, "active"),
-                    gt(upload.expires, Date.now()),
+                    gt(upload.expires, this.#storage.clock.now()),
                 ),
             )
             .get();

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Clock } from "@destack/environment";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,6 +24,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     // serve the buckets the host keeps, and no other name, with one space's credentials
     const credentials = { accessKeyId: SPACE_ID, secretAccessKey: "space-secret" };
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -80,6 +82,7 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
 
     // keep a file and a blob no file references, as an interrupted write leaves it
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -109,6 +112,7 @@ test("open a bucket again after a failed open", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
     await using buckets = new LocalBucketHost({
+        clock: Clock.system,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -141,7 +145,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
     };
 
     // keep a file and an upload with one part, and stream another file's body
-    const buckets = new LocalBucketHost(options);
+    const buckets = new LocalBucketHost({ ...options, clock: Clock.system });
     const bucket = await buckets.open(reference, "space-test");
     await bucket.put("notes/a.txt", "first");
     const upload = await bucket.createMultipartUpload("notes/b.txt");
@@ -218,7 +222,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
 
     // keep refusing writes after a restart, until the fence lifts
     await buckets[Symbol.asyncDispose]();
-    await using restarted = new LocalBucketHost(options);
+    await using restarted = new LocalBucketHost({ ...options, clock: Clock.system });
     const reopened = await restarted.open(reference);
     const refused = await reopened.put("notes/d.txt", "fourth").catch((error: unknown) => error);
     await restarted.lift(reference);

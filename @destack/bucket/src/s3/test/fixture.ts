@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { Clock } from "@destack/environment";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,8 +52,11 @@ export class S3Fixture implements AsyncDisposable {
     static async open(): Promise<S3Fixture> {
         const directory = await mkdtemp(join(tmpdir(), "destack-s3-"));
         const buckets = new Map([
-            ["files", await LocalBucket.open(join(directory, "files"), "space-test")],
-            ["archive", await LocalBucket.open(join(directory, "archive"), "space-test")],
+            ["files", await LocalBucket.open(join(directory, "files"), "space-test", Clock.system)],
+            [
+                "archive",
+                await LocalBucket.open(join(directory, "archive"), "space-test", Clock.system),
+            ],
         ]);
 
         return new S3Fixture(directory, buckets);

@@ -1,4 +1,5 @@
 import { rm, stat, writeFile } from "node:fs/promises";
+import type { Clock } from "@destack/environment";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { schema } from "@destack/schema";
@@ -20,6 +21,8 @@ export interface LocalBucketHostOptions {
     readonly region: string;
     /** Read the S3 credentials of a scope, absent for a scope without credentials on the host. */
     readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
+    /** The clock uploads expire by, retention ends by and files are stamped with. */
+    readonly clock: Clock;
 }
 
 /** A device host that keeps buckets, one directory each, opened once. */
@@ -28,12 +31,16 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
     readonly provider: string;
     /** The directory with one directory per bucket. */
     readonly directory: string;
+    /** The clock uploads expire by, retention ends by and files are stamped with. */
+    readonly #clock: Clock;
 
     /** Keep a host's buckets under a directory. */
     constructor(options: LocalBucketHostOptions) {
+        // keep the directory and the clock the buckets open with
         super(options);
         this.provider = "local";
         this.directory = options.directory;
+        this.#clock = options.clock;
     }
 
     /** Build the directory of a bucket. */
@@ -90,7 +97,7 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
     ): Promise<LocalBucket> {
         // read whether a transfer fenced the bucket, then open it
         const isFenced = await exists(join(this.path(bucket), FENCE_FILE));
-        const opened = await LocalBucket.open(this.path(bucket), scope);
+        const opened = await LocalBucket.open(this.path(bucket), scope, this.#clock);
 
         // refuse writes while the fence file remains
         if (isFenced) {

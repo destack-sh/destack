@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { Clock } from "@destack/environment";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -90,7 +91,11 @@ test.for(TEST_DIALECTS)(
     "provision a bucket as a prefix of the residency's bucket beside its catalogue, serve presigned writes and reads, and destroy both on %s",
     async (dialect) => {
         // keep the residency's bucket locally, as R2 keeps it, and the catalogues in test databases
-        await using files = await LocalBucket.open(join(await temporary(), "files"), "residency");
+        await using files = await LocalBucket.open(
+            join(await temporary(), "files"),
+            "residency",
+            Clock.system,
+        );
         await using catalogues = new TestCatalogueStore(dialect);
         await using buckets = new R2BucketHost({
             files,
@@ -99,6 +104,7 @@ test.for(TEST_DIALECTS)(
             endpoint: ENDPOINT,
             region: "auto",
             credentials: async () => CREDENTIALS,
+            clock: Clock.system,
         });
         const provider = bucketProvider(buckets, null);
 
@@ -169,12 +175,17 @@ test.for(TEST_DIALECTS)(
     async (dialect) => {
         // keep a bucket with two files on the device host, and provision it on the cell
         await using device = new LocalBucketHost({
+            clock: Clock.system,
             directory: await temporary(),
             endpoint: new URL("http://s3.localhost"),
             region: "local",
             credentials: async () => CREDENTIALS,
         });
-        await using files = await LocalBucket.open(join(await temporary(), "files"), "residency");
+        await using files = await LocalBucket.open(
+            join(await temporary(), "files"),
+            "residency",
+            Clock.system,
+        );
         await using catalogues = new TestCatalogueStore(dialect);
         await using cell = new R2BucketHost({
             files,
@@ -183,6 +194,7 @@ test.for(TEST_DIALECTS)(
             endpoint: ENDPOINT,
             region: "auto",
             credentials: async () => CREDENTIALS,
+            clock: Clock.system,
         });
         const [source, target] = [bucketProvider(device, null), bucketProvider(cell, null)];
         const written = await device.open({ bucketId }, record.scope);
@@ -213,7 +225,11 @@ test.for(TEST_DIALECTS)(
     "fence a cell bucket through its provider: refuse presigned and direct writes across a restart, read on, and lift on %s",
     async (dialect) => {
         // keep a bucket with one file on the cell, served over S3
-        await using files = await LocalBucket.open(join(await temporary(), "files"), "residency");
+        await using files = await LocalBucket.open(
+            join(await temporary(), "files"),
+            "residency",
+            Clock.system,
+        );
         await using catalogues = new TestCatalogueStore(dialect);
         const options = {
             files,
@@ -222,6 +238,7 @@ test.for(TEST_DIALECTS)(
             endpoint: ENDPOINT,
             region: "auto",
             credentials: async () => CREDENTIALS,
+            clock: Clock.system,
         };
         const buckets = new R2BucketHost(options);
         const provider = bucketProvider(buckets, null);
@@ -284,7 +301,11 @@ test.for(TEST_DIALECTS)(
     "list a cell bucket's files and groups in key byte order on %s",
     async (dialect) => {
         // keep keys whose byte order differs from a language's collation
-        await using files = await LocalBucket.open(join(await temporary(), "files"), "residency");
+        await using files = await LocalBucket.open(
+            join(await temporary(), "files"),
+            "residency",
+            Clock.system,
+        );
         await using catalogues = new TestCatalogueStore(dialect);
         await using buckets = new R2BucketHost({
             files,
@@ -293,6 +314,7 @@ test.for(TEST_DIALECTS)(
             endpoint: ENDPOINT,
             region: "auto",
             credentials: async () => CREDENTIALS,
+            clock: Clock.system,
         });
         const bucket = await buckets.open({ bucketId }, record.scope);
         const keys = ["ab", "a_c", "aB", "a-b", "a/z", "Z", "é"];

@@ -1,4 +1,5 @@
 import { mkdir, stat } from "node:fs/promises";
+import type { Clock } from "@destack/environment";
 import { dirname, join, resolve } from "node:path";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
@@ -13,7 +14,11 @@ import { LocalBlobStore } from "./store.ts";
 /** A bucket in a local directory: a SQLite catalogue of files beside their blob files. */
 export class LocalBucket extends CatalogueBucket {
     /** Open a bucket in a directory, or create it in the scope it belongs to. */
-    static async open(directory: string, scope?: string): Promise<LocalBucket> {
+    static async open(
+        directory: string,
+        scope: string | undefined,
+        clock: Clock,
+    ): Promise<LocalBucket> {
         // refuse creating a bucket without the scope it belongs to
         directory = resolve(directory);
         const catalogue = join(directory, "bucket.db");
@@ -31,7 +36,7 @@ export class LocalBucket extends CatalogueBucket {
         // prepare the private catalogue, then serve it through storage
         const database = await prepare(directory, catalogue, isNew ? scope : undefined, lock);
 
-        return new LocalBucket(openedStorage(catalogue, database, blobs, lock));
+        return new LocalBucket(openedStorage(catalogue, database, blobs, lock, clock));
     }
 }
 
@@ -128,6 +133,7 @@ function openedStorage(
     database: SqliteDatabase,
     blobs: LocalBlobStore,
     lock: FileLock,
+    clock: Clock,
 ): CatalogueStorage {
     let opened = database;
 
@@ -136,6 +142,7 @@ function openedStorage(
             return opened;
         },
         blobs,
+        clock,
         migrate: async (beside) => {
             // migrate, then reopen the connection declaring every table
             const tables = [...catalogueDatabase.tables, ...beside];
