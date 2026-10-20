@@ -29,7 +29,7 @@ import { callTables, testEvents } from "@destack/object/test";
 import { nth, type Identifier, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
-import { reconciliation, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
+import { reconcileOnce, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
 
 import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
@@ -56,6 +56,7 @@ const INSTALLATION = "installation-019f5530-8000-7000-8000-0000000000e1";
 
 /** An uplink streaming no replicas and refusing changes. */
 const silent: Uplink = {
+    confirm: async () => {},
     stream: () => (async function* () {})(),
     receive: () => Promise.reject(new Error("the fixture's uplink receives no changes")),
     call: () => Promise.reject(new Error("the fixture's uplink answers no queries")),
@@ -279,9 +280,7 @@ async function send(store: ObjectStore): Promise<void> {
         store.controllers().find((controller) => controller.name === scheduled.run.name),
         "the scheduled calls' runs",
     );
-    for (const listed of await runs.list()) {
-        await runs.reconcile(listed, reconciliation(new AbortController().signal));
-    }
+    await reconcileOnce(runs, store.database);
 }
 
 /** Open a new space below a new account, readable by anyone through a member role. */
