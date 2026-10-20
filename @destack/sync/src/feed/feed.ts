@@ -217,21 +217,23 @@ export class Feed implements Cache {
     ): AsyncGenerator<Page> {
         // resolve the queries
         const audience = options.audience ?? EVERYONE;
-        const stream = new Stream(this, queries, audience, options.every, options.origin);
+        const stream = new Stream(this, queries, audience, options.every);
         const previous =
             options.previous === undefined
                 ? undefined
                 : new Evaluation(this, options.previous, audience);
 
-        // refuse subscribers beyond the limit
+        // refuse subscribers beyond the limit, then hand the caller its stream
         if (this.#subscribers >= this.#limit) {
             throw new SyncError("OVERLOADED", `feed serves ${this.#limit} subscribers already`);
         }
+        options.opened?.(stream);
         this.#join();
         try {
             yield* stream.run(after, signal, previous, options.drain);
         } finally {
             this.#leave();
+            options.closed?.(stream);
         }
     }
 
@@ -413,13 +415,13 @@ export class Feed implements Cache {
             await this.next(read.sequence, signal);
 
             return {
-                position: { epoch: position.epoch, sequence: read.sequence },
+                position: { ...position, sequence: read.sequence },
                 isChanged: false,
             };
         }
         // step the dataflow through the changes
         else {
-            const reached = { epoch: position.epoch, sequence: read.sequence };
+            const reached = { ...position, sequence: read.sequence };
             const run = new Run(
                 new View(this.database, reached, this),
                 EVERYONE,
@@ -433,28 +435,6 @@ export class Feed implements Cache {
 
             return { position: reached, isChanged };
         }
-    }
-
-    /** Report whether every kept change between two sequences replicated an origin's writes. */
-    isOriginated(after: number, through: number, origin: string): boolean {
-        // know nothing of a range memory does not keep
-        if (after < this.#start || this.#sequence < through) {
-            return false;
-        }
-
-        // look for a change of another origin, and for one of this origin
-        let isFound = false;
-        for (let index = this.#after(after); index < this.#changes.length; index += 1) {
-            const change = nth(this.#changes, index);
-            if (change.sequence > through) {
-                break;
-            } else if (change.origin !== origin) {
-                return false;
-            }
-            isFound = true;
-        }
-
-        return isFound;
     }
 
     /** Read the watched changes after a sequence, absent once compacted. */
@@ -579,7 +559,8 @@ export class Feed implements Cache {
         const current = shared?.position;
         if (
             shared !== undefined &&
-            current?.epoch === position.epoch &&
+            current?.log === position.log &&
+            current.epoch === position.epoch &&
             current.sequence === position.sequence
         ) {
             found(this.#shares, shared).streams += 1;
@@ -708,6 +689,7 @@ export class Feed implements Cache {
         for await (const page of this.database.log.follow(
             { tables: this.tables, after: latest },
             signal,
+            { isAdvancing: true },
         )) {
             if (signal.aborted) {
                 return;
@@ -745,8 +727,10 @@ export interface FeedOptions {
     readonly every?: number;
     /** The signal ending the stream after its next completed page. */
     readonly drain?: AbortSignal;
-    /** The subscriber's origin, whose replicated writes never advance its bare positions. */
-    readonly origin?: string;
+    /** Receive the stream once it starts, to ask it to confirm positions. */
+    readonly opened?: (stream: Stream) => void;
+    /** Receive the stream once it ends, however it ends. */
+    readonly closed?: (stream: Stream) => void;
 }
 
 /** The inspection of a feed. */

@@ -88,7 +88,7 @@ test("stop the pages once the consumer stops, after the page read ahead", async 
 
 /** Build a page completing at a sequence. */
 function page(sequence: number, changes: RowChange[]): Page {
-    return { reset: false, complete: true, changes, position: { epoch: "e", sequence } };
+    return { reset: false, complete: true, changes, position: { log: "l", epoch: "e", sequence } };
 }
 
 /** Build one change of a note. */

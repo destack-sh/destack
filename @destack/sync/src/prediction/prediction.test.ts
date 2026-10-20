@@ -18,6 +18,12 @@ const NOTE_TYPE = {
     type: "note",
 };
 
+/** The source log. */
+const LOG = "01996ab0-0000-7000-8000-0000000000aa";
+
+/** Another source's log. */
+const OTHER_LOG = "01996ab0-0000-7000-8000-0000000000bb";
+
 /** The source log's epoch. */
 const EPOCH = "01996ab0-0000-7000-8000-000000000001";
 
@@ -61,7 +67,7 @@ function page(
             operation: "insert" as const,
             row: note[TABLE].encode({ ...first, ...row }),
         })),
-        position: { epoch: EPOCH, sequence },
+        position: { log: LOG, epoch: EPOCH, sequence },
     };
 }
 
@@ -74,7 +80,7 @@ async function pushed(
     prediction: Prediction,
     sequence: number,
 ): Promise<void> {
-    await prediction.acknowledge(client, IDS[0], { epoch: EPOCH, sequence });
+    await prediction.acknowledge(client, IDS[0], { log: LOG, epoch: EPOCH, sequence });
     await client.transaction(async (transaction) => {
         await prediction.reject(transaction, IDS[1], FORBIDDEN);
         await transaction.log.asReplica(() => prediction.revert(transaction));
@@ -124,7 +130,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
 
     // acknowledge a mutation and drop it once a snapshot has it
-    await prediction.acknowledge(client, IDS[2], { epoch: EPOCH, sequence: 3 });
+    await prediction.acknowledge(client, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 });
     expect(await prediction.pending(client)).toEqual([]);
     await replicate(
         notes,
@@ -205,6 +211,46 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
     },
 );
 
+test("push again on a snapshot the mutations of a log and epoch no replica follows, keeping the rest", async () => {
+    // predict three notes
+    const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
+    const prediction = predicting([note]);
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    await replicate(notes, client, [page(1, [], { reset: true })], prediction);
+    for (const [id, created] of zip(IDS, NOTES)) {
+        await prediction.add(client, id, "tab-1", async (transaction) => {
+            const input = { id: created, title: "Local" };
+            const calls = [{ type: NOTE_TYPE, method: "create", release: RELEASE, input }];
+            await predict(transaction, { id, calls });
+
+            return { calls, result: undefined };
+        });
+    }
+
+    // acknowledge them on the source's log, on another log, and at an older epoch
+    await prediction.acknowledge(client, IDS[0], { log: LOG, epoch: EPOCH, sequence: 2 });
+    await prediction.acknowledge(client, IDS[1], {
+        log: OTHER_LOG,
+        epoch: EPOCH,
+        sequence: 2,
+    });
+    await prediction.acknowledge(client, IDS[2], {
+        log: LOG,
+        epoch: "01996ab0-0000-7000-8000-000000000000",
+        sequence: 2,
+    });
+
+    // follow the other log in another replica, then push the older epoch's again on a snapshot
+    const other = new Replica({ name: "notes", scope: "elsewhere", tables: [note] });
+    const elsewhere = {
+        ...page(1, [], { reset: true }),
+        position: { log: OTHER_LOG, epoch: EPOCH, sequence: 1 },
+    };
+    await replicate(other, client, [elsewhere], prediction);
+    await replicate(notes, client, [page(1, [], { reset: true })], prediction);
+    expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
+});
+
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
     // predict three notes and a fourth on a branch
     const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
@@ -237,7 +283,7 @@ test("read pending mutations up to a limit, and count each state with branch edi
     // drop the first once its page has it, reject the second, and acknowledge the third
     await pushed(client, prediction, 2);
     await replicate(notes, client, [page(2, [{ id: "a", title: "Server" }])], prediction);
-    await prediction.acknowledge(client, IDS[2], { epoch: EPOCH, sequence: 3 });
+    await prediction.acknowledge(client, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 });
 
     // read the first pending ones up to the limit, and count the branch edit as pending
     expect({ limited, before, after: await prediction.inspect(client) }).toEqual({
@@ -304,7 +350,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
                 row: tag[TABLE].encode({ id: "t", scope: "inbox", name: "branch" }),
             },
         ],
-        position: { epoch: EPOCH, sequence: 2 },
+        position: { log: LOG, epoch: EPOCH, sequence: 2 },
     };
     await replicate(notes, client, [announced], prediction);
     const received = await titles();

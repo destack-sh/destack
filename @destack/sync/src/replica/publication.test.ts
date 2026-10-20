@@ -27,6 +27,7 @@ test("stream through a client's replica procedures as the follower, and send a f
 
         return {
             stream: async () => (async function* (): AsyncIterable<Page> {})(),
+            confirm: async () => ({}),
             receive: async () => ({ results: [{ id: "a" }] }),
             call: async (input: { readonly scope: string }) => ({ answered: input.scope }),
         };

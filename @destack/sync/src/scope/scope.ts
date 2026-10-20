@@ -54,6 +54,25 @@ export const Scope = {
         return ids.includes(UNIVERSE_ID) ? [...rows, UNIVERSE_ROW] : rows;
     },
 
+    /** Read a scope and every scope below it, nearest first and by key, one level per read. */
+    async subtree(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
+        // start at the scope and walk down a level at a time
+        const subtree = new Set([scope]);
+        let level = [scope];
+        while (level.length > 0) {
+            // read the scopes whose parent is on the last level
+            const rows = await reader
+                .read(scopeTable)
+                .findMany({ where: { parent: { in: level } }, orderBy: { scope: "asc" } });
+            level = rows.map((row) => row.scope).filter((child) => !subtree.has(child));
+            for (const child of level) {
+                subtree.add(child);
+            }
+        }
+
+        return [...subtree];
+    },
+
     /** Find the fenced scope in a chain, absent when none is fenced. */
     fenced(links: readonly ScopeLink[]): ScopeLink | undefined {
         return links.find((link) => link.movedTo !== undefined);

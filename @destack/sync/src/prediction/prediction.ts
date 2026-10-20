@@ -12,7 +12,8 @@ import {
     json,
     Key,
     gte,
-    lt,
+    not,
+    or,
     lte,
     max,
     sql,
@@ -26,6 +27,7 @@ import {
 } from "@destack/db";
 import { schema } from "@destack/schema";
 import { RowChange } from "../query/page.ts";
+import { Replica } from "../replica/replica.ts";
 import { Call, Failure, type Mutation } from "../call/index.ts";
 
 /** The most changes one read of a prediction takes. */
@@ -62,6 +64,8 @@ export const mutation = defineTable("mutation", {
     calls: json("calls", schema.array(Call)).notNull(),
     /** The identifier of the branch the calls are pushed to, absent on the main line. */
     branch: text("branch"),
+    /** The server log of the executed mutation. */
+    log: text("log"),
     /** The server log's epoch of the executed mutation. */
     epoch: text("epoch"),
     /** The server log sequence of the mutation's changes. */
@@ -431,6 +435,7 @@ export class Prediction {
             position: (last?.position ?? 0) + 1,
             calls: [...entry.calls],
             branch: entry.branch ?? null,
+            log: null,
             epoch: null,
             sequence: null,
             error: null,
@@ -507,7 +512,7 @@ export class Prediction {
     ): Promise<void> {
         await database
             .update(mutation)
-            .set({ epoch: position.epoch, sequence: position.sequence })
+            .set({ log: position.log, epoch: position.epoch, sequence: position.sequence })
             .where(eq(mutation.id, id));
     }
 
@@ -536,12 +541,16 @@ export class Prediction {
         // drop the mutations whose changes the replica has
         await transaction.delete(mutation).where(Prediction.#acknowledged(position));
 
-        // push again what an earlier epoch executed
+        // push again what an epoch no replica here follows executed, which the server's journal answers
         if (isSnapshot) {
+            const followed = await Replica.epochs(transaction);
+            const isFollowed = followed.map(({ log, epoch }) =>
+                and(eq(mutation.log, log), eq(mutation.epoch, epoch)),
+            );
             await transaction
                 .update(mutation)
-                .set({ epoch: null, sequence: null })
-                .where(and(isNotNull(mutation.epoch), lt(mutation.epoch, position.epoch)));
+                .set({ log: null, epoch: null, sequence: null })
+                .where(and(isNotNull(mutation.epoch), not(or(sql`FALSE`, ...isFollowed))));
         }
     }
 
@@ -609,6 +618,7 @@ export class Prediction {
     static #acknowledged(position: LogPosition): SQL | undefined {
         return and(
             isNull(mutation.error),
+            eq(mutation.log, position.log),
             eq(mutation.epoch, position.epoch),
             lte(mutation.sequence, position.sequence),
         );

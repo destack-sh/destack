@@ -1,4 +1,4 @@
-import { check, identifier, integer, json, text, defineTable } from "@destack/db";
+import { check, identifier, index, integer, json, text, defineTable } from "@destack/db";
 import { schema } from "@destack/schema";
 
 /** A scope object's row: parent, type, suspension, storage cap and fence, in the scope itself. */
@@ -27,8 +27,9 @@ export const scopeTable = defineTable(
         movedTo: text("moved_to"),
     },
     {
-        log: { retention: "history" },
-        constraints: () => [
+        log: { retention: "history", isShared: true },
+        constraints: (scopes) => [
+            index("scope_parent").on(scopes.parent),
             check("scope_fence", {
                 OR: [
                     { fencedAt: { isNull: true }, movedTo: { isNull: true } },

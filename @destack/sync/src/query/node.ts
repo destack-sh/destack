@@ -89,7 +89,7 @@ export class Node {
     /** The columns the parent node reads through this relation node. */
     readonly #looks: Set<string>;
 
-    /** The schema's relations, which includes, conditions and computed values reference. */
+    /** The relations that includes, conditions and computed values follow. */
     readonly schema: Relations;
 
     /** The node's aggregates. */

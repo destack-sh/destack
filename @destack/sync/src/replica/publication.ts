@@ -3,6 +3,7 @@ import { Duration, schema } from "@destack/schema";
 import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
+import type { Watermark } from "../scope/watermark.ts";
 import type { Replica } from "./replica.ts";
 
 /** A publication's parameters in JSON form. */
@@ -28,8 +29,10 @@ export const Subscription = schema.object({
     previous: PARAMETERS.exactOptional(),
     /** How often merged pages arrive, absent for one page per change. */
     refresh: schema.object({ every: Duration.schema }).exactOptional(),
-    /** The follower's origin, its log epoch, whose writes the source never sends back. */
+    /** The follower's log as a replication origin, which the source never publishes back to. */
     origin: schema.string().min(1).exactOptional(),
+    /** The position the follower waits for its source to confirm. */
+    confirming: LogPosition.exactOptional(),
 });
 /** A follower's subscription to a publication over one scope, from the position it reached. */
 export type Subscription = schema.Infer<typeof Subscription>;
@@ -78,6 +81,7 @@ export function definePublication<Parameters extends object>(definition: {
     readonly replica: (request: {
         readonly name: string;
         readonly scope: string;
+        readonly target: string;
         readonly parameters: Parameters;
     }) => Replica;
 }): PublicationOf<Parameters> {
@@ -89,6 +93,7 @@ export function definePublication<Parameters extends object>(definition: {
             definition.replica({
                 name: request.name,
                 scope: request.scope,
+                target: request.target,
                 parameters: definition.parameters.parse(request.parameters),
             }),
         subscription: (subscription) => ({
@@ -103,6 +108,8 @@ export function definePublication<Parameters extends object>(definition: {
 export interface Publisher {
     /** Stream a subscription's pages from its position, or a snapshot without one. */
     readonly stream: (subscription: Subscription, signal: AbortSignal) => AsyncIterable<Page>;
+    /** Ask the subscription's stream to confirm a position at or past a watermark. */
+    readonly confirm: (subscription: Subscription, watermark: Watermark) => Promise<void>;
 }
 
 /** A publisher that also runs the calls its follower's server sends to the rows' home. */
@@ -122,6 +129,10 @@ export const Uplink = {
                 subscription: Subscription,
                 options: { readonly signal: AbortSignal },
             ) => Promise<AsyncIterable<Page>>;
+            readonly confirm: (input: {
+                readonly subscription: Subscription;
+                readonly watermark: Watermark;
+            }) => Promise<unknown>;
             readonly receive: (input: {
                 readonly mutation: Mutation;
             }) => Promise<{ readonly results: readonly unknown[] }>;
@@ -134,6 +145,9 @@ export const Uplink = {
         return {
             async *stream(subscription, signal) {
                 yield* await replica().stream(subscription, { signal });
+            },
+            confirm: async (subscription, watermark) => {
+                await replica().confirm({ subscription, watermark });
             },
             receive: async (mutation, signer) =>
                 (await replica(signer).receive({ mutation })).results,

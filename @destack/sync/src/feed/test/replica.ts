@@ -12,6 +12,7 @@ import type { Query } from "../../query/query.ts";
 import type { Replica } from "../../replica/replica.ts";
 import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
+import type { Stream } from "../stream.ts";
 import { groupName, type Contents } from "./oracle.ts";
 import { Clock } from "@destack/environment";
 
@@ -141,6 +142,8 @@ export class Follower {
     #running: Promise<void>;
     /** The failure that stopped a stream. */
     #failure: Error | undefined;
+    /** The current stream, which a wait asks to confirm positions. */
+    #stream: Stream | undefined;
 
     /** Create the follower. */
     constructor(
@@ -170,6 +173,9 @@ export class Follower {
         const pages = this.#feed.subscribe(this.#queries, this.replica.position, signal, {
             ...(this.#audience === undefined ? {} : { audience: this.#audience }),
             ...(previous === undefined ? {} : { previous }),
+            opened: (stream) => {
+                this.#stream = stream;
+            },
         });
         const applied =
             this.#persisted === undefined
@@ -208,9 +214,11 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the replica reaches a position. */
+    /** Wait until the replica reaches a position, asking the stream to confirm it. */
     async wait(position: LogPosition): Promise<void> {
         for (;;) {
+            // ask the current stream to confirm the position
+            this.#stream?.confirm(position);
             if (this.#failure !== undefined) {
                 throw this.#failure;
             }

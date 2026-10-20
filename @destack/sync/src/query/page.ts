@@ -1,5 +1,6 @@
 import { Scalar, LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
+import { Subject } from "../call/subject.ts";
 
 /** One row entering, changing within or leaving a subscriber's rows. */
 export const RowChange = schema.object({
@@ -61,6 +62,8 @@ export const Page = schema.object({
     broadcasts: schema.array(Broadcast).exactOptional(),
     /** The scopes the subscription reads, nearest first, when its source sends them. */
     scopes: schema.array(schema.string().min(1)).exactOptional(),
+    /** The subjects the source decides the rows for, when it sends them. */
+    subjects: schema.array(Subject).exactOptional(),
 });
 /** A page of query rows and aggregates. */
 export type Page = schema.Infer<typeof Page>;

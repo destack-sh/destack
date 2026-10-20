@@ -1,8 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { nth, schema } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
+import type { Stream } from "./stream.ts";
 import { Evaluation } from "./evaluation.ts";
 import type { Page } from "../query/page.ts";
 import {
@@ -19,6 +20,15 @@ import {
 import type { Item, Query } from "../query/query.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
+
+/** The tasks a stream gets to publish after the feed read a commit: ten, far more than it takes. */
+const QUIET_TASKS = 10;
+
+/** The commits the stress test writes. */
+const STRESS_COMMITS = 100;
+
+/** The streams the stress test follows one query with. */
+const STRESS_STREAMS = 50;
 
 test.for(TEST_DIALECTS)(
     "repeat a caught-up stream's position at each heartbeat as the clock advances on %s",
@@ -46,6 +56,91 @@ test.for(TEST_DIALECTS)(
             complete: true,
             changes: [],
             position: snapshot.position,
+        });
+        await pages.return(undefined);
+    },
+);
+
+test("report a stream that ends by draining as closed, the same stream it opened", async () => {
+    // follow the inbox's notes, draining the stream before it starts
+    const database = await open("sqlite");
+    const feed = new Feed(database, [note], { clock: Clock.system });
+    const drain = new AbortController();
+    drain.abort();
+    const streams: [string, Stream][] = [];
+    const pages = feed.subscribe(
+        { notes: { table: note, scopes: ["inbox"] } },
+        undefined,
+        AbortSignal.timeout(5000),
+        {
+            drain: drain.signal,
+            opened: (stream) => streams.push(["opened", stream]),
+            closed: (stream) => streams.push(["closed", stream]),
+        },
+    );
+
+    // read the stream to its end, which its first completed page reaches
+    const read: Page[] = [];
+    for await (const page of pages) {
+        read.push(page);
+    }
+    expect([
+        read.at(-1)?.complete,
+        streams.map(([event]) => event),
+        streams[0]?.[1] === streams[1]?.[1],
+    ]).toEqual([true, ["opened", "closed"], true]);
+});
+
+test.for(TEST_DIALECTS)(
+    "publish a caught-up stream's position past a commit outside its queries only once asked to confirm it, and at the next heartbeat on %s",
+    async (dialect) => {
+        // follow the inbox's notes to their snapshot, taking the stream
+        const database = await open(dialect);
+        const clock = new VirtualClock(1000);
+        const feed = new Feed(database, [note], { clock, heartbeat: 60_000 });
+        const signal = AbortSignal.timeout(5000);
+        let stream: Stream | undefined;
+        const pages = feed.subscribe(
+            { notes: { table: note, scopes: ["inbox"] } },
+            undefined,
+            signal,
+            {
+                opened: (opened) => {
+                    stream = opened;
+                },
+            },
+        );
+        let snapshot = await nextValue(pages);
+        while (!snapshot.complete) {
+            snapshot = await nextValue(pages);
+        }
+
+        // commit an archived note, and see the stream publish nothing once the feed read it
+        await database.insert(note).values({ ...first, id: "archived", scope: "archive" });
+        const archived = await database.log.position();
+        const next = nextValue(pages);
+        let isSettled = false;
+        void next.then(() => {
+            isSettled = true;
+        });
+        await expect.poll(() => feed.sequence).toBe(archived.sequence);
+        for (let turn = 0; turn < QUIET_TASKS; turn++) {
+            await Evaluation.nextTask();
+        }
+        const isQuiet = !isSettled;
+        present(stream, "the stream").confirm(archived);
+        const confirmed = await next;
+
+        // commit another, and read the current position at the next heartbeat
+        await database.insert(note).values({ ...first, id: "later", scope: "archive" });
+        const later = await database.log.position();
+        await expect.poll(() => feed.sequence).toBe(later.sequence);
+        const beat = nextValue(pages);
+        clock.advance(60_000);
+        expect({ isQuiet, confirmed, beat: await beat }).toEqual({
+            isQuiet: true,
+            confirmed: { reset: false, complete: true, changes: [], position: archived },
+            beat: { reset: false, complete: true, changes: [], position: later },
         });
         await pages.return(undefined);
     },
@@ -450,6 +545,47 @@ test.for(TEST_DIALECTS)(
         ]);
     },
 );
+
+test("serve many streams of one query from the one read of the log each commit takes", async () => {
+    const database = await open("sqlite");
+    const query = { table: note, scopes: ["inbox"] };
+
+    // snapshot the query in some streams, then count the source's statements per commit
+    const cost = async (streams: number, prefix: string) => {
+        const feed = new Feed(database, [note], { clock: Clock.system });
+        const controller = new AbortController();
+        const received = Array.from({ length: streams }, () => new Set<unknown>());
+        const snapshots = received.map(() => Promise.withResolvers<void>());
+        const following = received.map(async (ids, index) => {
+            const pages = feed.subscribe({ notes: query }, undefined, controller.signal);
+            for await (const page of pages) {
+                page.changes.forEach((change) => ids.add(change.row["id"]));
+                if (page.complete) {
+                    nth(snapshots, index).resolve();
+                }
+                if (
+                    [...ids].filter((id) => String(id).startsWith(prefix)).length === STRESS_COMMITS
+                ) {
+                    return;
+                }
+            }
+        });
+        await Promise.all(snapshots.map((snapshot) => snapshot.promise));
+        const before = database.driver.state.statements;
+        for (let index = 0; index < STRESS_COMMITS; index++) {
+            await database.insert(note).values({ ...first, id: `${prefix}-${index}` });
+        }
+        await Promise.all(following);
+        controller.abort();
+
+        return database.driver.state.statements - before;
+    };
+    const single = await cost(1, "single");
+    const many = await cost(STRESS_STREAMS, "many");
+
+    // spend one insert and one feed read per commit, and two to start, however many follow
+    expect([single, many]).toEqual([STRESS_COMMITS * 2 + 2, STRESS_COMMITS * 2 + 2]);
+});
 
 /** Boards with JSON columns of an object and a list of objects. */
 const board = defineTable(

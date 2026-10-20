@@ -9,6 +9,7 @@ import {
     TABLE,
     text,
     type Row,
+    type Relation,
     type Table,
     type LogPosition,
     type DatabaseConnection,
@@ -19,8 +20,9 @@ import {
 import { TestDatabase } from "@destack/db/test";
 import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
+import type { Stream } from "../feed/stream.ts";
 import { nth, schema } from "@destack/schema";
-import { replicaTables, Replica, replicaPosition, replicaRow } from "./replica.ts";
+import { replicaTables, Replica, replicaPosition, replicaKey } from "./replica.ts";
 import type { Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import {
@@ -45,6 +47,9 @@ import { Scope } from "../scope/scope.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
 
+/** The source log of the replica scenarios. */
+const LOG = "01996ab0-0000-7000-8000-0000000000aa";
+
 /** The rows of a feed's page in the paging scenarios, a few to cross pages with few rows. */
 const PAGE_SIZE = 4;
 
@@ -53,6 +58,9 @@ const SNAPSHOT_NOTES = PAGE_SIZE + 2;
 
 /** The rows one insert writes, within every dialect's parameter limit. */
 const INSERT_BATCH = 500;
+
+/** The commits the follow cost test counts: enough for a steady cost. */
+const FOLLOWED_COMMITS = 20;
 
 /** A principal a caller-audience replica is decided for. */
 const ALICE = {
@@ -75,16 +83,16 @@ test.for(TEST_DIALECTS)(
         await source.insert(note).values([first, { ...first, id: "b", scope: "archive" }]);
         await local.insert(note).values({ ...first, id: "stale" });
 
-        // follow until the replica has the renamed note
+        // follow until the replica has the renamed note, confirming each awaited position
         const controller = new AbortController();
-        const following = notes.follow(
+        const { following, confirmed } = followConfirmed(
+            notes,
             local,
-            (from, signal) => feed.subscribe(notes.queries, from.after, signal),
+            source,
+            feed,
             controller.signal,
-            { clock: Clock.system },
         );
-        const signal = AbortSignal.timeout(5000);
-        expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await confirmed()).toBe(true);
 
         // record the replica synced, keeping the scope's notes and no other table, for no reader without a subscription
         expect([
@@ -98,7 +106,7 @@ test.for(TEST_DIALECTS)(
         ]).toEqual([true, false, true, false, ["inbox"], [], []]);
         await source.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
         await source.delete(note).where(eq(note.id, "b"));
-        expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await confirmed()).toBe(true);
         controller.abort();
         await following;
 
@@ -110,7 +118,7 @@ test.for(TEST_DIALECTS)(
 
         // release a row the replica's database pruned from the replica's bookkeeping
         const kept = async () =>
-            (await local.select({ key: replicaRow.key }).from(replicaRow)).map((row) => row.key);
+            (await local.select({ key: replicaKey.key }).from(replicaKey)).map((row) => row.key);
         const before = await kept();
         await Replica.release(local, note, [{ id: "a" }]);
         expect([before, await kept()]).toEqual([[Key.name(note, { id: "a" })], []]);
@@ -172,7 +180,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "follow two databases each replicating the other's table, reaching each other's rows and going quiet once neither sends the other bare positions of its own replicated writes, on %s",
+    "follow two databases each replicating the other's table, receiving each write as its own page and no bare position, on %s",
     async (dialect) => {
         // keep the notes on one database and the projects on the other, on a clock that stands still
         const clock = new VirtualClock(0);
@@ -200,31 +208,28 @@ test.for(TEST_DIALECTS)(
             ),
         ]);
 
-        // reach the latest change of each database the other did not originate
-        const signal = AbortSignal.timeout(5000);
-        const reach = async (local: DatabaseConnection, source: DatabaseConnection) =>
-            Replica.wait(
-                local,
-                "inbox",
-                await source.log.position(await local.log.epoch()),
-                signal,
-            );
-        expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
+        // reach each other's rows
+        const rows = async () => [
+            (await other.select().from(note)).map((row) => row.id),
+            (await home.select().from(project)).map((row) => row.id),
+        ];
+        await expect.poll(rows).toEqual([["a"], ["p"]]);
 
         // write once more on each side, and receive each write as the next page, never a bare position first
         received.notes.length = 0;
         received.projects.length = 0;
         await home.insert(note).values({ ...first, id: "b" });
         await other.insert(project).values({ id: "q", scope: "inbox", name: "Ship" });
-        expect([await reach(other, home), await reach(home, other)]).toEqual([true, true]);
+        await expect.poll(rows).toEqual([
+            ["a", "b"],
+            ["p", "q"],
+        ]);
         controller.abort();
         await following;
-        expect([
-            changedIds(received.notes),
-            changedIds(received.projects),
-            (await other.select().from(note)).map((row) => row.id),
-            (await home.select().from(project)).map((row) => row.id),
-        ]).toEqual([[["b"]], [["q"]], ["a", "b"], ["p", "q"]]);
+        expect([changedIds(received.notes), changedIds(received.projects)]).toEqual([
+            [["b"]],
+            [["q"]],
+        ]);
     },
 );
 
@@ -249,7 +254,7 @@ test.for(TEST_DIALECTS)(
         await following;
 
         // publish the replica on to a third database, never back to the notes' home
-        const homeOrigin = await home.log.epoch();
+        const homeOrigin = (await home.log.position()).log;
         const archive = new Replica({ name: "archive", scope: "archive", tables: [note] });
         await expect(inbox.requireAcyclic(other, "third")).resolves.toBeUndefined();
         await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
@@ -261,7 +266,7 @@ test.for(TEST_DIALECTS)(
 
         // refuse publishing the notes back once the replica from their home has none of them
         await other.delete(note);
-        await other.delete(replicaRow);
+        await other.delete(replicaKey);
         await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
             new SyncError(
                 "CYCLE",
@@ -424,6 +429,43 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "follow and wait for each commit of one row in a fixed count of statements, registering the replica once, on %s",
+    async (dialect) => {
+        const source = await open(dialect);
+        const local = await openReplica(dialect);
+        // stand the feed's clock still, so no heartbeat lands between two commits
+        const feed = new Feed(source, [note, replicaPosition], { clock: new VirtualClock(0) });
+        const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+
+        // follow the inbox until the replica has its first note
+        const controller = new AbortController();
+        const { following, confirmed } = followConfirmed(
+            notes,
+            local,
+            source,
+            feed,
+            controller.signal,
+        );
+        await source.insert(note).values(first);
+        await confirmed();
+
+        // commit notes one at a time, counting the statements each costs the replica
+        const costs: number[] = [];
+        for (let index = 0; index < FOLLOWED_COMMITS; index++) {
+            const before = local.driver.state.statements;
+            await source.insert(note).values({ ...first, id: `followed-${index}` });
+            await confirmed();
+            costs.push(local.driver.state.statements - before);
+        }
+        controller.abort();
+        await following;
+
+        // spend nine statements on each commit
+        expect(new Set(costs)).toEqual(new Set([9]));
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "capture a space's few dozen rows across many tables as one page applied in one transaction, and a larger one in pages of rows staged before the last, on %s",
     async (dialect) => {
         // keep a space's rows in many tables, most of them empty
@@ -479,7 +521,7 @@ test.for(TEST_DIALECTS)(
 
         // read each table once per page of its rows, write each table's rows once, prune each table once
         expect({ small, large }).toEqual({
-            small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 61 },
+            small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 60 },
             large: {
                 pages: [
                     [true, false, 500],
@@ -487,7 +529,7 @@ test.for(TEST_DIALECTS)(
                 ],
                 staged: 1,
                 read: 43,
-                written: 63,
+                written: 62,
             },
         });
         expect(await target.select().from(head)).toHaveLength(INSERT_BATCH);
@@ -606,7 +648,7 @@ test.for(TEST_DIALECTS)(
         const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
         const epoch = "01996ab0-0000-7000-8000-000000000001";
         const reach = () =>
-            Replica.wait(local, "inbox", { epoch, sequence: 5 }, AbortSignal.timeout(20));
+            Replica.wait(local, "inbox", { log: LOG, epoch, sequence: 5 }, AbortSignal.timeout(20));
 
         // read no position of an unreplicated scope
         expect([await Replica.isReplicated(Snapshot.live(local), "inbox"), await reach()]).toEqual([
@@ -625,7 +667,7 @@ test.for(TEST_DIALECTS)(
                 reset: true,
                 complete: true,
                 changes: [],
-                position: { epoch, sequence: 5 },
+                position: { log: LOG, epoch, sequence: 5 },
             },
         ]);
         expect(await reach()).toBe(true);
@@ -636,10 +678,73 @@ test.for(TEST_DIALECTS)(
                 reset: true,
                 complete: true,
                 changes: [],
-                position: { epoch: "01996ab0-0000-7000-8000-000000000002", sequence: 1 },
+                position: { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000002", sequence: 1 },
             },
         ]);
         await expect(reach()).rejects.toMatchObject({ code: "STALE_EPOCH" });
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "reach a position through the replicas of its log, skipping a required one following another log, on %s",
+    async (dialect) => {
+        // replicate the inbox from its home's log, and another scope from another log
+        const local = await openReplica(dialect);
+        const inbox = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+        const other = new Replica({ name: "notes", scope: "elsewhere", tables: [note] });
+        const epoch = "01996ab0-0000-7000-8000-000000000001";
+        for (const [replica, log] of [
+            [inbox, LOG],
+            [other, "01996ab0-0000-7000-8000-0000000000bb"],
+        ] as const) {
+            await replica.register(local, { clock: Clock.system });
+            await replicate(replica, local, [
+                { reset: true, complete: true, changes: [], position: { log, epoch, sequence: 5 } },
+            ]);
+        }
+
+        // reach the inbox's position with the other replica required, which follows another log
+        const required = [{ name: "notes", scope: "elsewhere" }];
+        expect([
+            await Replica.isAt(local, "inbox", { log: LOG, epoch, sequence: 5 }, required),
+            await Replica.isAt(local, "inbox", { log: LOG, epoch, sequence: 6 }, required),
+        ]).toEqual([true, false]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
+    "reach a position of a restored log only once every replica of the log follows its new epoch, on %s",
+    async (dialect) => {
+        // replicate two scopes of one log, the other one still at the epoch before a restore
+        const local = await openReplica(dialect);
+        const inbox = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+        const other = new Replica({ name: "notes", scope: "elsewhere", tables: [note] });
+        const before = "01996ab0-0000-7000-8000-000000000001";
+        const restored = "01996ab0-0000-7000-8000-000000000002";
+        const follow = (replica: Replica, epoch: string) =>
+            replicate(replica, local, [
+                {
+                    reset: true,
+                    complete: true,
+                    changes: [],
+                    position: { log: LOG, epoch, sequence: 5 },
+                },
+            ]);
+        for (const replica of [inbox, other]) {
+            await replica.register(local, { clock: Clock.system });
+        }
+        await follow(inbox, restored);
+        await follow(other, before);
+
+        // wait on the other replica behind the restore, then reach the position once it follows
+        const required = [{ name: "notes", scope: "elsewhere" }];
+        const position = { log: LOG, epoch: restored, sequence: 5 };
+        const behind = await Replica.isAt(local, "inbox", position, required);
+        await follow(other, restored);
+        expect([behind, await Replica.isAt(local, "inbox", position, required)]).toEqual([
+            false,
+            true,
+        ]);
     },
 );
 
@@ -654,13 +759,13 @@ test.for(TEST_DIALECTS)(
                 reset: true,
                 complete: false,
                 changes: [noteInsert("a")],
-                position: { epoch, sequence: 3 },
+                position: { log: LOG, epoch, sequence: 3 },
             },
             {
                 reset: false,
                 complete: true,
                 changes: [noteInsert("b")],
-                position: { epoch, sequence: 4 },
+                position: { log: LOG, epoch, sequence: 4 },
             },
         ];
         const state = async () => [
@@ -686,14 +791,14 @@ test.for(TEST_DIALECTS)(
                 reset: false,
                 complete: true,
                 changes: [noteInsert("c")],
-                position: { epoch, sequence: 2 },
+                position: { log: LOG, epoch, sequence: 2 },
             },
         ]);
-        expect(await state()).toEqual([["b", "c", "stale"], { epoch, sequence: 2 }]);
+        expect(await state()).toEqual([["b", "c", "stale"], { log: LOG, epoch, sequence: 2 }]);
 
         // apply the snapshot and prune the left out rows
         await replicate(notes, local, snapshot);
-        expect(await state()).toEqual([["a", "b"], { epoch, sequence: 4 }]);
+        expect(await state()).toEqual([["a", "b"], { log: LOG, epoch, sequence: 4 }]);
     },
 );
 
@@ -870,7 +975,11 @@ test.for(TEST_DIALECTS)(
                     reset: true,
                     complete: false,
                     changes: [],
-                    position: { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 1 },
+                    position: {
+                        log: LOG,
+                        epoch: "01996ab0-0000-7000-8000-000000000001",
+                        sequence: 1,
+                    },
                 };
                 throw new Error("source failed");
             },
@@ -966,7 +1075,7 @@ test.for(TEST_DIALECTS)(
                 reset: true,
                 complete: true,
                 changes: ids.map((id) => noteInsert(id)),
-                position: { epoch, sequence },
+                position: { log: LOG, epoch, sequence },
             },
         ];
         const stored = async () =>
@@ -1035,7 +1144,7 @@ test.for(TEST_DIALECTS)(
                 reset: true,
                 complete: true,
                 changes: ids.map((id) => noteInsert(id)),
-                position: { epoch, sequence: 1 },
+                position: { log: LOG, epoch, sequence: 1 },
             },
         ];
         // keep a shared row in two replicas
@@ -1060,7 +1169,7 @@ test.for(TEST_DIALECTS)(
             (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map(
                 (row) => row.id,
             ),
-            await Replica.subscriptions(local),
+            await Replica.subscriptions(Snapshot.live(local)),
         ]).toEqual([["shared", "z"], [inboxSubscription("right")]]);
     },
 );
@@ -1180,11 +1289,11 @@ test.for(TEST_DIALECTS)(
                         ...(concealed.length === 0 ? {} : { concealed }),
                     },
                 ],
-                position: { epoch, sequence },
+                position: { log: LOG, epoch, sequence },
             },
         ];
         const empty = (sequence: number): Page[] => [
-            { reset: true, complete: true, changes: [], position: { epoch, sequence } },
+            { reset: true, complete: true, changes: [], position: { log: LOG, epoch, sequence } },
         ];
         const summary = async () =>
             (await local.select({ summary: note.summary }).from(note)).map((row) => row.summary);
@@ -1320,7 +1429,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
         target: "inbox",
         parameters: { queries: { open: { object: "note" } } },
     };
-    const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
+    const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
 
     // complete a snapshot of the subscription
     await notes.register(local, { clock: Clock.system });
@@ -1335,7 +1444,7 @@ test("resume a subscription from the replica's position, reshape one of other pa
 
     // resume it, reshape it under other parameters, and snapshot another publication or name, each with the replica's own log
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
-    const origin = await local.log.epoch();
+    const origin = (await local.log.position()).log;
     expect([
         await notes.resume(local, { ...subscription, after: { ...position, sequence: 1 } }),
         await notes.resume(local, reshaped),
@@ -1360,7 +1469,7 @@ test("report a replica current for the request it completed a run of, and for a 
         parameters: { queries: { open: { object: "note" } } },
     };
     const reshaped = { ...subscription, parameters: { queries: { all: { object: "note" } } } };
-    const position = { epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
+    const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     const current = async () => [
         await Replica.isCurrent(local, subscription),
@@ -1446,7 +1555,7 @@ test.for(TEST_DIALECTS)(
         // replicate the units, including only the written one
         const units = new Replica({ name: "work", scope: "inbox", tables: [unit] });
         await syncLabels(units, source, local, feed);
-        const included = await local.select({ key: replicaRow.key }).from(replicaRow);
+        const included = await local.select({ key: replicaKey.key }).from(replicaKey);
         const replicated = await local.select().from(unit).orderBy(asc(unit.id));
 
         // drop the replica, which deletes the written unit and keeps the predefined one
@@ -1466,15 +1575,43 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-/** Follow a replica's queries from a feed, with the follower's own origin. */
+/** Follow a replica from a feed until aborted, confirming the source's head on each wait. */
+function followConfirmed(
+    replica: Replica,
+    local: DatabaseConnection,
+    source: DatabaseConnection,
+    feed: Feed,
+    signal: AbortSignal,
+) {
+    // follow the feed, keeping the stream it opens
+    let stream: Stream | undefined;
+    const following = replica.follow(
+        local,
+        (from, subscribed) =>
+            feed.subscribe(replica.queries, from.after, subscribed, {
+                opened: (opened) => {
+                    stream = opened;
+                },
+            }),
+        signal,
+        { clock: Clock.system },
+    );
+
+    // ask the stream to confirm the source's head, and wait for the replica to reach it
+    const confirmed = async () => {
+        const position = await source.log.position();
+        stream?.confirm(position);
+
+        return Replica.wait(local, replica.scope, position, AbortSignal.timeout(5000));
+    };
+
+    return { following, confirmed };
+}
+
+/** Follow a replica's queries from a feed. */
 function followFrom(feed: Feed, replica: Replica) {
     return (from: Resumption, signal: AbortSignal) =>
-        feed.subscribe(
-            replica.queries,
-            from.after,
-            signal,
-            from.origin === undefined ? {} : { origin: from.origin },
-        );
+        feed.subscribe(replica.queries, from.after, signal);
 }
 
 /** List the identifiers each page changes. */
@@ -1491,3 +1628,77 @@ function recordFrom(feed: Feed, replica: Replica, received: Page[]) {
         }
     };
 }
+
+/** Links from one row to another of any scope, as subject sets point at sets. */
+const link = defineTable(
+    "replica_link",
+    {
+        /** The link's key. */
+        id: text("id").primaryKey(),
+        /** The scope the link lives in. */
+        scope: text("scope").notNull(),
+        /** The link it points at, absent for an end. */
+        target: text("target"),
+    },
+    { log: {} },
+);
+
+/** A link's targets: the links whose key it points at. */
+const TARGETS: Relation = {
+    table: link,
+    cardinality: "many",
+    on: { kind: "key", column: "id", parent: "target" },
+};
+
+test.for(TEST_DIALECTS)(
+    "include the links two steps from the links a replica keeps in its scope, and follow a relinked one to its new targets, on %s",
+    async (dialect) => {
+        // chain a scope's links, beside one more step and a spare
+        const tables = [link, ...replicaTables];
+        const source = await open(dialect, tables);
+        const local = await openReplica(dialect, tables);
+        await source.insert(link).values([
+            { id: "a1", scope: "a", target: "a2" },
+            { id: "a2", scope: "a", target: "a3" },
+            { id: "a3", scope: "a", target: "a4" },
+            { id: "a4", scope: "a", target: null },
+            { id: "a5", scope: "a", target: null },
+        ]);
+
+        // replicate the first link with its targets two steps deep
+        const feed = new Feed(source, [link, replicaPosition], { clock: Clock.system });
+        const links = new Replica({
+            name: "links",
+            scope: "a",
+            tables: [link],
+            where: new Map([[link, { id: "a1" }]]),
+            includes: new Map([[link, { targets: { with: { targets: true } } }]]),
+            relations: new Map([[link, { targets: TARGETS }]]),
+        });
+        const controller = new AbortController();
+        const { following, confirmed } = followConfirmed(
+            links,
+            local,
+            source,
+            feed,
+            controller.signal,
+        );
+        const kept = async () =>
+            (await local.select({ id: link.id }).from(link).orderBy(asc(link.id))).map(
+                (row) => row.id,
+            );
+        await confirmed();
+        const linked = await kept();
+
+        // point a2 at a5, keeping a5 and letting a3 go
+        await source.update(link).set({ target: "a5" }).where(eq(link.id, "a2"));
+        await confirmed();
+        const relinked = await kept();
+        controller.abort();
+        await following;
+        expect({ linked, relinked }).toEqual({
+            linked: ["a1", "a2", "a3"],
+            relinked: ["a1", "a2", "a5"],
+        });
+    },
+);

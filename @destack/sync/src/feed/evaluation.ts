@@ -163,14 +163,14 @@ export class Evaluation {
         });
     }
 
-    /** Send the pages of the changes after a sequence, returning the sequence read up to. */
+    /** Send the pages of the changes after a position, returning the sequence read up to. */
     async *advance(
-        epoch: string,
-        sequence: number,
+        after: LogPosition,
         isComplete: boolean,
         signal: AbortSignal,
     ): AsyncGenerator<Page, number> {
         // read from the feed or the log
+        const { sequence } = after;
         const read = await this.#feed.changes(this.#dataflow.watches(), sequence);
         if (read === undefined) {
             throw new DatabaseError(
@@ -185,7 +185,7 @@ export class Evaluation {
             if (signal.aborted) {
                 break;
             }
-            const position = { epoch, sequence: nth(changes, -1).sequence };
+            const position = { ...after, sequence: nth(changes, -1).sequence };
             await Evaluation.nextTask();
 
             // decide every row again across a change of access, sending the difference
@@ -209,7 +209,7 @@ export class Evaluation {
         // keep the reached position
         const reached = Math.max(sequence, read.sequence);
         const advanced = signal.aborted ? from : reached;
-        this.#dataflow.advance({ epoch, sequence: advanced });
+        this.#dataflow.advance({ ...after, sequence: advanced });
 
         return advanced;
     }
@@ -271,12 +271,7 @@ export class Evaluation {
     async #pagesAfter(position: LogPosition): Promise<Advance> {
         // decide what follows
         const pages: Page[] = [];
-        const advancing = this.advance(
-            position.epoch,
-            position.sequence,
-            true,
-            new AbortController().signal,
-        );
+        const advancing = this.advance(position, true, new AbortController().signal);
         let next = await advancing.next();
         while (next.done !== true) {
             pages.push(next.value);
@@ -286,7 +281,7 @@ export class Evaluation {
         // refresh once the decisions expired
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
-            const reached = { epoch: position.epoch, sequence: next.value };
+            const reached = { ...position, sequence: next.value };
             pages.push(await this.redecide(reached, true));
         }
 
@@ -343,7 +338,12 @@ export class Evaluation {
 
     /** Whether two positions are the same. */
     static #isSame(left: LogPosition | undefined, right: LogPosition): boolean {
-        return left !== undefined && left.epoch === right.epoch && left.sequence === right.sequence;
+        return (
+            left !== undefined &&
+            left.log === right.log &&
+            left.epoch === right.epoch &&
+            left.sequence === right.sequence
+        );
     }
 }
 

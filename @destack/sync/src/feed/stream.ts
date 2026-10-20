@@ -20,9 +20,13 @@ export class Stream {
     #evaluation: Evaluation;
     /** The shortest time between two pages at the head. */
     readonly #every: number | undefined;
-    /** The subscriber's origin, whose replicated writes never advance its bare positions. */
-    readonly #origin: string | undefined;
-    /** The feed's beats when the stream last published, a later one repeating its position. */
+    /** The highest position the subscriber asked the stream to confirm, absent before any ask. */
+    #confirming: LogPosition | undefined;
+    /** The log and epoch the stream publishes, absent before it starts. */
+    #published: Omit<LogPosition, "sequence"> | undefined;
+    /** The controller that wakes the stream's wait once a subscriber asks for a position. */
+    #asked = new AbortController();
+    /** The feed's beats when the stream last published, a later one making it publish again. */
     #heard: number;
 
     /** Create the stream of a subscriber. */
@@ -31,16 +35,48 @@ export class Stream {
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         every?: number,
-        origin?: string,
     ) {
         // evaluate the queries on their own
         this.#feed = feed;
         this.#every = every;
-        this.#origin = origin;
         this.#queries = queries;
         this.#audience = audience;
         this.#evaluation = new Evaluation(feed, queries, audience);
         this.#heard = feed.beats;
+    }
+
+    /** Ask the stream to publish a position at or past a position. */
+    confirm(position: LogPosition): void {
+        // take a higher ask of the published log and epoch, waking the stream's wait
+        const confirming = this.#confirming;
+        const published = this.#published;
+        const isPublished =
+            published === undefined ||
+            (position.log === published.log && position.epoch === published.epoch);
+        const isHigher =
+            confirming === undefined ||
+            confirming.log !== position.log ||
+            confirming.epoch !== position.epoch ||
+            position.sequence > confirming.sequence;
+        if (isPublished && isHigher) {
+            this.#confirming = position;
+            const asked = this.#asked;
+            this.#asked = new AbortController();
+            asked.abort();
+        }
+    }
+
+    /** Report whether the stream reached an asked position it has not published one past. */
+    #isAsked(published: number, position: LogPosition): boolean {
+        const confirming = this.#confirming;
+
+        return (
+            confirming !== undefined &&
+            confirming.log === position.log &&
+            confirming.epoch === position.epoch &&
+            confirming.sequence > published &&
+            position.sequence >= confirming.sequence
+        );
     }
 
     /** Stream the queries from a position until aborted, or to a completed page once drained. */
@@ -50,7 +86,10 @@ export class Stream {
         previous?: Evaluation,
         drain?: AbortSignal,
     ): AsyncGenerator<Page> {
-        let epoch = await this.#feed.database.log.epoch();
+        // publish the log's current epoch
+        const { log, epoch: started } = await this.#feed.database.log.position();
+        let epoch = started;
+        this.#published = { log, epoch };
         let sequence: number | undefined;
         try {
             while (!signal.aborted) {
@@ -58,8 +97,8 @@ export class Stream {
                     // continue within the epoch or start over with a snapshot
                     if (sequence === undefined) {
                         // start over with a snapshot outside the epoch
-                        if (after?.epoch !== epoch) {
-                            sequence = yield* this.#snapshot(epoch, signal);
+                        if (after?.log !== log || after.epoch !== epoch) {
+                            sequence = yield* this.#snapshot(signal);
                         }
                         // reshape the replica of previous queries
                         else if (previous !== undefined) {
@@ -72,7 +111,7 @@ export class Stream {
                     }
 
                     // publish what follows
-                    const following = this.#follow({ epoch, sequence }, signal, drain);
+                    const following = this.#follow({ log, epoch, sequence }, signal, drain);
                     yield* this.#every === undefined
                         ? following
                         : Stream.coalesce(
@@ -93,7 +132,8 @@ export class Stream {
                         throw error;
                     }
                     this.#alone();
-                    epoch = await this.#feed.database.log.epoch();
+                    epoch = (await this.#feed.database.log.position()).epoch;
+                    this.#published = { log, epoch };
                     after = undefined;
                     previous = undefined;
                     sequence = undefined;
@@ -104,13 +144,14 @@ export class Stream {
         }
     }
 
-    /** Publish pages after a position, then the bare position once caught up, until done. */
+    /** Publish pages after a position, then positions at each heartbeat and ask, until done. */
     async *#follow(
         start: LogPosition,
         signal: AbortSignal,
         drain: AbortSignal | undefined,
     ): AsyncGenerator<Page> {
         // publish from the start until aborted, or drained between completed pages
+        const { log, epoch } = start;
         let position = start;
         let published = start.sequence;
         const waking = drain === undefined ? signal : AbortSignal.any([signal, drain]);
@@ -124,7 +165,7 @@ export class Stream {
                 this.#alone();
                 await this.#audience.refresh();
                 const resumed = yield* this.#resume(position, signal);
-                position = { epoch: position.epoch, sequence: resumed };
+                position = { log, epoch, sequence: resumed };
             }
             // publish the decided pages before waiting or moving on
             else {
@@ -136,28 +177,28 @@ export class Stream {
                     yield page;
                 }
 
-                // wait for a commit, or repeat the published position at the feed's next beat
-                if (sequence === position.sequence) {
+                // wait for a commit or an ask, else publish the position at the feed's next beat
+                const reached = { log, epoch, sequence };
+                if (sequence === position.sequence && !this.#isAsked(published, reached)) {
                     const beat = this.#feed.beating;
                     if (this.#feed.beats === this.#heard) {
-                        await this.#evaluation.wait(sequence, AbortSignal.any([waking, beat]));
+                        const woken = AbortSignal.any([waking, beat, this.#asked.signal]);
+                        await this.#evaluation.wait(sequence, woken);
                     }
 
-                    // repeat the position once the feed beat since it published
+                    // publish the current position once the feed beat since the stream published
                     const isBeat = beat.aborted || this.#feed.beats !== this.#heard;
                     if (isBeat && !waking.aborted) {
-                        const repeated = { epoch: position.epoch, sequence: published };
+                        const current = { log, epoch, sequence };
+                        published = sequence;
                         this.#heard = this.#feed.beats;
-                        yield { reset: false, complete: true, changes: [], position: repeated };
+                        yield { reset: false, complete: true, changes: [], position: current };
                     }
                 }
-                position = { epoch: position.epoch, sequence };
+                position = { log, epoch, sequence };
 
-                // publish the bare position once caught up past more than the subscriber's own replicated writes
-                const isOwn =
-                    this.#origin !== undefined &&
-                    this.#feed.isOriginated(published, sequence, this.#origin);
-                if (sequence >= this.#feed.sequence && sequence > published && !isOwn) {
+                // confirm the position once past the sequence the subscriber asked to confirm
+                if (this.#isAsked(published, position)) {
                     published = sequence;
                     this.#heard = this.#feed.beats;
                     yield { reset: false, complete: true, changes: [], position };
@@ -167,9 +208,9 @@ export class Stream {
     }
 
     /** Send a snapshot at the latest position and what followed, returning the sequence reached. */
-    async *#snapshot(epoch: string, signal: AbortSignal): AsyncGenerator<Page, number> {
+    async *#snapshot(signal: AbortSignal): AsyncGenerator<Page, number> {
         // walk the queries before catching up
-        const start = { epoch, sequence: (await this.#feed.database.log.position()).sequence };
+        const start = await this.#feed.database.log.position();
         this.#evaluation.forget(start);
         const last = yield* this.#evaluation.walk(
             new View(this.#feed.database, start, this.#feed),
@@ -208,7 +249,7 @@ export class Stream {
         const start = (await this.#feed.database.log.position()).sequence;
         let sequence = after.sequence;
         while (sequence < start && !signal.aborted) {
-            const advanced = yield* previous.advance(after.epoch, sequence, false, signal);
+            const advanced = yield* previous.advance({ ...after, sequence }, false, signal);
             if (advanced === sequence) {
                 await this.#feed.next(sequence, signal);
             }
@@ -216,7 +257,7 @@ export class Stream {
         }
 
         // send the difference at one position
-        const position = { epoch: after.epoch, sequence };
+        const position = { ...after, sequence };
         const moved = await this.#evaluation.moveFrom(previous, position);
 
         return yield* this.#catchUp(position, moved, signal);
@@ -233,7 +274,7 @@ export class Stream {
         let sequence = position.sequence;
         let last = pending;
         while (sequence < target && !signal.aborted) {
-            const pages = this.#evaluation.advance(position.epoch, sequence, false, signal);
+            const pages = this.#evaluation.advance({ ...position, sequence }, false, signal);
             let next = await pages.next();
             while (next.done !== true) {
                 // send the pending page unless empty
@@ -256,7 +297,7 @@ export class Stream {
 
         // complete the last page at the target
         const reached = Math.max(sequence, target);
-        yield { ...last, complete: true, position: { epoch: position.epoch, sequence: reached } };
+        yield { ...last, complete: true, position: { ...position, sequence: reached } };
 
         return reached;
     }

@@ -59,6 +59,37 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "read a scope and every scope below it, nearest first, leaving its siblings and parent out, on %s",
+    async (dialect) => {
+        const database = await open(dialect, [Scope.table]);
+        const row = (scope: string, parent: string) => ({
+            scope,
+            parent,
+            partition: Scope.universe.id,
+            ancestors: [],
+            packageId: PACKAGE_ID,
+            type: "folder",
+        });
+        await database
+            .insert(Scope.table)
+            .values([
+                row("account", Scope.universe.id),
+                row("space", "account"),
+                row("sibling", "account"),
+                row("room", "space"),
+                row("hall", "space"),
+                row("desk", "room"),
+            ]);
+
+        // read the space's subtree and a leaf's
+        expect([
+            await Scope.subtree(Snapshot.live(database), "space"),
+            await Scope.subtree(Snapshot.live(database), "desk"),
+        ]).toEqual([["space", "hall", "room", "desk"], ["desk"]]);
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "read several scopes' chains at once, each as it reads alone, on %s",
     async (dialect) => {
         const database = await open(dialect, [Scope.table]);

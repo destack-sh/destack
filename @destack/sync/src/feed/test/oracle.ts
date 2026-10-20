@@ -82,7 +82,7 @@ export function groupName(query: string, group: Readonly<Record<string, unknown>
 
 /** What the oracle reads rows of and writes what a subscriber should have into. */
 interface Evaluation {
-    /** The relations of the query's schema. */
+    /** The query's relations. */
     readonly relations: Relations;
     /** Every row of each table. */
     readonly tables: Rows;
