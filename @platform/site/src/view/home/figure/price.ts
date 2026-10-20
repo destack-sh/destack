@@ -239,7 +239,6 @@ export const prices: Readonly<Record<string, Price>> = {
     FigJam: seat(3, "Professional, annual"),
     Lucid: seat(10, "Lucidspark Team, annual"),
     "Cal.com": seat(12, "Teams, annual"),
-    "Proton Mail": seat(9.99, "Mail Professional, annual"),
     Coda: seat(30, "Team, annual"),
     Trello: seat(5, "Standard, annual"),
     Asana: seat(10.99, "Starter, annual"),

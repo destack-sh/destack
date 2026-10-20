@@ -25,6 +25,9 @@ import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 import { type Category, type Tool, toolOf, tools } from "../tool/tool";
 
+/** A wall narrower than its widest row of tools at full size, where its chips tighten. */
+const COMPACT = "@container (max-width: 640px)";
+
 /** An app every space comes with: its name and its icon. */
 type App = { name: string; icon: string };
 
@@ -194,11 +197,8 @@ export function ToolWall(properties: {
                 <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
                     <span {...style.attrs(styles.label)}>Job</span>
                     <span {...style.attrs(styles.headLine)}>
-                        <span {...style.attrs(styles.heading)}>
-                            <span {...style.attrs(styles.label)}>Tools</span>
-                            <span {...style.attrs(styles.label)}>
-                                {properties.isOpen ? "In your space" : "Pick the ones you use"}
-                            </span>
+                        <span {...style.attrs(styles.label)}>
+                            Tools · {properties.isOpen ? "in your space" : "pick the ones you use"}
                         </span>
 
                         {/* the apps you could make from the jobs your picks cover */}
@@ -263,14 +263,14 @@ function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (tool: 
     return (
         <button
             type="button"
-            data-key={properties.tool.name}
+            data-key={`${properties.tool.category}:${properties.tool.name}`}
             aria-pressed={properties.isPicked ? "true" : "false"}
             title={[properties.tool.name, statusOf(properties.tool)].filter(Boolean).join(", ")}
             onClick={() => properties.onPick(properties.tool)}
             {...style.attrs(styles.chip, styles.tool, properties.isPicked && styles.picked)}
         >
             <Favicon icon={properties.tool.icon} tint={properties.tool.tint} size={16} />
-            <span {...style.attrs(styles.name)}>{properties.tool.name}</span>
+            <span {...style.attrs(styles.name)}>{properties.tool.label}</span>
         </button>
     );
 }
@@ -280,7 +280,11 @@ function AppMark(properties: { row: Row; picked: readonly Tool[] }) {
     return (
         <span
             data-key={`app:${properties.row.label}`}
-            data-from={properties.picked[0]?.name ?? `app:${properties.row.label}`}
+            data-from={
+                properties.picked[0] === undefined
+                    ? `app:${properties.row.label}`
+                    : `${properties.picked[0].category}:${properties.picked[0].name}`
+            }
             {...style.attrs(styles.chip, styles.app, properties.picked.length === 0 && styles.idle)}
         >
             <Tile icon={properties.row.app.icon} size="small" />
@@ -495,6 +499,7 @@ const styles = style.create({
         borderWidth: stroke.border,
         boxShadow: shadow.raised,
         display: "grid",
+        containerType: "inline-size",
         gridTemplateRows: "auto minmax(0, 1fr)",
         minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
         overflow: "hidden",
@@ -530,7 +535,9 @@ const styles = style.create({
         listStyle: "none",
         margin: 0,
         minHeight: 0,
+        overflowY: "auto",
         padding: 0,
+        scrollbarWidth: "thin",
     },
     row: {
         alignItems: "center",
@@ -545,8 +552,8 @@ const styles = style.create({
             default: "6.5rem minmax(0, 1fr)",
             [media.maxMd]: "5rem minmax(0, 1fr)",
         },
-        minHeight: "2.25rem",
-        paddingBlock: { default: 0, [media.maxMd]: "0.375rem" },
+        minHeight: "auto",
+        paddingBlock: { default: "0.1875rem", [media.maxMd]: "0.375rem" },
         paddingInline: "0.75rem",
         ":last-child": { borderBottomWidth: 0 },
     },
@@ -566,15 +573,12 @@ const styles = style.create({
         height: chrome.toolbar,
         paddingBlock: 0,
     },
-    heading: {
-        display: "grid",
-    },
     marks: {
         alignItems: "center",
         display: "flex",
+        flexWrap: "wrap",
         gap: "0.3125rem",
         minWidth: 0,
-        overflow: "hidden",
     },
     chip: {
         alignItems: "center",
@@ -586,9 +590,9 @@ const styles = style.create({
         display: "inline-flex",
         fontFamily: "inherit",
         flexShrink: 0,
-        gap: "0.375rem",
-        height: "1.875rem",
-        paddingInline: "0.4375rem",
+        gap: { default: "0.375rem", [COMPACT]: "0.3125rem" },
+        height: { default: "1.875rem", [COMPACT]: "1.75rem" },
+        paddingInline: { default: "0.4375rem", [COMPACT]: "0.3125rem" },
     },
     tool: {
         backgroundColor: {
@@ -620,7 +624,7 @@ const styles = style.create({
     },
     name: {
         display: { default: "inline", [media.maxMd]: "none" },
-        fontSize: "0.8125rem",
+        fontSize: { default: "0.8125rem", [COMPACT]: "0.75rem" },
         whiteSpace: "nowrap",
     },
     note: {

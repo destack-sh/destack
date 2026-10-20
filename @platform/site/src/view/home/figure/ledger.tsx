@@ -18,14 +18,23 @@ const QUIET_SIZE = 0.8125;
 /** The size of a row's main figure, in rem. */
 const VALUE_SIZE = 0.9375;
 
-/** The size of a caption, in rem. */
-const LABEL_SIZE = 0.6875;
+/** The size of a caption, in rem, as the label style sets it. */
+const LABEL_SIZE = 0.625;
 
 /** The tracking a caption adds to each letter, as a share of its size. */
 const LABEL_TRACKING = 0.1;
 
+/** The tracking a caption adds in a narrow ledger, tight so the figures fit beside the names. */
+const NARROW_LABEL_TRACKING = 0.02;
+
 /** The least width of the name column, which stays put while the figures scroll under it. */
 const NAME_WIDTH = "8.75rem";
+
+/** The least width of the name column in a narrow ledger, enough for a job and a short name. */
+const NARROW_NAME_WIDTH = "8rem";
+
+/** A ledger narrower than its name and figures at full size, as beside a tablet's wall. */
+const NARROW_LEDGER = "@container (max-width: 460px)";
 
 /** The padding each row keeps inside its block, which its subgrid takes from the edge columns. */
 const ROW_INSET = "0.75rem";
@@ -106,15 +115,18 @@ export function Ledger(properties: {
         scroller.scrollLeft = scroller.scrollWidth;
     });
 
-    // size each figure column, the last one padded by the row's inset
-    const tracks = () =>
-        properties.widths.map((characters, column) =>
-            widthOf(
-                characters,
-                present(properties.columns[column], "column"),
-                column === properties.widths.length - 1 ? ROW_INSET : "0rem",
-            ),
-        );
+    // size each figure column at a caption tracking, the last one padded by the row's inset
+    const tracks = (tracking: number) =>
+        properties.widths
+            .map((characters, column) =>
+                widthOf(
+                    characters,
+                    present(properties.columns[column], "column"),
+                    column === properties.widths.length - 1 ? ROW_INSET : "0rem",
+                    tracking,
+                ),
+            )
+            .join(" ");
 
     return (
         <div data-component="Ledger" {...style.attrs(styles.ledger)}>
@@ -129,7 +141,10 @@ export function Ledger(properties: {
                 {/* table, scrolling its figures under the names where they overflow */}
                 <div
                     ref={scroller}
-                    {...style.attrs(styles.grid, styles.columns(tracks().join(" ")))}
+                    {...style.attrs(
+                        styles.grid,
+                        styles.columns(tracks(LABEL_TRACKING), tracks(NARROW_LABEL_TRACKING)),
+                    )}
                 >
                     {/* column heads, each caption over its unit */}
                     <div
@@ -268,12 +283,12 @@ function Marks(properties: { marks: readonly ItemMark[] }) {
 }
 
 /** Return a column's width: its widest figure or its caption, plus any edge padding. */
-function widthOf(characters: number, column: Column, edge: string): string {
+function widthOf(characters: number, column: Column, edge: string, tracking: number): string {
     // measure in the ledger's own code face, its ch set at a main figure's size
     const size = column.isQuiet ? QUIET_SIZE / VALUE_SIZE : 1;
     const figure = characters * size;
     const letters = column.caption.length;
-    const caption = `${(letters * (LABEL_SIZE / VALUE_SIZE)).toFixed(3)}ch + ${(letters * LABEL_TRACKING * LABEL_SIZE).toFixed(3)}rem`;
+    const caption = `${(letters * (LABEL_SIZE / VALUE_SIZE)).toFixed(3)}ch + ${(letters * tracking * LABEL_SIZE).toFixed(3)}rem`;
 
     return `calc(max(${figure.toFixed(3)}ch, calc(${caption})) + ${edge})`;
 }
@@ -285,8 +300,11 @@ function fillOf(tint: string, isLit: boolean): string {
 
 /** The ledger styles. */
 const styles = style.create({
-    columns: (figures: string) => ({
-        gridTemplateColumns: `minmax(${NAME_WIDTH}, 1fr) ${figures}`,
+    columns: (figures: string, narrowFigures: string) => ({
+        gridTemplateColumns: {
+            default: `minmax(${NAME_WIDTH}, 1fr) ${figures}`,
+            [NARROW_LEDGER]: `minmax(${NARROW_NAME_WIDTH}, 1fr) ${narrowFigures}`,
+        },
     }),
     tinted: (fill: string, tint: string) => ({
         [ledgerVariables.fill]: fill,
@@ -304,7 +322,7 @@ const styles = style.create({
         minHeight: 0,
     },
     grid: {
-        columnGap: "0.75rem",
+        columnGap: { default: "0.75rem", [NARROW_LEDGER]: "0.375rem" },
         display: "grid",
         fontFamily: font.code,
         fontSize: `${VALUE_SIZE}rem`,
@@ -417,7 +435,7 @@ const styles = style.create({
         flexShrink: 0,
         height: "1.75rem",
         width: "1.75rem",
-        zoom: 1.125,
+        zoom: { default: 1.125, [NARROW_LEDGER]: 0.875 },
     },
     folder: {
         alignContent: "center",
@@ -443,7 +461,7 @@ const styles = style.create({
         color: color.mutedForeground,
         fontFamily: font.code,
         fontSize: "0.625rem",
-        letterSpacing: "0.1em",
+        letterSpacing: { default: "0.1em", [NARROW_LEDGER]: "0.02em" },
         lineHeight: "0.875rem",
         overflow: "hidden",
         textOverflow: "ellipsis",

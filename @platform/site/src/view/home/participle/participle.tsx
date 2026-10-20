@@ -96,14 +96,11 @@ export function Participle(properties: {
                         isOpenAt={isOpenAt}
                     />
                 </div>
-            </section>
 
-            {/* install in one of three ways, the agent's prompt naming the picked tools */}
-            <section
-                id="install"
-                {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}
-            >
-                <InstallWays prompt={properties.prompt} />
+                {/* end on the install, in one of three ways, the agent's prompt naming the picked tools */}
+                <div {...style.attrs(styles.install)}>
+                    <InstallWays prompt={properties.prompt} />
+                </div>
             </section>
         </>
     );
@@ -113,9 +110,12 @@ export function Participle(properties: {
 const styles = style.create({
     section: {
         gridTemplateRows: {
-            default: "auto auto minmax(0, 1fr)",
+            default: "auto auto minmax(0, 1fr) auto",
             [screen.belowDesktop]: "auto",
         },
+    },
+    install: {
+        gridColumn: "1 / -1",
     },
     stage: {
         gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },

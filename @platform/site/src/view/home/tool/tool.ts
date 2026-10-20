@@ -23,8 +23,6 @@ import { Obsidian } from "./obsidian";
 import { Outlook } from "./outlook";
 import { OutlookCalendar } from "./outlookcalendar";
 import { PowerAutomate } from "./powerautomate";
-import { ProtonCalendar } from "./protoncalendar";
-import { ProtonMail } from "./protonmail";
 import { Word } from "./word";
 import { Gmail } from "./gmail";
 import { Linear } from "./linear";
@@ -64,6 +62,8 @@ export type Relation = { kind: "replace" } | { kind: "bridge"; status: string };
 export type Tool = {
     /** The tool's name. */
     name: string;
+    /** The tool's name in a row of its category, its brand left to its mark, such as Docs. */
+    label: string;
     /** What a team rents it for. */
     category: Category;
     /** The tool's mark in the diagram icons. */
@@ -87,6 +87,7 @@ export const tools: readonly Tool[] = [
     // docs
     {
         name: "Notion",
+        label: "Notion",
         category: "documents",
         icon: "notion",
         tint: "#191919",
@@ -98,6 +99,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Google Docs",
+        label: "Docs",
         category: "documents",
         icon: "googledocs",
         tint: "#4285f4",
@@ -109,6 +111,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Confluence",
+        label: "Confluence",
         category: "documents",
         icon: "confluence",
         tint: "#1868db",
@@ -120,6 +123,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Obsidian",
+        label: "Obsidian",
         category: "documents",
         icon: "obsidian",
         tint: "#7c3aed",
@@ -131,6 +135,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Word",
+        label: "Word",
         category: "documents",
         icon: "word",
         tint: "#185abd",
@@ -144,6 +149,7 @@ export const tools: readonly Tool[] = [
     // tasks
     {
         name: "Linear",
+        label: "Linear",
         category: "tasks",
         icon: "linear",
         tint: "#5e6ad2",
@@ -155,6 +161,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Jira",
+        label: "Jira",
         category: "tasks",
         icon: "jira",
         tint: "#1868db",
@@ -166,6 +173,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Asana",
+        label: "Asana",
         category: "tasks",
         icon: "asana",
         tint: "#f06a6a",
@@ -177,6 +185,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Trello",
+        label: "Trello",
         category: "tasks",
         icon: "trello",
         tint: "#0052cc",
@@ -188,6 +197,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "ClickUp",
+        label: "ClickUp",
         category: "tasks",
         icon: "clickup",
         tint: "#7b68ee",
@@ -201,6 +211,7 @@ export const tools: readonly Tool[] = [
     // chat
     {
         name: "Slack",
+        label: "Slack",
         category: "chat",
         icon: "slack",
         tint: "#4a154b",
@@ -212,6 +223,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Teams",
+        label: "Teams",
         category: "chat",
         icon: "teams",
         tint: "#5059c9",
@@ -223,6 +235,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Discord",
+        label: "Discord",
         category: "chat",
         icon: "discord",
         tint: "#5865f2",
@@ -234,6 +247,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Google Chat",
+        label: "Chat",
         category: "chat",
         icon: "googlechat",
         tint: "#00ac47",
@@ -245,6 +259,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "WhatsApp",
+        label: "WhatsApp",
         category: "chat",
         icon: "whatsapp",
         tint: "#25d366",
@@ -258,6 +273,7 @@ export const tools: readonly Tool[] = [
     // calendar
     {
         name: "Calendly",
+        label: "Calendly",
         category: "calendar",
         icon: "calendly",
         tint: "#006bff",
@@ -269,6 +285,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Cal.com",
+        label: "Cal.com",
         category: "calendar",
         icon: "caldotcom",
         tint: "#292929",
@@ -280,6 +297,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Google Calendar",
+        label: "Calendar",
         category: "calendar",
         icon: "googlecalendar",
         tint: "#4285f4",
@@ -291,6 +309,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Outlook Calendar",
+        label: "Outlook",
         category: "calendar",
         icon: "outlook",
         tint: "#0078d4",
@@ -300,21 +319,11 @@ export const tools: readonly Tool[] = [
         relation: { kind: "bridge", status: "two-way sync" },
         page: OutlookCalendar,
     },
-    {
-        name: "Proton Calendar",
-        category: "calendar",
-        icon: "protoncalendar",
-        tint: "#6d4aff",
-        subscription: "Proton Mail",
-        tab: "Proton Calendar",
-        site: "calendar.proton.me/u/0/week/2025/10/20",
-        relation: { kind: "bridge", status: "events read by link" },
-        page: ProtonCalendar,
-    },
 
     // mail
     {
         name: "Gmail",
+        label: "Gmail",
         category: "mail",
         icon: "gmail",
         tint: "#ea4335",
@@ -326,6 +335,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Outlook",
+        label: "Outlook",
         category: "mail",
         icon: "outlook",
         tint: "#0078d4",
@@ -337,6 +347,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Superhuman",
+        label: "Superhuman",
         category: "mail",
         icon: "superhuman",
         tint: "#3d1832",
@@ -348,6 +359,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Thunderbird",
+        label: "Thunderbird",
         category: "mail",
         icon: "thunderbird",
         tint: "#0a84ff",
@@ -357,21 +369,11 @@ export const tools: readonly Tool[] = [
         relation: { kind: "replace" },
         page: Thunderbird,
     },
-    {
-        name: "Proton Mail",
-        category: "mail",
-        icon: "protonmail",
-        tint: "#6d4aff",
-        subscription: "Proton Mail",
-        tab: "Inbox | Proton Mail",
-        site: "mail.proton.me/u/0/inbox",
-        relation: { kind: "bridge", status: "inbox synced" },
-        page: ProtonMail,
-    },
 
     // tables
     {
         name: "Airtable",
+        label: "Airtable",
         category: "tables",
         icon: "airtable",
         tint: "#18bfff",
@@ -383,6 +385,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Google Sheets",
+        label: "Sheets",
         category: "tables",
         icon: "googlesheets",
         tint: "#34a853",
@@ -394,6 +397,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Excel",
+        label: "Excel",
         category: "tables",
         icon: "excel",
         tint: "#107c41",
@@ -405,6 +409,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Coda",
+        label: "Coda",
         category: "tables",
         icon: "coda",
         tint: "#f46a54",
@@ -416,6 +421,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Notion",
+        label: "Notion",
         category: "tables",
         icon: "notion",
         tint: "#191919",
@@ -429,6 +435,7 @@ export const tools: readonly Tool[] = [
     // canvas
     {
         name: "Miro",
+        label: "Miro",
         category: "canvas",
         icon: "miro",
         tint: "#050038",
@@ -440,6 +447,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "FigJam",
+        label: "FigJam",
         category: "canvas",
         icon: "figma",
         tint: "#a259ff",
@@ -451,6 +459,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "tldraw",
+        label: "tldraw",
         category: "canvas",
         icon: "tldraw",
         tint: "#1d1d1d",
@@ -462,6 +471,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Lucid",
+        label: "Lucid",
         category: "canvas",
         icon: "lucid",
         tint: "#282c33",
@@ -473,6 +483,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Excalidraw",
+        label: "Excalidraw",
         category: "canvas",
         icon: "excalidraw",
         tint: "#6965db",
@@ -486,6 +497,7 @@ export const tools: readonly Tool[] = [
     // workflows
     {
         name: "Zapier",
+        label: "Zapier",
         category: "workflows",
         icon: "zapier",
         tint: "#ff4f00",
@@ -497,6 +509,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Make",
+        label: "Make",
         category: "workflows",
         icon: "make",
         tint: "#6d00cc",
@@ -508,6 +521,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "n8n",
+        label: "n8n",
         category: "workflows",
         icon: "n8n",
         tint: "#ea4b71",
@@ -519,6 +533,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Power Automate",
+        label: "Power Automate",
         category: "workflows",
         icon: "powerautomate",
         tint: "#0066ff",
@@ -530,6 +545,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "IFTTT",
+        label: "IFTTT",
         category: "workflows",
         icon: "ifttt",
         tint: "#000000",
@@ -543,6 +559,7 @@ export const tools: readonly Tool[] = [
     // builder
     {
         name: "Replit",
+        label: "Replit",
         category: "builder",
         icon: "replit",
         tint: "#f26207",
@@ -554,6 +571,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Lovable",
+        label: "Lovable",
         category: "builder",
         icon: "lovable",
         tint: "#ff4f6d",
@@ -565,6 +583,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "Bolt",
+        label: "Bolt",
         category: "builder",
         icon: "stackblitz",
         tint: "#1389fd",
@@ -576,6 +595,7 @@ export const tools: readonly Tool[] = [
     },
     {
         name: "v0",
+        label: "v0",
         category: "builder",
         icon: "v0",
         tint: "#000000",
