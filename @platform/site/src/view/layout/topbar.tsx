@@ -5,7 +5,6 @@ import list from "@destack/icon/phosphor/list";
 import user from "@destack/icon/phosphor/user";
 import xIcon from "@destack/icon/phosphor/x";
 import { media } from "@destack/style/media.stylex";
-import { text } from "@destack/theme/text";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
@@ -15,12 +14,17 @@ import { createAppearance } from "@destack/view/document";
 import { Link, useLocation } from "@destack/view/router";
 
 import { CommandPalette } from "./palette";
-import { DownloadCell } from "../home/participle/download/download";
-import { Goo } from "../effect/goo";
 import { frame } from "./frame.stylex";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
-import { home, pendingDestinations, primaryDestinations } from "./navigation";
+import {
+    type Destination,
+    home,
+    isLive,
+    menu,
+    type PendingDestination,
+    primaryDestinations,
+} from "./navigation";
 import { AppearanceToggle } from "./appearance";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
@@ -62,85 +66,60 @@ export function TopBar() {
         <header {...style.attrs(styles.root)}>
             <Sheet open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
                 <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
-                    {/* set the brand in a cell of starry space */}
-                    <Goo isFlush xstyle={styles.brandCell}>
-                        <Link href={home.href} {...style.attrs(text.subheadline, styles.brand)}>
+                    {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
+                    <div {...style.attrs(styles.content)}>
+                        <Link href={home.href} {...style.attrs(styles.brand)}>
                             <Mark />
-                            Destack
+                            <span {...style.attrs(styles.headword)}>Destack</span>
                         </Link>
-                    </Goo>
+                        <nav aria-label="Primary navigation" {...style.attrs(styles.navigation)}>
+                            {menu.map((destination, index) => (
+                                <>
+                                    {index > 0 && (
+                                        <span aria-hidden="true" {...style.attrs(styles.dot)}>
+                                            ·
+                                        </span>
+                                    )}
+                                    <MenuLink
+                                        destination={destination}
+                                        isActive={active() === destination}
+                                    />
+                                </>
+                            ))}
+                        </nav>
 
-                    {/* give each destination one two-column cell: packages, then documentation and blog */}
-                    <nav
-                        aria-label="Primary navigation"
-                        {...style.attrs(text.subheadline, styles.navigation)}
-                    >
-                        {pendingDestinations.map(({ label }) => (
-                            <button
-                                type="button"
+                        {/* keep search, appearance, your home space and sign in together at the row's end */}
+                        {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
+                        <div {...style.attrs(styles.tools)}>
+                            <CommandPalette appearance={appearance} />
+                            <AppearanceToggle appearance={appearance} />
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 disabled
-                                aria-label={`${label}, soon`}
-                                {...style.attrs(
-                                    text.subheadline,
-                                    lattice.ruleRight,
-                                    styles.link,
-                                    styles.pending,
-                                )}
+                                aria-label="Your home space, soon"
+                                xstyle={styles.idle}
                             >
-                                {label}
-                            </button>
-                        ))}
-                        {primaryDestinations.map((destination) => (
-                            <Link
-                                href={destination.href}
-                                aria-label={destination.label}
-                                {...style.attrs(
-                                    lattice.ruleRight,
-                                    styles.link,
-                                    active()?.href === destination.href && styles.active,
-                                )}
+                                <Icon icon={house} xstyle={styles.tool} />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled
+                                aria-label="Sign in, soon"
+                                xstyle={[styles.idle, styles.account]}
                             >
-                                {destination.label}
-                            </Link>
-                        ))}
-                    </nav>
-
-                    {/* offer the desktop download in the brand's colour, opposite the brand */}
-                    <Goo isFlush xstyle={styles.download}>
-                        <DownloadCell />
-                    </Goo>
-
-                    {/* put search, appearance, your home space and sign in into four cells on the right edge */}
-                    {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
-                    <div {...style.attrs(styles.tools)}>
-                        <CommandPalette appearance={appearance} />
-                        <AppearanceToggle appearance={appearance} />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
-                            aria-label="Your home space, soon"
-                            xstyle={styles.idle}
-                        >
-                            <Icon icon={house} xstyle={styles.tool} />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled
-                            aria-label="Sign in, soon"
-                            xstyle={[styles.idle, styles.account]}
-                        >
-                            <Icon icon={user} xstyle={styles.tool} />
-                        </Button>
-                        <SheetTrigger
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Menu"
-                            xstyle={styles.menuButton}
-                        >
-                            <Icon icon={list} xstyle={styles.tool} />
-                        </SheetTrigger>
+                                <Icon icon={user} xstyle={styles.tool} />
+                            </Button>
+                            <SheetTrigger
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Menu"
+                                xstyle={styles.menuButton}
+                            >
+                                <Icon icon={list} xstyle={styles.tool} />
+                            </SheetTrigger>
+                        </div>
                     </div>
                 </div>
                 <SheetContent
@@ -171,27 +150,28 @@ export function TopBar() {
                             }
                         }}
                     >
-                        {pendingDestinations.map(({ label }) => (
-                            <span
-                                aria-disabled="true"
-                                {...style.attrs(styles.menuLink, styles.menuPending)}
-                            >
-                                {label}
-                                <span {...style.attrs(styles.soon)}>Soon</span>
-                            </span>
-                        ))}
-                        {primaryDestinations.map((destination) => (
-                            <Link
-                                href={destination.href}
-                                {...style.attrs(
-                                    styles.menuLink,
-                                    active()?.href === destination.href && styles.active,
-                                )}
-                            >
-                                {destination.label}
-                                <Icon icon={arrowRight} />
-                            </Link>
-                        ))}
+                        {menu.map((destination) =>
+                            isLive(destination) ? (
+                                <Link
+                                    href={destination.href}
+                                    {...style.attrs(
+                                        styles.menuLink,
+                                        active()?.href === destination.href && styles.menuActive,
+                                    )}
+                                >
+                                    {destination.label}
+                                    <Icon icon={arrowRight} />
+                                </Link>
+                            ) : (
+                                <span
+                                    aria-disabled="true"
+                                    {...style.attrs(styles.menuLink, styles.menuPending)}
+                                >
+                                    {destination.label}
+                                    <span {...style.attrs(styles.soon)}>Soon</span>
+                                </span>
+                            ),
+                        )}
 
                         {/* sign in here on phones, where the bar gives its cell to the menu */}
                         <span
@@ -208,6 +188,32 @@ export function TopBar() {
     );
 }
 
+/** Draw one guide word of the running head: a live destination, or its name while pending. */
+function MenuLink(properties: {
+    destination: Destination | PendingDestination;
+    isActive: boolean;
+}) {
+    const destination = properties.destination;
+
+    // name a pending destination without a link
+    if (!isLive(destination)) {
+        return (
+            <span title="Soon" {...style.attrs(styles.link, styles.pending)}>
+                {destination.label}
+            </span>
+        );
+    }
+
+    return (
+        <Link
+            href={destination.href}
+            {...style.attrs(styles.link, properties.isActive && styles.active)}
+        >
+            {destination.label}
+        </Link>
+    );
+}
+
 /** The top bar styles. */
 const styles = style.create({
     root: {
@@ -219,46 +225,68 @@ const styles = style.create({
         fontFamily: font.text,
         height: frame.bar,
     },
-    brandCell: {
-        gridColumn: { default: "span 2", [media.maxMd]: "span 2" },
-    },
     brand: {
         alignItems: "center",
+        color: color.foreground,
+        columnGap: "0.5rem",
+        display: "flex",
+        flexShrink: 0,
+        textDecorationLine: "none",
+    },
+    headword: {
         color: {
             default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
         },
+        fontSize: "1.0625rem",
+        fontWeight: weight.bold,
+    },
+    content: {
+        alignItems: "center",
+        columnGap: "2rem",
         display: "flex",
-        fontFamily: font.text,
-        fontWeight: weight.semibold,
-        gap: "0.625rem",
-        height: "100%",
-        justifyContent: "center",
-        paddingInline: frame.inset,
+        gridColumn: "1 / -1",
+        minWidth: 0,
+        position: "relative",
+        paddingInlineEnd: { default: "0.75rem", [media.maxMd]: "0.25rem" },
+        paddingInlineStart: frame.inset,
     },
     navigation: {
-        borderLeftColor: color.border,
-        borderLeftStyle: "solid",
-        borderLeftWidth: stroke.border,
-        display: { default: "grid", [media.maxMd]: "none" },
-        gridColumn: "span 6",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        alignItems: "baseline",
+        color: color.mutedForeground,
+        display: { default: "flex", [media.maxMd]: "none" },
+        fontSize: "0.9375rem",
+        insetInlineStart: "50%",
+        position: "absolute",
+        transform: "translateX(-50%)",
+    },
+    dot: {
+        color: color.primary,
+        fontWeight: weight.bold,
+        marginInline: "0.55em",
     },
     link: {
-        alignItems: "center",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
+        color: {
+            default: color.mutedForeground,
+            ":hover": { default: null, [media.hover]: color.foreground },
         },
-        color: color.foreground,
-        display: "flex",
-        fontWeight: weight.medium,
-        justifyContent: "center",
-        transitionDuration: "120ms",
-        transitionProperty: "background-color",
+        textDecorationColor: {
+            default: color.border,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        textDecorationLine: "underline",
+        textDecorationSkipInk: "none",
+        textDecorationThickness: "0.08em",
+        textUnderlineOffset: "0.2em",
     },
     active: {
-        boxShadow: `inset 0 -2px 0 ${color.primary}`,
+        color: color.foreground,
+        textDecorationColor: color.primary,
+        textDecorationThickness: "0.12em",
+    },
+    pending: {
+        cursor: "default",
+        textDecorationLine: "none",
     },
     tool: {
         width: "20px",
@@ -266,25 +294,15 @@ const styles = style.create({
     },
     tools: {
         alignItems: "center",
-        display: "grid",
-        gridColumn: { default: "11 / span 2", [media.maxMd]: "span 2" },
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        justifyItems: "center",
+        columnGap: "0.25rem",
+        display: "flex",
+        marginInlineStart: "auto",
     },
     idle: {
         opacity: { default: 1, ":disabled": 1 },
     },
     account: {
         display: { default: "inline-flex", [media.maxMd]: "none" },
-    },
-    download: {
-        gridColumn: "9 / span 2",
-        display: { default: "block", [media.maxMd]: "none" },
-    },
-    pending: {
-        borderWidth: 0,
-        cursor: "default",
-        fontFamily: font.text,
     },
     menuButton: {
         alignItems: "center",
@@ -344,6 +362,9 @@ const styles = style.create({
         gap: "1rem",
         justifyContent: "space-between",
         paddingBlock: "1.25rem",
+    },
+    menuActive: {
+        fontWeight: weight.semibold,
     },
     menuPending: {
         color: {

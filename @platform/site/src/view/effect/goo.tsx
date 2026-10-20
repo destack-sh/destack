@@ -74,7 +74,6 @@ uniform vec2 u_near;
 uniform float u_charge;
 uniform vec4 u_islands[${islandCapacity}];
 uniform float u_islandCount;
-uniform vec4 u_flush;
 uniform vec4 u_clip;
 uniform vec4 u_page;
 
@@ -126,33 +125,27 @@ void main() {
     }
     float outline = step(0.5, dot(u_page.rgb, vec3(0.2126, 0.7152, 0.0722)));
 
-    // measure the island cells: rounded goo, or flush with its cell's edges
-    float soft = 1e5;
-    float hard = 1e5;
+    // measure the island cells
+    float d = 1e5;
     for (int i = 0; i < ${islandCapacity}; i++) {
         if (float(i) < u_islandCount) {
             vec4 island = u_islands[i];
-            if (u_flush[i] > 0.5) {
-                hard = min(hard, box(frag - island.xy, island.zw, 0.0));
-            } else {
-                soft = min(soft, box(frag - island.xy, island.zw + u_charge * 3.0, 6.0));
-            }
+            d = min(d, box(frag - island.xy, island.zw + u_charge * 3.0, 6.0));
         }
     }
-    if (min(soft, hard) > 140.0) {
+    if (d > 140.0) {
         discard;
     }
 
-    // sag and swell the goo's edge very slowly
+    // sag and swell the edge very slowly
     vec2 page = frag + u_origin;
     float slow = noise(page * 0.007 + vec2(u_clock * 0.025, u_clock * 0.018)) - 0.5;
     float swell = noise(page * 0.013 - vec2(u_clock * 0.03, u_clock * 0.012)) - 0.5;
-    soft -= (slow * 2.0 + swell) * u_wobble;
+    d -= (slow * 2.0 + swell) * u_wobble;
 
-    // swell the goo gently toward a u_pointer that comes u_near, leaving flush cells still
+    // swell gently toward a u_pointer that comes u_near
     float away = length(frag - u_pointer);
-    soft -= u_pull * 4.0 * exp(-away * away / 2400.0);
-    float d = min(soft, hard);
+    d -= u_pull * 4.0 * exp(-away * away / 2400.0);
 
     // clip to the goo and trace its edge with one faint line: ink on a light page, light on a dark one
     float edge = 1.0 / u_pixelRatio;
@@ -197,18 +190,9 @@ export function charge(level: number) {
 const [isFieldPainted, setIsFieldPainted] = createSignal(false);
 
 /** Mark a lattice cell as an island of goo, drawn by the site's one field behind its content. */
-export function Goo(properties: {
-    children?: JSX.Element;
-    xstyle?: style.Styles;
-    /** Whether the goo fills the cell to its edges, without rim, rounding or wobble. */
-    isFlush?: boolean;
-}) {
+export function Goo(properties: { children?: JSX.Element; xstyle?: style.Styles }) {
     return (
-        <div
-            data-goo
-            data-goo-flush={properties.isFlush === true ? "" : undefined}
-            {...style.attributes([styles.host, properties.xstyle], night)}
-        >
+        <div data-goo {...style.attributes([styles.host, properties.xstyle], night)}>
             {/* stand in with still stars until the field paints */}
             <span
                 aria-hidden="true"
@@ -235,7 +219,6 @@ export function GooField() {
         const eased = { x: 0, y: 0, pull: 0, charge: 0 };
         let cells: HTMLElement[] = [];
         let pageIslands: Rect[] = [];
-        let flushes: boolean[] = [];
         let bounds = mount.canvas.getBoundingClientRect();
         let measuredAt = Number.NEGATIVE_INFINITY;
         let lastAt = 0;
@@ -273,7 +256,6 @@ export function GooField() {
                 pageIslands = cells.map((cell) =>
                     shift(cell.getBoundingClientRect(), scroll.x, scroll.y),
                 );
-                flushes = cells.map((cell) => cell.hasAttribute("data-goo-flush"));
                 bounds = mount.canvas.getBoundingClientRect();
             }
             const islands = pageIslands.map((island) => shift(island, -scroll.x, -scroll.y));
@@ -305,15 +287,14 @@ export function GooField() {
                 // shade only around the islands, as far as their rim, swell and pull can reach
                 const slots = Array.from({ length: islandCapacity }, (_, index) => {
                     const island = islands[index];
-                    const rim = flushes[index] === true ? 0 : rimOffset;
 
                     return island === undefined
                         ? [0, 0, 0, 0]
                         : [
                               island.left + island.width / 2 - bounds.left,
                               island.top + island.height / 2 - bounds.top,
-                              island.width / 2 + rim,
-                              island.height / 2 + rim,
+                              island.width / 2 + rimOffset,
+                              island.height / 2 + rimOffset,
                           ];
                 });
                 const clip = [
@@ -333,9 +314,6 @@ export function GooField() {
                     u_near: [bounds.left + scroll.x * 0.7, bounds.top + scroll.y * 0.7],
                     u_islands: slots,
                     u_islandCount: islands.length,
-                    u_flush: Array.from({ length: islandCapacity }, (_, index) =>
-                        flushes[index] === true ? 1 : 0,
-                    ),
                     u_clip: clip,
                 });
                 setIsFieldPainted(true);

@@ -6,6 +6,7 @@ import githubLogo from "@destack/icon/phosphor/github-logo";
 import linkedinLogo from "@destack/icon/phosphor/linkedin-logo";
 import megaphone from "@destack/icon/phosphor/megaphone";
 import packageIcon from "@destack/icon/phosphor/package";
+import tag from "@destack/icon/phosphor/tag";
 import xLogo from "@destack/icon/phosphor/x-logo";
 import type { Accelerator } from "@destack/view/palette";
 
@@ -24,20 +25,20 @@ export interface Destination {
 /** A site destination that opens once it is live. */
 export type PendingDestination = Pick<Destination, "label" | "icon">;
 
-// TODO #Incomplete: open packages once the registry is live
-/** The site destinations that open once they are live, ahead of the primary ones. */
-export const pendingDestinations: readonly PendingDestination[] = [
+// TODO #Incomplete: open packages once the registry is live, and pricing once its page is
+/** The site's menu in order, each destination live or opening once it is. */
+export const menu: readonly (Destination | PendingDestination)[] = [
     { label: "Packages", icon: packageIcon },
+    { label: "Pricing", icon: tag },
+    { href: "/docs/", label: "Docs", keybinding: "alt+d", icon: bookOpen },
+    { href: "/blog/", label: "Blog", keybinding: "alt+b", icon: megaphone },
 ];
 
 /** The home page, which the brand links to. */
 export const home: Destination = { href: "/", label: "Home", keybinding: "alt+h", icon: house };
 
-/** The primary site destinations. */
-export const primaryDestinations: readonly Destination[] = [
-    { href: "/docs/", label: "Docs", keybinding: "alt+d", icon: bookOpen },
-    { href: "/blog/", label: "Blog", keybinding: "alt+b", icon: megaphone },
-];
+/** The live destinations of the menu. */
+export const primaryDestinations: readonly Destination[] = menu.filter(isLive);
 
 /** The Destack community destinations. */
 export const socialDestinations: readonly Destination[] = [
@@ -68,6 +69,11 @@ export const destinations: readonly Destination[] = [
     ...primaryDestinations,
     ...socialDestinations,
 ];
+
+/** Report whether a menu destination is live, with an address to open. */
+export function isLive(destination: Destination | PendingDestination): destination is Destination {
+    return "href" in destination;
+}
 
 /** Report whether a destination leaves the site, opening in a new tab or another application. */
 export function isExternal(destination: Pick<Destination, "href">): boolean {

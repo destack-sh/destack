@@ -64,8 +64,8 @@ const verb: Form = {
             { label: "Own your apps", href: "#verb" },
             { label: "Keep your context", href: "#past-participle" },
             { label: "Integrate your agents", href: "#imperative" },
-            { label: "Build your personal superapp", href: "#present-participle" },
         ],
+        action: { label: "Get your personal superapp", href: "#present-participle" },
     },
 };
 

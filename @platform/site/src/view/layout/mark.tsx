@@ -18,51 +18,13 @@ const ring = {
     transform: `rotate(${ringTilt} ${centre.x} ${centre.y})`,
 };
 
-/** The brand's signal orange, which the planet and ring are drawn in. */
+/** The brand's signal orange, which the planet is drawn in. */
 const SIGNAL = "#ff792e";
 
 /** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/** The mark's planet and ring as drawn on screen, in client pixels, the ring's tilt in radians. */
-export type Orbit = {
-    /** The planet's centre across. */
-    x: number;
-    /** The planet's centre down. */
-    y: number;
-    /** The planet's radius. */
-    radius: number;
-    /** The ring's reach across. */
-    across: number;
-    /** The ring's reach down. */
-    down: number;
-    /** The ring's inclination. */
-    tilt: number;
-};
-
-/** Return the header mark's planet and ring as drawn on screen, or nothing without a mark. */
-export function orbitOf(): Orbit | undefined {
-    // find the globe and its place on screen
-    const globe = document.querySelector<SVGCircleElement>("[data-planet]");
-    const matrix = globe?.getScreenCTM();
-    if (!matrix) {
-        return undefined;
-    }
-
-    // map the planet's centre and sizes from drawing units to client pixels
-    const scale = Math.hypot(matrix.a, matrix.b);
-
-    return {
-        x: matrix.a * centre.x + matrix.c * centre.y + matrix.e,
-        y: matrix.b * centre.x + matrix.d * centre.y + matrix.f,
-        radius: radius * scale,
-        across: ringReach.across * scale,
-        down: ringReach.down * scale,
-        tilt: (ringTilt * Math.PI) / 180,
-    };
-}
-
-/** Render the Destack planet mark. */
+/** Render the Destack planet mark, its ring in the text colour around it. */
 export function Mark(properties: { xstyle?: style.Styles }) {
     return (
         <svg
@@ -86,9 +48,9 @@ export function Mark(properties: { xstyle?: style.Styles }) {
             </defs>
 
             {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
-            <ellipse {...ring} fill="none" stroke={SIGNAL} stroke-width="2.6" />
+            <ellipse {...ring} fill="none" stroke="currentColor" stroke-width="2.6" />
             <g mask="url(#mark-gap)">
-                <circle data-planet cx={centre.x} cy={centre.y} r={radius} fill={SIGNAL} />
+                <circle cx={centre.x} cy={centre.y} r={radius} fill={SIGNAL} />
                 <circle
                     cx="20.62"
                     cy="20.62"
@@ -100,7 +62,7 @@ export function Mark(properties: { xstyle?: style.Styles }) {
 
             {/* close the ring in front of the globe */}
             <g clip-path="url(#mark-front)">
-                <ellipse {...ring} fill="none" stroke={SIGNAL} stroke-width="2.6" />
+                <ellipse {...ring} fill="none" stroke="currentColor" stroke-width="2.6" />
             </g>
         </svg>
     );

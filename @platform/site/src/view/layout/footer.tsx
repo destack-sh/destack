@@ -1,43 +1,102 @@
 import { frame } from "./frame.stylex";
-import { Icon } from "@destack/icon";
 import { media } from "@destack/style/media.stylex";
-import { color, font, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createSignal, For } from "@destack/view";
 
 import { installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
 import { lattice } from "./lattice.stylex";
+import { Mark } from "./mark";
 import { caret } from "./footer.stylex";
-import { socialDestinations } from "./navigation";
-import { screen } from "./screen.stylex";
+import {
+    type Destination,
+    isExternal,
+    isLive,
+    menu,
+    type PendingDestination,
+    socialDestinations,
+} from "./navigation";
 
-/** Close every page with a band of starry space holding the install command and links. */
+/** Close every page with a colophon in starry space: what Destack is, its install, its links. */
 export function Footer() {
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             <Goo xstyle={styles.band}>
-                <div {...style.attrs(lattice.frame, styles.bar)}>
-                    <InstallCommand />
-                    <nav aria-label="Social navigation" {...style.attrs(styles.navigation)}>
-                        {socialDestinations.map((destination) => (
-                            <a
-                                href={destination.href}
-                                aria-label={destination.label}
-                                {...(destination.href.startsWith("http")
-                                    ? { rel: "external noopener noreferrer", target: "_blank" }
-                                    : {})}
-                                {...style.attrs(styles.link)}
-                            >
-                                <Icon icon={destination.icon} weight="fill" xstyle={styles.icon} />
-                            </a>
-                        ))}
-                    </nav>
+                <div {...style.attrs(lattice.frame, styles.colophon)}>
+                    {/* what Destack is, and the one line that installs it */}
+                    <div {...style.attrs(styles.lead)}>
+                        <span {...style.attrs(styles.brand)}>
+                            <Mark />
+                            Destack
+                        </span>
+                        <p {...style.attrs(styles.statement)}>Reconquer your software.</p>
+                        <InstallCommand />
+                    </div>
+
+                    {/* the site's menu, and the community off the site */}
+                    {columns.map(([title, destinations]) => (
+                        <nav aria-label={title} {...style.attrs(styles.column)}>
+                            <h2 {...style.attrs(styles.heading)}>{title}</h2>
+                            {destinations.map((destination) => (
+                                <FooterLink destination={destination} />
+                            ))}
+                        </nav>
+                    ))}
+
+                    {/* who makes Destack, and how to reach them */}
+                    <div {...style.attrs(styles.fine)}>
+                        <span>© 2026 {company.name}</span>
+                        <a href={`mailto:${company.mail}`} {...style.attrs(styles.link)}>
+                            Contact
+                        </a>
+                    </div>
                 </div>
             </Goo>
         </footer>
     );
 }
+
+/** The footer's columns of links: the site's menu, and the community off the site. */
+const columns: readonly (readonly [
+    title: string,
+    destinations: readonly (Destination | PendingDestination)[],
+])[] = [
+    ["Site", menu],
+    ["Community", socialDestinations],
+];
+
+/** Draw one footer destination: a link on or off the site, or its name while it is pending. */
+function FooterLink(properties: { destination: Destination | PendingDestination }) {
+    const destination = properties.destination;
+
+    // name a pending destination without a link
+    if (!isLive(destination)) {
+        return (
+            <span title="Soon" {...style.attrs(styles.link, styles.pending)}>
+                {destination.label}
+            </span>
+        );
+    }
+
+    return (
+        <a
+            href={destination.href}
+            {...(isExternal(destination)
+                ? { rel: "external noopener noreferrer", target: "_blank" }
+                : {})}
+            {...style.attrs(styles.link)}
+        >
+            {destination.label}
+        </a>
+    );
+}
+
+/** The company behind Destack, and the address it answers mail at. */
+const company = {
+    name: "Symbol Industries",
+    mail: "florian@symbol.industries",
+};
 
 /** Show the install command as a line of terminal that copies itself when pressed. */
 function InstallCommand() {
@@ -148,14 +207,34 @@ const styles = style.create({
         zIndex: 1,
     },
     band: {
-        height: frame.bar,
+        minHeight: frame.bar,
     },
-    bar: {
-        alignItems: "center",
+    colophon: {
         borderInlineWidth: 0,
         color: color.foreground,
         fontFamily: font.text,
-        height: "100%",
+        paddingBlockStart: { default: "3.5rem", [media.maxMd]: "2.5rem" },
+        rowGap: { default: "2.5rem", [media.maxMd]: "2rem" },
+    },
+    lead: {
+        alignContent: "start",
+        display: "grid",
+        gridColumn: { default: "1 / span 6", [media.maxMd]: "1 / -1" },
+        justifyItems: "start",
+        paddingInline: frame.inset,
+        rowGap: "0.75rem",
+    },
+    brand: {
+        alignItems: "center",
+        columnGap: "0.5rem",
+        display: "flex",
+        fontSize: "1.0625rem",
+        fontWeight: weight.semibold,
+    },
+    statement: {
+        color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
+        fontSize: "0.9375rem",
+        margin: 0,
     },
     command: {
         alignItems: "center",
@@ -172,12 +251,10 @@ const styles = style.create({
         borderWidth: "1px",
         color: "inherit",
         cursor: "pointer",
-        display: { default: "flex", [media.maxMd]: "none" },
+        display: "flex",
         gap: "0.75rem",
-        gridColumn: "1 / span 4",
-        gridRow: 1,
         justifySelf: "start",
-        marginInlineStart: `calc(${frame.inset} - 0.625rem)`,
+        marginInlineStart: "-0.625rem",
         minWidth: 0,
         paddingBlock: "0.375rem",
         paddingInline: "0.625rem",
@@ -252,33 +329,46 @@ const styles = style.create({
     prompt: {
         color: color.primary,
     },
-    navigation: {
-        alignItems: "center",
-        display: "flex",
-        gridColumn: {
-            default: "11 / span 2",
-            [screen.belowDesktop]: "9 / span 4",
-            [media.maxMd]: "1 / -1",
-        },
-        gridRow: 1,
-        justifyContent: "flex-end",
-        paddingInline: { default: "0.75rem", [media.maxMd]: "0.25rem" },
+    column: {
+        alignContent: "start",
+        display: "grid",
+        gridColumn: { default: "span 3", [media.maxMd]: "span 2" },
+        justifyItems: "start",
+        paddingInline: frame.inset,
+        rowGap: "0.625rem",
+    },
+    heading: {
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
+        fontFamily: font.code,
+        fontSize: "0.6875rem",
+        fontWeight: weight.medium,
+        letterSpacing: "0.1em",
+        margin: 0,
+        marginBlockEnd: "0.25rem",
+        textTransform: "uppercase",
     },
     link: {
-        alignItems: "center",
         color: {
-            default: color.foreground,
+            default: `color-mix(in srgb, ${color.foreground} 85%, transparent)`,
             ":hover": { default: null, [media.hover]: color.primary },
         },
-        display: "flex",
-        height: "2.75rem",
-        justifyContent: "center",
-        width: "2.75rem",
+        fontSize: "0.875rem",
+        textDecorationLine: "none",
     },
-    icon: {
-        display: "block",
-        fill: "currentColor",
-        height: "18px",
-        width: "18px",
+    pending: {
+        cursor: "default",
+    },
+    fine: {
+        alignItems: "center",
+        borderTopColor: `color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
+        display: "flex",
+        fontSize: "0.8125rem",
+        gridColumn: "1 / -1",
+        justifyContent: "space-between",
+        minHeight: frame.bar,
+        paddingInline: frame.inset,
     },
 });

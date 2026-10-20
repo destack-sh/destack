@@ -13,6 +13,7 @@ import { createTimer } from "@destack/view/primitives/timer";
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
+import { Glyph } from "../figure/glyph";
 
 /** The milliseconds each sense of a phrase stays lit before the light moves to the next. */
 const LIGHT_TIME = 2600;
@@ -27,6 +28,8 @@ type Sense = {
     sentence: JSX.Element;
     /** The senses the phrase lists, each linking to the figure that shows it, lit one at a time. */
     points?: readonly Link[];
+    /** The sense the phrase ends on as the page's call to action, set apart from the lit ones. */
+    action?: Link;
 };
 
 /** A labelled link to a section of the page. */
@@ -103,25 +106,33 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                 {properties.form.sense.points === undefined ? (
                     properties.form.sense.sentence
                 ) : (
-                    <For each={properties.form.sense.points}>
-                        {(point, index) => (
+                    <>
+                        <For each={properties.form.sense.points}>
+                            {(point, index) => (
+                                <>
+                                    {index() > 0 && (
+                                        <>
+                                            {" "}
+                                            <Dot />{" "}
+                                        </>
+                                    )}
+                                    <Point
+                                        link={point}
+                                        isLit={lit() === index()}
+                                        onPoint={(isPointed) =>
+                                            setPointed(isPointed ? index() : undefined)
+                                        }
+                                    />
+                                </>
+                            )}
+                        </For>
+                        {properties.form.sense.action === undefined ? undefined : (
                             <>
-                                {index() > 0 && (
-                                    <>
-                                        {" "}
-                                        <Dot />{" "}
-                                    </>
-                                )}
-                                <Point
-                                    link={point}
-                                    isLit={lit() === index()}
-                                    onPoint={(isPointed) =>
-                                        setPointed(isPointed ? index() : undefined)
-                                    }
-                                />
+                                {" "}
+                                <Dot /> <Action link={properties.form.sense.action} />
                             </>
                         )}
-                    </For>
+                    </>
                 )}
             </p>
         </header>
@@ -145,6 +156,16 @@ function Point(properties: { link: Link; isLit: boolean; onPoint: (isPointed: bo
             <span aria-hidden="true" {...style.attrs(styles.pointRoom)}>
                 {properties.link.label}
             </span>
+        </a>
+    );
+}
+
+/** Set the sense a phrase ends on as its call to action, with an arrow down to where it leads. */
+function Action(properties: { link: Link }) {
+    return (
+        <a href={properties.link.href} {...style.attrs(styles.point, styles.action)}>
+            {properties.link.label}
+            <Glyph name="download" size={18} weight={2} />
         </a>
     );
 }
@@ -344,6 +365,23 @@ const styles = style.create({
         fontWeight: 600,
         textDecorationColor: color.primary,
         textDecorationThickness: "0.12em",
+    },
+    action: {
+        alignItems: "center",
+        color: {
+            default: color.foreground,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        columnGap: "0.3em",
+        display: "inline-flex",
+        textDecorationColor: {
+            default: color.border,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        textDecorationLine: "underline",
+        textDecorationSkipInk: "none",
+        textDecorationThickness: "0.08em",
+        textUnderlineOffset: "0.2em",
     },
     pointRoom: {
         fontWeight: 600,
