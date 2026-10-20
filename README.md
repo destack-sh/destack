@@ -21,8 +21,12 @@ You can run _your_ entire Destack - your own personal superapp - on a single SQL
 Or you can let us host it for you. 
 Or any combination!
 
-Moving in is a single prompt, moving out is a single prompt.
-Try Destack with:
+Moving in is a single prompt, moving out is a single prompt - ask your agent:
+```text
+Guide me through setting up Destack: https://destack.me
+```
+
+Alternatively, you can install Destack manually:
 
 ```bash
 curl -fsSL https://destack.sh/install | sh
