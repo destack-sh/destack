@@ -6,10 +6,11 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, type Identifier } from "@destack/schema";
 
 import {
+    activity,
+    type CallableName,
+    checkpoint,
     defineObject,
     field,
-    Intrinsic,
-    type CallableName,
     type ObjectType,
 } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -27,15 +28,6 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 
 /** A minute in milliseconds, the step between the test's changes. */
 const MINUTE = 60_000;
-
-/** The sessions of changes to pages. */
-const activity = defineObject(Intrinsic.activity.definition(space));
-
-/** The named points in pages' history. */
-const checkpoint = defineObject(
-    Intrinsic.checkpoint.definition(space),
-    Intrinsic.checkpoint.methods,
-);
 
 /** Pages with history that their owner and editors write. */
 const page = defineObject(

@@ -1,3 +1,4 @@
+import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
@@ -8,7 +9,6 @@ import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { RequestId } from "@destack/runtime/request";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { defineObject, field } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
 
@@ -96,14 +96,16 @@ test("start a feed's reader at its creating commit and release it at its deletio
 test("refuse a reader per scope that starts at the latest commit", () => {
     // declare a space reader that each feed would restart
     expect(() =>
-        defineObject({
-            name: "feed",
-            plural: "feeds",
-            scope: space,
-            fields: { name: field.string() },
-            permissions: ["read", "write"],
-            readers: { space: { by: "scope", start: "latest", hold: { minutes: 1 } } },
-        }).describe(),
+        ObjectDescription.of(
+            defineObject({
+                name: "feed",
+                plural: "feeds",
+                scope: space,
+                fields: { name: field.string() },
+                permissions: ["read", "write"],
+                readers: { space: { by: "scope", start: "latest", hold: { minutes: 1 } } },
+            }),
+        ),
     ).toThrow(
         new TypeError("reader space of feed starts each scope once: start it at the earliest"),
     );

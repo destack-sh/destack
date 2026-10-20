@@ -1,3 +1,4 @@
+import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
@@ -7,7 +8,6 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { present, schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
-import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -111,13 +111,15 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
 /** Declare a card of a body and further definition, deferred for a refusal to throw. */
 function declare(definition: Record<string, unknown>) {
     return () =>
-        defineObject({
-            name: "card",
-            plural: "cards",
-            scope: space,
-            fields: { body: field.json(schema.json()) },
-            ...definition,
-        }).describe();
+        ObjectDescription.of(
+            defineObject({
+                name: "card",
+                plural: "cards",
+                scope: space,
+                fields: { body: field.json(schema.json()) },
+                ...definition,
+            }),
+        );
 }
 
 test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {

@@ -5,8 +5,16 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
-import { defineObject, field, Intrinsic } from "../src/index.ts";
-import { contained, Manager, principal, relation, through, union } from "@destack/access";
+import { defineObject, field, ObjectPolicy } from "../src/index.ts";
+import {
+    accessRole,
+    contained,
+    Manager,
+    principal,
+    relation,
+    through,
+    union,
+} from "@destack/access";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
@@ -312,7 +320,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 
     // count books every shelf reader lists, and refuse books only their owners list
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
-    expect(() => book(union(relation("owner"))).describe()).toThrow(
+    expect(() => ObjectDescription.of(book(union(relation("owner"))))).toThrow(
         new TypeError(
             "aggregate bookCount of book counts rows that readers of shelf may not list: list them through parent read",
         ),
@@ -322,7 +330,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 test("refuse a containment grant on a type living in the universe alone, and allow it on a scope type there", () => {
     // declare the scope type, deciding by its own row's containment, and refuse the record
     expect(ledger(true).name).toBe("ledger");
-    expect(() => ledger(false).describe()).toThrow(
+    expect(() => ObjectDescription.of(ledger(false))).toThrow(
         new TypeError(
             "object ledger lives in the universe without principals: contained() in its read permission allows no one",
         ),
@@ -483,31 +491,36 @@ function ledger(isScope: boolean) {
 test("refuse two methods answering one route, which a router would send to one of them", () => {
     // declare a second update beside the first, both at the object's path
     expect(() =>
-        defineObject(
-            {
-                name: "memo",
-                plural: "memos",
-                scope: space,
-                fields: { title: field.string() },
-                permissions: ["read", "write"],
-            },
-            (method) => ({
-                update: method.update("write", { fields: ["title"] }),
-                retitle: method.update("write", { fields: ["title"] }),
-            }),
-        ).describe(),
+        ObjectDescription.of(
+            defineObject(
+                {
+                    name: "memo",
+                    plural: "memos",
+                    scope: space,
+                    fields: { title: field.string() },
+                    permissions: ["read", "write"],
+                },
+                (method) => ({
+                    update: method.update("write", { fields: ["title"] }),
+                    retitle: method.update("write", { fields: ["title"] }),
+                }),
+            ),
+        ),
     ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
 });
 
 test("manage a declarable type over its own or a foreign table, and leave an undeclared type unmanaged", () => {
     // declare roles over access's role table, as a stack declares its roles
-    const role = defineObject(
-        {
-            ...Intrinsic.role.definition(space),
-            declarable: { schema: schema.object({ description: schema.string() }) },
-        },
-        Intrinsic.role.methods,
-    );
+    const declaredRole = defineObject({
+        name: "role",
+        plural: "roles",
+        mapping: ObjectPolicy.readMapping(accessRole),
+        declarable: { schema: schema.object({ description: schema.string() }) },
+    });
 
-    expect([card.isManaged(), role.isManaged(), comment.isManaged()]).toEqual([true, true, false]);
+    expect([card.isManaged(), declaredRole.isManaged(), comment.isManaged()]).toEqual([
+        true,
+        true,
+        false,
+    ]);
 });

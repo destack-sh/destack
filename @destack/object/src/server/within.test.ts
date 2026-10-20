@@ -1,7 +1,7 @@
 import { reconciliation, testCallKey } from "@destack/runtime/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { accessRelationship, none, principal, relation, through } from "@destack/access";
-import { call } from "../index.ts";
+import { call, defineObject, field, relationship } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
@@ -9,7 +9,6 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope, type Uplink } from "@destack/sync";
-import { defineObject, field, Intrinsic } from "../index.ts";
 import { ObjectSink, ObjectStore } from "./index.ts";
 import { Clock } from "@destack/environment";
 
@@ -64,9 +63,6 @@ const badge = defineObject({
     relations: { shown: { subjects: [principal.space], grantedBy: null } },
     permissions: { read: relation("shown") },
 });
-
-/** The relationships of people, listed as objects. */
-const relationship = defineObject(Intrinsic.relationship.definition(person));
 
 /** Serve people and profiles over a database. */
 async function serve(database: DatabaseConnection, uplink?: Uplink) {

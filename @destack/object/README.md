@@ -375,11 +375,11 @@ if (context.enabled("push")) await deliverPush(recipient);
 
 ## Descriptions
 
-`type.describe()` writes a type's definition as data, and `ObjectType.ofAll` reads it back.
+`ObjectDescription.of` writes a type's definition as data, and `ObjectTypePool.declare` reads it back.
 
 ```ts
-const description = page.describe(); // { package, definition: { fields: { title: { $field: [...] } } } }
-const [declared] = ObjectType.ofAll([description], [space, principal.user]);
+const description = ObjectDescription.of(page); // { package, definition: { fields: { title: { $field: [...] } } } }
+const [declared] = ObjectTypePool.of([space, principal.user]).declare([description]);
 ```
 
 ## Clients

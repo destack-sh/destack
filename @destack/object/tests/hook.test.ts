@@ -1,3 +1,17 @@
+import {
+    CallSite,
+    defineObject,
+    field,
+    type FileBucket,
+    HandlerAnswer,
+    HandlerRequest,
+    HookSandbox,
+    HookServer,
+    ObjectDescription,
+    ObjectType,
+    ObjectTypePool,
+    SessionRequest,
+} from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Call } from "@destack/sync";
 import { principal, relation } from "@destack/access";
@@ -11,19 +25,6 @@ import { describePackage } from "@destack/runtime/inspect";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey, testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import {
-    ObjectTypePool,
-    defineObject,
-    field,
-    type FileBucket,
-    HandlerAnswer,
-    HandlerRequest,
-    HookServer,
-    CallSite,
-    ObjectType,
-    HookSandbox,
-    SessionRequest,
-} from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
@@ -185,8 +186,8 @@ function declared(cards: PackageHandle): Declared[] {
 
     return [
         ...Object.values(cards.objects)
-            .filter((routed) => routed instanceof ObjectType)
-            .map((type) => ({ symbol, kind: "object", description: type.describe() })),
+            .filter((routed): routed is ObjectType => routed instanceof ObjectType)
+            .map((type) => ({ symbol, kind: "object", description: ObjectDescription.of(type) })),
         { symbol, kind: PACKAGE_DECLARATION, description: describePackage(cards) },
     ];
 }

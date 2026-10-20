@@ -6,7 +6,7 @@ import { ObjectType } from "../object/object.ts";
 
 /** Describe an object type for the manifest, as the data it is declared from. */
 export function describeObject(object: ObjectType): ObjectDescription {
-    return object.describe();
+    return ObjectDescription.of(object);
 }
 
 /** List an object type's terms: its name, relations, permissions and methods. */

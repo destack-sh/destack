@@ -19,7 +19,7 @@ export {
     type ObjectAggregate,
     type ObjectDefinition,
     type MethodsOf,
-    type IntrinsicType,
+    type ForeignType,
     type MethodDescription,
     type ObjectShape,
     type DefinedType,
@@ -41,6 +41,5 @@ export {
     type ObjectReconciliation,
     ObjectWatch,
 } from "./controller.ts";
-export { INTRINSIC, Intrinsic } from "./intrinsic.ts";
 export { ObjectPolicy } from "./access.ts";
 export { device } from "./device.ts";

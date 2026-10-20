@@ -1,3 +1,4 @@
+import { defineObject, device, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -12,7 +13,6 @@ import { testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
-import { defineObject, device, field } from "../src/index.ts";
 import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal } from "./fixture/space.ts";
@@ -134,42 +134,50 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             ),
         ),
         failure(() =>
-            defineObject({
-                ...local,
-                name: "shared",
-                plural: "shared",
-                scope: "universe",
-            }).describe(),
-        ),
-        failure(() =>
-            defineObject({
-                ...local,
-                name: "spread",
-                plural: "spreads",
-                scope: [user, notebook],
-            }).describe(),
-        ),
-        failure(() =>
-            defineObject({
-                ...local,
-                name: "sticky",
-                plural: "stickies",
-                inherited: {},
-            }).describe(),
-        ),
-        failure(() =>
-            defineObject(
-                {
+            ObjectDescription.of(
+                defineObject({
                     ...local,
-                    name: "remote",
-                    plural: "remotes",
-                    fields: { text: field.string() },
-                    permissions: ["edit"],
-                },
-                (method) => ({
-                    create: method.create("edit", { isPredicted: false }),
+                    name: "shared",
+                    plural: "shared",
+                    scope: "universe",
                 }),
-            ).describe(),
+            ),
+        ),
+        failure(() =>
+            ObjectDescription.of(
+                defineObject({
+                    ...local,
+                    name: "spread",
+                    plural: "spreads",
+                    scope: [user, notebook],
+                }),
+            ),
+        ),
+        failure(() =>
+            ObjectDescription.of(
+                defineObject({
+                    ...local,
+                    name: "sticky",
+                    plural: "stickies",
+                    inherited: {},
+                }),
+            ),
+        ),
+        failure(() =>
+            ObjectDescription.of(
+                defineObject(
+                    {
+                        ...local,
+                        name: "remote",
+                        plural: "remotes",
+                        fields: { text: field.string() },
+                        permissions: ["edit"],
+                    },
+                    (method) => ({
+                        create: method.create("edit", { isPredicted: false }),
+                    }),
+                ),
+            ),
         ),
     ]).toEqual([
         "local object draft lives only in its scope's own store",

@@ -1,3 +1,4 @@
+import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
@@ -9,7 +10,6 @@ import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
-import { defineObject, field } from "../src/index.ts";
 import { ObjectStore, defineServer } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { definePackage } from "@destack/runtime";
@@ -218,7 +218,7 @@ function declareMark(isInternal: boolean) {
 test("refuse public writes on external objects, taking internal writes their store code runs", () => {
     // declare an external type with an internal write, and one with a public write
     expect(declareMark(true).storage).toBe("external");
-    expect(() => declareMark(false).describe()).toThrow(
+    expect(() => ObjectDescription.of(declareMark(false))).toThrow(
         new TypeError("external object mark writes in method receive"),
     );
 });

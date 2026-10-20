@@ -1,6 +1,7 @@
 import * as access from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import {
+    ACCESS_MAPPINGS,
     AccessContext,
     type AccessExpression,
     Authorizer,
@@ -9,51 +10,24 @@ import {
     principal,
     type RelationInput,
     relationsOf,
-    Grant,
-    Invitation,
-    Relationship,
-    Role,
+    type TableMapping,
 } from "@destack/access";
 import type { Package, PackageId } from "@destack/package";
 import { Field } from "../field/field.ts";
-import {
-    GrantInput,
-    GrantShape,
-    InvitationShape,
-    InviteInput,
-    InviteShape,
-    RelationshipShape,
-    Roles,
-} from "../trait/shareable.ts";
-import { Page } from "../method/page.ts";
-import { Empty, ListPage, PageShape } from "../method/procedure.ts";
+import { Roles } from "../trait/shareable.ts";
 import type { TraitObject, TraitPolicy } from "../trait/trait.ts";
 import { Casing } from "./name.ts";
 import { AccessName, ObjectReference, Scope, Subject } from "@destack/sync";
-import { TABLE, type Select, type Table } from "@destack/db";
-import {
-    ACCESS_MAPPINGS,
-    accessGrant,
-    accessInvitation,
-    GrantRequest,
-    INVITATION_PAGE,
-    accessRelationship,
-    accessRole,
-    RoleRequest,
-    type TableMapping,
-} from "@destack/access";
+import { TABLE, type Table } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { type MethodContext } from "../method/context.ts";
-import { defineMethod, type Method } from "../method/method.ts";
-import type { MethodBuilder } from "../method/record.ts";
-import { INTRINSIC } from "./intrinsic.ts";
+import { type Method } from "../method/method.ts";
 import {
     ObjectPermissions,
     ObjectType,
     SCOPE,
     type ObjectDefinition,
     type ObjectRelationInput,
-    type ObjectScope,
 } from "./object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 
@@ -96,9 +70,10 @@ export const ObjectPolicy = {
         const inherited =
             type.inherited === undefined ? {} : { inherited: type.inherited.where ?? {} };
 
-        // reuse an intrinsic mapping
-        if (type.intrinsic !== undefined) {
-            return { ...type.intrinsic, policy: type.policy, ...inherited };
+        // reuse the mapping of another package's table
+        const foreign = type.source.mapping;
+        if (foreign !== undefined) {
+            return { ...foreign, policy: type.policy, ...inherited };
         }
 
         // map each declared relation to its field and add trait mappings
@@ -245,23 +220,16 @@ export const ObjectPolicy = {
         return Scope.object(Execution.snapshot(execution), context.scope);
     },
 
-    /** Read one role row as the method's result. */
-    async readRow(
-        execution: StoreExecution,
-        id: Select<typeof accessRole>["id"],
-    ): Promise<Select<typeof accessRole>> {
-        return present(
-            await execution.transaction.read(accessRole).findFirst({ where: { id } }),
-            `role ${id}`,
-        );
-    },
-
-    /** Read how access maps one of its own tables. */
-    readMapping(table: Table): TableMapping {
-        return present(
-            ACCESS_MAPPINGS.find((mapping) => mapping.table === table),
+    /** Read how access maps one of its own tables, typed by that table. */
+    readMapping<Mapped extends Table>(
+        table: Mapped,
+    ): Omit<TableMapping, "table" | "policy"> & { readonly table: Mapped } {
+        const { policy: _policy, ...mapping } = present(
+            ACCESS_MAPPINGS.find((each) => each.table === table),
             `the access mapping of ${table[TABLE].name}`,
         );
+
+        return { ...mapping, table };
     },
 
     /** Resolve a definition's declared relations, its permissions' field relations, and scopes. */
@@ -510,472 +478,6 @@ export const ObjectPolicy = {
             isUniverseOnly: type.isUniverseOnly,
         };
     },
-};
-
-/** A scope type's roles as objects. */
-export const role = {
-    /** Define a scope type's roles over the access role table. */
-    definition<const Scope extends ObjectScope | readonly ObjectScope[]>(scope: Scope) {
-        return {
-            name: "role",
-            plural: "roles",
-            [INTRINSIC]: { table: accessRole, mapping: ObjectPolicy.readMapping(accessRole) },
-            scope,
-            represents: access.role,
-            permissions: access.role.definition.permissions,
-        } as const;
-    },
-
-    /** Declare the roles' methods, which change roles through the access role API. */
-    methods: (method: MethodBuilder<typeof accessRole>) => ({
-        create: Execution.handle(
-            method.create("create", {
-                fields: ["name", "description"],
-                input: RoleRequest.pick({ permissions: true }),
-                isPredicted: false,
-            }),
-            async (call, execution) => {
-                // create the role through the access role API
-                const { name, description, permissions } = call.input;
-                const store = Execution.store(execution, call);
-                const created = await Role.create(
-                    await ObjectPolicy.scopeObject(call, execution),
-                    { name, description, permissions },
-                    store.authorization,
-                );
-
-                return ObjectPolicy.readRow(store, created.id);
-            },
-        ),
-        update: Execution.handle(
-            method.update("update", {
-                fields: ["name", "description"],
-                input: schema.object({
-                    permissions: RoleRequest.shape.permissions.exactOptional(),
-                }),
-                isPredicted: false,
-            }),
-            async (call, execution) => {
-                // change the given values at the loaded revision
-                const { name, description, permissions } = call.input;
-                const store = Execution.store(execution, call);
-                await Role.update(
-                    await ObjectPolicy.scopeObject(call, execution),
-                    call.target.id,
-                    {
-                        ...(name === undefined ? {} : { name }),
-                        ...(description === undefined ? {} : { description }),
-                        ...(permissions === undefined ? {} : { permissions }),
-                        revision: call.target.revision,
-                    },
-                    store.authorization,
-                );
-
-                return ObjectPolicy.readRow(store, call.target.id);
-            },
-        ),
-        upsertBinding: defineMethod<{
-            kind: "custom";
-            permission: "update";
-            input: typeof RoleBinding;
-            output: typeof Empty;
-            mutates: true;
-            target: "scope";
-            table: typeof accessRole;
-        }>({
-            kind: "custom",
-            permission: "update",
-            input: RoleBinding,
-            output: Empty,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "/upsert-binding" },
-                input: shapes.scope.extend({ ...shapes.replay, ...RoleBinding.shape }),
-                output: Empty,
-            }),
-            handler: async (context, execution) => {
-                // bind the role under the manager with exactly its permissions, dropping both without any
-                const { manager, ...binding } = RoleBinding.parse(context.input);
-                await Role.upsertBinding(
-                    await ObjectPolicy.scopeObject(context, execution),
-                    binding,
-                    Execution.store(execution, context).authorization.applying(manager),
-                );
-
-                return {};
-            },
-        }),
-        delete: Execution.handle(
-            method.delete("delete", { isPredicted: false }),
-            async (call, execution) => {
-                // delete the unbound role at the loaded revision
-                await Role.delete(
-                    await ObjectPolicy.scopeObject(call, execution),
-                    call.target.id,
-                    call.target.revision,
-                    Execution.store(execution, call).authorization,
-                );
-
-                return {};
-            },
-        ),
-    }),
-};
-
-/** A role upserted by name under a manager, granting exactly some permissions to one subject. */
-const RoleBinding = RoleRequest.extend({
-    /** The one subject the role is bound to. */
-    subject: Subject,
-    /** The object in the scope the role is bound on, the scope itself when absent. */
-    object: ObjectReference.exactOptional(),
-    /** The stack declaration managing the role and its binding. */
-    manager: access.Manager.schema,
-});
-
-/** A relationship to create: its object, and its subject through one relation or role. */
-const RelationshipInput = schema.object({ object: ObjectReference, ...GrantShape });
-
-/** One relationship of an object, by its identifier. */
-const RelationshipKey = schema.object({ object: ObjectReference, ...RelationshipShape });
-
-/** An invitation to create: its object, the relationship it offers, and why. */
-const InvitationInput = schema.object({ object: ObjectReference, ...InviteShape });
-
-/** One invitation to an object, by its identifier. */
-const InvitationKey = schema.object({ object: ObjectReference, ...InvitationShape });
-
-/** A page of an object's pending invitations, at most access's page. */
-const InvitationListing = schema.object({
-    object: ObjectReference,
-    ...PageShape,
-    limit: schema.number().int().min(1).max(INVITATION_PAGE).exactOptional(),
-});
-
-/** A scope type's relationships as objects, created and deleted under the grant rules. */
-export const relationship = {
-    /** Define a scope type's relationships over the access relationship table. */
-    definition<const Scope extends ObjectScope | readonly ObjectScope[]>(scope: Scope) {
-        return {
-            name: "relationship",
-            plural: "relationships",
-            [INTRINSIC]: {
-                table: accessRelationship,
-                mapping: ObjectPolicy.readMapping(accessRelationship),
-            },
-            scope,
-            represents: access.relationship,
-            permissions: access.relationship.definition.permissions,
-        } as const;
-    },
-
-    /** Declare the relationships' methods: decide a subject's permission on an object. */
-    // decide in the handler, which asks for other subjects too, instead of a scoped query's stub check
-    methods: (_method: MethodBuilder<typeof accessRelationship>) => ({
-        check: defineMethod<{
-            kind: "custom";
-            permission: "read";
-            input: typeof CheckInput;
-            output: typeof CheckResult;
-            mutates: false;
-            target: "scope";
-            table: typeof accessRelationship;
-        }>({
-            kind: "custom",
-            permission: "read",
-            input: CheckInput,
-            output: CheckResult,
-            mutates: false,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "/check" },
-                input: shapes.scope.extend(CheckInput.shape),
-                output: CheckResult,
-            }),
-            handler: (context, execution) =>
-                ObjectPolicy.check(context, Execution.store(execution, context)),
-        }),
-        create: defineMethod<{
-            kind: "custom";
-            permission: "grant";
-            input: typeof RelationshipInput;
-            output: typeof access.Relationship.schema;
-            mutates: true;
-            target: "scope";
-            table: typeof accessRelationship;
-        }>({
-            kind: "custom",
-            permission: "grant",
-            input: RelationshipInput,
-            output: access.Relationship.schema,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "" },
-                input: shapes.scope.extend({ ...shapes.replay, ...RelationshipInput.shape }),
-                output: access.Relationship.schema,
-            }),
-            handler: (context, execution) => {
-                // grant under the relation's grant rules
-                const { object, ...granted } = RelationshipInput.parse(context.input);
-
-                return Relationship.grant(
-                    {
-                        ...GrantInput.parse(granted),
-                        object,
-                    },
-                    Execution.store(execution, context).authorization,
-                );
-            },
-        }),
-        delete: defineMethod<{
-            kind: "custom";
-            permission: "grant";
-            input: typeof RelationshipKey;
-            output: typeof access.Relationship.schema;
-            mutates: true;
-            target: "scope";
-            table: typeof accessRelationship;
-        }>({
-            kind: "custom",
-            permission: "grant",
-            input: RelationshipKey,
-            output: access.Relationship.schema,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "DELETE", path: "/{relationshipId}" },
-                input: shapes.scope.extend({ ...shapes.replay, ...RelationshipKey.shape }),
-                output: access.Relationship.schema,
-            }),
-            handler: (context, execution) => {
-                // revoke under the relation's grant rules
-                const { object, relationshipId } = RelationshipKey.parse(context.input);
-
-                return Relationship.revoke(
-                    object,
-                    relationshipId,
-                    Execution.store(execution, context).authorization,
-                );
-            },
-        }),
-    }),
-};
-
-/** A scope type's invitations as objects, answered through sharing methods. */
-export const invitation = {
-    /** Define a scope type's invitations over the access invitation table. */
-    definition<const Scope extends ObjectScope | readonly ObjectScope[]>(scope: Scope) {
-        return {
-            name: "invitation",
-            plural: "invitations",
-            [INTRINSIC]: {
-                table: accessInvitation,
-                mapping: ObjectPolicy.readMapping(accessInvitation),
-            },
-            scope,
-            represents: access.invitation,
-            permissions: access.invitation.definition.permissions,
-        } as const;
-    },
-
-    /** Declare the invitations' methods: invite, accept, withdraw and list. */
-    methods: (_method: MethodBuilder<typeof accessInvitation>) => ({
-        create: defineMethod<{
-            kind: "custom";
-            permission: "grant";
-            input: typeof InvitationInput;
-            output: typeof access.Invitation.schema;
-            mutates: true;
-            target: "scope";
-            table: typeof accessInvitation;
-        }>({
-            kind: "custom",
-            permission: "grant",
-            input: InvitationInput,
-            output: access.Invitation.schema,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationInput.shape }),
-                output: access.Invitation.schema,
-            }),
-            handler: (context, execution) => {
-                // invite to the relationship on the object
-                const { object, ...invited } = InvitationInput.parse(context.input);
-                const { relationship: offered, ...details } = InviteInput.parse(invited);
-
-                return Invitation.create(
-                    {
-                        ...details,
-                        relationship: { ...offered, object },
-                    },
-                    Execution.store(execution, context).authorization,
-                );
-            },
-        }),
-        accept: defineMethod<{
-            kind: "custom";
-            permission: "read";
-            input: typeof InvitationKey;
-            output: typeof access.Relationship.schema;
-            mutates: true;
-            target: "scope";
-            table: typeof accessInvitation;
-        }>({
-            kind: "custom",
-            permission: "read",
-            input: InvitationKey,
-            output: access.Relationship.schema,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "POST", path: "/{invitationId}/accept" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
-                output: access.Relationship.schema,
-            }),
-            handler: (context, execution) => {
-                // accept as the caller
-                const { object, invitationId } = InvitationKey.parse(context.input);
-
-                return Invitation.accept(
-                    object,
-                    invitationId,
-                    Execution.store(execution, context).authorization,
-                );
-            },
-        }),
-        delete: defineMethod<{
-            kind: "custom";
-            permission: "read";
-            input: typeof InvitationKey;
-            output: typeof access.Invitation.schema;
-            mutates: true;
-            target: "scope";
-            table: typeof accessInvitation;
-        }>({
-            kind: "custom",
-            permission: "read",
-            input: InvitationKey,
-            output: access.Invitation.schema,
-            mutates: true,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "DELETE", path: "/{invitationId}" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
-                output: access.Invitation.schema,
-            }),
-            handler: (context, execution) => {
-                // withdraw as its inviter, its addressee or a granter
-                const { object, invitationId } = InvitationKey.parse(context.input);
-
-                return Invitation.withdraw(
-                    object,
-                    invitationId,
-                    Execution.store(execution, context).authorization,
-                );
-            },
-        }),
-        list: defineMethod<{
-            kind: "custom";
-            permission: "grant";
-            input: typeof InvitationListing;
-            output: ReturnType<typeof ListPage.schema<typeof access.Invitation.schema>>;
-            mutates: false;
-            target: "scope";
-            table: typeof accessInvitation;
-        }>({
-            kind: "custom",
-            permission: "grant",
-            input: InvitationListing,
-            output: ListPage.schema(access.Invitation.schema),
-            mutates: false,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, shapes) => ({
-                route: { method: "GET", path: "" },
-                input: shapes.scope.extend(InvitationListing.shape),
-                output: ListPage.schema(access.Invitation.schema),
-            }),
-            handler: async (context, execution) => {
-                // page the object's pending invitations by identifier
-                const { object, ...paging } = InvitationListing.parse(context.input);
-                const listing = new Page(
-                    paging,
-                    [context.object.name, context.scope, object.type, object.id],
-                    schema.string(),
-                );
-                const { authorization } = Execution.store(execution, context);
-                const invitations = await Invitation.list(
-                    { object },
-                    {
-                        ...(listing.after === undefined ? {} : { after: listing.after }),
-                        limit: listing.limit,
-                    },
-                    authorization,
-                );
-
-                return listing.result(invitations, (each) => each.id);
-            },
-        }),
-    }),
-};
-
-/** A scope type's grants as objects: what its principal lets delegates do for it. */
-export const grant = {
-    /** Define a scope type's grants over the access grant table. */
-    definition<const Scope extends ObjectScope | readonly ObjectScope[]>(scope: Scope) {
-        return {
-            name: "grant",
-            plural: "grants",
-            [INTRINSIC]: { table: accessGrant, mapping: ObjectPolicy.readMapping(accessGrant) },
-            scope,
-            represents: access.grant,
-            permissions: access.grant.definition.permissions,
-        } as const;
-    },
-
-    /** Declare the grants' methods, which create and revoke grants through the access grant API. */
-    methods: (method: MethodBuilder<typeof accessGrant>) => ({
-        create: Execution.handle(
-            method.create("create", { fields: [], input: GrantRequest, isPredicted: false }),
-            async (call, execution) =>
-                Grant.create(
-                    await ObjectPolicy.scopeObject(call, execution),
-                    call.input,
-                    Execution.store(execution, call).authorization,
-                ),
-        ),
-        revoke: Execution.handle(
-            method.delete("revoke", { isPredicted: false }),
-            async (call, execution) => {
-                // revoke the grant as its delegator
-                await Grant.revoke(
-                    await ObjectPolicy.scopeObject(call, execution),
-                    call.target.id,
-                    Execution.store(execution, call).authorization,
-                );
-
-                return {};
-            },
-        ),
-    }),
 };
 
 /** What a check decides: a subject's permission on an object (Zanzibar Check). */

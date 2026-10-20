@@ -1,7 +1,7 @@
 import { type Permission } from "@destack/access";
 import { Duration, present, type schema } from "@destack/schema";
 import { LogPosition, TABLE, type Row, Table } from "@destack/db";
-import type { ActivityTable } from "../object/history.ts";
+import type { ActivityTable } from "../history/activity.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";

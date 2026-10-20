@@ -1,3 +1,4 @@
+import { defineObject, field, ObjectDescription, type ObjectType } from "../src/index.ts";
 import { Package } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
@@ -10,7 +11,6 @@ import { testServerContext } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Uplink } from "@destack/sync";
 import { testCallKey } from "@destack/runtime/test";
-import { defineObject, field, type ObjectType } from "../src/index.ts";
 import { ShareableMethod } from "../src/method/shareable.ts";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, defineServer } from "../src/server/index.ts";
@@ -345,19 +345,21 @@ test("derive the roles of a shared partition without sharing methods on its row,
 
     // refuse a room declaring a sharing method on its row
     expect(() =>
-        defineObject(
-            {
-                name: "room",
-                plural: "rooms",
-                scope: space,
-                isScope: true,
-                partition: true,
-                fields: {},
-                permissions: { read: none(), manage: none() },
-            },
-            () => ({
-                explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
-            }),
-        ).describe(),
+        ObjectDescription.of(
+            defineObject(
+                {
+                    name: "room",
+                    plural: "rooms",
+                    scope: space,
+                    isScope: true,
+                    partition: true,
+                    fields: {},
+                    permissions: { read: none(), manage: none() },
+                },
+                () => ({
+                    explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
+                }),
+            ),
+        ),
     ).toThrow(new TypeError("object room: share a partitioned scope through its relationships"));
 });

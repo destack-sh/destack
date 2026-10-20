@@ -1,3 +1,4 @@
+import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
@@ -6,7 +7,6 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
-import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/runtime/test";
@@ -118,21 +118,23 @@ test.each(TEST_DIALECTS)(
 
 test("refuse many updates at once of guarded fields", () => {
     expect(() =>
-        defineObject(
-            {
-                name: "secret-chore",
-                plural: "secret-chores",
-                scope: space,
-                fields: {
-                    owner: field.reference(principal.user).caller(),
-                    done: field.boolean().guardWrite("write"),
+        ObjectDescription.of(
+            defineObject(
+                {
+                    name: "secret-chore",
+                    plural: "secret-chores",
+                    scope: space,
+                    fields: {
+                        owner: field.reference(principal.user).caller(),
+                        done: field.boolean().guardWrite("write"),
+                    },
+                    permissions: { read: relation("owner"), write: relation("owner") },
                 },
-                permissions: { read: relation("owner"), write: relation("owner") },
-            },
-            (method) => ({
-                finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
-            }),
-        ).describe(),
+                (method) => ({
+                    finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),
+                }),
+            ),
+        ),
     ).toThrow(
         new TypeError(
             "object secret-chore guards field done, so it cannot apply many updates at once",

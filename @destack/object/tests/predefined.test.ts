@@ -1,11 +1,11 @@
 import { ObjectReference, type Call } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { AccessContext, Caller, none, Role } from "@destack/access";
+import { AccessContext, accessRole, Caller, none, Role } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { testCallKey } from "@destack/runtime/test";
-import { defineObject, field, Intrinsic } from "../src/index.ts";
+import { defineObject, field, ObjectPolicy, role } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -91,9 +91,9 @@ test("store a type's predefined rows in its table, and refuse every call writing
 
 test("store the owner role as the role type's predefined row, refusing other rows over its table", () => {
     // read the roles' predefined rows, and declare roles with rows of their own
-    const role = defineObject(Intrinsic.role.definition(space), Intrinsic.role.methods);
     expect(role.predefined.map((row) => row["id"])).toEqual([Role.OWNER]);
-    expect(() => defineObject({ ...Intrinsic.role.definition(space), predefined: [] })).toThrow(
+    const mapping = ObjectPolicy.readMapping(accessRole);
+    expect(() => defineObject({ name: "role", plural: "roles", mapping, predefined: [] })).toThrow(
         new TypeError("object role over a foreign table cannot have predefined"),
     );
 });

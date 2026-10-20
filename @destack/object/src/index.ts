@@ -6,6 +6,8 @@ export * from "./replica/index.ts";
 export * from "./query/index.ts";
 export * from "./error/index.ts";
 export * from "./audit/index.ts";
+export * from "./access/index.ts";
+export * from "./history/index.ts";
 export * from "./sequence/index.ts";
 export * from "./text/index.ts";
 export * from "./stack/index.ts";

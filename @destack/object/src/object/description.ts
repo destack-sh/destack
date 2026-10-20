@@ -1,4 +1,6 @@
-import { INTRINSIC_POLICIES, Policy, PolicySubject } from "@destack/access";
+import * as accessExports from "@destack/access";
+import { Policy, PolicySubject } from "@destack/access";
+import { TABLE, type Table } from "@destack/db";
 import { DeclarationName, graph, Package } from "@destack/package";
 import { NO_STATE, ResourceDeclaration, ResourceKind } from "@destack/resource";
 import {
@@ -15,7 +17,7 @@ import type { FileBucket } from "../field/file.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
-import { INTRINSIC } from "./intrinsic.ts";
+import * as objectExports from "../index.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -25,6 +27,98 @@ const LAZY_PATHS: readonly (readonly string[])[] = [
 
 /** The builders taking lazy function references, such as `field.reference(() => note)`. */
 const LAZY_BUILDERS: ReadonlySet<string> = new Set(["reference"]);
+
+/** The path of a value a package exports: the export's name, then the keys inside it. */
+const ExportPath = schema.object({
+    /** The exporting package. */
+    package: schema.string().min(1),
+    /** The export's name, then the keys inside it. */
+    path: schema.array(schema.string().min(1)).min(1),
+});
+/** The path of a value a package exports. */
+type ExportPath = schema.Infer<typeof ExportPath>;
+
+/** The exports descriptions refer to by path: object's own and its dependency access's. */
+export class ExportIndex {
+    /** The path of each exported code value: an export, an object's entry or a type's method. */
+    readonly #paths = new Map<unknown, ExportPath>();
+    /** The value at each recorded path, by the path's key. */
+    readonly #values = new Map<string, unknown>();
+
+    /** Index the exports of module namespaces. */
+    constructor(modules: Readonly<Record<string, Readonly<Record<string, unknown>>>>) {
+        // record each export, each entry of an exported plain object and each method of an exported type, the first path kept
+        for (const [name, module] of Object.entries(modules)) {
+            for (const [key, value] of Object.entries(module)) {
+                this.#record(value, { package: name, path: [key] });
+                const type: ObjectType | undefined =
+                    value instanceof ObjectType ? value : undefined;
+                const entries =
+                    type !== undefined
+                        ? Object.entries(type.methods).map(
+                              ([named, entry]) => [["methods", named], entry] as const,
+                          )
+                        : isRecord(value)
+                          ? Object.entries(value).map(([inner, entry]) => [[inner], entry] as const)
+                          : [];
+                for (const [inner, entry] of entries) {
+                    this.#record(entry, { package: name, path: [key, ...inner] });
+                }
+            }
+        }
+    }
+
+    /** Index object's own exports and access's, the modules object imports. */
+    static loaded(): ExportIndex {
+        return new ExportIndex({
+            "@destack/object": objectExports,
+            "@destack/access": accessExports,
+        });
+    }
+
+    /** Find the path of an exported value, absent for one no indexed module exports. */
+    locate(value: unknown): ExportPath | undefined {
+        return this.#paths.get(value);
+    }
+
+    /** Read the value at a recorded export path, refusing any other. */
+    resolve(path: ExportPath): unknown {
+        return present(
+            this.#values.get(ExportIndex.#key(path)),
+            `the export ${path.package}#${path.path.join(".")}`,
+        );
+    }
+
+    /** List the exported object types and policies. */
+    declarations(): KnownDeclaration[] {
+        return [...this.#paths.keys()].filter(
+            (value): value is KnownDeclaration =>
+                value instanceof ObjectType || value instanceof Policy,
+        );
+    }
+
+    /** List the exported tables. */
+    tables(): Table[] {
+        return [...this.#paths.keys()].filter(isTable);
+    }
+
+    /** Record a code value's path once, leaving plain data, which descriptions write as it is. */
+    #record(value: unknown, path: ExportPath): void {
+        const isCode = typeof value === "function" || (typeof value === "object" && value !== null);
+        const isData = Array.isArray(value) || (isRecord(value) && !Method.is(value));
+        if (isCode && !isData) {
+            this.#values.set(ExportIndex.#key(path), value);
+            if (!this.#paths.has(value)) {
+                this.#paths.set(value, path);
+            }
+        }
+    }
+
+    /** Key an export path by its package and keys. */
+    static #key(path: ExportPath): string {
+        return JSON.stringify([path.package, ...path.path]);
+    }
+}
 
 /** The kind of the declarations `defineObject` makes, as manifests list them. */
 export const OBJECT_DECLARATION = "object";
@@ -52,15 +146,11 @@ const objectDescription = schema.object({
 
 /** An object type as data, with the verbs reading a description. */
 export const ObjectDescription = Object.assign(objectDescription, {
-    /** Encode an object type as data, refusing an intrinsic type. */
+    /** Encode an object type as data. */
     of(type: ObjectType): ObjectDescription {
-        // refuse an intrinsic type: another package owns its table
+        // require a valid type, then tag the definition's special values, keeping its name beside it
+        type.requireValid();
         const { source } = type;
-        if (INTRINSIC in source) {
-            throw new TypeError(`object type ${type.name} maps a table of another package`);
-        }
-
-        // tag the definition's special values, keeping its name beside it
         const { name: _name, ...definition } = Position.root(type.name).encodeObject(source);
 
         return { name: type.name, package: identity(type.package), definition };
@@ -116,11 +206,17 @@ export class ObjectTypePool {
     readonly objects = new Map<string, ObjectType>();
     /** The policies, the object types' own included, by reference key. */
     readonly policies = new Map<string, Policy>();
+    /** The exports descriptions refer to by path. */
+    readonly exports = ExportIndex.loaded();
+    /** The tables object types map, by SQL name: the known types' and the exported ones. */
+    readonly tables = new Map<string, Table>(
+        this.exports.tables().map((table) => [table[TABLE].sqlName, table]),
+    );
 
-    /** Pool known declarations beside the intrinsic policies every access model has. */
+    /** Pool known declarations beside the exported ones. */
     static of(known: Iterable<KnownDeclaration>): ObjectTypePool {
         const declarations = new ObjectTypePool();
-        for (const declaration of [...INTRINSIC_POLICIES, ...known]) {
+        for (const declaration of [...declarations.exports.declarations(), ...known]) {
             declarations.add(declaration);
         }
 
@@ -133,6 +229,7 @@ export class ObjectTypePool {
             const key = ObjectTypeReference.key(declaration.typeReference);
             this.objects.set(key, declaration);
             this.policies.set(key, declaration.policy);
+            this.tables.set(declaration.table[TABLE].sqlName, declaration.table);
         } else {
             this.policies.set(ObjectTypeReference.key(declaration.typeReference), declaration);
         }
@@ -226,6 +323,8 @@ export class ObjectTypePool {
                 return this.#require(this.objects, value, "object type");
             case "$policy":
                 return this.#require(this.policies, value, "policy");
+            case "$table":
+                return this.#requireTable(value);
             case "$kind":
                 return DescribedKind.decode(value);
             case "$bucket":
@@ -238,6 +337,8 @@ export class ObjectTypePool {
                 return this.#replay(field, FIELD_MODIFIERS, BuilderCalls.parse(value));
             case "$method":
                 return this.#replay(method, [], BuilderCalls.parse(value));
+            case "$export":
+                return this.exports.resolve(ExportPath.parse(value));
             default:
                 throw new TypeError(`a description has an unknown tag ${tag}`);
         }
@@ -308,6 +409,20 @@ export class ObjectTypePool {
         );
     }
 
+    /** Read a table by its tagged SQL name, refusing one the pool lacks. */
+    #requireTable(value: JsonValue | undefined): Table {
+        // find the table by its SQL name
+        const name = schema.string().parse(value);
+        const table = this.tables.get(name);
+        if (table === undefined) {
+            throw new TypeError(
+                `a description maps the table ${name}, which no known type or loaded package maps`,
+            );
+        }
+
+        return table;
+    }
+
     /** Read a declaration by its tagged reference, refusing one the pool lacks. */
     #require<Value>(
         declarations: ReadonlyMap<string, Value>,
@@ -333,17 +448,26 @@ class Position {
     readonly keys: readonly string[] | undefined;
     /** Whether the value may be a lazy reference to types or policies declared later. */
     readonly isLazy: boolean;
+    /** The exports code values are written as paths of. */
+    readonly exports: ExportIndex;
 
     /** Place a value at a path, under definition keys, lazy or not. */
-    constructor(path: string, keys: readonly string[] | undefined, isLazy: boolean) {
+    constructor(
+        path: string,
+        keys: readonly string[] | undefined,
+        isLazy: boolean,
+        exports: ExportIndex,
+    ) {
+        // keep the path, keys, laziness and exports
         this.path = path;
         this.keys = keys;
         this.isLazy = isLazy;
+        this.exports = exports;
     }
 
     /** Place a definition's root at its type's name. */
     static root(name: string): Position {
-        return new Position(name, [], false);
+        return new Position(name, [], false, ExportIndex.loaded());
     }
 
     /** Place an entry: its path, definition keys and whether it may be lazy. */
@@ -357,7 +481,7 @@ class Position {
                     pattern.every((each, offset) => each === "*" || each === keys[offset]),
             );
 
-        return new Position(path, keys, isLazy);
+        return new Position(path, keys, isLazy, this.exports);
     }
 
     /** Tag a plain object's special values, refusing keys that start like a tag. */
@@ -379,9 +503,10 @@ class Position {
         );
     }
 
-    /** Tag a value's types, fields, methods, schemas, kinds and buckets, refusing other code. */
+    /** Tag a value's types, exported code, fields, methods, schemas, kinds and buckets. */
     encode(value: unknown): JsonValue {
-        // take plain data as it is
+        // find the value's export path, then take plain data as it is
+        const exported = this.exports.locate(value);
         if (
             value === null ||
             typeof value === "string" ||
@@ -394,8 +519,10 @@ class Position {
                 this.entry("[]", `${this.path}[${offset}]`).encode(entry),
             );
         }
-        // tag types and policies by reference, kinds and buckets as data
-        else if (value instanceof ObjectType) {
+        // tag types and policies by reference, another package's table by its name, kinds and buckets as data
+        else if (isTable(value)) {
+            return { $table: value[TABLE].sqlName };
+        } else if (value instanceof ObjectType) {
             return { $object: value.typeReference };
         } else if (value instanceof Policy) {
             return { $policy: value.typeReference };
@@ -406,11 +533,15 @@ class Position {
         } else if (value instanceof ResourceDeclaration) {
             return { $bucket: DescribedBucket.of(value) };
         }
+        // write exported code as its export path, keeping its identity
+        else if (exported !== undefined) {
+            return { $export: exported };
+        }
         // tag fields, methods and schemas by how they were built
         else if (value instanceof Field) {
             return { $field: value.describe().map((call) => this.encodeCall(call)) };
-        } else if (Method.is(value)) {
-            return { $method: [this.encodeCall(this.#methodSource(value))] };
+        } else if (Method.is(value) && value.source !== undefined) {
+            return { $method: [this.encodeCall(value.source)] };
         } else if (value instanceof schema.Schema) {
             return { $schema: JsonValue.object(toJsonSchema(value)) };
         }
@@ -418,13 +549,18 @@ class Position {
         else if (typeof value === "function" && this.isLazy) {
             return this.#encodeLazy(value);
         }
-        // tag a plain object's entries
-        else if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+
+        // tag a plain object's entries, and refuse other code
+        if (Method.is(value)) {
+            throw new TypeError(
+                `${this.path} has a handler; attach it with .implement({ methods })`,
+            );
+        } else if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
             return this.encodeObject(value);
-        }
-        // refuse any other value, which is code
-        else {
-            throw new TypeError(`${this.path} is code: a description cannot store it`);
+        } else {
+            throw new TypeError(
+                `${this.path} is code no loaded package exports: a description cannot store it`,
+            );
         }
     }
 
@@ -442,22 +578,14 @@ class Position {
         return {
             builder: call.builder,
             arguments: written.map((argument, offset) =>
-                new Position(`${this.path}.${call.builder}[${offset}]`, undefined, isLazy).encode(
-                    argument,
-                ),
+                new Position(
+                    `${this.path}.${call.builder}[${offset}]`,
+                    undefined,
+                    isLazy,
+                    this.exports,
+                ).encode(argument),
             ),
         };
-    }
-
-    /** Read the builder call of a declared method, refusing one with a handler. */
-    #methodSource(declared: Method): BuilderCall {
-        if (declared.source === undefined) {
-            throw new TypeError(
-                `${this.path} has a handler; attach it with .implement({ methods })`,
-            );
-        }
-
-        return declared.source;
     }
 
     /** Tag a lazy reference by its returned types or policies, refusing other returns. */
@@ -472,7 +600,7 @@ class Position {
             throw new TypeError(`${this.path} returns no object types or policies`);
         }
 
-        return { $lazy: new Position(this.path, this.keys, false).encode(resolved) };
+        return { $lazy: new Position(this.path, this.keys, false, this.exports).encode(resolved) };
     }
 }
 
@@ -589,4 +717,17 @@ function isList(value: readonly JsonValue[] | JsonObject): value is readonly Jso
 /** Read only a package's identity. */
 function identity(owner: Package): Package {
     return { id: owner.id, name: owner.name, version: owner.version };
+}
+
+/** Report whether a value is a plain object or a module namespace, which export paths read. */
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    const prototype: unknown =
+        typeof value === "object" && value !== null ? Object.getPrototypeOf(value) : undefined;
+
+    return prototype === Object.prototype || prototype === null;
+}
+
+/** Check that a value is a table, which descriptions name instead of encoding. */
+function isTable(value: unknown): value is Table {
+    return typeof value === "object" && value !== null && TABLE in value;
 }

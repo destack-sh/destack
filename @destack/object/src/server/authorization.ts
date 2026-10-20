@@ -438,7 +438,7 @@ export class Authorization extends access.Authorization {
         const own = this.access.scopes[0];
 
         return this.access.scope === Scope.universe.id
-            ? [object.scope].flat().includes(Scope.universe.id)
+            ? object.isInUniverse
             : own?.id === this.access.scope && object.livesIn(own);
     }
 

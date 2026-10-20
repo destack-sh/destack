@@ -5,7 +5,7 @@ import { testCallKey } from "@destack/runtime/test";
 import { testEvents, serversOf } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";
 import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index.ts";
-import { claimMethods, claimTable, defineObject, INTRINSIC } from "../../src/index.ts";
+import { claimMethods, claimTable, defineObject } from "../../src/index.ts";
 import type { Clock } from "@destack/environment";
 
 /** The universe's claimed names, which only its own principal changes in these tests. */
@@ -13,15 +13,12 @@ export const claim = defineObject(
     {
         name: "claim",
         plural: "claims",
-        [INTRINSIC]: {
+        mapping: {
             table: claimTable,
-            mapping: {
-                table: claimTable,
-                id: "id",
-                scope: "scope",
-                attributes: {},
-                relations: {},
-            },
+            id: "id",
+            scope: "scope",
+            attributes: {},
+            relations: {},
         },
         scope: "universe",
         permissions: { read: none(), claim: none(), resolve: none() },

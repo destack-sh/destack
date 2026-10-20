@@ -8,19 +8,13 @@ import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Subject } from "@destack/sync";
-import { defineObject, Intrinsic } from "../src/index.ts";
+import { relationship } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
 
 /** The space whose access the checks decide. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
-
-/** A space's relationships, which check access. */
-const relationship = defineObject(
-    Intrinsic.relationship.definition(space),
-    Intrinsic.relationship.methods,
-);
 
 /** Alice, who owns the space. */
 const alice = principal.user.reference(Scope.universe.id, users.alice);
@@ -80,7 +74,7 @@ test("check the caller's own access under its grant, and another subject's for g
         // answer the decision, or the refusal
         const pending = store.query(
             subjectContext(caller, SPACE_ID, isDelegated ? delegated : {}).access(),
-            relationship.call("check", { spaceId: SPACE_ID, subject, permission, object }),
+            relationship.call("check", { scope: SPACE_ID, subject, permission, object }),
         );
         const refused = await refusal(pending);
 

@@ -1,10 +1,23 @@
+import {
+    claimMethods,
+    claimTable,
+    invitation,
+    defineObject,
+    field,
+    type FileBucket,
+    ObjectDescription,
+    ObjectType,
+    ObjectTypePool,
+} from "../src/index.ts";
+import { claim } from "./fixture/claim.ts";
+import { ExportIndex } from "../src/object/description.ts";
+import { Execution } from "../src/method/execution.ts";
 import { expect, test } from "@destack/test";
+import { declareState, TABLE } from "@destack/db";
 import { principal, through } from "@destack/access";
-import { declareState } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
 import { nth, schema, toJsonSchema } from "@destack/schema";
-import { ObjectTypePool, defineObject, field, type FileBucket, ObjectType } from "../src/index.ts";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "./fixture/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
@@ -158,9 +171,9 @@ const host = defineObject({
 });
 test("describe every field and method as its builder calls, and declare the same type from them", () => {
     // describe the type, declare it again and describe that
-    const described = sample.describe();
+    const described = ObjectDescription.of(sample);
     const declared = nth(ObjectTypePool.of(TYPES).declare([described]), 0);
-    expect(declared.describe()).toEqual(described);
+    expect(ObjectDescription.of(declared)).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
     expect([
@@ -176,7 +189,7 @@ test("describe every field and method as its builder calls, and declare the same
 
 test("describe fields and methods as the calls written, types by reference, kinds and buckets as data and schemas as JSON Schema", () => {
     // read the calls of a few fields and methods
-    const { definition } = sample.describe();
+    const { definition } = ObjectDescription.of(sample);
     const fields = schema.jsonObject().parse(definition["fields"]);
     const methods = schema.jsonObject().parse(definition["methods"]);
     expect([
@@ -189,7 +202,7 @@ test("describe fields and methods as the calls written, types by reference, kind
         fields["heading"],
         methods["update"],
         methods["tidy"],
-        box.describe().definition["provisioned"],
+        ObjectDescription.of(box).definition["provisioned"],
     ]).toEqual([
         {
             $field: [
@@ -290,9 +303,9 @@ test("encode a message field's package, identifier and source text, and refuse p
 
 test("describe every test type as data, and declare the same types, routes and tables from it", () => {
     // describe each type, declare them all again only from the descriptions, and describe them
-    const described = TYPES.map((type) => type.describe());
+    const described = TYPES.map((type) => ObjectDescription.of(type));
     const declared = ObjectTypePool.of([]).declare(described);
-    expect(declared.map((type) => type.describe())).toEqual(described);
+    expect(declared.map((type) => ObjectDescription.of(type))).toEqual(described);
 
     // read the routes, schemas and tables a manifest and a migration read
     expect([
@@ -321,8 +334,8 @@ test("describe every test type as data, and declare the same types, routes and t
 test("declare described types against each other, never against the pool's own types of the same names", () => {
     // describe a host attaching marks, the host first, into a pool that already knows both
     const declared = ObjectTypePool.of([space, mark, host]).declare([
-        host.describe(),
-        mark.describe(),
+        ObjectDescription.of(host),
+        ObjectDescription.of(mark),
     ]);
 
     // read one complete table state from the declared types alone, the host's mark dependents among them
@@ -334,7 +347,7 @@ test("declare described types against each other, never against the pool's own t
     ).toEqual(declareState([...host.tables, ...mark.tables], "sqlite"));
 });
 
-test("refuse code, unknown declarations and intrinsic types at their path", () => {
+test("refuse code and unknown declarations at their path", () => {
     // a method's inverse written as code, and a reference to a type the reader does not know
     const coded = defineObject(
         {
@@ -348,21 +361,107 @@ test("refuse code, unknown declarations and intrinsic types at their path", () =
             rename: method.mutation({ permission: "write", inverse: () => [] }),
         }),
     );
-    expect(() => coded.describe()).toThrow(
+    expect(() => ObjectDescription.of(coded)).toThrow(
         new TypeError(
-            "coded.methods.rename.mutation[0].inverse is code: a description cannot store it",
+            "coded.methods.rename.mutation[0].inverse is code no loaded package exports: a description cannot store it",
         ),
     );
-    expect(() => ObjectTypePool.of([space]).declare([sample.describe()])).toThrow(
+    expect(() => ObjectTypePool.of([space]).declare([ObjectDescription.of(sample)])).toThrow(
         new TypeError(
             `a description refers to unknown object type ${JSON.stringify([note.package.id, "note"])}`,
         ),
     );
+});
 
-    // refuse the chunk type, with a table of the text module
-    expect(() => Chunk.object([sample]).describe()).toThrow(
-        new TypeError("object type chunk maps a table of another package"),
+test("describe a type over another package's table by the table's name, and declare it over that same table", () => {
+    // describe the chunk type, which maps the text module's table
+    const chunked = Chunk.object([sample]);
+    const description = ObjectDescription.of(chunked);
+    const declared = ObjectTypePool.of([sample, space]).declare([description]);
+
+    // name the table in the description, and declare the type over the very table
+    expect({
+        table: schema
+            .looseObject({ mapping: schema.looseObject({ table: schema.unknown() }) })
+            .parse(description.definition).mapping.table,
+        isSameTable: declared[0]?.table === chunked.table,
+    }).toEqual({ table: { $table: chunked.table[TABLE].sqlName }, isSameTable: true });
+});
+
+test("describe code another package exports by its export path, and declare the type with that very code", () => {
+    // describe the claims, whose methods and table are object's exports
+    const description = ObjectDescription.of(claim);
+    const declared = ObjectTypePool.of([]).declare([description]);
+
+    // write the methods as export paths and the table by name, and declare the very methods and table
+    const written = schema
+        .looseObject({
+            mapping: schema.looseObject({ table: schema.unknown() }),
+            methods: schema.unknown(),
+        })
+        .parse(description.definition);
+    expect({
+        table: written.mapping.table,
+        methods: written.methods,
+        isSameReserve: declared[0]?.methods["reserve"] === claimMethods.reserve,
+        isSameTable: declared[0]?.table === claimTable,
+    }).toEqual({
+        table: { $table: claimTable[TABLE].sqlName },
+        methods: Object.fromEntries(
+            Object.keys(claimMethods).map((name) => [
+                name,
+                { $export: { package: "@destack/object", path: ["claimMethods", name] } },
+            ]),
+        ),
+        isSameReserve: true,
+        isSameTable: true,
+    });
+});
+
+test("describe an exported type's handled method by its path through the type, resolving to that very method", () => {
+    // describe object's own invitations, whose create method runs object's code
+    const written = schema
+        .looseObject({ methods: schema.record(schema.string(), schema.unknown()) })
+        .parse(ObjectDescription.of(invitation).definition).methods["create"];
+    const path = { package: "@destack/object", path: ["invitation", "methods", "create"] };
+
+    // write the method as its path, which resolves to the type's own method
+    expect({
+        written,
+        isSame: ExportIndex.loaded().resolve(path) === invitation.methods.create,
+    }).toEqual({
+        written: { $export: path },
+        isSame: true,
+    });
+});
+
+test("refuse a handled method no loaded package exports, and an export path the index never recorded", () => {
+    // declare notes whose update runs code that is no package's export
+    const handled = defineObject(
+        {
+            name: "handled",
+            plural: "handleds",
+            scope: space,
+            fields: { title: field.string() },
+            permissions: ["write"],
+        },
+        (method) => ({
+            update: Execution.handle(
+                method.update("write", { fields: ["title"] }),
+                async (call) => call.target,
+            ),
+        }),
     );
+
+    // refuse describing it, and refuse resolving a path no module exports
+    expect(() => ObjectDescription.of(handled)).toThrow(
+        new TypeError(
+            "handled.methods.update has a handler; attach it with .implement({ methods })",
+        ),
+    );
+    expect(() =>
+        ExportIndex.loaded().resolve({ package: "@destack/object", path: ["nothing"] }),
+    ).toThrow("the export @destack/object#nothing");
 });
 
 /** List a type's procedures as clients read them: each route, and its input as JSON Schema. */

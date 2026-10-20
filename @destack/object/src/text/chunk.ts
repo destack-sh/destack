@@ -6,8 +6,7 @@ import { CallError } from "@destack/runtime/error";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
 import { method } from "../method/record.ts";
-import { ObjectType, type ObjectSource } from "../object/object.ts";
-import { INTRINSIC } from "../object/intrinsic.ts";
+import { type ObjectDefinition, ObjectType } from "../object/object.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun } from "./table.ts";
 import { Execution } from "../method/execution.ts";
@@ -80,7 +79,7 @@ export const Chunk = {
 
         // declare chunks read through their owner, stored in the chunk table text owns
         const methods = { list: method.list("read") };
-        const definition: ObjectSource = {
+        const definition: ObjectDefinition = {
             name: "chunk",
             plural: CHUNKS,
             scope: first.scope,
@@ -88,21 +87,18 @@ export const Chunk = {
             relations: { parent: { subjects: [...owners], grantedBy: null } },
             permissions: { read: through("parent", TEXT_READ) },
             methods,
-            [INTRINSIC]: {
+            mapping: {
                 table: chunk,
-                mapping: {
-                    table: chunk,
-                    id: "id",
-                    scope: "scope",
-                    attributes: {},
-                    relations: {
-                        parent: {
-                            column: "parentId",
-                            subject: {
-                                packageId: "parentPackageId",
-                                type: "parentType",
-                                scope: "scope",
-                            },
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: {
+                    parent: {
+                        column: "parentId",
+                        subject: {
+                            packageId: "parentPackageId",
+                            type: "parentType",
+                            scope: "scope",
                         },
                     },
                 },

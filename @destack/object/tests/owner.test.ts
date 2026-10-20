@@ -1,3 +1,11 @@
+import {
+    type CallableName,
+    Claim,
+    claimTable,
+    defineObject,
+    field,
+    ObjectDescription,
+} from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, through, union, universe } from "@destack/access";
 
@@ -7,7 +15,6 @@ import { schema } from "@destack/schema";
 import { RequestId } from "@destack/runtime/request";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { type CallableName, Claim, claimTable, defineObject, field } from "../src/index.ts";
 import { Scope } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { claim } from "./fixture/claim.ts";
@@ -133,13 +140,15 @@ test("map a reference to an object of another scope type across scopes, and one 
 
 test("refuse an owner that no reference relates", () => {
     expect(() =>
-        defineObject({
-            name: "orphan",
-            plural: "orphans",
-            scope: space,
-            owner: "holder",
-            fields: { name: field.string() },
-        }).describe(),
+        ObjectDescription.of(
+            defineObject({
+                name: "orphan",
+                plural: "orphans",
+                scope: space,
+                owner: "holder",
+                fields: { name: field.string() },
+            }),
+        ),
     ).toThrow("object orphan is owned through holder, but no reference relates it");
 });
 

@@ -15,4 +15,4 @@ export { Settlement } from "./settlement.ts";
 export * from "./server.ts";
 export * from "../audit/journal.ts";
 export * from "../audit/recorder.ts";
-export { default } from "../audit/server.ts";
+export { default } from "./package.ts";

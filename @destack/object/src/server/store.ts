@@ -96,7 +96,6 @@ import {
     type StoreProcedures,
 } from "../replica/replica.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
-import { INTRINSIC } from "../object/intrinsic.ts";
 import { ObjectPolicy } from "../object/access.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
@@ -715,11 +714,10 @@ export class ObjectStore {
                 );
             }
         }
-        const intrinsic = ObjectTypePool.of([]);
+        const loaded = ObjectTypePool.of([]);
 
-        // describe each asked type, then each type a description refers to beyond the intrinsic policies
-        const served = this.#declared.filter((type) => !(INTRINSIC in type.source));
-        const pending = [...(types ?? served.map((type) => type.typeReference))];
+        // describe each asked type, then each type a description refers to, leaving the exported ones every pool knows
+        const pending = [...(types ?? this.#declared.map((type) => type.typeReference))];
         const described = new Map<string, ObjectDescription>();
         let reference = pending.pop();
         while (reference !== undefined) {
@@ -729,10 +727,10 @@ export class ObjectStore {
                 throw new CallError("NOT_FOUND", {
                     message: `no object type ${reference.type} of ${reference.packageId} is known here`,
                 });
-            } else if (!described.has(key)) {
-                const description = type.describe();
+            } else if (!described.has(key) && !loaded.objects.has(key)) {
+                const description = ObjectDescription.of(type);
                 described.set(key, description);
-                pending.push(...intrinsic.references(description));
+                pending.push(...loaded.references(description));
             }
             reference = pending.pop();
         }

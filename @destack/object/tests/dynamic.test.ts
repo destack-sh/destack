@@ -1,10 +1,10 @@
+import { defineObject, field, ObjectDescription, ObjectTypePool } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { nth, schema } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { ObjectTypePool, defineObject, field } from "../src/index.ts";
 import { defineServer, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
@@ -26,7 +26,10 @@ async function reachNotes(
     endpoint: ReturnType<Awaited<ReturnType<typeof serveNotes>>["endpoint"]>,
 ) {
     // declare the types from their descriptions, as a manifest lists them
-    const objects = ObjectTypePool.of([space]).declare([notebook.describe(), note.describe()]);
+    const objects = ObjectTypePool.of([space]).declare([
+        ObjectDescription.of(notebook),
+        ObjectDescription.of(note),
+    ]);
 
     return new DynamicObjectClient({
         clock: Clock.system,
@@ -42,8 +45,8 @@ test("list the types descriptions refer to that neither the pool nor they declar
 
     // miss the notebook a note nests in, and nothing once the notebook is described too
     expect([
-        pool.missing([note.describe()]),
-        pool.missing([notebook.describe(), note.describe()]),
+        pool.missing([ObjectDescription.of(note)]),
+        pool.missing([ObjectDescription.of(notebook), ObjectDescription.of(note)]),
     ]).toEqual([[notebook.typeReference], []]);
 });
 

@@ -3,6 +3,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import {
     AccessContext,
     accessGrant,
+    accessRole,
     Authorization,
     Caller,
     Policy,
@@ -17,18 +18,13 @@ import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId } from "@destack/runtime/request";
 import { ObjectStore } from "../src/server/index.ts";
-import { defineObject, field, Intrinsic } from "../src/index.ts";
+import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { ObjectReference, type Subject } from "@destack/sync";
 import { Clock } from "@destack/environment";
 
 /** The space whose roles and members the test follows. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
-
-/** A space's roles. */
-const role = defineObject(Intrinsic.role.definition(space), Intrinsic.role.methods);
-/** A space's relationships. */
-const relationship = defineObject(Intrinsic.relationship.definition(space));
 
 test.for(TEST_DIALECTS)(
     "follow a space's roles and members as the owner defines and binds them on %s",
@@ -121,7 +117,7 @@ test.for(TEST_DIALECTS)(
                 id: RequestId.create(Date.now()),
                 calls: [
                     role.call("create", {
-                        spaceId: SPACE_ID,
+                        scope: SPACE_ID,
                         name: "reviewer",
                         description: "Reviews the space",
                         permissions: [],
@@ -156,14 +152,42 @@ test.for(TEST_DIALECTS)(
 test("refuse traits on an object type over a foreign table", () => {
     // declare roles that would be recoverable
     expect(() =>
-        defineObject(
-            {
-                ...Intrinsic.role.definition(space),
-                recoverable: { by: "delete", within: { days: 30 } },
-            },
-            Intrinsic.role.methods,
-        ),
+        defineObject({
+            name: "role",
+            plural: "roles",
+            mapping: ObjectPolicy.readMapping(accessRole),
+            permissions: ["delete"],
+            recoverable: { by: "delete", within: { days: 30 } },
+        }),
     ).toThrow(new TypeError("object role over a foreign table cannot have recoverable"));
+});
+
+test("nest objects over a foreign table only through its mapping's parent relation", () => {
+    // declare roles nested under any object, whose access mapping relates no parent
+    expect(() =>
+        defineObject({
+            name: "role",
+            plural: "roles",
+            mapping: ObjectPolicy.readMapping(accessRole),
+            nested: { in: "any", receive: "role" },
+        }),
+    ).toThrow(new TypeError("object role over a foreign table nests through no parent relation"));
+});
+
+test("live in the universe when listed there or when living in any scope, and not inside one scope type", () => {
+    // read where a universe type, an any-scope type and a space type live
+    const universal = defineObject({ name: "anchor", plural: "anchors", scope: "universe" });
+    const anywhere = defineObject({ name: "badge", plural: "badges" });
+    const spaced = defineObject({ name: "pin", plural: "pins", scope: space });
+
+    // admit the first two in the universe, the any-scope one living in any scope
+    expect(
+        [universal, anywhere, spaced].map((type) => [type.isInUniverse, type.isAnyScope]),
+    ).toEqual([
+        [true, false],
+        [true, true],
+        [false, false],
+    ]);
 });
 
 test("authorize an object type that the objects and the policies list several times", async () => {

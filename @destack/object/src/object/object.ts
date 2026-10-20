@@ -145,12 +145,10 @@ import { ObjectSearch, search, type SearchDefinition } from "../trait/search.ts"
 import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait } from "../trait/trait.ts";
-import { INTRINSIC, type Intrinsic } from "./intrinsic.ts";
 import { storeTables } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
 import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
-import { ObjectDescription } from "./description.ts";
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
@@ -177,9 +175,8 @@ interface Derived {
 export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema.string() });
 
 /** The options an object type over a table another package owns takes none of. */
-const INTRINSIC_REFUSED = [
+const FOREIGN_REFUSED = [
     "identity",
-    "nested",
     "recoverable",
     "versioned",
     "controlled",
@@ -240,31 +237,6 @@ const inherit: (prototype: object | null) => object = Object.create;
 
 /** Read the prototype an object inherits from. */
 const readPrototype: (value: object) => object | null = Object.getPrototypeOf;
-
-/** Every trait, in application order. */
-const TRAITS: readonly Trait<unknown>[] = [
-    record,
-    readable,
-    writable,
-    nested,
-    transitions,
-    recoverable,
-    expiring,
-    versioned,
-    controlled,
-    declarable,
-    adoptable,
-    shareable,
-    suspendable,
-    fencing,
-    bindable,
-    attachments,
-    tracked,
-    text,
-    search,
-    orderable,
-    series,
-];
 
 /** A trait an object type takes, with the options its definition gives it. */
 export interface TraitInstance {
@@ -385,6 +357,8 @@ export interface ObjectDefinition<
     readonly identity?: string;
     /** The plural name. */
     readonly plural: string;
+    /** Where the objects live in another package's table, absent to derive the type's own. */
+    readonly mapping?: Omit<TableMapping, "policy">;
     /** The scope types the objects live in, any scope when absent. */
     readonly scope?: Scope;
     /** The reference relation to each object's owner when it lives in another scope. */
@@ -503,7 +477,7 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly updated: readonly string[];
     readonly sensitive: readonly string[];
     readonly text: readonly string[];
-    readonly source: ObjectSource;
+    readonly source: ObjectDefinition;
     readonly events: Configuration["events"];
 };
 
@@ -516,9 +490,6 @@ export type ObjectAssembly<Configuration extends ObjectConfiguration = ObjectCon
         readonly attachments: readonly Attachment[];
         readonly indexes: Readonly<Record<string, ObjectIndex>>;
     };
-
-/** An object type's definition as written, with built methods and any intrinsic foreign table. */
-export type ObjectSource = ObjectDefinition & { readonly [INTRINSIC]?: Intrinsic };
 
 /** An object type's code: method handlers by name, its controller and its stack handler. */
 export interface ObjectImplementation<
@@ -709,7 +680,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** The definition as written, its methods built, which descriptions encode. */
-    get source(): ObjectSource {
+    get source(): ObjectDefinition {
         return this.definition.source;
     }
 
@@ -736,6 +707,16 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The scope types the objects live in, none for any scope. */
     get scope(): ObjectScope | readonly ObjectScope[] {
         return this.definition.scope;
+    }
+
+    /** Whether the objects live in any scope, their definition naming none. */
+    get isAnyScope(): boolean {
+        return [this.scope].flat().length === 0;
+    }
+
+    /** Whether the objects live in the universe: listed there, or living in any scope. */
+    get isInUniverse(): boolean {
+        return this.isAnyScope || [this.scope].flat().includes(Scope.universe.id);
     }
 
     /** Whether the objects live only in the universe, being no scopes themselves. */
@@ -888,11 +869,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The ancestor index of a tree of this object type. */
     get tree(): Tree | undefined {
         return this.table[TABLE].tree;
-    }
-
-    /** Where access finds objects in another package's table, as an intrinsic type maps it. */
-    get intrinsic(): Omit<TableMapping, "policy"> | undefined {
-        return this.source[INTRINSIC]?.mapping;
     }
 
     /** The name the type is served, routed and audited under: its name in camel case. */
@@ -1727,13 +1703,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** Describe the type as data: its package and written definition, refusing intrinsic types. */
-    describe(): ObjectDescription {
-        this.requireValid();
-
-        return ObjectDescription.of(this);
-    }
-
     /** Require valid members and traits once, as describing or serving the type does. */
     requireValid(): void {
         if (!this.isValid) {
@@ -1769,7 +1738,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         definition: ObjectDefinition & {
             readonly table: Table;
             readonly methods: Readonly<Record<string, Method>>;
-            readonly source: ObjectSource;
+            readonly source: ObjectDefinition;
         },
     ): ObjectType {
         // list the fields by what callers may do with them
@@ -2293,20 +2262,28 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 ...expanded.constraints,
             },
         };
-        const intrinsic = definition[INTRINSIC];
+        const foreign = definition.mapping?.table;
         const traits = ObjectType.#traitsOf(definition);
 
         // refuse options a foreign table takes none of
-        const refused = INTRINSIC_REFUSED.find((key) => written[key] !== undefined);
-        if (intrinsic !== undefined && refused !== undefined) {
+        const refused = FOREIGN_REFUSED.find((key) => written[key] !== undefined);
+        if (foreign !== undefined && refused !== undefined) {
             throw new TypeError(
                 `object ${definition.name} over a foreign table cannot have ${refused}`,
             );
         }
 
+        // nest objects over a foreign table only through a parent relation on the parent identifier column
+        const isUnparented = definition.mapping?.relations["parent"]?.column !== "parentId";
+        if (foreign !== undefined && written.nested !== undefined && isUnparented) {
+            throw new TypeError(
+                `object ${definition.name} over a foreign table nests through no parent relation`,
+            );
+        }
+
         // derive the table
         const packageId = (definition.represents?.package ?? owner).id;
-        const table = intrinsic?.table ?? ObjectTable.derive(definition, traits, packageId, module);
+        const table = foreign ?? ObjectTable.derive(definition, traits, packageId, module);
 
         // add trait methods, but those the definition declares or removes
         const declared: Readonly<Record<string, Method>> = definition.methods ?? {};
@@ -2339,12 +2316,37 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         });
     }
 
-    /** List the traits a definition opts into with their options, readable alone if intrinsic. */
-    static #traitsOf(
-        definition: ObjectDefinition & { readonly [INTRINSIC]?: Intrinsic },
-    ): TraitInstance[] {
-        return definition[INTRINSIC] === undefined
-            ? TRAITS.flatMap((trait) => {
+    /** List the traits in application order, read at use as traits import this module. */
+    static #traits(): readonly Trait<unknown>[] {
+        return [
+            record,
+            readable,
+            writable,
+            nested,
+            transitions,
+            recoverable,
+            expiring,
+            versioned,
+            controlled,
+            declarable,
+            adoptable,
+            shareable,
+            suspendable,
+            fencing,
+            bindable,
+            attachments,
+            tracked,
+            text,
+            search,
+            orderable,
+            series,
+        ];
+    }
+
+    /** List a definition's traits with their options, readable alone over a foreign table. */
+    static #traitsOf(definition: ObjectDefinition): TraitInstance[] {
+        return definition.mapping === undefined
+            ? ObjectType.#traits().flatMap((trait) => {
                   const options = trait.options(definition);
 
                   return options === undefined ? [] : [{ trait, options }];
@@ -2528,16 +2530,13 @@ export interface Attachment<Object extends ObjectType = ObjectType> {
 }
 
 /** An object definition as data: its fields, permissions and traits, or another package's table. */
-export interface ObjectShape extends Omit<ObjectDefinition, "methods"> {
-    /** The foreign table of an object type over a table another package owns. */
-    readonly [INTRINSIC]?: Intrinsic;
-}
+export type ObjectShape = Omit<ObjectDefinition, "methods">;
 
 /** The builder of a definition's declared methods, typed by its table, fields and permissions. */
 export type MethodsOf<Definition extends ObjectShape> = Definition extends {
-    readonly [INTRINSIC]: Intrinsic;
+    readonly mapping: { readonly table: Table };
 }
-    ? MethodBuilder<IntrinsicTable<Definition>, string, Listed<DeclaredPermissions<Definition>>>
+    ? MethodBuilder<ForeignTable<Definition>, string, Listed<DeclaredPermissions<Definition>>>
     : MethodBuilder<
           DefinedTable<Definition>,
           WrittenField<DefinedFields<Definition>>,
@@ -2545,14 +2544,14 @@ export type MethodsOf<Definition extends ObjectShape> = Definition extends {
       >;
 
 /** The object type over a table another package owns, with its declared methods. */
-export type IntrinsicType<Definition extends ObjectShape, Methods> = ObjectType<{
+export type ForeignType<Definition extends ObjectShape, Methods> = ObjectType<{
     readonly name: Definition["name"];
     readonly plural: Definition["plural"];
     readonly identity: Definition["name"];
-    readonly table: IntrinsicTable<Definition>;
+    readonly table: ForeignTable<Definition>;
     readonly fields: {};
     readonly methods: DeclaredMethods<Methods> &
-        ReadableMethodMap<Methods, IntrinsicTable<Definition>>;
+        ReadableMethodMap<Methods, ForeignTable<Definition>>;
     readonly permissions: DeclaredPermissions<Definition>;
     readonly scope: ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
     readonly parent: undefined;
@@ -2623,9 +2622,7 @@ type ReferencedColumn<Constraint, Own extends string> = Constraint extends {
     : string;
 
 /** The foreign table of an object type over a table another package owns. */
-type IntrinsicTable<Definition extends ObjectShape> = NonNullable<
-    Definition[typeof INTRINSIC]
->["table"];
+type ForeignTable<Definition extends ObjectShape> = NonNullable<Definition["mapping"]>["table"];
 
 /** The traits a definition sets that type its table, methods or declarations. */
 type DefinitionTraits<Definition> = TraitOptions<{
@@ -2811,8 +2808,8 @@ export function defineObject<
     definition: Definition,
     methods?: (method: MethodsOf<Definition>) => Methods,
     module?: ModuleMetadata,
-): Definition extends { readonly [INTRINSIC]: Intrinsic }
-    ? IntrinsicType<Definition, Methods>
+): Definition extends { readonly mapping: { readonly table: Table } }
+    ? ForeignType<Definition, Methods>
     : DefinedType<Definition, Methods>;
 /**
  * Declare an object type, its type computed from its definition by the signature above.
@@ -2836,8 +2833,6 @@ export function defineObject(
 type ObjectInput = Omit<ObjectDefinition, "methods"> & {
     /** The operations callers may execute, keyed by method name, false removing a derived one. */
     readonly methods?: Readonly<Record<string, Method | false>>;
-    /** The foreign table of an object type over another package's table. */
-    readonly [INTRINSIC]?: Intrinsic;
 };
 
 /** The name of a field whose values need their own read permission. */
