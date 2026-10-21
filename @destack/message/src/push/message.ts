@@ -16,6 +16,10 @@ export type PushKeys = schema.Infer<typeof PushKeys>;
 /** The browser's Web Push endpoint a message goes to. */
 export const PushDestination = schema.object({
     channel: schema.literal("push"),
+    /** The browser's client. */
+    client: schema.identifier("client"),
+    /** The person the client belongs to. */
+    user: schema.identifier("user"),
     /** The push service's endpoint URL. */
     url: schema.url({ protocol: /^https$/u }),
     /** The browser's keys encrypting the payload. */

@@ -13,14 +13,21 @@ import { type Controller, ControlLoop } from "@destack/runtime/control";
 import { testCallKey } from "@destack/runtime/test";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { message, messageAttempt, messageConditions, MessageKey } from "../object/index.ts";
+import {
+    GONE,
+    message,
+    messageAttempt,
+    messageConditions,
+    MessageKey,
+    task,
+} from "../object/index.ts";
+import * as accountObject from "@destack/account/object";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import { pushProvider, Vapid } from "../push/index.ts";
 import { messageTables } from "../stack/index.ts";
 import type { MessageOptions } from "./message.ts";
 import messagePackage from "../package.ts";
-import { implementEndpoint } from "./endpoint.ts";
-import { implementMessage } from "./message.ts";
+import { serveMessages } from "./serve.ts";
 import { RequestId } from "@destack/runtime/request";
 import { Clock } from "@destack/environment";
 
@@ -48,6 +55,9 @@ const TEXT = "title is too long";
 
 /** The desktop client showing a message. */
 const CLIENT = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c1");
+
+/** The browser a push goes to. */
+const BROWSER = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c5");
 
 /** The machine serving the messages. */
 const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");
@@ -132,18 +142,19 @@ async function startMessages(answers: readonly Outcome[]) {
 }
 
 /** Create a scope the space owns, and serve its messages through the given providers. */
-async function openMessages(providers: MessageOptions["providers"]) {
+async function openMessages(
+    providers: MessageOptions["providers"],
+    scope: ObjectReference = place.reference(
+        Scope.universe.id,
+        "place-019f5530-8000-7000-8000-0000000000e3",
+    ),
+) {
     // serve the messages over a database of their own
     const storage = await TestDatabase.create("sqlite", messageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const messages = new ObjectStore({
         servers: [
-            defineServer(messagePackage, {
-                objects: [
-                    implementMessage({ providers, keys: ROOT, retry: RETRY }),
-                    implementEndpoint(ROOT),
-                ],
-            }),
+            defineServer(messagePackage, serveMessages({ providers, keys: ROOT, retry: RETRY })),
         ],
         chain: async () => undefined,
         clock: Clock.system,
@@ -151,16 +162,18 @@ async function openMessages(providers: MessageOptions["providers"]) {
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
-        policies: [place],
+        policies: [place, accountObject.account.policy, accountObject.space.policy],
         origin: { package: message.package },
         machine: MACHINE,
     });
 
-    // create the scope, owned by the space
-    const scope = {
-        ...place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000e3"),
-    };
+    // create the scope within its parent, owned by the space
     const fixture = new AccessFixture(storage.database);
+    if (scope.scope !== Scope.universe.id) {
+        await fixture.replicateScope(
+            accountObject.account.reference(Scope.universe.id, scope.scope),
+        );
+    }
     await fixture.replicateScope(scope);
     await fixture.bindOwner(scope, SPACE);
 
@@ -308,6 +321,58 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
     });
 });
 
+test("forget a browser its push service forgot, as the space, once its push fails as gone", async () => {
+    // serve pushes through a push service that forgot the browser
+    const forgot: Outcome = { kind: "failed", error: { code: GONE, message: "unsubscribed" } };
+    const push = { send: async () => forgot, applicationServerKey: async () => "key" };
+    const home = accountObject.space.reference(
+        "account-019f5530-8000-7000-8000-0000000000c3",
+        "space-019f5530-8000-7000-8000-0000000000c4",
+    );
+    const { messages, storage, scope } = await openMessages({ push }, home);
+    run(storage.database, messages.controllers());
+
+    // push to the browser
+    const id = message.generateId();
+    const to = {
+        channel: "push" as const,
+        client: BROWSER,
+        user: schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000c2"),
+        url: "https://push.example/forgotten",
+        keys: { p256dh: "key", auth: "secret" },
+    };
+    const content = { channel: "push" as const, data: {}, urgency: "normal" as const, ttl: 60 };
+    await messages.mutate(AccessContext.of(Caller.of(SPACE), Date.now()), {
+        id: RequestId.create(Date.now()),
+        calls: [
+            message.call("create", {
+                ...message.target({ scope: scope.id, id }),
+                to,
+                ...ObjectReference.columns("source", scope),
+                ciphertext: await (await MessageKey.derive(ROOT)).seal(content, scope.id),
+            }),
+        ],
+    });
+
+    // fail it as gone, and start the client's unsubscription as the space
+    await TestDatabase.settle(
+        storage.database,
+        async () => (await readSending(storage.database, id))?.status === "failed",
+        SETTLE_MILLISECONDS,
+    );
+    const started = await storage.database.select().from(task.run.table);
+    expect(
+        started.map((row) => ({ input: row["input"], actor: ObjectReference.at("actor", row) })),
+    ).toEqual([
+        {
+            input: {
+                call: accountObject.client.call("unsubscribe", { id: BROWSER, userId: to.user }),
+            },
+            actor: principal.space.reference(Scope.universe.id, scope.id),
+        },
+    ]);
+});
+
 test("open a message's content only for its provider, out of the journal and the change log, and drop it as the message settles", async () => {
     const { read, until, texts, leaks } = await startMessages([{ kind: "sent" }]);
 
@@ -391,6 +456,8 @@ test("send a message as it is created: a provider's pending with its content, a 
     // refuse a receipt off a desktop, and a push without its content
     const push = {
         channel: "push" as const,
+        client: schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a7"),
+        user: schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000a8"),
         url: "https://push.example/endpoint",
         keys: { p256dh: "key", auth: "secret" },
     };

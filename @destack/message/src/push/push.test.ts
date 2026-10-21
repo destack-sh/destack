@@ -114,6 +114,10 @@ async function pushTo(responses: Response[]) {
         createdAt: 0,
         to: {
             channel: "push" as const,
+            client: schema
+                .identifier("client")
+                .parse("client-019f5530-8000-7000-8000-0000000000a5"),
+            user: schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000a6"),
             url: "https://updates.push.services.mozilla.com/wpush/v2/abc",
             keys: browser.keys,
         },
@@ -235,11 +239,7 @@ async function readVapid(authorization: string) {
     }
     const key = nth(match, 2);
     const segments = nth(match, 1).split(".");
-    const [header, claims, signature] = [
-        nth(segments, 0),
-        nth(segments, 1),
-        nth(segments, 2),
-    ];
+    const [header, claims, signature] = [nth(segments, 0), nth(segments, 1), nth(segments, 2)];
 
     // verify the signature with the key
     const verifier = await crypto.subtle.importKey(

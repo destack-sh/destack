@@ -35,9 +35,11 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/runtime": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/vault": "workspace:*",
+        "@destack/workflow": "workspace:*",
         "jose": "6.2.12",
         "@destack/error": "workspace:*"
     },

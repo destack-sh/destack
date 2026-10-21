@@ -4,8 +4,7 @@ import messagePackage, { outboundMail } from "./package.ts";
 import { pushProvider } from "./push/push.ts";
 import { Vapid } from "./push/vapid.ts";
 import { webhookProvider } from "./webhook/webhook.ts";
-import { implementEndpoint } from "./server/endpoint.ts";
-import { implementMessage } from "./server/message.ts";
+import { serveMessages } from "./server/serve.ts";
 
 export * from "./server/index.ts";
 
@@ -19,17 +18,12 @@ export default defineServer(messagePackage, (context) => {
     const fetch = (request: Request) => context.fetch(request);
     const mail = context.resources.get(outboundMail);
 
-    return {
-        objects: [
-            implementMessage({
-                providers: {
-                    email: emailProvider(mail),
-                    push: pushProvider(() => Vapid.derive(keys, PUSH_CONTACT), fetch),
-                    webhook: webhookProvider(fetch),
-                },
-                keys,
-            }),
-            implementEndpoint(keys),
-        ],
-    };
+    return serveMessages({
+        providers: {
+            email: emailProvider(mail),
+            push: pushProvider(() => Vapid.derive(keys, PUSH_CONTACT), fetch),
+            webhook: webhookProvider(fetch),
+        },
+        keys,
+    });
 });

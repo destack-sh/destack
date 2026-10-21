@@ -1,13 +1,15 @@
-import { ObjectReference } from "@destack/sync";
+import { principal } from "@destack/access";
+import { client } from "@destack/account/object";
+import { ObjectReference, Scope } from "@destack/sync";
 import { count, eq } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { nth, present } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { endpoint } from "../object/endpoint.ts";
 import { RetryPolicy } from "@destack/runtime/timer";
-import { type Message, message, messageAttempt, MessageKey } from "../object/index.ts";
+import { GONE, type Message, message, messageAttempt, MessageKey, task } from "../object/index.ts";
 import type { MessageProvider, Outcome } from "../provider/index.ts";
 import type { PushProvider } from "../push/index.ts";
 
@@ -128,14 +130,36 @@ async function observe(
     row: Message,
     observed: ReturnType<typeof settle>,
 ): Promise<void> {
-    await reconciliation.mutate([
-        message.call("observe", {
-            ...message.target(row),
-            observedGeneration: row.generation,
-            conditions: { Sent: observed.sent },
-            fields: observed.fields,
-        }),
-    ]);
+    // forget a browser its push service forgot, as the space its recipient lets read its clients
+    const { to } = row;
+    const isGone = to.channel === "push" && observed.fields.reason === GONE;
+    const forget = isGone
+        ? [
+              task.start(
+                  { call: client.call("unsubscribe", { id: to.client, userId: to.user }) },
+                  {
+                      actor: principal.space.reference(
+                          Scope.universe.id,
+                          schema.identifier("space").parse(row.scope),
+                      ),
+                  },
+              ),
+          ]
+        : [];
+
+    // record the observation with it, starting the task in the message's space
+    await reconciliation.mutate(
+        [
+            message.call("observe", {
+                ...message.target(row),
+                observedGeneration: row.generation,
+                conditions: { Sent: observed.sent },
+                fields: observed.fields,
+            }),
+            ...forget,
+        ],
+        { scope: row.scope },
+    );
 }
 
 /** Open a message's content and send it through its channel's provider, if one exists here. */
