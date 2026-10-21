@@ -104,4 +104,9 @@ export const Identifier = {
     uuid(value: Identifier<string>): string {
         return value.slice(-UUID_LENGTH);
     },
+
+    /** Read the prefix an identifier starts with, its type's identity. */
+    prefix(value: Identifier<string>): string {
+        return value.slice(0, -UUID_LENGTH - 1);
+    },
 };

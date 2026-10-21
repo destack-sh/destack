@@ -15,9 +15,12 @@ test("accept prefixed UUIDv7 identifiers of their own prefix only, and read thei
         ),
     ).toEqual([false, false, false, false]);
 
-    // accept any valid prefix, and read the UUID back
+    // accept any valid prefix, and read the UUID and the prefix back
     expect(anyIdentifier().safeParse(`role-permission-${UUID}`).success).toBe(true);
     expect(Identifier.uuid(space.parse(`space-${UUID}`))).toBe(UUID);
+    expect(Identifier.prefix(anyIdentifier().parse(`role-permission-${UUID}`))).toBe(
+        "role-permission",
+    );
 });
 
 test("filter the identifiers of one prefix from mixed values in their order", () => {
