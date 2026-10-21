@@ -35,7 +35,8 @@ import {
     Snapshot,
     Transaction,
 } from "@destack/db";
-import { MemoryContentStore, TestDatabase, TestTemplate } from "@destack/db/test";
+import { TestDatabase, TestTemplate } from "@destack/db/test";
+import { MemoryContentStore } from "@destack/resource/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -256,6 +257,7 @@ export class StackFixture implements AsyncDisposable {
         const sockets = overrides.sockets ?? (await this.sockets());
 
         return {
+            role: "primary",
             principal: principal.space.reference(Scope.universe.id, ids.space),
             database: this.database,
             callKey: testCallKey,
@@ -409,6 +411,7 @@ export class StackFixture implements AsyncDisposable {
                 directory,
                 endpoint: new URL("http://s3.localhost"),
                 region: "local",
+                clock: Clock.system,
                 credentials: async () => BUCKET_CREDENTIALS,
             });
             onTestFinished(async () => {
@@ -785,13 +788,11 @@ export async function keepSpace(
 /** Replicate every space row a home keeps into a machine's database, up to its position now. */
 async function replicateSpaces(home: ObjectStore, database: DatabaseConnection): Promise<void> {
     // replicate the universe's space rows under a replica of the machine's own, which no request drops
-    const subscription = Authorizer.universeSubscription({
+    const subscription = home.source.queriesPublication.subscription({
         name: SPACE_REPLICA,
         scope: Scope.universe.id,
-        below: ids.cloud,
-        parameters: {
-            rows: [{ type: space.typeReference, where: {}, isEverywhere: true }],
-        },
+        target: ids.cloud,
+        parameters: { queries: { space: { object: space.name, scopes: "every" } } },
     });
     const replica = home.source.buildReplica(subscription);
     const options = { clock: Clock.system };
@@ -937,7 +938,10 @@ function controllerOf(store: Pick<ObjectStore, "controllers">, name: string): Co
 }
 
 /** A publisher streaming nothing until each stream's signal aborts. */
-export const idlePublisher: Publisher = { stream: (_subscription, signal) => stream(signal) };
+export const idlePublisher: Publisher = {
+    stream: (_subscription, signal) => stream(signal),
+    confirm: async () => {},
+};
 
 /** The options a test gives the fixture's space. */
 export type FixtureOptions = Partial<SpaceOptions>;

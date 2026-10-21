@@ -1,10 +1,15 @@
+import {
+    defineObject,
+    field,
+    HookSandbox,
+    ObjectDescription,
+    ObjectType,
+    ObjectTypePool,
+} from "@destack/object";
 import { principal } from "@destack/access";
 import { TABLE } from "@destack/db";
 import { space } from "@destack/account/object";
-import { ObjectTypePool, defineObject, field, ObjectType } from "@destack/object";
-import { graph } from "@destack/package";
-import { HookSandbox } from "@destack/object";
-import { Package } from "@destack/package";
+import { graph, Package } from "@destack/package";
 import { nth, schema } from "@destack/schema";
 import { PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
 import { describePackage } from "@destack/runtime/inspect";
@@ -71,7 +76,7 @@ const KNOWN = [space, ...Object.values(principal)];
 /** Describe a package's one type and its handle routing it, as its build's declarations do. */
 function declared(owner: Package, type: ObjectType, route: string): Declared[] {
     // describe the type as the package's own, and its handle routing it
-    const description = { ...type.describe(), package: owner };
+    const description = { ...ObjectDescription.of(type), package: owner };
     const own = nth(ObjectTypePool.of(KNOWN).declare([description]), 0);
     const handle = PackageHandle.of(owner, { objects: { [route]: own } });
     const symbol = graph.Moniker.of({ packageId: owner.id, module: "src/index.ts", name: route });

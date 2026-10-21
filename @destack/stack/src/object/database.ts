@@ -39,11 +39,20 @@ export type Database = Select<typeof database.table>;
 export const Database = {
     /** Read a space's main database, which the space has from its birth on. */
     async main(snapshot: Pick<Snapshot, "read">, spaceId: Identifier<"space">): Promise<Database> {
-        const [row] = await snapshot
-            .read(database.table)
-            .findMany({ where: { scope: spaceId, name: MAIN_DATABASE } });
+        return present(
+            await Database.mainMaybe(snapshot, spaceId),
+            `the main database of ${spaceId}`,
+        );
+    },
 
-        return present(row, `the main database of ${spaceId}`);
+    /** Read a space's main database, absent where its row has not arrived yet. */
+    async mainMaybe(
+        snapshot: Pick<Snapshot, "read">,
+        spaceId: Identifier<"space">,
+    ): Promise<Database | undefined> {
+        return snapshot
+            .read(database.table)
+            .findFirst({ where: { scope: spaceId, name: MAIN_DATABASE } });
     },
 
     /** Point a space's main database at where a machine keeps it. */

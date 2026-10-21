@@ -141,7 +141,7 @@ test.each(TEST_DIALECTS)(
                 served.queriesPublication.subscription({
                     name: "objects",
                     scope: spaceId,
-                    below: spaceId,
+                    target: spaceId,
                     parameters: {},
                 }),
                 reader(AbortSignal.timeout(4000)),
@@ -153,7 +153,7 @@ test.each(TEST_DIALECTS)(
         // follow the source's rows on the target while the source serves them
         const keyTables = [...decisionTables, accessInvitation, key.table];
         const replicaOf = (database: DatabaseConnection) =>
-            new SpaceReplica({ database, spaceId, tables: keyTables });
+            new SpaceReplica({ database, spaceId, scopes: [spaceId], tables: keyTables });
         const [leaving, arriving] = [replicaOf(source.database), replicaOf(target.database)];
         const transfer = (moving: SpaceReplica) =>
             new SpaceTransfer({ placement, target: ids.machineB, space: moving });
@@ -210,7 +210,11 @@ test.each(TEST_DIALECTS)(
         );
         replicating.abort();
         await replicated;
-        const digest = await SpaceReplica.digest(target.database, arriving.digestTables(), spaceId);
+        const digest = await SpaceReplica.digest(
+            target.database,
+            arriving.digestTables(),
+            arriving.scopes,
+        );
         expect([isReached, digest]).toEqual([true, fenced.digest]);
 
         // own the rows on the target and refuse writes until the space is located there at the next epoch

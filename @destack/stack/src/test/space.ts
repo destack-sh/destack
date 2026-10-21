@@ -18,6 +18,9 @@ export class TestSpaceDatabaseHost extends BunSqliteDatabaseHost {
         const directory = await mkdtemp(join(tmpdir(), "destack-stack-main-"));
         onTestFinished(() => rm(directory, { recursive: true, force: true }));
 
-        return databaseProvider(new TestSpaceDatabaseHost(pathToFileURL(`${directory}/`)), database);
+        return databaseProvider(
+            new TestSpaceDatabaseHost(pathToFileURL(`${directory}/`)),
+            database,
+        );
     }
 }

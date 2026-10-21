@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises";
+import { Clock } from "@destack/environment";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TestDatabase } from "@destack/db/test";
@@ -56,6 +57,7 @@ test("serve each space's buckets over S3 to its own credentials, concealing them
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
+        clock: Clock.system,
         credentials: async (space) => {
             const root = roots.get(space);
 
@@ -81,7 +83,7 @@ test("serve each space's buckets over S3 to its own credentials, concealing them
         });
         await (await buckets.open({ bucketId }, space)).put("notes/a.txt", space);
     }
-    const server = serveS3(buckets, storage.database);
+    const server = serveS3(buckets, storage.database, Clock.system);
 
     // read the first space's file with its own credentials, its neighbour's, and an unknown key
     const reference = { scope: first, bucketId: BUCKETS[0] };

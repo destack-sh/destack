@@ -126,6 +126,7 @@ export class BucketFixture implements AsyncDisposable {
         // serve the bucket over S3 under the presigning credentials
         this.s3 = new S3Server({
             region: REGION,
+            clock: Clock.system,
             credentials: async (accessKeyId) =>
                 accessKeyId === this.credentials.accessKeyId ? this.credentials : undefined,
             open: async (name) => (name === BUCKET_NAME ? this.files : undefined),
@@ -151,7 +152,7 @@ export class BucketFixture implements AsyncDisposable {
             drainTimeout: 1000,
         });
         this.client = createClient(
-            { version: stackPackage.version, router: bucket.procedures },
+            { router: bucket.procedures },
             {
                 url: "https://files.test",
                 headers: { authorization: `Bearer ${this.userId}` },
@@ -379,7 +380,7 @@ export class BucketFixture implements AsyncDisposable {
     static async open(database: DatabaseConnection): Promise<BucketFixture> {
         // open the bucket's directory, and the universe's database keeping its name claims
         const directory = await mkdtemp(join(tmpdir(), "destack-bucket-files-"));
-        const files = await LocalBucket.open(directory, "space-test");
+        const files = await LocalBucket.open(directory, "space-test", Clock.system);
         const universe = await TestDatabase.create("sqlite", accountDatabase, { isMigrated: true });
         const claims = await TestDirectory.claims(universe.database, Clock.system);
         const events = await testEvents(database);

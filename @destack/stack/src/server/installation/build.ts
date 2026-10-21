@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { BucketLease, type BucketReference, type BucketLeaseRequest } from "@destack/bucket/s3";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Lease } from "@destack/resource";
-import { PackageStore, Retention, encodeManifest } from "@destack/build/store";
+import { PackageStore, encodeManifest } from "@destack/build/store";
 import { Snapshot } from "@destack/db";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -199,13 +199,14 @@ export class BuildStore {
         return { kind: "stored", digest };
     }
 
-    /** Expire the builds retention drops, root the rest, sweep, and answer the kept builds. */
-    async sweep(
+    /** Expire the spaces' dropped builds and keep their roots, sweeping the store once due. */
+    async sweepIfDue(
         objects: Pick<ObjectStore, "database" | "principal" | "serving" | "mutate">,
         retention: (space: string) => Promise<number>,
-        now: number,
         before: Date,
-    ): Promise<ReadonlySet<string>> {
+        now: number,
+        interval: number,
+    ): Promise<ReadonlySet<string> | undefined> {
         // expire the dropped builds as the machine
         const { database } = objects;
         const { retained, expired } = await Build.retention(database, retention);
@@ -222,12 +223,10 @@ export class BuildStore {
             );
         }
 
-        // keep the store's retained builds as its root and sweep what no root retains
+        // keep the retained builds as the machine's root, and sweep what no root retains once due
         await this.packages.root(objects.principal.id, retained);
-        const roots = await this.packages.roots();
-        await this.packages.sweep(Retention.of(roots), before);
 
-        return roots;
+        return this.packages.sweepIfDue(before, new Date(now), interval);
     }
 }
 

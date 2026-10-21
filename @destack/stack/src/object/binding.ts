@@ -14,9 +14,9 @@ const boundFields = {
     packageId: field.string(PackageId),
     /** The declaration name within the package. */
     name: field.string(),
-    /** The bound object's identifier with its type as prefix. */
+    /** The bound object's id here, or the installation's name in the target space. */
     target: field.string(),
-    /** The other space keeping the target, which grants the binding. */
+    /** The other space keeping the target installation, null for this space. */
     targetSpaceId: field.string(schema.identifier("space")).optional(),
     /** The state the declaration requires of the target. */
     state: field.json(schema.jsonObject()),

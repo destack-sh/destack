@@ -20,6 +20,8 @@ import {
     type DatabaseConnection,
     Snapshot,
     Transaction,
+    DatabaseState,
+    Lease,
 } from "@destack/db";
 import { databaseProvider } from "@destack/db";
 import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
@@ -37,6 +39,7 @@ import {
     ProviderIndex,
     serveSpace,
     sweepSnapshots,
+    SWEEP_LEASE,
     SpaceTransfer,
     TransferController,
     type Handoff,
@@ -62,6 +65,11 @@ import { createClient } from "@destack/runtime/client";
 import stackPackage from "../src/package.ts";
 import type { StackClient } from "../src/client/index.ts";
 import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
+import type { ObjectStore } from "@destack/object/server";
+
+/** A day, in milliseconds. */
+const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** How long one move between two machines waits for its next step: twenty times a move. */
 const MOVE_MILLISECONDS = 20_000;
@@ -84,6 +92,20 @@ const note = defineTable(
         body: text("body").notNull(),
         /** Its rank. */
         rank: integer("rank").notNull(),
+    },
+    { log: {} },
+);
+
+/** The pins an installed package keeps in the space's main database, beside the space's tables. */
+const pin = defineTable(
+    "pin",
+    {
+        /** The space keeping the pin. */
+        scope: text("scope").primaryKey(),
+        /** The pin's identifier. */
+        id: text("id").primaryKey(),
+        /** The pin's label. */
+        label: text("label").notNull(),
     },
     { log: {} },
 );
@@ -291,6 +313,7 @@ test.each(TEST_DIALECTS)(
         };
         const receiver = await target.options({
             ...opened,
+            role: "standby",
             handoff,
             machine: TARGET,
             providers: [targets],
@@ -339,12 +362,17 @@ test.each(TEST_DIALECTS)(
             .set({ machineId: TARGET, epoch: 2, targetId: null, transferId: null })
             .where(eq(placement.table.id, ids.space));
 
-        // remove the source's replica and sweep its store a day later
-        await reconcile(announcing, "transfer", { id: created.id });
+        // remove the source's replica as it stands by, and sweep its store a day later
+        const { store: standing } = await sourceMachine.server({
+            ...opened,
+            role: "standby",
+            providers: [sources],
+            keystore: new IdentityKeystore(sourceKeyring, identities, Clock.system),
+        });
+        await reconcile(standing, "transfer", { id: created.id });
         const sourceStore = sourceMachine.store();
         const blobs = sourceStore.size;
-        const later = Date.now() + 2 * 24 * 60 * 60 * 1000;
-        await sweepSnapshots(announcing, sourceStore, later);
+        await sweepSnapshots(at(announcing, Date.now() + 2 * DAY_MILLISECONDS), sourceStore);
         const removed = {
             databases: await source.select().from(object.database.table),
             snapshots: await source.select().from(object.snapshot.table),
@@ -504,7 +532,7 @@ test("move every table of the space database keeping rows in spaces, leaving out
     const fixture = await StackFixture.open({ database: sharedNotesDatabase });
     const { database } = fixture;
     const moving = { id: ids.space, scope: ids.account, machine: ids.cloud, epoch: 1 };
-    const steps = SpaceTransfer.of(database, moving, TARGET);
+    const steps = await SpaceTransfer.of(database, moving, TARGET);
     // keep the transfers ahead of every logged space-scoped table in declaration order, the space's row arriving from the universe instead
     expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
         "destack__stack__transfer",
@@ -516,7 +544,6 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__access__invitation",
         "destack__stack__installation_revision",
         "destack__stack__installation_key",
-        "destack__stack__proof",
         "destack__stack__binding",
         "destack__stack__deployment",
         "destack__stack__capture",
@@ -526,6 +553,7 @@ test("move every table of the space database keeping rows in spaces, leaving out
         "destack__stack__branch",
         "destack__stack__branch_entry",
         "destack__stack__branch_change",
+        "destack__object__proof",
         "destack__workflow__approval",
         "destack__workflow__change_request",
         "destack__workflow__change_run",
@@ -544,6 +572,42 @@ test("move every table of the space database keeping rows in spaces, leaving out
     ]);
 });
 
+test("move the tables a space's main database applied beside the space database's, reading only the applied ones while a plan waits", async () => {
+    // apply an installed package's pins to the space's provisioned main database
+    await using fixture = await StackFixture.open({ dialect: "sqlite" });
+    const { database } = fixture;
+    const pinState = DatabaseState.of([pin]);
+    const digest = await Digest.json(pinState);
+    await database.insert(desiredState).values({ scope: ids.space, digest, state: pinState });
+    const main = and(
+        eq(object.database.table.scope, ids.space),
+        eq(object.database.table.name, object.MAIN_DATABASE),
+    );
+    await database
+        .update(object.database.table)
+        .set({ states: [digest], appliedStates: [digest], provider: "space", reference: "space" })
+        .where(main);
+
+    // plan the move with the pins beside the space's tables, and answer their state at the handoff
+    const moving = { id: ids.space, scope: ids.account, machine: ids.cloud, epoch: 1 };
+    const states = await SpaceTransfer.states(database, ids.space);
+    const moved = names(await SpaceTransfer.of(database, moving, TARGET));
+    const own = names(await SpaceTransfer.of(database, moving, TARGET, []));
+
+    // read only the applied states while the main database waits to apply its desired ones
+    await database.update(object.database.table).set({ appliedStates: [] }).where(main);
+    const waiting = await SpaceTransfer.states(database, ids.space);
+    const pending = names(await SpaceTransfer.of(database, moving, TARGET));
+
+    // move the space's own tables and then the pins, a plan waiting or not
+    expect({ states, moved, waiting, pending }).toEqual({
+        states: [pinState],
+        moved: [...own, "destack__stack__pin"],
+        waiting: [],
+        pending: own,
+    });
+});
+
 test("stop the instances of a moving space running on its machine once its fence starts", async () => {
     // keep a running instance of the notes installation in the space
     await using space = await StackFixture.open({ dialect: "sqlite" });
@@ -553,7 +617,8 @@ test("stop the instances of a moving space running on its machine once its fence
 
     // fence the moving space on the machine running it
     const moving = { id: ids.space, scope: ids.account, machine: ids.cloud, epoch: 1 };
-    await SpaceTransfer.of(space.database, moving, TARGET).fence(
+    const transfer = await SpaceTransfer.of(space.database, moving, TARGET);
+    await transfer.fence(
         { providers: new ProviderIndex(ids.cloud, []), runtimes: [runtime] },
         Date.now(),
     );
@@ -661,6 +726,7 @@ test(
         // refuse receiving it over the stale rows
         const receiver = await keptMachine.options({
             ...opened,
+            role: "standby",
             machine: TARGET,
             keystore: new IdentityKeystore(
                 await LocalKeyring.open(new MemoryKeychain(), "target"),
@@ -760,6 +826,7 @@ test.each(TEST_DIALECTS)(
         );
         const receiver = await target.options({
             ...opened,
+            role: "standby",
             publisher: cancelling(await target.universe(opened.universe, TARGET), () =>
                 owner.transfer.cancel({
                     spaceId: ids.space,
@@ -870,46 +937,105 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "retire the expired snapshots of every space a machine serves as each space, then sweep the blobs they read on %s",
+    "sweep the blobs no snapshot reads while no snapshot is taken and no other sweep holds the lease, then retire the expired snapshots on %s",
     async (dialect) => {
         // serve the fixture's space on the machine keeping the snapshots of it and the home space
         const fixture = await StackFixture.open({ dialect });
         const served = serveSpace(await fixture.options()).store;
+        const { database } = fixture;
 
-        // keep a taken snapshot of a resource of each space with one blob in the machine's store
+        // keep a taken snapshot of a resource of each space with one blob, and a blob none reads
         const store = fixture.store();
         const now = Date.now();
-        for (const [space, resource] of [
-            [ids.space, "database-01996ab0-0000-7000-8000-0000000000f1"],
-            [ids.home, "database-01996ab0-0000-7000-8000-0000000000f2"],
-        ] as const) {
-            const blob = await store.write(
+        const write = (content: string) =>
+            store.write(
                 (async function* () {
-                    yield new TextEncoder().encode(resource);
+                    yield new TextEncoder().encode(content);
                 })(),
             );
-            await fixture.database.insert(object.snapshot.table).values({
-                id: schema.identifier("snapshot").parse(object.snapshot.generateId()),
+        const snapshotOf = async (
+            space: Identifier<"space">,
+            resource: string,
+            blob: Digest | null,
+        ) => {
+            const id = schema.identifier("snapshot").parse(object.snapshot.generateId());
+            await database.insert(object.snapshot.table).values({
+                id,
                 spaceId: space,
                 resourceId: ResourceId.parse(resource),
                 recipient: (await Recipient.generate()).key,
                 digest: blob,
-                takenAt: now,
-                blobs: [blob],
+                takenAt: blob === null ? null : now,
+                blobs: blob === null ? [] : [blob],
                 createdAt: now,
                 updatedAt: now,
             });
-        }
 
-        // sweep the store two days later
-        const blobs = store.size;
-        await sweepSnapshots(served, store, now + 2 * 24 * 60 * 60 * 1000);
+            return id;
+        };
+        for (const [space, resource] of [
+            [ids.space, "database-01996ab0-0000-7000-8000-0000000000f1"],
+            [ids.home, "database-01996ab0-0000-7000-8000-0000000000f2"],
+        ] as const) {
+            await snapshotOf(space, resource, await write(resource));
+        }
+        await write("stray");
+
+        // keep every blob while a snapshot is taken
+        const taking = await snapshotOf(
+            ids.space,
+            "database-01996ab0-0000-7000-8000-0000000000f3",
+            null,
+        );
+        await sweepSnapshots(at(served, now), store);
+        const whileTaking = store.size;
+
+        // keep every blob while another sweep holds the lease, which snapshots and restores wait out a second at a time
+        const other = { ...SWEEP_LEASE, holder: "other", duration: 60_000, now: Date.now() };
+        await Lease.acquire(database, other);
+        const restoring = schema.identifier("restore").parse(object.restore.generateId());
+        await database.insert(object.restore.table).values({
+            id: restoring,
+            spaceId: ids.space,
+            resourceId: ResourceId.parse("database-01996ab0-0000-7000-8000-0000000000f4"),
+            sourceId: TARGET,
+            sourceEpoch: 1,
+            createdAt: now,
+            updatedAt: now,
+        });
+        const waits = [
+            await reconcile(served, "snapshot", { id: taking }),
+            await reconcile(served, "restore", { id: restoring }),
+        ];
+        await database.delete(object.snapshot.table).where(eq(object.snapshot.table.id, taking));
+        await database.delete(object.restore.table).where(eq(object.restore.table.id, restoring));
+        await sweepSnapshots(at(served, now), store);
+        const whileLeased = store.size;
+        await Lease.release(database, other);
+
+        // delete the stray blob, then the expired snapshots and their blobs two days later
+        await sweepSnapshots(at(served, now), store);
+        const swept = store.size;
+        await sweepSnapshots(at(served, now + 2 * DAY_MILLISECONDS), store);
         expect({
-            blobs: [blobs, store.size],
-            snapshots: await fixture.database.select().from(object.snapshot.table),
-        }).toEqual({ blobs: [2, 0], snapshots: [] });
+            blobs: [whileTaking, whileLeased, swept, store.size],
+            waits,
+            snapshots: await database.select().from(object.snapshot.table),
+        }).toEqual({ blobs: [3, 3, 2, 0], waits: [1000, 1000], snapshots: [] });
     },
 );
+
+/** Read a store as a sweep at a moment does, on a clock paused there. */
+function at(
+    store: Pick<ObjectStore, "database" | "mutate">,
+    time: number,
+): Pick<ObjectStore, "database" | "mutate" | "clock"> {
+    return {
+        database: store.database,
+        mutate: store.mutate.bind(store),
+        clock: new VirtualClock(time),
+    };
+}
 
 /** Run a cancellation once just before an uplink's first placement call. */
 function cancelling(publisher: Uplink, cancel: () => Promise<unknown>): Uplink {
@@ -975,4 +1101,9 @@ async function placementOf(universe: DatabaseConnection): Promise<Placement | un
     const [placed] = await Placement.find(Snapshot.live(universe), [ids.space]);
 
     return placed;
+}
+
+/** List the SQL names of the tables a transfer moves, in order. */
+function names(transfer: SpaceTransfer): string[] {
+    return transfer.space.tables.map((table) => table[TABLE].sqlName);
 }

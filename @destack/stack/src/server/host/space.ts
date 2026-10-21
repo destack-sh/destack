@@ -17,6 +17,9 @@ import type { Scheduler } from "./scheduler.ts";
 /** The condition a space records its placement under, beside its entitlements' conditions. */
 const PLACEMENT_CONDITION = "placement";
 
+/** A space's role on a machine: placed here, or standing by for a move while placed elsewhere. */
+export type SpaceRole = "primary" | "standby";
+
 /** Control the replicas of the spaces this machine serves: place, limit and delete each. */
 export function implementSpace(options: {
     /** The keystore whose keys of a deleted space the machine forgets. */
@@ -48,7 +51,7 @@ function control(options: Parameters<typeof implementSpace>[0]): ObjectControlle
         reconcile: async ({ rows, database, store, now }) => {
             // leave a space another machine serves
             const row = nth(rows, 0);
-            if (!(await Space.isServing(database, row.id))) {
+            if (!(await Space.isServing(Snapshot.live(database), row.id))) {
                 return undefined;
             }
 

@@ -6,6 +6,12 @@ import { buildRetention } from "../setting/index.ts";
 import { Build, build, installation, installationRevision } from "./index.ts";
 import { ids, StackFixture } from "../test/index.ts";
 
+/** The builds the stress test records in one space, enough that a read per build shows. */
+const STRESS_BUILDS = 2000;
+
+/** The directories the stress test builds from, each a source of its own. */
+const STRESS_SOURCES = 4;
+
 test("retain each source's latest builds and every build a revision applies", async () => {
     const fixture = await StackFixture.open();
     const { database } = fixture;
@@ -85,4 +91,54 @@ test("retain each source's latest builds and every build a revision applies", as
         ["a".repeat(64), "c".repeat(64), "d".repeat(64), "e".repeat(64)],
         [{ id: dropped, scope: ids.space }],
     ]);
+});
+
+test("decide the retention of many builds in two statements and one retention read per space", async () => {
+    // record many builds of a few directories in one space
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const now = Date.now();
+    await database.insert(build.table).values(
+        Array.from({ length: STRESS_BUILDS }, (_, index) => ({
+            id: Identifier.create("build"),
+            scope: ids.space,
+            source: {
+                kind: "checkout" as const,
+                machine: ids.machine,
+                checkout: ids.checkout,
+                directory: `directory-${String(index % STRESS_SOURCES)}`,
+            },
+            outputs: ["bun" as const],
+            state: "succeeded" as const,
+            manifest: index.toString(16).padStart(64, "0"),
+            failure: null,
+            startedAt: now - index,
+            finishedAt: now - index,
+            createdAt: now - index,
+            updatedAt: now - index,
+        })),
+    );
+
+    // keep two builds of each source, counting the statements and retention reads
+    const reader = database.metered();
+    let reads = 0;
+    const retention = async () => {
+        reads += 1;
+
+        return 2;
+    };
+    const { retained, expired } = await Build.retention(reader, retention);
+
+    // retain the latest two of each source and expire the rest
+    expect({
+        retained: retained.size,
+        expired: expired.length,
+        statements: reader.driver.operations,
+        reads,
+    }).toEqual({
+        retained: 2 * STRESS_SOURCES,
+        expired: STRESS_BUILDS - 2 * STRESS_SOURCES,
+        statements: 2,
+        reads: 1,
+    });
 });

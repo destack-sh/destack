@@ -31,6 +31,7 @@ import type { Runtime } from "../runtime/index.ts";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import { branchType, installation } from "../object/index.ts";
+import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import type { ContentStore } from "@destack/resource";
@@ -45,7 +46,7 @@ import {
     ProviderIndex,
     type SpaceProvider,
 } from "./resource/resource.ts";
-import { implementSpace } from "./host/space.ts";
+import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { Scheduler } from "./host/scheduler.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
@@ -76,6 +77,8 @@ type AccountClient = ClientOf<typeof accountPackage>;
 
 /** What a machine serves its spaces with. */
 export interface SpaceOptions {
+    /** The space's role on this machine, as its placement decides. */
+    readonly role: SpaceRole;
     /** The principal the store's own work runs as. */
     readonly principal: Subject;
     /** The space's database. */
@@ -103,7 +106,7 @@ export interface SpaceOptions {
     readonly publisherAt: ((scope: string) => Publisher) | null;
     /** The providers with the spaces' resources. */
     readonly providers: readonly SpaceProvider[];
-    /** The machine's content-addressed store, storing its resources' snapshots. */
+    /** The space's own content-addressed store of its resources' snapshots. */
     readonly store: ContentStore;
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
@@ -157,8 +160,11 @@ function stackServer(
     const scheduler = new Scheduler(options);
     const transfers = configureTransfers(options, providers);
 
-    // serve the space's objects with the external types
-    const own = ownObjects(options, providers, binder, scheduler, transfers);
+    // serve the space's objects with the external types, a standby only those its moves write
+    const isPrimary = options.role === "primary";
+    const own = isPrimary
+        ? ownObjects(options, providers, binder, scheduler, transfers)
+        : stackObjects([implementRestore(transfers), implementTransfer(transfers)]);
 
     return defineServer(stackPackage, {
         objects: [...own, ...externalObjects(options, own)],
@@ -166,34 +172,44 @@ function stackServer(
         providers: listed,
         follows: [
             ...spaceFollows(options),
-            ...(options.isEnforcingEntitlements ? [Entitlement.follow] : []),
-            ...options.follows,
+            ...(isPrimary && options.isEnforcingEntitlements ? [Entitlement.follow] : []),
+            ...(isPrimary ? options.follows : []),
         ],
         // answer moving spaces' targets and installations' hook sessions
         adapters: {
             handoff: handoffAdapter({ ...options, providers }),
             hook: hookAdapter(options.sandboxes),
         },
-        // control the spaces, their consumers, retention and moves over the space's store
+        // move the space in either role, and run the primary's consumers and retention
         controllers: [
-            () =>
-                new AssignmentController(
-                    options.database,
-                    options.publisher,
-                    options.machine,
-                    options.clock,
-                ),
-            (store) => new PlacementController(store, options.machine, options),
-            (store) => new ConsumerController(store, providers.objects(), options.main),
-            (store) =>
-                new RetentionController(store, options.builds, options.sweepCache, options.store),
             (store) => new TransferController(transfers, store),
-            ...options.providers.flatMap((provider) =>
-                (provider.controllers ?? []).map((controller) => () => controller),
-            ),
+            ...(isPrimary ? primaryControllers(options, providers) : []),
         ],
         responseHeaders: { "Cache-Control": "no-store" },
     });
+}
+
+/** List a primary's controllers: assignments, placement, consumers and retention. */
+function primaryControllers(
+    options: SpaceOptions,
+    providers: ProviderIndex,
+): NonNullable<ServerDefinition["controllers"]> {
+    return [
+        () =>
+            new AssignmentController(
+                options.database,
+                options.publisher,
+                options.machine,
+                options.clock,
+            ),
+        (store) => new PlacementController(store, options.machine, options),
+        (store) => new ConsumerController(store, providers.objects(), options.main),
+        (store) =>
+            new RetentionController(store, options.builds, options.sweepCache, options.store),
+        ...options.providers.flatMap((provider) =>
+            (provider.controllers ?? []).map((controller) => () => controller),
+        ),
+    ];
 }
 
 /** Serve a space's stack and other packages over its one database, the stack first. */
@@ -222,17 +238,25 @@ export function serveSpace(options: SpaceOptions): {
         };
     });
 
-    // serve the stack, the settings and the other packages over one store
+    // serve the stack with its access objects, then settings and packages, a standby the stack and access only
+    const stack = stackServer(
+        options,
+        others.map((each) => each.served),
+    );
+    const access = defineServer(objectPackage, {
+        objects: [implementRole(), implementRelationship()],
+    });
     const store = new ObjectStore({
-        servers: [
-            stackServer(
-                options,
-                others.map((each) => each.served),
-            ),
-            installedSettingsServer(options),
-            workflowServer,
-            ...others.map((each) => each.server),
-        ],
+        servers:
+            options.role === "primary"
+                ? [
+                      stack,
+                      access,
+                      installedSettingsServer(options),
+                      workflowServer,
+                      ...others.map((each) => each.server),
+                  ]
+                : [stack, access],
         principal: options.principal,
         database: options.database,
         claims: options.claims,
@@ -242,16 +266,14 @@ export function serveSpace(options: SpaceOptions): {
         ephemeral: options.sockets.storage,
         origin: { package: stackPackage, machineId: options.machine },
         uplink: options.publisher,
-        // follow no chain until the space is placed, then root it above the space where placed, else follow it
+        // root the chain above a primary's space once placed, and follow none on a standby
         chain: async (view) => {
             const served = schema.identifier("space").parse(options.principal.id);
             const row = await view.read(placement.table).findFirst({ where: { id: served } });
 
-            return row === undefined
-                ? undefined
-                : row.machineId === options.machine
-                  ? { kind: "home", parent: row.scope }
-                  : { kind: "follower" };
+            return options.role === "primary" && row !== undefined
+                ? { kind: "home", parent: row.scope }
+                : undefined;
         },
         // reach the universe by the uplink, other scopes at their homes by the machine's route
         publisher: (scope) => homePublisher(options, scope),
@@ -320,11 +342,13 @@ function ownObjects(
         implementBuild(options),
         implementTransfer(transfers),
         implementRoute(),
-        implementRole(),
-        implementRelationship(),
     ];
 
-    // serve the package's stored types, each in place of its plain type, then the provided resources
+    return stackObjects(served);
+}
+
+/** Serve the stack's stored types, each implemented one in place, then the other served types. */
+function stackObjects(served: readonly ObjectType[]): ObjectType[] {
     const own = Object.values(stackPackage.objects)
         .filter((type) => type.storage !== "external")
         .map((type) => served.find((each) => each.same(type)) ?? type);
@@ -372,6 +396,7 @@ function spaceProviders(options: SpaceOptions) {
 /** Move spaces through the universe, the sources' handoffs, the providers and the spaces' keys. */
 function configureTransfers(options: SpaceOptions, providers: ProviderIndex): TransferOptions {
     return {
+        role: options.role,
         machine: options.machine,
         database: options.database,
         publisher: options.publisher,
@@ -414,14 +439,19 @@ function homePublisher(
         throw new TypeError(`this machine follows nothing from the home of ${scope}`);
     }
 
+    // follow a space at itself, an account, organisation or person at their home
+    const homed = async () =>
+        publisherAt(
+            space.identifies(scope)
+                ? scope
+                : await Account.homeOf(Snapshot.live(options.database), scope),
+        );
+
     return {
         async *stream(subscription, signal) {
-            // follow a space at itself, an account, organisation or person at their home
-            const isSpace = space.identifies(scope);
-            const home = isSpace
-                ? scope
-                : await Account.homeOf(Snapshot.live(options.database), scope);
-            yield* publisherAt(home).stream(subscription, signal);
+            yield* (await homed()).stream(subscription, signal);
         },
+        confirm: async (subscription, watermark) =>
+            (await homed()).confirm(subscription, watermark),
     };
 }

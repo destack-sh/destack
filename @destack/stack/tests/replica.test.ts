@@ -3,6 +3,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import {
     AccessContext,
     Authentication,
+    CHAIN_PUBLICATION,
     Authorization,
     Authorizer,
     Caller,
@@ -28,6 +29,7 @@ import stackPackage from "../src/package.ts";
 import * as accountObject from "@destack/account/object";
 import { installation } from "../src/object/index.ts";
 import { serveSpace } from "../src/server/index.ts";
+import { ObjectSink } from "@destack/object/server";
 import { ids, StackFixture } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 
@@ -76,11 +78,15 @@ test("relay the user enclosing a space to the space's installation, concealing i
     // keep and serve the space below an account of alice's user scope with her replicated user row
     const { database, snapshot } = await serveInstallation();
     const now = Date.now();
-    const key = { name: Authorizer.chainReplica(ids.space), scope: alice };
+    const key = { name: ObjectSink.chainName(ids.space), scope: alice };
     await database.insert(replica).values({ ...key, tables: [] });
-    await database
-        .insert(replicaPosition)
-        .values({ ...key, epoch: "epoch-global", sequence: 812, confirmedAt: now });
+    await database.insert(replicaPosition).values({
+        ...key,
+        log: "log-global",
+        epoch: "epoch-global",
+        sequence: 812,
+        confirmedAt: now,
+    });
     await database.insert(user.table).values({
         id: alice,
         scope: "universe",
@@ -94,7 +100,7 @@ test("relay the user enclosing a space to the space's installation, concealing i
     });
 
     // relay her user row to the installation inside her scope
-    const changes = await snapshot(notes, alice, [user.typeReference]);
+    const changes = await snapshot(notes, alice, user.typeReference);
     expect(
         changes.flatMap((change) =>
             change.table === user.table[TABLE].sqlName
@@ -134,23 +140,19 @@ async function serveInstallation() {
             fetch: (request) => server.fetch(request),
         });
 
-    // read the snapshot of one scope's replica as an installation with each row's scope
-    const snapshot = async (
-        as: Subject,
-        scope: string,
-        replicated: readonly ObjectTypeReference[] = [],
-    ) => {
+    // read the snapshot of one scope's chain replica, with a type it hands down, as an installation with each row's scope
+    const snapshot = async (as: Subject, scope: string, type?: ObjectTypeReference) => {
         const pages = await client(as).store.stream({
-            name: Authorizer.chainReplica(ids.space),
+            name: ObjectSink.chainName(ids.space),
             scope,
-            below: ids.space,
-            publication: "chain",
+            target: ids.space,
+            publication: CHAIN_PUBLICATION,
             parameters: {
+                scopes: [ids.space],
                 local: [],
-                replicated: [...replicated],
+                types: type === undefined ? [] : [{ ...type }],
                 via: [],
                 between: [],
-                types: [],
             },
         });
         const changes: Page["changes"][number][] = [];
@@ -174,11 +176,15 @@ async function createSpace(database: DatabaseConnection): Promise<void> {
     const access = new AccessFixture(database);
     await access.replicateScope(user.reference("universe", alice));
     await access.replicateScope(account.reference(alice, ids.account));
-    const key = { name: Authorizer.chainReplica(ids.space), scope: ids.account };
+    const key = { name: ObjectSink.chainName(ids.space), scope: ids.account };
     await database.insert(replica).values({ ...key, tables: [] });
-    await database
-        .insert(replicaPosition)
-        .values({ ...key, epoch: "epoch-global", sequence: 812, confirmedAt: now });
+    await database.insert(replicaPosition).values({
+        ...key,
+        log: "log-global",
+        epoch: "epoch-global",
+        sequence: 812,
+        confirmedAt: now,
+    });
 
     // record the space owned by owner
     await database.insert(space.table).values({

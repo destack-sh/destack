@@ -15,6 +15,7 @@ import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
 import type { PackageLocation } from "@destack/package/manifest";
+import type { ResourceState } from "@destack/package/declare";
 import stackPackage, { HANDOFF_PATH } from "../../package.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 
@@ -24,10 +25,10 @@ interface HandoffCall {
     readonly signal?: AbortSignal;
 }
 
-/** The paths of a space's handoff below the adapter: its row streams, blobs and builds. */
+/** The paths of a space's handoff below the adapter: its rows, states, blobs and builds. */
 const HandoffPath = {
     /** Write the path of a space's handoff part. */
-    of(spaceId: string, part: "watch" | "capture" | "blobs" | "builds"): string {
+    of(spaceId: string, part: "watch" | "capture" | "states" | "blobs" | "builds"): string {
         return `/${spaceId}/${part}`;
     },
 
@@ -53,6 +54,11 @@ export interface Handoff {
         input: { readonly spaceId: Identifier<"space">; readonly after?: LogPosition },
         options?: HandoffCall,
     ) => AsyncIterable<Page>;
+    /** Read the desired states the space's main database applied. */
+    readonly states: (
+        spaceId: Identifier<"space">,
+        options?: HandoffCall,
+    ) => Promise<ResourceState[]>;
     /** Fence the space for the transfer's target, answering its position and digest. */
     readonly fence: (transfer: Pick<Transfer, "scope" | "id">) => Promise<Fence>;
     /** Read the fenced space's rows whole, sealing machine-bound values to a recipient. */
@@ -106,6 +112,12 @@ export const Handoff = {
                         : `?after=${encodeURIComponent(JSON.stringify(after))}`;
                 const path = `${adapter}${HandoffPath.of(spaceId, "watch")}${query}`;
                 yield* pagesOf(await send(new Request(path, { signal: options.signal ?? null })));
+            },
+            states: async (spaceId, options = {}) => {
+                const path = `${adapter}${HandoffPath.of(spaceId, "states")}`;
+                const response = await send(new Request(path, { signal: options.signal ?? null }));
+
+                return schema.array(schema.jsonObject()).parse(await response.json());
             },
             fence: (transfer) =>
                 stack.transfer.fence({
@@ -254,6 +266,10 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
                     drain: context.signal,
                 }),
             );
+        }
+        // answer the desired states the space's main database applied
+        else if (part === "states" && request.method === "GET") {
+            return Response.json(await SpaceTransfer.states(options.database, spaceId));
         }
         // capture every column of the fenced space, sealing machine-bound values to the recipient
         else if (part === "capture" && request.method === "POST") {

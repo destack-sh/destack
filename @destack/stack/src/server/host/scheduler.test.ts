@@ -2,7 +2,7 @@ import { TestEntitlement, TestDirectory } from "@destack/account/test";
 import { principal } from "@destack/access";
 import { Tenancy, machine, space } from "@destack/account/object";
 import { eq } from "@destack/db";
-import { reconciliation } from "@destack/runtime/test";
+import { reconcileOnce } from "@destack/runtime/test";
 import { setting } from "@destack/setting/object";
 import { schema, present } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -70,9 +70,7 @@ async function open(classes: readonly Tenancy[]) {
         "the space controller",
     );
     const control = async () => {
-        for (const key of await controller.list()) {
-            await controller.reconcile(key, reconciliation());
-        }
+        await reconcileOnce(controller, objects.database);
     };
 
     return { fixture, universe: opened.universe, control };

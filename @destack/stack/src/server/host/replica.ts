@@ -6,16 +6,17 @@ import { call, journal, storeTables } from "@destack/object";
 import {
     and,
     type DatabaseConnection,
-    eq,
+    inArray,
     Order,
     type Row,
+    Snapshot,
     TABLE,
     type Table,
     type Transaction,
 } from "@destack/db";
 import { Recipient } from "@destack/identity";
 import { CallError } from "@destack/runtime/error";
-import { Feed, Replica, replica, replicaPosition } from "@destack/sync";
+import { Feed, Replica, replica, replicaPosition, Scope } from "@destack/sync";
 import { type Fence, restore, snapshot, transfer } from "../../object/index.ts";
 import type { Handoff } from "./handoff.ts";
 import type { Clock } from "@destack/environment";
@@ -50,13 +51,19 @@ export class SpaceReplica {
     readonly spaceId: Identifier<"space">;
     /** The tables with the space's rows, parents before the tables referencing them. */
     readonly tables: readonly Table[];
+    /** The space and the scopes below it, whose rows the replica moves. */
+    readonly scopes: readonly string[];
     /** The replica the target follows the space's rows through. */
     readonly replica: Replica;
 
-    /** Plan the replica of a space's rows in every table whose scope admits the space. */
-    static of(database: DatabaseConnection, spaceId: Identifier<"space">): SpaceReplica {
-        // take the tables the database owns with the space's rows
-        const tables = database.tables.filter((table) => {
+    /** Plan the replica of a space's subtree's rows in the database's tables and the given ones. */
+    static async of(
+        database: DatabaseConnection,
+        spaceId: Identifier<"space">,
+        beside: readonly Table[],
+    ): Promise<SpaceReplica> {
+        // take the tables the database owns with the space's rows, and those beside it
+        const tables = [...database.tables, ...beside].filter((table) => {
             const scope = table[TABLE].columns["scope"];
 
             return (
@@ -73,23 +80,39 @@ export class SpaceReplica {
             ? [transfer.table, ...tables]
             : tables;
 
-        return new SpaceReplica({ database, spaceId, tables: ordered });
+        // replicate the rows of the space and of every scope below it
+        const scopes = await Scope.subtree(Snapshot.live(database), spaceId);
+
+        return new SpaceReplica({ database, spaceId, scopes, tables: ordered });
     }
 
     /** Plan the replica of a space's rows in some tables of a database. */
     constructor(options: {
         readonly database: DatabaseConnection;
         readonly spaceId: Identifier<"space">;
+        readonly scopes: readonly string[];
         readonly tables: readonly Table[];
     }) {
-        // keep the database, the space and the tables with its rows
+        // keep the database, the space and the tables with its subtree's rows
         this.database = options.database;
         this.spaceId = options.spaceId;
         this.tables = options.tables;
+        this.scopes = options.scopes;
         this.replica = new Replica({
             name: TRANSFER_REPLICA,
             scope: options.spaceId,
             tables: options.tables,
+            scopes: new Map(options.tables.map((table) => [table, options.scopes])),
+        });
+    }
+
+    /** Plan the same replica over a known subtree, such as the one a source fenced. */
+    within(scopes: readonly string[]): SpaceReplica {
+        return new SpaceReplica({
+            database: this.database,
+            spaceId: this.spaceId,
+            scopes,
+            tables: this.tables,
         });
     }
 
@@ -102,7 +125,7 @@ export class SpaceReplica {
 
     /** Apply the source's capture of every column of the space's rows. */
     async capture(
-        source: Handoff,
+        source: Pick<Handoff, "capture">,
         fenced: Fence,
         recipient: Recipient,
         open: (table: Table, row: Row) => Promise<Row>,
@@ -123,7 +146,7 @@ export class SpaceReplica {
         }
 
         // verify the rows
-        const digest = await SpaceReplica.digest(this.database, this.digestTables(), this.spaceId);
+        const digest = await SpaceReplica.digest(this.database, this.digestTables(), this.scopes);
         if (digest !== fenced.digest) {
             throw new CallError("CONFLICT", {
                 message: `the replica of ${this.spaceId} differs from its fenced source`,
@@ -138,14 +161,15 @@ export class SpaceReplica {
         }
     }
 
-    /** Delete the space's rows children first, as the replica wrote them. */
+    /** Delete the space's subtree's rows children first, as the replica wrote them. */
     async delete(): Promise<void> {
+        const { scopes } = this;
         await this.database.transaction(
             async (transaction) => {
                 await transaction.log.asReplica(async () => {
                     for (const table of this.tables.toReversed()) {
                         const scope = table[TABLE].column("scope");
-                        await transaction.delete(table).where(eq(scope, this.spaceId));
+                        await transaction.delete(table).where(inArray(scope, scopes));
                     }
                 });
             },
@@ -158,17 +182,17 @@ export class SpaceReplica {
         return this.tables.filter((table) => !UNDIGESTED_TABLES.has(table));
     }
 
-    /** Digest every column of a space's rows in some tables page by page in key order. */
+    /** Digest every column of a subtree's rows in some tables page by page in key order. */
     static async digest(
         database: DatabaseConnection,
         tables: readonly Table[],
-        spaceId: string,
+        scopes: readonly string[],
     ): Promise<string> {
-        // digest each table's rows of the space a page at a time and seek past the last key read
+        // digest each table's rows of the subtree a page at a time and seek past the last key read
         const pages: string[] = [];
         for (const table of tables) {
             const order = Order.complete([], table);
-            const inSpace = eq(table[TABLE].column("scope"), spaceId);
+            const inSpace = inArray(table[TABLE].column("scope"), scopes);
             let last: Row | undefined;
             do {
                 // read the next page of the space's rows in key order

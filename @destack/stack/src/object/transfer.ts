@@ -11,8 +11,10 @@ import { space } from "@destack/account/object";
 export const Fence = schema.object({
     /** The database's log position once fenced. */
     position: LogPosition,
-    /** The digest of the space's rows at the position. */
+    /** The digest of the rows of the space and the scopes below it at the position. */
     digest: Digest,
+    /** The space and the scopes below it, which the fence keeps from changing. */
+    scopes: schema.array(schema.string().min(1)),
 });
 /** Where a source stood once fenced. */
 export type Fence = schema.Infer<typeof Fence>;
