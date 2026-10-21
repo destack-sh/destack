@@ -1,4 +1,4 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineWorkflow } from "../src/index.ts";
@@ -71,7 +71,6 @@ test("fail a run with the refusal its child run failed with", async () => {
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect(run?.["failure"]).toEqual({
         code: "BAD_REQUEST",
-        status: 400,
         message: "a negative number",
     });
 });

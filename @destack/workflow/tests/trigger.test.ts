@@ -1,5 +1,5 @@
 import { ResourceContext } from "@destack/resource/context";
-import { testKeys } from "@destack/runtime/test";
+import { testKeys } from "@destack/object/test";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow, StandardSignature } from "../src/index.ts";

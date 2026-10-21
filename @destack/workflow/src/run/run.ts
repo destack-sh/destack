@@ -1,11 +1,17 @@
 import { AccessContext, Grant } from "@destack/access";
-import { type DatabaseConnection, Lease, type Row, Snapshot } from "@destack/db";
+import {
+    type DatabaseConnection,
+    Lease,
+    type Row,
+    Snapshot,
+    LEASE_MILLISECONDS,
+} from "@destack/db";
 import { Limits, type MethodContext, type ObjectReconciliation } from "@destack/object";
-import { LEASE_MILLISECONDS } from "@destack/runtime/control";
-import { CallError } from "@destack/runtime/error";
-import { RetryPolicy } from "@destack/runtime/timer";
+import { CallError } from "@destack/object";
+import { RetryPolicy } from "@destack/environment";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
-import { Failure, ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
 import { type RunContext, type Step, StepContext, Suspension } from "../step/step.ts";
 import { recorded, type Workflow } from "../workflow/workflow.ts";
@@ -348,9 +354,6 @@ export class Run<Input = unknown, Output = unknown> {
 
             return { wake: undefined, isEnded: true };
         } catch (error) {
-            // read a refusal, a domain one too
-            const refusal = CallError.of(error);
-
             // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
             if (error instanceof Suspension) {
                 const wakeAt = error.at ?? null;
@@ -369,14 +372,11 @@ export class Run<Input = unknown, Output = unknown> {
                 return { wake: error.at, isEnded: false };
             }
             // fail on a final refusal, or an input or output its schema refuses
-            else if (
-                (refusal !== undefined && CallError.isRefusal(refusal.status)) ||
-                error instanceof schema.Error
-            ) {
+            else if (CallError.refusal(error) !== undefined || error instanceof schema.Error) {
                 await reconciliation.mutate([
                     this.workflow.run.call("fail", {
                         ...target,
-                        failure: Failure.of(refusal ?? error),
+                        failure: Failure.of(error),
                     }),
                 ]);
 

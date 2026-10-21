@@ -1,7 +1,6 @@
-import type { ServerContext } from "@destack/runtime/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { nth, Instant, schema, type JsonValue } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { RequestBody } from "@destack/runtime/request";
+import { CallError, RequestBody } from "@destack/object";
 
 /** A path template of literal and `{name}` segments, or only `/`. */
 const PATH_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;

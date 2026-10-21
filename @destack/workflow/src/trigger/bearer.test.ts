@@ -2,8 +2,8 @@ import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { exportJWK, generateKeyPair } from "jose";
-import { defineHttps } from "@destack/runtime/declare";
-import { testKeys } from "@destack/runtime/test";
+import { defineHttps } from "@destack/object";
+import { testKeys } from "@destack/object/test";
 import { BearerSignature } from "./bearer.ts";
 
 /** The sender's API, whose key set the scheme reads. */

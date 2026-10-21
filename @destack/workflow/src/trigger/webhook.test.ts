@@ -4,7 +4,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { WebhookOn } from "./webhook.ts";
 import { Trigger } from "./trigger.ts";
 import { StandardSignature, type WebhookDelivery } from "./webhook.ts";
-import { testKeys } from "@destack/runtime/test";
+import { testKeys } from "@destack/object/test";
 
 /** Read the push of the repository in a delivery's path. */
 function pushed(delivery: WebhookDelivery) {

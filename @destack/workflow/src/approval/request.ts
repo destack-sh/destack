@@ -2,7 +2,8 @@ import { contained, relation, through, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Call, Failure, Subject } from "@destack/sync";
+import { Call, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import { approval } from "./approval.ts";
 
 /** Whose grant an approved change's call runs under: its requester's, or its approver's. */

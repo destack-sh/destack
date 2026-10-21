@@ -2,10 +2,10 @@ import type { AccessContext } from "@destack/access";
 import { and, eq, TABLE, Transaction } from "@destack/db";
 import { CallSite, MethodContext, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { CallError, errorOf, isCallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
-import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import type * as sync from "@destack/sync";
 import { Approval, approval, type ApprovalState } from "../approval/approval.ts";
 import { changeRequest } from "../approval/request.ts";
@@ -226,11 +226,11 @@ export class StepContext implements Step {
             return made;
         } catch (error) {
             // ask for approval of a call the grant gives once approved
-            if (isCallError(error) && error.code === "APPROVAL_REQUIRED") {
+            if (CallError.of(error)?.code === "APPROVAL_REQUIRED") {
                 return this.#request(name, call);
             }
             // record a final refusal as the call's answer, and let anything else retry the advance
-            else if (isCallError(error) && CallError.isRefusal(error.status)) {
+            else if (CallError.refusal(error) !== undefined) {
                 await this.#complete(name, { failure: Failure.of(error) });
             }
 
@@ -306,7 +306,7 @@ export class StepContext implements Step {
         } else if (request.state === "failed") {
             const failure = present(request.failure, `the failure of ${changeRequestId}`);
             await this.#complete(name, { failure });
-            throw errorOf(failure);
+            throw Failure.error(failure);
         }
         // refuse a call its approvers rejected or its requester withdrew
         else if (request.state === "rejected" || request.state === "withdrawn") {
@@ -316,7 +316,7 @@ export class StepContext implements Step {
                 }),
             );
             await this.#complete(name, { failure });
-            throw errorOf(failure);
+            throw Failure.error(failure);
         }
 
         // wait for the decision
@@ -536,7 +536,7 @@ export class StepContext implements Step {
                     }),
                 );
             await this.#complete(name, { failure });
-            throw errorOf(failure);
+            throw Failure.error(failure);
         }
         throw new Suspension(undefined, waitType);
     }
@@ -735,7 +735,7 @@ export class StepContext implements Step {
     /** Answer a recorded step: its output, or its failure thrown again. */
     static #replay(recordedStep: StepRecord): JsonValue {
         if (recordedStep.failure !== null) {
-            throw errorOf(recordedStep.failure);
+            throw Failure.error(recordedStep.failure);
         }
 
         return recordedStep.output;

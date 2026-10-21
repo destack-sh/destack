@@ -1,4 +1,4 @@
-import type { ServerContext } from "@destack/runtime/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { schema, type JsonValue } from "@destack/schema";
 import {
     createRemoteJWKSet,
@@ -10,11 +10,9 @@ import {
     type JWTPayload,
     type JWTVerifyGetKey,
 } from "jose";
-import { Bearer } from "@destack/runtime/authentication";
-import { KEY_CACHE_MILLISECONDS, KEY_TIMEOUT_MILLISECONDS } from "@destack/runtime/authentication";
-import { RequestBody } from "@destack/runtime/request";
-import type { HttpsBinding } from "@destack/runtime/declare";
-import { CallError } from "@destack/runtime/error";
+import { Bearer, KEY_CACHE_MILLISECONDS, KEY_TIMEOUT_MILLISECONDS } from "@destack/access/token";
+import { RequestBody, CallError } from "@destack/object";
+import type { HttpsBinding } from "@destack/object";
 import {
     WebhookDelivery,
     type WebhookMessage,

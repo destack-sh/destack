@@ -3,7 +3,8 @@ import { space } from "@destack/account/object";
 import { eq, TABLE } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { present, schema } from "@destack/schema";
-import { Failure, Scope } from "@destack/sync";
+import { Scope } from "@destack/sync";
+import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow, Run } from "../src/index.ts";
 import { actor, alice, note, openWorkflow, START, type WorkflowFixture } from "./fixture.ts";
@@ -35,7 +36,7 @@ test("retry a failing advance after its backoff, and fail once the attempts run 
     expect([run?.["attempts"], run?.["output"], run?.["failure"]]).toEqual([
         2,
         3,
-        { code: "Error", status: 500, message: "attempt 2 failed" },
+        { code: "INTERNAL_SERVER_ERROR", message: "attempt 2 failed" },
     ]);
 });
 
@@ -54,7 +55,7 @@ test("fail a run once its attempts run out, keeping the last failure", async () 
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["attempts"], run?.["failure"]]).toEqual([
         1,
-        { code: "Error", status: 500, message: "always" },
+        { code: "INTERNAL_SERVER_ERROR", message: "always" },
     ]);
 });
 
@@ -69,7 +70,7 @@ test("time a run out at its deadline while it sleeps past it", async () => {
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["deadline"], run?.["failure"]]).toEqual([
         START + 60 * MINUTE,
-        { code: "TIMEOUT", status: 408, message: `run ${String(run?.["id"])} timed out` },
+        { code: "TIMEOUT", message: `run ${String(run?.["id"])} timed out` },
     ]);
 });
 
@@ -276,8 +277,7 @@ test("fail a run whose function takes other steps on a later advance than it rec
     expect([advances, run?.["failure"]]).toEqual([
         2,
         {
-            code: "Error",
-            status: 500,
+            code: "INTERNAL_SERVER_ERROR",
             message: `run ${String(run?.["id"])} diverged from its recorded steps: it takes second where it recorded first, as its function is not deterministic between steps`,
         },
     ]);

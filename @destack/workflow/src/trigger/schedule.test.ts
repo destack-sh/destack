@@ -1,4 +1,4 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { expect, test } from "@destack/test";
 import { Schedule, type ScheduleTiming } from "./schedule.ts";
 

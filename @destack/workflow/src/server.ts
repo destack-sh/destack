@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
-import { defineServer } from "@destack/object/server";
-import { CallError } from "@destack/runtime/error";
+import { implementPackage } from "@destack/object/server";
+import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { approval, change, Change, ChangeRequest, changeRequest } from "./approval/index.ts";
@@ -10,7 +10,7 @@ import workflowPackage from "./package.ts";
 const changes = change.implement((step, input, context) => new Change(step, input, context).run());
 
 /** The workflow package's server, whose change requests run until approved or rejected. */
-export default defineServer(workflowPackage, {
+export default implementPackage(workflowPackage, {
     objects: [
         approval,
         changeRequest.implement({

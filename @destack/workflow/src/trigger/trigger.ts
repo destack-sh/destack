@@ -1,7 +1,7 @@
 import type { Condition } from "@destack/db";
 import { DeclarationName } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import type { ServerContext } from "@destack/runtime/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
 import {
     ChangeOn,

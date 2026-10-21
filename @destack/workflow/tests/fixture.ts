@@ -2,18 +2,23 @@ import { anyone, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { STACKS } from "@destack/account/test";
-import { bucket, type DatabaseConnection, defineDatabase, lease, Table } from "@destack/db";
+import {
+    bucket,
+    type DatabaseConnection,
+    defineDatabase,
+    lease,
+    Table,
+    ControlLoop,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { VirtualClock } from "@destack/environment/simulation";
 import { defineObject, field, type ObjectType } from "@destack/object";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { callTables, testEvents } from "@destack/object/test";
-import { PackageHandle } from "@destack/runtime";
-import { ControlLoop } from "@destack/runtime/control";
-import { RequestId } from "@destack/runtime/request";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { PackageHandle } from "@destack/object";
+import { RequestId, type Call, type Subject, Scope } from "@destack/sync";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { type Identifier, schema } from "@destack/schema";
-import { type Call, type Subject, Scope } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
 import type {
@@ -167,7 +172,7 @@ export async function openServed<Input, Output>(
         clock,
         principal: principal.installation.reference(spaceId, INSTALLATION),
         servers: [
-            defineServer(handle, {
+            implementPackage(handle, {
                 objects: [
                     servedNote,
                     ...objects,

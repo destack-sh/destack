@@ -1,7 +1,7 @@
 import { Instant, schema, TimeZone } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
-import { Failure } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { Failure } from "@destack/error";
+import { CallError } from "@destack/object";
 
 /** How a schedule trigger's runs may overlap, as a Kubernetes CronJob's concurrency policy. */
 export const CONCURRENCIES = ["allow", "forbid", "replace"] as const;

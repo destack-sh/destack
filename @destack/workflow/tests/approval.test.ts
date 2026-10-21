@@ -1,8 +1,7 @@
 import { present, schema } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { RequestId } from "@destack/runtime/request";
 import { expect, refusal, test } from "@destack/test";
 import { type Approval, approval, change, changeRequest, defineWorkflow } from "../src/index.ts";
 import { actor, alice, bob, note, openWorkflow, type WorkflowFixture } from "./fixture.ts";

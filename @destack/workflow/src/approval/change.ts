@@ -1,9 +1,10 @@
 import { AccessContext, Grant } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import type { MethodContext } from "@destack/object";
-import { isCallError, CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { type JsonValue, present, schema } from "@destack/schema";
-import { Call, Failure, ObjectReference, Subject } from "@destack/sync";
+import { Call, ObjectReference, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import type { RunContext, Step } from "../step/step.ts";
 import { defineWorkflow } from "../workflow/workflow.ts";
 import { approval } from "./approval.ts";
@@ -135,7 +136,7 @@ export class Change {
                 await this.#step.call("execute", changeRequest.call("execute", target));
                 await this.#step.call("apply", changeRequest.call("apply", target));
             } catch (error) {
-                if (!isCallError(error) || !CallError.isRefusal(error.status)) {
+                if (CallError.refusal(error) === undefined) {
                     throw error;
                 }
                 const failure = Failure.of(error);
