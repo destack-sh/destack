@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 
 const directory = fileURLToPath(new URL(".", import.meta.url));
 // derive the rounded outline from each square master
-for (const channel of ["", "-nightly", "-dev"]) {
+for (const channel of ["", "-dev"]) {
     const name = join(directory, "icon", `icon${channel}`);
     const source = await readFile(`${name}.svg`, "utf8");
     const rectangle = '<rect width="32" height="32"/>';
