@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection, LogClaim } from "@destack/db";
 
 /** A reader of events in commit order, its place kept in a log slot. */
 export class EventReader {
@@ -29,7 +29,22 @@ export class EventReader {
         await database.log.place(this.name, now + this.hold);
     }
 
-    /** Move the reader's place past a sequence, in the transaction that read up to it. */
+    /** Read the reader's claimed page, absent while it claims none. */
+    async claimed(database: DatabaseConnection): Promise<LogClaim | undefined> {
+        return database.log.claimed(this.name);
+    }
+
+    /** Claim the reader's page through a sequence unless claimed, absent once it moved on. */
+    async claim(
+        after: number,
+        through: number,
+        now: number,
+        database: DatabaseConnection,
+    ): Promise<LogClaim | undefined> {
+        return database.log.claim(this.name, after, through, now, now + this.hold);
+    }
+
+    /** Move the reader's place past a sequence it read, ending its claim. */
     async move(from: number, to: number, now: number, database: DatabaseConnection): Promise<void> {
         await database.log.move(this.name, from, to, now + this.hold);
     }

@@ -1,4 +1,13 @@
-import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
+import {
+    type DatabaseConnection,
+    integer,
+    json,
+    TABLE,
+    text,
+    type Row,
+    type Table,
+    type TableColumnMap,
+} from "@destack/db";
 import type { Package } from "@destack/package";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
@@ -31,7 +40,7 @@ export interface Event<
 > {
     /** The scope the event happened in, its home. */
     readonly scope: string;
-    /** The event's identity, which makes appending it again change nothing. */
+    /** The event's identity, which makes appending it again while it is hot change nothing. */
     readonly id: string;
     /** When the event happened, in Unix microseconds. */
     readonly time: number;
@@ -99,12 +108,15 @@ export const FlushPolicy = schema.object({
 /** When a scope's hot events flush into a segment. */
 export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 
+/** Read how long a scope keeps a kind's segments, in milliseconds, such as from its settings. */
+export type EventRetention = (scope: string, database: DatabaseConnection) => Promise<number>;
+
 /** When a scope's hot events flush and how long its segments stay. */
 export interface EventPolicy {
     /** When hot events flush. */
     readonly flush: FlushPolicy;
-    /** How long segments are kept, in milliseconds. */
-    readonly retention: number;
+    /** How long segments are kept: milliseconds, or read per scope. */
+    readonly retention: number | EventRetention;
 }
 
 /** The column type of a query key: text, a whole number, a number, or a JSON map of entries. */
@@ -266,9 +278,17 @@ export class EventKind<
         return this.#definition.data.parse(data);
     }
 
-    /** When hot events flush and how long segments stay by default. */
+    /** When hot events flush and how long segments stay. */
     get policy(): EventPolicy {
         return this.#definition.policy;
+    }
+
+    /** Read how long a scope keeps the kind's segments, in milliseconds. */
+    async retention(scope: string, database: DatabaseConnection): Promise<number> {
+        const { retention } = this.#definition.policy;
+        const read = typeof retention === "number" ? retention : await retention(scope, database);
+
+        return schema.number().int().positive().parse(read);
     }
 
     /** Whether segments are locked, chained and never compacted. */
@@ -331,7 +351,10 @@ export class EventKind<
     static #require(definition: EventKindDescription<EventKeyShape, JsonValue>): void {
         // check the policy and each key's column type
         FlushPolicy.parse(definition.policy.flush);
-        schema.number().int().positive().parse(definition.policy.retention);
+        const { retention } = definition.policy;
+        if (typeof retention === "number") {
+            schema.number().int().positive().parse(retention);
+        }
         for (const name of Object.keys(definition.keys.shape)) {
             EventKind.#keyType(definition, name);
         }

@@ -20,18 +20,11 @@ import {
     type EventKeyShape,
     type EventKeyType,
     type EventKindDescription,
-    type EventPolicy,
     eventColumns,
 } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
 import { VirtualClock } from "@destack/environment/simulation";
-
-/** The test event options beside kinds: a scope's policy. */
-export interface EventFixtureOptions {
-    /** Read a scope's policy for a kind, the kind's own when absent. */
-    readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy>;
-}
 
 /** Build a test kind and its table: the event columns, and an indexed column per key. */
 export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
@@ -121,11 +114,7 @@ export class EventFixture implements AsyncDisposable {
     }
 
     /** Open events of some kinds over a fresh dialect database, memory bucket and new keyring. */
-    static async open(
-        dialect: Dialect,
-        kinds: readonly EventKind[],
-        options: EventFixtureOptions = {},
-    ): Promise<EventFixture> {
+    static async open(dialect: Dialect, kinds: readonly EventKind[]): Promise<EventFixture> {
         // migrate the kinds' tables
         const tables = eventTables(kinds);
         const database = await TestDatabase.create(dialect, tables);
@@ -140,7 +129,6 @@ export class EventFixture implements AsyncDisposable {
                     kinds,
                     files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring),
-                    ...(options.policy === undefined ? {} : { policy: options.policy }),
                     clock: fixture.clock,
                 }),
             database,

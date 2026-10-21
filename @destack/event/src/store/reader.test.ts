@@ -48,3 +48,52 @@ test.for(TEST_DIALECTS)(
         }).toEqual({ keys: ["a", "b"], places: [7, 0] });
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "read a claimed page again unchanged after later appends, keep the first claim, and end it when the reader moves on %s",
+    async (dialect) => {
+        const fixture = await EventFixture.open(dialect, [reading]);
+        onTestFinished(() => fixture[Symbol.asyncDispose]());
+        const { database } = fixture.database;
+        const { store } = fixture;
+        const now = fixture.clock.now();
+        const metering = new EventReader("metering", HOLD).at("space-1");
+        const append = async (id: string) =>
+            store.append(reading, [
+                { scope: "space-1", id, time: now * 1000, keys: { meter: "requests" }, data: {} },
+            ]);
+        const filter = { scopes: ["space-1"] } as const;
+
+        // claim the page holding the first two readings, then append a third
+        await metering.place(now, database);
+        await append("reading-1");
+        await append("reading-2");
+        const after = await metering.after(database);
+        const open = await store.changes(reading, filter, after);
+        const claim = await metering.claim(after, open.sequence, now, database);
+        const again = await metering.claim(after, open.sequence + 1, now, database);
+        await append("reading-3");
+
+        // read the claimed page alone, then move past it and end the claim
+        const kept = await metering.claimed(database);
+        const claimed = await store.range(reading, filter, after, open.sequence);
+        await metering.move(after, open.sequence, now, database);
+        expect({
+            claim,
+            again,
+            kept,
+            claimed: claimed.map((event) => event.id),
+            unclaimed: await metering.claimed(database),
+            next: (await store.changes(reading, filter, open.sequence)).events.map(
+                (event) => event.id,
+            ),
+        }).toEqual({
+            claim: { through: open.sequence, claimedAt: now },
+            again: { through: open.sequence, claimedAt: now },
+            kept: { through: open.sequence, claimedAt: now },
+            claimed: ["reading-1", "reading-2"],
+            unclaimed: undefined,
+            next: ["reading-3"],
+        });
+    },
+);

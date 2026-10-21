@@ -23,13 +23,21 @@ const store = new EventStore({
     files,
     personal,
     clock,
-    report,
 });
+```
+
+## Retention
+
+A kind's segments stay for a fixed time or for one its scope reads, such as a space setting.
+
+```ts
+policy: { flush: { maxAge: HOUR, maxRows: 100_000 }, retention: 30 * DAY },
+policy: { flush, retention: async (scope, database) => days(scope, database) * DAY },
 ```
 
 ## Reading in order
 
-`changes` reads the events appended after a log position, and an `EventReader` keeps its place in a log slot, one per key of its family.
+`changes` reads the events appended after a log position, and an `EventReader` keeps its place in a log slot per key of its family.
 
 ```ts
 const metering = new EventReader("metering", 7 * DAY);
@@ -39,6 +47,22 @@ const reader = metering.at(accountId);
 const after = await reader.after(database);
 const { events, sequence } = await store.changes(kind, { scopes: [accountId] }, after, 100);
 await reader.move(after, sequence, now, database);
+```
+
+## Claiming a page
+
+A reader acting outside the store claims its page first, so a retry acts on the same page.
+
+```ts
+const claim = await reader.claim(after, sequence, now, database);
+if (claim !== undefined) {
+    const page = await store.range(kind, { scopes: [accountId] }, after, claim.through);
+    await usage.append({
+        requestId: await RequestId.derive(claim.claimedAt, key),
+        items: page.map(use),
+    });
+    await reader.move(after, claim.through, now, database);
+}
 ```
 
 ## Tests

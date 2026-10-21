@@ -18,7 +18,7 @@ import { present } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
 import type { AsyncBuffer } from "hyparquet";
 import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
-import { type Event, type EventPolicy, type EventKind, EventTime } from "../kind/kind.ts";
+import { type Event, type EventKind, EventTime } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
 import { SegmentFile } from "./segment.ts";
 
@@ -39,7 +39,7 @@ class DeletedSegment extends Error {
     }
 }
 
-/** Where a store keeps segments and how it reads each scope's policy. */
+/** Where a store keeps segments. */
 export interface EventArchiveOptions {
     /** The database of the hot events and the catalog. */
     readonly database: DatabaseConnection;
@@ -47,8 +47,6 @@ export interface EventArchiveOptions {
     readonly files: (scope: string) => Bucket;
     /** The bucket key prefix of the segments. */
     readonly prefix: string;
-    /** Read the policy of a kind's events in a scope. */
-    readonly policy: (kind: EventKind, scope: string) => Promise<EventPolicy>;
 }
 
 /** The segments of a store's scopes, written, compacted, expired and read back. */
@@ -59,16 +57,13 @@ export class EventArchive {
     readonly #files: (scope: string) => Bucket;
     /** The bucket key prefix. */
     readonly #prefix: string;
-    /** The policy of each kind and scope. */
-    readonly #policy: (kind: EventKind, scope: string) => Promise<EventPolicy>;
 
     /** Keep segments as the options say. */
     constructor(options: EventArchiveOptions) {
-        // keep the database, buckets, prefix and policy
+        // keep the database, buckets and prefix
         this.#database = options.database;
         this.#files = options.files;
         this.#prefix = options.prefix;
-        this.#policy = options.policy;
     }
 
     /** List the scopes with hot events or segments of a kind. */
@@ -100,8 +95,8 @@ export class EventArchive {
             return { isDue: false, at: undefined };
         }
 
-        // flush at the age or the count the scope's policy sets
-        const { flush } = await this.#policy(kind, scope);
+        // flush at the age or the count the kind's policy sets
+        const { flush } = kind.policy;
         const at = EventTime.milliseconds(oldest) + flush.maxAge;
 
         return { isDue: held.events >= flush.maxRows || at <= now, at };
@@ -110,13 +105,13 @@ export class EventArchive {
     /** Flush a scope's oldest hot events into a verified, catalogued segment. */
     async flush(kind: EventKind, scope: string, now: number): Promise<boolean> {
         // read the oldest hot events, at most a segment's worth
-        const policy = await this.#policy(kind, scope);
+        const { flush } = kind.policy;
         const rows = await this.#database
             .select()
             .from(kind.table)
             .where(eq(kind.table.scope, scope))
             .orderBy(asc(kind.table.time), asc(kind.table.id))
-            .limit(policy.flush.maxRows);
+            .limit(flush.maxRows);
         const events = rows.map((row) => kind.event(row));
         if (events.length === 0) {
             return false;
@@ -124,7 +119,7 @@ export class EventArchive {
 
         // write the segment, chained to the scope's previous one when the kind is locked
         const previous = kind.isLocked ? await this.#latestDigest(kind, scope) : null;
-        await this.#write(kind, scope, events, now, policy, previous, async (transaction) => {
+        await this.#write(kind, scope, events, now, previous, async (transaction) => {
             // prune exactly the flushed events
             for (let start = 0; start < events.length; start += PRUNE_BATCH) {
                 const batch = events.slice(start, start + PRUNE_BATCH).map((event) => event.id);
@@ -143,15 +138,13 @@ export class EventArchive {
         }
 
         // gather consecutive small segments up to a segment's worth of rows
-        const policy = await this.#policy(kind, scope);
+        const { flush } = kind.policy;
         const segments = await this.#catalog(kind, scope);
-        const small = segments.filter(
-            (segment) => segment.rows < policy.flush.maxRows * SMALL_SHARE,
-        );
+        const small = segments.filter((segment) => segment.rows < flush.maxRows * SMALL_SHARE);
         const group: typeof small = [];
         let rows = 0;
         for (const segment of small) {
-            if (rows + segment.rows > policy.flush.maxRows) {
+            if (rows + segment.rows > flush.maxRows) {
                 break;
             }
             group.push(segment);
@@ -172,7 +165,7 @@ export class EventArchive {
         const events = read
             .flat()
             .toSorted((left, right) => left.time - right.time || (left.id < right.id ? -1 : 1));
-        await this.#write(kind, scope, events, now, policy, null, async (transaction) => {
+        await this.#write(kind, scope, events, now, null, async (transaction) => {
             await transaction.delete(eventSegment).where(
                 inArray(
                     eventSegment.id,
@@ -188,7 +181,7 @@ export class EventArchive {
     /** Delete a scope's segments of a kind past its retention, their files first. */
     async expire(kind: EventKind, scope: string, now: number): Promise<number> {
         // read the segments whose latest event is older than the scope's retention
-        const { retention } = await this.#policy(kind, scope);
+        const retention = await kind.retention(scope, this.#database);
         const before = EventTime.of(now - retention);
         const expired = await this.#database
             .select({ id: eventSegment.id, file: eventSegment.file })
@@ -350,7 +343,6 @@ export class EventArchive {
         scope: string,
         events: readonly Event[],
         now: number,
-        policy: EventPolicy,
         previous: string | null,
         change: (transaction: DatabaseConnection) => Promise<void>,
     ): Promise<void> {
@@ -363,7 +355,9 @@ export class EventArchive {
         const file = `${this.#directory(kind, scope)}/${id}.parquet`;
         await this.#files(scope).put(file, data, {
             sha256: digest,
-            ...(kind.isLocked ? { retainUntil: new Date(now + policy.retention) } : {}),
+            ...(kind.isLocked
+                ? { retainUntil: new Date(now + (await kind.retention(scope, this.#database))) }
+                : {}),
         });
 
         // catalog it with the caller's change

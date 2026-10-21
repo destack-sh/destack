@@ -28,7 +28,7 @@ import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/runtime/control";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
-import { type Event, type EventKeyShape, EventKind, type EventPolicy } from "../kind/kind.ts";
+import { type Event, type EventKeyShape, EventKind } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
@@ -66,8 +66,6 @@ export interface EventStoreOptions {
     readonly prefix?: string;
     /** The keyring sealing personal values, needed by kinds with a subject. */
     readonly personal?: PersonalKeyring;
-    /** Read a scope's policy for a kind, every scope keeping the kind's own when absent. */
-    readonly policy?: (kind: EventKind, scope: string) => Promise<EventPolicy>;
     /** The clock segments flush, compact and expire by. */
     readonly clock: Clock;
 }
@@ -88,7 +86,7 @@ export class EventStore {
     /** Keep events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
         // require a keyring for subjects
-        const { kinds, policy } = options;
+        const { kinds } = options;
         if (options.personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
             throw new TypeError("event kinds with a subject need a personal keyring");
         }
@@ -100,14 +98,13 @@ export class EventStore {
             throw new TypeError(`event kind ${repeated} is kept twice`);
         }
 
-        // keep segments under each scope's policy, flushed and delivered by the controllers
+        // keep segments under each kind's policy, flushed and delivered by the controllers
         this.database = options.database;
         this.#kinds = new Map(kinds.map((kind) => [kind.key, kind]));
         this.#archive = new EventArchive({
             database: options.database,
             files: options.files,
             prefix: options.prefix ?? SEGMENT_PREFIX,
-            policy: policy ?? (async (kind) => kind.policy),
         });
         this.#personal = options.personal;
         this.controllers = [new ArchiveController(this.#archive, kinds, options.clock)];
@@ -269,7 +266,6 @@ export class EventStore {
     ): Promise<{ readonly events: readonly Event<Shape, Data>[]; readonly sequence: number }> {
         // read the page of the kind's committed appends after the sequence
         EventFilter.check(kind, filter);
-        const match = EventFilter.match(kind, filter);
         const page = await this.database.log.read({
             tables: [kind.table],
             scopes: filter.scopes,
@@ -277,8 +273,38 @@ export class EventStore {
             ...(limit === undefined ? {} : { limit }),
         });
 
-        // open each event the page appends and the filter selects
-        const appended = page.changes
+        return {
+            events: await this.#appended(kind, filter, page.changes),
+            sequence: page.sequence,
+        };
+    }
+
+    /** Read the events some scopes appended after a log sequence through another, as one page. */
+    async range<Shape extends EventKeyShape, Data extends JsonValue>(
+        kind: EventKind<Shape, Data>,
+        filter: EventFilter,
+        after: number,
+        through: number,
+    ): Promise<readonly Event<Shape, Data>[]> {
+        // read the kind's committed appends in the range
+        EventFilter.check(kind, filter);
+        const changes = await this.database.log.range(
+            { tables: [kind.table], scopes: filter.scopes, after },
+            through,
+        );
+
+        return this.#appended(kind, filter, changes);
+    }
+
+    /** Open each event some changes append that a filter selects, in commit order. */
+    async #appended<Shape extends EventKeyShape, Data extends JsonValue>(
+        kind: EventKind<Shape, Data>,
+        filter: EventFilter,
+        changes: readonly Change[],
+    ): Promise<Event<Shape, Data>[]> {
+        // keep the kind's inserts the filter selects, then open each
+        const match = EventFilter.match(kind, filter);
+        const appended = changes
             .filter((change) => change.operation === "insert" && Change.of(change, kind.table))
             .map((change) => kind.event(Change.image(change)))
             .filter((stored) => match(stored));
@@ -287,7 +313,7 @@ export class EventStore {
             events.push(await this.#open(kind, stored));
         }
 
-        return { events, sequence: page.sequence };
+        return events;
     }
 
     /** Forget a person by their subject keys' values, erasing their sealed personal values. */

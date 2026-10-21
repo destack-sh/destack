@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
 import { type EventKind, Histogram, type Series } from "../src/index.ts";
-import { EventFixture, type EventFixtureOptions, testKind } from "../src/test/index.ts";
+import { EventFixture, testKind } from "../src/test/index.ts";
 
 /** The package declaring the test kinds. */
 const meters = Package.parse({
@@ -24,8 +24,8 @@ const DAY = 24 * 60 * MINUTE;
 /** The start of the tests' time, in Unix milliseconds. */
 const START = Date.UTC(2026, 9, 1);
 
-/** Readings of a space's meters, kept exactly once and flushed every three. */
-const reading = testKind({
+/** The description of a space's meter readings, kept exactly once. */
+const READING = {
     package: meters,
     name: "reading",
     keys: schema.object({
@@ -35,6 +35,11 @@ const reading = testKind({
     }),
     data: schema.object({ unit: schema.string(), note: schema.string().exactOptional() }),
     delivery: "exactly-once",
+} as const;
+
+/** Readings of meters, flushed at three rows and kept a day. */
+const reading = testKind({
+    ...READING,
     policy: { flush: { maxAge: 60 * MINUTE, maxRows: 3 }, retention: DAY },
 });
 
@@ -76,9 +81,8 @@ const MISSING_LINE_TABLE = {
 async function open(
     dialect: (typeof TEST_DIALECTS)[number],
     kinds: readonly EventKind[] = [reading],
-    options: EventFixtureOptions = {},
 ) {
-    const fixture = await EventFixture.open(dialect, kinds, options);
+    const fixture = await EventFixture.open(dialect, kinds);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
     fixture.clock.set(START);
 
@@ -660,19 +664,22 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "compact a %s unlocked kind's small segments and expire them past a scope's retention",
+    "compact a %s unlocked kind's small segments and expire them past the retention their scope reads",
     async (dialect) => {
-        const fixture = await open(dialect, [reading], {
-            policy: async (kind, scope) =>
-                scope === "space-1"
-                    ? { flush: { maxAge: MINUTE, maxRows: 4 }, retention: 2 * DAY }
-                    : kind.policy,
+        // keep space-1's readings two days, every other scope's one
+        const scoped = testKind({
+            ...READING,
+            policy: {
+                flush: { maxAge: MINUTE, maxRows: 4 },
+                retention: async (scope) => (scope === "space-1" ? 2 * DAY : DAY),
+            },
         });
+        const fixture = await open(dialect, [scoped]);
         const { store, database } = fixture;
 
         // flush one reading at a time as each comes due by age
         for (const minute of [1, 2, 3]) {
-            await store.append(reading, [
+            await store.append(scoped, [
                 measured(`r${String(minute)}`, minute, "db.bytes", minute),
             ]);
             fixture.clock.set(START + (minute + 1) * MINUTE);
@@ -682,7 +689,7 @@ test.for(TEST_DIALECTS)(
             .select()
             .from(eventSegment)
             .orderBy(eventSegment.from);
-        const read = await store.query(reading, { scopes: ["space-1"] });
+        const read = await store.query(scoped, { scopes: ["space-1"] });
 
         // three days later every segment is past the scope's retention
         fixture.clock.set(START + 3 * DAY);
@@ -691,7 +698,7 @@ test.for(TEST_DIALECTS)(
             compacted.map((segment) => segment.rows),
             read.events.map((event) => event.id),
             (await database.database.select().from(eventSegment)).length,
-            (await store.query(reading, { scopes: ["space-1"] })).events,
+            (await store.query(scoped, { scopes: ["space-1"] })).events,
         ]).toEqual([[2, 1], ["r1", "r2", "r3"], 0, []]);
     },
 );
