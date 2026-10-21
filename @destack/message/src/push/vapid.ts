@@ -9,7 +9,7 @@ const TOKEN_SECONDS = 12 * 60 * 60;
 const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 /** The label of the installation's VAPID key, distinct from every other key its keys derive. */
-const LABEL = "@destack/message/vapid";
+const LABEL = { label: "@destack/message/vapid", context: "" } as const;
 
 /** A VAPID private key as a JWK, its public point loose beside the scalar (RFC 7518 6.2). */
 const PrivateKey = schema.looseObject({

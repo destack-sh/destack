@@ -11,7 +11,7 @@ import { WebhookContent, WebhookDestination } from "../webhook/message.ts";
 export const GONE = "gone";
 
 /** The label the message key pair derives under from an identity's root secret. */
-const MESSAGE_LABEL = "@destack/message/key";
+const MESSAGE_LABEL = { label: "@destack/message/key", context: "" } as const;
 
 /** The states of a message: sending, sent, shown on its client, or failed. */
 export const MESSAGE_STATES = ["pending", "sent", "delivered", "failed"] as const;
@@ -106,8 +106,8 @@ export class MessageKey {
     }
 
     /** Bind sealed content to the scope of its message, so no other scope's message opens it. */
-    static #context(scope: string): Uint8Array<ArrayBuffer> {
-        return new TextEncoder().encode(`${MESSAGE_LABEL} ${scope}`);
+    static #context(scope: string): identity.Label {
+        return { label: "@destack/message/content", context: scope };
     }
 }
 
