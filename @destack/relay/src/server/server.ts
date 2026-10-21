@@ -1,5 +1,11 @@
 import type { ClientOf } from "@destack/object/client";
-import { FORWARDED_URL_HEADER, type Hibernation, type ServerContext, PARTITION_HEADER, ROUTE_PATH } from "@destack/object/workload";
+import {
+    FORWARDED_URL_HEADER,
+    type Hibernation,
+    type ServerContext,
+    PARTITION_HEADER,
+    ROUTE_PATH,
+} from "@destack/object/workload";
 import type accountPackage from "@destack/account/package";
 import { DOMAINS } from "@destack/account/address";
 import { account, directoryShape, identityShape } from "@destack/account/object";
@@ -7,12 +13,12 @@ import { principal } from "@destack/access";
 import { Scope, Uplink } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
 import type { CallKey } from "@destack/object";
 import { Egress } from "@destack/object";
 import { CallError } from "@destack/object";
-import type { PackageImplementation } from "@destack/object/server";
+import type { PackageHandler } from "@destack/object/server";
 import { connection, tunnel } from "../object/index.ts";
 import relayPackage from "../package.ts";
 import { NameController } from "./name-controller.ts";
@@ -44,7 +50,7 @@ export interface RelayPackageOptions extends Omit<RelayOptions, "store" | "itsel
 }
 
 /** The relay package as one store serves it: the root's router, or one machine's tunnel. */
-export type RelayImplementation = PackageImplementation & {
+export type RelayImplementation = PackageHandler & {
     /** The relay installation's store at the root or in the partition. */
     readonly objects: ObjectStore;
 } & (
@@ -111,7 +117,7 @@ function implementRoot(options: RelayPackageOptions): RelayImplementation {
     });
     const objects: ObjectStore = new ObjectStore({
         servers: [
-            defineServer(relayPackage, {
+            implementPackage(relayPackage, {
                 objects: [tunnels, connection],
                 // refuse the tunnels' calls at the root, which runs no tunnel
                 adapters: {
@@ -175,7 +181,7 @@ function implementPartition(options: RelayPackageOptions, partition: string): Re
     const universe = Uplink.of(() => options.accounts.store);
     const objects: ObjectStore = new ObjectStore({
         servers: [
-            defineServer(relayPackage, {
+            implementPackage(relayPackage, {
                 objects: [connection],
                 // follow the universe's identity, verifying renewals by its keys
                 follows: [

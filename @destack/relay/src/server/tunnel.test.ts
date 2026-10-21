@@ -4,7 +4,7 @@ import { account, space } from "@destack/account/object";
 import { DOMAINS } from "@destack/account/address";
 import { TestDatabase } from "@destack/db/test";
 import { Clock } from "@destack/environment";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import type { CallError } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
@@ -63,7 +63,7 @@ async function openTunnel(answerTimeout?: number) {
     );
     const store = new ObjectStore({
         servers: [
-            defineServer(relayPackage, {
+            implementPackage(relayPackage, {
                 objects: [tunnel, connection],
                 adapters: { tunnels: async () => new Response(null, { status: 404 }) },
             }),

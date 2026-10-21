@@ -21,11 +21,15 @@ import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import type { TokenVerifier } from "@destack/access/token";
-import { CallError, refusal, reportError } from "@destack/object";
+import { CallError, PackageMount } from "@destack/object";
+import { refusal, reportError } from "@destack/object/server";
 import { RequestId } from "@destack/sync";
 import type { Call } from "@destack/sync";
-import { FORWARDED_URL_HEADER, type ServerContext, PARTITION_HEADER } from "@destack/object/workload";
-import { PackageMount } from "@destack/object";
+import {
+    FORWARDED_URL_HEADER,
+    type ServerContext,
+    PARTITION_HEADER,
+} from "@destack/object/workload";
 import { tunnel } from "../object/index.ts";
 import relayPackage from "../package.ts";
 import { TunnelProtocol } from "../session/index.ts";
