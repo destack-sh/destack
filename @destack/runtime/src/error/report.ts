@@ -1,7 +1,7 @@
 import { telemetry, trace } from "@destack/telemetry";
-import type { Controller } from "../control/index.ts";
 import { ValidationError } from "@orpc/contract";
-import { describeIssues, CallError } from "../error/index.ts";
+import type { Controller } from "../control/index.ts";
+import { describeIssues, CallError } from "./error.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The instruments capturing unexpected failures. */

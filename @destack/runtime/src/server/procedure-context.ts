@@ -1,9 +1,8 @@
 import type { Context } from "@orpc/server";
 import { AsyncIteratorClass } from "@orpc/shared";
 import type { ProcedureAccess } from "../procedure/procedure.ts";
-import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
-import { findDenial, CallError } from "../error/index.ts";
+import { findDenial, CallError, reportError } from "../error/index.ts";
 
 /** The context of one call of a procedure, as the server runs it. */
 export interface ProcedureContext<State extends Context> {

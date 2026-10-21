@@ -12,7 +12,7 @@ import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import type { PackageHandle } from "../declare/package.ts";
-import { CallError } from "../error/index.ts";
+import { CallError, refusal } from "../error/index.ts";
 import { Egress } from "../runtime/egress.ts";
 import { PackageMount } from "../runtime/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
@@ -25,7 +25,6 @@ import {
     type SocketHost,
 } from "./socket.ts";
 import type { PackageId } from "@destack/package";
-import { refusal } from "../server/error.ts";
 import type { Alarm } from "../control/index.ts";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../request/index.ts";

@@ -12,8 +12,7 @@ import { telemetry } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
 import type { Alarm } from "../control/index.ts";
-import { CallError } from "../error/index.ts";
-import { refusal } from "../server/error.ts";
+import { CallError, refusal } from "../error/index.ts";
 import {
     type RunnerOptions,
     SOCKET_PATH,
