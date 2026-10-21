@@ -2,13 +2,11 @@ import { space } from "./fixture/space.ts";
 import { Caller, principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { ACCESS_PUBLICATION } from "@destack/object";
-import { ObjectClient } from "@destack/object/client";
+import { ACCESS_PUBLICATION, Health } from "@destack/object";
+import { ObjectClient, Observable } from "@destack/object/client";
 import { ResourceContext } from "@destack/resource/context";
 import { canonicalize, Identifier, schema } from "@destack/schema";
-import { Health } from "@destack/runtime/health";
-import { Observable } from "@destack/runtime/observable";
-import { Server } from "@destack/runtime/server";
+import { Server } from "@destack/object/server";
 
 import { expect, onTestFinished, test } from "@destack/test";
 import { deviceSetting, setting, SettingValue } from "../src/object/index.ts";

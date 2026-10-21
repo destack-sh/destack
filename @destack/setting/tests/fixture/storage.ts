@@ -1,9 +1,8 @@
 import { Package } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { AccessFixture } from "@destack/access/test";
-import { Call, Scope, type ObjectReference, Subject } from "@destack/sync";
+import { Call, Scope, type ObjectReference, Subject, RequestId } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import { RequestId } from "@destack/runtime/request";
 import { accessTables, principal, universe } from "@destack/access";
 import { space } from "./space.ts";
 
@@ -20,7 +19,7 @@ import type { BuildReader } from "@destack/package/manifest";
 import { Setting } from "../../src/setting/index.ts";
 import { editor, lineNumbers, release } from "./setting/index.ts";
 import { alice } from "./value.ts";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { Clock } from "@destack/environment";
 
 /** Setting values served from a migrated test database. */

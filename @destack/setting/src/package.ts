@@ -1,4 +1,4 @@
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { setting } from "./object/index.ts";
 
 /** The handle stores serve setting values through, and clients call them by. */

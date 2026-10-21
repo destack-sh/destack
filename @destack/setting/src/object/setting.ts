@@ -3,7 +3,7 @@ import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db
 import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { ObjectClient } from "@destack/object/client";
-import type { ClientOptions } from "@destack/runtime/client";
+import type { ClientOptions } from "@destack/object/client";
 import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
@@ -83,13 +83,13 @@ export interface SettingPlacement {
 
 /** Reads of the setting values placed in a database. */
 export const SettingValue = {
-    /** Read the retention a package's setting of days gives a scope, its default where it does not apply. */
+    /** Read the retention a package's setting of days gives a scope. */
     retention(
         database: DatabaseConnection,
     ): (setting: object, owner: Package, scope: string) => Promise<number> {
-        return async (setting, owner, scope) => {
+        return async (described, owner, scope) => {
             // rebuild the package's setting from its definition, refusing anything but a setting of days
-            const definition = schema.record(schema.string(), schema.unknown()).parse(setting);
+            const definition = schema.record(schema.string(), schema.unknown()).parse(described);
             const {
                 schema: value,
                 default: fallback,
