@@ -2,10 +2,9 @@ import { type Message, t } from "@destack/locale";
 import { asc, eq, Snapshot } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { JsonValue, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { subjectContext } from "@destack/runtime/test";
+import { RequestId, ObjectReference } from "@destack/sync";
+import { subjectContext } from "@destack/object/test";
 import type { CallInput } from "@destack/object";
-import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     charge,

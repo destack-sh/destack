@@ -14,7 +14,7 @@ import { type Select, type Snapshot, Table } from "@destack/db";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import type { Call } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { canonicalize, present, schema, type Identifier } from "@destack/schema";
 import { announcement } from "@destack/notification";
 import type { ReleaseReader } from "../release/reader.ts";

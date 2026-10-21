@@ -4,7 +4,7 @@ import { account, space } from "@destack/account/object";
 import { type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, type MethodContextOf, defineObject, field } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Currency } from "../rate/amount.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Price, price, PRICE_TERMS, PriceMirror } from "./price.ts";

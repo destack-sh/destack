@@ -1,6 +1,6 @@
 import { Secret } from "@destack/vault";
-import type { Fetch } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import type { Fetch } from "@destack/object";
+import { CallError } from "@destack/object";
 
 /** The Stripe API's origin. */
 export const STRIPE_API = "https://api.stripe.com";

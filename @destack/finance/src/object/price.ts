@@ -4,7 +4,7 @@ import { space } from "@destack/account/object";
 import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import { present, schema, Text } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Amount, Currency, DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";

@@ -3,7 +3,7 @@ import { type Call, ObjectReference } from "@destack/sync";
 import { EventTime } from "@destack/event";
 import type { MethodContext } from "@destack/object";
 import { type Identifier, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import type { Meter } from "@destack/observability/meter";
 import { Period } from "../rate/period.ts";

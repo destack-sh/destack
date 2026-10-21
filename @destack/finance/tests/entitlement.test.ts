@@ -16,7 +16,7 @@ import {
     support,
     sync,
 } from "./fixture/storage.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 /** The start of the subscription's first billing period. */
 const START = Date.UTC(2026, 9, 1);

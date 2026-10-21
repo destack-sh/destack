@@ -4,7 +4,7 @@ import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { type Package, PackageName } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
 import { Country } from "@destack/locale";
 

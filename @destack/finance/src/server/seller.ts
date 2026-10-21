@@ -1,7 +1,7 @@
 import { account } from "@destack/account/object";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { JsonValue } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { seller } from "../object/index.ts";
 import type { Billing } from "./billing.ts";
 

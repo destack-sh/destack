@@ -1,5 +1,5 @@
 import { entitlement } from "@destack/account/object";
-import { defineAdapter, definePackage } from "@destack/runtime";
+import { defineAdapter, definePackage } from "@destack/object";
 import {
     charge,
     checkoutSession,

@@ -6,7 +6,7 @@ import { announcement } from "@destack/notification";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { nth, type Identifier, schema } from "@destack/schema";
 import type { CallInput } from "@destack/object";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     Usage,
@@ -36,7 +36,6 @@ import {
     stored,
     uptime,
 } from "./fixture/storage.ts";
-import { RequestId } from "@destack/runtime/request";
 import { Event, EventTime } from "@destack/event";
 import { VirtualClock } from "@destack/environment/simulation";
 

@@ -2,8 +2,8 @@ import type { Call } from "@destack/sync";
 import { Snapshot, Transaction } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId } from "@destack/sync";
 import {
     checkoutSession,
     customer,

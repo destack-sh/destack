@@ -5,7 +5,7 @@ import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId, DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";

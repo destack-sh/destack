@@ -15,8 +15,8 @@ import {
 import type { Meter } from "@destack/observability/meter";
 import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
-import { CallError, isCallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import type { ReaderPage } from "@destack/object";
 import { reading } from "@destack/observability/object";
@@ -308,11 +308,12 @@ export const Usage = {
 
     /** Record the error of a use that never passes, rethrowing one that may pass on a retry. */
     refusal(error: unknown): CallError<string, unknown> {
-        if (!isCallError(error) || error.code === "SERVICE_UNAVAILABLE") {
+        const known = CallError.of(error);
+        if (known === undefined || known.code === "SERVICE_UNAVAILABLE") {
             throw error;
         }
 
-        return error;
+        return known;
     },
 };
 

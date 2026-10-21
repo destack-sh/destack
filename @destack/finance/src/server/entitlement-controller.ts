@@ -2,8 +2,8 @@ import { account } from "@destack/account/object";
 import { Change, Snapshot, TABLE, type Table } from "@destack/db";
 import { EventView } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller } from "@destack/runtime/control";
-import { RequestId } from "@destack/runtime/request";
+import type { Controller } from "@destack/db";
+import { RequestId } from "@destack/sync";
 import {
     customer,
     Customer,

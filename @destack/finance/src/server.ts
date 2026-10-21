@@ -2,7 +2,7 @@ import accountPackage from "@destack/account/package";
 import forgePackage from "@destack/forge/package";
 import { Registry } from "@destack/forge/client";
 import { defineServer } from "@destack/object/server";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 import { provider, tag } from "./declare/setting.ts";
 import financePackage from "./package.ts";
 import { StripeProvider } from "./provider/stripe/provider.ts";

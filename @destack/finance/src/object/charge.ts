@@ -2,7 +2,7 @@ import { account, space } from "@destack/account/object";
 import type { Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Cost, Currency, DecimalAmount } from "../rate/amount.ts";
 import { SERVICE_CATEGORIES } from "../sku/sku.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";

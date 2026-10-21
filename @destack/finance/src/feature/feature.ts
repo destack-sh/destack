@@ -8,7 +8,7 @@ import { Package, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);

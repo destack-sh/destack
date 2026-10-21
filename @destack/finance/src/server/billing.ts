@@ -9,7 +9,7 @@ import type {
 import type { Snapshot } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { found, type Identifier, present, zip } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { Period } from "../rate/period.ts";
 import type { CheckoutPages, Order, PaymentProvider } from "../provider/provider.ts";
 import { Cost } from "../rate/amount.ts";

@@ -6,7 +6,7 @@ import { entitlement } from "@destack/account/object";
 import { price, product, productFeature, subscription } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { storage, support } from "./fixture/storage.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 /** A month in milliseconds. */
 const MONTH = 30 * 86_400_000;

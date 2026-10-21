@@ -23,9 +23,8 @@ import {
     type JsonValue,
     Text,
 } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { subjectContext } from "@destack/runtime/test";
-import { Call, ObjectReference, Scope, Subject } from "@destack/sync";
+import { RequestId, Call, ObjectReference, Scope, Subject } from "@destack/sync";
+import { subjectContext } from "@destack/object/test";
 import { v7 } from "uuid";
 import {
     customer,

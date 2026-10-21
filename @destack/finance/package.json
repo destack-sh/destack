@@ -22,25 +22,24 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@destack/forge": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
+        "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/event": "workspace:*",
+        "@destack/forge": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/notification": "workspace:*",
-        "@destack/observability": "workspace:*",
         "@destack/object": "workspace:*",
+        "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/runtime": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/bucket": "workspace:*",
-        "@destack/vault": "workspace:*",
-        "@destack/setting": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "@destack/vault": "workspace:*"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",

@@ -2,7 +2,7 @@ import type { account, UsageState } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
 import type { IdentifierOf } from "@destack/object";
 import type { Meter } from "@destack/observability/meter";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import type { ReleaseReader } from "../release/reader.ts";
 import { FeatureLimit } from "../feature/feature.ts";
