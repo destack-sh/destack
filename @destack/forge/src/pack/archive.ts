@@ -2,9 +2,9 @@ import { Tarball, type TarballEntry } from "@destack/package/archive";
 import { type DependencyRelease, graph, PackageDefinition, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import type { Runtime } from "@destack/package/runtime";
-import type { BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { valid } from "semver";
 import { Upgrade } from "@destack/resource";
 
@@ -214,7 +214,7 @@ export class PackageArchive {
 
         return new PackageArchive(
             {
-                packageId: manifest.package.id,
+                packageId: PackageManifest.package(manifest).id,
                 manifest: await Digest.of(description),
                 metadata,
                 dependencies,
@@ -337,7 +337,10 @@ export class PackageArchive {
         const declaration = files.get("destack.json");
         if (!declaration) {
             throw new CallError("BAD_REQUEST", { message: "build lacks destack.json" });
-        } else if (PackageDefinition.read(DECODER.decode(declaration)).id !== manifest.package.id) {
+        } else if (
+            PackageDefinition.read(DECODER.decode(declaration)).id !==
+            PackageManifest.package(manifest).id
+        ) {
             throw new CallError("BAD_REQUEST", {
                 message: "package ID differs from its source declaration",
             });

@@ -97,7 +97,7 @@ install(
 The forge's server reads its bound bucket, Git storage, credential vault and GitHub App from its installation's context.
 
 ```ts
-export default defineServer(forgePackage, (context) => Forge.of(context).definition());
+export default implementPackage(forgePackage, (context) => Forge.of(context).definition());
 ```
 
 ## Registry

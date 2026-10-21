@@ -5,17 +5,14 @@ import { AccountFixture, ids } from "@destack/account/test";
 import { cp, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-    type BuildOptions,
-    PackageBuild,
-    Compiler,
-    readDependencies,
-    readOutputs,
-} from "@destack/build";
+import { type PackageBuildOptions, PackageBuild, Compiler, readOutputs } from "@destack/build";
+import type { LocalStore } from "@destack/build";
+import type { DependencyResolution } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
 import { type ImageIndex } from "@destack/db/test";
 import { History, Vocabulary } from "@destack/resource";
-import { nth, Commit, schema, Version } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { nth, Commit, Digest, schema, Version } from "@destack/schema";
+import { RequestId } from "@destack/sync";
 import { packageObject } from "../../src/object/index.ts";
 
 /** The account that publishes the fixture packages and scopes their npm names. */
@@ -81,7 +78,12 @@ export class FixtureSource implements AsyncDisposable {
     /** The builder retained across the package's versions. */
     readonly #builder: Compiler;
     /** The outputs and dependencies the last build compiled, and what it published. */
-    #compiled: (Pick<BuildOptions, "outputs" | "dependencies"> & { history: History }) | undefined;
+    #compiled:
+        | (Pick<PackageBuildOptions, "outputs" | "dependencies"> & {
+              history: History;
+              store: LocalStore;
+          })
+        | undefined;
 
     /** Take a replica and its started builder. */
     private constructor(name: FixturePackage, directory: string, builder: Compiler) {
@@ -100,8 +102,12 @@ export class FixtureSource implements AsyncDisposable {
         return new FixtureSource(name, directory, await Compiler.start(directory));
     }
 
-    /** Install the dependencies and build each version's published outputs. */
-    async build(npmrc: string, versions: readonly string[]): Promise<PackageBuild[]> {
+    /** Install the dependencies and build each version's published outputs on their builds. */
+    async build(
+        npmrc: string,
+        versions: readonly string[],
+        store: LocalStore,
+    ): Promise<PackageBuild[]> {
         // install the dependencies
         await writeFile(join(this.directory, ".npmrc"), npmrc);
         await run(
@@ -116,7 +122,8 @@ export class FixtureSource implements AsyncDisposable {
         const declaration = schema
             .jsonObject()
             .parse(await readJson(join(this.directory, "package.json")));
-        const dependencies = await readDependencies(this.directory);
+        const dependencies = await readReleases(this.directory, declaration);
+        const packageName = schema.string().parse(declaration["name"]);
 
         // build one unbundled module per runtime the package ships, as a build worker does
         const outputs = Object.fromEntries(
@@ -138,10 +145,12 @@ export class FixtureSource implements AsyncDisposable {
             const history =
                 latest === undefined ? undefined : await History.read(latest.reader, vocabulary);
             const build = await this.#builder.build({
+                directory: this.directory,
                 outputs,
                 dependencies,
+                store,
                 commit: Commit.parse(COMMIT),
-                ...(history === undefined ? {} : { history }),
+                ...(history === undefined ? {} : { history: { [packageName]: history } }),
             });
             vocabulary = Vocabulary.advance(vocabulary, await build.reader.declarations(), version);
             builds.push(build);
@@ -151,6 +160,7 @@ export class FixtureSource implements AsyncDisposable {
         this.#compiled = {
             outputs,
             dependencies,
+            store,
             history: await History.read(latest.reader, vocabulary),
         };
 
@@ -164,9 +174,14 @@ export class FixtureSource implements AsyncDisposable {
         }
 
         // build the last version again
-        const { outputs, dependencies, history } = this.#compiled;
+        const { outputs, dependencies, store, history } = this.#compiled;
         if (prerelease === undefined) {
-            return await this.#builder.build({ outputs, dependencies });
+            return await this.#builder.build({
+                directory: this.directory,
+                outputs,
+                dependencies,
+                store,
+            });
         }
 
         // author the next version, and build its prerelease planned from the last version
@@ -177,9 +192,11 @@ export class FixtureSource implements AsyncDisposable {
         const name = schema.string().parse(declaration["name"]);
 
         return await this.#builder.build({
+            directory: this.directory,
             outputs,
             dependencies,
-            history,
+            store,
+            history: { [name]: history },
             versions: { [name]: prerelease },
         });
     }
@@ -214,4 +231,28 @@ export async function run(command: readonly string[], directory: string): Promis
 /** Read a JSON file. */
 export async function readJson(path: string): Promise<unknown> {
     return JSON.parse(await readFile(path, "utf8"));
+}
+
+/** Resolve the Destack releases a source installed from the forge by their build manifests. */
+async function readReleases(
+    directory: string,
+    declaration: Readonly<Record<string, unknown>>,
+): Promise<Record<string, DependencyResolution>> {
+    // read each installed dependency's build manifest, which the forge's archive carries
+    const declared = schema
+        .record(schema.string(), schema.string())
+        .parse(declaration["dependencies"] ?? {});
+    const releases: Record<string, DependencyResolution> = {};
+    for (const name of Object.keys(declared)) {
+        const path = join(directory, "node_modules", name, "build", "manifest.json");
+        const bytes = new Uint8Array(await readFile(path));
+        const manifest = PackageManifest.parse(JSON.parse(new TextDecoder().decode(bytes)));
+        releases[name] = {
+            kind: "destack",
+            package: PackageManifest.package(manifest),
+            manifest: await Digest.of(bytes),
+        };
+    }
+
+    return releases;
 }

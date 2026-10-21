@@ -1,6 +1,6 @@
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { Identifier } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { release, tag, TagName } from "../object/index.ts";
 
 /** Implement distribution tags. */

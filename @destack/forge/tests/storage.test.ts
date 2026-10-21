@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ResourceId } from "@destack/resource";
 import { nth, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import {
     ARTIFACTS_PROVIDER,
     type ArtifactsNamespace,

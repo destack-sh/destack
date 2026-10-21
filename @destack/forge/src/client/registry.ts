@@ -2,11 +2,11 @@ import { Directory } from "@destack/account/address";
 import { PackageClient } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import type { PackageId } from "@destack/package";
-import { BuildReader, type PackageLocation } from "@destack/package/manifest";
+import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { type Identifier, schema } from "@destack/schema";
-import { type Fetch, InstallationMount, PackageMount } from "@destack/runtime";
-import { createClient } from "@destack/runtime/client";
-import { CallError } from "@destack/runtime/error";
+import { type Fetch, InstallationMount, PackageMount } from "@destack/object";
+import { createClient } from "@destack/object/client";
+import { CallError } from "@destack/object";
 import { packageObject } from "../object/index.ts";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
 import type { Clock } from "@destack/environment";
@@ -86,7 +86,7 @@ export class Registry {
     /** Push a build's files to its package's forge, answering its manifest's digest. */
     async push(build: BuildReader, signal?: AbortSignal): Promise<string> {
         // upload below the package, which its forge authorizes to the package's publishers
-        const packageId = build.manifest.package.id;
+        const packageId = PackageManifest.package(build.manifest).id;
         const forge = await this.#find(packageId);
         const uploads = `${forge.url}${forgePackage.adapters.builds.path}/${packageId}/`;
 
@@ -119,7 +119,7 @@ export class Registry {
         const reader = await BuildReader.open(location, fetch);
 
         // require a build of the package
-        if (reader.manifest.package.id !== packageId) {
+        if (PackageManifest.package(reader.manifest).id !== packageId) {
             throw new CallError("BAD_REQUEST", {
                 message: `build ${manifest} is no build of ${packageId}`,
             });

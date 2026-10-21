@@ -1,5 +1,6 @@
 import { ids } from "@destack/account/test";
 import { ForgeFixture } from "../src/test/index.ts";
+import { testStore } from "@destack/build/test";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,9 +31,10 @@ async function build(builds: string, images: ImageIndex): Promise<void> {
         );
         sources.forEach((source) => stack.use(source));
 
-        // store and publish each version's build in dependency order
+        // build each version into the local store, then publish it in dependency order
+        const store = stack.use(await testStore());
         for (const [source, [, versions]] of zip(sources, FIXTURE_RELEASES)) {
-            for (const built of await source.build(forge.npmrc("@example"), versions)) {
+            for (const built of await source.build(forge.npmrc("@example"), versions, store)) {
                 stack.use(built);
                 const version = built.manifest.package.version;
                 await cp(built.directory, join(builds, source.name, version), { recursive: true });

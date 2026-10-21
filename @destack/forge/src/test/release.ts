@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, Identifier } from "@destack/schema";
 import { LATEST_TAG, packageObject, release, tag } from "../object/index.ts";
 import { ReleaseMethod } from "../server/release.ts";
@@ -21,7 +21,7 @@ export async function publishBuild(
     now = Date.now(),
 ): Promise<void> {
     // store the package under its name, public to every reader
-    const { package: owner } = build.manifest;
+    const owner = PackageManifest.package(build.manifest);
     const manifest = await Digest.json(build.manifest);
     await database
         .insert(packageObject.table)

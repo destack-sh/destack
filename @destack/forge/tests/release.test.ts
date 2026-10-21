@@ -3,7 +3,7 @@ import { ids } from "@destack/account/test";
 import type { ForgeFixture } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { Registry } from "../src/client/index.ts";
 import { LATEST_TAG, packageObject } from "../src/object/index.ts";

@@ -2,8 +2,8 @@ import type { Select } from "@destack/db";
 import { BATCH_LIMIT, type MethodContextOf } from "@destack/object";
 import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
-import type { Fetch } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import type { Fetch } from "@destack/object";
+import { CallError } from "@destack/object";
 
 import { SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";

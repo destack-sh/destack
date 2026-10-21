@@ -1,5 +1,5 @@
 import type { ObjectStore } from "@destack/object/server";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import type { Forge } from "./forge.ts";
 
 /** How often the forge sweeps its store: hourly, under a second for 10k builds. */

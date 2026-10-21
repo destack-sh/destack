@@ -2,7 +2,7 @@ import { Secret } from "@destack/vault";
 import { Connection, connection, integration } from "@destack/connection/object";
 import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { GitHubSignature } from "./signature.ts";
 import { type Repository, repository } from "../object/index.ts";
 import { GitHubApp } from "./app.ts";

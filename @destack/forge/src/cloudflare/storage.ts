@@ -1,7 +1,7 @@
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { schema } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import type { Fetch } from "@destack/object";
+import { CallError } from "@destack/object";
 import { GitAdvertisement } from "../storage/advertisement.ts";
 import type { GitStorageDeclaration } from "../storage/kind.ts";
 import type { GitListing, GitStorage } from "../storage/storage.ts";

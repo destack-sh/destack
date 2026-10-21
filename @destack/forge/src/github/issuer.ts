@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { ConnectionError, type InstallationGrant, type Token } from "@destack/connection";
 import { Assertion } from "@destack/connection/oauth";
 import { Clock } from "@destack/environment";

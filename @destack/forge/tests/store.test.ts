@@ -7,12 +7,11 @@ import { LocalBucket } from "@destack/bucket/bun";
 import { encodeManifest, PackageStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
 import { Digest } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, Scope } from "@destack/sync";
 import { UNRELEASED_MILLISECONDS } from "../src/server/index.ts";
 import { SWEEP_INTERVAL_MILLISECONDS } from "../src/server/sweep-controller.ts";
 import { principal } from "@destack/access";
 import { ids } from "@destack/account/test";
-import { Scope } from "@destack/sync";
 import { packageObject } from "../src/object/index.ts";
 import forgePackage from "../src/package.ts";
 import { fixtureBuild } from "./fixture/build.ts";
@@ -75,7 +74,10 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
             headers: { "content-type": "application/json" },
         });
     const outside = await put(ids.owner, `${digest}/`);
-    const pushed = await put(ids.stranger, `${build.manifest.package.id}/${digest}/`);
+    const pushed = await put(
+        ids.stranger,
+        `${PackageManifest.package(build.manifest).id}/${digest}/`,
+    );
     expect({
         outside: [outside.status, await outside.json()],
         pushed: [pushed.status, await pushed.json()],
@@ -94,7 +96,11 @@ test("authorize a manifest push from the forge's replica of the account, followi
     const build = await fixtureBuild("answer", "2026.9.1");
     const digest = await Digest.of(encodeManifest(PackageManifest.parse(build.manifest)));
     const push = async () =>
-        refusal(forge.builds(ids.stranger, build.reader.manifest.package.id).push(build.reader));
+        refusal(
+            forge
+                .builds(ids.stranger, PackageManifest.package(build.reader.manifest).id)
+                .push(build.reader),
+        );
 
     // refuse the stranger, grant them publishing at the account service and push once the replica follows
     const refused = await push();
@@ -117,7 +123,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
     await forge.settle();
 
     // refuse the stranger's first file upload, whichever file the concurrent uploads send first
-    const uploads = `${forgePackage.adapters.builds.path}/${build.manifest.package.id}/files`;
+    const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
     const files = await build.reader.distributed();
     const refusals = files.map((file) => [
         "BAD_GATEWAY",

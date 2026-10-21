@@ -1,7 +1,7 @@
 import { ids } from "@destack/account/test";
 import type { ForgeFixture } from "../src/test/index.ts";
 import { expect, test } from "@destack/test";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { present } from "@destack/schema";
 import type { Release, Tag } from "../src/object/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";

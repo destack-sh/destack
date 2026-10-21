@@ -9,16 +9,13 @@ import connectionPackage from "@destack/connection/package";
 import { connectionDatabase } from "@destack/connection/test";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { defineServer, ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { implementPackage, ObjectStore, Server, Health } from "@destack/object/server";
+import { testEvents, testCallKey } from "@destack/object/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present } from "@destack/schema";
-import { SPACE_KEY } from "@destack/runtime/authentication";
-import { createClient } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { Server } from "@destack/runtime/server";
-import { testCallKey } from "@destack/runtime/test";
-import { PackageMount, SpaceMount } from "@destack/runtime";
+import { SPACE_KEY } from "@destack/access/token";
+import { createClient } from "@destack/object/client";
+import { PackageMount, SpaceMount } from "@destack/object";
 import { type ObjectReference, Scope, type Subject } from "@destack/sync";
 import vaultServer from "@destack/vault/server";
 import { vault } from "@destack/vault/object";
@@ -91,7 +88,7 @@ export class ConnectionSpace implements AsyncDisposable {
             // reach the forge's issuer of installation tokens as the space's connections
             at: () => ({ url: issuer.url, fetch: (request) => issuer.issue(request, consumer) }),
         });
-        const connections = defineServer(connectionPackage, {
+        const connections = implementPackage(connectionPackage, {
             objects: [
                 implementConnection(tokens),
                 implementIntegration(tokens),

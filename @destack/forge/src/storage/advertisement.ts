@@ -1,6 +1,6 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { Lease } from "@destack/resource";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import type { GitListing, GitReference } from "./storage.ts";
 
 /** The content type of a smart HTTP upload-pack reference advertisement. */

@@ -4,7 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Lease, LeaseMode } from "@destack/resource";
 import { schema, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { GitListing } from "../storage/storage.ts";
 
 /** Where a repository's authoritative history lives. */

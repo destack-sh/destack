@@ -1,5 +1,5 @@
 import { type Provider, ResourceRecord } from "@destack/resource";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { GitStorageKind } from "../storage/index.ts";
 import { ARTIFACTS_PROVIDER, type ArtifactsNamespace, ArtifactsStorage } from "./storage.ts";
 

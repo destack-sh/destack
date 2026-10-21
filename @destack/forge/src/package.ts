@@ -1,4 +1,4 @@
-import { defineAdapter, definePackage } from "@destack/runtime";
+import { defineAdapter, definePackage } from "@destack/object";
 import { issuer, packageObject, reference, release, repository, tag } from "./object/index.ts";
 import {
     credentialVault,

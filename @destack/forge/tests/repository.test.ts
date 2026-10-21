@@ -1,7 +1,7 @@
 import { expect, refusal } from "@destack/test";
 import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
 import { secret } from "@destack/vault/object";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { access, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";

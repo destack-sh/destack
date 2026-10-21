@@ -2,7 +2,15 @@ import objectPackage from "@destack/object/package";
 import accountPackage from "@destack/account/package";
 import { AccessFixture } from "@destack/access/test";
 import { Secret } from "@destack/vault";
-import { PackageMount, SpaceMount } from "@destack/runtime";
+import { PackageMount, SpaceMount } from "@destack/object";
+import {
+    Health,
+    implementPackage,
+    ObjectStore,
+    RemoteStore,
+    Server,
+    type PackageHandler,
+} from "@destack/object/server";
 import connectionPackage from "@destack/connection/package";
 import { integration, type IntegrationIssuer } from "@destack/connection";
 import { test } from "@destack/test";
@@ -13,22 +21,17 @@ import { join } from "node:path";
 import vaultServer from "@destack/vault/server";
 import { AccessContext, Caller, principal } from "@destack/access";
 import * as accountTest from "@destack/account/test";
-import { testEvents } from "@destack/object/test";
+import { testEvents, testCallKey } from "@destack/object/test";
 import { LocalBucket } from "@destack/bucket/bun";
 import { PackageStore } from "@destack/build/store";
 import { type DatabaseConnection, eq, type Select, Snapshot } from "@destack/db";
-import { defineServer, ObjectStore, RemoteStore } from "@destack/object/server";
 import { Account, claim, Identity } from "@destack/account/object";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema, zip } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { type Publisher, Scope, Subject, Uplink } from "@destack/sync";
-import { INSTALLATION_KEY, TokenVerifier } from "@destack/runtime/authentication";
-import { Health } from "@destack/runtime/health";
-import { Server, type PackageImplementation } from "@destack/runtime/server";
-import { createClient } from "@destack/runtime/client";
-import { testCallKey } from "@destack/runtime/test";
+import { RequestId, type Publisher, Scope, Subject, Uplink } from "@destack/sync";
+import { INSTALLATION_KEY, TokenVerifier } from "@destack/access/token";
+import { createClient } from "@destack/object/client";
 import forgePackage, { FORGE_INSTALLATION } from "../../src/package.ts";
 import { GitHubApp } from "../../src/github/index.ts";
 import { LocalGitStorage } from "../../src/local/index.ts";
@@ -440,7 +443,7 @@ export class RepositoryFixture implements AsyncDisposable {
         readonly disposal: AsyncDisposableStack;
     }): Promise<{
         readonly objects: ObjectStore;
-        readonly implementation: PackageImplementation;
+        readonly implementation: PackageHandler;
         readonly storage: LocalGitStorage;
     }> {
         // store the platform repositories and the builds in a temporary directory
@@ -477,7 +480,7 @@ export class RepositoryFixture implements AsyncDisposable {
         const definition = forge.definition();
         const store = new ObjectStore({
             servers: [
-                defineServer(forgePackage, {
+                implementPackage(forgePackage, {
                     ...definition,
                     follows: [...(definition.follows ?? []), ...follows],
                 }),
@@ -607,7 +610,7 @@ export class RepositoryFixture implements AsyncDisposable {
 
     /** Serve the forge to the user, machine or space its x- header has, or anonymously. */
     static #serve(
-        implementation: PackageImplementation,
+        implementation: PackageHandler,
         failure: AbortController,
         tokens: TokenVerifier,
     ): Server {

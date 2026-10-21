@@ -4,17 +4,24 @@ import { account, claimShape } from "@destack/account/object";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { PackageStore } from "@destack/build/store";
 import { eq, inArray, sql, type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
-import { Claim, ClaimLookup, claimTable, Follow, type ObjectType } from "@destack/object";
-import type { ObjectStore, ServerDefinition } from "@destack/object/server";
+import {
+    Claim,
+    ClaimLookup,
+    claimTable,
+    Follow,
+    type ObjectType,
+    type Fetch,
+    PackageMount,
+    conceal,
+    CallError,
+    RequestBody,
+} from "@destack/object";
+import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
 import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { type Identifier, present, schema } from "@destack/schema";
-import { type Fetch, PackageMount } from "@destack/runtime";
-import { conceal, isCallError, CallError } from "@destack/runtime/error";
-import { RequestBody, RequestId } from "@destack/runtime/request";
-import type { RequestContext } from "@destack/runtime/server";
-import type { ServerContext } from "@destack/runtime/workload";
-import { type ObjectReference, Scope, type Subject } from "@destack/sync";
+import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
+import type { ServerContext } from "@destack/object/workload";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository } from "../object/index.ts";
 import forgePackage from "../package.ts";
@@ -29,7 +36,7 @@ import {
 import type { GitStorage } from "../storage/index.ts";
 import { GitHubController } from "./github-controller.ts";
 import { NpmServer } from "./npm-server.ts";
-import { implementPackage } from "./package.ts";
+import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
 import { implementRepository } from "./repository.ts";
 import { SWEEP_INTERVAL_MILLISECONDS, SweepController } from "./sweep-controller.ts";
@@ -106,7 +113,7 @@ export class Forge {
                 consumer: options.consumer,
             }),
             reference,
-            implementPackage(options.home),
+            implementPackageObject(options.home),
             implementRelease({ store: options.store, home: options.home }),
             implementTag(),
             ...(options.github === undefined ? [] : [implementIssuer(options.github)]),
@@ -119,11 +126,12 @@ export class Forge {
             return await read();
         } catch (error) {
             // rethrow other failures
-            if (!isCallError(error) || (error.code !== "NOT_FOUND" && error.code !== "FORBIDDEN")) {
+            const known = CallError.of(error);
+            if (known === undefined || (known.code !== "NOT_FOUND" && known.code !== "FORBIDDEN")) {
                 throw error;
             }
 
-            throw conceal(error, message);
+            throw conceal(known, message);
         }
     }
 
@@ -158,7 +166,7 @@ export class Forge {
     }
 
     /** Define the forge's server: its objects, follows, controllers and adapters. */
-    definition(): ServerDefinition<typeof forgePackage> {
+    definition(): ImplementationInput<typeof forgePackage> {
         const hosting = this.#github;
 
         return {
@@ -384,9 +392,9 @@ export class Forge {
             throw new CallError("BAD_REQUEST", { message: "the pushed manifest is invalid" });
         }
         // refuse a manifest of another package
-        else if (parsed.data.package.id !== packageId) {
+        else if (PackageManifest.package(parsed.data).id !== packageId) {
             throw new CallError("BAD_REQUEST", {
-                message: `the pushed manifest belongs to ${parsed.data.package.id}, not ${packageId}`,
+                message: `the pushed manifest belongs to ${PackageManifest.package(parsed.data).id}, not ${packageId}`,
             });
         }
     }

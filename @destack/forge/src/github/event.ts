@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { WebhookDelivery } from "@destack/workflow";
 
 /** The events that the forge's GitHub App subscribes to and that change references. */

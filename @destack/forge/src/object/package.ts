@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { PackageId, PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { validRange } from "semver";
 
 /** The longest package name in an account: npm's 214 minus a 63 character handle, `@` and `/`. */

@@ -7,24 +7,19 @@ import type { AccountFixture } from "@destack/account/test";
 import { LocalBucket } from "@destack/bucket/bun";
 import { PackageClient, PackageStore } from "@destack/build/store";
 import { type Select, Snapshot } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
+import { TestDatabase, reconciliation } from "@destack/db/test";
 import type { EventStore } from "@destack/event";
-import { ClaimLookup, claimTable } from "@destack/object";
-import { defineServer, ObjectStore, RemoteStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { ClaimLookup, claimTable, CallError } from "@destack/object";
+import { Health, implementPackage, ObjectStore, RemoteStore, Server } from "@destack/object/server";
+import { testEvents, testCallKey } from "@destack/object/test";
 import { Package, PackageName, type PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
-import { createClient } from "@destack/runtime/client";
-import type { Controller } from "@destack/runtime/control";
-import { Health } from "@destack/runtime/health";
-import { RequestId } from "@destack/runtime/request";
-import { CallError } from "@destack/runtime/error";
-import { Server } from "@destack/runtime/server";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { createClient } from "@destack/object/client";
+import type { Controller } from "@destack/db";
+import { RequestId, ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
 import { Clock } from "@destack/environment";
 import { type Identifier, schema } from "@destack/schema";
-import { ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
 import { LocalGitStorage } from "../local/index.ts";
 import { packageObject, type Release } from "../object/index.ts";
 import forgePackage from "../package.ts";
@@ -160,7 +155,7 @@ export class ForgeFixture implements AsyncDisposable {
         const definition = forge.definition();
         this.objects = new ObjectStore({
             servers: [
-                defineServer(forgePackage, {
+                implementPackage(forgePackage, {
                     ...definition,
                     follows: [...(definition.follows ?? []), ...follows],
                 }),
@@ -302,7 +297,7 @@ export class ForgeFixture implements AsyncDisposable {
         const { account, user } = this.state;
         const home = this.space;
         const publisher = this.client(user);
-        const packageId = reader.manifest.package.id;
+        const packageId = PackageManifest.package(reader.manifest).id;
         const { local: name } = PackageName.split(reader.manifest.package.name);
         if (!this.#created.has(packageId)) {
             await publisher.package.create({
@@ -330,7 +325,9 @@ export class ForgeFixture implements AsyncDisposable {
 
     /** Push a build as the fixture's user, returning its manifest's digest. */
     push(reader: BuildReader): Promise<string> {
-        return this.builds(this.state.user, reader.manifest.package.id).push(reader);
+        return this.builds(this.state.user, PackageManifest.package(reader.manifest).id).push(
+            reader,
+        );
     }
 
     /** Read the build of a package's release, by version or tag, as an anonymous reader. */

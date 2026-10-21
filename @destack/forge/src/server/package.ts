@@ -57,7 +57,7 @@ const PackageMethod = {
 };
 
 /** Implement packages of the forge's space. */
-export function implementPackage(home: Identifier<"space">): typeof packageObject {
+export function implementPackageObject(home: Identifier<"space">): typeof packageObject {
     return packageObject.implement({
         methods: {
             resolve: {

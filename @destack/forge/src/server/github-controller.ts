@@ -3,8 +3,8 @@ import { connection } from "@destack/connection";
 import { and, Change, eq, isNull, type SQL, type Table } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
-import type { Controller } from "@destack/runtime/control";
-import { RequestId } from "@destack/runtime/request";
+import type { Controller } from "@destack/db";
+import { RequestId } from "@destack/sync";
 import type { GitHubHosting } from "../github/index.ts";
 import { repository } from "../object/index.ts";
 

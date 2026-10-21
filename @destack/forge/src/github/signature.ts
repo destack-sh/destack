@@ -1,5 +1,4 @@
-import { CallError } from "@destack/runtime/error";
-import { RequestBody } from "@destack/runtime/request";
+import { CallError, RequestBody } from "@destack/object";
 import {
     WebhookDelivery,
     WebhookSignature,
