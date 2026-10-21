@@ -1,11 +1,11 @@
-import { Contact, Relationship } from "@destack/access";
+import { accessRelationship, accessRole, Contact, Relationship } from "@destack/access";
 import { eq, inArray, Snapshot } from "@destack/db";
 import { RequestId } from "@destack/runtime/request";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { MachineIdentity } from "../src/client/machine-identity.ts";
 import { account, endpoint, key, machine, organisation, space } from "../src/object/index.ts";
-import { Operator, OperatorDefinition } from "../src/server/index.ts";
+import { Platform, PlatformDefinition, UniverseRole } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
 import { Digest, Identifier, present } from "@destack/schema";
 import {
@@ -21,7 +21,7 @@ import { Directory } from "../src/address/index.ts";
 import { Clock } from "@destack/environment";
 
 /** The platform organisation of the fixture's universe, declaring no cloud machines. */
-const PLATFORM: OperatorDefinition = {
+const PLATFORM: PlatformDefinition = {
     name: "Destack",
     residencyId: "eu",
     operator: OPERATOR_EMAIL,
@@ -40,8 +40,8 @@ const PROVIDER = "cloudflare";
 test("apply the platform organisation once with its publishers as accounts and its reserved handles as names without accounts, answering a stranger as for any taken handle", async () => {
     // apply the platform twice
     await using fixture = await AccountFixture.open();
-    const first = await new Operator(PLATFORM, STACKS.residency).apply(fixture.objects, Date.now());
-    const second = await new Operator(PLATFORM, STACKS.residency).apply(
+    const first = await new Platform(PLATFORM, STACKS.residency).apply(fixture.objects, Date.now());
+    const second = await new Platform(PLATFORM, STACKS.residency).apply(
         fixture.objects,
         Date.now(),
     );
@@ -89,13 +89,37 @@ test("apply the platform organisation once with its publishers as accounts and i
     ]);
 });
 
+test("make the platform organisation's owners operators when an apply created it without the operator role", async () => {
+    // apply the platform, then drop the operator role with its bindings, as an apply failing after the creation leaves it
+    await using fixture = await AccountFixture.open();
+    const first = await new Platform(PLATFORM, STACKS.residency).apply(fixture.objects, Date.now());
+    const { database } = fixture.storage;
+    const [operator] = await database
+        .select({ id: accessRole.id })
+        .from(accessRole)
+        .where(eq(accessRole.name, "operator"));
+    const roleId = present(operator, "the operator role").id;
+    await database.delete(accessRelationship).where(eq(accessRelationship.roleId, roleId));
+    await database.delete(accessRole).where(eq(accessRole.id, roleId));
+
+    // apply it again, binding the organisation its handle names
+    const second = await new Platform(PLATFORM, STACKS.residency).apply(
+        fixture.objects,
+        Date.now(),
+    );
+    expect({
+        second,
+        operating: await UniverseRole.operating(Snapshot.live(fixture.database)),
+    }).toEqual({ second: first, operating: first });
+});
+
 test("move the residency homes to a newly declared stack once", async () => {
     // apply the platform, then declare the residency stack at a new release and apply it twice
     await using fixture = await AccountFixture.open();
-    await new Operator(PLATFORM, STACKS.residency).apply(fixture.objects, Date.now());
+    await new Platform(PLATFORM, STACKS.residency).apply(fixture.objects, Date.now());
     const released = { ...STACKS.residency, manifest: Digest.parse("c".repeat(64)) };
-    await new Operator(PLATFORM, released).apply(fixture.objects, Date.now());
-    await new Operator(PLATFORM, released).apply(fixture.objects, Date.now());
+    await new Platform(PLATFORM, released).apply(fixture.objects, Date.now());
+    await new Platform(PLATFORM, released).apply(fixture.objects, Date.now());
 
     // read the homes' stacks and revisions
     const homes = await fixture.storage.database
@@ -119,7 +143,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
     // declare a cloud machine for each residency
     await using fixture = await AccountFixture.open();
     const [europe, america] = [await declare(), await declare()];
-    const definition: OperatorDefinition = {
+    const definition: PlatformDefinition = {
         ...PLATFORM,
         machines: [
             {
@@ -144,11 +168,11 @@ test("apply the declared cloud machines with their keys in the universe once, an
     };
 
     // apply the platform twice
-    const organisationId = await new Operator(definition, STACKS.residency).apply(
+    const organisationId = await new Platform(definition, STACKS.residency).apply(
         fixture.objects,
         Date.now(),
     );
-    await new Operator(definition, STACKS.residency).apply(fixture.objects, Date.now());
+    await new Platform(definition, STACKS.residency).apply(fixture.objects, Date.now());
 
     // create each machine once with one key in the universe, its origin published as its endpoint
     const { database } = fixture.storage;
@@ -222,7 +246,7 @@ test("invite a new operator as the platform's owner beside the first, and refuse
     // apply the platform for a new operator and sign in a stranger and the new operator
     await using fixture = await AccountFixture.open();
     const successor = { ...PLATFORM, operator: SUCCESSOR_EMAIL };
-    const platformId = await new Operator(successor, STACKS.residency).apply(
+    const platformId = await new Platform(successor, STACKS.residency).apply(
         fixture.objects,
         Date.now(),
     );
@@ -242,7 +266,7 @@ test("invite a new operator as the platform's owner beside the first, and refuse
     await accept(operator);
 
     // seat the new operator as an active owner once, beside the first
-    await new Operator(successor, STACKS.residency).apply(fixture.objects, Date.now());
+    await new Platform(successor, STACKS.residency).apply(fixture.objects, Date.now());
     const { items } = await operator.client.member.list({ organisationId: platformId });
     expect([
         invited,

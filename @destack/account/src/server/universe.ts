@@ -9,7 +9,7 @@ import {
     type RoleRequest,
     SIGNED_IN,
 } from "@destack/access";
-import { eq, inArray, Snapshot, Transaction } from "@destack/db";
+import { and, eq, inArray, isNull, Snapshot, Transaction } from "@destack/db";
 import { RequestId } from "@destack/runtime/request";
 import type { Authorization, ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
@@ -92,17 +92,17 @@ const UNIVERSE_ROLE = {
     ],
 } as const satisfies RoleRequest;
 
-/** The component name of the operator's calls. */
-const OPERATOR_COMPONENT = "operator";
+/** The component name of the platform's calls. */
+const PLATFORM_COMPONENT = "platform";
 
-/** The store the universe applies the operator's definition through, as itself. */
-export type OperatorStore = Pick<
+/** The store the universe applies the platform's definition through, as itself. */
+export type PlatformStore = Pick<
     ObjectStore,
     "database" | "principal" | "serving" | "mutate" | "authorize" | "clock"
 >;
 
 /** The organisation operating the universe as it declares it, with its cloud machines. */
-export const OperatorDefinition = schema.object({
+export const PlatformDefinition = schema.object({
     /** The organisation's display name, such as Destack. */
     name: schema.string().min(1),
     /** The jurisdiction the organisation stores its data in. */
@@ -113,7 +113,7 @@ export const OperatorDefinition = schema.object({
     reserved: schema.array(AccountHandle),
     /** The handles the organisation publishes under, each an account in its residency. */
     publishers: schema.array(AccountHandle),
-    /** The handle of the organisation's own account in the operator's residency. */
+    /** The handle of the organisation's own account in the platform's residency. */
     handle: AccountHandle,
     /** The cloud machines serving the residencies. */
     machines: schema.array(
@@ -136,14 +136,14 @@ export const OperatorDefinition = schema.object({
     ),
 });
 /** The organisation operating the universe as it declares it. */
-export type OperatorDefinition = schema.Infer<typeof OperatorDefinition>;
+export type PlatformDefinition = schema.Infer<typeof PlatformDefinition>;
 
-/** A step applying part of the operator's definition, again without effect once applied. */
-export interface OperatorStep {
+/** A step applying part of the platform's definition, again without effect once applied. */
+export interface PlatformStep {
     /** The step's name, unique among the steps. */
     readonly name: string;
     /** Apply the step through the universe's store at a time. */
-    readonly apply: (objects: OperatorStore, now: number) => Promise<void>;
+    readonly apply: (objects: PlatformStore, now: number) => Promise<void>;
 }
 
 /** The universe's inherent role. */
@@ -187,21 +187,21 @@ export const UniverseRole = {
 };
 
 /** The organisation operating the universe, applied with the stack of its homes. */
-export class Operator {
+export class Platform {
     /** The operating organisation and its machines as declared. */
-    readonly definition: OperatorDefinition;
+    readonly definition: PlatformDefinition;
     /** The stack each residency's home runs. */
     readonly stack: StackSource;
 
-    /** Create the operator from its definition and its homes' stack. */
-    constructor(definition: OperatorDefinition, stack: StackSource) {
+    /** Create the platform from its definition and its homes' stack. */
+    constructor(definition: PlatformDefinition, stack: StackSource) {
         this.definition = definition;
         this.stack = stack;
     }
 
-    /** Read the handle of the operator's account in a residency. */
+    /** Read the handle of the platform's account in a residency. */
     static handle(
-        definition: Pick<OperatorDefinition, "handle" | "residencyId">,
+        definition: Pick<PlatformDefinition, "handle" | "residencyId">,
         code: ResidencyCode,
     ): AccountHandle {
         return AccountHandle.parse(
@@ -210,7 +210,7 @@ export class Operator {
     }
 
     /** List the steps applying the definition, in order. */
-    steps(): readonly OperatorStep[] {
+    steps(): readonly PlatformStep[] {
         return [
             { name: "machines", apply: (store, now) => this.declareMachines(store, now) },
             { name: "organisation", apply: (store, now) => this.upsertOrganisation(store, now) },
@@ -222,7 +222,7 @@ export class Operator {
     }
 
     /** Apply every step, as a start without durable steps does, answering the organisation. */
-    async apply(store: OperatorStore, now: number): Promise<Identifier<"organisation">> {
+    async apply(store: PlatformStore, now: number): Promise<Identifier<"organisation">> {
         for (const step of this.steps()) {
             await step.apply(store, now);
         }
@@ -231,7 +231,7 @@ export class Operator {
     }
 
     /** Create the missing declared cloud machines in the universe, publishing their origins. */
-    async declareMachines(store: OperatorStore, now: number): Promise<void> {
+    async declareMachines(store: PlatformStore, now: number): Promise<void> {
         // skip an empty definition
         if (this.definition.machines.length === 0) {
             return;
@@ -287,13 +287,60 @@ export class Operator {
     }
 
     /** Create the operating organisation with its own account once, as the universe. */
-    async upsertOrganisation(store: OperatorStore, now: number): Promise<void> {
-        // keep an organisation the operator role binds
-        if ((await UniverseRole.operating(Snapshot.live(store.database))) !== undefined) {
-            return;
+    async upsertOrganisation(store: PlatformStore, now: number): Promise<void> {
+        // take the organisation its handle names, created once
+        const organisationId =
+            (await this.#claimedOrganisation(store)) ??
+            (await this.#createOrganisation(store, now));
+
+        // make its owners the universe's operators
+        await authorize(store, Scope.universe.id, now, async (authorization) => {
+            const operator = await Role.upsert(Scope.universe, OPERATOR_ROLE, authorization);
+            await Role.assign(
+                Scope.universe,
+                operator.id,
+                { ...organisation.reference(Scope.universe.id, organisationId), relation: "owner" },
+                authorization,
+            );
+        });
+    }
+
+    /** Find the organisation owning the operating account's handle, refusing any other owner. */
+    async #claimedOrganisation(
+        store: PlatformStore,
+    ): Promise<Identifier<"organisation"> | undefined> {
+        // read the live shared account with the handle
+        const { handle } = this.definition;
+        const [claimed] = await store.database
+            .select({ scope: account.table.scope })
+            .from(account.table)
+            .where(
+                and(
+                    eq(account.table.handle, handle),
+                    eq(account.table.kind, "shared"),
+                    isNull(account.table.deletedAt),
+                ),
+            );
+        if (claimed === undefined) {
+            return undefined;
         }
 
-        // create it and make its owners the universe's operators
+        // refuse a handle another kind of scope holds
+        const owner = schema.identifier("organisation").safeParse(claimed.scope);
+        if (!owner.success) {
+            throw new CallError("CONFLICT", {
+                message: `handle ${handle} belongs to ${claimed.scope}`,
+            });
+        }
+
+        return owner.data;
+    }
+
+    /** Create the operating organisation as the universe, claiming its handle on its own. */
+    async #createOrganisation(
+        store: PlatformStore,
+        now: number,
+    ): Promise<Identifier<"organisation">> {
         const [created] = await mutate(
             store,
             [
@@ -307,20 +354,12 @@ export class Operator {
             ],
             now,
         );
-        const organisationId = present(created, "the operating organisation").id;
-        await authorize(store, Scope.universe.id, now, async (authorization) => {
-            const operator = await Role.upsert(Scope.universe, OPERATOR_ROLE, authorization);
-            await Role.assign(
-                Scope.universe,
-                operator.id,
-                { ...organisation.reference(Scope.universe.id, organisationId), relation: "owner" },
-                authorization,
-            );
-        });
+
+        return present(created, "the operating organisation").id;
     }
 
     /** Bind the universe's roles to residency servers, machines and signed-in callers. */
-    async bindRoles(store: OperatorStore, now: number): Promise<void> {
+    async bindRoles(store: PlatformStore, now: number): Promise<void> {
         // bind the roles of the residencies' servers, of every machine and of every signed-in caller
         await authorize(store, Scope.universe.id, now, async (authorization) => {
             // bind each role once
@@ -334,7 +373,7 @@ export class Operator {
             ]);
         });
 
-        // relate the operator's residency's cloud machines as the organisation's publishing administrators
+        // relate the platform's residency's cloud machines as the organisation's publishing administrators
         const organisationId = await requireOrganisation(store);
         await authorize(store, organisationId, now, (authorization) =>
             relatePublishingMachines(authorization, this.definition, organisationId),
@@ -342,7 +381,7 @@ export class Operator {
     }
 
     /** Claim the reserved handles for the organisation, and create its publisher accounts. */
-    async reserveNames(store: OperatorStore, now: number): Promise<void> {
+    async reserveNames(store: PlatformStore, now: number): Promise<void> {
         // claim each reserved handle for the organisation, which lives in the universe
         const organisationId = await requireOrganisation(store);
         const owner = Scope.universe.id;
@@ -393,12 +432,12 @@ export class Operator {
         }
     }
 
-    /** Serve each residency from the operator's account's home there, with its declared stack. */
-    async serveResidencies(store: OperatorStore, now: number): Promise<void> {
+    /** Serve each residency from the platform's account's home there, with its declared stack. */
+    async serveResidencies(store: PlatformStore, now: number): Promise<void> {
         const organisationId = await requireOrganisation(store);
         for (const entry of await Residency.list(store.database)) {
-            // read the operator's account in the residency
-            const handle = Operator.handle(this.definition, entry.id);
+            // read the platform's account in the residency
+            const handle = Platform.handle(this.definition, entry.id);
             const [existing] = await store.database
                 .select({ id: account.table.id })
                 .from(account.table)
@@ -422,7 +461,7 @@ export class Operator {
                           now,
                       )
                     : [existing];
-            const accountId = present(created, `the operator's account in ${entry.id}`).id;
+            const accountId = present(created, `the platform's account in ${entry.id}`).id;
 
             // move its home to the declared stack
             await upgradeHome(store, Account.home(accountId), this.stack, now);
@@ -458,7 +497,7 @@ export class Operator {
     }
 
     /** Invite the operator as an owner unless an invitation to them was accepted or still waits. */
-    async inviteOperator(store: OperatorStore, now: number): Promise<void> {
+    async inviteOperator(store: PlatformStore, now: number): Promise<void> {
         // read the invitations to the operator's email on the organisation
         const organisationId = await requireOrganisation(store);
         const object = organisation.reference(Scope.universe.id, organisationId);
@@ -495,20 +534,20 @@ async function requireOrganisation(
 
 /** Run calls as the universe in one request. */
 function mutate<const Calls extends readonly Call[]>(
-    objects: OperatorStore,
+    objects: PlatformStore,
     calls: Calls,
     now: number,
 ): Promise<ResultsOf<Calls>> {
     return objects.mutate(
         objects.serving(account),
         { id: RequestId.create(now), calls },
-        { component: OPERATOR_COMPONENT },
+        { component: PLATFORM_COMPONENT },
     );
 }
 
 /** Run work in one transaction, authorized as the universe in a scope. */
 function authorize<Value>(
-    objects: OperatorStore,
+    objects: PlatformStore,
     scope: string,
     now: number,
     work: (authorization: Authorization) => Promise<Value>,
@@ -578,10 +617,10 @@ async function relateWildcards(authorization: Authorization): Promise<void> {
     }
 }
 
-/** Make the operator's residency's cloud machines the organisation's administrators. */
+/** Make the platform's residency's cloud machines the organisation's administrators. */
 async function relatePublishingMachines(
     authorization: Authorization,
-    definition: OperatorDefinition,
+    definition: PlatformDefinition,
     organisationId: Identifier<"organisation">,
 ): Promise<void> {
     // read the administrators the residency's machines are
@@ -603,7 +642,7 @@ async function relatePublishingMachines(
 
 /** Move a home to a stack once it has another. */
 async function upgradeHome(
-    objects: OperatorStore,
+    objects: PlatformStore,
     spaceId: Identifier<"space">,
     stack: StackSource,
     now: number,

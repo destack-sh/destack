@@ -36,15 +36,15 @@ const server = accountServer({ resolver: new DnsOverHttps(), stacks, signIn });
 
 ## Universe
 
-`UniverseRole.trust` binds the universe's trust root, and `Operator` applies the organisation the universe declares as its operator, each step again without effect once applied.
+`UniverseRole.trust` binds the universe's trust root, and `Platform` applies the organisation operating the universe as the universe declares it, each step again without effect once applied.
 
 ```ts
 import { Residency } from "@destack/account/object";
-import { Operator, UniverseRole } from "@destack/account/server";
+import { Platform, UniverseRole } from "@destack/account/server";
 
 await UniverseRole.trust(store, now); // the universe owns itself with its inherent role
 await Residency.apply(store, declaration.residencies, now);
-for (const step of new Operator(declaration.platform, stacks.residency).steps()) {
+for (const step of new Platform(declaration.platform, stacks.residency).steps()) {
     await step.apply(store, now); // machines, organisation, roles, names, homes, invitation
 }
 await UniverseRole.operating(snapshot); // the organisation holding the operator role

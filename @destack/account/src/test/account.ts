@@ -80,7 +80,7 @@ import {
 } from "../object/index.ts";
 import { JWT_BEARER, SESSION_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
-import { accountServer, Operator, OperatorDefinition, UniverseRole } from "../server/index.ts";
+import { accountServer, Platform, PlatformDefinition, UniverseRole } from "../server/index.ts";
 import { accountDatabase } from "../stack/index.ts";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
@@ -200,7 +200,7 @@ const RESIDENCIES: readonly ResidencyDefinition[] = [
 const PEOPLE = [
     { id: ids.owner, name: "Owner", email: `${ids.owner}@example.test` },
     { id: ids.stranger, name: "Stranger", email: `${ids.stranger}@example.test` },
-    { id: ids.operator, name: "Operator", email: OPERATOR_EMAIL },
+    { id: ids.operator, name: "Platform", email: OPERATOR_EMAIL },
 ] as const;
 
 /** The owner's accounts the account package stores from its start, with their handles and kinds. */
@@ -1132,7 +1132,7 @@ export class AccountFixture implements AsyncDisposable {
     /** Declare the platform with a cloud machine per residency. */
     static async #platformDefinition(
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
-    ): Promise<OperatorDefinition> {
+    ): Promise<PlatformDefinition> {
         return {
             name: "Destack",
             residencyId: "eu",
@@ -1152,7 +1152,7 @@ export class AccountFixture implements AsyncDisposable {
         storage: TestDatabase,
         keys: AccountKeys,
         options: ServeOptions,
-        platform?: OperatorDefinition,
+        platform?: PlatformDefinition,
     ): Promise<Served> {
         // compose the universe's store of the account and setting packages, signing in once it exists
         const { database } = storage;
@@ -1192,7 +1192,7 @@ export class AccountFixture implements AsyncDisposable {
         // own the universe as the universe, then store the platform before its identity
         await UniverseRole.trust(store, clock.now());
         if (platform !== undefined) {
-            await new Operator(platform, options.stacks.residency).apply(store, clock.now());
+            await new Platform(platform, options.stacks.residency).apply(store, clock.now());
         }
 
         // sign in with the universe's identity, mailing links and codes into an inbox
@@ -1474,7 +1474,7 @@ async function cloudMachine(
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
-): Promise<OperatorDefinition["machines"][number]> {
+): Promise<PlatformDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
     const { publicKey } = await new MachineIdentity(id, keychain, Clock.system).generate();
