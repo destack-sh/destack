@@ -2,7 +2,7 @@ import { Event } from "@destack/event";
 import type { Select } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { Digest, type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime";
+import { CallError } from "@destack/object";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,

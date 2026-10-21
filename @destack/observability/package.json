@@ -21,7 +21,6 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@destack/resource": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
@@ -32,8 +31,8 @@
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",

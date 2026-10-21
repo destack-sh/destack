@@ -1,7 +1,7 @@
 import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import { isCallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId } from "@destack/sync";
 import { type Identifier, present } from "@destack/schema";
 import { visitorSalt, type VisitorSalt } from "../object/visitor-salt.ts";
 
@@ -69,7 +69,7 @@ export class Visitor {
 
             return created;
         } catch (error) {
-            if (!isCallError(error) || error.code !== "CONFLICT") {
+            if (CallError.of(error)?.code !== "CONFLICT") {
                 throw error;
             }
 

@@ -6,7 +6,7 @@ import { type Digest, type Identifier, present } from "@destack/schema";
 import { build, installation, installationRevision } from "@destack/stack/object";
 import { ISSUE_LEVELS, issue, type Issue, issuePerson } from "../object/index.ts";
 import type { Exception } from "./exception.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 /** The component name the grouper records its calls under. */
 const GROUPER = "issues";

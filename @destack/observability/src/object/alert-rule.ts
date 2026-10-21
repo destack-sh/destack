@@ -28,7 +28,7 @@ import {
 import { EventFilter, type EventStore, FilterText, Fold, SERIES_FOLDS } from "@destack/event";
 import { ObjectReference, ObjectTypeReference } from "@destack/sync";
 import { Digest, Duration, type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { installation } from "@destack/stack/object";
 import type { Step } from "@destack/workflow";
 import {

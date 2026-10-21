@@ -1,4 +1,4 @@
-import { defineAdapter, definePackage } from "@destack/runtime";
+import { defineAdapter, definePackage } from "@destack/object";
 import { installation } from "@destack/stack/object";
 import {
     action,

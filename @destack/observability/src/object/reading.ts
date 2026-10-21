@@ -4,7 +4,7 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
-import { REQUEST_LIFETIME_MILLISECONDS } from "@destack/runtime/request";
+import { REQUEST_LIFETIME_MILLISECONDS } from "@destack/sync";
 import { installation } from "@destack/stack/object";
 
 /** What a reading keeps beside its keys: the level an averaged meter held when read. */

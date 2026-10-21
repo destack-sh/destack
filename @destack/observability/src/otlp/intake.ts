@@ -1,9 +1,8 @@
-import { RequestBody } from "@destack/runtime/request";
+import { RequestBody } from "@destack/object";
 import { AccessContext } from "@destack/access";
 import type { JsonCondition } from "@destack/db";
-import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
-import type { RequestContext } from "@destack/runtime/server";
+import type { ObjectStore, RequestContext } from "@destack/object/server";
+import { RequestId } from "@destack/sync";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import { action, log, metric, session, span, visit } from "../object/index.ts";
