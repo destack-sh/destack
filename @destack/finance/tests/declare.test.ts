@@ -31,7 +31,9 @@ test("read described features and meters back from a build, and relate metered f
     const features = [sync, support, seats, calls, storageLimit];
     expect([
         await Promise.all(
-            features.map(async (feature) => describeFeature(await releases.feature(feature.reference))),
+            features.map(async (feature) =>
+                describeFeature(await releases.feature(feature.reference)),
+            ),
         ),
         (await releases.meter(requests.reference)).definition,
     ]).toEqual([features.map((feature) => describeFeature(feature)), requests.definition]);
@@ -52,10 +54,12 @@ test("read described features and meters back from a build, and relate metered f
     ]);
 
     // refuse an undeclared feature
-    await expect(releases.feature({ packageId: storage.id, name: "backup" })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `feature ${storage.id}/backup is undeclared`,
-    });
+    await expect(releases.feature({ packageId: storage.id, name: "backup" })).rejects.toMatchObject(
+        {
+            code: "NOT_FOUND",
+            message: `feature ${storage.id}/backup is undeclared`,
+        },
+    );
 });
 
 /** Read a feature's release entry back from JSON. */
