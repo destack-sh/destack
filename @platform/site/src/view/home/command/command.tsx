@@ -46,6 +46,7 @@ const command: Form = {
                 terms.
             </>
         ),
+        gloss: "program every app like a spreadsheet",
     },
 };
 

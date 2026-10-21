@@ -43,6 +43,7 @@ import { createEventListener } from "@destack/view/primitives/event-listener";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 import { makeTimer } from "@destack/view/primitives/timer";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
@@ -81,7 +82,7 @@ type Count = {
 /** The six layers, from the users of the stack down to where it runs. */
 const layers: readonly Layer[] = [
     {
-        name: "Users",
+        name: "Identity",
         claim: { today: "Sign up everywhere", destack: "Sign in once" },
         detail: { today: "Their accounts", destack: "OIDC, Passkeys" },
         note: {
@@ -94,7 +95,7 @@ const layers: readonly Layer[] = [
         },
     },
     {
-        name: "Apps",
+        name: "Presentation",
         claim: { today: "Settle for what they ship", destack: "Make every app yours" },
         detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
         note: {
@@ -107,7 +108,7 @@ const layers: readonly Layer[] = [
         },
     },
     {
-        name: "Services",
+        name: "Application",
         claim: { today: "Call their APIs", destack: "Build on one API" },
         detail: { today: "Private APIs", destack: "OpenAPI, JSON Schema" },
         note: {
@@ -120,7 +121,7 @@ const layers: readonly Layer[] = [
         },
     },
     {
-        name: "Data",
+        name: "Persistence",
         claim: { today: "Rent your data", destack: "Own your data" },
         detail: { today: "Vendor formats", destack: "SQL, S3, R2" },
         note: {
@@ -146,7 +147,7 @@ const layers: readonly Layer[] = [
         },
     },
     {
-        name: "Hosts",
+        name: "Infrastructure",
         claim: { today: "Run where they let you", destack: "Run anywhere" },
         detail: { today: "Their cloud", destack: "Bun, Workers" },
         note: {
@@ -1098,13 +1099,13 @@ const styles = style.create({
         paddingBlock: "0.75rem",
     },
     listClaim: {
-        fontSize: "1rem",
+        fontSize: typeScale.body,
         fontWeight: 600,
         lineHeight: "1.375rem",
     },
     listNote: {
         color: color.mutedForeground,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         lineHeight: "1.125rem",
     },
     claim: {
@@ -1133,8 +1134,8 @@ const styles = style.create({
     number: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.1em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         lineHeight: "1rem",
         textTransform: "uppercase",
         transition: `color 200ms ${easing}`,
@@ -1150,7 +1151,7 @@ const styles = style.create({
         gridArea: "1 / 1",
     },
     claimText: {
-        fontSize: "1rem",
+        fontSize: typeScale.body,
         fontWeight: 600,
         lineHeight: "1.375rem",
         whiteSpace: "nowrap",
@@ -1230,15 +1231,14 @@ const styles = style.create({
         display: { default: "grid", [media.maxMd]: "none" },
         color: color.foreground,
         opacity: 0.72,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         lineHeight: "1.125rem",
         whiteSpace: "nowrap",
     },
     itemText: {
         justifyItems: "end",
         fontFamily: font.code,
-        fontSize: "0.75rem",
-        letterSpacing: "0.02em",
+        fontSize: typeScale.small,
         lineHeight: "1.125rem",
         opacity: 0.8,
         display: { default: "grid", [screen.belowDesktop]: "none" },
@@ -1247,9 +1247,8 @@ const styles = style.create({
         marginLeft: "auto",
         color: color.foreground,
         fontFamily: font.code,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         fontWeight: 600,
-        letterSpacing: "0.02em",
         lineHeight: "1.375rem",
         translate: "0 0.125rem",
         display: { default: "grid", [media.maxMd]: "none" },

@@ -36,6 +36,7 @@ const destackable: Form = {
                 TypeScript and OTel.
             </>
         ),
+        gloss: "as open as VS Code, as transparent as SQLite, as hackable as Minecraft",
     },
 };
 

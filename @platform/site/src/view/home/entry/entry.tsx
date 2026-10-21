@@ -2,21 +2,13 @@ import { frame } from "../../layout/frame.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
-import { createSignal, For, type JSX, onSettled } from "@destack/view";
-import { createReducedMotion } from "@destack/view/motion";
-import {
-    createVisibilityObserver,
-    makeIntersectionObserver,
-} from "@destack/view/primitives/intersection-observer";
-import { createTimer } from "@destack/view/primitives/timer";
+import { type JSX, onSettled } from "@destack/view";
+import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
-import { Glyph } from "../figure/glyph";
-
-/** The milliseconds each sense of a phrase stays lit before the light moves to the next. */
-const LIGHT_TIME = 2600;
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** One sense of a form: its definition, the passages underlined in it, and the phrase under it. */
 type Sense = {
@@ -26,14 +18,9 @@ type Sense = {
     highlight: readonly string[];
     /** The plain phrase under the definition that says what it means. */
     sentence: JSX.Element;
-    /** The senses the phrase lists, each linking to the figure that shows it, lit one at a time. */
-    points?: readonly Link[];
-    /** The sense the phrase ends on as the page's call to action, set apart from the lit ones. */
-    action?: Link;
+    /** A short note in the form's own part of speech, set in brackets after it. */
+    gloss?: string;
 };
-
-/** A labelled link to a section of the page. */
-type Link = { label: string; href: string };
 
 /** One dictionary form of the word: its syllables, pronunciation, part of speech and sense. */
 export type Form = {
@@ -67,23 +54,6 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 
 /** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
-    // follow the phrase, the motion it may show, and whether it is on screen
-    const [phrase, setPhrase] = createSignal<HTMLElement>();
-    const isReduced = createReducedMotion(phrase);
-    const isShown = createVisibilityObserver(phrase, { initialValue: true });
-
-    // light the pointed sense, or else turn the light through the senses while the phrase shows
-    const [pointed, setPointed] = createSignal<number | undefined>(undefined);
-    const [turned, setTurned] = createSignal(0);
-    const count = properties.form.sense.points?.length ?? 0;
-    createTimer(
-        () => setTurned((current) => (current + 1) % count),
-        () =>
-            count > 1 && !isReduced() && isShown() && pointed() === undefined ? LIGHT_TIME : false,
-        setInterval,
-    );
-    const lit = () => pointed() ?? turned();
-
     return (
         <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
             <p {...style.attrs(styles.kicker)}>
@@ -92,6 +62,9 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                 </b>
                 <span>{properties.form.pronunciation}</span>
                 <i>{properties.form.partOfSpeech}</i>
+                {properties.form.sense.gloss === undefined ? undefined : (
+                    <span>[{properties.form.sense.gloss}]</span>
+                )}
             </p>
             {properties.isTitle === true ? (
                 <h1 {...style.attrs(styles.definition)}>
@@ -102,80 +75,8 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                     <Definition sense={properties.form.sense} />
                 </h2>
             )}
-            <p ref={setPhrase} {...style.attrs(styles.sentence)}>
-                {properties.form.sense.points === undefined ? (
-                    properties.form.sense.sentence
-                ) : (
-                    <>
-                        <For each={properties.form.sense.points}>
-                            {(point, index) => (
-                                <>
-                                    {index() > 0 && (
-                                        <>
-                                            {" "}
-                                            <Dot />{" "}
-                                        </>
-                                    )}
-                                    <Point
-                                        link={point}
-                                        isLit={lit() === index()}
-                                        onPoint={(isPointed) =>
-                                            setPointed(isPointed ? index() : undefined)
-                                        }
-                                    />
-                                </>
-                            )}
-                        </For>
-                        {properties.form.sense.action === undefined ? undefined : (
-                            <>
-                                {" "}
-                                <Dot /> <Action link={properties.form.sense.action} />
-                            </>
-                        )}
-                    </>
-                )}
-            </p>
+            <p {...style.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
         </header>
-    );
-}
-
-/** Set one sense of a phrase as a link, set bold while lit, in the room its bold face takes. */
-function Point(properties: { link: Link; isLit: boolean; onPoint: (isPointed: boolean) => void }) {
-    return (
-        <a
-            href={properties.link.href}
-            onPointerEnter={() => properties.onPoint(true)}
-            onPointerLeave={() => properties.onPoint(false)}
-            onFocus={() => properties.onPoint(true)}
-            onBlur={() => properties.onPoint(false)}
-            {...style.attrs(styles.point)}
-        >
-            <span {...style.attrs(styles.pointText, properties.isLit && styles.pointLit)}>
-                {properties.link.label}
-            </span>
-            <span aria-hidden="true" {...style.attrs(styles.pointRoom)}>
-                {properties.link.label}
-            </span>
-        </a>
-    );
-}
-
-/** Set the sense a phrase ends on as its call to action, with an arrow down to where it leads. */
-function Action(properties: { link: Link }) {
-    return (
-        <a href={properties.link.href} {...style.attrs(styles.point, styles.action)}>
-            {properties.link.label}
-            <Glyph name="download" size={18} weight={2} />
-        </a>
-    );
-}
-
-/** Set the dot between the senses of a phrase, as between a headword's syllables. */
-function Dot() {
-    return (
-        <span aria-hidden="true" {...style.attrs(styles.dot)}>
-            ·
-        </span>
     );
 }
 
@@ -284,7 +185,7 @@ const styles = style.create({
         alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         fontWeight: 600,
         gap: "1rem",
         gridColumn: "1 / -1",
@@ -300,9 +201,9 @@ const styles = style.create({
         marginRight: "1rem",
         whiteSpace: "nowrap",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontWeight: 600,
-        letterSpacing: "0.1em",
+        letterSpacing: tracking.label,
         textTransform: "uppercase",
     },
     kicker: {
@@ -311,87 +212,34 @@ const styles = style.create({
         display: "flex",
         flexWrap: "wrap",
         fontFamily: font.text,
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         rowGap: "0.25rem",
         columnGap: "0.625rem",
         margin: 0,
     },
     headword: {
         color: color.primary,
-        fontSize: "1.0625rem",
-        fontWeight: 700,
+        fontSize: typeScale.body,
+        fontWeight: 600,
     },
     interpunct: {
         marginInline: "0.05em",
     },
     definition: {
-        fontSize: "clamp(1.75rem, 3vw, 2.375rem)",
+        fontSize: typeScale.display,
         fontWeight: 500,
-        letterSpacing: "-0.02em",
+        letterSpacing: tracking.display,
         lineHeight: 1.15,
         margin: 0,
         textWrap: "balance",
     },
     sentence: {
         color: color.mutedForeground,
-        fontSize: "clamp(1rem, 1.3vw, 1.1875rem)",
+        fontSize: typeScale.lead,
         lineHeight: 1.45,
         margin: 0,
         maxWidth: "64rem",
         textWrap: "pretty",
-    },
-    point: {
-        color: "inherit",
-        display: "inline-grid",
-        textDecorationLine: "none",
-        whiteSpace: "nowrap",
-    },
-    pointText: {
-        gridArea: "1 / 1",
-        textDecorationColor: {
-            default: color.border,
-            ":hover": { default: null, [media.hover]: color.primary },
-        },
-        textDecorationLine: "underline",
-        textDecorationSkipInk: "none",
-        textDecorationThickness: "0.08em",
-        textUnderlineOffset: "0.2em",
-        transitionDuration: { default: "280ms", [media.motionReduce]: "0ms" },
-        transitionProperty: "color, font-weight, text-decoration-color, text-decoration-thickness",
-        transitionTimingFunction: "ease",
-    },
-    pointLit: {
-        color: color.foreground,
-        fontWeight: 600,
-        textDecorationColor: color.primary,
-        textDecorationThickness: "0.12em",
-    },
-    action: {
-        alignItems: "center",
-        color: {
-            default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
-        },
-        columnGap: "0.3em",
-        display: "inline-flex",
-        textDecorationColor: {
-            default: color.border,
-            ":hover": { default: null, [media.hover]: color.primary },
-        },
-        textDecorationLine: "underline",
-        textDecorationSkipInk: "none",
-        textDecorationThickness: "0.08em",
-        textUnderlineOffset: "0.2em",
-    },
-    pointRoom: {
-        fontWeight: 600,
-        gridArea: "1 / 1",
-        visibility: "hidden",
-    },
-    dot: {
-        color: color.primary,
-        fontWeight: 700,
-        marginInline: "0.3em",
     },
     highlight: {
         textDecorationColor: color.primary,

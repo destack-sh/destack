@@ -48,6 +48,7 @@ const noun: Form = {
         highlight: ["complete", "absurdly integrated"],
         sentence:
             "Auth, multiplayer, workflows, telemetry — great personal software, out of the box.",
+        gloss: "Unreal Engine, for everyday software",
     },
 };
 

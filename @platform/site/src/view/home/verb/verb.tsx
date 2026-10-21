@@ -57,13 +57,9 @@ const verb: Form = {
     sense: {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
-        sentence: undefined,
-        points: [
-            { label: "Own your apps", href: "#verb" },
-            { label: "Build custom software", href: "#noun" },
-            { label: "Integrate your agents", href: "#imperative" },
-        ],
-        action: { label: "Get your personal superapp", href: "#present-participle" },
+        sentence:
+            "Your apps, your own software and your agents on one open-source stack, doing the work of GitHub, npm, Convex, Vercel and Sentry.",
+        gloss: "to standardise how software is built, deployed and run",
     },
 };
 
