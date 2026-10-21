@@ -26,7 +26,6 @@ test("stage a newer release once, keeping it staged while none newer is publishe
     await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
     const home = await mkdtemp(join(tmpdir(), "destack-distribution-"));
     const distribution = new Distribution({
-        channel: "stable",
         home,
         repository: repository.options.repository,
         root: SignedRepository.encode(repository.root).toString(),

@@ -1,17 +1,15 @@
 import { basename, dirname, join, resolve } from "node:path";
 import { Installation } from "../installation/index.ts";
 import type { StagedRelease } from "../install/installer.ts";
-import { CHANNEL_ROOTS, type Channel, type Release } from "../release/index.ts";
+import { RELEASE_ROOT, type Release } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
 
-/** What a distribution is: its channel, location, followed repository and running release. */
+/** What a distribution is: its location, followed repository and running release. */
 export interface DistributionOptions {
-    /** The channel the distribution follows. */
-    readonly channel: Channel;
-    /** The channel's home directory, which keeps the distribution files and their registration. */
+    /** The home directory, which keeps the distribution files and their registration. */
     readonly home: string;
-    /** The signed repository the channel's releases come from. */
+    /** The signed repository the releases come from. */
     readonly repository: URL;
     /** The root metadata the repository is trusted from. */
     readonly root: string;
@@ -23,7 +21,7 @@ export interface DistributionOptions {
     readonly applications: string;
     /** The Mac application's bundle identifier. */
     readonly applicationIdentifier: string;
-    /** The application's display name, such as `Destack Nightly`. */
+    /** The application's display name, such as `Destack`. */
     readonly title: string;
 }
 
@@ -57,9 +55,9 @@ export class Distribution {
         );
     }
 
-    /** Read the root metadata a channel's releases bundle, which its repository is trusted from. */
-    static root(channel: Channel): string {
-        return JSON.stringify(CHANNEL_ROOTS[channel]);
+    /** Read the root metadata every release bundles, which the feed is trusted from. */
+    static root(): string {
+        return JSON.stringify(RELEASE_ROOT);
     }
 
     /** Find the Mac application containing an executable, absent outside one. */
@@ -85,7 +83,6 @@ export class Distribution {
         const updater = await Updater.open({
             directory: this.directory,
             repository: this.options.repository,
-            channel: this.options.channel,
             root: this.options.root,
             target: running.target,
             ...(isInstalling ? {} : { current: running }),

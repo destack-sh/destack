@@ -6,7 +6,7 @@ import type { Distribution } from "../distribution/index.ts";
 import { distribution } from "../object/index.ts";
 import { RequestId } from "@destack/runtime/request";
 
-/** How often the distribution stages its channel's latest release: daily, Sparkle's default. */
+/** How often the distribution stages the feed's latest release: daily, Sparkle's default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** The distribution a machine hosts: its installed releases and the restart into a staged one. */
@@ -65,7 +65,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
     });
 }
 
-/** Keep this machine's distribution row and stage the channel's latest release daily. */
+/** Keep this machine's distribution row and stage the feed's latest release daily. */
 export class DistributionController implements Controller {
     /** The controller's name in reports. */
     readonly name = "distribution";
@@ -111,7 +111,6 @@ export class DistributionController implements Controller {
                           calls: [
                               distribution.call("create", {
                                   ...distribution.in(scope),
-                                  channel: options.channel,
                                   installed: options.running.version,
                               }),
                           ],

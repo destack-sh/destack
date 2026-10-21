@@ -52,20 +52,20 @@ test.runIf(process.platform === "darwin")(
 );
 
 test.skipIf(process.platform !== "darwin")(
-    "replace signed applications while keeping stable and nightly identities separate",
+    "replace signed applications while keeping stable and dev identities separate",
     async () => {
         // create genuine ad-hoc signed bundles without modifying installed applications
         const directory = await mkdtemp(join(tmpdir(), "destack-bundle-"));
         try {
             const source = join(directory, "source.app");
             const destination = join(directory, "renamed.app");
-            for (const version of ["2026.9.1-nightly.1", "2026.9.1-nightly.2"]) {
+            for (const version of ["2026.9.1-dev.1", "2026.9.1-dev.2"]) {
                 const release = new Release(
                     version,
                     Release.target(process.platform, process.arch),
                 );
-                await writeApplication(source, release, "org.example.editor.nightly");
-                await installApplication(source, destination, "org.example.editor.nightly");
+                await writeApplication(source, release, "org.example.editor.dev");
+                await installApplication(source, destination, "org.example.editor.dev");
                 expect(
                     await readFile(join(destination, "Contents/Resources/version"), "utf8"),
                 ).toBe(version);
@@ -80,7 +80,7 @@ test.skipIf(process.platform !== "darwin")(
                 `application identifier does not match org.example.editor: ${destination}`,
             );
             expect(await readFile(join(destination, "Contents/Resources/version"), "utf8")).toBe(
-                "2026.9.1-nightly.2",
+                "2026.9.1-dev.2",
             );
         } finally {
             await rm(directory, { recursive: true, force: true });

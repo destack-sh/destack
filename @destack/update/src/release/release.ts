@@ -26,12 +26,6 @@ export const TargetCustom = schema
     })
     .strip();
 
-/** The update channels a release publishes on, each with its own signed repository. */
-export const CHANNELS = ["stable", "nightly"] as const;
-
-/** An update channel. */
-export type Channel = (typeof CHANNELS)[number];
-
 /** The release architecture of each Node architecture name. */
 const ARCHITECTURES: Readonly<Record<string, string | undefined>> = {
     arm64: "aarch64",
@@ -87,10 +81,5 @@ export class Release {
     /** Build the path of the immutable installed distribution directory. */
     get directory(): string {
         return `${this.version}-${this.target}`;
-    }
-
-    /** Update channel selected by this release identity. */
-    get channel(): Channel {
-        return this.version.includes("-nightly.") ? "nightly" : "stable";
     }
 }

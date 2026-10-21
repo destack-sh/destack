@@ -90,7 +90,6 @@ export class UpdateFixture implements AsyncDisposable {
         this.options = {
             directory: join(directory, "installation"),
             repository: new URL("http://127.0.0.1/"),
-            channel: "stable",
             root: SignedRepository.encode(this.root).toString(),
             target: this.target,
         };

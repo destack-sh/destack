@@ -309,14 +309,14 @@ test("preserve the installed release when signed replacements contradict its ide
         expect(await updater.staged()).toBeUndefined();
     }
 
-    // refuse a correctly signed nightly release in the stable repository
+    // refuse a correctly signed dev build in the feed
     await SignedRepository.create(repository.path, 5, repository.root, repository.keys, [
-        { target, version: "2026.9.2-nightly.1", commit: COMMIT, archive },
+        { target, version: "2026.9.2-dev.1", commit: COMMIT, archive },
     ]);
     {
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow(
-            new UpdateError("REPOSITORY", "the stable repository publishes a nightly release"),
+            new UpdateError("REPOSITORY", "the feed publishes a dev build 2026.9.2-dev.1"),
         );
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();

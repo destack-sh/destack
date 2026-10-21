@@ -7,7 +7,6 @@
 await using updater = await Updater.open({
     directory,
     repository,
-    channel: "stable",
     root: trustedRoot,
     target,
 });
@@ -20,16 +19,15 @@ Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
 
 ## Distributions
 
-`Distribution` is this machine's installed distribution: the channel it follows, where it lives and the release running.
+`Distribution` is this machine's installed distribution: where it lives, the feed it follows and the release running.
 
 ```ts
 import { Distribution, Release } from "@destack/update";
 
 const distribution = new Distribution({
-    channel: "stable",
     home: "/Users/ada/.destack",
     repository: new URL("https://download.destack.sh/stable/"),
-    root: Distribution.root("stable"),
+    root: Distribution.root(),
     running: new Release("2026.10.1", "aarch64-apple-darwin"),
     executable: process.execPath,
     applications: "/Users/ada/Applications",
