@@ -14,14 +14,14 @@ import { sudo } from "@destack/account/authentication";
 import { and, type DatabaseConnection, defineDatabase, type Dialect, eq } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { TEST_CIPHER, TestDatabase } from "@destack/db/test";
-import { defineServer, ObjectStore, Server } from "@destack/object/server";
+import { implementPackage, ObjectStore, Server, Health } from "@destack/object/server";
 import { callTables, testEvents, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import type { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
 import { createClient, type ClientOf } from "@destack/object/client";
-import { CallError, Health } from "@destack/object";
+import { CallError } from "@destack/object";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
 import { secret, secretVersion, vault } from "../object/index.ts";
@@ -133,7 +133,7 @@ export class VaultFixture implements AsyncDisposable {
             chain: async () => undefined,
             principal: this.spacePrincipal,
             servers: [
-                defineServer(vaultPackage, {
+                implementPackage(vaultPackage, {
                     objects: [vaults, implementSecret(), implementSecretVersion()],
                 }),
             ],
