@@ -7,6 +7,7 @@ import { createSignal, For, type JSX, Show } from "@destack/view";
 import { browserStyles } from "../figure/browser";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Option } from "../figure/picker";
+import { type Tool, tools } from "../tool/tool";
 import { assistant, chat, chatgpt, claude, gemini, grok } from "./chat.stylex";
 import {
     BEAT,
@@ -19,21 +20,6 @@ import {
 
 /** The sans the assistants' chrome and your messages set in. */
 const SANS = 'ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif';
-
-/** The servers the assistant's tools run on, by their mark: your space, or a vendor's connector. */
-const serverNames: Readonly<Record<string, string>> = {
-    destack: "Destack",
-    linear: "Linear",
-    notion: "Notion",
-    slack: "Slack",
-    googlecalendar: "Google Calendar",
-    gmail: "Gmail",
-    airtable: "Airtable",
-    calendly: "Calendly",
-    miro: "Miro",
-    zapier: "Zapier",
-    trello: "Trello",
-};
 
 /** The assistants the chat takes the look of, in turn. */
 export const assistants = ["Claude", "ChatGPT", "Gemini", "Grok"] as const;
@@ -501,14 +487,14 @@ function ToolCall(properties: { item: Extract<Item, { kind: "call" }>; isRunning
             <button
                 type="button"
                 aria-expanded={isOpen() ? "true" : "false"}
-                title={serverNames[item().server]}
+                title={item().server === "destack" ? "Destack" : vendorOf(item().server).name}
                 onClick={() => setIsOpen(!isOpen())}
                 {...style.attrs(styles.toolHead)}
             >
                 {item().server === "destack" ? (
                     <img alt="" src="/brand/mark.svg" {...style.attrs(styles.server)} />
                 ) : (
-                    <Favicon icon={item().server} tint={chat.ink} size={13} />
+                    <Favicon icon={item().server} tint={vendorOf(item().server).tint} size={13} />
                 )}
                 {properties.isRunning ? (
                     <span {...style.attrs(styles.toolTitle, styles.shimmer)}>{item().running}</span>
@@ -540,6 +526,14 @@ function ToolCall(properties: { item: Extract<Item, { kind: "call" }>; isRunning
                 </span>
             ) : undefined}
         </span>
+    );
+}
+
+/** Return the tool a vendor's connector serves, by the tool's mark. */
+function vendorOf(server: string): Tool {
+    return present(
+        tools.find((tool) => tool.icon === server),
+        `tool with the mark ${server}`,
     );
 }
 
