@@ -34,6 +34,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/view": "workspace:*"
@@ -41,7 +42,6 @@
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
-        "@destack/package": "workspace:*"
+        "@types/bun": "1.4.2"
     }
 }
