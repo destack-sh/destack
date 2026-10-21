@@ -7,6 +7,8 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfiguration({
     test: {
+        // store the builds of this package's closure the served applications run on once per run
+        globalSetup: ["src/test/setup.ts"],
         // render components in a DOM, and build and serve applications as hosts do
         projects: [
             {

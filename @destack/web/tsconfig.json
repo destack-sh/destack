@@ -21,5 +21,6 @@
         "lib": ["ESNext", "DOM", "DOM.Iterable"],
         "types": ["@destack/build/browser", "vite/client"]
     },
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["src", "tests", "*.config.ts"],
+    "exclude": ["tests/fixture/website/source"]
 }

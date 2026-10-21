@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Window } from "happy-dom";
-import { readDependencies } from "@destack/build";
 import { expect, test } from "@destack/test";
 import { DevelopmentServer } from "./server.ts";
 
@@ -112,6 +111,10 @@ async function writeApplication(): Promise<{
     await mkdir(join(dependency, "src"), { recursive: true });
     await symlink(dependency, join(application, "node_modules", "@fixture", "dependency"));
     await symlink(INSTALLED, join(root, "node_modules"));
+    await writeFile(
+        join(root, "bun.lock"),
+        JSON.stringify({ lockfileVersion: 2, workspaces: {}, packages: {} }),
+    );
 
     // write the dependency, labelling text by whether the build stamped its module
     const version = { version: "2026.9.0", type: "module" };
@@ -168,6 +171,7 @@ async function writeAuthoredApplication(): Promise<{ root: string; application: 
         join(VIEW, "node_modules", "solid-js"),
         join(application, "node_modules", "solid-js"),
     );
+    await symlink(join(PACKAGE, "..", "..", "bun.lock"), join(root, "bun.lock"));
 
     // write the application and its modules
     await writeFile(
@@ -204,7 +208,6 @@ test("restart the server with fresh package definitions once a dependency's defi
     try {
         await using server = await DevelopmentServer.start({
             directory: application,
-            dependencies: {},
             application: { kind: "web", app: "src/app.ts", ssr: false, publicDirectory: false },
             server: { port: 0 },
         });
@@ -239,7 +242,6 @@ test("restart the server with the application's own definition once it changes",
     try {
         await using server = await DevelopmentServer.start({
             directory: application,
-            dependencies: {},
             application: { kind: "web", app: "src/app.ts", ssr: false, publicDirectory: false },
             server: { port: 0 },
         });
@@ -275,7 +277,6 @@ test("load an authored client entry in served pages, which hydrates them", async
     try {
         await using server = await DevelopmentServer.start({
             directory: application,
-            dependencies: await readDependencies(PACKAGE),
             application: {
                 kind: "web",
                 app: "src/app.tsx",
@@ -333,7 +334,6 @@ test("serve the site files an application publishes as builds write them", async
     try {
         await using server = await DevelopmentServer.start({
             directory: application,
-            dependencies: {},
             application: {
                 kind: "web",
                 app: "src/app.ts",

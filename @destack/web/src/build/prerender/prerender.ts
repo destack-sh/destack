@@ -117,7 +117,7 @@ async function writeProgram(
 ): Promise<string> {
     // import the server module and the renderer to render every URL
     const program = join(directory, "render.js");
-    const renderer = new URL("./render.ts", import.meta.url).href;
+    const renderer = import.meta.resolve("@destack/web/build");
     const urls = requests.map((request) => request.url.href);
     await writeFile(
         program,

@@ -1,8 +1,6 @@
 import { isAbsolute, join } from "node:path";
 import { createServer, type ServerOptions, type ViteDevServer } from "vite";
-import { readDependencies } from "@destack/build";
-import { loadTransforms, PackageSource, resolutionPlugin } from "@destack/build/local";
-import type { DependencyResolution } from "@destack/package";
+import { loadTransforms, PackageSource } from "@destack/build/local";
 import type { Plugin } from "@destack/package/build";
 import { runtimeConditions } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
@@ -15,7 +13,7 @@ import { requireSite, type WebOptions } from "./output.ts";
 /** The browsers development serves syntax for. */
 const BROWSER_TARGETS = ["chrome111", "edge111", "firefox114", "safari16.4"];
 
-/** A local application server with Vite's watcher and module graph. */
+/** A local application server on Vite, serving workspace packages from source. */
 export class DevelopmentServer implements AsyncDisposable {
     /** The running Vite server, replaced on each restart. */
     #vite: ViteDevServer;
@@ -36,6 +34,7 @@ export class DevelopmentServer implements AsyncDisposable {
         options: DevelopmentServerOptions,
         source: PackageSource,
     ) {
+        // keep the server and its source
         this.#vite = vite;
         this.#options = options;
         this.#source = source;
@@ -48,7 +47,7 @@ export class DevelopmentServer implements AsyncDisposable {
 
     /** Start the application with the build's JSX, style, and metadata transforms. */
     static async start(options: DevelopmentServerOptions): Promise<DevelopmentServer> {
-        // open the application's package source
+        // open the application's package source, its workspace dependencies served from theirs
         const source = await open(options);
         let server: DevelopmentServer | undefined;
         let vite: ViteDevServer | undefined;
@@ -148,8 +147,6 @@ export class DevelopmentServer implements AsyncDisposable {
 export interface DevelopmentServerOptions {
     /** The source package directory. */
     directory: string;
-    /** The dependency releases to resolve in place of the ones the package's lockfile selects. */
-    dependencies?: Readonly<Record<string, DependencyResolution>>;
     /** The application's browser and server settings. */
     application: WebOptions;
     /** The package's TypeScript configuration. */
@@ -165,6 +162,8 @@ async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
         runtime: "browser",
         ...(options.configuration === undefined ? {} : { configuration: options.configuration }),
         entries: { ".": options.application.app },
+        tree: {},
+        roots: "package",
     });
 }
 
@@ -175,10 +174,9 @@ async function serve(
     server: ServerOptions | undefined,
     onDefinitionChange: () => void,
 ): Promise<ViteDevServer> {
-    // compile the application with the build's plugins and transforms, resolving the releases its lockfile selects
+    // compile the application with the build's plugins and transforms, resolving packages as installed
     const application = options.application;
     const runtime = application.ssr === false ? "browser" : application.ssr.runtime;
-    const dependencies = options.dependencies ?? (await readDependencies(source.directory));
     const vite = await createServer({
         root: source.directory,
         configFile: false,
@@ -187,7 +185,6 @@ async function serve(
         base: application.base ?? "/",
         plugins: [
             modulePlugin(),
-            resolutionPlugin(source, dependencies, runtime),
             definitionPlugin(source.directory, onDefinitionChange),
             metadataPlugin(application),
             ...(await loadTransforms({
