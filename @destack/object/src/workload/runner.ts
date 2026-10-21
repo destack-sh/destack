@@ -13,7 +13,7 @@ import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import type { PackageHandle } from "../declare/package.ts";
 import { CallError } from "../error/index.ts";
-import { refusal } from "../server/report.ts";
+import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";

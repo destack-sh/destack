@@ -482,9 +482,12 @@ test("index exactly the code values object's root exports, at the same paths", (
         "@destack/access": accessRoot,
     });
     const loaded = ExportIndex.loaded();
-    const values = Object.values(objectRoot).flatMap((value) =>
-        typeof value === "object" && value !== null ? [value, ...Object.values(value)] : [value],
-    );
+    const values = Object.values(objectRoot).flatMap((value): unknown[] => {
+        const members: unknown[] =
+            typeof value === "object" && value !== null ? Object.values(value) : [];
+
+        return [value, ...members];
+    });
     const differing = values
         .filter(
             (value) =>
@@ -495,7 +498,11 @@ test("index exactly the code values object's root exports, at the same paths", (
     // compare the declarations and tables both find
     expect({
         differing,
-        declarations: loaded.declarations().length - reference.declarations().length,
-        tables: loaded.tables().length - reference.tables().length,
-    }).toEqual({ differing: [], declarations: 0, tables: 0 });
+        declarations: loaded.declarations(),
+        tables: loaded.tables(),
+    }).toEqual({
+        differing: [],
+        declarations: reference.declarations(),
+        tables: reference.tables(),
+    });
 });

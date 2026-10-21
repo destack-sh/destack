@@ -13,7 +13,7 @@ import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
 import type { Alarm } from "@destack/db";
 import { CallError } from "../error/index.ts";
-import { refusal } from "../server/report.ts";
+import { refusal } from "../error/report.ts";
 import {
     type RunnerOptions,
     SOCKET_PATH,

@@ -6,7 +6,7 @@ import { type Authentication, Caller, Credential, LinkSecret } from "@destack/ac
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { CallError } from "../error/index.ts";
-import { reportError } from "./report.ts";
+import { reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";

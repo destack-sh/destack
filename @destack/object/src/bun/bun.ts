@@ -1,8 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { type Listener, Network } from "@destack/environment";
 import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
-import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { readBuild } from "@destack/package/bun";
 
 import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
@@ -159,13 +157,4 @@ async function startRunnerTelemetry(options: TelemetryOptions): Promise<Telemetr
     observeProcess(telemetry, options);
 
     return telemetry;
-}
-
-/** Read the build a host wrote into a directory: its manifest at the root and its files below. */
-async function readBuild(directory: string): Promise<BuildReader> {
-    const manifest = PackageManifest.parse(
-        JSON.parse(await readFile(join(directory, MANIFEST_PATH), "utf8")),
-    );
-
-    return new BuildReader(manifest, async (path) => Bun.file(join(directory, path)).stream());
 }

@@ -5,7 +5,7 @@ import { startTelemetry } from "@destack/telemetry/bun";
 import { createClient } from "../client/index.ts";
 import { Health } from "./health.ts";
 import { defineProcedure } from "../procedure/index.ts";
-import { reportError } from "./report.ts";
+import { reportError } from "../error/report.ts";
 import { fixturePackage } from "../test/fixture.ts";
 import { implement, RequestHandler } from "./handler.ts";
 
