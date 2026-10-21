@@ -59,8 +59,6 @@ export class R2BlobStore implements BlobStore {
             const digest = verified(hash, expected);
             if ((await this.missing([digest])).length > 0) {
                 await this.#files.put(this.#key(digest), bytes, { sha256: digest });
-            } else {
-                await this.#touch(digest);
             }
 
             return digest;
@@ -74,8 +72,6 @@ export class R2BlobStore implements BlobStore {
             if ((await this.missing([digest])).length > 0) {
                 const file = present(await this.#files.get(staged), staged);
                 await this.#files.put(this.#key(digest), file.body, { sha256: digest });
-            } else {
-                await this.#touch(digest);
             }
 
             return digest;
@@ -86,17 +82,9 @@ export class R2BlobStore implements BlobStore {
 
     /** Keep the blobs the store lacks among some digests, read from another store. */
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
-        const unique = [...new Set(digests)];
-        const missing = new Set(await this.missing(unique));
-        for (const digest of unique) {
-            // copy a missing blob
-            if (missing.has(digest)) {
-                await this.write(source.read(digest), digest);
-            }
-            // mark a kept blob used
-            else {
-                await this.#touch(digest);
-            }
+        // copy the missing blobs
+        for (const digest of await this.missing([...new Set(digests)])) {
+            await this.write(source.read(digest), digest);
         }
     }
 
@@ -117,20 +105,6 @@ export class R2BlobStore implements BlobStore {
         }
     }
 
-    /** Delete the blobs outside a retained set last used before a moment. */
-    async sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void> {
-        for await (const digest of this.digests()) {
-            // leave retained blobs and blobs used since the moment
-            if (retained.has(digest)) {
-                continue;
-            }
-            const file = await this.#files.head(this.#key(digest));
-            if (file !== null && file.uploaded < before) {
-                await this.delete(digest);
-            }
-        }
-    }
-
     /** Delete the staged bodies a stopped host left behind, a page at a time. */
     async clean(): Promise<void> {
         for await (const keys of this.#pages(`${this.#prefix}${STAGING}`)) {
@@ -143,13 +117,6 @@ export class R2BlobStore implements BlobStore {
         for await (const keys of this.#pages(this.#prefix)) {
             await this.#files.delete(keys);
         }
-    }
-
-    /** Mark a kept blob used now by writing it onto itself. */
-    async #touch(digest: Digest): Promise<void> {
-        const key = this.#key(digest);
-        const file = present(await this.#files.get(key), digest);
-        await this.#files.put(key, file.body, { sha256: digest });
     }
 
     /** Upload a body in parts of one size under a staging name, skipping an empty last part. */

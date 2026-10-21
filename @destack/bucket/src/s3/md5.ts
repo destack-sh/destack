@@ -71,11 +71,7 @@ function fold(state: number[], view: DataView, offset: number): void {
 
         // rotate the sum into second and shift the words along
         const sum =
-            (first +
-                mixed +
-                nth(CONSTANTS, index) +
-                view.getUint32(offset + word * 4, true)) >>>
-            0;
+            (first + mixed + nth(CONSTANTS, index) + view.getUint32(offset + word * 4, true)) >>> 0;
         const shift = nth(SHIFTS, index);
         first = fourth;
         fourth = third;

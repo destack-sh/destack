@@ -26,7 +26,7 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
     return bytes;
 }
 
-/** Keep blobs by digest below a prefix, and read, sweep, copy and delete them. */
+/** Keep blobs by digest below a prefix, and read, list, copy and delete them. */
 export async function exerciseBlobStore(bucket: Bucket): Promise<void> {
     // keep a short body under its digest, and a long one staged in two parts
     const store = new R2BlobStore(bucket, "bucket-source/");
@@ -68,20 +68,10 @@ export async function exerciseBlobStore(bucket: Bucket): Promise<void> {
         [[shortDigest, longDigest].toSorted(), null],
     );
 
-    // sweep the blobs last used before a moment, sparing one a later write used again
-    await store.write(chunked(new TextEncoder().encode("dropped")));
-    await new Promise((resolve) => {
-        setTimeout(resolve, 2);
-    });
-    const moment = new Date();
-    await new Promise((resolve) => {
-        setTimeout(resolve, 2);
-    });
-    await store.write(chunked(short));
-    await store.sweep(new Set([longDigest]), moment);
+    // write a kept body again, keeping its one copy
     assert.deepStrictEqual(
-        (await Array.fromAsync(store.digests())).toSorted(),
-        [shortDigest, longDigest].toSorted(),
+        [await store.write(chunked(short)), (await Array.fromAsync(store.digests())).toSorted()],
+        [shortDigest, [shortDigest, longDigest].toSorted()],
     );
 
     // copy the blobs another prefix lacks, then delete one blob and clear both prefixes

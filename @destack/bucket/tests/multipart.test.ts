@@ -10,7 +10,11 @@ import { LocalBucket } from "../src/bun/index.ts";
 test("replace multipart parts and publish identical local and R2 files", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-multipart-"));
     try {
-        await using local = await LocalBucket.open(join(directory, "local"), "space-test", Clock.system);
+        await using local = await LocalBucket.open(
+            join(directory, "local"),
+            "space-test",
+            Clock.system,
+        );
         await exerciseMultipart(local);
         await runR2("exerciseMultipart");
     } finally {

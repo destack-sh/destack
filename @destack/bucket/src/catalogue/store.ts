@@ -7,10 +7,6 @@ export interface BlobStore extends ContentStore {
     readonly missing: (digests: readonly Digest[]) => Promise<readonly Digest[]>;
     /** Read a range of a blob's bytes. */
     readonly slice: (digest: Digest, offset: number, length: number) => AsyncIterable<Uint8Array>;
-    /** Delete a blob. */
-    readonly delete: (digest: Digest) => Promise<void>;
-    /** List the kept blobs' digests. */
-    readonly digests: () => AsyncIterable<Digest>;
     /** Delete the unfinished writes interrupted writers left behind, while no writer runs. */
     readonly clean: () => Promise<void>;
 }

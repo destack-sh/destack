@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { closeSync, openSync, readSync } from "node:fs";
-import { mkdir, open, opendir, rename, stat, unlink, utimes } from "node:fs/promises";
+import { mkdir, open, opendir, rename, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { ContentStore } from "@destack/resource";
 import { Digest } from "@destack/schema";
@@ -81,7 +81,6 @@ export class LocalBlobStore implements BlobStore {
             // keep the file under its digest once
             if (await this.#has(digest)) {
                 await unlink(temporary);
-                await this.#touch(digest);
             } else {
                 await rename(temporary, this.path(digest));
                 await sync(this.directory);
@@ -100,10 +99,6 @@ export class LocalBlobStore implements BlobStore {
             // copy a missing blob
             if (!(await this.#has(digest))) {
                 await this.write(source.read(digest), digest);
-            }
-            // mark a kept blob used
-            else {
-                await this.#touch(digest);
             }
         }
     }
@@ -131,20 +126,6 @@ export class LocalBlobStore implements BlobStore {
         }
     }
 
-    /** Delete the blobs outside a retained set last used before a moment. */
-    async sweep(retained: ReadonlySet<Digest>, before: Date): Promise<void> {
-        for await (const digest of this.digests()) {
-            // leave retained blobs and blobs used since the moment
-            if (retained.has(digest)) {
-                continue;
-            }
-            const { mtime } = await stat(this.path(digest));
-            if (mtime < before) {
-                await this.delete(digest);
-            }
-        }
-    }
-
     /** Report whether the directory keeps a blob. */
     #has(digest: Digest): Promise<boolean> {
         return stat(this.path(digest)).then(
@@ -157,12 +138,6 @@ export class LocalBlobStore implements BlobStore {
                 return false;
             },
         );
-    }
-
-    /** Mark a kept blob used now, which keeps it from a sweep's grace. */
-    async #touch(digest: Digest): Promise<void> {
-        const now = new Date();
-        await utimes(this.path(digest), now, now);
     }
 }
 
