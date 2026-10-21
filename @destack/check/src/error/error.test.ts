@@ -1,4 +1,4 @@
-import type { CallErrorReport } from "@destack/error";
+import type { Failure } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { CheckError, type CheckErrorCode } from "./error.ts";
 
@@ -10,7 +10,7 @@ test("map every check failure code to the call error its caller receives", () =>
     );
 
     // receive each code's call error with the failure's message
-    const expected: Readonly<Record<CheckErrorCode, CallErrorReport>> = {
+    const expected: Readonly<Record<CheckErrorCode, Failure>> = {
         TOOL: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
         CONFIGURATION: { code: "BAD_REQUEST", message: "failed" },
         LANGUAGE: { code: "UNPROCESSABLE_CONTENT", message: "failed" },
