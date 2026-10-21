@@ -30,7 +30,6 @@
         "@destack/package": "workspace:*",
         "@destack/relay": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",

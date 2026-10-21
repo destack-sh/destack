@@ -3,7 +3,7 @@ import { LocalBucket } from "@destack/bucket/bun";
 import { connectPostgres } from "@destack/db/postgres";
 import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/message/email";
-import { CallKey } from "@destack/runtime/request";
+import { CallKey } from "@destack/object";
 import { Universe, type UniverseDefinition, universeDatabase } from "../universe/index.ts";
 
 /** What a Bun process runs a universe with. */
