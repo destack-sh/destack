@@ -1,6 +1,5 @@
 import { AccessContext, Authorization, type Authorizer, Caller, principal } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { user, User } from "../object/user.ts";
 import { createAdapterFactory, type CleanedWhere, type CustomAdapter } from "better-auth/adapters";
 import type { DBAdapterInstance } from "better-auth";
@@ -47,7 +46,7 @@ import { oauthClient } from "../object/oauth-client.ts";
 import { oauthConsent } from "../object/oauth-consent.ts";
 import { CLIENT_RESOURCE_MODEL, PackageResource, RESOURCE_MODEL } from "../oauth/resource.ts";
 import type { PackageId } from "@destack/package";
-import { isCallError, CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { BetterAuthWhere } from "./where.ts";
 import type { Clock } from "@destack/environment";
 
@@ -486,7 +485,7 @@ async function createUser(
 
 /** Report a taken name as Better Auth reports a taken handle. */
 function handleTaken(error: unknown): never {
-    throw isCallError(error) && error.code === "CONFLICT"
+    throw CallError.of(error)?.code === "CONFLICT"
         ? new APIError("CONFLICT", { code: "HANDLE_TAKEN", message: "the handle is taken" })
         : error;
 }

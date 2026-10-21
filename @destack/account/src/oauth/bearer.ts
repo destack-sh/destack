@@ -1,12 +1,11 @@
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
 import type { JWTPayload } from "jose";
 import { CONTAINED, principal } from "@destack/access";
-import { Scope, type Subject } from "@destack/sync";
+import { Scope, type Subject, RequestId } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { type AssertionKey, AssertionVerifier } from "@destack/runtime/authentication";
-import { isCallError } from "@destack/runtime/error";
+import { type AssertionKey, AssertionVerifier } from "@destack/access/token";
 import { Identity } from "../object/identity.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
@@ -18,7 +17,6 @@ import { Issuance } from "./issuance.ts";
 import { PackageResource } from "./resource.ts";
 import { proof } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
 import type { Clock } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
@@ -121,7 +119,7 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
 
 /** Refuse a failed verification as an invalid grant (RFC 6749 5.2). */
 function refuse(error: unknown): never {
-    throw isCallError(error) ? Issuance.refusal("invalid_grant", error.message) : error;
+    throw Issuance.grantRefusal(error);
 }
 
 /** Read the key an assertion's issuer signs with: a machine's own, or a space's identity key. */

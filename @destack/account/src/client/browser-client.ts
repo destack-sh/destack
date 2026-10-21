@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { Proof, PROOF_HEADER, PublicKey } from "@destack/identity";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import type { ClientRegistration } from "../object/client.ts";
 import { KeyRegistration } from "../object/key.ts";
 import { Platform } from "../object/platform.ts";

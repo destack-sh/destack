@@ -2,8 +2,7 @@ import accountPackage from "../src/package.ts";
 import { accessRelationship, CHAIN_PUBLICATION, Relationship } from "@destack/access";
 import { and, eq, Snapshot } from "@destack/db";
 import { Identifier, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import {
     Account,

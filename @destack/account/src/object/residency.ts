@@ -2,10 +2,9 @@ import { anyone, none, principal, relation, Relationship, union } from "@destack
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, Scope, Subject } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { Scope, Subject } from "@destack/sync";
+import { CallError } from "@destack/object";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "./display-name.ts";
 

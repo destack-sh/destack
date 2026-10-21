@@ -1,5 +1,5 @@
 import { AuditCaller, JournalEntry, journal } from "@destack/object";
-import { Subject } from "@destack/sync";
+import { Subject, RequestId } from "@destack/sync";
 import { Account, account, passkey, session, twoFactor, userLogin } from "../src/object/index.ts";
 import { user } from "../src/object/user.ts";
 import { expect, onTestFinished, single, test } from "@destack/test";
@@ -23,7 +23,6 @@ import {
     Tokens,
 } from "./fixture.ts";
 import { principal } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
 
@@ -204,22 +203,14 @@ test("sign in and revoke a session", async () => {
             endpoint: "/magic-link/verify",
             outcome: {
                 kind: "failure",
-                error: {
-                    code: "AUTHENTICATION_REJECTED",
-                    status: 302,
-                    message: "authentication rejected",
-                },
+                error: { code: "UNAUTHORIZED", message: "authentication rejected" },
             },
         },
         {
             endpoint: "/sign-out",
             outcome: {
                 kind: "failure",
-                error: {
-                    code: "AUTHENTICATION_REJECTED",
-                    status: 403,
-                    message: "authentication rejected",
-                },
+                error: { code: "FORBIDDEN", message: "authentication rejected" },
             },
         },
         { endpoint: "/sign-out", outcome: { kind: "success" } },

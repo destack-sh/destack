@@ -1,7 +1,7 @@
 import { present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
-import { InstallationName } from "@destack/runtime";
+import { InstallationName } from "@destack/object";
 import { Label } from "./label.ts";
 
 /** The longest DNS label, which one wildcard certificate covers (RFC 1035 2.3.4). */

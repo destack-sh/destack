@@ -1,13 +1,12 @@
 import { eq } from "@destack/db";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Credential } from "../src/credential/credential.ts";
 import { user } from "../src/object/user.ts";
 import { client } from "../src/object/client.ts";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { deviceAuthorization } from "../src/stack/db.ts";
-import { outcome } from "../src/test/index.ts";
-import { AccountFixture, ISSUER, type Person } from "../src/test/index.ts";
+import { outcome, AccountFixture, ISSUER, type Person } from "../src/test/index.ts";
 import {
     at,
     claims,
@@ -21,7 +20,7 @@ import {
 import { JWKS_PATH } from "../src/authentication/path.ts";
 import { EMAIL_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "../src/oauth/index.ts";
 import { verification } from "../src/stack/index.ts";
-import { Pkce } from "@destack/runtime/authentication";
+import { Pkce } from "@destack/access/token";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
 

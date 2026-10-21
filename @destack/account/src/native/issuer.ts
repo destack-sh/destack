@@ -1,12 +1,12 @@
-import { type Fetch, PackageMount } from "@destack/runtime";
+import { type Fetch, PackageMount } from "@destack/object";
 import { ListPage } from "@destack/object";
 import type { StepUp } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
-import { createClient } from "@destack/runtime/client";
-import { CallError } from "@destack/runtime/error";
-import { Pkce } from "@destack/runtime/authentication";
+import { createClient } from "@destack/object/client";
+import { CallError } from "@destack/object";
+import { Pkce } from "@destack/access/token";
 import { DEVICE_CODE_GRANT_TYPE } from "@better-auth/oauth-provider";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { ErrorResponse, TokenResponse } from "../authentication/token.ts";

@@ -1,5 +1,5 @@
 import { PackageId } from "@destack/package";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 
 /** The milliseconds in a second, as OAuth counts expiries in seconds. */
 const SECOND_MILLISECONDS = 1000;

@@ -1,4 +1,4 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** The milliseconds in a second, as OAuth counts expiries in seconds. */

@@ -24,7 +24,7 @@ import accountPackage from "../src/package.ts";
 import { Package } from "@destack/package";
 import { testEvents, serversOf } from "@destack/object/test";
 
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { SIGN_UP } from "../src/test/index.ts";
 import { AccountFixture } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";

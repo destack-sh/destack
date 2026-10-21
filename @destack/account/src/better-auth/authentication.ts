@@ -9,8 +9,8 @@ import {
 import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
-import { Bearer, TokenVerifier } from "@destack/runtime/authentication";
-import { CallError } from "@destack/runtime/error";
+import { Bearer, TokenVerifier } from "@destack/access/token";
+import { CallError } from "@destack/object";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Identity } from "../object/identity.ts";
 import { client } from "../object/client.ts";

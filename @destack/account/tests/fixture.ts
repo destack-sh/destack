@@ -1,9 +1,8 @@
-import { AccessToken } from "@destack/runtime/authentication";
+import { AccessToken } from "@destack/access/token";
 import type { DatabaseConnection } from "@destack/db";
 import { type Claimant, defineObject, field } from "@destack/object";
 import { RemoteStore, Reservation } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
-import { type Page, Scope } from "@destack/sync";
+import { RequestId, type Page, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import { account } from "../src/object/account.ts";
 import { claim } from "../src/object/claim.ts";

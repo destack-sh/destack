@@ -4,7 +4,6 @@ import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { isCallError } from "@destack/runtime/error";
 import { isAPIError } from "better-auth/api";
 import { Scope } from "@destack/sync";
 import { Client } from "../object/client.ts";
@@ -108,7 +107,7 @@ export function codeGrant(options: CodeOptions): OAuthExtensionGrantHandler {
             throw Issuance.refusal("invalid_grant", `${clientId} is revoked`);
         }
         await Client.register(options.objects, clientId, userId, now).catch((error: unknown) => {
-            throw isCallError(error) ? Issuance.refusal("invalid_grant", error.message) : error;
+            throw Issuance.grantRefusal(error);
         });
 
         // sign the person in on the client with a session the code proved, which its refresh tokens belong to

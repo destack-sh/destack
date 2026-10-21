@@ -6,7 +6,7 @@ import {
     Claim,
     claimTable,
 } from "@destack/object";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Account, account } from "../object/account.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { user } from "../object/user.ts";

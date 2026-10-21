@@ -11,7 +11,7 @@ import { placement } from "./placement.ts";
 import { defineObject, defineShape, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { organisation } from "./organisation.ts";

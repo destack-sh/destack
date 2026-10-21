@@ -1,4 +1,4 @@
-import { defineServer, type PackageServer } from "@destack/object/server";
+import { implementPackage, type PackageImplementation } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
@@ -33,8 +33,8 @@ export interface AccountOptions {
 }
 
 /** Serve the account package in the universe's store, its oauth adapter answering sign-in. */
-export function accountServer(options: AccountOptions): PackageServer {
-    return defineServer(accountPackage, {
+export function accountServer(options: AccountOptions): PackageImplementation {
+    return implementPackage(accountPackage, {
         objects: [
             implementUser(),
             implementAccount(options.stacks),

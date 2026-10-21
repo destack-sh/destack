@@ -1,7 +1,6 @@
 import { accessRelationship, accessRole, Contact, Relationship } from "@destack/access";
 import { eq, inArray, Snapshot } from "@destack/db";
-import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { MachineIdentity } from "../src/client/machine-identity.ts";
 import { account, endpoint, key, machine, organisation, space } from "../src/object/index.ts";

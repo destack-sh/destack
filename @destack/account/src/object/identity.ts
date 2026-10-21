@@ -1,5 +1,5 @@
 import { type Authentication, none, principal, through } from "@destack/access";
-import { type AssertionKey, Bearer, TokenVerifier } from "@destack/runtime/authentication";
+import { type AssertionKey, Bearer, TokenVerifier } from "@destack/access/token";
 import type { PackageId } from "@destack/package";
 import { createLocalJWKSet } from "jose";
 import { Scope } from "@destack/sync";
@@ -8,7 +8,7 @@ import { defineObject, defineShape, field } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
 import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** The longest signed operation, in characters: eight public keys with room to spare. */
 const OPERATION_LENGTH = 16_384;

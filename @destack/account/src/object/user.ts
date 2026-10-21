@@ -11,7 +11,7 @@ import {
 import { defineObject, field } from "@destack/object";
 import { LocaleTag } from "@destack/locale";
 import { type Identifier, schema, TimeZone } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Subject } from "@destack/sync";
 import { AccountHandle, HandleAvailability } from "../address/handle.ts";
 import { sudo } from "../authentication/sudo.ts";

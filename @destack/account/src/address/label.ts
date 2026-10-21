@@ -1,4 +1,4 @@
-import { NOT_XN } from "@destack/runtime";
+import { UNPREFIXED_LABEL } from "@destack/object";
 import type { FieldCondition } from "@destack/db";
 import { schema } from "@destack/schema";
 
@@ -16,7 +16,7 @@ export const Label = {
                 /^[a-z0-9]+(?:-[a-z0-9]+)*$/u,
                 "labels are lowercase letters, digits and single inner hyphens",
             )
-            .regex(NOT_XN, "labels other than xn, which starts punycode");
+            .regex(UNPREFIXED_LABEL, "labels other than xn, which starts punycode");
     },
 
     /** Check a label of at most a length, as a column's condition. */

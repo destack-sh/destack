@@ -1,7 +1,7 @@
 import { none, principal, relation, Relationship, through, union } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field, type MethodContext, relationship } from "@destack/object";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { DEFAULT_MEMBER_ROLE, MEMBER_ROLES, organisation } from "./organisation.ts";

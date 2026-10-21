@@ -2,11 +2,10 @@ import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, CHAIN_PUBLICATION, principal } from "@destack/access";
 import { Snapshot, TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { ObjectReference, Scope } from "@destack/sync";
 import { Directory } from "../src/address/index.ts";
-import { isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { account, assignment, placement, Placement, placementShape } from "../src/object/index.ts";
 import * as accountObject from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
@@ -410,7 +409,7 @@ async function locate(caller: Actor, accountId: string, spaceId: string) {
         })
         .then(({ id, scope, machineId, epoch }) => ({ id, scope, machine: machineId, epoch }))
         .catch((error: unknown) => {
-            if (isCallError(error) && error.code === "NOT_FOUND") {
+            if (CallError.of(error)?.code === "NOT_FOUND") {
                 return undefined;
             }
             throw error;
@@ -423,7 +422,7 @@ async function url(caller: Actor, scope: string, machine: string) {
     const found = await caller.client.endpoint
         .get({ ...accountObject.endpoint.target({ scope, id }) })
         .catch((error: unknown) => {
-            if (isCallError(error) && error.code === "NOT_FOUND") {
+            if (CallError.of(error)?.code === "NOT_FOUND") {
                 return undefined;
             }
             throw error;

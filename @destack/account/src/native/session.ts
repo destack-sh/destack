@@ -1,5 +1,5 @@
 import { Keychain } from "@destack/identity";
-import { TokenCache } from "@destack/runtime/authentication";
+import { TokenCache } from "@destack/access/token";
 import type { LoginRow } from "./login.ts";
 
 /** The person of a login at its issuer, keying their keychain entry. */

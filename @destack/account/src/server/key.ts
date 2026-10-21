@@ -1,6 +1,6 @@
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, PublicKey } from "@destack/identity";

@@ -1,3 +1,4 @@
+import { CallErrorCode } from "@destack/error";
 import { AuditCaller, defineAuditAction } from "@destack/object";
 import { AuditRecorder, type Journal } from "@destack/object/server";
 import { Scope } from "@destack/sync";
@@ -15,7 +16,7 @@ import {
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { principal, ANONYMOUS } from "@destack/access";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { sessionCreate } from "../object/session.ts";
 import { Package } from "@destack/package";
 import accountPackage from "../package.ts";
@@ -211,16 +212,14 @@ export class BetterAuthAudit {
             span.setStatus({ code: SpanStatusCode.ERROR });
         }
 
-        // record the outcome before answering
+        // record the outcome before answering, a rejecting redirect as unauthorized
         if (attempt !== undefined) {
+            const code =
+                response.status >= 400 ? CallErrorCode.of(response.status) : "UNAUTHORIZED";
             const outcome = isRejected
                 ? {
                       kind: "failure" as const,
-                      error: {
-                          code: "AUTHENTICATION_REJECTED",
-                          status: response.status,
-                          message: "authentication rejected",
-                      },
+                      error: { code, message: "authentication rejected" },
                   }
                 : { kind: "success" as const };
             await recorder.append(recorder.finish(attempt, outcome));
@@ -247,11 +246,7 @@ export class BetterAuthAudit {
                     await recorder.append(
                         recorder.finish(attempt, {
                             kind: "failure",
-                            error: {
-                                code: "INTERNAL_SERVER_ERROR",
-                                status: 500,
-                                message: "internal error",
-                            },
+                            error: { code: "INTERNAL_SERVER_ERROR", message: "internal error" },
                         }),
                     );
                 } catch (auditError) {

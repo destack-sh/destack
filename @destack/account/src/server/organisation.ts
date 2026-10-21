@@ -2,7 +2,7 @@ import { principal, type Relationship } from "@destack/access";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { account } from "../object/account.ts";
 import { invitation } from "@destack/object";
 import { member } from "../object/member.ts";

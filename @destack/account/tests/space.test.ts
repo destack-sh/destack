@@ -1,6 +1,6 @@
 import { accessRelationship } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Account, placement, space } from "../src/object/index.ts";
 import { AccountFixture, ids, outcome } from "../src/test/index.ts";

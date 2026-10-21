@@ -1,7 +1,7 @@
 import { Caller } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { assignment, Placement, placement } from "../object/placement.ts";
 
 /** Implement placements. */

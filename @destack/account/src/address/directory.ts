@@ -1,9 +1,9 @@
 import type { Snapshot } from "@destack/db";
 import { Claim, claimTable, type ObjectType } from "@destack/object";
 import { schema, type Identifier } from "@destack/schema";
-import { type Fetch, PackageMount, SpaceMount } from "@destack/runtime";
-import { createClient } from "@destack/runtime/client";
-import { CallError } from "@destack/runtime/error";
+import { type Fetch, PackageMount, SpaceMount } from "@destack/object";
+import { createClient } from "@destack/object/client";
+import { CallError } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";

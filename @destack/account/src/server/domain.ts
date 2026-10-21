@@ -1,6 +1,6 @@
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { DnsResolver } from "./dns-resolver.ts";
 import { account } from "../object/account.ts";
 import { Entitlement } from "../object/entitlement.ts";

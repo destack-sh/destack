@@ -1,7 +1,6 @@
 import { TEST_DIALECTS } from "@destack/db/test";
 import { principal } from "@destack/access";
-import { ObjectReference, Scope } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "@destack/test";
 import { found } from "@destack/schema";
 import { outcome, TestEntitlement } from "../src/test/index.ts";

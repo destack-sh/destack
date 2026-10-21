@@ -1,7 +1,7 @@
 import { Relationship } from "@destack/access";
 import { eq, Snapshot, Transaction } from "@destack/db";
 import { nth } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { MemoryKeychain } from "@destack/identity";
 import { expect, test } from "@destack/test";
 import { MachineIdentity } from "../src/client/index.ts";

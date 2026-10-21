@@ -1,6 +1,6 @@
 import { present, schema } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import type { Fetch } from "@destack/object";
+import { CallError } from "@destack/object";
 
 /** The resource record type of TXT records (RFC 1035 3.2.2). */
 const TXT = 16;

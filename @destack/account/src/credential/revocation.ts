@@ -1,4 +1,4 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** Withdrawals of credentials and machines, as the time each was revoked at. */
 export const Revocation = {

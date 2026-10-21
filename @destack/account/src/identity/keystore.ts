@@ -13,12 +13,12 @@ import {
     MAX_SIGNING_KEYS,
     PublicKey,
 } from "@destack/identity";
-import { TokenIssuer } from "@destack/runtime/authentication";
-import type { Fetch } from "@destack/runtime";
+import { TokenIssuer } from "@destack/access/token";
+import type { Fetch } from "@destack/object";
 import { present } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { Digest } from "@destack/schema";
 import { SignJWT, type JWTPayload } from "jose";
 import type { Clock } from "@destack/environment";

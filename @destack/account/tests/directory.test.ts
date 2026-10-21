@@ -1,14 +1,14 @@
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Directory } from "../src/address/index.ts";
 import { Account, endpoint, placement } from "../src/object/index.ts";
 import { AccountFixture, type Actor, ids, outcome } from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";
-import { isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** The spaces the stress test places, enough to tell reads per space from reads per call. */
 const STRESS_SPACES = 20;
@@ -200,7 +200,7 @@ async function addressOf(
         .address({ accountId: space.scope, id: space.id })
         .then(({ address }) => address)
         .catch((error: unknown) => {
-            if (isCallError(error) && error.code === "NOT_FOUND") {
+            if (CallError.of(error)?.code === "NOT_FOUND") {
                 return undefined;
             }
             throw error;

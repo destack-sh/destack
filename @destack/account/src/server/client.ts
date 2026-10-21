@@ -9,7 +9,7 @@ import {
 } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Placement } from "../object/placement.ts";
 import { account } from "../object/account.ts";
 import { organisation } from "../object/organisation.ts";

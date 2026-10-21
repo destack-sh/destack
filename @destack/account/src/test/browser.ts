@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 
 /** Retain browser cookies across real authentication HTTP requests. */
 export class Browser {

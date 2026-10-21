@@ -1,6 +1,5 @@
 import { eq } from "@destack/db";
-import { ObjectReference } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { session } from "../src/object/session.ts";
 import { KeyPair, Proof, type ProofRequest, PublicKey } from "@destack/identity";

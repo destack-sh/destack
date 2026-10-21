@@ -1,11 +1,11 @@
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import type { AuthContext } from "better-auth";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { claimTable } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { alert, html, type Markup, redirect, render, timeZoneField } from "./markup.ts";
 import { SignUp } from "./sign-up.ts";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";

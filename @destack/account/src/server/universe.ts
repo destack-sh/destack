@@ -10,12 +10,11 @@ import {
     SIGNED_IN,
 } from "@destack/access";
 import { and, eq, inArray, isNull, Snapshot, Transaction } from "@destack/db";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Authorization, ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
-import { Scope, Subject } from "@destack/sync";
+import { CallError } from "@destack/object";
 import { Account, account } from "../object/account.ts";
 import { residentCalls } from "./account.ts";
 import { AccountHandle } from "../address/handle.ts";

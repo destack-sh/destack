@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { outcome } from "../test/outcome.ts";

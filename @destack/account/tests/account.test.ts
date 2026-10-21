@@ -1,8 +1,7 @@
 import { session } from "../src/object/session.ts";
-import { Subject, ObjectReference } from "@destack/sync";
+import { Subject, ObjectReference, RequestId } from "@destack/sync";
 import { Account, account } from "../src/object/account.ts";
 import { expect, refusal, test } from "@destack/test";
-import { RequestId } from "@destack/runtime/request";
 import { eq, Snapshot } from "@destack/db";
 import accountPackage from "../src/package.ts";
 import { SESSION_TOKEN_TYPE } from "../src/oauth/index.ts";

@@ -1,7 +1,7 @@
 import { type Authentication, Caller, principal, universe } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { type Fetch, SpaceMount } from "@destack/runtime";
+import { type Fetch, SpaceMount } from "@destack/object";
 import {
     ASSERTION_TYPE,
     SPACE_KEY,
@@ -9,7 +9,7 @@ import {
     type ExchangedToken,
     TokenCache,
     TokenIssuer,
-} from "@destack/runtime/authentication";
+} from "@destack/access/token";
 import { Issuer, type TokenBinding } from "../native/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";

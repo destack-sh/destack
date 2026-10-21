@@ -20,7 +20,7 @@ import {
     type MethodContext,
 } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organisation } from "./organisation.ts";

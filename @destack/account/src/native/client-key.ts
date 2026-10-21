@@ -1,5 +1,5 @@
 import { type Keychain, KeyPair, Proof } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import type { Clock } from "@destack/environment";
 

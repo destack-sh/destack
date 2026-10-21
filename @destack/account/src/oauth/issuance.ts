@@ -10,8 +10,9 @@ import {
     TOKEN_LIFETIME_MILLISECONDS,
     TokenIdentity,
     TokenIssuerAuthority,
-} from "@destack/runtime/authentication";
+} from "@destack/access/token";
 import { APIError } from "better-auth/api";
+import { CallError } from "@destack/object";
 
 /** The milliseconds in a second, as OAuth counts expiries in seconds. */
 const SECOND_MILLISECONDS = 1000;
@@ -146,5 +147,12 @@ export const Issuance = {
     /** Build a token endpoint refusal (RFC 6749 5.2). */
     refusal(error: "invalid_request" | "invalid_grant" | "invalid_target", description: string) {
         return new APIError("BAD_REQUEST", { error, error_description: description });
+    },
+
+    /** Read a failed grant check as an invalid grant when it refuses, passing on other failures. */
+    grantRefusal(error: unknown): unknown {
+        const refused = CallError.refusal(error);
+
+        return refused === undefined ? error : Issuance.refusal("invalid_grant", refused.message);
     },
 };

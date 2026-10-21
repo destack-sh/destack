@@ -1,7 +1,7 @@
 import { Scope } from "@destack/sync";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { SpaceAddress } from "../address/address.ts";
 import { account } from "../object/account.ts";
 import { machine } from "../object/machine.ts";

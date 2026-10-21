@@ -1,8 +1,7 @@
 import { TABLE } from "@destack/db";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, type Page, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { type Page, Scope } from "@destack/sync";
 import { account, residentShape } from "../src/object/index.ts";
 import { AccountFixture } from "../src/test/index.ts";
 

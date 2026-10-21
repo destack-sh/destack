@@ -1,9 +1,8 @@
 import { AccessContext, Caller, GrantPermission, none, principal, through } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
+import { CallError } from "@destack/object";
+import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
 import { Digest, Instant, schema } from "@destack/schema";
 import { CompactProof } from "@destack/identity";

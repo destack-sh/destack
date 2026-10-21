@@ -1,9 +1,9 @@
-import type { Fetch } from "@destack/runtime";
+import type { Fetch, OmitEach } from "@destack/object";
 import { PackageId } from "@destack/package";
-import type { OmitEach } from "@destack/object";
-import { copyRequest, RequestId } from "@destack/runtime/request";
+import { copyRequest, Clock } from "@destack/environment";
+import { RequestId, Scope } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
-import type { ClientOf } from "@destack/runtime/client";
+import type { ClientOf } from "@destack/object/client";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
 import { Machine, machine } from "../object/index.ts";
@@ -17,10 +17,8 @@ import {
     Proof,
     PublicKey,
 } from "@destack/identity";
-import { Assertion, TokenCache } from "@destack/runtime/authentication";
+import { Assertion, TokenCache } from "@destack/access/token";
 import { principal } from "@destack/access";
-import { Scope } from "@destack/sync";
-import { Clock } from "@destack/environment";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
 const MACHINE_KEY_LABEL = { label: "@destack/account/machine-key", context: "" } as const;

@@ -15,7 +15,7 @@ Clients call the account objects through the package client.
 
 ```ts
 import accountPackage from "@destack/account/package";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 
 const accounts = createClient(accountPackage, { url, fetch });
 await accounts.account.create({ scope: userId, requestId, handle, name, kind: "personal" });

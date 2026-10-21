@@ -4,7 +4,7 @@ import { type MethodContext, defineObject, field } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import type { AssertionKey } from "@destack/runtime/authentication";
+import type { AssertionKey } from "@destack/access/token";
 import { CompactProof, PublicKey } from "@destack/identity";
 import { Label } from "../address/label.ts";
 import { key, Key } from "./key.ts";

@@ -9,9 +9,9 @@ import {
     ObjectWatch,
 } from "@destack/object";
 import { PackageId } from "@destack/package";
-import type { FeatureReference } from "@destack/runtime";
+import type { FeatureReference } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Replica, Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";

@@ -15,7 +15,7 @@ import {
     combine,
 } from "@destack/db";
 import type { CleanedWhere } from "better-auth/adapters";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** Better Auth's where clauses as SQL over the account tables. */
 export const BetterAuthWhere = {

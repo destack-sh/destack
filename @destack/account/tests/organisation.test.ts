@@ -2,7 +2,7 @@ import { accessInvitation, accessRelationship, Contact } from "@destack/access";
 import { and, eq } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { domain } from "../src/object/domain.ts";
 import { group } from "../src/object/group.ts";

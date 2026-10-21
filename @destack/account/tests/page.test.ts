@@ -1,6 +1,6 @@
 import { inArray } from "@destack/db";
 import { Identifier } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { authenticatorCode } from "./authenticator.ts";
 import type { Browser } from "../src/test/index.ts";

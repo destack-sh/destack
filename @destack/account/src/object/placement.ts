@@ -2,7 +2,7 @@ import { contained, none, principal, relation, through, union } from "@destack/a
 import type { Snapshot } from "@destack/db";
 import { defineObject, defineShape, field } from "@destack/object";
 import { Digest, Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { endpoint } from "./endpoint.ts";

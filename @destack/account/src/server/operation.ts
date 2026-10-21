@@ -1,6 +1,6 @@
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation, type PublicKey } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Identity, operation, type Operation } from "../object/identity.ts";
 
 /** How long a higher-priority rotation key may nullify operations a lower one signed. */

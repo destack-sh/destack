@@ -5,7 +5,7 @@ import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { Identifier } from "@destack/schema";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
 import { IdentityRegistry } from "../identity/registry.ts";
 import { identity, machine, placement } from "../object/index.ts";

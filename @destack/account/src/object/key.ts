@@ -1,14 +1,14 @@
 import { Scope } from "@destack/sync";
 import { type Credential, none, permission, through, union } from "@destack/access";
 import { Condition, type Select, type Snapshot } from "@destack/db";
-import { MACHINE_KEY } from "@destack/runtime/authentication";
+import { MACHINE_KEY } from "@destack/access/token";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
 import { defineObject, field, type MethodContext, type ObjectType, proof } from "@destack/object";
 import { Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
-import { CallError, isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 
 /** How long a key authenticates, a year in milliseconds. */
 const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
@@ -161,7 +161,7 @@ export const Key = {
                 }),
             ])
             .catch((error: unknown) => {
-                throw isCallError(error) && error.code === "CONFLICT"
+                throw CallError.of(error)?.code === "CONFLICT"
                     ? new IdentityError("INVALID_PROOF", "key proof was used before")
                     : error;
             });

@@ -2,13 +2,12 @@ import { STACKS } from "../src/test/index.ts";
 import { AccessContext, accessTables, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, Transaction, type DatabaseConnection, Snapshot } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
+import { TestDatabase, reconciliation } from "@destack/db/test";
 import { callTables, FeedPublisher } from "@destack/object/test";
-import { defineServer, ObjectStore } from "@destack/object/server";
-import { PackageHandle } from "@destack/runtime";
+import { implementPackage, ObjectStore } from "@destack/object/server";
+import { PackageHandle } from "@destack/object";
 import { Package } from "@destack/package";
 import { Identifier, present } from "@destack/schema";
-import { reconciliation } from "@destack/runtime/test";
 import { Feed, Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
@@ -101,7 +100,7 @@ async function openSpace() {
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, ids.spaceId),
         servers: [
-            defineServer(PackageHandle.of(Package.of(accountPackage), {}), {
+            implementPackage(PackageHandle.of(Package.of(accountPackage), {}), {
                 follows: [
                     Follow.of(spaceShape, {
                         keys: [{ key: { scope: ids.accountId, space: ids.spaceId } }],

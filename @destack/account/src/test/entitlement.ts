@@ -1,9 +1,9 @@
 import { and, type DatabaseConnection, eq } from "@destack/db";
 import { PackageId } from "@destack/package";
-import type { FeatureReference } from "@destack/runtime";
+import type { FeatureReference } from "@destack/object";
 import { Identifier } from "@destack/schema";
 import { type Publisher, replica, replicaPosition, Scope, type Subscription } from "@destack/sync";
-import { until } from "@destack/runtime/timer";
+import { until } from "@destack/environment";
 import {
     entitlement,
     type Entitlement,

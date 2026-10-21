@@ -1,9 +1,8 @@
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { principal } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { RequestId } from "@destack/runtime/request";
-import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/runtime/authentication";
+import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
 import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
 import { decodeJwt } from "jose";
 import { found, Identifier, schema } from "@destack/schema";

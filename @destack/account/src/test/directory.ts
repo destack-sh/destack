@@ -1,13 +1,10 @@
 import { Caller, principal, Role, universe } from "@destack/access";
 import { and, type DatabaseConnection, eq, Transaction } from "@destack/db";
-import { type ClaimHome, ObjectStore, RemoteStore } from "@destack/object/server";
+import { type ClaimHome, ObjectStore, RemoteStore, Server, Health } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present } from "@destack/schema";
-import { createClient, type ClientOf } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { Server } from "@destack/runtime/server";
-import { testCallKey } from "@destack/runtime/test";
-import { testEvents, serversOf } from "@destack/object/test";
+import { createClient, type ClientOf } from "@destack/object/client";
+import { testCallKey, testEvents, serversOf } from "@destack/object/test";
 import { Scope, type Uplink } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { residency } from "../object/residency.ts";

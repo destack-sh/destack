@@ -1,10 +1,9 @@
 import { Snapshot } from "@destack/db";
 import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
-import type { ClientOf } from "@destack/runtime/client";
+import { RequestId, Scope } from "@destack/sync";
+import type { ClientOf } from "@destack/object/client";
 import type accountPackage from "../package.ts";
-import { Scope } from "@destack/sync";
 import { identity, Identity, operation } from "../object/identity.ts";
 import type { Clock } from "@destack/environment";
 

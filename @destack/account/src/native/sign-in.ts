@@ -2,9 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { StepUp } from "@destack/access";
 import type { ObjectClient } from "@destack/object/client";
 import { Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
-import { until } from "@destack/runtime/timer";
+import { CallError } from "@destack/object";
+import { RequestId } from "@destack/sync";
+import { until } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
 import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer.ts";
 import type { Residency } from "../object/residency.ts";

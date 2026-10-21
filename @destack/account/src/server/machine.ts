@@ -1,7 +1,7 @@
 import { principal, Relationship } from "@destack/access";
 import { present } from "@destack/schema";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, type PublicKey } from "@destack/identity";

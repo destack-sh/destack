@@ -14,8 +14,8 @@ import {
     type ObjectReference,
     type Subject,
     type Subscription,
+    RequestId,
 } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
 import {
     AccessContext,
     anyone,
@@ -31,7 +31,7 @@ import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@dest
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
 import objectServer, { ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
+import { testEvents, testCallKey } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ResourceContext } from "@destack/resource/context";
@@ -44,14 +44,11 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { PackageMount } from "@destack/runtime";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
-import { CallError } from "@destack/runtime/error";
-import { Health } from "@destack/runtime/health";
-import { Server, type PackageImplementation } from "@destack/runtime/server";
-import { testCallKey } from "@destack/runtime/test";
-import { createClient, type ClientOf, type ClientTarget } from "@destack/runtime/client";
-import type { ProcedureRouter } from "@destack/runtime";
+import { PackageMount, CallError } from "@destack/object";
+import { Health, Server, type PackageHandler } from "@destack/object/server";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
+import { createClient, type ClientOf, type ClientTarget } from "@destack/object/client";
+import type { ProcedureRouter } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import {
@@ -1008,7 +1005,7 @@ export class AccountFixture implements AsyncDisposable {
 
     /** Serve a package to the callers the fixture verifies and to bearers of access tokens. */
     static serve(
-        implementation: PackageImplementation,
+        implementation: PackageHandler,
         database: DatabaseConnection,
         callers: ReadonlyMap<string, Verification>,
         clock: Clock,

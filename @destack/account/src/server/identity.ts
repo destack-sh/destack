@@ -2,7 +2,7 @@ import { Caller, principal } from "@destack/access";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation } from "@destack/identity";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Scope, Subject } from "@destack/sync";
 import { identity, Identity, operation } from "../object/identity.ts";
 import { placement } from "../object/placement.ts";

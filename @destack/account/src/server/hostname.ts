@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { account } from "../object/account.ts";
 import { Domain, domain } from "../object/domain.ts";
 import { hostname } from "../object/hostname.ts";
