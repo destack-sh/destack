@@ -6,7 +6,6 @@ import { type MethodContext, defineObject, field, type ObjectType } from "@desta
 import { type Duration, type Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { Binding } from "@destack/stack/object";
-import { SecretDefinition } from "../declare/stack.ts";
 import {
     MAX_VALUE_BYTES,
     SecretDisclosure,
@@ -59,7 +58,7 @@ export const secret = defineObject(
         name: "secret",
         plural: "secrets",
         scope: [space, account, organisation],
-        declarable: { schema: SecretDefinition },
+        declarable: { from: "create", references: { parentId: vault } },
         nested: { in: vault, delete: "restrict", receive: "write" },
         recoverable: { within: SECRET_RECOVERY, by: "delete", purge: "purge", retain: "record" },
         audited: { reads: true },

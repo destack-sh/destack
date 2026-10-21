@@ -26,14 +26,14 @@ await Secret.text(pushKey.get(context.resources));
 
 ## Bindings
 
-A stack lists its secrets by vault and name, and an installation binds a declared secret to one at a fixed or the current version.
+A stack lists its secrets with their vault and name, and an installation binds a declared secret to one at a fixed or the current version.
 
 ```ts
 export const personal = defineStack({
     resources: {
         credentials: { declaration: credentials, retention: { within: { days: 30 } }, tags: {} },
     },
-    secrets: { github: { vault: "credentials", name: "github" } },
+    secrets: { github: { parent: "credentials", name: "github" } },
     installations: { site: install(site, { "github-token": { secret: "github", version: 2 } }) },
 });
 ```

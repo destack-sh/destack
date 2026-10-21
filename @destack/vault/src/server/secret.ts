@@ -13,23 +13,16 @@ import vaultPackage from "../package.ts";
 /** The secrets a stack declares, deleted to the trash once no longer declared. */
 const declaredSecret = secret.implement({
     declaration: {
-        after: [vault],
-        resolve: async (_name, declared, stack) => {
+        resolve: async (_name, input, stack) => {
             // wait for the vault to be provisioned before writing into it
-            const vaultId = schema
-                .identifier("vault")
-                .parse(await stack.require(vault, declared.vault));
             const [provisioned] = await stack.transaction.read(vault.table).findMany({
-                where: {
-                    id: vaultId,
-                    reference: { isNotNull: true },
-                },
+                where: { id: input.parentId, reference: { isNotNull: true } },
             });
             if (!provisioned) {
-                stack.wait(`vault ${declared.vault} is not provisioned`);
+                stack.wait(`vault ${input.parentId} is not provisioned`);
             }
 
-            return { parentId: vaultId, name: declared.name };
+            return input;
         },
         values: (_name, resolved) => resolved,
     },
