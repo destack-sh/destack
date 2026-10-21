@@ -28,7 +28,8 @@ import {
 import { schema } from "@destack/schema";
 import { RowChange } from "../query/page.ts";
 import { Replica } from "../replica/replica.ts";
-import { Call, Failure, type Mutation } from "../call/index.ts";
+import { Failure } from "@destack/error";
+import { Call, type Mutation } from "../call/index.ts";
 
 /** The most changes one read of a prediction takes. */
 const RECORD_CHANGES = 1000;

@@ -122,7 +122,7 @@ export interface Uplink extends Publisher {
 
 /** A publisher that also runs the calls its follower's server sends to the rows' home. */
 export const Uplink = {
-    /** Replicate and send through a client's replica procedures, as follower or change signer. */
+    /** Replicate and send through a client's replica calls, as follower or change signer. */
     of(
         replica: (signer?: Subject) => {
             readonly stream: (

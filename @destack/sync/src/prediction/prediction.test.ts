@@ -72,7 +72,7 @@ function page(
 }
 
 /** The failure a server rejects a mutation with. */
-const FORBIDDEN = { code: "FORBIDDEN", status: 403, message: "forbidden" } as const;
+const FORBIDDEN = { code: "FORBIDDEN", message: "forbidden" } as const;
 
 /** Record a push's outcomes: the first mutation executed at a sequence, the second rejected. */
 async function pushed(

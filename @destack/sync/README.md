@@ -120,3 +120,11 @@ const links = await Scope.chain(snapshot, spaceId); // nearest first
 await Scope.fence(database, spaceId, targetMachine, Date.now()); // refuse writes during a move
 await Scope.cap(database, spaceId, Date.now()); // refuse writes except deletes
 ```
+
+## Requests
+
+`RequestId.create` stamps a UUIDv7, and `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562).
+
+```ts
+const requestId = await RequestId.derive(reading.measuredAt, `${source} ${eventId}`);
+```
