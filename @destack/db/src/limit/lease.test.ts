@@ -109,3 +109,33 @@ test.for(TEST_DIALECTS)(
         expect(rows).toEqual([{ key: "c", holder: "second" }]);
     },
 );
+
+test.for(TEST_DIALECTS)(
+    "read when a key's held slots lapse, the latest of them, and none once they lapsed, on %s",
+    async (dialect) => {
+        const database = await open(dialect);
+        const request = { name: "job", key: "shared" };
+
+        // hold two slots of a key, then read their lapse before, at and after it
+        await Lease.acquire(database, {
+            ...request,
+            holder: "first",
+            duration: 20,
+            now: START,
+            slots: 2,
+        });
+        await Lease.acquire(database, {
+            ...request,
+            holder: "second",
+            duration: 50,
+            now: START,
+            slots: 2,
+        });
+        expect([
+            await Lease.lapsesAt(database, { name: "job", key: "other", now: START }),
+            await Lease.lapsesAt(database, { ...request, now: START }),
+            await Lease.lapsesAt(database, { ...request, now: START + 20 }),
+            await Lease.lapsesAt(database, { ...request, now: START + 50 }),
+        ]).toEqual([undefined, START + 50, START + 50, undefined]);
+    },
+);

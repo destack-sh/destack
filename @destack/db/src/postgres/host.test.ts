@@ -9,7 +9,7 @@ import { DatabaseError } from "../error/error.ts";
 import { databaseProvider } from "../provider/provider.ts";
 import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
-import { MemoryContentStore } from "../test/store.ts";
+import { MemoryContentStore } from "@destack/resource/test";
 import { TEST_DIALECTS } from "../test/database.ts";
 import { connectPostgres, reportNotice } from "./connection.ts";
 import { PostgresDatabaseHost } from "./host.ts";

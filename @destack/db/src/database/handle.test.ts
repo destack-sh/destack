@@ -1,7 +1,7 @@
 import { type Digest, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
-import { MemoryContentStore } from "../test/store.ts";
+import { MemoryContentStore } from "@destack/resource/test";
 import { defineTable, eq, text } from "../index.ts";
 import { DatabaseHandle } from "./handle.ts";
 

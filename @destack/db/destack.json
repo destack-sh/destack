@@ -21,6 +21,12 @@
         },
         "./inspect": {
             "runtimes": ["bun"]
+        },
+        "./channel/socket": {
+            "runtimes": ["bun"]
+        },
+        "./test/run": {
+            "runtimes": ["bun"]
         }
     },
     "declarations": {

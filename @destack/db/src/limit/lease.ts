@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
-import { and, eq, lte, or, sql } from "../sql/index.ts";
+import { and, eq, gt, lte, or, sql } from "../sql/index.ts";
 import { defineTable, integer, text } from "../table/index.ts";
 
 /** The share of a lease's time left above which its holder reuses it, renewing a third in. */
@@ -123,6 +123,20 @@ export const Lease = {
             "CONCURRENT_UPDATE",
             `every slot of lease ${name} ${key} changed while taken`,
         );
+    },
+
+    /** Read when a key's held slots lapse, the latest of them, undefined while none is held. */
+    async lapsesAt(
+        database: DatabaseConnection,
+        request: Pick<LeaseRequest, "name" | "key" | "now">,
+    ): Promise<number | undefined> {
+        const { name, key, now } = request;
+        const held = await database
+            .select({ expiresAt: lease.expiresAt })
+            .from(lease)
+            .where(and(eq(lease.name, name), eq(lease.key, key), gt(lease.expiresAt, now)));
+
+        return held.length === 0 ? undefined : Math.max(...held.map((row) => row.expiresAt));
     },
 
     /** Release a holder's slots, of one key or of every key it has. */
