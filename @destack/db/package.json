@@ -28,16 +28,17 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/fs": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@noble/ciphers": "2.4.0",
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "postgres": "3.4.9",
-        "uuid": "14.0.2",
-        "@destack/fs": "workspace:*",
-        "@destack/error": "workspace:*",
-        "@noble/ciphers": "2.4.0"
+        "uuid": "14.0.2"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

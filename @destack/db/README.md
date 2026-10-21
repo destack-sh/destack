@@ -236,3 +236,25 @@ export const templates = [
 export default TestRun.setup(new URL("./templates.ts", import.meta.url)); // src/test/setup.ts, the config's globalSetup
 const { storage, value } = await TestDatabase.copy(dialect, fixture);
 ```
+
+## Controllers
+
+`ControlLoop` converges keys in `reconcile` mode and follows them in `follow` mode, listing again once a change touches what the list read through its view.
+
+```ts
+const expiry: Controller = {
+    name: "expiry",
+    watches: [session],
+    keys: () => ["expiry"],
+    list: async () => ["expiry"],
+    reconcile: async () => ((await removeExpired()) ? 0 : undefined),
+};
+const live: Controller = {
+    name: "live",
+    mode: "follow",
+    watches: [session],
+    list: async (view) => (await view.read(session).findMany()).map((row) => row.id), // reads recorded
+    reconcile: (id, { signal }) => serve(id, signal),
+};
+await new ControlLoop(database, [expiry, live], { clock, report }).run(signal);
+```

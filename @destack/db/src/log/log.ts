@@ -662,7 +662,7 @@ export class Log {
         }
     }
 
-    /** Claim a consumer's page through a sequence at a time unless claimed, absent once the slot moved on. */
+    /** Claim a consumer's page through a sequence unless claimed, absent once the slot moved on. */
     async claim(
         slot: string,
         after: number,

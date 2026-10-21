@@ -1,3 +1,4 @@
+import { Clock, RetryPolicy } from "@destack/environment";
 import { nth, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
@@ -18,11 +19,12 @@ import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
 import { RelationalQueryBuilder } from "./query.ts";
 
-/** How often a transaction runs at most before a lost serialization race answers as unavailable. */
-const TRANSACTION_ATTEMPTS = 5;
-
-/** The backoff before the second attempt in milliseconds, doubled per later one and jittered. */
-const BACKOFF_MILLISECONDS = 10;
+/** How a transaction reruns after a lost race: 10 ms doubling, jittered, five runs at most. */
+const TRANSACTION_RETRY = RetryPolicy.of({
+    initialInterval: 10,
+    maximumAttempts: 5,
+    jitter: "full",
+});
 
 /** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
@@ -541,16 +543,12 @@ export class Transaction {
             } catch (error) {
                 // rethrow any other failure, and a lost race once the attempts run out
                 const classified = classifyError(error);
-                if (!isLostRace(classified) || attempt >= TRANSACTION_ATTEMPTS) {
+                if (!isLostRace(classified) || !RetryPolicy.isRetried(TRANSACTION_RETRY, attempt)) {
                     throw classified;
                 }
 
-                // wait a jittered, doubling while before the next attempt
-                const ceiling = BACKOFF_MILLISECONDS * 2 ** (attempt - 1);
-                await new Promise((resolve) => {
-                    setTimeout(resolve, Math.random() * ceiling);
-                });
-                signal?.throwIfAborted();
+                // wait out the backoff before the next attempt
+                await Clock.system.sleep(RetryPolicy.interval(TRANSACTION_RETRY, attempt), signal);
             }
         }
     }

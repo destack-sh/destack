@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 
 /** The call error code per database failure: conflict, bad request, lost history, host. */
 const CALL_CODES = {
@@ -73,7 +73,7 @@ export class DatabaseError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 }
