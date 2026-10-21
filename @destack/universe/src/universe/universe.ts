@@ -16,8 +16,9 @@ import { Registry } from "@destack/forge/client";
 import forgePackage from "@destack/forge/package";
 import { type Keyring } from "@destack/identity";
 import type { MailTransport } from "@destack/message/email";
-import { call, type Fetch, PackageMount, Health, type CallKey } from "@destack/object";
-import objectServer, { defineServer, ObjectStore } from "@destack/object/server";
+import { call, type Fetch, PackageMount, type CallKey } from "@destack/object";
+import { Health, Server } from "@destack/object/server";
+import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId } from "@destack/package";
 import relayPackage from "@destack/relay/package";
 import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
@@ -25,7 +26,6 @@ import { ResourceContext } from "@destack/resource/context";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import type { Alarm } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
-import { Server } from "@destack/object/server";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import objectPackage from "@destack/object/package";
@@ -154,7 +154,7 @@ export class Universe implements AsyncDisposable {
                     ),
                     after: [],
                 }),
-                defineServer(universePackage, {
+                implementPackage(universePackage, {
                     objects: applied.objects,
                     controllers: applied.controllers,
                 }),
