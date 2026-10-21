@@ -853,6 +853,26 @@ databaseTest(
     },
 );
 
+test("resolve the policy of an identifier by its prefix, refusing a prefix of no type or of several", () => {
+    // read the cell and entity policies by identifiers of theirs
+    const authorizer = new Authorizer(policies, mappings);
+    const found = [Identifier.create("cell"), Identifier.create("entity")];
+    const unknown = Identifier.create("sloth");
+    const shared = Identifier.create("group");
+
+    // find each identifier's type, and refuse one of no registered type and one two packages share
+    expect(found.map((id) => authorizer.policyOf(id))).toEqual([cell, entity]);
+    expect(() => authorizer.policyOf(unknown)).toThrow(
+        new AccessError("INVALID_DECLARATION", `no known type has identifiers like ${unknown}`),
+    );
+    expect(() => authorizer.policyOf(shared)).toThrow(
+        new AccessError(
+            "INVALID_DECLARATION",
+            `several known types have identifiers like ${shared}`,
+        ),
+    );
+});
+
 test("follow a scope relation of several scope types to the nearest scope only, and refuse one of a plain type", () => {
     // relate pins to the account or space they live in
     const pin = pinPolicy([account, space]);

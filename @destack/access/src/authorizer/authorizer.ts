@@ -15,7 +15,7 @@ import {
     type Select,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { schema, zip } from "@destack/schema";
+import { Identifier, schema, zip } from "@destack/schema";
 import {
     Replica,
     replicaKey,
@@ -620,20 +620,39 @@ export class Authorizer {
 
     /** Resolve the policy of a package-qualified object type. */
     policy(reference: Pick<ObjectReference, "packageId" | "type">): Policy {
-        const type = this.#policies.get(ObjectTypeReference.key(reference));
-        if (!type) {
+        const policy = this.#policies.get(ObjectTypeReference.key(reference));
+        if (!policy) {
             throw new AccessError(
                 "INVALID_DECLARATION",
                 `unknown object type: ${reference.packageId}/${reference.type}`,
             );
         }
 
-        return type;
+        return policy;
     }
 
     /** Find a registered type's policy, absent for a type the authorizer does not know. */
     find(reference: Pick<ObjectReference, "packageId" | "type">): Policy | undefined {
         return this.#policies.get(ObjectTypeReference.key(reference));
+    }
+
+    /** Resolve the policy of an identifier's type by its prefix, refusing none or several. */
+    policyOf(id: Identifier<string>): Policy {
+        // match the policies of the identifier's prefix
+        const prefix = Identifier.prefix(id);
+        const [policy, ...others] = [...this.#policies.values()].filter(
+            (each) => each.typeReference.type === prefix,
+        );
+        if (policy === undefined || others.length > 0) {
+            throw new AccessError(
+                "INVALID_DECLARATION",
+                policy === undefined
+                    ? `no known type has identifiers like ${id}`
+                    : `several known types have identifiers like ${id}`,
+            );
+        }
+
+        return policy;
     }
 
     /** Return the policies in registration order. */
