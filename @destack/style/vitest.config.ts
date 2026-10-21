@@ -11,6 +11,7 @@ export default defineConfiguration({
     plugins: [
         styleExtension.transform({
             directory: ROOT,
+            dependencies: {},
             runtime: "browser",
             server: false,
             options: {},

@@ -1,7 +1,19 @@
-import { afterEach, expect, test, vi } from "@destack/test";
+import { Package } from "@destack/package";
+import { BuildWriter } from "@destack/package/manifest";
+import { afterEach, expect, onTestFinished, test, vi } from "@destack/test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, createServer, type Plugin, type Rolldown, type ViteDevServer } from "vite";
 import { styleExtension } from "./build.ts";
+
+/** The dependency whose build keeps plum's rules. */
+const DEPENDENCY = Package.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000d1",
+    name: "@destack/style-dependency",
+    version: "2026.9.0",
+});
 
 /** The package directory, where the fixture modules resolve `@destack/style`. */
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -55,7 +67,10 @@ function fixtures(): Plugin {
 }
 
 /** Build entries with styles compiled as a package that uses `@destack/style` does. */
-async function bundle(entry: string | readonly string[]): ReturnType<typeof build> {
+async function bundle(
+    entry: string | readonly string[],
+    dependencies: Readonly<Record<string, string>> = {},
+): ReturnType<typeof build> {
     return await build({
         root: ROOT,
         configFile: false,
@@ -64,6 +79,7 @@ async function bundle(entry: string | readonly string[]): ReturnType<typeof buil
             fixtures(),
             styleExtension.transform({
                 directory: ROOT,
+                dependencies,
                 runtime: "browser",
                 server: false,
                 options: {},
@@ -93,6 +109,7 @@ async function serve(): Promise<ViteDevServer> {
             fixtures(),
             styleExtension.transform({
                 directory: ROOT,
+                dependencies: {},
                 runtime: "browser",
                 server: false,
                 options: {},
@@ -105,9 +122,12 @@ async function serve(): Promise<ViteDevServer> {
 }
 
 /** Build entries and read each stylesheet by the names of the chunks that load it. */
-async function stylesheets(entry: string | readonly string[]): Promise<Record<string, string>> {
+async function stylesheets(
+    entry: string | readonly string[],
+    dependencies: Readonly<Record<string, string>> = {},
+): Promise<Record<string, string>> {
     // build the entries
-    const output = await bundle(entry);
+    const output = await bundle(entry, dependencies);
     const results = Array.isArray(output) ? output : [output];
     const files = results.flatMap(
         (result): readonly (Rolldown.OutputChunk | Rolldown.OutputAsset)[] =>
@@ -177,14 +197,45 @@ test("append every rule to the stylesheet of a chunk several entries share", asy
     ]);
 });
 
-test("refuse rules in a bundle with stylesheets that never imports the sheet module", async () => {
-    // read the plugin errors the bundler gathers
-    const refused = await bundle("/fixture/bare").then(
-        () => [],
-        (error: { readonly errors: readonly Error[] }) => error.errors.map((each) => each.message),
+test("keep a build's rules for the builds depending on it when no module imports the sheet", async () => {
+    // read the rules file the bundle keeps
+    const result = await bundle("/fixture/bare");
+    const outputs = (Array.isArray(result) ? result : [result]).flatMap((each) =>
+        "output" in each ? each.output : [],
     );
+    const rules = outputs.find((each) => each.fileName === "stylex.json");
+    const source = rules?.type === "asset" ? String(rules.source) : undefined;
 
-    expect(refused).toEqual(["styles need a module that imports virtual:stylex.css"]);
+    expect(source).toEqual(
+        '[["src/build/fixture/plum.ts",[["xjjgwud",{"ltr":".xjjgwud{color:plum}","rtl":null},3000]]]]',
+    );
+});
+
+test("add the rules each dependency's build keeps to the stylesheet, ordered with the build's own", async () => {
+    // keep a dependency's rules as its build keeps them
+    const dependency = await mkdtemp(join(tmpdir(), "destack-style-dependency-"));
+    onTestFinished(() => rm(dependency, { recursive: true }));
+    const rules = JSON.stringify([
+        ["src/plum.ts", [["xjjgwud", { ltr: ".xjjgwud{color:plum}", rtl: null }, 3000]]],
+    ]);
+
+    // write the dependency's build with its rules file
+    const writer = new BuildWriter({
+        write: async (path, bytes) => {
+            await mkdir(dirname(join(dependency, path)), { recursive: true });
+            await writeFile(join(dependency, path), bytes);
+        },
+    });
+    await writer.write("output/library/stylex.json", new TextEncoder().encode(rules));
+    await writer.finish({ package: DEPENDENCY });
+
+    // build teal with the dependency's plum
+    const sheets = await stylesheets("/fixture/solo", { "@destack/style-dependency": dependency });
+
+    expect(sheets).toEqual({
+        "solo.css":
+            "\n@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
+    });
 });
 
 test("keep only a build's own rules after an earlier build in the same process", async () => {

@@ -1,13 +1,34 @@
 import { unplugin } from "@stylexjs/unplugin";
 import { Features } from "lightningcss";
 import type { ViteDevServer } from "vite";
+import { basename, join, relative } from "node:path";
 import type { BuildExtension, Plugin } from "@destack/package/build";
+import { readBuild } from "@destack/package/bun";
+import { schema } from "@destack/schema";
 
 /** The stylesheet module that carries the StyleX rules a document uses. */
 const SHEET_ID = "virtual:stylex.css";
 
 /** The stylesheet module's resolved identifier, prefixed as Vite marks virtual modules. */
 const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
+
+/** The file a build keeps its StyleX rules in, beside each output's modules. */
+const RULES_FILE = "stylex.json";
+
+/** One StyleX rule, as its babel plugin's `Rule` type has it. */
+const Rule = schema.tuple([
+    schema.string().min(1),
+    schema.object({
+        ltr: schema.string(),
+        rtl: schema.string().nullable().exactOptional(),
+        constKey: schema.string().exactOptional(),
+        constVal: schema.union([schema.string(), schema.number()]).exactOptional(),
+    }),
+    schema.number(),
+]);
+
+/** The rules file a build keeps for the builds depending on it, by module path in its package. */
+const RuleFile = schema.array(schema.tuple([schema.string().min(1), schema.array(Rule)]));
 
 /** The packages whose imports StyleX compiles. */
 const IMPORT_SOURCES = ["@stylexjs/stylex", "@destack/style"];
@@ -32,7 +53,7 @@ interface StylexPlugin extends Plugin {
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
 export const styleExtension = {
-    transform: ({ directory }) => {
+    transform: ({ directory, dependencies }) => {
         // read the plugin StyleX declares without a type, with the base layer before its own
         const sheet: SheetTarget = { file: undefined };
         const plugin: unknown = unplugin.vite({
@@ -49,15 +70,22 @@ export const styleExtension = {
         }
 
         // drop the server hook serving the sheet a second way and polling it, as the sheet module does both
-        const { configureServer: _polling, ...compiler } = plugin;
+        const { configureServer: _polling, generateBundle, ...compiler } = plugin;
 
         // let the bundler skip each module without an import source before StyleX reads it
         const filtered: Plugin = {
             ...compiler,
             transform: { filter: { code: IMPORT_SOURCE_PATTERN }, handler: plugin.transform },
+            // inject the rules only into a sheet, as a build without one keeps them for its dependents
+            generateBundle(...args) {
+                const handler =
+                    typeof generateBundle === "function" ? generateBundle : generateBundle?.handler;
+
+                return sheet.file === undefined ? undefined : handler?.apply(this, args);
+            },
         };
 
-        return [filtered, sheetPlugin(plugin, sheet)];
+        return [filtered, sheetPlugin(plugin, sheet, directory, Object.values(dependencies))];
     },
 } satisfies BuildExtension;
 
@@ -67,8 +95,13 @@ interface SheetTarget {
     file: string | undefined;
 }
 
-/** Serve the collected StyleX rules as a stylesheet module in development. */
-function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
+/** Collect the dependencies' StyleX rules into the stylesheet, and keep the build's own. */
+function sheetPlugin(
+    stylex: StylexPlugin,
+    sheet: SheetTarget,
+    directory: string,
+    dependencies: readonly string[],
+): Plugin {
     // hold the development server, the rule version the sheet last carried and a queued reload
     let server: ViteDevServer | undefined;
     let version = 0;
@@ -79,9 +112,17 @@ function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
         configureServer: (devServer) => {
             server = devServer;
         },
-        buildStart: () => {
+        buildStart: async () => {
             // forget the rules earlier builds of this process collected, as StyleX keeps them for the whole process
-            stylex.__stylexGetSharedStore().rulesById.clear();
+            const rules = stylex.__stylexGetSharedStore().rulesById;
+            rules.clear();
+
+            // add the rules each dependency's build keeps under its modules, ordered with this build's own
+            for (const dependency of dependencies) {
+                for (const [module, rule] of await readRules(dependency)) {
+                    rules.set(join(dependency, module), rule);
+                }
+            }
         },
         resolveId: (id) => (withoutQuery(id) === SHEET_ID ? RESOLVED_SHEET_ID : undefined),
         load: (id) => {
@@ -101,12 +142,16 @@ function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
                 const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
                 sheet.file = holder?.viteMetadata?.importedCss.values().next().value;
 
-                // refuse rules in a bundle with stylesheets that never imports the sheet module
-                const isStyled = chunks.some(
-                    (chunk) => (chunk.viteMetadata?.importedCss.size ?? 0) > 0,
-                );
-                if (isStyled && sheet.file === undefined && stylex.__stylexCollectCss() !== "") {
-                    this.error(`styles need a module that imports ${SHEET_ID}`);
+                // keep the build's own rules for the builds depending on it, by module path in the package
+                const rules = [...stylex.__stylexGetSharedStore().rulesById]
+                    .filter(([module]) => !relative(directory, module).startsWith(".."))
+                    .map(([module, rule]) => [relative(directory, module), rule]);
+                if (rules.length > 0) {
+                    this.emitFile({
+                        type: "asset",
+                        fileName: RULES_FILE,
+                        source: JSON.stringify(rules),
+                    });
                 }
             },
         },
@@ -133,6 +178,21 @@ function sheetPlugin(stylex: StylexPlugin, sheet: SheetTarget): Plugin {
             return undefined;
         },
     };
+}
+
+/** Read the StyleX rules a dependency's build keeps, in the rules files its file list has. */
+async function readRules(directory: string): Promise<schema.Infer<typeof RuleFile>> {
+    // read the build's file list, then each output's rules file
+    const build = await readBuild(directory);
+    const files = (await build.files()).filter((file) => basename(file.path) === RULES_FILE);
+    const decoder = new TextDecoder();
+    const rules = await Promise.all(
+        files.map(async (file) =>
+            RuleFile.parse(JSON.parse(decoder.decode(await build.load(file.path)))),
+        ),
+    );
+
+    return rules.flat();
 }
 
 /** Remove a module identifier's query, such as the `?direct` of a stylesheet's text. */
