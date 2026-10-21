@@ -1,5 +1,5 @@
 import { Change } from "@destack/db";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
 import { present } from "@destack/schema";

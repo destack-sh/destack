@@ -22,10 +22,10 @@ import {
     listed,
 } from "@destack/db";
 import { canonicalize, type JsonValue, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { EventError } from "../error/index.ts";
 import { telemetry } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
 import { type Event, type EventKeyShape, EventKind, type SettingRetention } from "../kind/kind.ts";
@@ -66,7 +66,7 @@ export interface EventStoreOptions {
     readonly prefix?: string;
     /** The keyring sealing personal values, needed by kinds with a subject. */
     readonly personal?: PersonalKeyring;
-    /** Read the retention a scope's setting gives, needed by kinds keeping segments by a setting. */
+    /** Read the retention a scope's setting gives, for kinds keeping segments by a setting. */
     readonly settings?: SettingRetention;
     /** The clock segments flush, compact and expire by. */
     readonly clock: Clock;
@@ -410,9 +410,10 @@ export class EventStore {
         // refuse an identity stored with other contents
         const changed = repeated.find((event) => kept.get(event.id) !== searchedText(kind, event));
         if (changed !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: `event ${changed.id} of ${kind.key} was stored with other contents`,
-            });
+            throw new EventError(
+                "CONFLICT",
+                `event ${changed.id} of ${kind.key} was stored with other contents`,
+            );
         }
     }
 
@@ -466,9 +467,10 @@ export class EventStore {
             }
         }
 
-        throw new CallError("SERVICE_UNAVAILABLE", {
-            message: `the segments of ${kind.key} in ${filter.scopes.join(", ")} kept changing during a read`,
-        });
+        throw new EventError(
+            "CONCURRENT_UPDATE",
+            `the segments of ${kind.key} in ${filter.scopes.join(", ")} kept changing during a read`,
+        );
     }
 
     /** Read the hot events a filter selects after a cursor, at most a number. */

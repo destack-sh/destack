@@ -1,6 +1,6 @@
 import { TestTelemetry } from "@destack/telemetry/test";
-import { ControlLoop } from "@destack/runtime/control";
 import {
+    ControlLoop,
     type ColumnBuilder,
     defineTable,
     index,

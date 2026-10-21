@@ -16,13 +16,12 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "hyparquet": "1.31.2",

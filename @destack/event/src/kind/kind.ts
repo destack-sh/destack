@@ -1,6 +1,6 @@
 import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
 import type { Package } from "@destack/package";
-import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
 /** The microseconds in a millisecond, the unit of event times. */
@@ -99,10 +99,10 @@ export const FlushPolicy = schema.object({
 /** When a scope's hot events flush into a segment. */
 export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 
-/** How long a kind's segments stay: milliseconds, or the setting of its package each scope reads them from. */
+/** How long a kind's segments stay: milliseconds, or a setting of its package per scope. */
 export type EventRetention = number | { readonly setting: object };
 
-/** Read how long a scope keeps segments under the definition of a package's setting, in milliseconds. */
+/** Read the milliseconds a scope keeps segments under a package's setting. */
 export type SettingRetention = (setting: object, owner: Package, scope: string) => Promise<number>;
 
 /** When a scope's hot events flush and how long its segments stay. */
@@ -277,7 +277,7 @@ export class EventKind<
         return this.#definition.policy;
     }
 
-    /** Read how long a scope keeps the kind's segments in milliseconds, through a store's settings. */
+    /** Read the milliseconds a scope keeps the kind's segments, through a store's settings. */
     async retention(scope: string, settings: SettingRetention | undefined): Promise<number> {
         // take the fixed retention, else read the scope's setting, refusing a store without settings
         const { retention } = this.#definition.policy;

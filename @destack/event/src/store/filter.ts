@@ -9,7 +9,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { type JsonValue, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { EventError } from "../error/index.ts";
 import type { Event, EventKind } from "../kind/kind.ts";
 
 /** The order a page reads events in: oldest first, or newest first. */
@@ -48,7 +48,7 @@ export const EventCursor = Object.assign(
 
             // refuse text without both
             if (separator < 1 || !parsed.success) {
-                throw new CallError("BAD_REQUEST", { message: `no event cursor ${text}` });
+                throw new EventError("INVALID_CURSOR", `no event cursor ${text}`);
             }
 
             return parsed.data;
