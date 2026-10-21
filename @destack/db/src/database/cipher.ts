@@ -4,7 +4,7 @@ import type { Sealing } from "../table/column.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 
 /** The label the column key derives under from a database's identity root. */
-const COLUMN_LABEL = "@destack/db/column";
+const COLUMN_LABEL = { label: "@destack/db/column", context: "" } as const;
 
 /** The version prefix of sealed values, so a later format reads beside this one. */
 const SEALED_PREFIX = "v1.";
@@ -30,7 +30,10 @@ export class ColumnCipher {
 
     /** Derive the column key from the identity root of the database's scope. */
     static async derive(root: {
-        readonly derive: (label: string) => Promise<Uint8Array<ArrayBuffer>>;
+        readonly derive: (label: {
+            readonly label: string;
+            readonly context: string;
+        }) => Promise<Uint8Array<ArrayBuffer>>;
     }): Promise<ColumnCipher> {
         return new ColumnCipher(await root.derive(COLUMN_LABEL));
     }
