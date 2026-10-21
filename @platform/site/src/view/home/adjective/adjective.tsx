@@ -33,7 +33,7 @@ const destackable: Form = {
         sentence: (
             <>
                 One obvious way to build, change, and monitor software, full stack: Git, SQLite,
-                TypeScript and OTel.
+                TypeScript, and OTel.
             </>
         ),
         gloss: "as open as VS Code, as transparent as SQLite, as hackable as Minecraft",

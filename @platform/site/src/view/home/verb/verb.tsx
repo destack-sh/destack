@@ -58,8 +58,8 @@ const verb: Form = {
         definition: "to reconquer your software",
         highlight: ["reconquer"],
         sentence:
-            "Your apps, your own software and your agents on one open-source stack, doing the work of GitHub, npm, Convex, Vercel and Sentry.",
-        gloss: "to standardise how software is built, deployed and run",
+            "Your apps and agents on one unified, hackable stack. No walls, no silos, no glue.",
+        gloss: "to standardise all elements of software production and deployment",
     },
 };
 
