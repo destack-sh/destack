@@ -1,14 +1,18 @@
 import { none, through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { type Select } from "@destack/db";
-import { Destination, type Message, message } from "@destack/message";
+import { type Select, type SQL, type SQLWrapper, sql } from "@destack/db";
+import type { Message } from "@destack/message";
 import { defineObject, field } from "@destack/object";
-import { defineWorkflow, ScheduledCall } from "@destack/workflow";
 import { Identifier, Instant, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
-import { Decision } from "../message/decide.ts";
 import type { Activity } from "./activity.ts";
+
+/** The prefix of activity identifiers, ahead of their UUID. */
+const ACTIVITY_PREFIX = "activity-";
+
+/** The prefix of notification identifiers, ahead of the UUID they share with their activity. */
+const NOTIFICATION_PREFIX = "notification-";
 
 /** A person's state of one activity in their home, keyed by the activity's replica. */
 export const notification = defineObject(
@@ -25,90 +29,36 @@ export const notification = defineObject(
             archivedAt: field.time().optional(),
             /** When the delivery of its last occurrence started. */
             plannedAt: field.time(),
+            /** When its delivery decides again, absent once every destination has it. */
+            deliveryAt: field.time().optional(),
+            /** The destinations its last occurrence reached or skipped, by `Destination.key`. */
+            delivered: field.json(schema.array(schema.string().min(1))).default([]),
             /** The scheduled summary it waits for, absent outside one. */
             summaryAt: field.time().optional(),
         },
         permissions: { read: through("scope", "read"), plan: none() },
         // keep a notification as long as its activity
         expiring: [{ after: { days: 180 }, from: "plannedAt" }],
-        constraints: { summary: { kind: "index", on: ["scope", "summaryAt"] } },
+        constraints: {
+            delivery: { kind: "index", on: ["deliveryAt"] },
+            summary: { kind: "index", on: ["scope", "summaryAt"] },
+        },
     },
     (method) => ({
         /** Create the notification of an activity replica. */
-        create: method.create("plan", { isInternal: true, fields: ["plannedAt"] }),
-        /** Start the delivery of the activity's last occurrence. */
-        plan: method.mutation({ permission: "plan", isInternal: true }),
-        /** Decide what each waiting destination of the person does with the occurrence now. */
-        decide: method.query({
-            permission: "plan",
+        create: method.create("plan", { isInternal: true, fields: ["plannedAt", "deliveryAt"] }),
+        /** Plan its delivery and the summary it waits for, as its controllers do. */
+        update: method.update("plan", {
             isInternal: true,
-            input: schema.object({
-                /** The occurrence the delivery is of, which a later one replaces. */
-                occurredAt: Instant,
-                /** The destination keys still waiting, every destination when absent. */
-                destinations: schema.array(schema.string().min(1)).exactOptional(),
-            }),
-            output: schema.object({
-                /** One decision per destination. */
-                items: schema.array(
-                    schema.object({
-                        /** The destination's key, as `Destination.key` writes it. */
-                        key: schema.string().min(1),
-                        /** The destination. */
-                        to: Destination,
-                        /** What it does now. */
-                        decision: Decision,
-                    }),
-                ),
-            }),
+            fields: ["plannedAt", "deliveryAt", "delivered", "summaryAt"],
         }),
-        /** Send the occurrence to one destination now. */
-        send: method.mutation({
-            permission: "plan",
-            isInternal: true,
-            input: schema.object({
-                /** The destination. */
-                to: Destination,
-            }),
-            output: schema.object({
-                /** The message sent. */
-                message: schema.identifier("message"),
-            }),
-        }),
-        /** Keep the occurrence for a scheduled summary, starting the summary's run once. */
-        schedule: method.mutation({
-            permission: "plan",
-            isInternal: true,
-            input: schema.object({
-                /** When the summary goes out. */
-                at: Instant,
-            }),
-        }),
-        /** Send the scheduled summary due at a time to each summary destination. */
-        summarize: method.mutation({
-            permission: "plan",
-            target: "scope",
-            isInternal: true,
-            input: schema.object({
-                /** When the summary goes out. */
-                at: Instant,
-            }),
-            output: schema.object({}),
-        }),
+        /** Deliver its last occurrence to each destination due now, deferring the others. */
+        deliver: method.mutation({ permission: "plan", isInternal: true }),
         /** Move every notification waiting for one summary to another, or out of any. */
         reschedule: method.updateMany("plan", {
             isInternal: true,
             fields: ["summaryAt"],
             match: ["summaryAt"],
-        }),
-        /** Forget a browser whose push service forgot its subscription. */
-        forget: method.mutation({
-            permission: "plan",
-            isInternal: true,
-            input: schema.object({
-                /** The browser's push endpoint. */
-                url: schema.url(),
-            }),
         }),
 
         /** Mark it read now. */
@@ -151,34 +101,6 @@ export const notification = defineObject(
     },
 });
 
-/** Deliver one occurrence of a notification to its person's destinations, in rounds. */
-export const deliver = defineWorkflow({
-    name: "deliver",
-    input: schema.object({
-        /** The notification. */
-        notification: schema.identifier("notification"),
-        /** The occurrence, which a later one replaces. */
-        occurredAt: Instant,
-    }),
-    waits: [message],
-});
-
-/** Send a home's scheduled summary due at a time. */
-export const summarize = defineWorkflow({
-    name: "summarize",
-    input: schema.object({
-        /** When the summary goes out. */
-        at: Instant,
-    }),
-});
-
-/** The calls notifications and their actions make once at their target's home, as the caller. */
-export const scheduled = defineWorkflow({
-    name: "call",
-    input: ScheduledCall.input,
-    output: ScheduledCall.output,
-});
-
 /** A notification as its table stores it. */
 export type Notification = Select<typeof notification.table>;
 
@@ -187,6 +109,13 @@ export const Notification = {
     /** Derive the identifier of an activity's notification, which shares its UUID. */
     of(activityId: Identifier<"activity">): Identifier<"notification"> {
         return Identifier.derive("notification", Identifier.uuid(activityId));
+    },
+
+    /** Derive the notification identifier of an activity identifier column in SQL, as `of` does. */
+    ofColumn(activityId: SQLWrapper): SQL<string> {
+        const uuid = sql`substr(${activityId}, ${sql.raw(String(ACTIVITY_PREFIX.length + 1))})`;
+
+        return sql<string>`${sql.raw(`'${NOTIFICATION_PREFIX}'`)} || ${uuid}`;
     },
 
     /** Derive the identifier of a notification's activity, which shares its UUID. */

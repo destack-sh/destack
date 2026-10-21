@@ -7,7 +7,7 @@ import {
     Routing,
     type RoutingEntry,
     type Settings,
-    summary,
+    summarySchedule,
     Window,
 } from "../src/index.ts";
 import type * as accountObject from "@destack/account/object";
@@ -33,13 +33,16 @@ test("end quiet hours in a time zone after the night the clocks go back", () => 
 /** The browser on the person's phone, subscribed to pushes. */
 const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a1");
 
+/** The person receiving the notifications. */
+const PERSON = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000a3");
+
 /** The desktop the person signed in. */
 const LAPTOP = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000a2");
 
 test("decide each destination by the first rule that applies, from read state down to the email delay", () => {
     // start from an unread, active mention the person receives everywhere, with nothing quiet
     const phone = { url: "https://push.example/phone", keys: { p256dh: "key", auth: "auth" } };
-    const push: Destination = { channel: "push", ...phone };
+    const push: Destination = { channel: "push", client: PHONE, user: PERSON, ...phone };
     const entry: RoutingEntry = {
         isUnread: true,
         notification: { snoozedUntil: null },
@@ -55,14 +58,14 @@ test("decide each destination by the first rule that applies, from read state do
     const settings: Settings = {
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         focus: focus.definition.default,
-        summary: summary.definition.default,
+        summarySchedule: summarySchedule.definition.default,
     };
     const focused = { ...focus.definition.default, until: SATURDAY + HOUR };
     const desktop: Destination = { channel: "desktop", client: LAPTOP };
     const email: Destination = { channel: "email", address: "dana@example.com" };
     const summarized: Changes["settings"] = {
         preference: { channels: ["push"], delivery: "summary" },
-        summary: { times: ["18:00"], channels: ["push"] },
+        summarySchedule: { times: ["18:00"], channels: ["push"] },
     };
     const cases: readonly [string, Changes][] = [
         ["read", { entry: { isUnread: false } }],
@@ -121,7 +124,7 @@ test("decide each destination by the first rule that applies, from read state do
         name,
         new Routing(
             { ...entry, ...changes.entry, activity: { ...entry.activity, ...changes.activity } },
-            new Recipient({ ...recipient, ...changes.recipient }),
+            new Recipient({ ...recipient, ...changes.recipient }, PERSON),
             { ...settings, ...changes.settings },
             {
                 emailDelay: EMAIL_DELAY,

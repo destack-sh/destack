@@ -28,7 +28,7 @@ import { emailProvider } from "@destack/message/email";
 import { MailFixture } from "@destack/message/test";
 import { type PushKeys, pushProvider, Vapid } from "@destack/message/push";
 import { message } from "@destack/message";
-import { implementEndpoint, implementMessage, type MessageOptions } from "@destack/message/server";
+import { type MessageOptions, serveMessages } from "@destack/message/server";
 import messagePackage from "@destack/message/package";
 import { messageTables } from "@destack/message/stack";
 import { defineServer, ObjectStore } from "@destack/object/server";
@@ -59,12 +59,10 @@ import { v7 } from "uuid";
 import {
     activity,
     announcement,
-    deliver,
     Notification,
     notification,
-    scheduled,
     subscription,
-    summarize,
+    summary,
 } from "../object/index.ts";
 import { build, installation, installationRevision } from "@destack/stack/object";
 import { buildIndexServers, installBuild } from "@destack/stack/test";
@@ -119,13 +117,10 @@ export const homeDatabase = defineDatabase({
         journal,
         ...call.tables,
         ...replicaTables,
-        ...[setting, activity, announcement, subscription, notification].flatMap(
+        ...[setting, activity, announcement, subscription, notification, summary].flatMap(
             (object) => object.tables,
         ),
         ...messageTables,
-        ...[deliver, summarize, scheduled].flatMap((workflow) =>
-            Object.values(workflow.objects).flatMap((object) => object.tables),
-        ),
         installation.table,
         installationRevision.table,
         build.table,
@@ -198,8 +193,6 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
     readonly pushes: PushService;
     /** The mail transport. */
     readonly mails: MailFixture;
-    /** The browser clients whose push subscriptions a home forgot at the account package. */
-    readonly forgotten: string[] = [];
     /** The scenario's clock, which the stores and the fixture's calls read. */
     readonly clock: VirtualClock;
     /** The people's homes, by name, opened as a scenario first needs each. */
@@ -684,16 +677,10 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                     notificationPackage,
                     new NotificationServer(this.#options).definition(),
                 ).at(await NotificationFixture.installation(id)),
-                defineServer(messagePackage, {
-                    objects: [
-                        implementMessage({
-                            providers: this.#providers,
-                            retry: RETRY,
-                            keys: this.#root,
-                        }),
-                        implementEndpoint(this.#root),
-                    ],
-                }),
+                defineServer(
+                    messagePackage,
+                    serveMessages({ providers: this.#providers, retry: RETRY, keys: this.#root }),
+                ),
                 settingServer(SETTINGS),
                 // read the installed builds' declarations from their index
                 ...(await buildIndexServers(test.database, this.#builds)),
@@ -992,7 +979,6 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
                 .update(client.table)
                 .set({ push: null })
                 .where(eq(client.table.id, id));
-            this.forgotten.push(id);
         }
 
         return mutation.calls.map(() => ({}));

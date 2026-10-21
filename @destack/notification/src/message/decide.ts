@@ -7,7 +7,7 @@ import type { InboxEntry } from "../notification/inbox.ts";
 import type { Activity } from "../object/activity.ts";
 import { Preference } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
-import { type Focus, focus, type Summary, summary } from "../setting/setting.ts";
+import { type Focus, focus, type SummarySchedule, summarySchedule } from "../setting/setting.ts";
 import type { Recipient } from "./recipient.ts";
 
 /** The reasons a destination skips a notification's occurrence. */
@@ -57,7 +57,7 @@ export interface Settings {
     /** When the person's notifications stay quiet. */
     readonly focus: Focus;
     /** When the person's scheduled summary goes out. */
-    readonly summary: Summary;
+    readonly summarySchedule: SummarySchedule;
 }
 
 /** The settings recipients place for their notifications. */
@@ -73,7 +73,7 @@ export const Settings = {
             Preference.setting(occurrence.release, occurrence),
         );
         const references = new Map(
-            [...preferences, focus, summary].map(({ reference }) => [
+            [...preferences, focus, summarySchedule].map(({ reference }) => [
                 `${reference.packageId} ${reference.name}`,
                 { packageId: reference.packageId, name: reference.name },
             ]),
@@ -93,7 +93,7 @@ export const Settings = {
             return {
                 preference: nth(preferences, index).resolve(selection, placed, []).value,
                 focus: focus.resolve(selection, placed, []).value,
-                summary: summary.resolve(selection, placed, []).value,
+                summarySchedule: summarySchedule.resolve(selection, placed, []).value,
             };
         });
     },
@@ -172,7 +172,7 @@ export class Routing {
     #summarize(to: Destination): Decision | undefined {
         // summarize passive notifications and summarized preferences
         const { interruption } = this.entry.activity;
-        const { preference, summary: scheduled } = this.settings;
+        const { preference, summarySchedule: scheduled } = this.settings;
         const isSummarized =
             interruption === "passive" ||
             (preference.delivery === "summary" && interruption !== "timeSensitive");

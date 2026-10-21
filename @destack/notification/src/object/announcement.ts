@@ -61,6 +61,8 @@ export const announcement = defineObject(
             thread: field.string(NotificationKey),
             /** The values its content renders. */
             payload: field.json(schema.json()),
+            /** When it was posted or last replaced, the occurrence its activities record. */
+            postedAt: field.time(),
 
             // expansion
             /** The last audience entry expanded, absent before the first batch. */

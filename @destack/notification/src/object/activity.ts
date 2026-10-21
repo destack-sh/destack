@@ -54,6 +54,8 @@ export const activity = defineObject(
             payload: field.json(schema.json()),
             /** The occurrences collapsed into it. */
             count: field.integer().default(1),
+            /** When the first occurrence collapsed into it occurred. */
+            firstOccurredAt: field.time(),
             /** When it last occurred. */
             occurredAt: field.time(),
 

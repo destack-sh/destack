@@ -114,7 +114,17 @@ test.for(TEST_DIALECTS)(
             2,
             [
                 { to: { channel: "desktop", client: LAPTOP }, status: "sent", reason: null },
-                { to: { channel: "push", url, keys: phone.keys }, status: "sent", reason: null },
+                {
+                    to: {
+                        channel: "push",
+                        client: PHONE,
+                        user: actors.bob.id,
+                        url,
+                        keys: phone.keys,
+                    },
+                    status: "sent",
+                    reason: null,
+                },
             ],
         ]);
 

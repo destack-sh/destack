@@ -5,10 +5,9 @@ import { defineObject, field } from "@destack/object";
 import { argument, Message, plural } from "@destack/locale";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-
 import { defineNotification } from "../../src/declare/index.ts";
 import { nameOf } from "./actor.ts";
-import { activity, announcement, NOTIFY_RECIPIENTS, subscription } from "../../src/index.ts";
+import { activity, announcement, subscription } from "../../src/index.ts";
 
 /** The package release declaring the fixture's notifications. */
 export const notes = Package.parse({
@@ -156,18 +155,10 @@ export const document = defineObject(
         edit: async (call) => {
             // tell the document's subscribers about the change
             const { summary } = call.input;
-            const subscribers = await call.query(
-                call.caller,
-                subscription.call("subscribers", {
-                    ...documentParent(call.target.id),
-                    limit: NOTIFY_RECIPIENTS,
-                }),
-            );
             await call.mutate(call.caller, [
                 change.call({
                     source: call.reference(),
-                    recipients: subscribers.items.map((entry) => entry.owner),
-                    reason: "subscribed",
+                    audience: { kind: "subscribers" },
                     payload: { summary },
                 }),
             ]);

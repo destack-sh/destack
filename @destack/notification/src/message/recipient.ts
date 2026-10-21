@@ -3,7 +3,7 @@ import { type LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { principal } from "@destack/access";
 import { Destination } from "@destack/message";
 import type { MethodContext } from "@destack/object";
-import { present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 
 /** The capability of pushing notifications to people's browsers, which an installation may lack. */
@@ -18,22 +18,25 @@ export class Recipient {
     readonly locale: LocaleTag;
     /** The person's time zone. */
     readonly timeZone: string;
-    /** The person's browsers subscribed to pushes. */
-    readonly browsers: accountObject.Recipient["browsers"];
     /** The destinations the person receives messages at: desktops, browsers and email. */
     readonly destinations: readonly RecipientDestination[];
 
     /** List a person's destinations from account's recipient row. */
-    constructor(row: accountObject.Recipient) {
-        // take the language, time zone and browsers
+    constructor(row: accountObject.Recipient, person: Identifier<"user">) {
+        // take the language and time zone
         this.locale = row.locale;
         this.timeZone = row.timeZone;
-        this.browsers = row.browsers;
 
-        // list the desktops, browsers and email address
+        // list the desktops, the browsers with their person, and the email address
         this.destinations = [
             ...row.desktops.map((id) => ({ channel: "desktop" as const, client: id })),
-            ...row.browsers.map(({ url, keys }) => ({ channel: "push" as const, url, keys })),
+            ...row.browsers.map(({ id, url, keys }) => ({
+                channel: "push" as const,
+                client: id,
+                user: person,
+                url,
+                keys,
+            })),
             ...(row.email === undefined ? [] : [{ channel: "email" as const, address: row.email }]),
         ];
     }
@@ -61,7 +64,7 @@ export class Recipient {
         const id = schema.identifier("user").parse(person.id);
         const call = accountObject.user.call("recipient", { id });
 
-        return new Recipient(await context.query(await context.space(), call));
+        return new Recipient(await context.query(await context.space(), call), id);
     }
 
     /** List the destinations a call may send to, pushing only where the installation may push. */

@@ -60,7 +60,7 @@ await home.mutate.notification.snooze({ id, until: tomorrow });
 
 ## Delivery
 
-Each new occurrence starts a `deliver` workflow run in the person's home, which decides every destination in rounds: `Decision.of` sends, defers, keeps for the scheduled summary, or skips, from the person's preference, focus and summary; the `summarize` workflow sends one summary per home and summary time.
+A notification's controller delivers each new occurrence once its `deliveryAt` is due: `Routing.decide` sends, defers, keeps for the scheduled summary, or skips each destination from the person's preference, focus and summary schedule, and a `summary` per home and time goes out once due.
 
 ```ts
 const weekend: Focus = {
@@ -68,20 +68,20 @@ const weekend: Focus = {
     allowed: [],
     isTimeSensitiveAllowed: true,
 };
-const evening: Summary = { times: ["19:00"], channels: ["email"] };
-const decision = Decision.of(to, entry, recipient, settings, { emailDelay }, now); // { action: "defer", until }
+const evening: SummarySchedule = { times: ["19:00"], channels: ["email"] };
+const decision = new Routing(entry, recipient, settings, { emailDelay }, now).decide(to); // { action: "defer", until }
 ```
 
 ## Server
 
-The package's server, its default export of `./server`, serves a space's activities, announcements and subscriptions, and a home's notifications with their `deliver` and `summarize` workflows.
+The package's server, its default export of `./server`, serves a space's activities, announcements and subscriptions, and a home's notifications and summaries with their controllers.
 
 ```ts
 import notificationServer from "@destack/notification/server";
 
-// the package requests in its space: notification.plan, announcement.expand, message.*
+// the package requests in its space: notification.plan, summary.plan, announcement.expand, message.*
 // and in the universe, acting for its home under the home's grant: user.recipient
-// its optional `push` capability adds client.unsubscribe, pushing only where an installation allows it
+// its optional `push` capability pushes only where an installation allows it; message forgets gone browsers
 const store = new ObjectStore({ servers: [notificationServer, messageServer], ...options });
 ```
 

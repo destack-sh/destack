@@ -5,15 +5,19 @@ import { CallError } from "@destack/runtime/error";
 import { Catalog, Localization, type LocaleTag } from "@destack/locale";
 import { type Duration, fromJsonSchema, type Identifier, schema } from "@destack/schema";
 import { catalog, installation, installationRevision, symbol } from "@destack/stack/object";
-import { ScheduledCall } from "@destack/workflow";
-import { NotificationDescription, NotificationType } from "../notification/notification.ts";
-import { deliver, notification, scheduled, summarize } from "../object/notification.ts";
+import {
+    NotificationDescription,
+    NotificationType,
+    type NotifyInput,
+} from "../notification/notification.ts";
+import { Recipient } from "../message/recipient.ts";
+import type { Subject } from "@destack/sync";
 import type notificationPackage from "../package.ts";
 import { implementActivity } from "./activity.ts";
 import { implementAnnouncement } from "./announcement.ts";
-import { Delivery } from "./delivery.ts";
 import { HOME_FOLLOWS } from "./home.ts";
 import { implementNotification } from "./notification.ts";
+import { implementSummary } from "./summary.ts";
 import type { NotificationOptions } from "./options.ts";
 import { implementSubscription } from "./subscription.ts";
 
@@ -75,6 +79,16 @@ export class NotificationServer {
         }
 
         return declared;
+    }
+
+    /** Notify a notice's recipients of an occurrence, rendered in each person's locale. */
+    async notify(context: MethodContext, notice: NotifyInput, occurredAt: number): Promise<void> {
+        // render with the declaring release's catalogs in each recipient's locale
+        const { packageId, name } = notice;
+        const declared = await this.notification(context, packageId, name);
+        const localize = async (person: Subject) =>
+            this.localization(context, packageId, await Recipient.locale(context, person));
+        await declared.notify(localize, context, notice, occurredAt);
     }
 
     /** Bind a locale to the translations of the release a call's space installs. */
@@ -173,32 +187,17 @@ export class NotificationServer {
         };
     }
 
-    /** Define the package's server: its types, an occurrence's delivery, and a home's follows. */
+    /** Define the package's server: its types, their delivery and summaries, and home follows. */
     definition(): ServerDefinition<typeof notificationPackage> {
-        // deliver each occurrence, send each scheduled summary once due, and make scheduled calls
-        const workflows = [
-            deliver.implement((step, input, run) => new Delivery(this, step, input, run).run()),
-            summarize.implement(async (step, { at }, run) => {
-                await step.sleepUntil("wait", at);
-                const summary = notification.call("summarize", {
-                    ...notification.in(run.scope),
-                    at,
-                });
-                await step.call("summarize", summary);
-            }),
-            scheduled.implement((step, input) => ScheduledCall.run(step, input)),
-        ];
-
         return {
             objects: [
                 implementActivity(this),
                 implementAnnouncement(this),
                 implementSubscription(),
                 implementNotification(this),
-                ...workflows.flatMap((each) => each.objects),
+                implementSummary(this),
             ],
             follows: HOME_FOLLOWS,
-            controllers: workflows.flatMap((each) => each.controllers),
         };
     }
 }

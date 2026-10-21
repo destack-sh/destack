@@ -1,18 +1,28 @@
 import { Account } from "@destack/account/object";
-import { Snapshot } from "@destack/db";
+import { eq, isNull, lt, or, Snapshot } from "@destack/db";
 import type { ObjectReconciliation } from "@destack/object";
 import { nth, present } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { Activity, activity } from "../object/activity.ts";
 import { Notification, notification } from "../object/notification.ts";
-import { Recipient } from "../message/recipient.ts";
 import type { NotificationServer } from "./server.ts";
 
 /** Implement activities: notify their recipients, answer their actions, and plan a home's. */
 export function implementActivity(server: NotificationServer): typeof activity {
     return activity.implement({
         controller: {
+            // plan each activity whose notification is missing or older than its last occurrence
             pending: {},
+            list: async (view) => {
+                const { table } = notification;
+                const rows = await view.database
+                    .select({ id: activity.table.id })
+                    .from(activity.table)
+                    .leftJoin(table, eq(table.id, Notification.ofColumn(activity.table.id)))
+                    .where(or(isNull(table.id), lt(table.plannedAt, activity.table.occurredAt)));
+
+                return rows.map((row) => ({ id: row.id }));
+            },
             concurrency: server.concurrency,
             reconcile: plan,
         },
@@ -25,13 +35,9 @@ export function implementActivity(server: NotificationServer): typeof activity {
                 return declared.act(call.input.action, call.input.text, call);
             },
             notify: async (call) => {
-                // render in each person's locale with the declaring release's catalogs
-                const { packageId, name } = call.input;
-                const declared = await server.notification(call, packageId, name);
-                const localize = async (person: Subject) =>
-                    server.localization(call, packageId, await Recipient.locale(call, person));
+                await server.notify(call, call.input, call.now);
 
-                return declared.notify(localize, call);
+                return {};
             },
         },
     });
@@ -50,16 +56,16 @@ async function plan(
         return undefined;
     }
 
-    // create the notification and start the delivery of a new occurrence
+    // create the notification, or plan the delivery of its new occurrence to every destination
     const id = Notification.of(row.id);
     const state = await view.read(notification.table).findFirst({ where: { id } });
     const target = notification.target({ scope: home, id });
-    if (!Notification.isPlanned(state, row)) {
+    const planned = { plannedAt: reconciliation.now, deliveryAt: reconciliation.now };
+    if (state === undefined) {
+        await reconciliation.mutate([notification.call("create", { ...target, ...planned })]);
+    } else if (!Notification.isPlanned(state, row)) {
         await reconciliation.mutate([
-            ...(state === undefined
-                ? [notification.call("create", { ...target, plannedAt: reconciliation.now })]
-                : []),
-            notification.call("plan", target),
+            notification.call("update", { ...target, ...planned, delivered: [] }),
         ]);
     }
 

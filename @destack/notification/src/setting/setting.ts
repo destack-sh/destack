@@ -32,7 +32,7 @@ export const focus = defineSetting({
 });
 
 /** When the scheduled summary goes out, and on which channels. */
-export const summary = defineSetting({
+export const summarySchedule = defineSetting({
     name: "summary",
     title: "Scheduled summary",
     description: "When notifications set to arrive in a summary are sent, and how.",
@@ -52,4 +52,4 @@ export const summary = defineSetting({
 export type Focus = schema.Infer<typeof focus.definition.schema>;
 
 /** When the scheduled summary goes out, and how. */
-export type Summary = schema.Infer<typeof summary.definition.schema>;
+export type SummarySchedule = schema.Infer<typeof summarySchedule.definition.schema>;

@@ -9,7 +9,7 @@ import { subjectContext } from "@destack/runtime/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { type Page, Scope, Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { activityShape, deliver } from "../src/index.ts";
+import { activityShape, notification } from "../src/index.ts";
 import { document } from "./fixture/document.ts";
 import { actors, serveSpace } from "./fixture/space.ts";
 
@@ -69,7 +69,7 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
-    "seal an emailed notification's content to its home's message key, so no journal entry, delivery run or step, or message change contains its text, on %s",
+    "seal an emailed notification's content to its home's message key, so no journal entry, notification or message change contains its text, on %s",
     async (dialect) => {
         // give alice an email address, and let bob mention her on a document she views
         const fixture = await serveSpace(dialect);
@@ -101,12 +101,11 @@ test.for(TEST_DIALECTS)(
         await fixture.wait(16);
         await fixture.dispatch();
 
-        // list where the text appears in alice's home beside the activity replica: the journal, the delivery's runs and steps, and the messages' changes
+        // list where the text appears in alice's home beside the activity replica: the journal, the notifications' delivery state, and the messages' changes
         const { test: home } = await fixture.home("alice");
         const traces = {
             journal: await home.database.select().from(journal),
-            runs: await home.database.select().from(deliver.run.table),
-            steps: await home.database.select().from(deliver.step.table),
+            notifications: await home.database.select().from(notification.table),
             log: (await home.database.log.read({ tables: [message.table], after: 0 })).changes,
         };
         const leaking = Object.entries(traces).flatMap(([name, rows]) =>

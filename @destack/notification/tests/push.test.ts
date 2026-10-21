@@ -52,7 +52,7 @@ test.for(TEST_DIALECTS)(
         );
         await fixture.dispatch();
 
-        // send one push to each phone, fail the old phone's as gone and forget the old phone
+        // send one push to each phone, failing the old phone's as gone
         const mentioned = nth((await fixture.inbox("bob")).entries, 0);
         const messages = await fixture.messages("bob", mentioned.notification.id);
         expect({
@@ -60,14 +60,12 @@ test.for(TEST_DIALECTS)(
             messages: messages
                 .map((row) => [row.to.channel === "push" ? row.to.url : "", row.status, row.reason])
                 .toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
-            forgotten: fixture.forgotten,
         }).toEqual({
             pushed: ["https://push.example/bob-new", "https://push.example/bob-old"],
             messages: [
                 ["https://push.example/bob-new", "sent", null],
                 ["https://push.example/bob-old", "failed", "gone"],
             ],
-            forgotten: [OLD_PHONE],
         });
     },
 );

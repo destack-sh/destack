@@ -226,27 +226,31 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     /** Record an activity for each named recipient, replacing or joining their existing one. */
     async notify(
         localize: (recipient: Subject) => Promise<Localization>,
-        context: MethodContextOf<typeof activity, "notify">,
+        context: MethodContext,
+        notice: NotifyInput,
+        occurredAt: number,
     ): Promise<ResultOf<typeof activity, "notify">> {
         // require a small payload and recipients other than the caller, each listed once
-        const payload = this.payload(context.input.payload);
-        const recipients = NotificationType.#recipients(context, context.input.recipients);
+        const payload = this.payload(notice.payload);
+        const recipients = NotificationType.#recipients(context, notice.recipients);
         if (recipients.length === 0) {
             return {};
         }
 
         // read the existing activities and each recipient's localization
-        const thread = context.input.thread ?? context.input.parent.id;
-        const existing = await this.#existing(context, recipients, thread);
+        const thread = notice.thread ?? notice.parent.id;
+        const existing = await this.#existing(context, notice, recipients, { thread, occurredAt });
         const locales = await Promise.all(recipients.map((recipient) => localize(recipient)));
 
         // replace or join each existing activity, and post the others in one mutation
         const calls = zip(recipients, locales).map(([recipient, locale]) => {
             const known = existing.get(Subject.key(recipient));
 
+            const occurrence = { payload, locale, thread, occurredAt };
+
             return known === undefined
-                ? this.#post(context, recipient, { payload, locale, thread })
-                : this.#occur(context, known, { payload, locale, thread });
+                ? this.#post(notice, recipient, occurrence)
+                : this.#occur(notice, known, occurrence);
         });
         await context.mutate(context.caller, calls);
 
@@ -271,6 +275,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             excluded: [...new Set(excluded)],
             thread: context.input.thread ?? parent.id,
             payload,
+            postedAt: context.now,
             cursor: null,
             expandedAt: null,
         };
@@ -376,16 +381,18 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
 
     /** Read the activities a notice replaces by its key, or joins in its thread, by recipient. */
     async #existing(
-        context: MethodContextOf<typeof activity, "notify">,
+        context: MethodContext,
+        notice: NotifyInput,
         recipients: readonly Subject[],
-        thread: string,
+        occurrence: { readonly thread: string; readonly occurredAt: number },
     ): Promise<ReadonlyMap<string, Activity>> {
-        // match the source's keyed activity, or the thread's recent ones
-        const { parent, key } = context.input;
-        const since = context.now - Duration.milliseconds(this.definition.collapse ?? COLLAPSE);
+        // match the source's keyed activity, or the thread's bursts started within the window
+        const { parent, key } = notice;
+        const { thread, occurredAt } = occurrence;
+        const since = occurredAt - Duration.milliseconds(this.definition.collapse ?? COLLAPSE);
         const matched =
             key === undefined
-                ? { thread, createdAt: { gte: since } }
+                ? { thread, firstOccurredAt: { gte: since } }
                 : {
                       parentPackageId: parent.packageId,
                       parentType: parent.type,
@@ -411,12 +418,8 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     }
 
     /** Build the call posting a recipient's first activity of a notice. */
-    #post(
-        context: MethodContextOf<typeof activity, "notify">,
-        recipient: Subject,
-        occurrence: Occurrence,
-    ) {
-        const { parent, key, reason } = context.input;
+    #post(notice: NotifyInput, recipient: Subject, occurrence: Occurrence) {
+        const { parent, key, reason } = notice;
 
         return activity.call("post", {
             parent,
@@ -428,26 +431,26 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             thread: occurrence.thread,
             reason,
             payload: occurrence.payload,
-            occurredAt: context.now,
+            firstOccurredAt: occurrence.occurredAt,
+            occurredAt: occurrence.occurredAt,
             ...this.render(occurrence.payload, 1, occurrence.locale),
         });
     }
 
     /** Build the call replacing or joining an existing activity, counting the occurrence. */
-    #occur(
-        context: MethodContextOf<typeof activity, "notify">,
-        known: Activity,
-        occurrence: Occurrence,
-    ) {
-        const count = context.input.key === undefined ? known.count + 1 : 1;
+    #occur(notice: NotifyInput, known: Activity, occurrence: Occurrence) {
+        // replace a keyed activity as a fresh occurrence, or join the thread's burst
+        const isReplaced = notice.key !== undefined;
+        const count = isReplaced ? 1 : known.count + 1;
 
         return activity.call("occur", {
             id: known.id,
-            reason: context.input.reason,
+            reason: notice.reason,
             payload: occurrence.payload,
             thread: occurrence.thread,
             count,
-            occurredAt: context.now,
+            firstOccurredAt: isReplaced ? occurrence.occurredAt : known.firstOccurredAt,
+            occurredAt: occurrence.occurredAt,
             ...this.render(occurrence.payload, count, occurrence.locale),
         });
     }
@@ -481,4 +484,9 @@ interface Occurrence {
     readonly locale: Localization;
     /** The thread it groups in. */
     readonly thread: string;
+    /** When it occurred. */
+    readonly occurredAt: number;
 }
+
+/** The notify method's input: a notice's source, recipients, reason and payload. */
+export type NotifyInput = MethodContextOf<typeof activity, "notify">["input"];
