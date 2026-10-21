@@ -19,9 +19,8 @@ import {
 import { type MethodContext, ObjectType, type ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/runtime/control";
-import { CallError, refuseInput } from "@destack/runtime/error";
+import { CallError, refuseInput, refusal } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
-import { refusal } from "@destack/runtime/server";
 import type { ServerContext, WebhookHandler } from "@destack/runtime/workload";
 import { canonicalize, schema } from "@destack/schema";
 import { type Call, Scope } from "@destack/sync";
