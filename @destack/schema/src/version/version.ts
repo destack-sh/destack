@@ -1,14 +1,11 @@
 import { z } from "zod";
 
-/** The prerelease channels, in the order semantic versioning sorts their identifiers. */
-const PRERELEASE_CHANNELS = ["dev", "nightly"] as const;
+/** A calendar version: year, month, release, and an optional dev build's sequence. */
+const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-dev\.(0|[1-9]\d*))?$/u;
 
-/** A calendar version: year, month, release, and an optional prerelease channel and sequence. */
-const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-(dev|nightly)\.(0|[1-9]\d*))?$/u;
-
-/** A package release version, such as 2026.9.0, 2026.10.0-nightly.3 or 2026.9.0-dev.4. */
+/** A package release version, such as 2026.9.0 or 2026.9.0-dev.4. */
 export const Version = Object.assign(z.string().regex(VERSION), {
-    /** Order versions by release, prereleases before their release, dev before nightly builds. */
+    /** Order versions by release, dev builds before the release they lead to. */
     compare(left: string, right: string): number {
         // find the first differing component
         const first = components(left);
@@ -18,14 +15,13 @@ export const Version = Object.assign(z.string().regex(VERSION), {
             first.month - second.month,
             first.release - second.release,
             first.stage - second.stage,
-            first.channel - second.channel,
             first.sequence - second.sequence,
         ];
 
         return Math.sign(differences.find((difference) => difference !== 0) ?? 0);
     },
 
-    /** Report whether a version is a prerelease, such as a dev or nightly build. */
+    /** Report whether a version is a prerelease: a dev build. */
     isPrerelease(version: string): boolean {
         return components(version).stage === 0;
     },
@@ -73,22 +69,21 @@ export const Version = Object.assign(z.string().regex(VERSION), {
 /** A package release version. */
 export type Version = z.infer<typeof Version>;
 
-/** Read a version's numbers, stage, prerelease channel and sequence, in comparison order. */
+/** Read a version's numbers, stage and dev sequence, in comparison order. */
 function components(version: string) {
-    // read the calendar numbers and the prerelease
+    // read the calendar numbers and the dev build's sequence
     const match = VERSION.exec(version);
     if (match === null) {
         throw new TypeError(`invalid version: ${version}`);
     }
-    const [, year, month, release, channel, sequence] = match;
+    const [, year, month, release, sequence] = match;
 
-    // sort a prerelease before the release it leads to
+    // sort a dev build before the release it leads to
     return {
         year: Number(year),
         month: Number(month),
         release: Number(release),
-        stage: channel === undefined ? 1 : 0,
-        channel: PRERELEASE_CHANNELS.findIndex((candidate) => candidate === channel),
+        stage: sequence === undefined ? 1 : 0,
         sequence: sequence === undefined ? 0 : Number(sequence),
     };
 }

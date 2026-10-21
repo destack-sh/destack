@@ -1,23 +1,23 @@
 import { expect, test } from "@destack/test";
 import { Version } from "./version.ts";
 
-test("order calendar versions by year, month and release, nightly builds before their release", () => {
+test("order calendar versions by year, month and release, dev builds before their release", () => {
     const versions = [
         "2026.10.0",
         "2026.9.1",
         "2027.1.0",
         "2026.9.0",
-        "2026.9.0-nightly.10",
-        "2026.9.0-nightly.2",
-        "2026.10.0-nightly.1",
+        "2026.9.0-dev.10",
+        "2026.9.0-dev.2",
+        "2026.10.0-dev.1",
     ];
 
     expect(versions.toSorted((left, right) => Version.compare(left, right))).toEqual([
-        "2026.9.0-nightly.2",
-        "2026.9.0-nightly.10",
+        "2026.9.0-dev.2",
+        "2026.9.0-dev.10",
         "2026.9.0",
         "2026.9.1",
-        "2026.10.0-nightly.1",
+        "2026.10.0-dev.1",
         "2026.10.0",
         "2027.1.0",
     ]);
@@ -26,6 +26,7 @@ test("order calendar versions by year, month and release, nightly builds before 
 test("accept only calendar versions", () => {
     const candidates = [
         "2026.9.0",
+        "2026.12.3-dev.0",
         "2026.12.3-nightly.0",
         "1.2.3",
         "2026.13.0",
@@ -38,7 +39,8 @@ test("accept only calendar versions", () => {
         candidates.map((candidate) => [candidate, Version.safeParse(candidate).success]),
     ).toEqual([
         ["2026.9.0", true],
-        ["2026.12.3-nightly.0", true],
+        ["2026.12.3-dev.0", true],
+        ["2026.12.3-nightly.0", false],
         ["1.2.3", false],
         ["2026.13.0", false],
         ["2026.09.0", false],
@@ -53,7 +55,7 @@ test("list the releases after one release and up to another in release order", (
         "2026.9.0": 2,
         "2026.10.0": 4,
         "2026.8.0": 1,
-        "2026.10.0-nightly.1": 3,
+        "2026.10.0-dev.1": 3,
     };
 
     expect([
@@ -63,29 +65,11 @@ test("list the releases after one release and up to another in release order", (
     ]).toEqual([
         [
             ["2026.9.0", 2],
-            ["2026.10.0-nightly.1", 3],
+            ["2026.10.0-dev.1", 3],
             ["2026.10.0", 4],
         ],
         [],
         [["2026.8.0", 1]],
-    ]);
-});
-
-test("order dev builds by their sequence before the nightly builds and the release they lead to", () => {
-    const versions = [
-        "2026.9.0",
-        "2026.9.0-nightly.1",
-        "2026.9.0-dev.10",
-        "2026.9.0-dev.2",
-        "2026.8.0",
-    ];
-
-    expect(versions.toSorted((left, right) => Version.compare(left, right))).toEqual([
-        "2026.8.0",
-        "2026.9.0-dev.2",
-        "2026.9.0-dev.10",
-        "2026.9.0-nightly.1",
-        "2026.9.0",
     ]);
 });
 
@@ -95,8 +79,8 @@ test("name the release after a version's release in its year and month", () => {
     ).toEqual(["2026.9.1", "2026.12.5", "2026.9.1"]);
 });
 
-test("tell dev and nightly prereleases from releases", () => {
-    const versions = ["2026.9.0", "2026.9.0-dev.3", "2026.10.1-nightly.0"];
+test("tell dev builds from releases", () => {
+    const versions = ["2026.9.0", "2026.9.0-dev.3", "2026.10.1-dev.0"];
 
     expect(versions.map((version) => Version.isPrerelease(version))).toEqual([false, true, true]);
 });

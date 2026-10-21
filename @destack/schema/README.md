@@ -39,10 +39,10 @@ schema.redact(Call, { address: "ada@example.com", token: "secret" }); // {}
 
 ## Versions
 
-`Version` orders calendar versions with dev and nightly builds before their release.
+`Version` orders calendar versions with dev builds before their release.
 
 ```ts
-Version.compare("2026.10.0-nightly.3", "2026.10.0"); // -1
+Version.compare("2026.10.0-dev.3", "2026.10.0"); // -1
 Version.next("2026.10.0"); // "2026.10.1"
 ```
 
