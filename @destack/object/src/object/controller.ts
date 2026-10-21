@@ -38,6 +38,8 @@ export interface ObjectController<Object extends ObjectType = ObjectType> {
     readonly mode?: "reconcile" | "follow";
     /** The keys reconciled at once, one by default. */
     readonly concurrency?: number;
+    /** List the keys a start reconciles with a query of its own; changes still match `pending`. */
+    readonly list?: (view: Snapshot) => Promise<readonly KeyFields[]>;
     /** Reconcile the pending objects of one key, returning the wait until the next look. */
     reconcile(reconciliation: ObjectReconciliation<Object>): Promise<number | undefined>;
 }
@@ -132,10 +134,15 @@ export const ObjectController = {
             ...(declared.mode === undefined ? {} : { mode: declared.mode }),
             keys,
             list: async (view) => {
-                // list the keys of every pending object
-                const rows = await view.read(table).findMany({ where: declared.pending });
+                // list the declared query's keys, or those of every pending object
+                const listed =
+                    declared.list === undefined
+                        ? (await view.read(table).findMany({ where: declared.pending })).map(
+                              readKey,
+                          )
+                        : await declared.list(view);
 
-                return [...new Set(rows.map((row) => canonicalize(readKey(row))))];
+                return [...new Set(listed.map((fields) => canonicalize(fields)))];
             },
             reconcile: (key, reconciliation) =>
                 ObjectController.reconcilePending(store, object, declared, key, reconciliation),

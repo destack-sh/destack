@@ -94,6 +94,21 @@ export const label = defineObject(
 );
 ```
 
+## Custom methods
+
+A type should only add its own method to change its object in a way `update` cannot, to follow another standard's protocol, or to run a step of its controller.
+
+```ts
+(method) => ({
+    cancel: method.mutation({ permission: "cancel" }), // change the object
+    token: method.mutation({ permission: "token", output: Token }), // follow OAuth 2.0
+    follow: method.mutation({ permission: "follow", isInternal: true }), // run the controller's step
+}),
+// read and write everything else through the standard methods of the type keeping the state
+// sign up through user.create, invite through invitation.create
+// compute derived values where they are read
+```
+
 ## References
 
 `field.reference` stores one type's identifier as `<name>Id`, and `field.object` or `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
