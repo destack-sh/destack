@@ -5,14 +5,14 @@ import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
 import { schema, nth, type Identifier } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { RequestId } from "@destack/sync";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
-import { ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { serveObjects } from "./fixture/device.ts";
 import { notebook, notesDatabase } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -152,7 +152,7 @@ test("read external objects named by their key from the database their files ope
         nth(
             new ObjectStore({
                 servers: [
-                    defineServer(notebooks, {
+                    implementPackage(notebooks, {
                         external: { objects: [entry], open: async () => files.database },
                     }),
                 ],

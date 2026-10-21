@@ -1,8 +1,8 @@
 import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
-import { RequestContext } from "@destack/runtime/server";
+import { RequestContext } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import { CallError } from "@destack/runtime";
+import { CallError } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { AuditCaller } from "../src/index.ts";
 import { ObjectReference } from "@destack/sync";

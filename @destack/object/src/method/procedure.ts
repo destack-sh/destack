@@ -1,9 +1,8 @@
 import { type Insert, type JsonOf, jsonShape, type Select, TABLE } from "@destack/db";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { type Identifier, mapValues, schema } from "@destack/schema";
 import { Package } from "@destack/package";
-import { defineProcedure } from "@destack/runtime/procedure";
-import { RequestId } from "@destack/runtime/request";
+import { defineProcedure } from "../procedure/index.ts";
 import { MAX_PAGE_LIMIT } from "./page.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type {

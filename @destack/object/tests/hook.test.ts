@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import {
     CallSite,
     defineObject,
@@ -20,12 +21,12 @@ import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { schema, present, type JsonValue } from "@destack/schema";
 import { graph, Package } from "@destack/package";
-import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/runtime";
-import { describePackage } from "@destack/runtime/inspect";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey, testServerContext } from "@destack/runtime/test";
+import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
+import { describePackage } from "@destack/object/inspect";
+import { RequestId } from "@destack/sync";
+import { testCallKey, testServerContext } from "@destack/object/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
 type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
@@ -724,7 +725,7 @@ test("serve the cards of the platform and of an installed package from one store
 
     // serve the platform's cards and the installation's from one store
     const store = new ObjectStore({
-        servers: [defineServer(cards, {})],
+        servers: [implementPackage(cards, {})],
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
@@ -767,7 +768,7 @@ test("describe the platform's and an installed package's types from one store, d
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
     const store = new ObjectStore({
-        servers: [defineServer(photos, {})],
+        servers: [implementPackage(photos, {})],
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
@@ -822,7 +823,7 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
     });
 });
 
-test("throw a hook's failure across its boundary as the call error it was, caused at the stack it was thrown at", async () => {
+test("throw a hook's failure across its boundary as the failure it was, caused at the stack it was thrown at", async () => {
     // fail a hook, and read its answer as JSON on the other side
     const thrown = new TypeError("the card has no title");
     const answer = HandlerAnswer.parse(
@@ -843,22 +844,12 @@ test("throw a hook's failure across its boundary as the call error it was, cause
             return error;
         }
     })();
-    const error = schema
-        .object({
-            code: schema.string(),
-            status: schema.number(),
-            message: schema.string(),
-            defined: schema.boolean(),
-            data: schema.unknown(),
-            cause: schema.object({ message: schema.string(), stack: schema.string() }),
-        })
-        .parse(failed);
-    expect(error).toEqual({
-        code: "TypeError",
-        status: 500,
-        message: "the card has no title",
-        defined: false,
-        data: undefined,
-        cause: { message: "the card has no title", stack: thrown.stack },
-    });
+    const cause = failed instanceof Error ? failed.cause : undefined;
+    expect([
+        Failure.of(failed),
+        cause instanceof Error ? [cause.message, cause.stack] : cause,
+    ]).toEqual([
+        { code: "INTERNAL_SERVER_ERROR", message: "the card has no title" },
+        ["the card has no title", thrown.stack],
+    ]);
 });

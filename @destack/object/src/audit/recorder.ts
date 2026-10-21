@@ -10,10 +10,11 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { Failure, Outcome } from "@destack/sync";
-import { findDenial, CallError } from "@destack/runtime";
+import { Outcome } from "@destack/sync";
+import { Failure } from "@destack/error";
+import { findDenial, CallError } from "../error/call.ts";
 import { AccessContext, Credential } from "@destack/access";
-import { type ProcedureAudit, type ProcedureContext } from "@destack/runtime/server";
+import { type ProcedureAudit, type ProcedureContext } from "../server/procedure.ts";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
 import { ObjectError } from "../error/index.ts";
@@ -69,7 +70,7 @@ type Ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Sch
 /** The outcome of a cancelled call. */
 const CANCELLED: Outcome = {
     kind: "cancelled",
-    error: { code: "CANCELLED", status: 499, message: "cancelled" },
+    error: { code: "CLIENT_CLOSED_REQUEST", message: "cancelled" },
 };
 
 /** Record calls under a fixed context. */
@@ -193,7 +194,7 @@ export class AuditRecorder {
         else {
             return {
                 kind: "failure",
-                error: { code: "INTERNAL_SERVER_ERROR", status: 500, message: "internal error" },
+                error: { code: "INTERNAL_SERVER_ERROR", message: "internal error" },
             };
         }
     }

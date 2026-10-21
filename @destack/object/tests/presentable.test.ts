@@ -1,13 +1,13 @@
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { present, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";

@@ -1,22 +1,21 @@
-import { bearerUser, users } from "./fixture/user.ts";
+import { bearerUser, users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { type DatabaseConnection, type Dialect, defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { createClient, type ClientOptions } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { definePackage } from "@destack/runtime";
-import { RequestId } from "@destack/runtime/request";
-import { Server } from "@destack/runtime/server";
+import { createClient, type ClientOptions } from "@destack/object/client";
+import { definePackage } from "@destack/object";
+import { Health } from "@destack/object/server";
+import { RequestId } from "@destack/sync";
+import { Server } from "@destack/object/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { userContext } from "./fixture/user.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { nth, type Identifier } from "@destack/schema";
 import { Clock } from "@destack/environment";
@@ -70,7 +69,7 @@ async function serveDocuments(dialect: Dialect) {
         clock: Clock.system,
         ...nth(
             new ObjectStore({
-                servers: [defineServer(documentsPackage, {})],
+                servers: [implementPackage(documentsPackage, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(documentsPackage) },

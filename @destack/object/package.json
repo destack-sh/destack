@@ -7,12 +7,16 @@
     "description": "Declare the objects of a package: identity, storage, permissions and declarations.",
     "exports": {
         ".": "./src/index.ts",
+        "./destack.json": "./destack.json",
         "./package": "./src/package.ts",
         "./server": "./src/server/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./client": "./src/client/index.ts",
         "./browser": "./src/browser/index.ts",
-        "./test": "./src/test/index.ts"
+        "./test": "./src/test/index.ts",
+        "./workload": "./src/workload/index.ts",
+        "./bun": "./src/bun/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
@@ -25,12 +29,19 @@
         "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/theme": "workspace:*",
+        "@orpc/client": "1.15.1",
+        "@orpc/contract": "1.15.1",
+        "@orpc/json-schema": "1.15.1",
+        "@orpc/openapi": "1.15.1",
+        "@orpc/openapi-client": "1.15.1",
+        "@orpc/server": "1.15.1",
+        "@orpc/shared": "1.15.1",
         "fractional-indexing": "3.2.0",
+        "jose": "6.2.12",
         "uuid": "14.0.2"
     },
     "devDependencies": {

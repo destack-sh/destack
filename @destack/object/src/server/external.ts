@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { ObjectType } from "../object/object.ts";
 
 /** The files of external objects' immutable rows, each scope's opened as a read-only database. */

@@ -2,7 +2,7 @@ import { TestTelemetry } from "@destack/telemetry/test";
 import { defineTable, text } from "@destack/db";
 import { type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
 import { CallEvent, defineAuditAction } from "../../src/index.ts";

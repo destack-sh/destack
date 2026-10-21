@@ -1,10 +1,9 @@
-import { ObjectReference, type Call } from "@destack/sync";
+import { ObjectReference, type Call, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessRole, Caller, none, Role } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { defineObject, field, ObjectPolicy, role } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";

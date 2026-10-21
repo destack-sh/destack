@@ -1,22 +1,21 @@
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { bearerUser, users } from "./fixture/user.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema, nth, type Identifier } from "@destack/schema";
-import { createClient } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { RequestId } from "@destack/runtime/request";
-import { Server } from "@destack/runtime/server";
+import { createClient } from "@destack/object/client";
+import { CallError } from "@destack/object";
+import { Health } from "@destack/object/server";
+import { Server } from "@destack/object/server";
 import { v7 } from "uuid";
 import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
 import type { MethodInput } from "../src/index.ts";
-import { CallError } from "@destack/runtime/error";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 
@@ -36,7 +35,7 @@ test.each(TEST_DIALECTS)(
             clock: Clock.system,
             ...nth(
                 new ObjectStore({
-                    servers: [defineServer(tasksPackage, {})],
+                    servers: [implementPackage(tasksPackage, {})],
                     chain: async () => undefined,
                     clock: Clock.system,
                     origin: { package: Package.of(tasksPackage) },
@@ -217,7 +216,7 @@ test("serve a handled type in place of the package's own", async () => {
     });
     const served = nth(
         new ObjectStore({
-            servers: [defineServer(tasksPackage, { objects: [frozen] })],
+            servers: [implementPackage(tasksPackage, { objects: [frozen] })],
             chain: async () => undefined,
             clock: Clock.system,
             origin: { package: Package.of(tasksPackage) },

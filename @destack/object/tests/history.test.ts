@@ -17,7 +17,7 @@ import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";

@@ -1,8 +1,9 @@
 import type { AccessContext } from "@destack/access";
-import type { PackageHandle } from "@destack/runtime";
-import type { PackageImplementation, RequestContext } from "@destack/runtime/server";
-import type { Controller } from "@destack/runtime/control";
-import type { ServerContext } from "@destack/runtime/workload";
+import type { PackageHandle } from "../declare/package.ts";
+import type { PackageHandler } from "./http.ts";
+import type { RequestContext } from "./context.ts";
+import type { Controller } from "@destack/db";
+import type { ServerContext } from "../workload/workload.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
@@ -17,14 +18,14 @@ export type AdapterFetch = (
     store: ObjectStore,
 ) => Promise<Response>;
 
-/** A package handle with object types, as a server implements it. */
+/** A package handle with object types, as its implementation covers it. */
 export type ServedPackage = PackageHandle & {
     /** The object types the package declares, by name. */
     readonly objects: Readonly<Record<string, ObjectType>>;
 };
 
 /** The code behind what a package's handle declares, mirroring the handle key for key. */
-export type ServerDefinition<Handle extends ServedPackage = ServedPackage> = {
+export type ImplementationInput<Handle extends ServedPackage = ServedPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
     /** The controllers beside the objects' own, each built over the package's store. */
@@ -36,9 +37,9 @@ export type ServerDefinition<Handle extends ServedPackage = ServedPackage> = {
     /** The files with the package's external objects. */
     readonly external?: ExternalStorage;
     /** The package's own access decisions beside its objects'. */
-    readonly access?: PackageImplementation["access"];
+    readonly access?: PackageHandler["access"];
     /** The headers every response of the package carries. */
-    readonly responseHeaders?: PackageImplementation["responseHeaders"];
+    readonly responseHeaders?: PackageHandler["responseHeaders"];
 } & (string extends keyof Handle["adapters"]
     ? {
           /** The answer of each adapter the package declares, by name. */
@@ -51,25 +52,27 @@ export type ServerDefinition<Handle extends ServedPackage = ServedPackage> = {
             readonly adapters: { readonly [Name in keyof Handle["adapters"]]: AdapterFetch };
         });
 
-/** A package's server: the package, its definition, and the installation it serves as, if bound. */
-export interface PackageServer {
-    /** The package the server serves. */
+/** A package's implementation: the package, its code, and the installation it serves as. */
+export interface PackageImplementation {
+    /** The implemented package. */
     readonly package: ServedPackage;
-    /** The installation the server serves as, the store's own when absent. */
+    /** The installation it serves as, the store's own when absent. */
     readonly installation: ServerContext | undefined;
-    /** Read the package's definition for an installation, the platform's without one. */
-    readonly definition: (context: ServerContext | undefined) => ServerDefinition;
+    /** Read the package's code for an installation, the platform's without one. */
+    readonly definition: (context: ServerContext | undefined) => ImplementationInput;
     /** Serve the package as an installation inside a store of other packages. */
-    readonly at: (installation: ServerContext) => PackageServer;
+    readonly at: (installation: ServerContext) => PackageImplementation;
 }
 
-/** Define a package's server from its definition, or per installation from its context. */
-export function defineServer<const Handle extends ServedPackage>(
+/** Implement a package from its code, or per installation from its context. */
+export function implementPackage<const Handle extends ServedPackage>(
     handle: Handle,
-    definition: ServerDefinition<Handle> | ((context: ServerContext) => ServerDefinition<Handle>),
-): PackageServer {
+    definition:
+        | ImplementationInput<Handle>
+        | ((context: ServerContext) => ImplementationInput<Handle>),
+): PackageImplementation {
     // serve a static definition, else build the installation's from its context
-    const read = (context: ServerContext | undefined): ServerDefinition => {
+    const read = (context: ServerContext | undefined): ImplementationInput => {
         if (typeof definition !== "function") {
             return definition;
         } else if (context === undefined) {
@@ -78,7 +81,7 @@ export function defineServer<const Handle extends ServedPackage>(
 
         return definition(context);
     };
-    const serve = (installation: ServerContext | undefined): PackageServer => ({
+    const serve = (installation: ServerContext | undefined): PackageImplementation => ({
         package: handle,
         installation,
         definition: read,

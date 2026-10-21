@@ -5,14 +5,14 @@ import { TestDatabase } from "@destack/db/test";
 import { Clock } from "@destack/environment";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
-import { definePackage } from "@destack/runtime";
-import { testCallKey, testKeys } from "@destack/runtime/test";
-import type { ServerContext } from "@destack/runtime/workload";
+import { definePackage } from "@destack/object";
+import { testCallKey, testKeys } from "@destack/object/test";
+import type { ServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject } from "../src/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space } from "./fixture/space.ts";
@@ -101,7 +101,7 @@ test("act for the space as its installation within the space's grant, refusing w
         chain: async () => undefined,
         clock: Clock.system,
         server,
-        servers: [defineServer(probes, { objects: [probe] })],
+        servers: [implementPackage(probes, { objects: [probe] })],
         database,
         callKey: testCallKey,
         events: await testEvents(database),

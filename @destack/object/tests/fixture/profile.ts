@@ -2,7 +2,7 @@ import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { principal, relation, universe } from "@destack/access";
 import { defineDatabase } from "@destack/db";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
 

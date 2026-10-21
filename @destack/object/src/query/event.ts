@@ -13,7 +13,7 @@ import {
 } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
 import { Caller } from "@destack/access";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { Page } from "../method/page.ts";
 import { Replica } from "@destack/sync";
 import type { MethodContext } from "../method/context.ts";

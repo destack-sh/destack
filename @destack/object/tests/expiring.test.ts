@@ -1,15 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
+import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { contained, none, principal, relation } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { v7 } from "uuid";
 
-import { RequestId } from "@destack/runtime/request";
 import { defineObject, field } from "../src/index.ts";
 import { ExpiringController, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";

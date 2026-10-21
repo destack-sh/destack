@@ -37,14 +37,14 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import type { PackageId } from "@destack/package";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
-import type { ServerContext } from "@destack/runtime/workload";
+import type { ServerContext } from "../workload/workload.ts";
 import type { Settled, SettlementContext } from "./settlement.ts";
 import type { IsSum } from "./record.ts";
 import type { Listing } from "../query/listing.ts";

@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { defineDatabase, Snapshot } from "@destack/db";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { anyone, Manager, principal } from "@destack/access";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, Subject } from "@destack/sync";

@@ -1,18 +1,16 @@
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { journal } from "../src/index.ts";
-import { eq } from "@destack/db";
-import { channelHub } from "@destack/db";
+import { eq, channelHub } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { schema, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { getEventMeta } from "@destack/runtime";
+import { RequestId, ObjectReference, type Page } from "@destack/sync";
+import { getEventMeta } from "@destack/object";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
-import { ObjectReference, type Page } from "@destack/sync";
 
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";

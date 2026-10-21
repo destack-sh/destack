@@ -5,13 +5,13 @@ import { TABLE } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { nth, schema } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
 import { through } from "@destack/access";
 import { Package } from "@destack/package";
-import { definePackage } from "@destack/runtime";
-import { testCallKey } from "@destack/runtime/test";
+import { definePackage } from "@destack/object";
+import { testCallKey } from "@destack/object/test";
 import { v7 } from "uuid";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
@@ -209,7 +209,7 @@ test("read objects of a scope inside the space a client is pinned to, refusing a
     const served = serveObjects(
         nth(
             new ObjectStore({
-                servers: [defineServer(shelves, {})],
+                servers: [implementPackage(shelves, {})],
                 chain: async () => undefined,
                 origin: { package: Package.of(shelves) },
                 principal: spacePrincipal(spaceId),

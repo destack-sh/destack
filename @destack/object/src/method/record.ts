@@ -29,7 +29,7 @@ import {
     type Version,
 } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { conceal, isCallError, CallError } from "@destack/runtime/error";
+import { conceal, CallError } from "../error/call.ts";
 import { MethodContext, RecordedRow } from "./context.ts";
 import { Step } from "./step.ts";
 import type * as sync from "@destack/sync";
@@ -756,9 +756,10 @@ export const RecordMethod = {
     /** Prefix a failing item's call error with its index, mapping a conflict to its fields. */
     itemFailure(object: ObjectType, index: number, error: unknown): unknown {
         // pass other failures as they are
-        const failure = object.conflict(error);
-        if (!isCallError(failure)) {
-            return failure;
+        const conflict = object.conflict(error);
+        const failure = CallError.of(conflict);
+        if (failure === undefined) {
+            return conflict;
         }
 
         return new CallError(failure.code, {
@@ -1140,7 +1141,7 @@ export const RecordMethod = {
         } catch (error) {
             // report conflicts only to authorized callers
             const isConflict =
-                (isCallError(error) && error.code === "CONFLICT") ||
+                CallError.of(error)?.code === "CONFLICT" ||
                 (error instanceof DatabaseError &&
                     (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
             if (isConflict) {

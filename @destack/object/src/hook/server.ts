@@ -2,7 +2,7 @@ import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
-import type { HookHandler, ServerContext } from "@destack/runtime/workload";
+import type { HookHandler, ServerContext } from "../workload/workload.ts";
 import { Subject } from "@destack/sync";
 import { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";

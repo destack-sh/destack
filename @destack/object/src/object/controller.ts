@@ -11,9 +11,9 @@ import {
     Snapshot,
     type Table,
 } from "@destack/db";
-import type { Controller, Reconciliation } from "@destack/runtime/control";
+import type { Controller, Reconciliation } from "@destack/db";
 import { AccessContext } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "./condition.ts";

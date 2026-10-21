@@ -2,23 +2,21 @@ import { defineObject, device, field, ObjectDescription } from "../src/index.ts"
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { RequestId } from "@destack/runtime/request";
-import { Scope, type Subject } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { Identifier, nth } from "@destack/schema";
-import { definePackage } from "@destack/runtime";
-import { testCallKey } from "@destack/runtime/test";
+import { definePackage } from "@destack/object";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
-import { ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { spacePrincipal } from "./fixture/space.ts";
+import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
-import { unmoved } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
 
 test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
@@ -121,7 +119,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
         failure(() =>
             nth(
                 new ObjectStore({
-                    servers: [defineServer(definePackage({ objects: { draft } }), {})],
+                    servers: [implementPackage(definePackage({ objects: { draft } }), {})],
                     chain: async () => undefined,
                     clock: Clock.system,
                     origin: { package: draft.package },

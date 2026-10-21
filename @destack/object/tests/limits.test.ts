@@ -2,10 +2,10 @@ import { principal, relation } from "@destack/access";
 import { bucket } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { VirtualClock } from "@destack/environment/simulation";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { RequestId } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
 import { type Identifier, schema } from "@destack/schema";
-import { isCallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
@@ -58,7 +58,11 @@ test("refuse a third post of an author within a minute, saying when the next is 
     await write(users.alice);
     const third = await write(users.alice).then(
         () => undefined,
-        (error: unknown) => (isCallError(error) ? [error.code, error.message, error.data] : error),
+        (error: unknown) => {
+            const known = CallError.of(error);
+
+            return known === undefined ? error : [known.code, known.message, known.data];
+        },
     );
     await write(users.bob);
     clock.advance(30_000);

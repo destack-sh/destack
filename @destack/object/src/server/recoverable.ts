@@ -12,13 +12,12 @@ import {
     TABLE,
 } from "@destack/db";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
-import type { Controller, Reconciliation } from "@destack/runtime/control";
-import type { Table } from "@destack/db";
+import type { Controller, Reconciliation, Table } from "@destack/db";
 import type { ObjectStore } from "./store.ts";
 
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
 import type { TraitTable } from "../object/table.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 /** The component name the purge runs and records its calls under. */
 const PURGE = "purge";
 

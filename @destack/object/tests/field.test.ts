@@ -1,10 +1,9 @@
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { RequestId, ObjectReference } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
 import { schema } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";

@@ -1,4 +1,4 @@
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "../test/context.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     AccessContext,

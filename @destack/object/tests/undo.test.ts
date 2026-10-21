@@ -3,13 +3,13 @@ import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { definePackage } from "@destack/runtime";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { definePackage } from "@destack/object";
+import { RequestId } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { found, nth } from "@destack/schema";
 import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
@@ -335,7 +335,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     const served = serveObjects(
         nth(
             new ObjectStore({
-                servers: [defineServer(tallies, {})],
+                servers: [implementPackage(tallies, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(tallies) },
@@ -407,7 +407,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     const served = serveObjects(
         nth(
             new ObjectStore({
-                servers: [defineServer(stamps, {})],
+                servers: [implementPackage(stamps, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(stamps) },

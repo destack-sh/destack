@@ -1,6 +1,6 @@
 import { Change, type Table, Transaction } from "@destack/db";
 import { type Event, type EventReader, EventTime } from "@destack/event";
-import type { Controller, Reconciliation } from "@destack/runtime/control";
+import type { Controller, Reconciliation } from "@destack/db";
 import { Duration, schema } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import type { ObjectStore } from "../server/store.ts";

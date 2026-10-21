@@ -4,8 +4,8 @@ import { Key, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { type ObjectQuery, QUERIES_PUBLICATION } from "../replica/replica.ts";
-import type { Controller, Delta } from "@destack/runtime/control";
-import { until } from "@destack/runtime/timer";
+import type { Controller, Delta } from "@destack/db";
+import { until } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 
 /** The replicas a store follows: what its subscriber asks for, followed and dropped by key. */

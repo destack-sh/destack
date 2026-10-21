@@ -3,15 +3,15 @@ import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema, nth } from "@destack/schema";
-import { defineAdapter, definePackage } from "@destack/runtime";
-import { Health } from "@destack/runtime/health";
-import { Server } from "@destack/runtime/server";
-import { testCallKey } from "@destack/runtime/test";
+import { defineAdapter, definePackage } from "@destack/object";
+import { Health } from "@destack/object/server";
+import { Server } from "@destack/object/server";
+import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { v7 } from "uuid";
 import {
     type AdapterFetch,
-    defineServer,
+    implementPackage,
     ObjectStore,
     type ServedPackage,
 } from "../src/server/index.ts";
@@ -58,7 +58,7 @@ async function servePages(
 
     return () =>
         new ObjectStore({
-            servers: [defineServer(handle, { adapters })],
+            servers: [implementPackage(handle, { adapters })],
             chain: async () => undefined,
             clock: Clock.system,
             origin: { package: Package.of(handle) },

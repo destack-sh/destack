@@ -1,5 +1,6 @@
-import { CallError } from "@destack/runtime/error";
-import { Failure, type Outcome } from "@destack/sync";
+import { CallError } from "../error/call.ts";
+import { type Outcome } from "@destack/sync";
+import { Failure } from "@destack/error";
 
 /** The statuses of failures a retry replays instead of running again. */
 const FINAL_STATUSES = new Set([400, 403, 404, 409, 412, 422]);
@@ -23,7 +24,7 @@ export const Replay = {
             outcome !== undefined &&
             (outcome.kind === "success" ||
                 (outcome.kind !== "cancelled" &&
-                    FINAL_STATUSES.has(outcome.error.status) &&
+                    FINAL_STATUSES.has(Failure.status(outcome.error)) &&
                     outcome.error.code !== "INSUFFICIENT_GRANT"))
         );
     },

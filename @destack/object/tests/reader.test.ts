@@ -5,13 +5,13 @@ import { AccessContext, Authorization, Caller, none, principal } from "@destack/
 import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { RequestId } from "@destack/runtime/request";
+import { subjectContext, testCallKey } from "@destack/object/test";
+import { RequestId } from "@destack/sync";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
-import type { Reconciliation } from "@destack/runtime/control";
+import type { Reconciliation } from "@destack/db";
 import { VirtualClock } from "@destack/environment/simulation";
 import { EventTime } from "@destack/event";
 

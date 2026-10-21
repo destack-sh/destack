@@ -6,14 +6,14 @@ import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { nth, present, schema } from "@destack/schema";
-import { definePackage } from "@destack/runtime";
-import { testServerContext } from "@destack/runtime/test";
+import { definePackage } from "@destack/object";
+import { testServerContext } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Uplink } from "@destack/sync";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { ShareableMethod } from "../src/method/shareable.ts";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
-import { ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request } from "./fixture/request.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -144,7 +144,7 @@ test.each(TEST_DIALECTS)(
         const root = idle("root");
         const subscriptions = async (partition: string) => {
             const store = new ObjectStore({
-                servers: [defineServer(roomsPackage, {})],
+                servers: [implementPackage(roomsPackage, {})],
                 chain: async () => ({
                     kind: "follower",
                     parent: partition === spaceId ? Scope.universe.id : spaceId,
@@ -207,7 +207,7 @@ test.each(TEST_DIALECTS)(
         const idles = { machine: idle("machine"), root: idle("root") };
         const universeRows = async (partition?: string) => {
             const store = new ObjectStore({
-                servers: [defineServer(seatsPackage, {})],
+                servers: [implementPackage(seatsPackage, {})],
                 chain: async () => ({
                     kind: "follower",
                     parent: partition === undefined ? Scope.universe.id : spaceId,

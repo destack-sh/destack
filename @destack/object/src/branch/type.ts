@@ -1,6 +1,6 @@
 import type { Method } from "../method/method.ts";
 import { TABLE, LogPosition, type Row, Snapshot, type Table, Condition } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { CallSite } from "../method/index.ts";

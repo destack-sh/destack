@@ -5,15 +5,14 @@ import { principal, relation } from "@destack/access";
 
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { schema, nth, type Identifier } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { ObjectReference } from "@destack/sync";
-import { testCallKey } from "@destack/runtime/test";
+import { RequestId, ObjectReference } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore, defineServer } from "../src/server/index.ts";
+import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveObjects } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
@@ -219,7 +218,7 @@ test("undo a bulk creation by deleting each created object on the device and the
     const served = serveObjects(
         nth(
             new ObjectStore({
-                servers: [defineServer(labels, {})],
+                servers: [implementPackage(labels, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(labels) },

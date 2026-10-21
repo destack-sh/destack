@@ -1,13 +1,17 @@
-import { PackageHandle } from "@destack/runtime";
+import { PackageHandle } from "../declare/package.ts";
 import { nth } from "@destack/schema";
 import type { ObjectType } from "../object/object.ts";
-import { defineServer, type PackageServer, type ServerDefinition } from "../server/server.ts";
+import {
+    implementPackage,
+    type PackageImplementation,
+    type ImplementationInput,
+} from "../server/implementation.ts";
 
 /** Serve object types through one server per package, the first one taking the other parts. */
 export function serversOf(
     objects: readonly ObjectType[],
-    definition: Omit<ServerDefinition, "objects"> = {},
-): PackageServer[] {
+    definition: Omit<ImplementationInput, "objects"> = {},
+): PackageImplementation[] {
     // refuse parts no package's server would carry
     if (objects.length === 0 && Object.keys(definition).length > 0) {
         throw new TypeError("a server's parts need a package of object types");
@@ -22,7 +26,7 @@ export function serversOf(
         const declared = Object.fromEntries(types.map((type) => [type.name, type]));
         const handle = PackageHandle.of(owner, { objects: declared });
 
-        return defineServer(
+        return implementPackage(
             handle,
             index === 0 ? { ...definition, objects: types } : { objects: types },
         );

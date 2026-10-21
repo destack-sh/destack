@@ -9,7 +9,7 @@ import {
     type SQL,
     Table,
 } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { nth, canonicalize, schema } from "@destack/schema";
 import { type Audience, Dataflow, Replica, View, type Watch } from "@destack/sync";
 import type * as sync from "@destack/sync";

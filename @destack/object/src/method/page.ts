@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 
 /** The rows a page returns unless a list asks for another number. */
 export const DEFAULT_PAGE_LIMIT = 50;

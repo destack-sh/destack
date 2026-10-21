@@ -2,7 +2,7 @@ import type { InputObject } from "./input.ts";
 import { AccessContext, Caller, Explanation, Invitation, Relationship } from "@destack/access";
 import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { Page } from "./page.ts";
 import { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";

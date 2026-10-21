@@ -6,14 +6,13 @@ import { Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { type MethodInput, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { ObjectReference, Scope } from "@destack/sync";
 import { Clock } from "@destack/environment";
 
 /** The public space containing the handles. */

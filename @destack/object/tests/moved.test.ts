@@ -1,13 +1,12 @@
 import { users } from "./fixture/user.ts";
 import { Transaction } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";

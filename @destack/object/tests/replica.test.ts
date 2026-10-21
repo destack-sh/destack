@@ -11,12 +11,8 @@ import {
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { RequestId } from "@destack/runtime/request";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
-import { RequestContext } from "@destack/runtime/server";
-import { ResourceContext } from "@destack/resource/context";
-import { Identifier, schema } from "@destack/schema";
 import {
+    RequestId,
     ObjectReference,
     replica,
     Replica,
@@ -26,10 +22,14 @@ import {
     Scope,
     Subject,
 } from "@destack/sync";
+import { subjectContext, testCallKey } from "@destack/object/test";
+import { RequestContext } from "@destack/object/server";
+import { ResourceContext } from "@destack/resource/context";
+import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, defineShape, field, QUERIES_PUBLICATION } from "../src/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
-import { definePackage } from "@destack/runtime";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
+import { definePackage } from "@destack/object";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -483,7 +483,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
 
     // serve the notes, which make the enclosing realm known
     const store = new ObjectStore({
-        servers: [defineServer(definePackage({ objects: { note } }), {})],
+        servers: [implementPackage(definePackage({ objects: { note } }), {})],
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(realmId),

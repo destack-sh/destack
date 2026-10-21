@@ -4,12 +4,12 @@ import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";

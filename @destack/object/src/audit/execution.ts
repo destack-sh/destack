@@ -11,6 +11,9 @@ export const AUDIT_CATEGORIES = ["activity", "access", "denial"] as const;
 /** The ways a call ends. */
 export const AUDIT_OUTCOMES = ["success", "failure", "denied", "cancelled"] as const;
 
+/** How an audited call ended. */
+export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
+
 /** The object a call acts on. */
 export const AuditTarget = schema.object({
     /** The object type. */

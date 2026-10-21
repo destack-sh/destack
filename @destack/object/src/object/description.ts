@@ -17,7 +17,26 @@ import type { FileBucket } from "../field/file.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
-import * as objectExports from "../index.ts";
+import * as objectIndexExports from "./index.ts";
+import * as fieldExports from "../field/index.ts";
+import * as methodExports from "../method/index.ts";
+import * as traitExports from "../trait/index.ts";
+import * as replicaExports from "../replica/index.ts";
+import * as queryExports from "../query/index.ts";
+import * as errorExports from "../error/index.ts";
+import * as auditExports from "../audit/index.ts";
+import * as policyAccessExports from "../access/index.ts";
+import * as historyExports from "../history/index.ts";
+import * as sequenceExports from "../sequence/index.ts";
+import * as textExports from "../text/index.ts";
+import * as stackExports from "../stack/index.ts";
+import * as branchExports from "../branch/index.ts";
+import * as claimExports from "../claim/index.ts";
+import * as hookExports from "../hook/index.ts";
+import * as declareExports from "../declare/index.ts";
+import * as procedureExports from "../procedure/index.ts";
+import * as healthExports from "../health/index.ts";
+import * as bodyExports from "../server/body.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -44,6 +63,8 @@ export class ExportIndex {
     readonly #paths = new Map<unknown, ExportPath>();
     /** The value at each recorded path, by the path's key. */
     readonly #values = new Map<string, unknown>();
+    /** The index of the loaded modules, built at the first read. */
+    static #loaded: ExportIndex | undefined;
 
     /** Index the exports of module namespaces. */
     constructor(modules: Readonly<Record<string, Readonly<Record<string, unknown>>>>) {
@@ -68,12 +89,36 @@ export class ExportIndex {
         }
     }
 
-    /** Index object's own exports and access's, the modules object imports. */
+    /** Index object's own exports, read from the modules its root exports, and access's. */
     static loaded(): ExportIndex {
-        return new ExportIndex({
-            "@destack/object": objectExports,
+        // index each module once, at the first call, beside the root whose own evaluation may be running
+        ExportIndex.#loaded ??= new ExportIndex({
+            "@destack/object": {
+                ...objectIndexExports,
+                ...fieldExports,
+                ...methodExports,
+                ...traitExports,
+                ...replicaExports,
+                ...queryExports,
+                ...errorExports,
+                ...auditExports,
+                ...policyAccessExports,
+                ...historyExports,
+                ...sequenceExports,
+                ...textExports,
+                ...stackExports,
+                ...branchExports,
+                ...claimExports,
+                ...hookExports,
+                ...declareExports,
+                ...procedureExports,
+                ...healthExports,
+                ...bodyExports,
+            },
             "@destack/access": accessExports,
         });
+
+        return ExportIndex.#loaded;
     }
 
     /** Find the path of an exported value, absent for one no indexed module exports. */
@@ -121,7 +166,7 @@ export class ExportIndex {
 }
 
 /** The kind of the declarations `defineObject` makes, as manifests list them. */
-export const OBJECT_DECLARATION = "object";
+export const OBJECT_DECLARATION = DeclarationName.parse("object");
 
 /** A builder call as written: the builder's name and its arguments. */
 export interface BuilderCall {

@@ -1,9 +1,10 @@
+import { Failure } from "@destack/error";
 import { type DatabaseConnection, TABLE, type TableState } from "@destack/db";
 import { Digest, present, type JsonObject, type JsonValue, schema } from "@destack/schema";
-import type { Client } from "@destack/runtime";
-import type { ClientOptions } from "@destack/runtime/client";
-import { errorOf, refuseInput, CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import type { Client } from "../procedure/index.ts";
+import type { ClientOptions } from "./package.ts";
+import { refuseInput, CallError } from "../error/call.ts";
+import { RequestId } from "@destack/sync";
 import * as sync from "@destack/sync";
 import { ObjectDescription } from "../object/description.ts";
 import { ObjectClient } from "./client.ts";
@@ -133,7 +134,7 @@ export class DynamicObjectClient {
                 message: `the push of ${type}.${method} returned no outcome`,
             });
         } else if (!("value" in pushed.outcome)) {
-            throw errorOf(pushed.outcome.error);
+            throw Failure.error(pushed.outcome.error);
         }
         const [result = null] = CALL_RESULTS.parse(pushed.outcome.value);
 

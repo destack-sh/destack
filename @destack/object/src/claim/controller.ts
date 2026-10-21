@@ -8,7 +8,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { found } from "@destack/schema";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { ObjectKey, ObjectType } from "../object/object.ts";
 import { type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";

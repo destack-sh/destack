@@ -1,12 +1,10 @@
 import { schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
-import { eventIterator } from "@destack/runtime";
-import { Watermark } from "@destack/sync";
-import { defineProcedure } from "@destack/runtime/procedure";
+import { eventIterator } from "../procedure/index.ts";
 import {
+    Watermark,
     Call,
-    Failure,
     Mutation,
     ObjectReference,
     ObjectTypeReference,
@@ -14,6 +12,8 @@ import {
     Subscription,
     Aggregate,
 } from "@destack/sync";
+import { defineProcedure } from "../procedure/index.ts";
+import { Failure } from "@destack/error";
 
 /** The package defining the store procedures. */
 const DEFINING_PACKAGE = Package.of(import.meta.destack.package);

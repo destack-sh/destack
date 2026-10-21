@@ -1,5 +1,5 @@
 import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { Step } from "../method/step.ts";
 import type { TextField } from "../field/field.ts";
 import { defineMethod, Method } from "../method/method.ts";

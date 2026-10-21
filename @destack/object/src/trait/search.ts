@@ -7,7 +7,7 @@ import {
 } from "@destack/db";
 import { CHUNKS } from "../text/chunk.ts";
 import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
 

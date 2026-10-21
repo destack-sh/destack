@@ -1,5 +1,5 @@
 import { bearerUser, users } from "./fixture/user.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
@@ -7,16 +7,15 @@ import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { present, schema, nth, type Identifier } from "@destack/schema";
-import { createClient, type ClientOptions } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { RequestId } from "@destack/runtime/request";
-import { Server } from "@destack/runtime/server";
+import { createClient, type ClientOptions } from "@destack/object/client";
+import { Health } from "@destack/object/server";
+import { RequestId, ObjectReference } from "@destack/sync";
+import { Server } from "@destack/object/server";
 import { v7 } from "uuid";
 import { anyone, LinkSecret, principal, Role } from "@destack/access";
-import { ObjectReference } from "@destack/sync";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 
@@ -38,7 +37,7 @@ async function servePages(dialect: Dialect) {
         clock: Clock.system,
         ...nth(
             new ObjectStore({
-                servers: [defineServer(pagesPackage, {})],
+                servers: [implementPackage(pagesPackage, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(pagesPackage) },

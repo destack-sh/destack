@@ -1,11 +1,11 @@
 import { type Change, eq, defineDatabase } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
+import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present } from "@destack/schema";
 
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";

@@ -7,9 +7,9 @@ import { intersection, principal, relation, through, union } from "@destack/acce
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import * as sqlite from "@destack/db/bun";
 
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { callTables, testEvents } from "../src/test/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import {
     type ObjectOf,
     defineObject,
@@ -17,10 +17,10 @@ import {
     type CallableName,
     type ObjectType,
 } from "../src/index.ts";
-import { defineServer, EphemeralStorage, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, EphemeralStorage, ObjectStore } from "../src/server/index.ts";
 import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
-import type { ClientOptions } from "@destack/runtime/client";
-import { definePackage } from "@destack/runtime/declare";
+import type { ClientOptions } from "@destack/object/client";
+import { definePackage } from "@destack/object";
 import { serveObjects } from "./fixture/device.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -464,7 +464,7 @@ async function serveBoards(dialect: Dialect) {
             chain: async () => undefined,
             clock: Clock.system,
             principal: spacePrincipal(spaceId),
-            servers: [defineServer(boardsPackage, {})],
+            servers: [implementPackage(boardsPackage, {})],
             database: durable,
             ephemeral,
             callKey: testCallKey,

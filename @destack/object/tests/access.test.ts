@@ -14,13 +14,12 @@ import { defineDatabase, Transaction } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, ObjectReference, type Subject } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
-import { ObjectReference, type Subject } from "@destack/sync";
 import { Clock } from "@destack/environment";
 
 /** The space whose roles and members the test follows. */

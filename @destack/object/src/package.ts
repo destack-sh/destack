@@ -1,4 +1,4 @@
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "./declare/package.ts";
 import { grant, invitation, proof, relationship, role } from "./access/index.ts";
 import { call } from "./audit/call.ts";
 

@@ -12,7 +12,7 @@ import {
     text,
 } from "@destack/db";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { ResultsOf } from "./context.ts";
 

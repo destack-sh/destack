@@ -2,14 +2,13 @@ import { Snapshot } from "@destack/db";
 import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { RequestId, Scope, type Publisher } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
 import { present, schema } from "@destack/schema";
-import { Scope, type Publisher } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineShape, Follow } from "../src/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
@@ -50,7 +49,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
     await openSpace(storage.database, spaceId);
     const publishers = new Map<string, Publisher>();
     const store = new ObjectStore({
-        servers: [defineServer(pagesPackage, { follows: [plans, icons] })],
+        servers: [implementPackage(pagesPackage, { follows: [plans, icons] })],
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         origin: { package: Package.of(pagesPackage) },

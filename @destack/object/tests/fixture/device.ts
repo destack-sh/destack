@@ -1,5 +1,5 @@
 import { bearerUser } from "./user.ts";
-import { defineServer, ObjectStore } from "../../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
 import { isNull, type Dialect } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -7,15 +7,15 @@ import { ObjectClient } from "../../src/client/index.ts";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { schema, nth, type Identifier } from "@destack/schema";
-import { createClient, type ClientOptions } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { Server, type PackageImplementation } from "@destack/runtime/server";
+import { createClient, type ClientOptions } from "@destack/object/client";
+import { Health } from "@destack/object/server";
+import { Server, type PackageHandler } from "@destack/object/server";
 import { v7 } from "uuid";
 import { note, notebook, notesDatabase, notesPackage } from "./note.ts";
 import { principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
 import { openSpace, spacePrincipal, unmoved } from "./space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../../src/test/index.ts";
 import { Clock } from "@destack/environment";
 
@@ -41,7 +41,7 @@ export async function serveNotes(
     const served = serveObjects(
         nth(
             new ObjectStore({
-                servers: [defineServer(notesPackage, {})],
+                servers: [implementPackage(notesPackage, {})],
                 chain: async () => undefined,
                 origin: { package: Package.of(notesPackage) },
                 principal: spacePrincipal(spaceId),
@@ -63,7 +63,7 @@ export async function serveNotes(
 
 /** Serve objects over HTTP to bearer-identified users in a space, with each user's endpoint. */
 export function serveObjects(
-    implementation: PackageImplementation,
+    implementation: PackageHandler,
     scope: string,
     groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
 ) {

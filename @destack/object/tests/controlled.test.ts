@@ -1,5 +1,5 @@
 import { users } from "./fixture/user.ts";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
@@ -10,8 +10,7 @@ import { present, schema } from "@destack/schema";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";

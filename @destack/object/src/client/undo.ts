@@ -17,10 +17,9 @@ import {
 
 import { schema, Version } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, ObjectTypeReference } from "@destack/sync";
 
 import * as sync from "@destack/sync";
-import { ObjectTypeReference } from "@destack/sync";
 
 import type { Step } from "../method/step.ts";
 

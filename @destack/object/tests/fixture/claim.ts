@@ -1,7 +1,7 @@
 import { none, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";
 import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index.ts";

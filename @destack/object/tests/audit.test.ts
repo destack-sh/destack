@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";

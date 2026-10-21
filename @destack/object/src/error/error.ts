@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 
 /** The call error code of each object failure: a declaration's failures are the host's. */
 const CALL_CODES = {
@@ -27,7 +27,7 @@ export class ObjectError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 }

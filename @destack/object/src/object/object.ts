@@ -48,7 +48,7 @@ import {
     mapValues,
     zip,
 } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
 import {
@@ -159,7 +159,7 @@ import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
 import { Consumer, type ReaderHandler } from "./consumer.ts";
 import type { ObjectStore } from "../server/store.ts";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";

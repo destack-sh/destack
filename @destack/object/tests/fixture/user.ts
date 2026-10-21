@@ -1,9 +1,9 @@
 import { type Identifier, present, schema } from "@destack/schema";
 import { type Authentication, Caller, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
-import type { RequestContext } from "@destack/runtime/server";
+import type { RequestContext } from "@destack/object/server";
 import type { Subject } from "@destack/sync";
-import { subjectContext, type SubjectContextOptions } from "@destack/runtime/test";
+import { subjectContext, type SubjectContextOptions } from "@destack/object/test";
 
 /** The people object's tests sign in as, each by a fixed user identifier. */
 export const users = {

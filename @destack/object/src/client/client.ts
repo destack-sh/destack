@@ -1,5 +1,4 @@
-import { ObjectReference } from "@destack/sync";
-import { type Item, Subject } from "@destack/sync";
+import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
 import {
     FindOptions,
     and,
@@ -49,15 +48,15 @@ import {
     schema,
     zip,
 } from "@destack/schema";
-import type { Client } from "@destack/runtime";
-import { createClient, type ClientOptions } from "@destack/runtime/client";
-import { errorOf, CallError } from "@destack/runtime/error";
+import type { Client } from "../procedure/index.ts";
+import { createClient, type ClientOptions } from "./package.ts";
+import { CallError } from "../error/call.ts";
 import { Replay } from "../audit/replay.ts";
 import { AccessContext, Authorization, Authorizer, Caller, decisionTables } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
-import { Observable } from "@destack/runtime/observable";
-import { RetryPolicy } from "@destack/runtime/timer";
+import { Observable } from "./observable.ts";
+import { RetryPolicy, Clock } from "@destack/environment";
 import * as sync from "@destack/sync";
+import { Failure } from "@destack/error";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
 import { MethodContext } from "../method/context.ts";
@@ -88,7 +87,6 @@ import {
     type Subscriber,
     type SubscribeOptions,
 } from "./query.ts";
-import { Clock } from "@destack/environment";
 
 /** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set([
@@ -1504,7 +1502,7 @@ export class ObjectClient<
         edits: ReadonlySet<string>,
     ): Promise<void> {
         // sort outcomes
-        const rejected: { readonly id: string; readonly error: sync.Failure }[] = [];
+        const rejected: { readonly id: string; readonly error: Failure }[] = [];
         for (const { id, outcome } of outcomes) {
             // acknowledge an executed mutation
             if ("value" in outcome) {
@@ -1549,7 +1547,7 @@ export class ObjectClient<
         // throw a rejection once
         if (outcome.kind === "rejected") {
             await this.prediction.forget(this.database, this.origin, id);
-            throw errorOf(outcome.error);
+            throw Failure.error(outcome.error);
         }
     }
 
@@ -2307,7 +2305,7 @@ export class ObjectClient<
         // throw a failure or return the result
         const { outcome } = present(outcomes[0], "the pushed call's outcome");
         if (!("value" in outcome)) {
-            throw errorOf(outcome.error);
+            throw Failure.error(outcome.error);
         }
         const [result] = CALL_RESULTS.parse(outcome.value);
 

@@ -1,5 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
+import { reconciliation, TestDatabase } from "@destack/db/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 
 import {
@@ -10,12 +11,11 @@ import {
     Relationship,
 } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
 import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { PlanError } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 
 import {
     CONSUMER,
@@ -27,7 +27,6 @@ import {
 import { DRAINING, ObjectStore } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { RequestId } from "@destack/runtime/request";
 import { Clock } from "@destack/environment";
 
 /** The space with the boxes and links. */

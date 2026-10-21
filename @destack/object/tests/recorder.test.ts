@@ -1,14 +1,11 @@
 import { test, expect } from "@destack/test";
-import { ObjectError } from "../src/index.ts";
-import { AuditStorage, documentRename, rename, INTEGRATION } from "./fixture/journal.ts";
-import { CallEvent, defineAuditAction } from "../src/index.ts";
-import { document } from "./fixture/journal.ts";
+import { ObjectError, CallEvent, defineAuditAction, journal } from "../src/index.ts";
+import { AuditStorage, documentRename, rename, INTEGRATION, document } from "./fixture/journal.ts";
 import { schema } from "@destack/schema";
 import { AuditRecorder } from "../src/server/index.ts";
 
-import { journal } from "../src/index.ts";
 import type { JournalEntry } from "../src/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 test("record each call in the history of its scope", async () => {
     const storage = await AuditStorage.open();

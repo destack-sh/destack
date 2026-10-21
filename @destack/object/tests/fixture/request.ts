@@ -1,6 +1,6 @@
-import type { RequestContext } from "@destack/runtime/server";
+import type { RequestContext } from "@destack/object/server";
 import type { Call } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import type { CallableName, MethodInput, MethodOutput, ObjectType } from "../../src/index.ts";
 import type { ObjectStore } from "../../src/server/index.ts";
 

@@ -1,14 +1,13 @@
 import { accessTables, none, through } from "@destack/access";
-import { asc, defineDatabase, lease } from "@destack/db";
+import { asc, defineDatabase, lease, ControlLoop } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { PackageHandle } from "@destack/runtime";
-import { ControlLoop } from "@destack/runtime/control";
-import { testCallKey } from "@destack/runtime/test";
+import { PackageHandle } from "@destack/object";
+import { testCallKey } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subscription } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, defineShape, field, Follow, followKey } from "../src/index.ts";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { callTables, serversOf, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { VirtualClock } from "@destack/environment/simulation";
@@ -104,7 +103,7 @@ async function openStores(): Promise<{
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock,
         principal: spacePrincipal(followerId),
-        servers: [defineServer(PackageHandle.of(card.package, {}), { follows: [byTitle] })],
+        servers: [implementPackage(PackageHandle.of(card.package, {}), { follows: [byTitle] })],
         database: followerTest.database,
         origin: { package: card.package },
         publisher: () => publisher,

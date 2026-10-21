@@ -4,13 +4,12 @@ import { Transaction } from "@destack/db";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { createClient } from "@destack/runtime/client";
-import { RequestId } from "@destack/runtime/request";
-import { testCallKey, testKeys } from "@destack/runtime/test";
+import { createClient } from "@destack/object/client";
+import { RequestId, Scope } from "@destack/sync";
+import { testCallKey, testKeys } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import type { ServerContext } from "@destack/runtime/workload";
-import { Scope } from "@destack/sync";
-import { defineServer, ObjectStore } from "../src/server/index.ts";
+import type { ServerContext } from "@destack/object/workload";
+import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { serveObjects, spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { openSpace } from "./fixture/space.ts";
@@ -68,7 +67,7 @@ async function serveInstalledNotes() {
         chain: async () => undefined,
         clock: Clock.system,
         server,
-        servers: [defineServer(notesPackage, { objects: [notebook, note] })],
+        servers: [implementPackage(notesPackage, { objects: [notebook, note] })],
         database,
         callKey: testCallKey,
         events: await testEvents(database),

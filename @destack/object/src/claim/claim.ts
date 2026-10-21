@@ -25,7 +25,7 @@ import {
 } from "@destack/db";
 import { canonicalize, Identifier, Instant, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
 
 /** How long a reservation waits for its write to commit: a minute, above any write. */

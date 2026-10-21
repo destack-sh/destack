@@ -22,7 +22,7 @@ import {
     type Transaction,
 } from "@destack/db";
 import { schema, zip } from "@destack/schema";
-import { conceal, CallError, isCallError } from "@destack/runtime/error";
+import { conceal, CallError } from "../error/call.ts";
 import type { MethodContext } from "../method/context.ts";
 import { EventLog } from "../query/event.ts";
 import type { StoreExecution } from "../method/execution.ts";
@@ -366,7 +366,7 @@ export class Authorization extends access.Authorization {
     /** Hide a refusal in a scope the caller cannot see behind the scope's absence. */
     async concealDenial(error: unknown, objects: readonly ObjectType[]): Promise<unknown> {
         // pass on anything but a missing or hidden object and a raw access denial
-        const isMissing = isCallError(error) && error.code === "NOT_FOUND";
+        const isMissing = CallError.of(error)?.code === "NOT_FOUND";
         const isRefused = error instanceof access.AccessError && error.code === "FORBIDDEN";
         if (!(isMissing || isRefused) || (await this.sees(objects))) {
             return error;
@@ -417,10 +417,10 @@ export class Authorization extends access.Authorization {
         own: ObjectReference,
         resolve: (scope: string) => Promise<Access>,
     ): Promise<boolean> {
-        // see a scope the access reads, or lists where its type declares listing
+        // see a scope the access reads or lists, by the permissions its type declares
         const container = await resolve(this.authorizer.governingScope(own));
         const declared = this.authorizer.policy(own).definition.permissions;
-        const names = Object.hasOwn(declared, SCOPE_LIST) ? [SCOPE_READ, SCOPE_LIST] : [SCOPE_READ];
+        const names = [SCOPE_READ, SCOPE_LIST].filter((name) => Object.hasOwn(declared, name));
         for (const name of names) {
             const permission = { packageId: own.packageId, type: own.type, name };
             const decided = await this.authorizer.check(this.snapshot, permission, own, container);

@@ -1,6 +1,6 @@
 import { type Condition, FindOptions, type Relation, Relations } from "@destack/db";
 import { Scope, type Query } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { present } from "@destack/schema";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";

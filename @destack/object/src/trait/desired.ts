@@ -1,7 +1,7 @@
 import { defineTable, json, type Snapshot, text, Transaction } from "@destack/db";
 import type { ResourceState } from "@destack/package/declare";
 import { Digest, present, schema, zip } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Provisioned } from "./provisioned.ts";
 import { Execution } from "../method/execution.ts";

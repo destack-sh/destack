@@ -5,13 +5,13 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import type { Page } from "@destack/sync";
 import { schema, type Identifier } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { comment, folder, objectDatabase, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";

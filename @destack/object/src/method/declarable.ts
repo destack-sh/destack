@@ -2,7 +2,7 @@ import { ObjectReference } from "@destack/sync";
 import { Manager } from "@destack/access";
 import { type Condition, type Row, TABLE, type Transaction, Table } from "@destack/db";
 import { canonicalize, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { defineMethod, Method } from "./method.ts";
 import type { MethodContext } from "./context.ts";
 import { RevisionShape } from "./procedure.ts";

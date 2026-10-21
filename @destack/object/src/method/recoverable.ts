@@ -1,7 +1,7 @@
 import { ObjectReference } from "@destack/sync";
 import { Duration, present, type schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { MethodContext } from "./context.ts";
 import { defineMethod, Method } from "./method.ts";
 import { MethodBuilder } from "./record.ts";

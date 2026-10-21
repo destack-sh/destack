@@ -14,12 +14,11 @@ import {
     type Table,
     Condition,
 } from "@destack/db";
-import type { Controller, Reconciliation } from "@destack/runtime/control";
-import { Replica } from "@destack/sync";
+import type { Controller, Reconciliation } from "@destack/db";
+import { Replica, RequestId } from "@destack/sync";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
 import type { ExpiryRule } from "../trait/expiring.ts";
 import type { ObjectStore } from "./store.ts";
-import { RequestId } from "@destack/runtime/request";
 
 /** The most rows one expiry removes per transaction: about a millisecond of deletes. */
 const EXPIRE_ROWS = 100;

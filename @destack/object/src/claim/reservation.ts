@@ -1,8 +1,9 @@
+import { Failure } from "@destack/error";
 import { AccessContext, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
-import { errorOf, CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "../error/call.ts";
+import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -42,7 +43,7 @@ export const RemoteStore = {
                 const { outcomes } = await replica.push({ scope, mutations: [mutation] });
                 const { outcome } = present(outcomes[0], "the pushed mutation's outcome");
                 if (!("value" in outcome)) {
-                    throw errorOf(outcome.error);
+                    throw Failure.error(outcome.error);
                 }
 
                 return schema.array(schema.json()).parse(outcome.value);

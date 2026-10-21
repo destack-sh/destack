@@ -1,5 +1,5 @@
 import * as access from "@destack/access";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import {
     ACCESS_MAPPINGS,
     AccessContext,

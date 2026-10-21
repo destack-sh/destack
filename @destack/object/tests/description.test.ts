@@ -11,6 +11,8 @@ import {
 } from "../src/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { ExportIndex } from "../src/object/description.ts";
+import * as objectRoot from "../src/index.ts";
+import * as accessRoot from "@destack/access";
 import { Execution } from "../src/method/execution.ts";
 import { expect, test } from "@destack/test";
 import { declareState, TABLE } from "@destack/db";
@@ -472,3 +474,28 @@ function readProcedures(type: ObjectType) {
         return [name, route, inputSchema === undefined ? null : toJsonSchema(inputSchema)];
     });
 }
+
+test("index exactly the code values object's root exports, at the same paths", () => {
+    // index the roots' namespaces as a reference, then compare every value either index records
+    const reference = new ExportIndex({
+        "@destack/object": objectRoot,
+        "@destack/access": accessRoot,
+    });
+    const loaded = ExportIndex.loaded();
+    const values = Object.values(objectRoot).flatMap((value) =>
+        typeof value === "object" && value !== null ? [value, ...Object.values(value)] : [value],
+    );
+    const differing = values
+        .filter(
+            (value) =>
+                JSON.stringify(reference.locate(value)) !== JSON.stringify(loaded.locate(value)),
+        )
+        .map((value) => [reference.locate(value), loaded.locate(value)]);
+
+    // compare the declarations and tables both find
+    expect({
+        differing,
+        declarations: loaded.declarations().length - reference.declarations().length,
+        tables: loaded.tables().length - reference.tables().length,
+    }).toEqual({ differing: [], declarations: 0, tables: 0 });
+});

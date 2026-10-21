@@ -5,7 +5,7 @@ import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { relationship } from "../src/index.ts";

@@ -3,9 +3,10 @@ import { BranchEntry } from "../branch/entry.ts";
 import { Condition, LogPosition, OrderBy, Row, Table, TABLE } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
-import { errorOf } from "@destack/runtime/error";
+
 import * as sync from "@destack/sync";
-import { Failure, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
+import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import type { MethodContext } from "../method/context.ts";
 
 /** A JSON object, such as a call's input or a row's columns. */
@@ -175,7 +176,7 @@ export const HandlerAnswer = Object.assign(handlerAnswer, {
                 new Error(answer.error.message),
                 stack === undefined ? {} : { stack },
             );
-            throw errorOf(answer.error, cause);
+            throw Failure.error(answer.error, { cause });
         }
 
         return answer.result;

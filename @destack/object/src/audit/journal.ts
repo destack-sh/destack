@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import {
     asc,
     eq,
@@ -10,15 +11,15 @@ import {
 } from "@destack/db";
 import { type EventKind, type EventStore, EventTime } from "@destack/event";
 import { canonicalize, Digest, Duration } from "@destack/schema";
-import { errorOf, CallError, isCallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
+import { type CallKey } from "./key.ts";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
     RequestId,
-    type CallKey,
-    type RequestIdentity,
-} from "@destack/runtime/request";
-import type { Controller } from "@destack/runtime/control";
-import { ObjectReference, type Outcome } from "@destack/sync";
+    ObjectReference,
+    type Outcome,
+} from "@destack/sync";
+import type { Controller } from "@destack/db";
 import { ObjectError } from "../error/index.ts";
 import { call } from "./call.ts";
 import { AuditCaller } from "./actor.ts";
@@ -50,6 +51,16 @@ export interface CallRecording {
     readonly caller?: string;
     /** The call's place in its request, the first when absent. */
     readonly position?: number;
+}
+
+/** The caller and scope of a request. */
+export interface RequestIdentity {
+    /** The authenticated principal. */
+    readonly caller: string;
+    /** The account, space or other scope. */
+    readonly scope: string;
+    /** The request identifier. */
+    readonly requestId: string;
 }
 
 /** The recent calls of one database, replayed to retries, audited ones recorded as call events. */
@@ -162,7 +173,7 @@ export class Journal {
                           () => undefined,
                           (error: unknown) => {
                               // raise the event's refusal of other contents for the journal to name first
-                              if (isCallError(error)) {
+                              if (error instanceof Error && CallError.of(error) !== undefined) {
                                   return error;
                               }
                               throw error;
@@ -400,7 +411,7 @@ export class Journal {
             if (outcome === undefined) {
                 throw new TypeError(`replayed call ${entry.execution.id} has no outcome`);
             } else if (outcome.kind !== "success") {
-                throw errorOf(outcome.error);
+                throw Failure.error(outcome.error);
             }
             values.push(outcome.value);
         }

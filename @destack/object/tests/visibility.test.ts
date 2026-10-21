@@ -1,4 +1,4 @@
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     accessRelationship,
@@ -12,13 +12,12 @@ import { AccessFixture } from "@destack/access/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 

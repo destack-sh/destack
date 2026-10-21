@@ -4,10 +4,10 @@ import { principal } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 
-import { subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { RequestId } from "@destack/runtime/request";
-import type { RequestContext } from "@destack/runtime/server";
+import { RequestId } from "@destack/sync";
+import type { RequestContext } from "@destack/object/server";
 import { ObjectStore } from "../src/server/index.ts";
 import { notebook, note, notesDatabase } from "./fixture/note.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";

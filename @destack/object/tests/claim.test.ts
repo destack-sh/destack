@@ -1,5 +1,5 @@
 import { bearerUser, users } from "./fixture/user.ts";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import {
     Change,
     type DatabaseConnection,
@@ -8,7 +8,12 @@ import {
     type Row,
     type RelationalQueryBuilder,
 } from "@destack/db";
-import { ClaimController, type ClaimHome, defineServer, ObjectStore } from "../src/server/index.ts";
+import {
+    ClaimController,
+    type ClaimHome,
+    implementPackage,
+    ObjectStore,
+} from "../src/server/index.ts";
 import {
     Claim,
     type ClaimLookup,
@@ -24,16 +29,15 @@ import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { nth, Identifier, present, schema } from "@destack/schema";
-import { createClient } from "@destack/runtime/client";
-import { Health } from "@destack/runtime/health";
-import { RequestId } from "@destack/runtime/request";
-import { Server } from "@destack/runtime/server";
+import { createClient } from "@destack/object/client";
+import { Health } from "@destack/object/server";
+import { Server } from "@destack/object/server";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents } from "../src/test/index.ts";
 
 import { claim, serveClaims } from "./fixture/claim.ts";
@@ -304,7 +308,7 @@ async function serveProfiles(dialect: Dialect, claims: ClaimHome) {
         clock: Clock.system,
         ...nth(
             new ObjectStore({
-                servers: [defineServer(profilesPackage, {})],
+                servers: [implementPackage(profilesPackage, {})],
                 chain: async () => undefined,
                 clock: Clock.system,
                 origin: { package: Package.of(profilesPackage) },

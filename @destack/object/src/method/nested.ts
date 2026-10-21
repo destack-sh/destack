@@ -1,6 +1,6 @@
 import type * as sync from "@destack/sync";
 import { Table } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import type { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
 import { defineMethod, Method } from "./method.ts";

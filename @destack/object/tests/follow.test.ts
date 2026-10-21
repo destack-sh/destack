@@ -1,8 +1,19 @@
 import { VirtualClock } from "@destack/environment/simulation";
-import { reconciliation, subjectContext, testCallKey } from "@destack/runtime/test";
+import { subjectContext, testCallKey } from "@destack/object/test";
+import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { callTables, FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
-import { ControlLoop } from "@destack/runtime/control";
-import { definePackage } from "@destack/runtime";
+import {
+    ControlLoop,
+    type DatabaseConnection,
+    defineDatabase,
+    eq,
+    Key,
+    lease,
+    ReadSet,
+    Snapshot,
+    TABLE,
+} from "@destack/db";
+import { definePackage } from "@destack/object";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     accessGrant,
@@ -17,30 +28,25 @@ import {
 } from "@destack/access";
 
 import { AccessFixture } from "@destack/access/test";
-import {
-    type DatabaseConnection,
-    defineDatabase,
-    eq,
-    Key,
-    lease,
-    ReadSet,
-    Snapshot,
-    TABLE,
-} from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { Identifier, nth, present, schema } from "@destack/schema";
 
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
-import { until, yieldToEventLoop } from "@destack/runtime/timer";
-import { Scope, Feed, Replica, type Page, type Subscription, type Watermark } from "@destack/sync";
+import { CallError } from "@destack/object";
+import {
+    RequestId,
+    Scope,
+    Feed,
+    Replica,
+    type Page,
+    type Subscription,
+    type Watermark,
+} from "@destack/sync";
+import { until, yieldToEventLoop, Clock } from "@destack/environment";
 import * as sync from "@destack/sync";
 import { v7 } from "uuid";
 import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 
 /** The event loop turns a woken store gets to report ready early, ten times one check. */
 const READY_TURNS = 20;

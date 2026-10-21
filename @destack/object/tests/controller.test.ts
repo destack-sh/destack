@@ -1,14 +1,13 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
+import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { asc, eq, defineDatabase, type Change, Snapshot } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema, present, type Identifier } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";

@@ -6,17 +6,17 @@ import { defineDatabase } from "@destack/db";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
-import { reportError } from "@destack/runtime/error";
-import { testCallKey } from "@destack/runtime/test";
+import { reportError } from "@destack/object/server";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { createRouterClient } from "@destack/runtime/server";
+import { createRouterClient } from "@destack/object/server";
 import { Clock } from "@destack/environment";
 
 /** The space containing the shelves. */
@@ -311,7 +311,6 @@ test.each(TEST_DIALECTS)(
                     outcome: {
                         error: {
                             code: "BAD_REQUEST",
-                            status: 400,
                             message: "no mutating method slip.issue",
                         },
                     },

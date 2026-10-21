@@ -2,7 +2,7 @@ import { users } from "./fixture/user.ts";
 import { expect, test, onTestFinished } from "@destack/test";
 import { Expression } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";

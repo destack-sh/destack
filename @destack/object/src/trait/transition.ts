@@ -1,6 +1,6 @@
 import { Table } from "@destack/db";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { Step } from "../method/step.ts";
 import { Casing } from "../object/name.ts";
 import type { StateField, StateMachine } from "../field/field.ts";

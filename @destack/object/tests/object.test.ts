@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
@@ -15,8 +15,7 @@ import {
     through,
     union,
 } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
-import { Scope } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
 import { defineResourceKind } from "@destack/resource";
 import { ObjectDescription } from "../src/object/description.ts";

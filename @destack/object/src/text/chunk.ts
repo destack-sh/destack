@@ -2,7 +2,7 @@ import { included, type ObjectReference, type Item, type Query } from "@destack/
 import { through } from "@destack/access";
 import { type Transaction, type Snapshot, Table } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "../error/call.ts";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
 import { method } from "../method/record.ts";
