@@ -1,13 +1,8 @@
 import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
 import type { ObjectReference } from "@destack/sync";
-import {
-    type Client,
-    type PackageHandle,
-    type ProcedureRouter,
-    PackageMount,
-} from "@destack/runtime";
-import { type ClientOptions, createClient } from "@destack/runtime/client";
+import { type Client, type PackageHandle, type ProcedureRouter, PackageMount } from "@destack/object";
+import { type ClientOptions, createClient } from "@destack/object/client";
 import {
     OBJECT_PARAMETER,
     OPEN_PATH,

@@ -3,7 +3,8 @@ import { expect, test } from "@destack/test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Compiler, readDependencies } from "@destack/build";
+import { Compiler, Workspace } from "@destack/build";
+import { testCompilers, testStore } from "@destack/build/test";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -73,13 +74,16 @@ test(
     "mount each declared view from a separate browser chunk and describe it in the output",
     { timeout: NOTEBOOK_BUILD_MILLISECONDS },
     async () => {
-        // build the notebook package's browser output
+        // build the notebook package's browser output on its closure's stored builds
+        await using store = await testStore();
+        await using compilers = await testCompilers();
+        const workspace = await Workspace.open(NOTEBOOK, compilers);
         await using builder = await Compiler.start(NOTEBOOK);
         await using build = await builder.build({
-            dependencies: await readDependencies(NOTEBOOK),
-            outputs: {
-                browser: { kind: "module", runtime: "browser", bundle: true },
-            },
+            directory: NOTEBOOK,
+            dependencies: await workspace.storeDependencies(store, {}),
+            outputs: { browser: { kind: "module", runtime: "browser" } },
+            store,
         });
 
         // describe the view by its generated chunk, exported under its entrypoint

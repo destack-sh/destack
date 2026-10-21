@@ -1,13 +1,13 @@
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
-import { PACKAGE_PATH } from "@destack/runtime";
+import { PACKAGE_PATH } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
-import type { ClientOptions } from "@destack/runtime/client";
+import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";

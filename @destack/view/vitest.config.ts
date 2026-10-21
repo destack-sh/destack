@@ -7,6 +7,8 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfiguration({
     test: {
+        // store the builds of the notebook package's closure once per run
+        globalSetup: ["src/test/setup.ts"],
         // render components in a DOM and on the server, and build packages as hosts do
         projects: [
             {

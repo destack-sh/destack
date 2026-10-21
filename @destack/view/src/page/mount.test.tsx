@@ -5,7 +5,7 @@ import { expect, test } from "@destack/test";
 import type { ViewContext } from "../declare/context.ts";
 import { renderView } from "./mount.ts";
 import { mountPackages, usePackage } from "./view.ts";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { defineObject, method } from "@destack/object";
 import { none } from "@destack/access";
 import { Package } from "@destack/package";

@@ -5,7 +5,7 @@ import { Package, PackageId } from "@destack/package";
 import { account, space } from "@destack/account/object";
 import { describeCommand, describeView } from "../inspect/index.ts";
 import { defineCommand } from "./command.ts";
-import { PackageHandle } from "@destack/runtime";
+import { PackageHandle } from "@destack/object";
 import { defineView } from "./view.ts";
 
 /** The declaring package. */

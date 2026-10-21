@@ -3,7 +3,7 @@ import { type ViewPresentationPriority } from "@destack/package/manifest";
 import { account, space } from "@destack/account/object";
 import type { ObjectType } from "@destack/object";
 import type { ContextScope } from "./context.ts";
-import type { PackageHandle } from "@destack/runtime";
+import type { PackageHandle } from "@destack/object";
 import type { Component } from "solid-js";
 
 /** A view as its package defines it. */
@@ -30,6 +30,11 @@ export interface Presentation {
 
 /** A view a package declares, acting under its user's grant to the package's installation. */
 export class View {
+    /** The declaration kind of views, by its package and name, as builds index them. */
+    static get kind() {
+        return { kindPackageId: import.meta.destack.package.id, kind: "view" } as const;
+    }
+
     /** The declaring package. */
     readonly package: Package;
     /** The name. */

@@ -60,7 +60,7 @@ const spans = createMemo(() => observability.span.list({ scope, where: `trace = 
 
 ```ts
 import { useOrigin } from "@destack/view";
-import { PACKAGE_PATH, PackageMount } from "@destack/runtime";
+import { PACKAGE_PATH, PackageMount } from "@destack/object";
 import { HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
 
 const origin = useOrigin();
