@@ -1,15 +1,6 @@
-import {
-    type DatabaseConnection,
-    integer,
-    json,
-    TABLE,
-    text,
-    type Row,
-    type Table,
-    type TableColumnMap,
-} from "@destack/db";
+import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
 import type { Package } from "@destack/package";
-import { JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
 /** The microseconds in a millisecond, the unit of event times. */
@@ -108,15 +99,18 @@ export const FlushPolicy = schema.object({
 /** When a scope's hot events flush into a segment. */
 export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 
-/** Read how long a scope keeps a kind's segments, in milliseconds, such as from its settings. */
-export type EventRetention = (scope: string, database: DatabaseConnection) => Promise<number>;
+/** How long a kind's segments stay: milliseconds, or the setting of its package each scope reads them from. */
+export type EventRetention = number | { readonly setting: object };
+
+/** Read how long a scope keeps segments under the definition of a package's setting, in milliseconds. */
+export type SettingRetention = (setting: object, owner: Package, scope: string) => Promise<number>;
 
 /** When a scope's hot events flush and how long its segments stay. */
 export interface EventPolicy {
     /** When hot events flush. */
     readonly flush: FlushPolicy;
-    /** How long segments are kept: milliseconds, or read per scope. */
-    readonly retention: number | EventRetention;
+    /** How long segments are kept. */
+    readonly retention: EventRetention;
 }
 
 /** The column type of a query key: text, a whole number, a number, or a JSON map of entries. */
@@ -283,12 +277,23 @@ export class EventKind<
         return this.#definition.policy;
     }
 
-    /** Read how long a scope keeps the kind's segments, in milliseconds. */
-    async retention(scope: string, database: DatabaseConnection): Promise<number> {
+    /** Read how long a scope keeps the kind's segments in milliseconds, through a store's settings. */
+    async retention(scope: string, settings: SettingRetention | undefined): Promise<number> {
+        // take the fixed retention, else read the scope's setting, refusing a store without settings
         const { retention } = this.#definition.policy;
-        const read = typeof retention === "number" ? retention : await retention(scope, database);
+        if (typeof retention === "number") {
+            return retention;
+        } else if (settings === undefined) {
+            throw new TypeError(
+                `event kind ${this.key} keeps segments by a setting its store cannot read`,
+            );
+        }
 
-        return schema.number().int().positive().parse(read);
+        return schema
+            .number()
+            .int()
+            .positive()
+            .parse(await settings(retention.setting, this.package, scope));
     }
 
     /** Whether segments are locked, chained and never compacted. */

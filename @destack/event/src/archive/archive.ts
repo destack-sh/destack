@@ -18,7 +18,7 @@ import { present } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
 import type { AsyncBuffer } from "hyparquet";
 import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
-import { type Event, type EventKind, EventTime } from "../kind/kind.ts";
+import { type Event, type EventKind, EventTime, type SettingRetention } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
 import { SegmentFile } from "./segment.ts";
 
@@ -47,6 +47,8 @@ export interface EventArchiveOptions {
     readonly files: (scope: string) => Bucket;
     /** The bucket key prefix of the segments. */
     readonly prefix: string;
+    /** Read the retention a scope's setting gives a kind that keeps segments by one. */
+    readonly settings: SettingRetention | undefined;
 }
 
 /** The segments of a store's scopes, written, compacted, expired and read back. */
@@ -57,13 +59,16 @@ export class EventArchive {
     readonly #files: (scope: string) => Bucket;
     /** The bucket key prefix. */
     readonly #prefix: string;
+    /** The reader of scopes' retention settings. */
+    readonly #settings: SettingRetention | undefined;
 
     /** Keep segments as the options say. */
     constructor(options: EventArchiveOptions) {
-        // keep the database, buckets and prefix
+        // keep the database, buckets, prefix and settings
         this.#database = options.database;
         this.#files = options.files;
         this.#prefix = options.prefix;
+        this.#settings = options.settings;
     }
 
     /** List the scopes with hot events or segments of a kind. */
@@ -181,7 +186,7 @@ export class EventArchive {
     /** Delete a scope's segments of a kind past its retention, their files first. */
     async expire(kind: EventKind, scope: string, now: number): Promise<number> {
         // read the segments whose latest event is older than the scope's retention
-        const retention = await kind.retention(scope, this.#database);
+        const retention = await kind.retention(scope, this.#settings);
         const before = EventTime.of(now - retention);
         const expired = await this.#database
             .select({ id: eventSegment.id, file: eventSegment.file })
@@ -356,7 +361,7 @@ export class EventArchive {
         await this.#files(scope).put(file, data, {
             sha256: digest,
             ...(kind.isLocked
-                ? { retainUntil: new Date(now + (await kind.retention(scope, this.#database))) }
+                ? { retainUntil: new Date(now + (await kind.retention(scope, this.#settings))) }
                 : {}),
         });
 

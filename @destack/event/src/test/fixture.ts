@@ -20,6 +20,7 @@ import {
     type EventKeyShape,
     type EventKeyType,
     type EventKindDescription,
+    type SettingRetention,
     eventColumns,
 } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
@@ -114,7 +115,11 @@ export class EventFixture implements AsyncDisposable {
     }
 
     /** Open events of some kinds over a fresh dialect database, memory bucket and new keyring. */
-    static async open(dialect: Dialect, kinds: readonly EventKind[]): Promise<EventFixture> {
+    static async open(
+        dialect: Dialect,
+        kinds: readonly EventKind[],
+        settings?: SettingRetention,
+    ): Promise<EventFixture> {
         // migrate the kinds' tables
         const tables = eventTables(kinds);
         const database = await TestDatabase.create(dialect, tables);
@@ -129,6 +134,7 @@ export class EventFixture implements AsyncDisposable {
                     kinds,
                     files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring),
+                    ...(settings === undefined ? {} : { settings }),
                     clock: fixture.clock,
                 }),
             database,

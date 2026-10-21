@@ -24,6 +24,9 @@ const DAY = 24 * 60 * MINUTE;
 /** The start of the tests' time, in Unix milliseconds. */
 const START = Date.UTC(2026, 9, 1);
 
+/** A retention setting, which the test's reader reads two days for space-1 and a day elsewhere. */
+const KEEP = { name: "keep" };
+
 /** The description of a space's meter readings, kept exactly once. */
 const READING = {
     package: meters,
@@ -666,15 +669,19 @@ test.for(TEST_DIALECTS)(
 test.for(TEST_DIALECTS)(
     "compact a %s unlocked kind's small segments and expire them past the retention their scope reads",
     async (dialect) => {
-        // keep space-1's readings two days, every other scope's one
+        // keep space-1's readings two days by their setting, every other scope's one
         const scoped = testKind({
             ...READING,
             policy: {
                 flush: { maxAge: MINUTE, maxRows: 4 },
-                retention: async (scope) => (scope === "space-1" ? 2 * DAY : DAY),
+                retention: { setting: KEEP },
             },
         });
-        const fixture = await open(dialect, [scoped]);
+        const fixture = await EventFixture.open(dialect, [scoped], async (setting, owner, scope) =>
+            setting === KEEP && owner.id === meters.id && scope === "space-1" ? 2 * DAY : DAY,
+        );
+        onTestFinished(() => fixture[Symbol.asyncDispose]());
+        fixture.clock.set(START);
         const { store, database } = fixture;
 
         // flush one reading at a time as each comes due by age

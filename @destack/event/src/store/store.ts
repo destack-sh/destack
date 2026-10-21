@@ -28,7 +28,7 @@ import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/runtime/control";
 import { ArchiveController } from "../archive/controller.ts";
 import { EventArchive } from "../archive/archive.ts";
-import { type Event, type EventKeyShape, EventKind } from "../kind/kind.ts";
+import { type Event, type EventKeyShape, EventKind, type SettingRetention } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
@@ -66,6 +66,8 @@ export interface EventStoreOptions {
     readonly prefix?: string;
     /** The keyring sealing personal values, needed by kinds with a subject. */
     readonly personal?: PersonalKeyring;
+    /** Read the retention a scope's setting gives, needed by kinds keeping segments by a setting. */
+    readonly settings?: SettingRetention;
     /** The clock segments flush, compact and expire by. */
     readonly clock: Clock;
 }
@@ -89,6 +91,11 @@ export class EventStore {
         const { kinds } = options;
         if (options.personal === undefined && kinds.some((kind) => kind.subject !== undefined)) {
             throw new TypeError("event kinds with a subject need a personal keyring");
+        } else if (
+            options.settings === undefined &&
+            kinds.some((kind) => typeof kind.policy.retention !== "number")
+        ) {
+            throw new TypeError("event kinds keeping segments by a setting need a settings reader");
         }
 
         // refuse a kind kept twice
@@ -105,6 +112,7 @@ export class EventStore {
             database: options.database,
             files: options.files,
             prefix: options.prefix ?? SEGMENT_PREFIX,
+            settings: options.settings,
         });
         this.#personal = options.personal;
         this.controllers = [new ArchiveController(this.#archive, kinds, options.clock)];
