@@ -3,18 +3,16 @@ import relayPackage from "../package.ts";
 import { principal } from "@destack/access";
 import { asc, eq, type Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
-import type { Hibernation, Socket, SocketHandler } from "@destack/runtime/workload";
-import { type Call, Scope } from "@destack/sync";
+import { RequestId, type Call, Scope } from "@destack/sync";
+import type { Hibernation, Socket, SocketHandler } from "@destack/object/workload";
 import { connection, tunnel } from "../object/index.ts";
-import { PING_MESSAGE, PONG_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
+import { PING_MESSAGE, PONG_MESSAGE, TUNNEL_PROTOCOL, MAX_STREAMS, type Renewal, Session, type Stream } from "../session/index.ts";
 import { type Domains, MachineAddress } from "@destack/account/address";
 import { Identifier, schema } from "@destack/schema";
-import { Bearer, TokenVerifier } from "@destack/runtime/authentication";
+import { Bearer, TokenVerifier } from "@destack/access/token";
 import { Identity } from "@destack/account/object";
 import { createLocalJWKSet } from "jose";
-import { CallError, refusal } from "@destack/runtime/error";
-import { MAX_STREAMS, type Renewal, Session, type Stream } from "../session/index.ts";
+import { CallError, refusal } from "@destack/object";
 
 /** The instruments capturing the renewals that fail outside any request. */
 const instruments = telemetry.scope(import.meta.destack.package);

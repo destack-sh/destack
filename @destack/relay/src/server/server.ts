@@ -1,11 +1,5 @@
-import type { ClientOf } from "@destack/runtime/client";
-import {
-    FORWARDED_URL_HEADER,
-    type Hibernation,
-    type ServerContext,
-    PARTITION_HEADER,
-    ROUTE_PATH,
-} from "@destack/runtime/workload";
+import type { ClientOf } from "@destack/object/client";
+import { FORWARDED_URL_HEADER, type Hibernation, type ServerContext, PARTITION_HEADER, ROUTE_PATH } from "@destack/object/workload";
 import type accountPackage from "@destack/account/package";
 import { DOMAINS } from "@destack/account/address";
 import { account, directoryShape, identityShape } from "@destack/account/object";
@@ -15,10 +9,10 @@ import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { EventStore } from "@destack/event";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
-import type { CallKey } from "@destack/runtime/request";
-import { Egress } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
-import type { PackageImplementation } from "@destack/runtime/server";
+import type { CallKey } from "@destack/object";
+import { Egress } from "@destack/object";
+import { CallError } from "@destack/object";
+import type { PackageImplementation } from "@destack/object/server";
 import { connection, tunnel } from "../object/index.ts";
 import relayPackage from "../package.ts";
 import { NameController } from "./name-controller.ts";

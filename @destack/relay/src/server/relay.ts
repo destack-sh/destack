@@ -19,17 +19,13 @@ import {
 import { and, eq, gt, isNull, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
-import type { TokenVerifier } from "@destack/runtime/authentication";
-import { CallError, refusal, reportError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import type { Fetch } from "@destack/object";
+import type { TokenVerifier } from "@destack/access/token";
+import { CallError, refusal, reportError } from "@destack/object";
+import { RequestId } from "@destack/sync";
 import type { Call } from "@destack/sync";
-import {
-    FORWARDED_URL_HEADER,
-    type ServerContext,
-    PARTITION_HEADER,
-} from "@destack/runtime/workload";
-import { PackageMount } from "@destack/runtime";
+import { FORWARDED_URL_HEADER, type ServerContext, PARTITION_HEADER } from "@destack/object/workload";
+import { PackageMount } from "@destack/object";
 import { tunnel } from "../object/index.ts";
 import relayPackage from "../package.ts";
 import { TunnelProtocol } from "../session/index.ts";

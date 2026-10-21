@@ -4,24 +4,13 @@ import { Caller } from "@destack/access";
 import { telemetry } from "@destack/telemetry";
 import type { Environment, Listener } from "@destack/environment";
 import { ResourceContext } from "@destack/resource/context";
-import { PackageMount } from "@destack/runtime";
-import { HibernationHost } from "@destack/runtime/workload";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
-import { Health } from "@destack/runtime/health";
-import { reportError } from "@destack/runtime/error";
-import { Server } from "@destack/runtime/server";
-import {
-    FORWARDED_URL_HEADER,
-    PARTITION_HEADER,
-    SocketDescription,
-    Hibernation,
-    ROUTE_PATH,
-    SOCKET_HEADER,
-    SOCKET_INSTANCE_HEADER,
-} from "@destack/runtime/workload";
+import { PackageMount, Health, reportError } from "@destack/object";
+import { HibernationHost, FORWARDED_URL_HEADER, PARTITION_HEADER, SocketDescription, Hibernation, ROUTE_PATH, SOCKET_HEADER, SOCKET_INSTANCE_HEADER } from "@destack/object/workload";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
+import { Server } from "@destack/object/server";
 import type { DatabaseConnection, Snapshot } from "@destack/db";
 import { Scope, type Subject, Uplink } from "@destack/sync";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 import { type Identifier, schema } from "@destack/schema";
 import {
     implementRelay,

@@ -1,4 +1,4 @@
-import { defineAdapter, definePackage } from "@destack/runtime";
+import { defineAdapter, definePackage } from "@destack/object";
 import { connection, tunnel } from "./object/index.ts";
 
 /** The handle stacks import to install the relay in a residency's home, with its tunnels. */

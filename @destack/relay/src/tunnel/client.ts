@@ -1,5 +1,5 @@
 import { telemetry } from "@destack/telemetry";
-import { RetryPolicy } from "@destack/runtime/timer";
+import { RetryPolicy } from "@destack/environment";
 import {
     PING_MESSAGE,
     PONG_MESSAGE,

@@ -1,5 +1,5 @@
 import { Change, type Table } from "@destack/db";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { connection } from "../object/index.ts";
 import type { Tunnel } from "./tunnel.ts";
 

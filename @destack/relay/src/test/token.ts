@@ -1,7 +1,7 @@
 import { Caller, principal } from "@destack/access";
 import type { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { type TokenVerifier } from "@destack/runtime/authentication";
+import { type TokenVerifier } from "@destack/access/token";
 import relayPackage from "../package.ts";
 
 /** Verify a machine's test tokens, each with its lifetime in milliseconds. */

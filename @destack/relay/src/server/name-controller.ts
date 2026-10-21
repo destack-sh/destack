@@ -1,7 +1,7 @@
 import { account, key, machine } from "@destack/account/object";
 import { Change, type Table } from "@destack/db";
 import { schema } from "@destack/schema";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import type { Relay } from "./relay.ts";
 
 /** Tell each connected machine its name once its own or its account's replica changes. */

@@ -4,7 +4,7 @@ import { AccountFixture, ids, TestDirectory } from "@destack/account/test";
 import { machine } from "@destack/account/object";
 import { and, eq } from "@destack/db";
 import { Identifier, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import type { Subject } from "@destack/sync";
 import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "../src/server/index.ts";
 import { TUNNEL_PROTOCOL, TunnelProtocol } from "../src/session/index.ts";
@@ -14,7 +14,7 @@ import { Simulation } from "@destack/environment/simulation";
 /** Describe the report of a socket close a relay refused while its replicas were stale. */
 function refusedClose(id: string) {
     return {
-        scope: "@destack/runtime",
+        scope: "@destack/object",
         name: "Error",
         message: `instance instance-relay refused the close of socket ${id}: 503`,
     };
