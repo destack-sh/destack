@@ -1,5 +1,5 @@
 import { defineServer } from "@destack/object/server";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { Comment, comment, reply, thread } from "./object/comment.ts";
 import socialPackage from "./package.ts";

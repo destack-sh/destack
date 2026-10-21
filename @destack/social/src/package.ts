@@ -1,4 +1,4 @@
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { comment, favourite, presence, reaction, receipt } from "./object/index.ts";
 
 /** The social package: comments, reactions, read receipts, favourites and presence. */

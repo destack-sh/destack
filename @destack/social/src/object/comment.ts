@@ -9,7 +9,7 @@ import {
 } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { ObjectReference, Subject } from "@destack/sync";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { type Select } from "@destack/db";
 import { activity, announcement, type Reason, subscription } from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
