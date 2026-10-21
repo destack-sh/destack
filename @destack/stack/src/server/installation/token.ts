@@ -17,7 +17,7 @@ import {
 import { CallError } from "@destack/runtime/error";
 import { installation } from "../../object/installation.ts";
 import { installationKey } from "../../object/key.ts";
-import { proof } from "../../object/proof.ts";
+import { proof } from "@destack/object";
 
 /** The keys installations sign their assertions with, and the tokens they are granted for them. */
 export const InstallationAssertion = {

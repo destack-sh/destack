@@ -1,3 +1,4 @@
+import { defineObject, role } from "@destack/object";
 import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
 import { type SpaceOptions, serveSpace } from "../index.ts";
@@ -28,7 +29,6 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
-import { defineObject } from "@destack/object";
 import { describeObject } from "@destack/object/inspect";
 import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -575,7 +575,7 @@ test("block a stack relating a role or installation of another space by identifi
         updatedAt: now,
     });
     const foreign = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-00000000000b");
-    await database.insert(object.role.table).values({
+    await database.insert(role.table).values({
         id: foreign,
         scope: other,
         name: "editor",
@@ -610,11 +610,11 @@ test("block a stack relating a role or installation of another space by identifi
     const installationId = "installation-01996ab0-0000-7000-8000-00000000000c";
     const user = "user-01996ab0-0000-7000-8000-00000000000d";
     expect([
-        await blocked({ subject: { user }, role: { id: foreign } }),
-        await blocked({ subject: { installation: { id: installationId } }, role: "reader" }),
+        await blocked({ subject: { id: user }, role: { id: foreign } }),
+        await blocked({ subject: { id: installationId }, role: "reader" }),
     ]).toEqual([
-        ["Blocked", `the space has no role ${foreign}`],
-        ["Blocked", `the space has no installation ${installationId}`],
+        ["Blocked", `unknown role: ${foreign}`],
+        ["Blocked", `unknown installation: ${installationId}`],
     ]);
 });
 

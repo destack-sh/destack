@@ -47,7 +47,7 @@ test.for(TEST_DIALECTS)(
         await expect(fixture.apply(first, { home: home(second) })).rejects.toEqual(
             new ObjectError(
                 "INVALID_DECLARATION",
-                `installation ${fixture.installations.get(second)} is no installation of the space`,
+                `unknown installation: ${fixture.installations.get(second)}`,
             ),
         );
         await expect(fixture.apply(second, { home: home(second) })).rejects.toEqual(

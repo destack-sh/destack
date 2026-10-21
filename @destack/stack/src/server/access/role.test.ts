@@ -1,7 +1,7 @@
 import { STACKS } from "@destack/account/test";
 import { testEvents, serversOf } from "@destack/object/test";
 import { ids, spaceDatabase } from "../../test/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { accessRelationship, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
@@ -57,7 +57,7 @@ test("keep a stack's declared relationship under its identifier until it changes
     });
 
     // declare a reader role bound to one user and rebind it to another
-    const apply = (user: string) =>
+    const apply = (user: string, via: object = { role: "reader" }) =>
         Stack.apply({
             database,
             objects: [implementRole(), implementRelationship()],
@@ -69,7 +69,7 @@ test("keep a stack's declared relationship under its identifier until it changes
             now: Date.now(),
             document: {
                 roles: { reader: { description: "Reads installations", permissions: [] } },
-                relationships: { readers: { role: "reader", subject: { user } } },
+                relationships: { readers: { ...via, subject: { id: user } } },
             },
         });
     const bound = async () =>
@@ -83,12 +83,23 @@ test("keep a stack's declared relationship under its identifier until it changes
     await apply(dave);
     const replaced = await bound();
 
+    // refuse a relationship through both a relation and a role, or neither
+    const refused = [
+        await refusal(apply(dave, { role: "reader", relation: "read" })),
+        await refusal(apply(dave, {})),
+    ];
+
     // expect the same row while unchanged and a new one for the other user
     const [id, subject] = nth(replaced, 0);
-    expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0)]).toEqual([
+    const message = "a grant has exactly one relation or role";
+    expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0), refused]).toEqual([
         first,
         1,
         dave,
         false,
+        [
+            ["INVALID_CALL", message],
+            ["INVALID_CALL", message],
+        ],
     ]);
 });

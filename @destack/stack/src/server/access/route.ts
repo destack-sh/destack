@@ -2,7 +2,7 @@ import { hostname, space } from "@destack/account/object";
 import { type Transaction } from "@destack/db";
 import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
-import { Installation, installation, route } from "../../object/index.ts";
+import { installation, route } from "../../object/index.ts";
 
 /** Implement the routes a stack declares in its space. */
 export function implementRoute() {
@@ -38,7 +38,9 @@ const declaredRoute = route.implement({
             // serve a view or an adapter of an installation of the space
             return {
                 ...matched,
-                installationId: await Installation.resolve(destination.installation, stack),
+                installationId: schema
+                    .identifier("installation")
+                    .parse(await stack.resolveRecord(installation, destination.installation)),
                 view: "view" in destination ? destination.view : null,
                 adapter: "adapter" in destination ? destination.adapter : null,
                 redirect: null,

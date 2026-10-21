@@ -125,8 +125,7 @@ function hookRunnable(
     const module = JSON.stringify({ package: compilation.package });
     const code = runModule(
         [
-            'import { serveHooks } from "@destack/stack/client";',
-            'import { defineWorkload } from "@destack/runtime/workload";',
+            'import { defineWorkload, serveHooks } from "@destack/stack/client";',
             ...hooked.map((declaration, index) =>
                 importModule(compilation.locate(declaration), `routing${index}`),
             ),

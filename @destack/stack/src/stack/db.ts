@@ -17,6 +17,7 @@ import { dependency } from "../object/dependency.ts";
 import { database } from "../object/database.ts";
 import { https } from "../object/https.ts";
 import workflowPackage from "@destack/workflow/package";
+import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 
 /** The account package's rows every space's database replicates. */
@@ -38,6 +39,9 @@ export const stackTables: readonly Table[] = [
     ...new Set([
         ...[
             ...Object.values(stackPackage.objects).filter((object) => object.storage === "durable"),
+            ...Object.values(objectPackage.objects).filter(
+                (object) => object.storage === "durable",
+            ),
             ...Object.values(workflowPackage.objects),
             database,
             bucket,

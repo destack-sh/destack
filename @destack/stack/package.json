@@ -37,7 +37,6 @@
         "@destack/fs": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
-        "@destack/message": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",

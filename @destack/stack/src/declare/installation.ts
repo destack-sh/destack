@@ -1,3 +1,4 @@
+import { StackReference } from "@destack/object";
 import {
     ComputeDefinition,
     DeclarationName,
@@ -80,13 +81,7 @@ export const BuildReference = schema.discriminatedUnion("kind", [
 export type BuildReference = schema.Infer<typeof BuildReference>;
 
 /** Select an installation by configuration key or persistent identifier in the space. */
-export const InstallationReference = schema.union([
-    DeclarationName,
-    schema.object({
-        /** The existing installation checked when applying the configuration. */
-        id: schema.identifier("installation"),
-    }),
-]);
+export const InstallationReference = StackReference.of("installation");
 
 /** A package installation declared in a configuration. */
 export const InstallationDefinition = schema.object({

@@ -36,9 +36,10 @@ import { files } from "@template/stack";
 
 export const personal = defineStack({
     resources: { files: { declaration: files, retention: { within: { days: 30 } }, tags: {} } },
-    installations: { pages: install(pages, { files: "files" }, { capabilities: ["publishing"] }) // allow its optional publishing capability },
+    // allow pages its optional publishing capability
+    installations: { pages: install(pages, { files: "files" }, { capabilities: ["publishing"] }) },
     roles: { editor: { description: "Edit pages", permissions: [page.permission("update")] } },
-    relationships: { pages: { subject: { installation: "pages" }, role: "editor" } },
+    relationships: { pages: { subject: { kind: "installation", name: "pages" }, role: "editor" } },
 });
 ```
 
@@ -76,15 +77,15 @@ A machine keeps every build and pulled release of its spaces by manifest digest 
 
 ```ts
 const builds = await BuildStore.of(host, { scope: machine, bucketId });
-const reader = await BuildStore.installed(builds, snapshot, spaceId, packageId);
-const release = await BuildStore.open(builds, registry, packageId, manifest); // copied from the registry once
+const reader = await builds.installed(snapshot, spaceId, packageId);
+const release = await builds.open(registry, packageId, manifest); // copied from the registry once
 const declared = await builds.read(registry, packageId, manifest); // stored, else streamed without storing
-const retained = await BuildStore.sweep(builds, objects, retention, now, before);
+const retained = await builds.sweepIfDue(objects, retention, before, now, interval); // undefined when not due
 ```
 
 ## Package
 
-`serveSpace` serves one space: the stack package beside the space's other packages, over the space's one database.
+`serveSpace` serves one space over its one database: as `primary`, the stack package beside the space's other packages; as `standby`, the stack alone, receiving or removing the space in a move.
 
 ```ts
 import { serveSpace } from "@destack/stack/server";
@@ -93,6 +94,7 @@ import { serveSpace } from "@destack/stack/server";
 // with its `account` and `universe` ones; a package requesting `home` permissions is refused
 
 const { store, packages } = serveSpace({
+    role: "primary", // "standby" while the space moves here or away
     servers: [vaultServer, messageServer],
     principal,
     database,

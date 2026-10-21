@@ -3,7 +3,7 @@ import { ModuleMetadata, type Package } from "@destack/package";
 import { type JsonObject, JsonValue, schema } from "@destack/schema";
 import { InstallationDefinition } from "./installation.ts";
 import { ResourceDefinition } from "@destack/resource";
-import type { RelationshipDefinition, RoleDefinition } from "./permission.ts";
+import type { relationship, role, StackInputOf } from "@destack/object";
 import { RouteDefinition } from "./route.ts";
 import { type Setting } from "@destack/setting";
 import type { StackSetting } from "@destack/setting/declare";
@@ -15,9 +15,9 @@ export interface StackDefinition {
     /** Independently configured package installations. */
     readonly installations?: Readonly<Record<string, schema.Input<typeof InstallationDefinition>>>;
     /** Roles defined in the space. */
-    readonly roles?: Readonly<Record<string, schema.Input<typeof RoleDefinition>>>;
+    readonly roles?: Readonly<Record<string, StackInputOf<typeof role>>>;
     /** Roles bound and relations granted to members, groups and workloads. */
-    readonly relationships?: Readonly<Record<string, schema.Input<typeof RelationshipDefinition>>>;
+    readonly relationships?: Readonly<Record<string, StackInputOf<typeof relationship>>>;
     /** Routes under domains the space's account administers. */
     readonly routes?: Readonly<Record<string, schema.Input<typeof RouteDefinition>>>;
     /** The setting values the stack places in its space. */

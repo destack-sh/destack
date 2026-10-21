@@ -1,3 +1,4 @@
+import { proof } from "@destack/object";
 import { principal } from "@destack/access";
 import { PublicKey } from "@destack/identity";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
@@ -169,9 +170,9 @@ test("grant an installation tokens of its space as it asks by assertions its key
         await spentProof(serverKey.id, serverAssertion),
     ];
     const kept = await database
-        .select({ id: object.proof.table.id, expiresAt: object.proof.table.expiresAt })
-        .from(object.proof.table)
-        .orderBy(object.proof.table.id);
+        .select({ id: proof.table.id, expiresAt: proof.table.expiresAt })
+        .from(proof.table)
+        .orderBy(proof.table.id);
     expect(kept).toEqual(spent.toSorted((left, right) => left.id.localeCompare(right.id)));
 
     // refuse every assertion of a revoked key
