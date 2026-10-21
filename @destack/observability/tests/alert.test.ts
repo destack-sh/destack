@@ -7,8 +7,9 @@ import { expect, refusal, test } from "@destack/test";
 import { log, metric } from "../src/object/index.ts";
 import {
     alert,
+    type AlertAction,
+    type AlertCondition,
     alertRule,
-    type AlertRuleDefinition,
     respond,
     silence,
 } from "../src/object/index.ts";
@@ -26,7 +27,7 @@ import {
 } from "./fixture/space.ts";
 
 /** A condition over events, as a rule declares it. */
-type EventsCondition = Extract<AlertRuleDefinition["condition"], { readonly kind: "events" }>;
+type EventsCondition = Extract<AlertCondition, { readonly kind: "events" }>;
 
 /** The library the notes workload records with. */
 const INSTRUMENTATION = { name: "@example/notes", version: "2026.9.0" };
@@ -56,8 +57,8 @@ function record(id: string, seconds: number, name: string, severity: number) {
 function rule(
     space: ObservedSpace,
     title: string,
-    condition: AlertRuleDefinition["condition"],
-    actions: AlertRuleDefinition["actions"] = [{ kind: "notify" }],
+    condition: AlertCondition,
+    actions: AlertAction[] = [{ kind: "notify" }],
 ) {
     return mutate(space.store, actors.alice, [
         alertRule.call("create", { ...alertRule.in(ids.space), title, condition, actions }),

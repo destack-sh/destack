@@ -116,24 +116,6 @@ export const AlertAction = schema.discriminatedUnion("kind", [
 /** What a firing alert does. */
 export type AlertAction = schema.Infer<typeof AlertAction>;
 
-/** An alert rule as a stack declares it. */
-export const AlertRuleDefinition = schema.object({
-    /** The rule's title, shown to people. */
-    title: schema.string().min(1).max(100),
-    /** What fires the rule. */
-    condition: AlertCondition,
-    /** What a firing alert does. */
-    actions: schema.array(AlertAction).min(1).max(10),
-    /** The least time between two alerts of the rule for the same subject. */
-    interval: Duration.schema.exactOptional(),
-    /** How long an events condition stays crossed before its alert fires. */
-    pending: Duration.schema.exactOptional(),
-    /** Whether an events condition with no events in its window fires. */
-    noData: schema.enum(NO_DATA).exactOptional(),
-});
-/** An alert rule as a stack declares it. */
-export type AlertRuleDefinition = schema.Infer<typeof AlertRuleDefinition>;
-
 /** A rule its controller evaluates against a space's issues and events. */
 export const alertRule = defineObject(
     {
@@ -141,7 +123,7 @@ export const alertRule = defineObject(
         plural: "alertRules",
         scope: space,
         controlled: true,
-        declarable: { schema: AlertRuleDefinition },
+        declarable: { from: "create" },
         fields: {
             /** The principal who created the rule, whom its calls act as. */
             author: field.subject().caller(),
