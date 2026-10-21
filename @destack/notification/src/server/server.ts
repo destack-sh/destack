@@ -1,7 +1,7 @@
 import { type CallInput, ListPage, type MethodContext } from "@destack/object";
 import type { ServerDefinition } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Catalog, Localization, type LocaleTag } from "@destack/locale";
 import { type Duration, fromJsonSchema, type Identifier, schema } from "@destack/schema";
 import { catalog, installation, installationRevision, symbol } from "@destack/stack/object";

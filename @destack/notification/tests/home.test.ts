@@ -5,7 +5,7 @@ import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { message } from "@destack/message";
 import { journal } from "@destack/object";
-import { subjectContext } from "@destack/runtime/test";
+import { subjectContext } from "@destack/object/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { type Page, Scope, Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";

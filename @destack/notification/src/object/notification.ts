@@ -4,7 +4,7 @@ import { type Select, type SQL, type SQLWrapper, sql } from "@destack/db";
 import type { Message } from "@destack/message";
 import { defineObject, field } from "@destack/object";
 import { Identifier, Instant, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
 import type { Activity } from "./activity.ts";
 

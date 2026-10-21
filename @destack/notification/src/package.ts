@@ -2,7 +2,7 @@ import { PUSH_CAPABILITY } from "./message/recipient.ts";
 import { user } from "@destack/account/object";
 import { message, messageAttempt } from "@destack/message";
 import { build, catalog, symbol } from "@destack/stack/object";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { activity } from "./object/activity.ts";
 import { announcement } from "./object/announcement.ts";
 import { notification } from "./object/notification.ts";

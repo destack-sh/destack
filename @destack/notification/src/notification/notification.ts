@@ -8,7 +8,7 @@ import {
 import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Activity, activity, NotificationName } from "../object/activity.ts";
 import { announcement, type Announcement } from "../object/announcement.ts";
