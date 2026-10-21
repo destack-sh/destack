@@ -1,6 +1,6 @@
 import { subscription } from "@destack/notification";
 import { ObjectWatch } from "@destack/object";
-import { defineServer } from "@destack/object/server";
+import { implementPackage } from "@destack/object/server";
 import { ObjectReference } from "@destack/sync";
 import {
     alert,
@@ -32,7 +32,7 @@ const responses = respond.implement(async (step, input, run) => {
 });
 
 /** The observability package's server: issues, alert rules, alerts, and the OTLP intake. */
-export default defineServer(observabilityPackage, {
+export default implementPackage(observabilityPackage, {
     objects: [
         issue.implement({
             methods: {
