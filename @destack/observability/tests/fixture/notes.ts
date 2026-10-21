@@ -98,22 +98,6 @@ async function notesModule() {
         digest: await Digest.of(encode(NOTE_SOURCE)),
         imports: [],
         exports: [],
-        symbols: [
-            {
-                moniker: at("Note"),
-                kind: "class",
-                source: { file: "src/note.ts", start: 0, end: NOTE_SOURCE.length },
-                signature: "class Note",
-                isExported: true,
-            },
-            {
-                moniker: at("Note.rename"),
-                kind: "method",
-                source: { file: "src/note.ts", start: lineAt(2), end: lineAt(5) - 1 },
-                signature: "rename(title: string)",
-                isExported: true,
-            },
-        ],
         declarations: [
             {
                 moniker: `${at("Note.rename")}:method`,
@@ -339,11 +323,4 @@ export function renameFailure(time: number, person: string) {
 /** Name a symbol of the note module. */
 function at(name: string): string {
     return graph.Moniker.of({ packageId: ids.package, module: "src/note.ts", name });
-}
-
-/** Find the offset of a line of the note module's source. */
-function lineAt(line: number): number {
-    return NOTE_SOURCE.split("\n")
-        .slice(0, line - 1)
-        .reduce((offset, text) => offset + text.length + 1, 0);
 }
