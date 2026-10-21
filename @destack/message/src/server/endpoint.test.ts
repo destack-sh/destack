@@ -1,7 +1,7 @@
 import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { CallEvent, call, defineAuditAction } from "@destack/object";
-import { AuditRecorder, Journal, defineServer, ObjectStore } from "@destack/object/server";
+import { AuditRecorder, Journal, implementPackage, ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import {
     defineDatabase,
@@ -288,7 +288,7 @@ async function serveHistory(statuses: readonly number[]) {
         clock: Clock.system,
         principal: INSTALLATION,
         servers: [
-            defineServer(messagePackage, {
+            implementPackage(messagePackage, {
                 objects: [
                     implementMessage({
                         providers: { webhook: provider },

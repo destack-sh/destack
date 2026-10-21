@@ -3,7 +3,7 @@ import { AccessContext, Caller, Policy, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { call, JournalEntry, journal } from "@destack/object";
 import { testEvents } from "@destack/object/test";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import {
     defineDatabase,
     type DatabaseConnection,
@@ -159,7 +159,10 @@ async function openMessages(
     onTestFinished(() => storage.close());
     const messages = new ObjectStore({
         servers: [
-            defineServer(messagePackage, serveMessages({ providers, keys: ROOT, retry: RETRY })),
+            implementPackage(
+                messagePackage,
+                serveMessages({ providers, keys: ROOT, retry: RETRY }),
+            ),
         ],
         chain: async () => undefined,
         clock: Clock.system,

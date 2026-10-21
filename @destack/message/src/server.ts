@@ -1,4 +1,4 @@
-import { defineServer } from "@destack/object/server";
+import { implementPackage } from "@destack/object/server";
 import { emailProvider } from "./email/provider.ts";
 import messagePackage, { outboundMail } from "./package.ts";
 import { pushProvider } from "./push/push.ts";
@@ -12,7 +12,7 @@ export * from "./server/index.ts";
 const PUSH_CONTACT = "https://destack.app";
 
 /** The message package's server: messages sent through each channel, and webhook endpoints. */
-export default defineServer(messagePackage, (context) => {
+export default implementPackage(messagePackage, (context) => {
     // send through the bound mail, the space's keys and the host's network
     const { keys } = context;
     const fetch = (request: Request) => context.fetch(request);

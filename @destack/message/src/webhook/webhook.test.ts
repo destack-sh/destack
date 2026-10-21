@@ -4,7 +4,7 @@ import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { Package } from "@destack/package";
 import { testCallKey } from "@destack/object/test";
@@ -117,7 +117,7 @@ async function postTo(statuses: readonly number[], consumer: Subject = INSTALLAT
         clock: Clock.system,
         principal: INSTALLATION,
         servers: [
-            defineServer(messagePackage, {
+            implementPackage(messagePackage, {
                 objects: [endpoint],
                 providers: [mailProvider("fixture", mail)],
             }),
