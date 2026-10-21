@@ -7,7 +7,7 @@ import {
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { Account, claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { accountServer, DnsOverHttps, Operator, UniverseRole } from "@destack/account/server";
+import { accountServer, DnsOverHttps, Platform, UniverseRole } from "@destack/account/server";
 import { accountDatabase } from "@destack/account/stack";
 import type { Bucket } from "@destack/bucket";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
@@ -130,7 +130,7 @@ export class Universe implements AsyncDisposable {
                     apply: (objects: ObjectStore, at: number) =>
                         Residency.apply(objects, definition.residencies, at),
                 },
-                ...new Operator(definition.platform, definition.stacks.residency).steps(),
+                ...new Platform(definition.platform, definition.stacks.residency).steps(),
             ];
             for (const each of steps) {
                 await step.run(each.name, schema.null(), async () => {
