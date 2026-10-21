@@ -1,4 +1,4 @@
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { secret, secretVersion, vault } from "./object/index.ts";
 
 /** The vault package, which machines serve and clients call. */

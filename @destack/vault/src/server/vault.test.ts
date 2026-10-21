@@ -1,7 +1,7 @@
 import { AccessContext, Caller } from "@destack/access";
 import { type Table } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import { VaultFixture } from "../test/index.ts";

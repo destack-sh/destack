@@ -2,7 +2,7 @@ import { eq, Snapshot } from "@destack/db";
 import type { MethodContext } from "@destack/object";
 import { Package } from "@destack/package";
 import { schema, Identifier } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { binding, installation } from "@destack/stack/object";
 import type { ResourceNeed } from "@destack/stack/server";
 import { expect, refusal, single, test } from "@destack/test";

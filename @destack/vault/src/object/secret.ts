@@ -4,7 +4,7 @@ import { sudo } from "@destack/account/authentication";
 import { type RowImage, type Select, type Snapshot } from "@destack/db";
 import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
 import { type Duration, type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Binding } from "@destack/stack/object";
 import {
     MAX_VALUE_BYTES,

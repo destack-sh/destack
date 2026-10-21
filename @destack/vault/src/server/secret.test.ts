@@ -2,14 +2,13 @@ import type { Call } from "@destack/sync";
 import { AccessContext, Caller, principal, Relationship } from "@destack/access";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, isNotNull } from "@destack/db";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId, type ObjectReference, Scope } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { Duration, Identifier } from "@destack/schema";
 import { CallEvent, call } from "@destack/object";
 import { SecretReading } from "../secret/secret.ts";
 import { binding, installation } from "@destack/stack/object";
-import { type ObjectReference, Scope } from "@destack/sync";
 import { SECRET_RECOVERY, secret, secretVersion, vault } from "../object/index.ts";
 import { MACHINE, OTHER_MACHINE, VAULT, VaultFixture } from "../test/index.ts";
 
@@ -253,7 +252,6 @@ test.each(TEST_DIALECTS)(
                     kind: "denied",
                     error: {
                         code: "FORBIDDEN",
-                        status: 403,
                         message: "secret version is unavailable",
                     },
                 },

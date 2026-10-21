@@ -1,4 +1,4 @@
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { secret, SecretVersion, secretVersion, vault } from "../object/index.ts";
 
 /** Implement vaults: each keeps its secrets by name. */

@@ -2,7 +2,7 @@ import { type Connector, type ResourceBinding } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { type Secret, type Vault, SecretReading } from "./secret.ts";
-import { createClient, type ClientOf } from "@destack/runtime/client";
+import { createClient, type ClientOf } from "@destack/object/client";
 import vaultPackage from "../package.ts";
 import { vault } from "../object/vault.ts";
 

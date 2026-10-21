@@ -1,6 +1,6 @@
 import { Caller, Manager, principal } from "@destack/access";
 import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Binding, installation } from "@destack/stack/object";
 import type { ServedBindable } from "@destack/stack/server";
 import { VAULT_PROVIDER } from "../declare/kind.ts";

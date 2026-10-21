@@ -18,14 +18,13 @@
     },
     "dependencies": {
         "@destack/access": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "@destack/resource": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/runtime": "workspace:*",
-        "@destack/db": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/stack": "workspace:*",
-        "@destack/account": "workspace:*",
         "@destack/sync": "workspace:*"
     },
     "scripts": {
