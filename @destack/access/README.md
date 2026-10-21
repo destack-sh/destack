@@ -158,3 +158,12 @@ definePackage({
 });
 PermissionSet.grant(set, { space, home: [userId, homeId], account }); // the grant permissions in a context
 ```
+
+## Tokens
+
+`TokenIssuer` issues access tokens carrying an RFC 8693 actor chain and an RFC 9396 grant, `TokenVerifier` verifies them, and `Exchange` asks a call's callee to act for its caller.
+
+```ts
+await issuer.issue({ caller, credential }, now); // a caller's verified authentication
+client.notes.list({}, { context: { exchange: Exchange.of(served) } });
+```

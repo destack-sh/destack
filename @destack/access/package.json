@@ -8,15 +8,18 @@
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
         "./error": "./src/error/index.ts",
-        "./test": "./src/test/index.ts"
+        "./test": "./src/test/index.ts",
+        "./token": "./src/token/index.ts"
     },
     "dependencies": {
-        "@destack/schema": "workspace:*",
-        "@destack/package": "workspace:*",
         "@destack/db": "workspace:*",
-        "uuid": "14.0.2",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/error": "workspace:*"
+        "jose": "6.2.12",
+        "uuid": "14.0.2"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
