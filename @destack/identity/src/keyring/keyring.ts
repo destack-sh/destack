@@ -4,12 +4,13 @@ import { Ciphertext } from "../ciphertext/ciphertext.ts";
 import { Derivation, type Deriver } from "../derivation/derivation.ts";
 import { IdentityError } from "../error/error.ts";
 import { Keychain } from "../keychain/keychain.ts";
+import type { Label } from "../label/label.ts";
 
 /** The bytes of a root key, an AES-256 key. */
 const ROOT_KEY_BYTES = 32;
 
 /** The label of the key a root key encrypts under, apart from every secret it derives. */
-const ENCRYPTION_LABEL = "destack keyring encryption v1";
+const ENCRYPTION_LABEL = { label: "@destack/identity/keyring-encryption", context: "" };
 
 /** The root keys a keychain stores under one name: each version's bytes, and the active version. */
 const Keyset = schema.object({
@@ -32,18 +33,12 @@ interface RootKey {
 /** A process's one root of custody. */
 export interface Keyring extends Deriver {
     /** Encrypt bytes under the active root key, binding an encryption context. */
-    readonly encrypt: (
-        plaintext: Uint8Array<ArrayBuffer>,
-        context: Uint8Array<ArrayBuffer>,
-    ) => Promise<Ciphertext>;
+    readonly encrypt: (plaintext: Uint8Array<ArrayBuffer>, context: Label) => Promise<Ciphertext>;
     /** Decrypt a ciphertext under the root key version it names. */
-    readonly decrypt: (
-        ciphertext: Ciphertext,
-        context: Uint8Array<ArrayBuffer>,
-    ) => Promise<Uint8Array<ArrayBuffer>>;
+    readonly decrypt: (ciphertext: Ciphertext, context: Label) => Promise<Uint8Array<ArrayBuffer>>;
     /** Derive a secret under a label from every root key version, newest first. */
     readonly deriveEach: (
-        label: string,
+        label: Label,
     ) => Promise<readonly { readonly version: number; readonly secret: Uint8Array<ArrayBuffer> }[]>;
 }
 
@@ -132,7 +127,7 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Encrypt bytes under the active root key. */
-    async encrypt(plaintext: Uint8Array<ArrayBuffer>, context: Uint8Array<ArrayBuffer>) {
+    async encrypt(plaintext: Uint8Array<ArrayBuffer>, context: Label) {
         return Ciphertext.encrypt(
             plaintext,
             this.#get(this.active).encryption,
@@ -142,7 +137,7 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Decrypt a ciphertext under the root key version it names. */
-    async decrypt(ciphertext: Ciphertext, context: Uint8Array<ArrayBuffer>) {
+    async decrypt(ciphertext: Ciphertext, context: Label) {
         return Ciphertext.decrypt(
             ciphertext,
             this.#get(LocalKeyring.version(ciphertext)).encryption,
@@ -151,12 +146,22 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Derive a 256-bit secret under a label from the active root key. */
-    async derive(label: string): Promise<Uint8Array<ArrayBuffer>> {
+    async derive(label: Label): Promise<Uint8Array<ArrayBuffer>> {
         return this.#derive(this.active, label);
     }
 
+    /** Write the keyset a label derives from every root key version, as secrets store it. */
+    async deriveKeyset(label: Label): Promise<string> {
+        const derived = await this.deriveEach(label);
+        const keys = Object.fromEntries(
+            derived.map(({ version, secret }) => [String(version), secret.toBase64()]),
+        );
+
+        return JSON.stringify(Keyset.parse({ active: this.active, keys }));
+    }
+
     /** Derive a secret under a label from every root key version, newest first. */
-    async deriveEach(label: string) {
+    async deriveEach(label: Label) {
         const versions = [...this.#keys.keys()].toSorted((left, right) => right - left);
 
         return Promise.all(
@@ -168,7 +173,7 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Derive a P-256 private key under a label from the active root key. */
-    async derivePrivateKey(label: string): Promise<JWK> {
+    async derivePrivateKey(label: Label): Promise<JWK> {
         return Derivation.privateKey(this.#get(this.active).root, label);
     }
 
@@ -235,7 +240,7 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Derive a 256-bit secret under a label from a root key version. */
-    #derive(version: number, label: string): Promise<Uint8Array<ArrayBuffer>> {
+    #derive(version: number, label: Label): Promise<Uint8Array<ArrayBuffer>> {
         return Derivation.secret(this.#get(version).root, label);
     }
 

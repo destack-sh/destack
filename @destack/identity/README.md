@@ -35,6 +35,7 @@ A `Keyring` is a process's one root of custody: versioned root keys that encrypt
 const keyring = await LocalKeyring.read(rootKeyText); // the text LocalKeyring.generate() writes
 const opened = await keyring.decrypt(ciphertext, context); // under the version it names
 const machineKey = await keyring.derivePrivateKey("destack machine key v1"); // a P-256 JWK
+const workerKey = await keyring.deriveKeyset("destack worker root key v1 eu"); // a keyset, every version
 await LocalKeyring.rotate(keychain, machineId);
 ```
 

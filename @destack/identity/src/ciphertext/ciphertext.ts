@@ -1,6 +1,7 @@
 import { schema } from "@destack/schema";
 import { compactDecrypt, CompactEncrypt, decodeProtectedHeader, errors } from "jose";
 import { IdentityError } from "../error/error.ts";
+import { Label } from "../label/label.ts";
 
 /** The five base64url parts of a compact JWE, the encrypted key empty for a key agreed directly. */
 const COMPACT_JWE = /^[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+$/u;
@@ -18,10 +19,14 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
         plaintext: Uint8Array<ArrayBuffer>,
         key: CryptoKey,
         management: { readonly alg: KeyManagement; readonly kid?: string },
-        context: Uint8Array<ArrayBuffer>,
+        context: Label,
     ): Promise<Ciphertext> {
         return new CompactEncrypt(plaintext)
-            .setProtectedHeader({ ...management, enc: ENCRYPTION, ctx: await digest(context) })
+            .setProtectedHeader({
+                ...management,
+                enc: ENCRYPTION,
+                ctx: await digest(Label.encode(context)),
+            })
             .encrypt(key);
     },
 
@@ -34,7 +39,7 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
     async decrypt(
         ciphertext: Ciphertext,
         key: CryptoKey,
-        context: Uint8Array<ArrayBuffer>,
+        context: Label,
     ): Promise<Uint8Array<ArrayBuffer>> {
         // decrypt it without reporting its inputs
         const decrypted = await compactDecrypt(ciphertext, key, {
@@ -47,7 +52,7 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
         });
 
         // require the context it was encrypted under
-        if (decrypted.protectedHeader["ctx"] !== (await digest(context))) {
+        if (decrypted.protectedHeader["ctx"] !== (await digest(Label.encode(context)))) {
             throw new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed");
         }
 

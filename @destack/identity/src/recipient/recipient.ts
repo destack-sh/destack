@@ -1,5 +1,6 @@
 import { Ciphertext } from "../ciphertext/ciphertext.ts";
 import type { Deriver } from "../derivation/derivation.ts";
+import type { Label } from "../label/label.ts";
 
 /** The curve of recipient keys and the ephemeral keys sealing to them. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
@@ -28,7 +29,7 @@ export class Recipient {
     /** Derive the recipient of an identity's root secret under a label. */
     static async derive(
         deriver: Pick<Deriver, "derivePrivateKey">,
-        label: string,
+        label: Label,
     ): Promise<Recipient> {
         // import the derived scalar as an ECDH key and read its public point
         const jwk = await deriver.derivePrivateKey(label);
@@ -48,10 +49,7 @@ export class Recipient {
     }
 
     /** Seal bytes to the recipient, binding a context both sides give. */
-    async seal(
-        plaintext: Uint8Array<ArrayBuffer>,
-        context: Uint8Array<ArrayBuffer>,
-    ): Promise<Ciphertext> {
+    async seal(plaintext: Uint8Array<ArrayBuffer>, context: Label): Promise<Ciphertext> {
         const key = await crypto.subtle.importKey(
             "raw",
             Uint8Array.fromBase64(this.key),
@@ -64,10 +62,7 @@ export class Recipient {
     }
 
     /** Open bytes sealed to the recipient. */
-    async open(
-        ciphertext: Ciphertext,
-        context: Uint8Array<ArrayBuffer>,
-    ): Promise<Uint8Array<ArrayBuffer>> {
+    async open(ciphertext: Ciphertext, context: Label): Promise<Uint8Array<ArrayBuffer>> {
         if (this.#privateKey === undefined) {
             throw new TypeError("open sealed bytes on the recipient with its private key");
         }

@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { IdentityError } from "../error/error.ts";
 import { MemoryKeychain } from "../keychain/index.ts";
@@ -6,7 +7,7 @@ import { LocalKeyring } from "./index.ts";
 test("open root keys a keychain stores, refuse another context, rotate them, and retire the old key once reencrypted, refusing the active and unknown keys", async () => {
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
-    const context = new TextEncoder().encode("context-1");
+    const context = { label: "@destack/identity/test", context: "context-1" };
     const plaintext = crypto.getRandomValues(new Uint8Array(32));
 
     // generate the first key once
@@ -15,9 +16,9 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
     const encrypted = await first.encrypt(plaintext, context);
 
     // refuse decrypting under another context
-    await expect(first.decrypt(encrypted, new TextEncoder().encode("context-2"))).rejects.toEqual(
-        new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed"),
-    );
+    await expect(
+        first.decrypt(encrypted, { label: "@destack/identity/test", context: "context-2" }),
+    ).rejects.toEqual(new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed"));
 
     // rotate to a new active key that still decrypts the old key's ciphertexts
     const rotated = await LocalKeyring.rotate(keychain, name);
@@ -44,7 +45,7 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
 test("open one keyset from concurrent opens of an empty keychain, and store both of two concurrent rotations", async () => {
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
-    const context = new TextEncoder().encode("context-1");
+    const context = { label: "@destack/identity/test", context: "context-1" };
     const plaintext = crypto.getRandomValues(new Uint8Array(32));
 
     // adopt the winner's keyset in the opening that lost the race
@@ -83,7 +84,7 @@ test("derive the same secrets and private key from a keyset's text on every open
     ]);
 
     // derive alike only from the same keyset and label
-    const machine = await first.derivePrivateKey("machine");
+    const machine = await first.derivePrivateKey({ label: "machine", context: "" });
     const signer = await crypto.subtle.importKey(
         "jwk",
         machine,
@@ -92,11 +93,39 @@ test("derive the same secrets and private key from a keyset's text on every open
         ["sign"],
     );
     expect([
-        (await first.derive("call")).toHex() === (await second.derive("call")).toHex(),
-        (await first.derive("call")).toHex() === (await first.derive("session")).toHex(),
-        (await first.derive("call")).toHex() === (await other.derive("call")).toHex(),
-        machine.d === (await second.derivePrivateKey("machine")).d,
-        machine.d === (await first.derivePrivateKey("relay")).d,
+        (await first.derive({ label: "call", context: "" })).toHex() ===
+            (await second.derive({ label: "call", context: "" })).toHex(),
+        (await first.derive({ label: "call", context: "" })).toHex() ===
+            (await first.derive({ label: "session", context: "" })).toHex(),
+        (await first.derive({ label: "call", context: "" })).toHex() ===
+            (await other.derive({ label: "call", context: "" })).toHex(),
+        machine.d === (await second.derivePrivateKey({ label: "machine", context: "" })).d,
+        machine.d === (await first.derivePrivateKey({ label: "relay", context: "" })).d,
         signer.type,
     ]).toEqual([true, false, false, true, false, "private"]);
+});
+
+test("derive one keyset per label with every root key version, the same on every opening and apart by label", async () => {
+    // rotate a keyset to two versions, and derive two labels' keysets from it twice
+    const keychain = new MemoryKeychain();
+    await LocalKeyring.open(keychain, "master");
+    const master = await LocalKeyring.rotate(keychain, "master");
+    const reopened = await LocalKeyring.open(keychain, "master");
+    const universe = await master.deriveKeyset({ label: "universe", context: "" });
+    const eu = await master.deriveKeyset({ label: "eu", context: "" });
+
+    // keep the versions and the active one, derive alike only under one label, and open as a keyset
+    const read = await LocalKeyring.read(universe);
+    const parsed = schema
+        .object({ active: schema.number(), keys: schema.record(schema.string(), schema.string()) })
+        .parse(JSON.parse(universe));
+    expect({
+        active: parsed.active,
+        versions: Object.keys(parsed.keys).toSorted(),
+        again: universe === (await reopened.deriveKeyset({ label: "universe", context: "" })),
+        apart: universe === eu,
+        derives:
+            (await read.derive({ label: "call", context: "" })).toHex() ===
+            (await master.derive({ label: "call", context: "" })).toHex(),
+    }).toEqual({ active: 2, versions: ["1", "2"], again: true, apart: false, derives: false });
 });

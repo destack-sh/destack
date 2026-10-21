@@ -6,8 +6,8 @@ import { Recipient } from "./recipient.ts";
 
 test("seal bytes to a recipient, which alone opens them under the same context", async () => {
     const recipient = await Recipient.generate();
-    const context = new TextEncoder().encode("vault/secret-1/1");
-    const other = new TextEncoder().encode("vault/secret-2/1");
+    const context = { label: "@destack/identity/test", context: "vault/secret-1/1" };
+    const other = { label: "@destack/identity/test", context: "vault/secret-2/1" };
     const sealed = await Recipient.of(recipient.key).seal(new Uint8Array([1, 2, 3]), context);
 
     // open only on the recipient under the sealed context
@@ -25,14 +25,14 @@ test("derive the same recipient of a root under a label, another under another l
     const root = Derivation.of(await Derivation.root(new Uint8Array(32).fill(7)));
     const other = Derivation.of(await Derivation.root(new Uint8Array(32).fill(8)));
     const [first, again, relabelled, rerooted] = await Promise.all([
-        Recipient.derive(root, "message"),
-        Recipient.derive(root, "message"),
-        Recipient.derive(root, "relay"),
-        Recipient.derive(other, "message"),
+        Recipient.derive(root, { label: "message", context: "" }),
+        Recipient.derive(root, { label: "message", context: "" }),
+        Recipient.derive(root, { label: "relay", context: "" }),
+        Recipient.derive(other, { label: "message", context: "" }),
     ]);
 
     // open on a derivation of the same root and label what its public key sealed, as ECDH-ES+A256KW
-    const context = new TextEncoder().encode("message space-1");
+    const context = { label: "@destack/identity/test", context: "message space-1" };
     const sealed = await Recipient.of(first.key).seal(new Uint8Array([4, 5]), context);
 
     expect({

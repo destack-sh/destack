@@ -1,6 +1,7 @@
 export * from "./error/index.ts";
 export * from "./ciphertext/index.ts";
 export * from "./derivation/index.ts";
+export * from "./label/index.ts";
 export * from "./key/index.ts";
 export * from "./proof/index.ts";
 export * from "./identity/index.ts";

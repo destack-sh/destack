@@ -1,4 +1,5 @@
 import type { JWK } from "jose";
+import { Label } from "../label/label.ts";
 
 /** The bits of a derived secret: 256, the HKDF-SHA256 output length. */
 const SECRET_BITS = 256;
@@ -18,9 +19,9 @@ const PKCS8_PREFIX = "3041020100301306072a8648ce3d020106082a8648ce3d030107042730
 /** What derives secrets and private keys under labels. */
 export interface Deriver {
     /** Derive a 256-bit secret under a label. */
-    readonly derive: (label: string) => Promise<Uint8Array<ArrayBuffer>>;
+    readonly derive: (label: Label) => Promise<Uint8Array<ArrayBuffer>>;
     /** Derive a P-256 private key under a label, as a JSON Web Key. */
-    readonly derivePrivateKey: (label: string) => Promise<JWK>;
+    readonly derivePrivateKey: (label: Label) => Promise<JWK>;
 }
 
 /** Derive under labels from an HKDF root key, as a key management service derives its keys. */
@@ -34,14 +35,16 @@ export const Derivation = {
     },
 
     /** Derive a 256-bit secret under a label. */
-    async secret(root: CryptoKey, label: string): Promise<Uint8Array<ArrayBuffer>> {
-        return new Uint8Array(await crypto.subtle.deriveBits(hkdf(label), root, SECRET_BITS));
+    async secret(root: CryptoKey, label: Label): Promise<Uint8Array<ArrayBuffer>> {
+        const bits = await crypto.subtle.deriveBits(hkdf(label, SECRET_BITS), root, SECRET_BITS);
+
+        return new Uint8Array(bits);
     },
 
     /** Derive a P-256 private key under a label. */
-    async privateKey(root: CryptoKey, label: string): Promise<JWK> {
+    async privateKey(root: CryptoKey, label: Label): Promise<JWK> {
         // reduce the derived bits to a scalar below the curve's order
-        const bits = await crypto.subtle.deriveBits(hkdf(label), root, SCALAR_BITS);
+        const bits = await crypto.subtle.deriveBits(hkdf(label, SCALAR_BITS), root, SCALAR_BITS);
         const scalar = (BigInt(`0x${new Uint8Array(bits).toHex()}`) % (P256_ORDER - 1n)) + 1n;
 
         // import the scalar as a PKCS #8 key without its public point
@@ -52,8 +55,10 @@ export const Derivation = {
     },
 
     /** Derive a non-extractable AES-256-GCM key under a label, such as a keyring's key. */
-    encryptionKey(root: CryptoKey, label: string): Promise<CryptoKey> {
-        return crypto.subtle.deriveKey(hkdf(label), root, { name: "AES-GCM", length: 256 }, false, [
+    encryptionKey(root: CryptoKey, label: Label): Promise<CryptoKey> {
+        const algorithm = { name: "AES-GCM", length: SECRET_BITS } as const;
+
+        return crypto.subtle.deriveKey(hkdf(label, SECRET_BITS), root, algorithm, false, [
             "encrypt",
             "decrypt",
         ]);
@@ -65,12 +70,12 @@ export const Derivation = {
     },
 };
 
-/** Name an HKDF-SHA256 derivation of a root key under a label, with no salt. */
-function hkdf(label: string) {
+/** Name an HKDF-SHA256 derivation under a label for an output length, with no salt. */
+function hkdf(label: Label, bits: number) {
     return {
         name: "HKDF" as const,
         hash: "SHA-256",
         salt: new Uint8Array(),
-        info: new TextEncoder().encode(label),
+        info: Label.encodeExpansion(label, bits / 8),
     };
 }
