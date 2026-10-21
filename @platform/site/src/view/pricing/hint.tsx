@@ -4,6 +4,7 @@ import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 
 import { palette } from "../palette.stylex";
+import { typeScale } from "../layout/type.stylex";
 
 /** Set a term with a dotted underline that explains it in a bubble above it on hover or focus. */
 export function Hint(properties: { text: string; detail: string }) {
@@ -50,7 +51,7 @@ const styles = style.create({
         boxShadow: shadow.overlay,
         color: palette.cream,
         fontFamily: font.text,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         fontWeight: weight.regular,
         insetInlineStart: 0,
         lineHeight: 1.45,

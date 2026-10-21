@@ -1,6 +1,7 @@
 import { color, font } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** The team sizes a bill can be read for. */
 export const teams = [1, 5, 25, 100] as const;
@@ -57,9 +58,9 @@ const styles = style.create({
         display: "inline-flex",
         flexShrink: 0,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         gap: "0.5rem",
-        letterSpacing: "0.1em",
+        letterSpacing: tracking.label,
         marginBlock: "-0.25rem",
         textTransform: "uppercase",
     },
@@ -69,7 +70,7 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: "1px",
         display: "inline-flex",
-        fontSize: "0.625rem",
+        fontSize: typeScale.label,
         padding: "1px",
     },
     option: {
@@ -84,7 +85,6 @@ const styles = style.create({
         fontFamily: "inherit",
         fontSize: "inherit",
         fontVariantNumeric: "tabular-nums",
-        letterSpacing: "0.04em",
         lineHeight: "1rem",
         minWidth: "1.75rem",
         paddingInline: "0.375rem",

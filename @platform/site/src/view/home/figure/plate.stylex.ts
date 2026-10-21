@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 
 import { palette } from "../../palette.stylex";
+import { typeScale } from "../../layout/type.stylex";
 
 /** The plates the figures set things on: solid cream for what you own, dashed for what you rent. */
 export const plate = style.create({
@@ -12,7 +13,7 @@ export const plate = style.create({
         borderStyle: "solid",
         borderWidth: "1px",
         color: palette.ink,
-        fontSize: "0.75rem",
+        fontSize: typeScale.small,
         lineHeight: 1,
         paddingBlock: "0.3125rem",
         paddingInline: "0.4375rem",

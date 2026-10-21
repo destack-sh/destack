@@ -29,6 +29,7 @@ import { AppearanceToggle } from "./appearance";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { commandEvents } from "./command";
+import { typeScale, tracking } from "./type.stylex";
 
 /** Render the global site navigation. */
 export function TopBar() {
@@ -238,8 +239,8 @@ const styles = style.create({
             default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
         },
-        fontSize: "1.0625rem",
-        fontWeight: weight.bold,
+        fontSize: typeScale.body,
+        fontWeight: weight.semibold,
     },
     content: {
         alignItems: "center",
@@ -255,14 +256,14 @@ const styles = style.create({
         alignItems: "baseline",
         color: color.mutedForeground,
         display: { default: "flex", [media.maxMd]: "none" },
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         insetInlineStart: "50%",
         position: "absolute",
         transform: "translateX(-50%)",
     },
     dot: {
         color: color.primary,
-        fontWeight: weight.bold,
+        fontWeight: weight.semibold,
         marginInline: "0.55em",
     },
     link: {
@@ -358,7 +359,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.primary },
         },
         display: "flex",
-        fontSize: "1.5rem",
+        fontSize: typeScale.display,
         gap: "1rem",
         justifyContent: "space-between",
         paddingBlock: "1.25rem",
@@ -374,8 +375,8 @@ const styles = style.create({
     },
     soon: {
         fontFamily: font.code,
-        fontSize: "0.75rem",
-        letterSpacing: "0.08em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         textTransform: "uppercase",
     },
 });

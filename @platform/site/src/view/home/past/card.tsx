@@ -9,6 +9,7 @@ import { AgentAvatar, isAgent } from "../figure/agent";
 import { Glyph } from "../figure/glyph";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** The height of a card: five hole rows, kept between a readable least and a most. */
 const cardHeight = `clamp(2.75rem, calc(${frame.cellRow} * 5), 4rem)`;
@@ -337,7 +338,7 @@ const styles = style.create({
         boxShadow: `inset 0 0 0 ${palette.signal}`,
         color: palette.ink,
         display: "flex",
-        fontSize: "0.75rem",
+        fontSize: typeScale.small,
         fontWeight: 600,
         gap: { default: "0.5rem", [media.maxMd]: "0.25rem" },
         minWidth: 0,
@@ -416,15 +417,15 @@ const styles = style.create({
     },
     role: {
         fontFamily: font.code,
-        fontSize: { default: "0.625rem", [media.maxMd]: "0.5625rem" },
-        fontWeight: 500,
-        letterSpacing: { default: "0.06em", [media.maxMd]: "0.02em" },
+        fontSize: typeScale.label,
+        fontWeight: 400,
+        letterSpacing: tracking.label,
         opacity: 0.78,
         textTransform: "uppercase",
     },
     label: {
-        fontSize: { default: "0.875rem", [media.maxMd]: "0.6875rem" },
-        fontWeight: 700,
+        fontSize: { default: typeScale.small, [media.maxMd]: typeScale.label },
+        fontWeight: 600,
     },
     tape: {
         height: "26px",
@@ -470,8 +471,7 @@ const styles = style.create({
     tapeText: {
         fill: tape.ink,
         fontFamily: font.code,
-        fontSize: "11px",
-        fontWeight: 700,
-        letterSpacing: "0.03em",
+        fontSize: typeScale.label,
+        fontWeight: 600,
     },
 });

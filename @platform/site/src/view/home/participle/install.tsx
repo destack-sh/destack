@@ -11,6 +11,7 @@ import { createDownloads } from "./download/download";
 import { Glyph } from "../figure/glyph";
 import { screen } from "../../layout/screen.stylex";
 import { createCopy } from "../../layout/copy";
+import { typeScale } from "../../layout/type.stylex";
 
 /** A way to install: its name, and its field drawn as the one control that installs. */
 type Way = { name: string; field: () => JSX.Element };
@@ -163,7 +164,7 @@ const styles = style.create({
     title: {
         alignItems: "baseline",
         display: "flex",
-        fontSize: "0.875rem",
+        fontSize: typeScale.body,
         fontWeight: 600,
     },
     or: {
@@ -177,7 +178,7 @@ const styles = style.create({
         color: color.mutedForeground,
         display: "inline-flex",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         height: "1.75rem",
         justifyContent: "center",
         left: { default: 0, [screen.belowDesktop]: "50%" },
@@ -217,7 +218,7 @@ const styles = style.create({
         alignItems: "center",
         display: "flex",
         flexGrow: 1,
-        fontSize: "0.875rem",
+        fontSize: typeScale.small,
         fontWeight: 600,
         gap: "0.625rem",
         minWidth: 0,
@@ -234,7 +235,7 @@ const styles = style.create({
     text: {
         flexGrow: 1,
         fontFamily: font.code,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",

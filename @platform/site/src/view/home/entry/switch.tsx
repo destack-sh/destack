@@ -13,6 +13,7 @@ import { commandEvents } from "../../layout/command";
 import { charge } from "../../effect/goo";
 import { Syllables } from "./entry";
 import { media } from "@destack/style/media.stylex";
+import { typeScale } from "../../layout/type.stylex";
 
 /** How hard the goo charges while the switch is hovered. */
 const hoverCharge = 0.5;
@@ -185,7 +186,7 @@ const styles = style.create({
     },
     word: {
         color: color.mutedForeground,
-        fontSize: "0.875rem",
+        fontSize: typeScale.small,
         fontWeight: 600,
         transitionDuration: "300ms",
         transitionProperty: "color",

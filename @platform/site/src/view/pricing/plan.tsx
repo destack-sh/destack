@@ -16,6 +16,7 @@ import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { Hint } from "./hint";
 import { type Currency, money } from "./money";
+import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The product, where accounts subscribe to a plan. */
 const PRODUCT = "https://destack.app/";
@@ -410,9 +411,9 @@ const styles = style.create({
         color: color.mutedForeground,
         display: "inline-flex",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         gap: "0.5rem",
-        letterSpacing: "0.1em",
+        letterSpacing: tracking.label,
         textTransform: "uppercase",
         whiteSpace: "nowrap",
     },
@@ -475,15 +476,14 @@ const styles = style.create({
         rowGap: "0.375rem",
     },
     name: {
-        fontSize: "1.5rem",
+        fontSize: typeScale.lead,
         fontWeight: weight.semibold,
-        letterSpacing: "-0.02em",
         lineHeight: 1.15,
         margin: 0,
     },
     tagline: {
         color: color.mutedForeground,
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         margin: 0,
     },
     price: {
@@ -498,20 +498,20 @@ const styles = style.create({
         margin: 0,
     },
     amount: {
-        fontSize: "2.875rem",
+        fontSize: typeScale.display,
         fontVariantNumeric: "tabular-nums",
-        fontWeight: weight.semibold,
-        letterSpacing: "-0.04em",
+        fontWeight: weight.medium,
+        letterSpacing: tracking.display,
         lineHeight: 1,
     },
     period: {
         color: color.mutedForeground,
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         whiteSpace: "nowrap",
     },
     usage: {
         color: color.mutedForeground,
-        fontSize: "0.875rem",
+        fontSize: typeScale.small,
         lineHeight: 1.6,
         margin: 0,
     },
@@ -527,7 +527,7 @@ const styles = style.create({
     benefit: {
         alignItems: "center",
         display: "flex",
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         gap: "0.75rem",
         margin: 0,
         whiteSpace: "nowrap",
@@ -586,13 +586,13 @@ const styles = style.create({
         rowGap: "0.125rem",
     },
     partName: {
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         fontWeight: weight.semibold,
         lineHeight: 1.25,
     },
     partDetail: {
         color: color.mutedForeground,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         lineHeight: 1.35,
         overflow: "hidden",
         textOverflow: "ellipsis",

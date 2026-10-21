@@ -9,6 +9,7 @@ import { Metadata } from "@destack/view/document";
 
 import { lattice } from "../layout/lattice.stylex";
 import { Shallows } from "../effect/shallows";
+import { typeScale, tracking } from "../layout/type.stylex";
 
 /** Properties for a missing page notice. */
 type MissingPageProperties = {
@@ -73,9 +74,9 @@ const styles = style.create({
     label: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.75rem",
+        fontSize: typeScale.label,
         gridColumn: { default: "1 / span 3", [media.maxMd]: "1 / -1" },
-        letterSpacing: "0.12em",
+        letterSpacing: tracking.label,
         margin: 0,
         padding: frame.inset,
         textTransform: "uppercase",
@@ -93,9 +94,9 @@ const styles = style.create({
     },
     title: {
         fontFamily: font.text,
-        fontSize: "clamp(2.25rem, 3.8vw, 3rem)",
+        fontSize: typeScale.display,
         fontWeight: weight.medium,
-        letterSpacing: "-0.025em",
+        letterSpacing: tracking.display,
         lineHeight: 1.08,
         margin: 0,
     },

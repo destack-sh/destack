@@ -11,15 +11,16 @@ import { InlinePicker, type Option, PickerName } from "./picker";
 import { chrome } from "./chrome.stylex";
 import { ledgerVariables } from "./ledger.stylex";
 import { screen } from "../../layout/screen.stylex";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
-/** The size of a quiet figure, in rem. */
+/** The size of a quiet figure, in rem, as typeScale.small sets it. */
 const QUIET_SIZE = 0.8125;
 
-/** The size of a row's main figure, in rem. */
+/** The size of a row's main figure, in rem, as typeScale.body sets it. */
 const VALUE_SIZE = 0.9375;
 
-/** The size of a caption, in rem, as the label style sets it. */
-const LABEL_SIZE = 0.625;
+/** The size of a caption, in rem, as typeScale.label sets it. */
+const LABEL_SIZE = 0.6875;
 
 /** The tracking a caption adds to each letter, as a share of its size. */
 const LABEL_TRACKING = 0.1;
@@ -153,14 +154,14 @@ export function Ledger(properties: {
     };
 
     // size each figure column at a caption tracking, the last one padded by the row's inset
-    const tracks = (tracking: number) =>
+    const tracks = (captionTracking: number) =>
         properties.widths
             .map((characters, column) =>
                 widthOf(
                     characters,
                     present(properties.columns[column], "column"),
                     column === properties.widths.length - 1 ? ROW_INSET : "0rem",
-                    tracking,
+                    captionTracking,
                 ),
             )
             .join(" ");
@@ -331,12 +332,17 @@ function Marks(properties: { marks: readonly ItemMark[] }) {
 }
 
 /** Return a column's width: its widest figure or its caption, plus any edge padding. */
-function widthOf(characters: number, column: Column, edge: string, tracking: number): string {
+function widthOf(
+    characters: number,
+    column: Column,
+    edge: string,
+    captionTracking: number,
+): string {
     // measure in the ledger's own code face, its ch set at a main figure's size
     const size = column.isQuiet ? QUIET_SIZE / VALUE_SIZE : 1;
     const figure = characters * size;
     const letters = column.caption.length;
-    const caption = `${(letters * (LABEL_SIZE / VALUE_SIZE)).toFixed(3)}ch + ${(letters * tracking * LABEL_SIZE).toFixed(3)}rem`;
+    const caption = `${(letters * (LABEL_SIZE / VALUE_SIZE)).toFixed(3)}ch + ${(letters * captionTracking * LABEL_SIZE).toFixed(3)}rem`;
 
     return `calc(max(${figure.toFixed(3)}ch, calc(${caption})) + ${edge})`;
 }
@@ -373,7 +379,7 @@ const styles = style.create({
         columnGap: { default: "0.75rem", [NARROW_LEDGER]: "0.375rem" },
         display: "grid",
         fontFamily: font.code,
-        fontSize: `${VALUE_SIZE}rem`,
+        fontSize: typeScale.body,
         gridTemplateRows: "auto minmax(0, 1fr)",
         minHeight: 0,
         overflowX: "auto",
@@ -532,8 +538,8 @@ const styles = style.create({
     label: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.625rem",
-        letterSpacing: { default: "0.1em", [NARROW_LEDGER]: "0.02em" },
+        fontSize: typeScale.label,
+        letterSpacing: { default: tracking.label, [NARROW_LEDGER]: "0.02em" },
         lineHeight: "0.875rem",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -547,7 +553,7 @@ const styles = style.create({
         minWidth: 0,
     },
     name: {
-        fontSize: "1rem",
+        fontSize: typeScale.body,
         fontWeight: 600,
         lineHeight: "1.25rem",
         overflow: "hidden",
@@ -567,14 +573,14 @@ const styles = style.create({
     caption: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: `${QUIET_SIZE}rem`,
+        fontSize: typeScale.small,
         fontVariantNumeric: "tabular-nums",
         fontWeight: 400,
         lineHeight: "0.875rem",
     },
     value: {
         fontFamily: font.code,
-        fontSize: `${VALUE_SIZE}rem`,
+        fontSize: typeScale.body,
         fontVariantNumeric: "tabular-nums",
         fontWeight: 600,
         lineHeight: "1.25rem",
@@ -582,7 +588,7 @@ const styles = style.create({
     },
     valueQuiet: {
         color: color.mutedForeground,
-        fontSize: `${QUIET_SIZE}rem`,
+        fontSize: typeScale.small,
         fontWeight: 400,
     },
     head: {

@@ -1,6 +1,7 @@
 import { color, font } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** Label a column of a figure in small capitals, pointing at what follows. */
 export function Label(properties: { children: JSX.Element }) {
@@ -32,8 +33,8 @@ const styles = style.create({
     label: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.1em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         margin: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",

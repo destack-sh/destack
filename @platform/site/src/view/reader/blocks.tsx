@@ -25,6 +25,7 @@ import { media } from "@destack/style/media.stylex";
 import { createEffect, createSignal } from "@destack/view";
 import { ImageMetadata, Picture } from "@destack/view/media";
 import { createReducedMotion } from "@destack/view/motion";
+import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The components that stand in for the elements of the site's articles. */
 export const blocks: ContentComponents = {
@@ -400,14 +401,14 @@ const styles = style.create({
     abstractLabel: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.08em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         textTransform: "uppercase",
     },
     abstractBody: {
         color: color.foreground,
         display: "grid",
-        fontSize: { default: "1.25rem", [media.maxSm]: "1.125rem" },
+        fontSize: typeScale.lead,
         justifySelf: "stretch",
         lineHeight: 1.55,
         rowGap: space[4],
@@ -418,8 +419,8 @@ const styles = style.create({
         columnGap: space[1],
         display: "inline-flex",
         fontFamily: font.code,
-        fontSize: "0.75rem",
-        letterSpacing: "0.08em",
+        fontSize: typeScale.small,
+        letterSpacing: tracking.label,
         textDecorationLine: {
             default: "none",
             ":hover": { default: null, [media.hover]: "underline" },

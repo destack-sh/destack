@@ -23,6 +23,7 @@ import {
     Trace,
     TRACE_LENGTH,
 } from "./trace";
+import { typeScale } from "../../layout/type.stylex";
 
 /** A browser narrower than a phone, where the map stacks its cards in a grid. */
 const NARROW = "@container (max-width: 479px)";
@@ -1054,7 +1055,7 @@ const styles = style.create({
         backgroundColor: color.background,
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         paddingInline: "0.25rem",
         position: "absolute",
         transform: "translate(-50%, -50%)",
@@ -1093,7 +1094,7 @@ const styles = style.create({
     cardName: {
         alignItems: "center",
         display: "flex",
-        fontSize: "0.75rem",
+        fontSize: typeScale.small,
         fontWeight: 600,
         gap: "0.375rem",
         overflow: "hidden",
@@ -1258,7 +1259,7 @@ const styles = style.create({
         color: color.mutedForeground,
         columnGap: "0.75rem",
         display: "grid",
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         gridTemplateColumns: {
             default: "minmax(0, 0.95fr) minmax(0, 1fr) 3rem",
             [NARROW]: "minmax(0, 1.6fr) minmax(0, 0.8fr) 2.5rem",
@@ -1281,7 +1282,7 @@ const styles = style.create({
         columnGap: "0.75rem",
         cursor: "pointer",
         display: "grid",
-        fontSize: "0.75rem",
+        fontSize: typeScale.small,
         gridTemplateColumns: {
             default: "minmax(0, 0.95fr) minmax(0, 1fr) 3rem",
             [NARROW]: "minmax(0, 1.6fr) minmax(0, 0.8fr) 2.5rem",
@@ -1314,7 +1315,7 @@ const styles = style.create({
         color: color.mutedForeground,
         cursor: "pointer",
         flexShrink: 0,
-        fontSize: "0.625rem",
+        fontSize: typeScale.label,
         paddingInline: 0,
         width: "0.625rem",
     },
@@ -1347,11 +1348,11 @@ const styles = style.create({
     duration: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
     },
     untriggered: {
         color: color.mutedForeground,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontStyle: "italic",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -1383,8 +1384,8 @@ const styles = style.create({
         whiteSpace: "nowrap",
     },
     statValue: {
-        fontSize: "1.0625rem",
-        fontWeight: 650,
+        fontSize: typeScale.body,
+        fontWeight: 600,
         lineHeight: 1.25,
     },
     cardTitle: {
@@ -1402,7 +1403,7 @@ const styles = style.create({
         color: color.mutedForeground,
         flexShrink: 0,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontWeight: 600,
         paddingInline: "0.375rem",
     },

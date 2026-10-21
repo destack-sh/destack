@@ -6,6 +6,7 @@ import { font, shadow } from "@destack/theme/tokens.stylex";
 import { flotsam } from "./flotsam.stylex";
 import { palette } from "../../palette.stylex";
 import { media } from "@destack/style/media.stylex";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** How far in from each edge of the water the surface starts to dip away, in CSS pixels. */
 const edgeReach = 110;
@@ -909,9 +910,9 @@ const styles = style.create({
         borderWidth: "1.5px",
         color: palette.ink,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        fontWeight: 700,
-        letterSpacing: "0.06em",
+        fontSize: typeScale.label,
+        fontWeight: 600,
+        letterSpacing: tracking.label,
         borderStartStartRadius: "2px",
         borderStartEndRadius: "5px",
         borderEndEndRadius: "5px",

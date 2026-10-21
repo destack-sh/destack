@@ -1,6 +1,7 @@
 import { color } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
+import { typeScale, tracking } from "../layout/type.stylex";
 
 /** Render a page title, its optional description, and any metadata below it. */
 export function PageHeader(properties: {
@@ -37,9 +38,9 @@ const styles = style.create({
     },
     title: {
         color: color.foreground,
-        fontSize: "clamp(2.25rem, 3.8vw, 3rem)",
+        fontSize: typeScale.display,
         fontWeight: 500,
-        letterSpacing: "-0.025em",
+        letterSpacing: tracking.display,
         lineHeight: 1.08,
         margin: 0,
         overflowWrap: "anywhere",
@@ -47,7 +48,7 @@ const styles = style.create({
     },
     description: {
         color: color.mutedForeground,
-        fontSize: "1.25rem",
+        fontSize: typeScale.lead,
         lineHeight: 1.5,
         margin: 0,
         maxWidth: "38rem",

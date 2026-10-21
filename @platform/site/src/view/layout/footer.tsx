@@ -17,6 +17,7 @@ import {
     type PendingDestination,
     socialDestinations,
 } from "./navigation";
+import { typeScale, tracking } from "./type.stylex";
 
 /** Close every page with a colophon in starry space: what Destack is, its install, its links. */
 export function Footer() {
@@ -228,12 +229,12 @@ const styles = style.create({
         alignItems: "center",
         columnGap: "0.5rem",
         display: "flex",
-        fontSize: "1.0625rem",
+        fontSize: typeScale.body,
         fontWeight: weight.semibold,
     },
     statement: {
         color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         margin: 0,
     },
     command: {
@@ -318,7 +319,7 @@ const styles = style.create({
         bottom: "100%",
         color: color.primary,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontWeight: weight.semibold,
         left: "50%",
         pointerEvents: "none",
@@ -328,7 +329,7 @@ const styles = style.create({
     },
     code: {
         fontFamily: font.code,
-        fontSize: "0.75rem",
+        fontSize: { default: typeScale.small, [media.maxSm]: typeScale.label },
         fontWeight: weight.semibold,
         whiteSpace: "nowrap",
     },
@@ -346,9 +347,9 @@ const styles = style.create({
     heading: {
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        fontWeight: weight.medium,
-        letterSpacing: "0.1em",
+        fontSize: typeScale.label,
+        fontWeight: weight.regular,
+        letterSpacing: tracking.label,
         margin: 0,
         marginBlockEnd: "0.25rem",
         textTransform: "uppercase",
@@ -358,7 +359,7 @@ const styles = style.create({
             default: `color-mix(in srgb, ${color.foreground} 85%, transparent)`,
             ":hover": { default: null, [media.hover]: color.primary },
         },
-        fontSize: "0.875rem",
+        fontSize: typeScale.small,
         textDecorationLine: "none",
     },
     pending: {
@@ -371,7 +372,7 @@ const styles = style.create({
         borderTopWidth: stroke.border,
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
         display: "flex",
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         gridColumn: "1 / -1",
         justifyContent: "space-between",
         minHeight: frame.bar,

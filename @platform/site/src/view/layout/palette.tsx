@@ -40,6 +40,7 @@ import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
 import { createDownloads } from "../home/participle/download/download";
 import { createEventListener } from "@destack/view/primitives/event-listener";
+import { typeScale, tracking } from "./type.stylex";
 
 /** The most results a search shows at once. */
 const RESULT_LIMIT = 10;
@@ -467,8 +468,8 @@ const styles = style.create({
         color: color.mutedForeground,
         cursor: "pointer",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.06em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         paddingBlock: "0.125rem",
         paddingInline: space[2],
         textTransform: "uppercase",
@@ -483,7 +484,7 @@ const styles = style.create({
         width: "0.75rem",
     },
     input: {
-        fontSize: "1.125rem",
+        fontSize: typeScale.lead,
     },
 
     // results
@@ -495,9 +496,9 @@ const styles = style.create({
         color: color.mutedForeground,
         display: "block",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontWeight: weight.regular,
-        letterSpacing: "0.08em",
+        letterSpacing: tracking.label,
         paddingBlockStart: space[2],
         textTransform: "uppercase",
     },

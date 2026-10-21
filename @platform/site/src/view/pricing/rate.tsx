@@ -6,6 +6,7 @@ import { FigureLabel } from "../home/entry/entry";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { convert, type Currency, money } from "./money";
+import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The millions of CPU milliseconds in a CPU-hour, which CPU time is shown per. */
 const CPU_HOUR_MILLIONS = 3.6;
@@ -135,20 +136,19 @@ const styles = style.create({
         gridColumn: { default: "7 / -1", [screen.belowDesktop]: "1 / -1" },
     },
     title: {
-        fontSize: "1.25rem",
+        fontSize: typeScale.lead,
         fontWeight: weight.semibold,
-        letterSpacing: "-0.01em",
         margin: 0,
     },
     lede: {
         color: color.mutedForeground,
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         margin: 0,
         marginBlockEnd: "1.25rem",
     },
     table: {
         borderCollapse: "collapse",
-        fontSize: "0.9375rem",
+        fontSize: typeScale.body,
         width: "100%",
     },
     head: {
@@ -157,9 +157,9 @@ const styles = style.create({
         borderBottomWidth: stroke.border,
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: typeScale.label,
         fontWeight: weight.regular,
-        letterSpacing: "0.1em",
+        letterSpacing: tracking.label,
         paddingBlock: "0.75rem",
         textAlign: "start",
         textTransform: "uppercase",
@@ -184,7 +184,7 @@ const styles = style.create({
     },
     note: {
         color: color.mutedForeground,
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         lineHeight: 1.5,
         margin: 0,
         marginBlockStart: "1rem",

@@ -20,6 +20,7 @@ import { present } from "@destack/schema";
 import { type Service, serviceCount, serviceLabels, serviceParts } from "./service";
 import type { Item } from "../figure/item";
 import type { OptionMark } from "../figure/picker";
+import { typeScale } from "../../layout/type.stylex";
 
 /** A browser narrower than a phone, where each tag shows only its mark. */
 const NARROW = "@container (max-width: 479px)";
@@ -720,7 +721,7 @@ const styles = style.create({
         borderRadius: "4px",
         boxShadow: `0 1px 2px color-mix(in srgb, ${palette.ink} 18%, transparent)`,
         display: "inline-flex",
-        fontSize: "0.65rem",
+        fontSize: typeScale.label,
         fontWeight: 600,
         gap: "0.25rem",
         height: "20px",
@@ -776,7 +777,7 @@ const styles = style.create({
         color: `color-mix(in srgb, ${palette.tileGlyph} 78%, transparent)`,
         display: { default: "inline", [NARROW]: "none" },
         fontFamily: font.code,
-        fontSize: "0.625rem",
+        fontSize: typeScale.label,
         fontWeight: 400,
     },
 });

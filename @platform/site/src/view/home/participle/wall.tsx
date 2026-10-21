@@ -25,6 +25,7 @@ import { browserStyles } from "../figure/browser";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 import { type Category, type Tool, toolOf, tools } from "../tool/tool";
+import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** A wall narrower than its widest row of tools at full size, where its chips tighten. */
 const COMPACT = "@container (max-width: 640px)";
@@ -562,8 +563,8 @@ const styles = style.create({
     label: {
         color: color.mutedForeground,
         fontFamily: font.code,
-        fontSize: "0.6875rem",
-        letterSpacing: "0.12em",
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
         lineHeight: "0.875rem",
         textTransform: "uppercase",
     },
@@ -621,19 +622,19 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     appName: {
-        fontSize: "0.8125rem",
+        fontSize: typeScale.small,
         whiteSpace: "nowrap",
     },
     name: {
         display: { default: "inline", [media.maxMd]: "none" },
-        fontSize: { default: "0.8125rem", [COMPACT]: "0.75rem" },
+        fontSize: typeScale.small,
         whiteSpace: "nowrap",
     },
     note: {
         alignItems: "center",
         color: color.mutedForeground,
         display: { default: "flex", [media.maxMd]: "none" },
-        fontSize: "0.75rem",
+        fontSize: typeScale.small,
         marginInlineStart: "0.25rem",
         overflow: "hidden",
         textOverflow: "ellipsis",
