@@ -1,9 +1,13 @@
 import { open, type FileHandle } from "node:fs/promises";
 import { dlopen, read, type Pointer } from "bun:ffi";
 import { FileSystemError } from "../error/index.ts";
+import type { FileLockMode } from "../lock/lock.ts";
 
-/** Exclusive nonblocking flock flags on Darwin and Linux. */
-const LOCK_EXCLUSIVE_NONBLOCKING = 2 | 4;
+/** The nonblocking flock operation of each mode: LOCK_SH or LOCK_EX, plus LOCK_NB. */
+const NONBLOCKING_OPERATIONS: Readonly<Record<FileLockMode, number>> = {
+    shared: 1 | 4,
+    exclusive: 2 | 4,
+};
 /** EWOULDBLOCK identifies an existing flock owner. */
 const WOULD_BLOCK = process.platform === "darwin" ? 35 : 11;
 /** Bind libc once for all locks in this process. */
@@ -52,10 +56,10 @@ export class NativeLock {
         }
     }
 
-    /** Return false only when another file description holds the lock. */
-    tryAcquire(): boolean {
-        // acquire exclusive ownership on the open file description
-        if (SYSTEM.symbols.flock(this.file.fd, LOCK_EXCLUSIVE_NONBLOCKING) === 0) {
+    /** Lock in a mode, converting a held lock by releasing it first, false on a conflict. */
+    tryAcquire(mode: FileLockMode): boolean {
+        // lock or convert the open file description's ownership, as flock converts in place
+        if (SYSTEM.symbols.flock(this.file.fd, NONBLOCKING_OPERATIONS[mode]) === 0) {
             return true;
         }
 

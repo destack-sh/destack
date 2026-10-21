@@ -101,3 +101,53 @@ test("reject invalid paths without changing the filesystem", async () => {
         await rm(directory, { recursive: true });
     }
 });
+
+test("share a lock among shared holders, keep it shared after a failed conversion, and convert it once the others release it", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-file-lock-"));
+    try {
+        // hold one file shared through two descriptions, refusing exclusive access to either
+        const path = join(directory, "shared.lock");
+        await using first = await FileLock.acquireShared(path);
+        const second = await FileLock.acquireShared(path);
+        const whileShared = {
+            converted: await first.tryExclusive(),
+            acquired: await FileLock.tryAcquire(path),
+            modes: [first.mode, second.mode],
+        };
+
+        // keep the first held shared after its failed conversion, refusing exclusive access to others
+        await second.close();
+        const keptShared = await FileLock.tryAcquire(path);
+
+        // convert the first, refusing a shared holder until it shares again
+        const converted = await first.tryExclusive();
+        const pending = FileLock.acquireShared(path, { signal: AbortSignal.timeout(100) });
+        const isRefused = await pending.then(
+            async (lock) => {
+                await lock.close();
+
+                return false;
+            },
+            () => true,
+        );
+        await first.share();
+        await using third = await FileLock.acquireShared(path, {
+            signal: AbortSignal.timeout(1000),
+        });
+        expect({
+            whileShared,
+            keptShared,
+            converted,
+            isRefused,
+            modes: [first.mode, third.mode],
+        }).toEqual({
+            whileShared: { converted: false, acquired: undefined, modes: ["shared", "shared"] },
+            keptShared: undefined,
+            converted: true,
+            isRefused: true,
+            modes: ["shared", "shared"],
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});

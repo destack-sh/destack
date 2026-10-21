@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorReport } from "@destack/error";
+import type { DomainError, Failure } from "@destack/error";
 
 /** A failed host filesystem operation. */
 export class FileSystemError extends Error implements DomainError {
@@ -20,7 +20,7 @@ export class FileSystemError extends Error implements DomainError {
     }
 
     /** Report every host filesystem failure as the host's own. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: "INTERNAL_SERVER_ERROR", message: this.message };
     }
 }
