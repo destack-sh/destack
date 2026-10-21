@@ -2,7 +2,7 @@ import type { Deriver } from "@destack/identity";
 import { schema } from "@destack/schema";
 
 /** The label of a space's S3 secret, distinct from every other key its root secret derives. */
-const LABEL = "destack s3 v1";
+const LABEL = { label: "@destack/bucket/s3-secret", context: "" } as const;
 
 /** An S3 access key and its secret. */
 const s3Credentials = schema.object({

@@ -14,11 +14,11 @@ export interface S3Location {
 /** A bucket served over S3 with path-style addressing. */
 export const S3Location = { url };
 
-/** Where a bucket is served over S3, and the credentials presigning requests for its files. */
+/** Where a bucket is served over S3, and the credentials signing requests for its files. */
 export interface BucketEndpoint {
     /** The bucket's S3 location. */
     readonly location: S3Location;
-    /** The credentials presigning transfers of the bucket. */
+    /** The credentials signing requests and presigning transfers, as their lease mode allows. */
     readonly credentials: S3Credentials;
 }
 

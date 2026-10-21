@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import type { Connector } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { CallError } from "@destack/runtime/error";
@@ -23,6 +24,8 @@ import {
 } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { S3Error } from "./error.ts";
+import { type BucketEndpoint, S3Location } from "./location.ts";
+import { S3Signature } from "./signature.ts";
 import {
     CHECKSUM_HEADERS,
     CHECKSUM_MODE_HEADER,
@@ -78,12 +81,10 @@ export class S3Client implements Bucket {
 
             // send every request with the credential
             const send = (request: Request) => {
-                // read bodies as stored, never decoded by their stored content encoding
                 const headers = new Headers(request.headers);
                 headers.set("authorization", `Bearer ${credential}`);
-                const stored: RequestInit & { readonly decompress: false } = { decompress: false };
 
-                return fetch(copyRequest(request, { headers }), stored);
+                return fetchStored(copyRequest(request, { headers }));
             };
 
             return Object.assign(new S3Client(binding.reference, send), {
@@ -91,6 +92,17 @@ export class S3Client implements Bucket {
             });
         },
     };
+
+    /** Open a bucket at its S3 location, signing every request with its credentials. */
+    static of(endpoint: BucketEndpoint, clock: Clock): S3Client {
+        // sign each request for the bucket's region at the time it is sent
+        const { location, credentials } = endpoint;
+        const signature = new S3Signature({ region: location.region });
+        const send = async (request: Request) =>
+            await fetchStored(await signature.sign(request, credentials, clock.now()));
+
+        return new S3Client(S3Location.url(location).href, send);
+    }
 
     /** The bucket's URL, below which keys are addressed path-style. */
     readonly url: string;
@@ -591,4 +603,11 @@ async function sha256(document: string): Promise<string> {
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(document));
 
     return new Uint8Array(digest).toBase64();
+}
+
+/** Send a request, reading the body as stored, never decoded by its stored content encoding. */
+function fetchStored(request: Request): Promise<Response> {
+    const stored: RequestInit & { readonly decompress: false } = { decompress: false };
+
+    return fetch(request, stored);
 }

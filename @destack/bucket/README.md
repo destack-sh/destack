@@ -70,4 +70,5 @@ const server = new S3Server({
 const response = await server.fetch(request); // SigV4, or server.serve(request, accessKeyId) once authorized
 const files = new S3Client(`${egress}/${bucketId}`, fetch);
 await files.put("notes/first.txt", "Hello", { sha256 }); // PUT with x-amz-checksum-sha256
+const builds = S3Client.of({ location, credentials }, clock); // SigV4 on every request, as R2 takes
 ```

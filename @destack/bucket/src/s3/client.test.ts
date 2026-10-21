@@ -8,10 +8,17 @@ import type { Bucket, BucketFile } from "../bucket/index.ts";
 import { BucketError, BucketPreconditionError } from "../error/index.ts";
 import { LocalBucket } from "../bun/index.ts";
 import { S3Client } from "./client.ts";
+import { S3Error } from "./error.ts";
 import { S3Server } from "./server.ts";
 
 /** The access key the host authorized the client's requests for. */
 const ACCESS_KEY_ID = "space-test";
+
+/** The credentials the host knows the access key's signatures by. */
+const CREDENTIALS = { accessKeyId: ACCESS_KEY_ID, secretAccessKey: "secret" };
+
+/** The clients a roundtrip runs through: one the host authorized, and one signing every request. */
+const CLIENTS = ["authorized", "signed"] as const;
 
 /** A customer key encrypting a file, as 64 hexadecimal digits. */
 const CUSTOMER_KEY = "07".repeat(32);
@@ -74,133 +81,203 @@ async function listings(bucket: Bucket) {
     ];
 }
 
-test("roundtrip every bucket operation through S3, answering as the bucket answers directly", async () => {
-    // serve a local bucket over S3 to a client the host already authorized
+/** Serve a fresh local bucket over S3, authenticating signed requests by the known credentials. */
+async function serveBucket() {
     const directory = await mkdtemp(join(tmpdir(), "destack-s3-client-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    await using bucket = await LocalBucket.open(
-        join(directory, "files"),
-        ACCESS_KEY_ID,
-        Clock.system,
-    );
+    const bucket = await LocalBucket.open(join(directory, "files"), ACCESS_KEY_ID, Clock.system);
     const server = new S3Server({
         region: "auto",
         clock: Clock.system,
-        credentials: async () => undefined,
+        credentials: async (accessKeyId) =>
+            accessKeyId === ACCESS_KEY_ID ? CREDENTIALS : undefined,
         open: async (name, accessKeyId) =>
             name === "files" && accessKeyId === ACCESS_KEY_ID ? bucket : undefined,
     });
-    const client = new S3Client("https://s3.test/files/", (request) =>
-        server.serve(request, ACCESS_KEY_ID),
-    );
 
-    // store files with metadata, a storage class, a checksum and a customer key, as the bucket then keeps them
-    const body = "Hello, world!";
-    const expiry = new Date(Date.UTC(2027, 0, 1));
-    const stored = await client.put("documents/readme.txt", body, {
-        httpMetadata: { contentType: "text/plain", cacheControl: "no-cache", cacheExpiry: expiry },
-        customMetadata: { author: "fixture" },
-        storageClass: "InfrequentAccess",
-        sha256: createHash("sha256").update(body).digest("hex"),
+    return { bucket, server };
+}
+
+/** Serve S3 at a local port, closed when the test finishes, answering the bucket's location. */
+function listen(server: S3Server) {
+    const served = Bun.serve({
+        port: 0,
+        hostname: "127.0.0.1",
+        fetch: (request) => server.fetch(request),
     });
-    const hashed = await client.put("documents/hashed.txt", body, {
-        sha1: createHash("sha1").update(body).digest(),
-        md5: createHash("md5").update(body).digest("hex"),
-    });
-    const sealed = await client.put("documents/sealed.txt", body, { ssecKey: CUSTOMER_KEY });
-    const locked = await client.put("documents/locked.txt", body, {
-        retainUntil: new Date(Date.now() + 3_600_000),
-    });
-    const empty = await client.put("documents/empty.txt", null);
-    expect([stored, hashed, sealed, locked, empty].map(describe)).toEqual(
-        await Promise.all(
-            [
-                "documents/readme.txt",
-                "documents/hashed.txt",
-                "documents/sealed.txt",
-                "documents/locked.txt",
-                "documents/empty.txt",
-            ].map(async (key) => describe(await bucket.head(key))),
-        ),
-    );
+    onTestFinished(() => served.stop(true));
 
-    // read metadata, whole bodies and ranges, with and without the customer key
-    const reads = async (on: Bucket) => [
-        describe(await on.head("documents/readme.txt")),
-        describe(await on.head("documents/missing.txt")),
-        await read(on, "documents/readme.txt"),
-        await read(on, "documents/readme.txt", { range: { offset: 7, length: 5 } }),
-        await read(on, "documents/readme.txt", { range: { suffix: 6 } }),
-        await read(on, "documents/readme.txt", { range: { offset: 7 } }),
-        await read(on, "documents/sealed.txt", { ssecKey: CUSTOMER_KEY }),
-        await read(on, "documents/missing.txt"),
-        await refusal(on.get("documents/sealed.txt")),
-        await refusal(on.get("documents/readme.txt", { range: { offset: 100 } })),
-    ];
-    expect(await reads(client)).toEqual(await reads(bucket));
+    return {
+        endpoint: new URL(`http://127.0.0.1:${served.port}/`),
+        bucket: "files",
+        region: "auto",
+    };
+}
 
-    // refuse failed preconditions of reads and writes with the file they met, and pass held ones
-    const etag = stored.etag;
-    const second = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000);
-    const conditions = async (on: Bucket) => [
-        await refusal(on.get("documents/readme.txt", { onlyIf: { etagMatches: "other" } })),
-        await refusal(on.get("documents/readme.txt", { onlyIf: { etagDoesNotMatch: etag } })),
-        await refusal(on.get("documents/readme.txt", { onlyIf: { uploadedBefore: second } })),
-        await read(on, "documents/readme.txt", { onlyIf: { etagMatches: etag } }),
-        await read(on, "documents/readme.txt", { onlyIf: { uploadedAfter: second } }),
-        await refusal(
-            on.put("documents/readme.txt", "next", { onlyIf: { etagDoesNotMatch: "*" } }),
-        ),
-        await refusal(on.put("documents/absent.txt", "next", { onlyIf: { etagMatches: etag } })),
-    ];
-    expect(await conditions(client)).toEqual(await conditions(bucket));
+/** Open a client of a kind: authorized by the host in process, or signing over a local port. */
+function connect(kind: (typeof CLIENTS)[number], server: S3Server): S3Client {
+    // send in process as the access key the host authorized
+    if (kind === "authorized") {
+        return new S3Client("https://s3.test/files/", (request) =>
+            server.serve(request, ACCESS_KEY_ID),
+        );
+    }
+    // sign every request over a local port
+    else {
+        return S3Client.of({ location: listen(server), credentials: CREDENTIALS }, Clock.system);
+    }
+}
 
-    // page listings by limit, cursor, start key and delimiter
-    expect(await listings(client)).toEqual(await listings(bucket));
+test.for(CLIENTS)(
+    "roundtrip every bucket operation through S3 as a %s client, answering as the bucket answers directly",
+    async (kind) => {
+        // serve a local bucket over S3 to the client
+        const served = await serveBucket();
+        await using bucket = served.bucket;
+        const client = connect(kind, served.server);
 
-    // assemble a file from a part uploaded through a resumed upload, and refuse an aborted one
-    const created = await client.createMultipartUpload("media/clip.bin", {
-        httpMetadata: { contentType: "video/mp4" },
-        customMetadata: { take: "1" },
-    });
-    const resumed = client.resumeMultipartUpload("media/clip.bin", created.uploadId);
-    const part = await resumed.uploadPart(1, new Uint8Array([1, 2, 3, 4]));
-    const assembled = await resumed.complete([part]);
-    const aborted = await client.createMultipartUpload("media/draft.bin");
-    await aborted.abort();
-    const parts = async (on: Bucket) =>
-        refusal(on.resumeMultipartUpload("media/draft.bin", aborted.uploadId).uploadPart(1, "x"));
+        // store files with metadata, a storage class, a checksum and a customer key, as the bucket then keeps them
+        const body = "Hello, world!";
+        const expiry = new Date(Date.UTC(2027, 0, 1));
+        const stored = await client.put("documents/readme.txt", body, {
+            httpMetadata: {
+                contentType: "text/plain",
+                cacheControl: "no-cache",
+                cacheExpiry: expiry,
+            },
+            customMetadata: { author: "fixture" },
+            storageClass: "InfrequentAccess",
+            sha256: createHash("sha256").update(body).digest("hex"),
+        });
+        const hashed = await client.put("documents/hashed.txt", body, {
+            sha1: createHash("sha1").update(body).digest(),
+            md5: createHash("md5").update(body).digest("hex"),
+        });
+        const sealed = await client.put("documents/sealed.txt", body, { ssecKey: CUSTOMER_KEY });
+        const locked = await client.put("documents/locked.txt", body, {
+            retainUntil: new Date(Date.now() + 3_600_000),
+        });
+        const empty = await client.put("documents/empty.txt", null);
+        expect([stored, hashed, sealed, locked, empty].map(describe)).toEqual(
+            await Promise.all(
+                [
+                    "documents/readme.txt",
+                    "documents/hashed.txt",
+                    "documents/sealed.txt",
+                    "documents/locked.txt",
+                    "documents/empty.txt",
+                ].map(async (key) => describe(await bucket.head(key))),
+            ),
+        );
+
+        // read metadata, whole bodies and ranges, with and without the customer key
+        const reads = async (on: Bucket) => [
+            describe(await on.head("documents/readme.txt")),
+            describe(await on.head("documents/missing.txt")),
+            await read(on, "documents/readme.txt"),
+            await read(on, "documents/readme.txt", { range: { offset: 7, length: 5 } }),
+            await read(on, "documents/readme.txt", { range: { suffix: 6 } }),
+            await read(on, "documents/readme.txt", { range: { offset: 7 } }),
+            await read(on, "documents/sealed.txt", { ssecKey: CUSTOMER_KEY }),
+            await read(on, "documents/missing.txt"),
+            await refusal(on.get("documents/sealed.txt")),
+            await refusal(on.get("documents/readme.txt", { range: { offset: 100 } })),
+        ];
+        expect(await reads(client)).toEqual(await reads(bucket));
+
+        // refuse failed preconditions of reads and writes with the file they met, and pass held ones
+        const etag = stored.etag;
+        const second = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000);
+        const conditions = async (on: Bucket) => [
+            await refusal(on.get("documents/readme.txt", { onlyIf: { etagMatches: "other" } })),
+            await refusal(on.get("documents/readme.txt", { onlyIf: { etagDoesNotMatch: etag } })),
+            await refusal(on.get("documents/readme.txt", { onlyIf: { uploadedBefore: second } })),
+            await read(on, "documents/readme.txt", { onlyIf: { etagMatches: etag } }),
+            await read(on, "documents/readme.txt", { onlyIf: { uploadedAfter: second } }),
+            await refusal(
+                on.put("documents/readme.txt", "next", { onlyIf: { etagDoesNotMatch: "*" } }),
+            ),
+            await refusal(
+                on.put("documents/absent.txt", "next", { onlyIf: { etagMatches: etag } }),
+            ),
+        ];
+        expect(await conditions(client)).toEqual(await conditions(bucket));
+
+        // page listings by limit, cursor, start key and delimiter
+        expect(await listings(client)).toEqual(await listings(bucket));
+
+        // assemble a file from a part uploaded through a resumed upload, and refuse an aborted one
+        const created = await client.createMultipartUpload("media/clip.bin", {
+            httpMetadata: { contentType: "video/mp4" },
+            customMetadata: { take: "1" },
+        });
+        const resumed = client.resumeMultipartUpload("media/clip.bin", created.uploadId);
+        const part = await resumed.uploadPart(1, new Uint8Array([1, 2, 3, 4]));
+        const assembled = await resumed.complete([part]);
+        const aborted = await client.createMultipartUpload("media/draft.bin");
+        await aborted.abort();
+        const parts = async (on: Bucket) =>
+            refusal(
+                on.resumeMultipartUpload("media/draft.bin", aborted.uploadId).uploadPart(1, "x"),
+            );
+        expect({
+            assembled: describe(assembled),
+            aborted: [await parts(client), await parts(bucket)],
+        }).toEqual({
+            assembled: describe(await bucket.head("media/clip.bin")),
+            aborted: [
+                { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
+                { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
+            ],
+        });
+
+        // delete one file and several, refusing a locked one
+        const deletes = [
+            await refusal(client.delete("documents/locked.txt")),
+            await refusal(bucket.delete("documents/locked.txt")),
+            await refusal(client.delete("documents/empty.txt")),
+            await refusal(
+                client.delete(["documents/readme.txt", "documents/hashed.txt", "missing"]),
+            ),
+        ];
+        expect({ deletes, listed: await client.list() }).toEqual({
+            deletes: [
+                {
+                    code: "LOCKED",
+                    message: "file documents/locked.txt is retained until its lock expires",
+                },
+                {
+                    code: "LOCKED",
+                    message: "file documents/locked.txt is retained until its lock expires",
+                },
+                "done",
+                "done",
+            ],
+            listed: await bucket.list(),
+        });
+    },
+);
+
+test("refuse a client signing with another secret, keeping the bucket unchanged", async () => {
+    // serve a local bucket over S3 at a port, and sign a write under a forged secret
+    const served = await serveBucket();
+    await using bucket = served.bucket;
+    const location = listen(served.server);
+    const credentials = { ...CREDENTIALS, secretAccessKey: "forged" };
+    const forged = S3Client.of({ location, credentials }, Clock.system);
+
+    // refuse the write by its signature
     expect({
-        assembled: describe(assembled),
-        aborted: [await parts(client), await parts(bucket)],
+        forged: await forged.put("notes/plan.txt", "forged").then(
+            () => "done",
+            (error: unknown) => (error instanceof S3Error ? [error.code, error.message] : error),
+        ),
+        kept: await bucket.get("notes/plan.txt"),
     }).toEqual({
-        assembled: describe(await bucket.head("media/clip.bin")),
-        aborted: [
-            { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
-            { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
+        forged: [
+            "SignatureDoesNotMatch",
+            "the request signature does not match the signature calculated with the secret key",
         ],
-    });
-
-    // delete one file and several, refusing a locked one
-    const deletes = [
-        await refusal(client.delete("documents/locked.txt")),
-        await refusal(bucket.delete("documents/locked.txt")),
-        await refusal(client.delete("documents/empty.txt")),
-        await refusal(client.delete(["documents/readme.txt", "documents/hashed.txt", "missing"])),
-    ];
-    expect({ deletes, listed: await client.list() }).toEqual({
-        deletes: [
-            {
-                code: "LOCKED",
-                message: "file documents/locked.txt is retained until its lock expires",
-            },
-            {
-                code: "LOCKED",
-                message: "file documents/locked.txt is retained until its lock expires",
-            },
-            "done",
-            "done",
-        ],
-        listed: await bucket.list(),
+        kept: null,
     });
 });
