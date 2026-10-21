@@ -1,6 +1,11 @@
 import { MemoryBucket } from "@destack/bucket/test";
 import type { DatabaseConnection, Table } from "@destack/db";
-import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
+import {
+    DatabasePersonalKeyring,
+    type EventKind,
+    EventStore,
+    type SettingRetention,
+} from "@destack/event";
 import { LocalKeyring } from "@destack/identity";
 import { call } from "../audit/call.ts";
 import { journal } from "../stack/db.ts";
@@ -14,6 +19,7 @@ export async function testEvents(
     database: DatabaseConnection,
     kinds: readonly EventKind[] = [],
     clock: Clock = Clock.system,
+    settings?: SettingRetention,
 ): Promise<EventStore> {
     // store the segments in memory and seal personal values under a new keyring
     const bucket = new MemoryBucket(clock);
@@ -24,6 +30,7 @@ export async function testEvents(
         kinds: [call.eventKind(), ...kinds],
         files: () => bucket,
         personal: new DatabasePersonalKeyring(database, keyring),
+        ...(settings === undefined ? {} : { settings }),
         clock,
     });
 }

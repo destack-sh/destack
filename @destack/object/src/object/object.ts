@@ -19,7 +19,6 @@ import {
     Call,
 } from "@destack/sync";
 import {
-    type DatabaseConnection,
     Expression,
     Condition,
     eq,
@@ -433,6 +432,18 @@ export interface ReaderDefinition {
     readonly batch?: Duration;
 }
 
+/** A package's setting of days a scope places, as data the type's description keeps. */
+export interface RetentionSetting {
+    /** The setting's package-local name. */
+    readonly name: string;
+    /** The scope type that places its values. */
+    readonly scope: "user" | "space" | "device";
+    /** The schema of its days. */
+    readonly schema: schema.Schema<number>;
+    /** The days where no placed value applies. */
+    readonly default: number;
+}
+
 /** Where objects live: durable, ephemeral, external, local, or the event log. */
 export type ObjectStorage = "durable" | "ephemeral" | "external" | "local" | "events";
 
@@ -442,10 +453,8 @@ export interface EventStorage {
     readonly kind: "events";
     /** When a scope's hot events flush into a segment: at an age of the oldest, or at a count. */
     readonly flush: { readonly maxAge: Duration; readonly maxRows: number };
-    /** How long segments stay: a duration, or one read per scope, such as from its settings. */
-    readonly retention:
-        | Duration
-        | ((scope: string, database: DatabaseConnection) => Promise<Duration>);
+    /** How long segments stay: a duration, or the package's setting of days each scope reads. */
+    readonly retention: Duration | { readonly setting: RetentionSetting };
     /** Whether each event is recorded exactly once, or at most once outside the caller's work. */
     readonly delivery: Delivery;
     /** Whether segments are locked and chained for the retention, as audit trails are. */
@@ -2226,11 +2235,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         });
     }
 
-    /** Read a declared retention in milliseconds, per scope when it reads one. */
-    static #retention(retention: EventStorage["retention"]): number | EventRetention {
-        return typeof retention === "function"
-            ? async (scope, database) => Duration.milliseconds(await retention(scope, database))
-            : Duration.milliseconds(retention);
+    /** Write a declared retention as an event kind's: milliseconds, or the setting it reads. */
+    static #retention(retention: EventStorage["retention"]): EventRetention {
+        return "setting" in retention ? retention : Duration.milliseconds(retention);
     }
 
     /** List the key columns naming an event's person: a reference's columns, else a text field. */

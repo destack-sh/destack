@@ -10,6 +10,7 @@ export {
 export {
     defineObject,
     ObjectKey,
+    type RetentionSetting,
     ObjectType,
     type ObjectOf,
     type ObjectConfiguration,
