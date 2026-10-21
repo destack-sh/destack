@@ -21,6 +21,7 @@ import {
     ListPage,
 } from "../method/procedure.ts";
 import { field } from "../field/field.ts";
+import { ObjectError } from "../error/error.ts";
 import {
     ObjectPermissions,
     type ObjectDefinition,
@@ -69,6 +70,16 @@ export const GrantInput = schema.union([
     schema.object({ ...SubjectShape, relation: AccessName }),
     schema.object({ ...SubjectShape, role: schema.string().min(1) }),
 ]);
+
+/** Read a grant through exactly one declared relation or role, refusing both or neither. */
+export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
+    const grant = GrantInput.safeParse(input);
+    if (!grant.success) {
+        throw new ObjectError("INVALID_CALL", "a grant has exactly one relation or role");
+    }
+
+    return grant.data;
+}
 
 /** The fields inviting a subject to a relationship: the caller, a principal, or a contact. */
 export const InviteShape = {

@@ -25,3 +25,4 @@ export {
 } from "./presentable.ts";
 export { ObjectSearch, type SearchDefinition } from "./search.ts";
 export { Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
+export { readGrant } from "./shareable.ts";

@@ -21,7 +21,7 @@ import type { SharingGate } from "../trait/shareable.ts";
 
 import {
     GrantShape,
-    GrantInput,
+    readGrant,
     InviteShape,
     InviteInput,
     RelationshipShape,
@@ -79,7 +79,7 @@ export const ShareableMethod = {
 
                     return Relationship.grant(
                         {
-                            ...GrantInput.parse(call.input),
+                            ...readGrant(call.input),
                             object: call.reference(),
                         },
                         authorization,

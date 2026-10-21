@@ -1,14 +1,14 @@
 import * as access from "@destack/access";
 import { accessRelationship, Relationship } from "@destack/access";
-import { GrantInput, GrantShape, RelationshipShape } from "../trait/shareable.ts";
+import { GrantShape, readGrant, RelationshipShape } from "../trait/shareable.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
 import { type MethodBuilder } from "../method/record.ts";
+import { role } from "./role.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { CheckInput, CheckResult, ObjectPolicy } from "../object/access.ts";
-import { RelationshipDefinition } from "./declaration.ts";
 
 /** A relationship to create: its object, and its subject through one relation or role. */
 const RelationshipInput = schema.object({ object: ObjectReference, ...GrantShape });
@@ -24,7 +24,7 @@ export const relationship = defineObject(
         mapping: ObjectPolicy.readMapping(accessRelationship),
         represents: access.relationship,
         permissions: access.relationship.definition.permissions,
-        declarable: { schema: RelationshipDefinition },
+        declarable: { from: "create", references: { object: "object", role, subject: "subject" } },
     },
     (_method: MethodBuilder<typeof accessRelationship>) => ({
         check: defineMethod<{
@@ -80,7 +80,7 @@ export const relationship = defineObject(
 
                 return Relationship.grant(
                     {
-                        ...GrantInput.parse(granted),
+                        ...readGrant(granted),
                         object,
                     },
                     Execution.store(execution, context).authorization,

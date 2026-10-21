@@ -8,7 +8,6 @@ import { type MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
-import { RoleDefinition } from "./declaration.ts";
 import { type Select } from "@destack/db";
 
 /** A role upserted by name under a manager, granting exactly some permissions to one subject. */
@@ -29,7 +28,7 @@ export const role = defineObject(
         mapping: ObjectPolicy.readMapping(accessRole),
         represents: access.role,
         permissions: access.role.definition.permissions,
-        declarable: { schema: RoleDefinition },
+        declarable: { from: "create", key: "name" },
     },
     (method: MethodBuilder<typeof accessRole>) => ({
         create: Execution.handle(

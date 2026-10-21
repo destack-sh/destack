@@ -168,12 +168,7 @@ test.each(TEST_DIALECTS)(
         // observations leave the generation and the first transition time, deletion advances it
         expect([
             [created.id, created.generation, created.revision],
-            [
-                observed.generation,
-                observed.revision,
-                observed.address,
-                observed.conditions,
-            ],
+            [observed.generation, observed.revision, observed.address, observed.conditions],
             [requested.generation, requested.revision, requested.deletedAt],
             finalized,
         ]).toEqual([

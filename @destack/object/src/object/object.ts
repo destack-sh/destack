@@ -84,7 +84,9 @@ import {
     type DeclarableDefinition,
     type DeclarableMethodMap,
     type AdoptableMethodMap,
+    type DeclaredReference,
 } from "../trait/declarable.ts";
+import { StackObjectReference, StackReference, StackSubject } from "../stack/reference.ts";
 import {
     controlled,
     type ControlledDefinition,
@@ -561,6 +563,8 @@ export interface ObjectConfiguration {
     readonly table: Table;
     /** The declarations' value, for declarable types. */
     readonly declared: unknown;
+    /** How stacks declare the objects, absent for types no stack declares. */
+    readonly declarable: unknown;
     /** The permissions the type grants. */
     readonly permissions: string;
     /** The methods, by name. */
@@ -575,6 +579,8 @@ export interface ObjectConfiguration {
     readonly fields: Readonly<Record<string, Field>>;
     /** The parent type's identity, "self" for a tree, "any" for attachments, undefined for none. */
     readonly parent: string | undefined;
+    /** The reference field the objects are owned through, undefined for unowned objects. */
+    readonly owner: string | undefined;
     /** The identities of the attachment types the objects take, never for none. */
     readonly attachments: string;
 }
@@ -1585,19 +1591,74 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return declared.schema;
         }
 
-        // derive the declaration from the create input once
+        // derive the declaration from the create input once, without the key and the supplied fields no reference covers
         const { supplied } = this;
+        const { key, references = {} } = declared;
         const fields = InputSchema.fields(this.input("create")).shape;
         const derived =
             this.derived.declaration ??
             schema.object(
                 Object.fromEntries(
-                    Object.entries(fields).filter(([field]) => !supplied.includes(field)),
+                    Object.entries(fields)
+                        .filter(
+                            ([field]) =>
+                                (!supplied.includes(field) || references[field] !== undefined) &&
+                                field !== key,
+                        )
+                        .map(([field, written]) => {
+                            const reference = references[field];
+
+                            return reference === undefined
+                                ? [field, written]
+                                : [
+                                      ObjectType.declaredField(field),
+                                      ObjectType.#declaredReference(reference, written),
+                                  ];
+                        }),
                 ),
             );
         this.derived.declaration = derived;
 
         return derived;
+    }
+
+    /** Name a reference field as a declaration writes it, without `Id`: `tagId` as `tag`. */
+    static declaredField(field: string): string {
+        return field.length > 2 && field.endsWith("Id") ? field.slice(0, -2) : field;
+    }
+
+    /** Read a declared reference field's schema, optional for objects and optional fields. */
+    static #declaredReference(reference: DeclaredReference, written: schema.Schema): schema.Schema {
+        // write one type's records by name or identifier, any object as declared, and a subject by its forms
+        const declared =
+            reference === "object"
+                ? StackObjectReference
+                : reference === "subject"
+                  ? StackSubject
+                  : StackReference.of(reference.identity);
+        const isOptional = reference === "object" || schema.isOptional(written);
+
+        return isOptional ? declared.exactOptional() : declared;
+    }
+
+    /** The create fields a declaration refers to other records by, empty for schema types. */
+    get declaredReferences(): Readonly<Record<string, DeclaredReference>> {
+        const options = this.definition.declarable;
+
+        return options !== undefined && "from" in options ? (options.references ?? {}) : {};
+    }
+
+    /** The parent whose declarations contain the type's, absent for types declared flat. */
+    get declaredParent(): ObjectType | undefined {
+        // declare inline under a parent no reference resolves
+        const options = this.definition.declarable;
+        const parent = this.parent?.object;
+        const isInline =
+            options !== undefined &&
+            "from" in options &&
+            options.references?.["parentId"] === undefined;
+
+        return isInline && parent !== "any" ? parent : undefined;
     }
 
     /** The column of the reference the objects are owned through, absent for unowned objects. */
@@ -2555,10 +2616,12 @@ export type ForeignType<Definition extends ObjectShape, Methods> = ObjectType<{
     readonly permissions: DeclaredPermissions<Definition>;
     readonly scope: ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
     readonly parent: undefined;
+    readonly owner: Option<Definition, "owner">;
     readonly attachments: never;
     readonly storage: "durable";
     readonly events: undefined;
     readonly declared: StackDeclarationOf<Definition>;
+    readonly declarable: TraitOf<Definition, "declarable">;
 }>;
 
 /** Read a definition's option, or a default where it sets none. */
@@ -2754,12 +2817,14 @@ export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
               ? Parent
               : undefined
         : undefined;
+    readonly owner: Option<Definition, "owner">;
     readonly attachments: IdentityOf<Option<Definition, "attachments", []>[number]["object"]>;
     readonly storage: StorageKind<Option<Definition, "storage", "durable">>;
     readonly events: StorageKind<Option<Definition, "storage", "durable">> extends "events"
         ? EventKind<EventShapeOf<DefinedTable<Definition>>, EventDataOf<DefinedTable<Definition>>>
         : undefined;
     readonly declared: StackDeclarationOf<DefinedTraits<Definition>>;
+    readonly declarable: TraitOf<DefinedTraits<Definition>, "declarable">;
 }>;
 
 /** The traits as a derived table reads them, a nested parent by its identity and its key. */
@@ -2775,7 +2840,7 @@ export type TableTraitsOf<Traits> = {
 };
 
 /** The shape of one stack declaration of a declarable object. */
-export type StackDeclarationOf<Traits> =
+type StackDeclarationOf<Traits> =
     TraitOf<Traits, "declarable"> extends DeclarableDefinition<infer Declared> ? Declared : never;
 
 /** The permissions traits derive for their methods, granted only by roles unless declared. */

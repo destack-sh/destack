@@ -44,6 +44,21 @@ test.each(TEST_DIALECTS)(
         });
         expect((await bob.note.list({ spaceId })).items).toEqual([]);
 
+        // refuse a grant through both a relation and a role
+        await expect(
+            alice.notebook.grant({
+                spaceId,
+                id: research.id,
+                requestId: RequestId.create(Date.now()),
+                relation: "editor",
+                role: "reader",
+                subject: principal.user.reference("universe", users.bob),
+            }),
+        ).rejects.toMatchObject({
+            code: "BAD_REQUEST",
+            message: "a grant has exactly one relation or role",
+        });
+
         // share the notebook: its notes follow, loose notes stay private
         await alice.notebook.grant({
             spaceId,

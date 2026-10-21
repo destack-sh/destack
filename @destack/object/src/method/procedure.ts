@@ -326,6 +326,17 @@ export type MethodInput<Object extends ObjectType, Name extends MethodName<Objec
               | ScopeField<Object>
           >;
 
+/** A method's input as its handler reads it, without scope and request identifiers, per variant. */
+export type ParsedInput<Object extends ObjectType, Name extends MethodName<Object>> =
+    string extends MethodName<Object>
+        ? Readonly<Record<string, unknown>>
+        : OmitEach<
+              schema.Infer<ProcedureOf<Object, Name>["~orpc"]["inputSchema"]>,
+              | "requestId"
+              | (Object["storage"] extends "ephemeral" ? "writerId" : never)
+              | ScopeField<Object>
+          >;
+
 /** A call's input: the method's input with its scope, the running context's if absent. */
 export type CallInput<Object extends ObjectType, Name extends MethodName<Object>> =
     string extends MethodName<Object>

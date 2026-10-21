@@ -1,6 +1,6 @@
 import { Address, type Plan, type Step } from "@destack/resource";
-import { Scope, type Subject, type Call } from "@destack/sync";
-import { AccessContext, Authorizer, Manager, type Policy } from "@destack/access";
+import { type ObjectReference, Scope, type Subject, type Call } from "@destack/sync";
+import { AccessContext, anyone, Authorizer, Manager, type Policy } from "@destack/access";
 import {
     type ColumnValue,
     type DatabaseConnection,
@@ -28,12 +28,22 @@ import { ObjectError } from "../error/error.ts";
 import { type ObjectOf, ObjectType } from "../object/object.ts";
 import { ObjectDescription } from "../object/description.ts";
 import { declarable, managedColumns } from "../trait/declarable.ts";
+import {
+    type DeclarableOf,
+    type StackScope,
+    type StackSuppliedOf,
+    StackObjectReference,
+    StackReference,
+    StackSubject,
+} from "../stack/reference.ts";
+import type { DeclarationName } from "@destack/package";
 import type { RecordBuilderMap } from "../trait/record.ts";
 import type { FieldColumn } from "../field/field.ts";
 import { type ClaimHome, Reservation } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { type ResultsOf } from "../method/context.ts";
+import type { MethodName, OmitEach, ParsedInput } from "../method/procedure.ts";
 import { Caller } from "@destack/access";
 import { CallError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
@@ -105,12 +115,17 @@ export interface DeclarationHandler<
         | "retained";
 }
 
-/** The declaration type an object type accepts from stacks. */
-export type DeclarationOf<Object extends ObjectType> = [
-    NonNullable<Object["lifecycle"]["declarationSchema"]>,
-] extends [never]
-    ? never
-    : schema.Infer<NonNullable<Object["lifecycle"]["declarationSchema"]>>;
+/** The declaration a type accepts from stacks: its resolved create input, or its schema's. */
+export type DeclarationOf<Object extends ObjectType> =
+    DeclarableOf<Object> extends {
+        readonly from: "create";
+    }
+        ? "create" extends MethodName<Object>
+            ? OmitEach<ParsedInput<Object, "create">, StackSuppliedOf<Object>>
+            : never
+        : [NonNullable<Object["lifecycle"]["declarationSchema"]>] extends [never]
+          ? never
+          : schema.Infer<NonNullable<Object["lifecycle"]["declarationSchema"]>>;
 
 /** What a machine applies a stack with. */
 export interface ApplyOptions {
@@ -377,19 +392,6 @@ export class Stack {
         return this.#select(name).object;
     }
 
-    /** Find the declared object type of an identifier, refusing unmatched identifiers. */
-    findType(id: string): ObjectType {
-        const target = this.#ordered.find((entry) => entry.object.identifies(id));
-        if (!target) {
-            throw new ObjectError(
-                "UNSUPPORTED_DECLARATION",
-                `this server cannot apply a type of ${id}`,
-            );
-        }
-
-        return target.object;
-    }
-
     /** Find the identifier of the record the manager declared under a name. */
     async find(object: ObjectType | string, name: string): Promise<string | undefined> {
         // match by manager and name
@@ -414,16 +416,154 @@ export class Stack {
         // wait for a record's replica to arrive, and refuse an unknown record
         const id = await this.find(object, name);
         const target = this.#select(object).object;
-        if (
-            id === undefined &&
-            (await this.#options.store.isReplica(target, this.transaction.view(), this.scope))
-        ) {
-            this.wait(`${target.name} ${name} waits for its replica`);
-        } else if (id === undefined) {
-            throw new ObjectError("INVALID_DECLARATION", `unknown ${target.name}: ${name}`);
+
+        return id ?? (await this.#missing(target, name, this.scope));
+    }
+
+    /** Resolve a declaration into its type's create input: its key field and its references. */
+    async resolveInput(object: ObjectType, name: string, declared: unknown): Promise<unknown> {
+        // keep a declaration of a type with its own schema as it is
+        const options = object.definition.declarable;
+        if (options === undefined || !("from" in options)) {
+            return declared;
         }
 
-        return id;
+        // take the written fields but the references, and fill the key field with the declaration's own name
+        const written = DECLARED.parse(declared);
+        const references = Object.entries(object.declaredReferences);
+        const referenced = new Set(references.map(([field]) => ObjectType.declaredField(field)));
+        const input: Record<string, unknown> = Object.fromEntries(
+            Object.entries(written).filter(([field]) => !referenced.has(field)),
+        );
+        if (options.key !== undefined) {
+            input[options.key] = name.slice(name.lastIndexOf("/") + 1);
+        }
+
+        // resolve each reference into its create field, an absent object reference to the stack's scope
+        for (const [field, reference] of references) {
+            const value = written[ObjectType.declaredField(field)];
+            // resolve an object, the stack's scope when absent
+            if (reference === "object") {
+                input[field] = await this.resolveObject(
+                    value === undefined ? undefined : StackObjectReference.parse(value),
+                );
+            }
+            // resolve a present subject
+            else if (reference === "subject" && value !== undefined) {
+                input[field] = await this.resolveSubject(StackSubject.parse(value));
+            }
+            // resolve a present reference to one type's record
+            else if (reference !== "subject" && value !== undefined) {
+                const declaredReference = StackReference.of(reference.identity).parse(value);
+                input[field] = await this.resolveRecord(reference, declaredReference);
+            }
+        }
+
+        return input;
+    }
+
+    /** Resolve a declared reference to one type's record, by declared name or identifier. */
+    async resolveRecord(
+        type: ObjectType,
+        reference: DeclarationName | { readonly id: string },
+    ): Promise<string> {
+        return typeof reference === "string"
+            ? await this.require(type, reference)
+            : await this.#requireIn(type, reference.id, this.scope);
+    }
+
+    /** Resolve a declared object: declared, existing, or the stack's scope when absent. */
+    async resolveObject(reference: StackObjectReference | undefined): Promise<ObjectReference> {
+        // take the stack's scope
+        if (reference === undefined) {
+            return await Scope.object(this.transaction.view(), this.scope);
+        }
+        // take an existing record or principal by its identifier
+        else if ("id" in reference) {
+            return await this.#identify(reference.id, undefined);
+        }
+        // take a record the stack declares
+        else {
+            const type = this.object(reference.kind);
+
+            return type.reference(this.scope, await this.require(type, reference.name));
+        }
+    }
+
+    /** Resolve a declared subject to the principal, subject set or wildcard it refers to. */
+    async resolveSubject(declared: StackSubject): Promise<Subject> {
+        // relate every caller through the wildcard
+        if ("anyone" in declared) {
+            return anyone.reference("*", "*");
+        }
+
+        // relate a record or principal by identifier, through a relation when given
+        const relation = declared.relation === undefined ? {} : { relation: declared.relation };
+        if ("id" in declared) {
+            return { ...(await this.#identify(declared.id, declared.scope)), ...relation };
+        }
+        // relate a record the stack declares
+        else if ("kind" in declared) {
+            return { ...(await this.resolveObject(declared)), ...relation };
+        }
+        // relate the stack's scope or the one enclosing it
+        else {
+            const scope = declared.scope === "enclosing" ? await this.enclosing() : this.scope;
+
+            return { ...(await Scope.object(this.transaction.view(), scope)), ...relation };
+        }
+    }
+
+    /** Resolve an identifier to a global principal, or to a record in a scope of the stack. */
+    async #identify(
+        id: Identifier<string>,
+        scope: StackScope | undefined,
+    ): Promise<ObjectReference> {
+        // read the identifier's policy, and the applied type the stack reads its records of
+        const policy = this.authorizer.policyOf(id);
+        const isGlobal = policy.definition.isGlobal === true;
+        const applied = this.#ordered.find((entry) => entry.object.identifies(id))?.object;
+        const within = scope === "enclosing" ? await this.enclosing() : this.scope;
+
+        // refuse a scope for a global principal
+        if (isGlobal && scope !== undefined) {
+            throw new ObjectError(
+                "INVALID_DECLARATION",
+                `${policy.name} ${id} is global, outside any scope`,
+            );
+        }
+        // take a global principal in the universe
+        else if (isGlobal) {
+            return policy.reference(Scope.universe.id, id);
+        }
+        // require a record of an applied type in its scope
+        else if (applied !== undefined) {
+            return policy.reference(within, await this.#requireIn(applied, id, within));
+        }
+        // refer to a record of another known type, which access checks as relationships use it
+        else {
+            return policy.reference(within, id);
+        }
+    }
+
+    /** Require a record of a type by identifier in a scope. */
+    async #requireIn(type: ObjectType, id: string, scope: string): Promise<string> {
+        const [row] = await this.transaction
+            .view()
+            .read(type.table)
+            .findMany({ where: { id, scope } });
+
+        return row === undefined ? await this.#missing(type, id, scope) : id;
+    }
+
+    /** Wait for a missing record's replica to arrive in a scope, or refuse the declaration. */
+    async #missing(type: ObjectType, key: string, scope: string): Promise<never> {
+        // wait for a replica's record, and refuse a record its home lacks
+        if (await this.#options.store.isReplica(type, this.transaction.view(), scope)) {
+            return this.wait(`${type.name} ${key} waits for its replica`);
+        } else {
+            throw new ObjectError("INVALID_DECLARATION", `unknown ${type.name}: ${key}`);
+        }
     }
 
     /** Stop applying until a dependency is ready, reporting why. */
@@ -469,11 +609,12 @@ export class Stack {
                 for (const [name, declared] of Object.entries(
                     await Stack.#collect(declaration, this.document, this.#ordered),
                 )) {
+                    const created = await this.resolveInput(declaration.object, name, declared);
                     desired.set(
                         name,
                         declaration.resolve
-                            ? await declaration.resolve(name, declared, this)
-                            : declared,
+                            ? await declaration.resolve(name, created, this)
+                            : created,
                     );
                 }
                 resolved.set(declaration, desired);
@@ -647,15 +788,17 @@ export class Stack {
         }
 
         // take the parent declared under the name's first segments
-        const parent = object.parent?.object;
+        const parent = object.declaredParent;
         const parentId =
-            parent === undefined || parent === "any"
+            parent === undefined
                 ? {}
                 : { parentId: await this.require(parent, Stack.parent(name)) };
 
-        // take the scope enclosing the stack's scope as the owner
+        // take the scope enclosing the stack's scope as the owner, unless a reference resolves it
         const { ownerColumn } = object;
-        const owner = ownerColumn === undefined ? {} : { [ownerColumn]: await this.enclosing() };
+        const isOwned =
+            ownerColumn !== undefined && object.declaredReferences[ownerColumn] === undefined;
+        const owner = isOwned ? { [ownerColumn]: await this.enclosing() } : {};
 
         return { ...parentId, ...owner };
     }
@@ -859,29 +1002,23 @@ export class Stack {
             return declaration.collect(document);
         }
 
-        // read a type declared from its create input with a parent under the parent's declarations
+        // read a type declared under its parent's declarations there, refusing a parent the stack lacks
         const { object } = declaration;
-        const above = object.parent?.object;
-        const parent = above === "any" ? undefined : above;
-        const options = object.definition.declarable;
-        const isInline = parent !== undefined && options !== undefined && "from" in options;
-        if (isInline && !declared.some((entry) => entry.object.same(parent))) {
+        const parent = object.declaredParent;
+        if (parent !== undefined && !declared.some((entry) => entry.object.same(parent))) {
             throw new TypeError(
                 `${object.plural} are declared under ${parent.plural}, but this stack applies no declarations of them`,
             );
         }
-        const entries = isInline
-            ? Stack.nested(object, parent, document)
-            : Object.entries(DECLARED.parse(document[object.plural] ?? {}));
+        const entries =
+            parent === undefined
+                ? Object.entries(DECLARED.parse(document[object.plural] ?? {}))
+                : Stack.nested(object, parent, document);
 
-        // parse each with the type's declaration schema, leaving out its children's collections
+        // parse each with the type's declaration schema, leaving out its inline children's collections
         const declarationSchema = object.lifecycle.declarationSchema;
         const children = declared
-            .filter((entry) => {
-                const nesting = entry.object.parent?.object;
-
-                return nesting !== undefined && nesting !== "any" && nesting.same(object);
-            })
+            .filter((entry) => entry.object.declaredParent?.same(object) === true)
             .map((entry) => entry.object.plural);
 
         return Object.fromEntries(
@@ -908,15 +1045,15 @@ export class Stack {
         // read explicit dependencies
         const explicit = Stack.#explicitDependencies(declarations);
 
-        // expand "every" to declarations independent of this one
+        // expand "every" to the declarations of lower tiers independent of this one
         const dependencies = new Map(
             declarations.map((entry) => [
                 entry,
-                entry.after === "every"
+                Stack.#tier(entry) > 0
                     ? declarations.filter(
                           (other) =>
                               other !== entry &&
-                              other.after !== "every" &&
+                              Stack.#tier(other) < Stack.#tier(entry) &&
                               !Stack.#dependsOn(explicit, other, entry, new Set()),
                       )
                     : found(explicit, entry),
@@ -939,8 +1076,8 @@ export class Stack {
     ): Map<TypeDeclaration, readonly TypeDeclaration[]> {
         return new Map(
             declarations.map((entry) => {
-                const dependencies =
-                    entry.after === undefined || entry.after === "every" ? [] : entry.after;
+                const after = Stack.#after(entry);
+                const dependencies = after === "every" ? [] : after;
 
                 return [
                     entry,
@@ -950,6 +1087,34 @@ export class Stack {
                 ] as const;
             }),
         );
+    }
+
+    /** Read what a declaration runs after: its handler's, parent's and referenced types, or all. */
+    static #after(declaration: TypeDeclaration): readonly ObjectType[] | "every" {
+        // follow every type for an object or subject reference
+        const { object, after = [] } = declaration;
+        const references = Object.values(object.declaredReferences);
+        if (after === "every" || references.some((reference) => typeof reference === "string")) {
+            return "every";
+        }
+
+        // follow the handler's types, the inline parent and each referenced type
+        const parent = object.declaredParent;
+        const referenced = references.filter((reference) => typeof reference !== "string");
+
+        return [...after, ...(parent === undefined ? [] : [parent]), ...referenced];
+    }
+
+    /** Rank a declaration: after its types, after all types, or after those too for any record. */
+    static #tier(declaration: TypeDeclaration): 0 | 1 | 2 {
+        const references = Object.values(declaration.object.declaredReferences);
+        if (references.some((reference) => typeof reference === "string")) {
+            return 2;
+        } else if (declaration.after === "every") {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
     /** Decide whether one declaration depends on another through explicit dependencies. */

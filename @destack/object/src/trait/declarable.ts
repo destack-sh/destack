@@ -40,6 +40,9 @@ export interface ManagedColumnMap {
     readonly detachedAt: Column;
 }
 
+/** What a declared reference refers to: one type's records, any object, or a subject. */
+export type DeclaredReference = ObjectType | "object" | "subject";
+
 /** The options of declarable records: their own declaration schema, or their create input. */
 export type DeclarableDefinition<Declared = unknown> =
     | {
@@ -49,6 +52,10 @@ export type DeclarableDefinition<Declared = unknown> =
     | {
           /** Declare the records as their create method takes them. */
           readonly from: "create";
+          /** The create input field a declaration's name fills, such as a role's name. */
+          readonly key?: string;
+          /** The create input fields referring to other records, by what they refer to. */
+          readonly references?: Readonly<Record<string, DeclaredReference>>;
       };
 
 /** The methods declared records take: applying them where their rows live. */
@@ -82,6 +89,21 @@ export const declarable: Trait<DeclarableDefinition> & {
         }),
     policy: (_options, _object, permissions) => derivePermissions(permissions, ["declare"]),
     methods: () => ({ apply }),
+    validate: (options, object) => {
+        // require a parent reference to refer to the type's parent
+        const referenced = "from" in options ? options.references?.["parentId"] : undefined;
+        const parent = object.parent?.object;
+        const isParent =
+            typeof referenced !== "string" &&
+            parent !== undefined &&
+            parent !== "any" &&
+            referenced?.same(parent) === true;
+        if (referenced !== undefined && !isParent) {
+            throw new TypeError(
+                `object ${object.name} refers by parentId to a type other than its parent`,
+            );
+        }
+    },
     isManaging(row: Row | undefined): boolean {
         return (
             row?.["managerInstallationId"] !== undefined &&

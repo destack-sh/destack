@@ -130,6 +130,24 @@ defineObject({
 }).methods(build);
 ```
 
+## Declarations
+
+A declarable type takes stack declarations as its create input: the key fills a field from the declaration's name, and references take declared names.
+
+```ts
+const badge = defineObject({
+    ...definition,
+    declarable: { from: "create", key: "label", references: { tagId: tag, holder: "subject" } },
+});
+
+const badges: Record<string, StackInputOf<typeof badge>> = {
+    open: { tag: "red", holder: { anyone: true } }, // a declared tag, every caller
+    personal: { tag: { id: tagId }, holder: { id: userId } }, // an existing tag, a global principal
+    staff: { tag: "red", holder: { id: groupId, scope: "enclosing", relation: "member" } },
+    owners: { tag: "red", holder: { scope: "enclosing", relation: "owner" } },
+};
+```
+
 ## Controllers
 
 A type's `controller` works through its pending rows, and says when to look again.
