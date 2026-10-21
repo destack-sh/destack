@@ -1,5 +1,5 @@
 import { and, defineTable, desc, eq, integer, text, type DatabaseConnection } from "@destack/db";
-import { Ciphertext, type Keyring } from "@destack/identity";
+import { Ciphertext, type Keyring, type Label } from "@destack/identity";
 import { JsonValue, present, schema } from "@destack/schema";
 import { v7 } from "uuid";
 import type { EventKind } from "../kind/kind.ts";
@@ -221,14 +221,14 @@ function importKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
     ]);
 }
 
-/** Bind a person's key to the person and its identity. */
-function encryptionContext(subject: string, id: string): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(`personal-key ${subject} ${id}`);
+/** Label a person's key by the person and its identifier. */
+function encryptionContext(subject: string, id: string): Label {
+    return { label: "@destack/event/personal-key", context: `${subject} ${id}` };
 }
 
-/** Bind a sealed value to its kind and person. */
-function valueContext(kind: string, subject: string): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(`personal-value ${kind} ${subject}`);
+/** Label a sealed value by its kind and person. */
+function valueContext(kind: string, subject: string): Label {
+    return { label: "@destack/event/personal-value", context: `${kind} ${subject}` };
 }
 
 /** Require the personal keys a kind with personal fields needs. */
