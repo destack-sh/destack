@@ -19,6 +19,16 @@ await store.mutate(caller, {
 });
 ```
 
+## Workflows and controllers
+
+A workflow runs a process that someone starts, and a controller keeps objects in the state their fields describe.
+
+```ts
+defineWorkflow({ name: "publish", input }); // ask for approval, wait a day, then publish
+reminder.implement({ controller: { pending: { sentAt: { isNull: true } }, reconcile } }); // send when due
+// both change state only through the methods of the type that keeps it
+```
+
 ## Steps
 
 A step answers its recorded output on replay, so a run makes each call once, however often it advances; anything nondeterministic between steps goes through `step.run`, as the lint and the replay refuse it elsewhere.
@@ -57,20 +67,14 @@ defineWorkflow({
 });
 ```
 
-## Scheduled calls
+## Tasks
 
-`ScheduledCall` makes one call once, now or at a time, as the run's actor, as Convex's `scheduler.runAt` does, through a workflow of the package's own.
+`Task` makes one call once, now or at a time, as the run's actor, as Cloud Tasks and Convex's `scheduler.runAt` do, through a task workflow of the package's own.
 
 ```ts
-const later = defineWorkflow({
-    name: "call",
-    input: ScheduledCall.input,
-    output: ScheduledCall.output,
-});
-const served = later.implement(ScheduledCall.run);
-await context.mutate(context.self, [
-    ScheduledCall.send(later, reminder.call("send", target), { at }),
-]);
+const task = defineWorkflow({ name: "task", input: Task.input, output: Task.output });
+const served = task.implement((step, input) => Task.run(step, input));
+await context.mutate(context.self, [task.start({ call: reminder.call("send", target) }, { at, actor })]);
 ```
 
 ## Triggers

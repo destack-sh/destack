@@ -1,26 +1,22 @@
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { ScheduledCall, defineWorkflow } from "../src/index.ts";
+import { Task, defineWorkflow } from "../src/index.ts";
 import { alice, note, openServed, START } from "./fixture.ts";
 
-/** The notes package's scheduled calls. */
-const calls = defineWorkflow({
-    name: "call",
-    input: ScheduledCall.input,
-    output: ScheduledCall.output,
-});
+/** The notes package's tasks. */
+const task = defineWorkflow({ name: "task", input: Task.input, output: Task.output });
 
-test("make a scheduled call once at its time as its actor, answering the call's result", async () => {
-    // send a note's creation as alice to run in a minute
+test("make a task's call once at its time as its actor, answering the call's result", async () => {
+    // start a note's creation as alice to run in a minute
     const fixture = await openServed(
-        calls,
-        calls.implement((step, input) => ScheduledCall.run(step, input)),
+        task,
+        task.implement((step, input) => Task.run(step, input)),
     );
     await fixture.start((spaceId) =>
-        ScheduledCall.send(calls, note.call("create", { spaceId, title: "later" }), {
-            at: START + 60_000,
-            actor: alice,
-        }),
+        task.start(
+            { call: note.call("create", { spaceId, title: "later" }) },
+            { at: START + 60_000, actor: alice },
+        ),
     );
     const waiting = await fixture.until(() => true);
 
