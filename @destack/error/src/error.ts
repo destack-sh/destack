@@ -1,4 +1,4 @@
-import type { JsonValue } from "@destack/schema";
+import type { Failure } from "./failure.ts";
 
 /** The HTTP status of each call error code, from RFC 9110, 6585 and 8470 or from Destack. */
 export const CALL_ERROR_STATUSES = {
@@ -34,20 +34,29 @@ export const CALL_ERROR_STATUSES = {
 /** A call error code. */
 export type CallErrorCode = keyof typeof CALL_ERROR_STATUSES;
 
-/** The call error a caller receives for a failure, as plain values. */
-export interface CallErrorReport {
-    /** The call error code. */
-    readonly code: CallErrorCode;
-    /** The readable message. */
-    readonly message: string;
-    /** The structured details. */
-    readonly data?: JsonValue;
-}
+/** Recognise call error codes and read them from statuses. */
+export const CallErrorCode = {
+    /** Report whether a code is a call error code. */
+    is(code: string): code is CallErrorCode {
+        return Object.hasOwn(CALL_ERROR_STATUSES, code);
+    },
+
+    /** Read a status's HTTP reason code, else its class's: a bad request or an internal error. */
+    of(status: number): CallErrorCode {
+        // take the first code of the status, the HTTP reason name
+        const code = Object.entries(CALL_ERROR_STATUSES).find((entry) => entry[1] === status)?.[0];
+        if (code !== undefined && CallErrorCode.is(code)) {
+            return code;
+        }
+
+        return status >= 400 && status < 500 ? "BAD_REQUEST" : "INTERNAL_SERVER_ERROR";
+    },
+};
 
 /** A package's failure that knows the call error its caller receives. */
 export interface DomainError extends Error {
     /** Convert the failure to the call error a caller receives. */
-    readonly toCallError: () => CallErrorReport;
+    readonly toCallError: () => Failure;
 }
 
 /** Recognise a package's failures that know the call error their caller receives. */
