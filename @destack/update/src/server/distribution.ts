@@ -1,10 +1,10 @@
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
-import type { Controller } from "@destack/runtime/control";
-import { CallError } from "@destack/runtime/error";
+import type { Controller } from "@destack/db";
+import { CallError } from "@destack/object";
 import type { Distribution } from "../distribution/index.ts";
 import { distribution } from "../object/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 /** How often the distribution stages the feed's latest release: daily, Sparkle's default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
