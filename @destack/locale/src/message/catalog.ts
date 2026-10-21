@@ -1,5 +1,5 @@
 import { PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
 
@@ -54,7 +54,7 @@ export const Catalog = Object.assign(catalogSchema, {
 
     /** Read the catalogs a build ships: its own and those of its unpublished dependencies. */
     async read(reader: BuildReader): Promise<Catalog[]> {
-        const owner = reader.manifest.package.id;
+        const owner = PackageManifest.package(reader.manifest).id;
         const files = (await reader.files()).filter((file) => Catalog.isPath(file.path));
 
         return Promise.all(
