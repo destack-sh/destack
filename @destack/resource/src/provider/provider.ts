@@ -139,8 +139,10 @@ export interface ContentStore {
         digests: readonly Digest[],
         source: Pick<ContentStore, "read">,
     ) => Promise<void>;
-    /** Delete the blobs outside a retained set last used before a moment. */
-    readonly sweep: (retained: ReadonlySet<Digest>, before: Date) => Promise<void>;
+    /** List the kept blobs' digests. */
+    readonly digests: () => AsyncIterable<Digest>;
+    /** Delete a blob. */
+    readonly delete: (digest: Digest) => Promise<void>;
 }
 
 /** Copy a resource's content at a point in time into a content-addressed store. */
@@ -149,7 +151,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
     snapshot(
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
-        store: ContentStore,
+        store: Pick<ContentStore, "read" | "write" | "fetch">,
         recipient?: Recipient,
     ): Promise<Digest>;
     /** Restore the copy a digest identifies into a provisioned resource. */
@@ -157,7 +159,7 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
         record: ResourceRecord<Kind>,
         desired: readonly KindState<Kind>[],
         digest: Digest,
-        store: ContentStore,
+        store: Pick<ContentStore, "read" | "write" | "fetch">,
         recipient?: Recipient,
         base?: Digest,
     ): Promise<void>;

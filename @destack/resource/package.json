@@ -9,7 +9,8 @@
         ".": "./src/index.ts",
         "./context": "./src/context/index.ts",
         "./error": "./src/error/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./inspect": "./src/inspect/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
