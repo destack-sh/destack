@@ -8,6 +8,7 @@ import { Tally } from "../home/participle/tally";
 import { firstPicks } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
 import { commandEvents } from "../layout/command";
+import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
@@ -146,11 +147,13 @@ const styles = style.create({
     figure: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
-    // the entry, the label, the six rows every plan card spans, the last taking the rest, then the stack
+    // the entry, the label, the plan rows and the stack, one screen tall or more when the cards need it
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(5, auto) minmax(0, 1fr) auto",
+            default: "auto auto repeat(5, auto) minmax(auto, 1fr) auto",
             [screen.belowDesktop]: "auto",
         },
+        height: "auto",
+        minHeight: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 });
