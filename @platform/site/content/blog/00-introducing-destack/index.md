@@ -6,8 +6,8 @@ author: "Florian"
 ---
 
 > [!ABSTRACT]
-> Destack is a softare engine for building and deploying application software - like Unreal, but for general purpose software.
-> Think Github + NPM + Convex + Vercel + Sentry in a box, with all the boring integration already done: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry, and infra.
+> Destack is a software engine for building and deploying application software - like Unreal Engine, but for general purpose software.
+> Think GitHub + NPM + Convex + Vercel + Sentry, with all the boilerplate complete: auth, migrations, multiplayer, permissions, workflows, telemetry, and infra.
 >
 > Integrate your agents into programmable first-party apps, and then remix your own custom apps on one trusted foundation.
 > Destack is built around one hackable "platform core" with open formats and standards, so integration and migration are just one prompt.

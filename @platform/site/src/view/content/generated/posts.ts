@@ -54,7 +54,7 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/7e835ad85e08d9bb2b9fd84c185fa2ba2d80e229fc8c791574841d5f25813980.json",
+            "/_content/tree/036238cd7c5057c41036dcabd705302ba5d26aa6d976b6ac020d403982fb9112.json",
         cover: {
             image: {
                 src: "/_content/assets/9f1ff7f1d24e2f62.jpg",
@@ -194,7 +194,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2751,
+        tokens: 2746,
     },
 ] as const satisfies readonly Post[];
 
