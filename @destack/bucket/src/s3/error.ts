@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 import { BucketError, type BucketErrorCode } from "../error/index.ts";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
@@ -113,7 +113,7 @@ export class S3Error extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives, by the status of its code. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
     }
 

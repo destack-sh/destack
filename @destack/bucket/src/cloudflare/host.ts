@@ -139,6 +139,12 @@ export class R2BucketHost extends CatalogueBucketHost {
                 database = await this.#catalogues.connect(bucketId, migrated);
             },
             close: () => database.close(),
+            // delete blobs at once, as the Durable Object is the catalogue's only instance
+            reclaim: async (deletion) => {
+                await deletion();
+
+                return true;
+            },
         });
 
         // refuse writes while the fence file remains from a transfer

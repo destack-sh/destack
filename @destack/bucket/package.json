@@ -17,16 +17,15 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@destack/identity": "workspace:*",
-        "@destack/fs": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/package": "workspace:*",
-        "@destack/runtime": "workspace:*",
-        "uuid": "14.0.2",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/environment": "workspace:*"
+        "@destack/fs": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "uuid": "14.0.2"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

@@ -48,6 +48,8 @@ export interface Catalogue extends DatabaseHandle {
     readonly blobs: BlobStore;
     /** The clock uploads expire by, retention ends by and files are stamped with. */
     readonly clock: Clock;
+    /** Delete blobs while no other process has the catalogue open, answering whether it ran. */
+    readonly reclaim: (deletion: () => Promise<void>) => Promise<boolean>;
 }
 
 /** A bucket's catalogue and the blobs its files keep. */
@@ -178,19 +180,21 @@ export class CatalogueStorage implements AsyncDisposable {
             return;
         }
 
-        // keep every blob an active reader retains
+        // keep every blob an active reader retains, and every blob while another process may write or read one
         const released = [...this.retired].filter((digest) => !this.#readers.has(digest));
-        for (let start = 0; start < released.length; start += REFERENCE_BATCH_SIZE) {
-            // keep blobs a copy, another file or a completed upload still shares, which retire again with their last reference
-            const batch = released.slice(start, start + REFERENCE_BATCH_SIZE);
-            const referenced = await this.#referenced(batch);
-            for (const digest of batch) {
-                if (!referenced.has(digest)) {
-                    await this.blobs.delete(digest);
+        await this.#catalogue.reclaim(async () => {
+            for (let start = 0; start < released.length; start += REFERENCE_BATCH_SIZE) {
+                // keep blobs a copy, another file or a completed upload still shares, which retire again with their last reference
+                const batch = released.slice(start, start + REFERENCE_BATCH_SIZE);
+                const referenced = await this.#referenced(batch);
+                for (const digest of batch) {
+                    if (!referenced.has(digest)) {
+                        await this.blobs.delete(digest);
+                    }
+                    this.retired.delete(digest);
                 }
-                this.retired.delete(digest);
             }
-        }
+        });
     }
 
     /** Retain a blob until its reader finishes. */
@@ -279,8 +283,19 @@ export class CatalogueStorage implements AsyncDisposable {
         });
     }
 
-    /** Delete what interrupted writes left. */
+    /** Delete what interrupted writes left, while no other process has the catalogue open. */
     async sweep(): Promise<boolean> {
+        // sweep only while no other process may write or read a blob
+        let isSwept = false;
+        const isAlone = await this.#catalogue.reclaim(async () => {
+            isSwept = await this.#sweepAlone();
+        });
+
+        return isAlone && isSwept;
+    }
+
+    /** Delete what interrupted writes left, as the catalogue's only process. */
+    async #sweepAlone(): Promise<boolean> {
         // clean the catalogue and the store while no writer runs
         const isIdle = await this.exclusive(async () => {
             // reclaim expired uploads, and stop while a writer runs

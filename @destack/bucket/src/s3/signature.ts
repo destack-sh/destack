@@ -6,7 +6,7 @@ import {
     UNSIGNED_PAYLOAD,
 } from "@destack/identity/aws";
 import { nth, present } from "@destack/schema";
-import { copyRequest } from "@destack/runtime/request";
+import { copyRequest } from "@destack/environment";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Error } from "./error.ts";
 import { decodeUri, encodeUri, readQuery } from "./uri.ts";

@@ -1,8 +1,7 @@
 import type { Clock } from "@destack/environment";
 import type { Connector } from "@destack/resource";
-import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { copyRequest } from "@destack/runtime/request";
+import { Failure } from "@destack/error";
+import { copyRequest } from "@destack/environment";
 import {
     type Bucket,
     type BucketBody,
@@ -42,11 +41,6 @@ export const S3_PROVIDER = "s3";
 
 /** The headers a write answers with, which describe the stored file beside what the client sent. */
 const ANSWERED_HEADERS = ["etag", "x-amz-version-id", "last-modified"] as const;
-
-/** A refusal a host answers instead of an S3 error document. */
-const Refusal = schema
-    .object({ code: schema.string(), status: schema.number().int(), message: schema.string() })
-    .strip();
 
 /** One S3 request on the bucket. */
 interface S3Call {
@@ -397,9 +391,9 @@ async function refusal(answer: Response): Promise<Error> {
     }
 
     // read the refusal of the host in front of the bucket
-    const refused = Refusal.parse(JSON.parse(text));
+    const refused = Failure.strip().parse(JSON.parse(text));
 
-    return new CallError(refused.code, { status: refused.status, message: refused.message });
+    return Failure.error(refused);
 }
 
 /** Read the storage failure of an S3 error element, else the S3 error itself. */

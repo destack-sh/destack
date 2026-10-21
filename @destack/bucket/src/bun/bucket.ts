@@ -11,9 +11,9 @@ import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
 import { LocalBlobStore } from "./store.ts";
 
-/** A bucket in a local directory: a SQLite catalogue of files beside their blob files. */
+/** A bucket in a local directory, which processes share: a SQLite catalogue beside blob files. */
 export class LocalBucket extends CatalogueBucket {
-    /** Open a bucket in a directory, or create it in the scope it belongs to. */
+    /** Open a bucket in a directory, or create it in its scope, beside other processes' opens. */
     static async open(
         directory: string,
         scope: string | undefined,
@@ -31,12 +31,29 @@ export class LocalBucket extends CatalogueBucket {
         const contents = join(directory, "files");
         await createDurably(contents);
         const blobs = await LocalBlobStore.open(contents);
-        const lock = await FileLock.acquire(join(directory, "bucket.lock"));
+        const lock = await FileLock.acquireShared(join(directory, "bucket.lock"));
 
-        // prepare the private catalogue, then serve it through storage
-        const database = await prepare(directory, catalogue, isNew ? scope : undefined, lock);
+        // prepare the catalogue while no other opener migrates it, then serve it through storage
+        const database = await migrating(directory, async () => {
+            const isCreated = await isMissing(catalogue);
+
+            return await prepare(directory, catalogue, isCreated ? scope : undefined, lock);
+        });
 
         return new LocalBucket(openedStorage(catalogue, database, blobs, lock, clock));
+    }
+}
+
+/** Migrate a catalogue under the bucket's migration lock, as openers migrate one at a time. */
+async function migrating<Result>(
+    directory: string,
+    migration: () => Promise<Result>,
+): Promise<Result> {
+    const lock = await FileLock.acquire(join(directory, "migrate.lock"));
+    try {
+        return await migration();
+    } finally {
+        await lock.close();
     }
 }
 
@@ -144,11 +161,24 @@ function openedStorage(
         blobs,
         clock,
         migrate: async (beside) => {
-            // migrate, then reopen the connection declaring every table
+            // migrate while no other opener migrates, then reopen the connection declaring every table
             const tables = [...catalogueDatabase.tables, ...beside];
-            await opened.migrate(tables);
+            await migrating(dirname(catalogue), () => opened.migrate(tables));
             await opened.close();
             opened = await connectBunSqlite(catalogue, tables);
+        },
+        reclaim: async (deletion) => {
+            // delete blobs only while this process alone holds the bucket, sharing it again after
+            if (!(await lock.tryExclusive())) {
+                return false;
+            }
+            try {
+                await deletion();
+            } finally {
+                await lock.share();
+            }
+
+            return true;
         },
         close: async () => {
             // release the lock after the catalogue, even when closing the catalogue fails

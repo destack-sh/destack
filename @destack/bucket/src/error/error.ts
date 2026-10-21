@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 import type { BucketFile } from "../bucket/file.ts";
 
 /** The call error code of each storage failure. */
@@ -50,7 +50,7 @@ export class BucketError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 }

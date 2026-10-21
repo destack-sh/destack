@@ -6,6 +6,8 @@ import { expect, refusal, test } from "@destack/test";
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import { type UploadedPart, StorageClass } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
 
@@ -440,6 +442,59 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
             [retainUntil.getTime(), false],
             null,
         ]);
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("share a bucket between two processes, deleting blobs only once the other closes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-shared-"));
+    try {
+        // write a file, then open the bucket in a second process writing its own and reading this one
+        await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
+        await bucket.put("parent", "from parent");
+        const child = spawn(
+            process.execPath,
+            ["run", fileURLToPath(new URL("./test/open.ts", import.meta.url)), directory],
+            {
+                cwd: fileURLToPath(new URL("../..", import.meta.url)),
+                stdio: ["pipe", "pipe", "inherit"],
+                timeout: 3000,
+                killSignal: "SIGKILL",
+            },
+        );
+        const exited = new Promise<number | null>((resolve, reject) => {
+            child.once("error", reject);
+            child.once("exit", resolve);
+        });
+        const lines = createInterface({ input: child.stdout });
+        const reported = await lines[Symbol.asyncIterator]().next();
+        lines.close();
+
+        // read the child's file, and keep its deleted blob while the child has the bucket open
+        const read = await present(await bucket.get("child"), "the child's file").text();
+        await bucket.delete(["child"]);
+        const whileShared = {
+            isSwept: await bucket.sweep(),
+            blobs: (await readdir(join(directory, "files"))).toSorted(),
+        };
+
+        // delete it once the child closes the bucket
+        child.stdin.end();
+        const code = await exited;
+        const isSwept = await bucket.sweep();
+        const blobs = (await readdir(join(directory, "files"))).toSorted();
+        expect({ reported: reported.value, read, whileShared, code, isSwept, blobs }).toEqual({
+            reported: JSON.stringify({ parent: "from parent" }),
+            read: "from child",
+            whileShared: {
+                isSwept: false,
+                blobs: [digestOf("from child"), digestOf("from parent")].toSorted(),
+            },
+            code: 0,
+            isSwept: true,
+            blobs: [digestOf("from parent")],
+        });
     } finally {
         await rm(directory, { recursive: true });
     }
