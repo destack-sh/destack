@@ -6,6 +6,9 @@ import { ObjectReference, Scope } from "@destack/sync";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting, SettingValue } from "../src/object/index.ts";
+
+/** The milliseconds in a day. */
+const DAY = 86_400_000;
 import { alice, installation, named, selection, space } from "./fixture/value.ts";
 import { editor, history, lineNumbers } from "./fixture/setting/index.ts";
 import { Storage } from "./fixture/storage.ts";
@@ -143,7 +146,7 @@ test.each(TEST_DIALECTS)(
 );
 
 test.each(TEST_DIALECTS)(
-    "read a setting of days as a retention in a space that sets it, and its default in a space that does not and in another scope type, on %s",
+    "read the retention a package's setting of days gives a space that sets it, and its default in a space that does not and in another scope type, on %s",
     async (dialect) => {
         const storage = await Storage.open(dialect);
         onTestFinished(() => storage.close());
@@ -165,12 +168,17 @@ test.each(TEST_DIALECTS)(
         });
 
         // read the space's week, the default in another space, and the default in Alice's personal scope
-        const retention = SettingValue.retention(history);
+        const retention = SettingValue.retention(storage.database);
+        const { definition } = history;
         expect([
-            await retention(space, storage.database),
-            await retention("space-019f5530-8000-7000-8000-000000000099", storage.database),
-            await retention(alice, storage.database),
-        ]).toEqual([{ days: 7 }, { days: 30 }, { days: 30 }]);
+            await retention(definition, history.package, space),
+            await retention(
+                definition,
+                history.package,
+                "space-019f5530-8000-7000-8000-000000000099",
+            ),
+            await retention(definition, history.package, alice),
+        ]).toEqual([7 * DAY, 30 * DAY, 30 * DAY]);
     },
 );
 

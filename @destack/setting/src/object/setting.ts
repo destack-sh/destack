@@ -4,11 +4,11 @@ import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { ObjectClient } from "@destack/object/client";
 import type { ClientOptions } from "@destack/runtime/client";
-import type { Setting } from "../setting/setting.ts";
+import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
-import { type Duration, type Identifier, schema, Version } from "@destack/schema";
-import { PackageId, DeclarationName } from "@destack/package";
+import { Duration, type Identifier, schema, Version } from "@destack/schema";
+import { DeclarationName, type Package, PackageId } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import type { Clock } from "@destack/environment";
@@ -83,18 +83,39 @@ export interface SettingPlacement {
 
 /** Reads of the setting values placed in a database. */
 export const SettingValue = {
-    /** Read a setting of days as a retention per scope, its default where it does not apply. */
+    /** Read the retention a package's setting of days gives a scope, its default where it does not apply. */
     retention(
-        declared: Setting<schema.Schema<number>>,
-    ): (scope: string, database: DatabaseConnection) => Promise<Duration> {
-        return async (scope, database) => {
-            // resolve the value in a scope of the setting's scope type, and take the default in any other
+        database: DatabaseConnection,
+    ): (setting: object, owner: Package, scope: string) => Promise<number> {
+        return async (setting, owner, scope) => {
+            // rebuild the package's setting from its definition, refusing anything but a setting of days
+            const definition = schema.record(schema.string(), schema.unknown()).parse(setting);
+            const {
+                schema: value,
+                default: fallback,
+                scope: kind,
+                overrides,
+                ...metadata
+            } = definition;
+            if (!(value instanceof schema.Schema)) {
+                throw new TypeError(
+                    `setting ${String(metadata["name"])} of ${owner.name} has no value schema`,
+                );
+            }
+            const declared = new Setting(owner, {
+                ...SettingMetadata.parse(metadata),
+                ...SettingScope.parse({ scope: kind, overrides }),
+                schema: value,
+                default: schema.number().int().positive().parse(fallback),
+            });
+
+            // resolve it in a scope of its scope type, and take its default in any other
             const isApplied = schema.identifier(declared.definition.scope).safeParse(scope).success;
             const days = isApplied
                 ? await SettingValue.resolve(Snapshot.live(database), declared, { scope })
                 : declared.definition.default;
 
-            return { days };
+            return Duration.milliseconds({ days: schema.number().int().positive().parse(days) });
         };
     },
 
