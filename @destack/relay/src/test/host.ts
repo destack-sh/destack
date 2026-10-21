@@ -8,7 +8,8 @@ import { PackageMount } from "@destack/runtime";
 import { HibernationHost } from "@destack/runtime/workload";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
 import { Health } from "@destack/runtime/health";
-import { reportError, Server } from "@destack/runtime/server";
+import { reportError } from "@destack/runtime/error";
+import { Server } from "@destack/runtime/server";
 import {
     FORWARDED_URL_HEADER,
     PARTITION_HEADER,

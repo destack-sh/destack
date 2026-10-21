@@ -13,8 +13,7 @@ import { Identifier, schema } from "@destack/schema";
 import { Bearer, TokenVerifier } from "@destack/runtime/authentication";
 import { Identity } from "@destack/account/object";
 import { createLocalJWKSet } from "jose";
-import { CallError } from "@destack/runtime/error";
-import { refusal } from "@destack/runtime/server";
+import { CallError, refusal } from "@destack/runtime/error";
 import { MAX_STREAMS, type Renewal, Session, type Stream } from "../session/index.ts";
 
 /** The instruments capturing the renewals that fail outside any request. */

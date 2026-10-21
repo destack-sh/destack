@@ -21,10 +21,9 @@ import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import type { Fetch } from "@destack/runtime";
 import type { TokenVerifier } from "@destack/runtime/authentication";
-import { CallError } from "@destack/runtime/error";
+import { CallError, refusal, reportError } from "@destack/runtime/error";
 import { RequestId } from "@destack/runtime/request";
 import type { Call } from "@destack/sync";
-import { refusal, reportError } from "@destack/runtime/server";
 import {
     FORWARDED_URL_HEADER,
     type ServerContext,
