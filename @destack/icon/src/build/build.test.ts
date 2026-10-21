@@ -13,6 +13,7 @@ function iconPlugin(): Plugin {
             runtime: "browser",
             server: false,
             options: {},
+            dependencies: {},
         }) ?? [];
     if (
         typeof plugin !== "object" ||
