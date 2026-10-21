@@ -3,7 +3,6 @@ import { account, space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { EVENT_FLUSH } from "../event/policy.ts";
-import { SettingValue } from "@destack/setting/object";
 import { telemetryRetention } from "../setting/index.ts";
 import { REQUEST_LIFETIME_MILLISECONDS } from "@destack/runtime/request";
 import { installation } from "@destack/stack/object";
@@ -25,7 +24,7 @@ export const reading = defineObject(
         storage: {
             kind: "events",
             flush: EVENT_FLUSH,
-            retention: SettingValue.retention(telemetryRetention),
+            retention: { setting: telemetryRetention.definition },
             delivery: "exactly-once",
         },
         // bill each space's readings from the log's start an hour at a time, held as long as a billing call may retry

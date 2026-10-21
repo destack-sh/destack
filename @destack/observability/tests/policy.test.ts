@@ -1,4 +1,4 @@
-import { setting } from "@destack/setting/object";
+import { setting, SettingValue } from "@destack/setting/object";
 import { expect, test } from "@destack/test";
 import { log, metric, span, visit } from "../src/object/index.ts";
 import { telemetryRetention } from "../src/setting/index.ts";
@@ -11,7 +11,7 @@ const DAY = 86_400_000;
 test("keep a space's telemetry and analytics as long as its settings say, and a machine's as long as the settings' defaults", async () => {
     const space = await openSpace();
     const retention = (kind: EventKind, scope: string) =>
-        kind.retention(scope, space.store.database);
+        kind.retention(scope, SettingValue.retention(space.store.database));
     const defaults = {
         log: await retention(log.eventKind(), ids.space),
         visit: await retention(visit.eventKind(), ids.space),

@@ -5,7 +5,6 @@ import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { AttributeKey, PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
-import { SettingValue } from "@destack/setting/object";
 import { analyticsRetention } from "../setting/index.ts";
 
 /** What an action keeps beside its keys. */
@@ -23,7 +22,7 @@ export const action = defineObject(
         storage: {
             kind: "events",
             flush: EVENT_FLUSH,
-            retention: SettingValue.retention(analyticsRetention),
+            retention: { setting: analyticsRetention.definition },
             delivery: "at-most-once",
             subject: "person",
         },

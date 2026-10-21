@@ -1,3 +1,4 @@
+import { SettingValue } from "@destack/setting/object";
 import type { ObjectType } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { STACKS } from "@destack/account/test";
@@ -140,6 +141,7 @@ export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpa
             object.eventKind(),
         ),
         clock,
+        SettingValue.retention(database),
     );
     const failures: unknown[] = [];
 

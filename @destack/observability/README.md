@@ -71,7 +71,7 @@ The package's server serves issues, alert rules, alerts and the `otlp` adapter, 
 ```ts
 import observabilityServer from "@destack/observability/server";
 
-storage: { kind: "events", flush: EVENT_FLUSH, retention: SettingValue.retention(telemetryRetention) },
+storage: { kind: "events", flush: EVENT_FLUSH, retention: { setting: telemetryRetention.definition } },
 ```
 
 ## Readings

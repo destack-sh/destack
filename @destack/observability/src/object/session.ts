@@ -6,7 +6,6 @@ import { installation } from "@destack/stack/object";
 import { SESSION_STATUSES } from "@destack/telemetry/otlp";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
-import { SettingValue } from "@destack/setting/object";
 import { telemetryRetention } from "../setting/index.ts";
 
 /** What a session keeps beside its keys. */
@@ -26,7 +25,7 @@ export const session = defineObject(
         storage: {
             kind: "events",
             flush: EVENT_FLUSH,
-            retention: SettingValue.retention(telemetryRetention),
+            retention: { setting: telemetryRetention.definition },
             delivery: "at-most-once",
             subject: "person",
         },
