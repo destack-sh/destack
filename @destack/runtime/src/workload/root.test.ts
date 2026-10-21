@@ -15,9 +15,9 @@ test("derive each installation's keys from its space's identity, alike wherever 
 
     // derive one installation's keys alike across hosts and apart from another installation's
     const [secret, again, other] = await Promise.all([
-        notes.derive("message"),
-        notesElsewhere.derive("message"),
-        pages.derive("message"),
+        notes.derive({ label: "message", context: "" }),
+        notesElsewhere.derive({ label: "message", context: "" }),
+        pages.derive({ label: "message", context: "" }),
     ]);
     expect([secret.toHex() === again.toHex(), secret.toHex() === other.toHex()]).toEqual([
         true,

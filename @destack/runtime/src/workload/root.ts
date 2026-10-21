@@ -3,11 +3,14 @@ import { Derivation, type Deriver } from "@destack/identity";
 /** The bytes of an installation root: a 256-bit secret. */
 const ROOT_BYTES = 32;
 
+/** The label an installation's root derives under from its space's identity. */
+const INSTALLATION_ROOT_LABEL = "@destack/runtime/installation-root";
+
 /** The root an installation's secrets and keys derive from, rooted in its space's identity. */
 export const InstallationRoot = {
     /** Derive an installation's root from its space's identity, as its host does. */
     derive(space: Pick<Deriver, "derive">, installation: string): Promise<Uint8Array<ArrayBuffer>> {
-        return space.derive(`installation:${installation}`);
+        return space.derive({ label: INSTALLATION_ROOT_LABEL, context: installation });
     },
 
     /** Open an installation's root as the deriver of its keys. */
