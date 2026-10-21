@@ -1,7 +1,7 @@
 import { anyone } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { integration, type Registration } from "../object/integration.ts";

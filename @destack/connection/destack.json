@@ -4,9 +4,6 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
-        "./github": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },

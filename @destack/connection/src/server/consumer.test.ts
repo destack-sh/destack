@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { connection } from "../object/index.ts";
 import { ConnectionFixture } from "../test/index.ts";

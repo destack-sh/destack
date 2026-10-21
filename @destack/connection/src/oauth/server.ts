@@ -1,5 +1,5 @@
 import { nth, Duration, schema } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { AuthorizationEndpoints, ClientAuthentication } from "../object/integration.ts";

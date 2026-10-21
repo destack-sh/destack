@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 
 /** A token an authorization server issued (RFC 6749 5.1), as its connection's vault stores it. */

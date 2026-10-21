@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
 import { nth, present, Identifier } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { ObjectReference } from "@destack/sync";
 import { journal } from "@destack/object";

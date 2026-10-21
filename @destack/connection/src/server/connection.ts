@@ -6,7 +6,7 @@ import {
     StatusCondition,
 } from "@destack/object";
 import { nth, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { ConnectionError } from "../error/error.ts";
 import { authorizationRequest } from "../object/authorization-request.ts";
 import { Credential } from "../credential/credential.ts";

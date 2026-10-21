@@ -1,5 +1,5 @@
 import { Package, type PackageId } from "@destack/package";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
+import { TOKEN_LIFETIME_MILLISECONDS, Pkce } from "@destack/access/token";
 import { Account, account, space } from "@destack/account/object";
 import { AccessContext, Authentication, Caller, principal, relation, Role } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -13,11 +13,12 @@ import {
     type Table,
     text,
     Transaction,
+    ControlLoop,
 } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { defineObject, type ObjectType } from "@destack/object";
-import { defineServer, ObjectStore } from "@destack/object/server";
-import { callTables, testEvents } from "@destack/object/test";
+import { TestDatabase, reconcileOnce } from "@destack/db/test";
+import { defineObject, type ObjectType, Health, Egress, PackageHandle, PackageMount } from "@destack/object";
+import { defineServer, ObjectStore, Server, RequestContext } from "@destack/object/server";
+import { callTables, testEvents, TestBearer, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { Identifier, present, schema } from "@destack/schema";
 import { binding, capture, deployment, installation } from "@destack/stack/object";
@@ -26,15 +27,10 @@ import { implementSecret, implementSecretVersion, implementVault } from "@destac
 import { vaultTables } from "@destack/vault/stack";
 import vaultPackage from "@destack/vault/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Health } from "@destack/runtime/health";
-import { RequestId } from "@destack/runtime/request";
-import { Server, RequestContext } from "@destack/runtime/server";
-import { reconcileOnce, TestBearer, testCallKey } from "@destack/runtime/test";
-import { ControlLoop } from "@destack/runtime/control";
+import { RequestId, type ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
 import { expect, onTestFinished } from "@destack/test";
-import { type ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
 import { v7 } from "uuid";
-import { createClient, type ClientOf } from "@destack/runtime/client";
+import { createClient, type ClientOf } from "@destack/object/client";
 import {
     authorizationRequest,
     integration,
@@ -42,8 +38,7 @@ import {
     type IntegrationIssuer,
 } from "../object/index.ts";
 import { ISSUING, testIssuer } from "./issuer.ts";
-import { Pkce } from "@destack/runtime/authentication";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import {
     integrationFollow,
     implementIntegration,
@@ -53,8 +48,7 @@ import {
 } from "../server/index.ts";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { ConnectionRequest } from "../credential/request.ts";
-import { Egress, PackageHandle, PackageMount } from "@destack/runtime";
-import type { ServerContext } from "@destack/runtime/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { integrationTables, connectionTables } from "../stack/index.ts";
 import { Clock } from "@destack/environment";
 

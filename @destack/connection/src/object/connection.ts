@@ -1,7 +1,7 @@
 import { type Select } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
 import { type MethodContextOf, CONSUMER, defineObject, field } from "@destack/object";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Credential, Material } from "../credential/credential.ts";

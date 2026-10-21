@@ -1,4 +1,4 @@
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { authorizationRequest, connection, integration } from "./object/index.ts";
 
 /** The name connection installs under in every space, as other installations address it. */

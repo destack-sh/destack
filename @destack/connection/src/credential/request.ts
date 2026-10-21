@@ -4,7 +4,7 @@ import type { Credential, Material, Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { ConnectionProtocol } from "../object/connection.ts";
 import { MessageSignature } from "../signature/signature.ts";
-import type { ClientOf } from "@destack/runtime/client";
+import type { ClientOf } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import type connectionPackage from "../package.ts";

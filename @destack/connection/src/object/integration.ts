@@ -4,7 +4,7 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Package } from "@destack/package";
-import { InstallationName } from "@destack/runtime";
+import { InstallationName } from "@destack/object";
 import { ConnectionError } from "../error/error.ts";
 import { Token } from "../credential/credential.ts";
 import { DeviceRequest, TokenGrant, TokenRevocation } from "../oauth/grant.ts";

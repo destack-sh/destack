@@ -6,7 +6,7 @@ import {
     StatusCondition,
 } from "@destack/object";
 import { Duration, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { type Integration, integration, IntegrationIssuer } from "../object/integration.ts";
@@ -20,7 +20,7 @@ import {
     type Connection,
     connection,
 } from "../object/connection.ts";
-import { Pkce } from "@destack/runtime/authentication";
+import { Pkce } from "@destack/access/token";
 import { DEVICE_CODE } from "../oauth/server.ts";
 import { PERSON_KINDS, Runner, TokenSource } from "./token.ts";
 

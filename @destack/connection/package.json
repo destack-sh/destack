@@ -28,7 +28,6 @@
         "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/runtime": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/vault": "workspace:*",

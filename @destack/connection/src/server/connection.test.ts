@@ -1,8 +1,7 @@
 import type { CallInput } from "@destack/object";
 import { nth, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, type ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { type ObjectReference, Subject } from "@destack/sync";
 import { integration, authorizationRequest, connection } from "../object/index.ts";
 import { ConnectionFixture, RESOURCE, testIssuer } from "../test/index.ts";
 import { Runner } from "./token.ts";

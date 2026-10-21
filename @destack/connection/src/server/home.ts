@@ -1,4 +1,4 @@
-import type { ClientOf } from "@destack/runtime/client";
+import type { ClientOf } from "@destack/object/client";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { type Integration, IntegrationIssuer } from "../object/integration.ts";
@@ -11,7 +11,7 @@ import {
 } from "../oauth/server.ts";
 import type connectionPackage from "../package.ts";
 import { schema } from "@destack/schema";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import type { Clock } from "@destack/environment";
 

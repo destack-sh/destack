@@ -1,14 +1,13 @@
 import type { Call } from "@destack/sync";
-import { type ClientOf, createClient } from "@destack/runtime/client";
-import { Egress, PackageMount } from "@destack/runtime";
-import type { ServerContext } from "@destack/runtime/workload";
+import { type ClientOf, createClient } from "@destack/object/client";
+import { Egress, PackageMount } from "@destack/object";
+import type { ServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
 import type { MethodContext, Condition, ResultsOf } from "@destack/object";
 import { type Identifier, type JsonValue, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { type ObjectReference, Replica, type Subject } from "@destack/sync";
+import { RequestId, type ObjectReference, Replica, type Subject } from "@destack/sync";
 import { Credential, Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import type { AuthorizationClient } from "../oauth/server.ts";
@@ -22,7 +21,7 @@ import {
     connection,
 } from "../object/connection.ts";
 import { Assertion } from "../oauth/assertion.ts";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
 import { Secret, SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";
