@@ -1,3 +1,4 @@
+import { PackageManifest } from "@destack/package/manifest";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
@@ -122,7 +123,7 @@ export class HookSandbox {
                 caller,
                 asked.call,
                 asked.mutates,
-                this.server.build.manifest.package.id,
+                PackageManifest.package(this.server.build.manifest).id,
             );
 
             return schema.json().parse(result ?? null);
@@ -214,6 +215,10 @@ export class HookSandbox {
             const { events, sequence } = await view.changes(read.filter, read.after, read.limit);
 
             return schema.json().parse({ events, sequence });
+        }
+        // read the events appended in a log range
+        else if (read.verb === "range") {
+            return schema.json().parse(await view.range(read.filter, read.after, read.through));
         }
 
         return schema.json().parse(await view.series(read.filter, read.series));

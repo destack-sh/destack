@@ -235,6 +235,31 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
         return { events: events.map((event) => this.#open(event)), sequence };
     }
 
+    /** Read the events some scopes appended after a log sequence through another, as one page. */
+    async range(
+        filter: EventFilter,
+        after: number,
+        through: number,
+    ): Promise<readonly Event<Shape, Data>[]> {
+        // read through the event log, else through the session
+        const source = this.#source;
+        if (source instanceof EventStore) {
+            return source.range(this.kind, filter, after, through);
+        }
+        const answered = await source.events(this.kind.table, {
+            verb: "range",
+            filter: EventView.#filter(filter),
+            after,
+            through,
+        });
+
+        // open the answered events with the kind's keys and data
+        return schema
+            .array(Event)
+            .parse(answered)
+            .map((event) => this.#open(event));
+    }
+
     /** Fold some scopes' events into a series per group of key values. */
     async series(filter: EventFilter, request: SeriesRequest<Shape>): Promise<Series[]> {
         // fold through the event log, else through the session

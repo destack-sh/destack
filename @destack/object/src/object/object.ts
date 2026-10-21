@@ -19,6 +19,7 @@ import {
     Call,
 } from "@destack/sync";
 import {
+    type DatabaseConnection,
     Expression,
     Condition,
     eq,
@@ -51,7 +52,13 @@ import {
 import { CallError } from "@destack/runtime/error";
 import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type Package } from "@destack/package";
-import { type Delivery, EventKind, EventReader, EventTable } from "@destack/event";
+import {
+    type Delivery,
+    EventKind,
+    EventReader,
+    type EventRetention,
+    EventTable,
+} from "@destack/event";
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
 import { type Handler, type TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
@@ -151,6 +158,9 @@ import { storeTables } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
 import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
+import { Consumer, type ReaderHandler } from "./consumer.ts";
+import type { ObjectStore } from "../server/store.ts";
+import type { Controller } from "@destack/runtime/control";
 import type { DeclarationOf, DeclarationHandler, ManagedTable } from "../server/stack.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
@@ -419,6 +429,8 @@ export interface ReaderDefinition {
     readonly start: "latest" | "earliest";
     /** How long the log retains events past a slot's place once it advances. */
     readonly hold: Duration;
+    /** How long a page's first event waits before a reader takes the page, none when absent. */
+    readonly batch?: Duration;
 }
 
 /** Where objects live: durable, ephemeral, external, local, or the event log. */
@@ -430,8 +442,10 @@ export interface EventStorage {
     readonly kind: "events";
     /** When a scope's hot events flush into a segment: at an age of the oldest, or at a count. */
     readonly flush: { readonly maxAge: Duration; readonly maxRows: number };
-    /** How long segments stay. */
-    readonly retention: Duration;
+    /** How long segments stay: a duration, or one read per scope, such as from its settings. */
+    readonly retention:
+        | Duration
+        | ((scope: string, database: DatabaseConnection) => Promise<Duration>);
     /** Whether each event is recorded exactly once, or at most once outside the caller's work. */
     readonly delivery: Delivery;
     /** Whether segments are locked and chained for the retention, as audit trails are. */
@@ -895,6 +909,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         return new EventReader(name, Duration.milliseconds(declared.hold));
+    }
+
+    /** Consume one of the type's readers by scope, handing each claimed page to a handler. */
+    consume(reader: string, handler: ReaderHandler): (store: ObjectStore) => Controller {
+        return (store) => new Consumer(store, this, reader, handler);
     }
 
     /** Update the type's reader slots with a row the transaction inserts or removes. */
@@ -1961,14 +1980,23 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Require each scope-keyed reader to start at the log's start, which later rows reach. */
+    /** Require readers by scope to start at the log's start, and only them to batch. */
     #requireReaders(): void {
-        const restarting = Object.entries(this.definition.readers ?? {}).find(
+        // refuse a reader per scope starting at the latest commit, and a batch of a reader per row
+        const readers = Object.entries(this.definition.readers ?? {});
+        const restarting = readers.find(
             ([, declared]) => declared.by === "scope" && declared.start === "latest",
+        );
+        const batching = readers.find(
+            ([, declared]) => declared.by === "id" && declared.batch !== undefined,
         );
         if (restarting !== undefined) {
             throw new TypeError(
                 `reader ${restarting[0]} of ${this.name} starts each scope once: start it at the earliest`,
+            );
+        } else if (batching !== undefined) {
+            throw new TypeError(
+                `reader ${batching[0]} of ${this.name} reads each row: only readers by scope batch pages`,
             );
         }
     }
@@ -2188,7 +2216,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                     maxAge: Duration.milliseconds(written.flush.maxAge),
                     maxRows: written.flush.maxRows,
                 },
-                retention: Duration.milliseconds(written.retention),
+                retention: ObjectType.#retention(written.retention),
             },
             ...(written.isLocked === undefined ? {} : { isLocked: written.isLocked }),
             ...(written.subject === undefined
@@ -2196,6 +2224,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 : { subject: ObjectType.#subjectKeys(name, fields, written.subject) }),
             ...(written.distribution === undefined ? {} : { distribution: written.distribution }),
         });
+    }
+
+    /** Read a declared retention in milliseconds, per scope when it reads one. */
+    static #retention(retention: EventStorage["retention"]): number | EventRetention {
+        return typeof retention === "function"
+            ? async (scope, database) => Duration.milliseconds(await retention(scope, database))
+            : Duration.milliseconds(retention);
     }
 
     /** List the key columns naming an event's person: a reference's columns, else a text field. */

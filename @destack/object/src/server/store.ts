@@ -1,3 +1,4 @@
+import { PackageManifest } from "@destack/package/manifest";
 import { graph, Package, type PackageId } from "@destack/package";
 import type { EventStore } from "@destack/event";
 import {
@@ -3511,7 +3512,7 @@ export class ObjectStore {
                 .filter((declared) => declared instanceof ObjectType)
                 .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
         );
-        const owner = server.build.manifest.package;
+        const owner = PackageManifest.package(server.build.manifest);
         const own = declarations.filter(
             (entry) => graph.Moniker.packageId(entry.symbol) === owner.id,
         );

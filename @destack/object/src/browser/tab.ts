@@ -1,7 +1,7 @@
-import { broadcastChannel, type Channel } from "@destack/db";
+import type { Channel } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import { connectShared } from "@destack/db/browser";
+import { broadcastChannel, connectShared } from "@destack/db/browser";
 import type { ClientOptions } from "@destack/runtime/client";
 import { RequestId } from "@destack/runtime/request";
 import type { ObjectType } from "../object/object.ts";

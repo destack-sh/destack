@@ -1,19 +1,30 @@
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AccessContext, Authorization, Caller, principal } from "@destack/access";
+import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
+import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { RequestId } from "@destack/runtime/request";
 import { callTables, testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import type { Reconciliation } from "@destack/runtime/control";
+import { VirtualClock } from "@destack/environment/simulation";
+import { EventTime } from "@destack/event";
 
 /** The space the feeds live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+
+/** Another space, whose ticks the first space's reader passes. */
+const OTHER_SPACE_ID = schema
+    .identifier("space")
+    .parse("space-01996ab0-0000-7000-8000-000000000004");
+
+/** The time the ticks start at, in Unix milliseconds. */
+const START = 1_800_000_000_000;
 
 /** Feeds, each read from its creation on, and their space's, read from the log's start. */
 const feed = defineObject(
@@ -93,6 +104,31 @@ test("start a feed's reader at its creating commit and release it at its deletio
     });
 });
 
+test("refuse a batch of a reader per row", () => {
+    // declare a feed reader batching pages its rows never form
+    expect(() =>
+        ObjectDescription.of(
+            defineObject({
+                name: "feed",
+                plural: "feeds",
+                scope: space,
+                fields: { name: field.string() },
+                permissions: ["read", "write"],
+                readers: {
+                    feed: {
+                        by: "id",
+                        start: "latest",
+                        hold: { minutes: 1 },
+                        batch: { minutes: 1 },
+                    },
+                },
+            }),
+        ),
+    ).toThrow(
+        new TypeError("reader feed of feed reads each row: only readers by scope batch pages"),
+    );
+});
+
 test("refuse a reader per scope that starts at the latest commit", () => {
     // declare a space reader that each feed would restart
     expect(() =>
@@ -110,3 +146,181 @@ test("refuse a reader per scope that starts at the latest commit", () => {
         new TypeError("reader space of feed starts each scope once: start it at the earliest"),
     );
 });
+
+/** The milliseconds a reader lets a page's first event wait. */
+const BATCH = 60_000;
+
+/** Ticks of a space, each page of them taken by its reader a minute after its first tick. */
+const tick = defineObject(
+    {
+        name: "tick",
+        plural: "ticks",
+        scope: space,
+        storage: {
+            kind: "events",
+            flush: { maxAge: { hours: 1 }, maxRows: 1000 },
+            retention: { days: 1 },
+            delivery: "exactly-once",
+        },
+        readers: {
+            count: { by: "scope", start: "earliest", hold: { days: 1 }, batch: { minutes: 1 } },
+        },
+        fields: {
+            /** The tick's count. */
+            count: field.number(),
+            /** Nothing beside the count. */
+            data: field.json(schema.object({})),
+        },
+        permissions: { read: none(), record: none() },
+    },
+    (method) => ({
+        record: method.createMany("record", { isInternal: true, fields: ["count", "data"] }),
+    }),
+);
+
+test.for(TEST_DIALECTS)(
+    "hand a scope's page of ticks to the handler once its first is a batch old, the same page after a failed attempt, the same page to two hosts at once, then the next page, on %s",
+    async (dialect) => {
+        // serve the space's ticks as the space itself
+        const storage = await TestDatabase.create(
+            dialect,
+            defineDatabase({
+                name: "main",
+                tables: [...space.tables, ...tick.tables, ...callTables],
+            }),
+            { isMigrated: true },
+        );
+        onTestFinished(() => storage.close());
+        const { database } = storage;
+        const clock = new VirtualClock(START);
+        const store = new ObjectStore({
+            chain: async () => undefined,
+            clock,
+            principal: spacePrincipal(SPACE_ID),
+            servers: serversOf([tick]),
+            database,
+            callKey: testCallKey,
+            events: await testEvents(database, [tick.eventKind()], clock),
+            origin: { package: tick.package },
+        });
+        await openSpace(database, SPACE_ID);
+        const record = async (id: string, spaceId: string = SPACE_ID) => {
+            await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), clock.now()), {
+                id: RequestId.create(clock.now()),
+                calls: [
+                    tick.call("record", {
+                        spaceId,
+                        items: [{ id, time: EventTime.of(clock.now()), count: 1, data: {} }],
+                    }),
+                ],
+            });
+
+            return (await database.log.position()).sequence;
+        };
+
+        // fail the first attempt, and let host two take the second page while host one holds it
+        const pages: {
+            readonly host: string;
+            readonly ids: string[];
+            readonly after: number;
+            readonly through: number;
+            readonly claimedAt: number;
+        }[] = [];
+        let isFailing = true;
+        const reconcile = (consumer: {
+            reconcile: (key: string, reconciliation: Reconciliation) => Promise<number | undefined>;
+        }) =>
+            consumer.reconcile(SPACE_ID, {
+                signal: new AbortController().signal,
+                changed: async () => undefined,
+            });
+        const two = tick.consume("count", async (page) => {
+            pages.push({
+                host: "two",
+                ids: page.events.map((event) => event.id),
+                after: page.after,
+                through: page.through,
+                claimedAt: page.claimedAt,
+            });
+        })(store);
+        const one = tick.consume("count", async (page) => {
+            // record the page, fail the first, and run host two before committing the third
+            pages.push({
+                host: "one",
+                ids: page.events.map((event) => event.id),
+                after: page.after,
+                through: page.through,
+                claimedAt: page.claimedAt,
+            });
+            if (isFailing) {
+                isFailing = false;
+                throw new Error("the counter is unreachable");
+            } else if (page.events.length > 1) {
+                await reconcile(two);
+            }
+        })(store);
+
+        // tick, wait half a batch, fail a batch in, tick again, then retry
+        const first = await record("1");
+        clock.set(START + BATCH / 2);
+        const young = await reconcile(one);
+        clock.set(START + BATCH);
+        const failed = await reconcile(one).catch((error: unknown) => String(error));
+        await record("2");
+        const retried = await reconcile(one);
+
+        // tick a batch later, then take the page on host one while host two takes it too
+        clock.set(START + 2 * BATCH);
+        const third = await record("3");
+        clock.set(START + 3 * BATCH);
+        const both = await reconcile(one);
+        const idle = await reconcile(two);
+
+        // tick in another space, then pass the page without the space's ticks and look again
+        await openSpace(database, OTHER_SPACE_ID);
+        const elsewhere = await record("4", OTHER_SPACE_ID);
+        const passed = await reconcile(two);
+        const rest = await reconcile(two);
+
+        // take the failed page twice unchanged, and the next one on both hosts, host two moving past it
+        const reader = tick.reader("count").at(SPACE_ID);
+        expect({
+            young,
+            failed,
+            retried,
+            both,
+            idle,
+            passed,
+            rest,
+            pages,
+            place: [await reader.after(database), await reader.claimed(database)],
+        }).toEqual({
+            young: BATCH / 2,
+            failed: "Error: the counter is unreachable",
+            retried: 0,
+            both: 0,
+            idle: undefined,
+            passed: 0,
+            rest: undefined,
+            pages: [
+                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
+                { host: "one", ids: ["1"], after: 0, through: first, claimedAt: START + BATCH },
+                {
+                    host: "one",
+                    ids: ["2", "3"],
+                    after: first,
+                    through: third,
+                    claimedAt: START + 3 * BATCH,
+                },
+                {
+                    host: "two",
+                    ids: ["2", "3"],
+                    after: first,
+                    through: third,
+                    claimedAt: START + 3 * BATCH,
+                },
+            ],
+            place: [elsewhere, undefined],
+        });
+    },
+);

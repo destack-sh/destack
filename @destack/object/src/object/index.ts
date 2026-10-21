@@ -42,4 +42,5 @@ export {
     ObjectWatch,
 } from "./controller.ts";
 export { ObjectPolicy } from "./access.ts";
+export { type ReaderContext, type ReaderHandler, type ReaderPage } from "./consumer.ts";
 export { device } from "./device.ts";

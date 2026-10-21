@@ -228,6 +228,16 @@ export const EventRequest = schema.discriminatedUnion("verb", [
         limit: schema.number().int().min(1).exactOptional(),
     }),
     schema.object({
+        /** Read the events appended after a log sequence through another, as one page. */
+        verb: schema.literal("range"),
+        /** The selected events. */
+        filter: EventFilterRecord,
+        /** The log sequence the read starts after. */
+        after: schema.number().int().min(0),
+        /** The log sequence the read ends at. */
+        through: schema.number().int().min(0),
+    }),
+    schema.object({
         /** Fold events into a series per group of key values. */
         verb: schema.literal("series"),
         /** The folded events. */
