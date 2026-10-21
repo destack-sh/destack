@@ -1,3 +1,4 @@
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -19,7 +20,7 @@ test("sign, presign and verify the documented S3 examples in workerd without Nod
     const worker = new Miniflare({
         modules: true,
         script: await output.text(),
-        compatibilityDate: "2026-07-30",
+        compatibilityDate: WORKERD_COMPATIBILITY_DATE,
     });
     onTestFinished(() => worker.dispose());
     const response = await worker.dispatchFetch("https://sign.test/");

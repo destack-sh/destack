@@ -1,3 +1,4 @@
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { build } from "esbuild";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
@@ -27,7 +28,7 @@ export async function runR2(name: string): Promise<void> {
     const worker = new Miniflare({
         modules: true,
         script: await compilation,
-        compatibilityDate: "2026-07-30",
+        compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         r2Buckets: ["BUCKET"],
     });

@@ -3,7 +3,7 @@ import { Clock } from "@destack/environment";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { expect, refusal, test } from "@destack/test";
-import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -494,6 +494,49 @@ test("share a bucket between two processes, deleting blobs only once the other c
             code: 0,
             isSwept: true,
             blobs: [digestOf("from parent")],
+        });
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
+test("clone a plain file's bytes to a path, refusing a missing, encrypted or multipart file", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-clone-"));
+    try {
+        await using bucket = await LocalBucket.open(
+            join(directory, "bucket"),
+            "space-test",
+            Clock.system,
+        );
+
+        // clone a plain file
+        await bucket.put("plain", "plain contents");
+        await bucket.clone("plain", join(directory, "cloned"));
+
+        // refuse a missing key, an encrypted file and a multipart file
+        await bucket.put("sealed", "sealed contents", { ssecKey: "a1".repeat(32) });
+        const upload = await bucket.createMultipartUpload("parts");
+        const first = await upload.uploadPart(1, "x".repeat(5 * 1024 * 1024));
+        const second = await upload.uploadPart(2, "tail");
+        await upload.complete([first, second]);
+        const refusals = await Promise.all(
+            [
+                bucket.clone("missing", join(directory, "missing")),
+                bucket.clone("sealed", join(directory, "sealed")),
+                bucket.clone("parts", join(directory, "parts")),
+            ].map((pending) => refusal(pending)),
+        );
+
+        expect({
+            cloned: await readFile(join(directory, "cloned"), "utf8"),
+            refusals,
+        }).toEqual({
+            cloned: "plain contents",
+            refusals: [
+                ["NO_SUCH_KEY", "no file at missing"],
+                ["UNSUPPORTED", "cloning needs a plain single-part file: sealed"],
+                ["UNSUPPORTED", "cloning needs a plain single-part file: parts"],
+            ],
         });
     } finally {
         await rm(directory, { recursive: true });

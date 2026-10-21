@@ -1,9 +1,11 @@
-import { mkdir, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { copyFile, mkdir, stat } from "node:fs/promises";
 import type { Clock } from "@destack/environment";
 import { dirname, join, resolve } from "node:path";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { FileLock } from "@destack/fs";
+import { BucketKey } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
 import { CatalogueStorage } from "../catalogue/storage.ts";
@@ -13,6 +15,18 @@ import { LocalBlobStore } from "./store.ts";
 
 /** A bucket in a local directory, which processes share: a SQLite catalogue beside blob files. */
 export class LocalBucket extends CatalogueBucket {
+    /** The open catalogue and its blobs. */
+    readonly #storage: CatalogueStorage;
+    /** The blob files. */
+    readonly #blobs: LocalBlobStore;
+
+    /** Serve a catalogue over its blob files. */
+    private constructor(storage: CatalogueStorage, blobs: LocalBlobStore) {
+        super(storage);
+        this.#storage = storage;
+        this.#blobs = blobs;
+    }
+
     /** Open a bucket in a directory, or create it in its scope, beside other processes' opens. */
     static async open(
         directory: string,
@@ -40,7 +54,39 @@ export class LocalBucket extends CatalogueBucket {
             return await prepare(directory, catalogue, isCreated ? scope : undefined, lock);
         });
 
-        return new LocalBucket(openedStorage(catalogue, database, blobs, lock, clock));
+        return new LocalBucket(openedStorage(catalogue, database, blobs, lock, clock), blobs);
+    }
+
+    /** Clone a plain file's bytes to a path, copying them where the file system cannot clone. */
+    async clone(key: string, destination: string): Promise<void> {
+        // read the current plain single-part file's blob
+        BucketKey.check(key);
+        const blob = await this.#storage.exclusive(async () => {
+            // refuse a missing file, then one with several or encrypted segments
+            const entry = await this.#storage.entry(key);
+            if (!entry) {
+                throw new BucketError("NO_SUCH_KEY", `no file at ${key}`);
+            }
+            const [segment, ...rest] = await this.#storage.segments(entry.version);
+            if (segment === undefined || rest.length > 0 || segment.nonce !== null) {
+                throw new BucketError(
+                    "UNSUPPORTED",
+                    `cloning needs a plain single-part file: ${key}`,
+                );
+            }
+
+            // retain the blob against collection while cloning
+            this.#storage.retain(segment.blob);
+
+            return segment.blob;
+        });
+
+        // clone the blob file, then release it
+        try {
+            await copyFile(this.#blobs.path(blob), destination, constants.COPYFILE_FICLONE);
+        } finally {
+            this.#storage.release(blob);
+        }
     }
 }
 
