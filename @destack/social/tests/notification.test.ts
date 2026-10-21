@@ -9,7 +9,7 @@ import { type Actor, actors, serveArticles } from "./fixture/server.ts";
 test.for(TEST_DIALECTS)(
     "record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply, on %s",
     async (dialect) => {
-        const { call, list, host, as, expand, send, scope } = await serveArticles(dialect);
+        const { call, list, host, as, expand, scope } = await serveArticles(dialect);
         const activities = async (actor: Actor) => {
             as(actor);
 
@@ -138,7 +138,6 @@ test.for(TEST_DIALECTS)(
                 text: "Shipping",
             }),
         );
-        await send();
         const replies = (await list(comment))
             .filter((row) => row.threadId === first.id)
             .map((row) => [row.authorId, Body.parse(row.body).text]);

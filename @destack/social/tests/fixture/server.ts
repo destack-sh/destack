@@ -17,7 +17,7 @@ import {
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectType } from "@destack/object";
-import { announcement, notification, scheduled } from "@destack/notification";
+import { announcement, notification } from "@destack/notification";
 import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
 import { build, installation, installationRevision } from "@destack/stack/object";
@@ -29,7 +29,7 @@ import { callTables, testEvents } from "@destack/object/test";
 import { nth, type Identifier, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/runtime/request";
-import { reconcileOnce, subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
+import { subjectContext, testCallKey, testKeys } from "@destack/runtime/test";
 
 import { onTestFinished } from "@destack/test";
 import { v7 } from "uuid";
@@ -130,8 +130,6 @@ export async function serveArticles(dialect: Dialect) {
         },
         /** Expand the space's announcements batch by batch, as their controller does. */
         expand: () => expand(store, storage.database, spaceId),
-        /** Run the calls the space's actions scheduled, as their workflow's controller does. */
-        send: () => send(store),
         /** Follow the space's presence as the current actor's client, reading every page. */
         follow: () => follow(store, spaceId, current),
     };
@@ -272,15 +270,6 @@ async function expand(
             calls: rows.map((row) => announcement.call("expand", announcement.target(row))),
         });
     }
-}
-
-/** Run the calls the store's actions scheduled, as their workflow's controller does. */
-async function send(store: ObjectStore): Promise<void> {
-    const runs = present(
-        store.controllers().find((controller) => controller.name === scheduled.run.name),
-        "the scheduled calls' runs",
-    );
-    await reconcileOnce(runs, store.database);
 }
 
 /** Open a new space below a new account, readable by anyone through a member role. */
