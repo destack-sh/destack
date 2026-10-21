@@ -101,6 +101,7 @@
     "dependencies": {
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",
@@ -113,7 +114,6 @@
         "property-information": "7.2.0"
     },
     "devDependencies": {
-        "@destack/package": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }
