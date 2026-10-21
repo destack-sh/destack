@@ -23,7 +23,7 @@ import { Scope } from "@destack/sync";
 import { Clock } from "@destack/environment";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
-const MACHINE_KEY_LABEL = "destack machine key v1";
+const MACHINE_KEY_LABEL = { label: "@destack/account/machine-key", context: "" } as const;
 
 /** What a machine enrolls with beside its key: the shared fields and those of its kind. */
 export type Enrollment = OmitEach<

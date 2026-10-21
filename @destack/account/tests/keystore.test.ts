@@ -177,7 +177,7 @@ async function derive(
 ): Promise<string> {
     const root = present(await keystore.deriver(database, space), "the space's root");
 
-    return (await root.derive(label)).toHex();
+    return (await root.derive({ label, context: "" })).toHex();
 }
 
 test("derive one key per space and label, the same after a move rewraps the space's secret", async () => {

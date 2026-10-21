@@ -8,6 +8,7 @@ import {
     type Deriver,
     IdentityOperation,
     type Keyring,
+    type Label,
     LocalKeyring,
     MAX_SIGNING_KEYS,
     PublicKey,
@@ -29,7 +30,7 @@ export const KEY_SET_MILLISECONDS = 10 * 60_000;
 const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 /** The label binding an encrypted identity secret to its use and subject. */
-const LABEL = "destack identity key v1";
+const LABEL = "@destack/account/identity-key";
 
 /** The bytes of an identity's root secret: 256 bits, the HKDF-SHA256 output length. */
 const ROOT_BYTES = 32;
@@ -469,7 +470,7 @@ async function rewrite(
     };
 }
 
-/** Encode the encryption context of an identity secret: its label, subject and use. */
-function context(subject: string, use: KeyUse): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(`${LABEL}\0${subject}\0${use}`);
+/** Label the encryption of an identity secret by its use and subject. */
+function context(subject: string, use: KeyUse): Label {
+    return { label: LABEL, context: `${use} ${subject}` };
 }

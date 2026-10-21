@@ -44,7 +44,7 @@ const SIGN_IN_PATHS = {
 } as const;
 
 /** The label that derives the cookie and provider token secret from the process's root key. */
-const SESSION_SECRET_LABEL = "destack session secret v1";
+const SESSION_SECRET_LABEL = { label: "@destack/account/session-secret", context: "" } as const;
 
 /** The prefix of a mailed sign-in code's verification identifier, Better Auth's email OTP's. */
 const SIGN_IN_CODE = "sign-in-otp-";
