@@ -21,6 +21,25 @@ import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
 import { Digest, mapValues, toJsonSchema } from "@destack/schema";
 
+/** A consumer's claimed page: where it ends, and when it was claimed. */
+export interface LogClaim {
+    /** The log sequence the page ends at. */
+    readonly through: number;
+    /** When the page was claimed, in Unix milliseconds. */
+    readonly claimedAt: number;
+}
+
+/** Claims as the slot table keeps them. */
+export const LogClaim = {
+    /** Read a claim from its slot row. */
+    read(row: Readonly<Record<string, unknown>>): LogClaim {
+        return {
+            through: LogColumn.integer(row["claim"]),
+            claimedAt: LogColumn.integer(row["claimed_at"]),
+        };
+    },
+};
+
 /** The default page size of a log read, in changes. */
 const PAGE_LIMIT = 1000;
 
@@ -587,13 +606,13 @@ export class Log {
         );
     }
 
-    /** Place a consumer's slot at a sequence, keeping later changes until a time. */
+    /** Place a consumer's slot at a sequence and end its claim, keeping later changes a while. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
         const table = sql.relation(LOG_SLOT);
         await this.database.run(sql`
             INSERT INTO ${table} (name, sequence, expires_at)
             VALUES (${slot}, ${sequence}, ${expiresAt})
-            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
         `);
     }
 
@@ -626,12 +645,12 @@ export class Log {
                 ? sql`
                     INSERT INTO ${table} (name, sequence, expires_at)
                     VALUES (${slot}, ${to}, ${expiresAt})
-                    ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at
+                    ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
                     WHERE ${table}.sequence = ${from}
                     RETURNING name
                 `
                 : sql`
-                    UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}
+                    UPDATE ${table} SET sequence = ${to}, expires_at = ${expiresAt}, claim = NULL, claimed_at = NULL
                     WHERE name = ${slot} AND sequence = ${from}
                     RETURNING name
                 `,
@@ -643,6 +662,47 @@ export class Log {
         }
     }
 
+    /** Claim a consumer's page through a sequence at a time unless claimed, absent once the slot moved on. */
+    async claim(
+        slot: string,
+        after: number,
+        through: number,
+        now: number,
+        expiresAt: number,
+    ): Promise<LogClaim | undefined> {
+        // keep the slot's claim, else claim through the sequence now, only where the slot stands at the read place
+        const table = sql.relation(LOG_SLOT);
+        const [row] = await this.database.all(
+            after === 0
+                ? sql`
+                    INSERT INTO ${table} (name, sequence, expires_at, claim, claimed_at)
+                    VALUES (${slot}, 0, ${expiresAt}, ${through}, ${now})
+                    ON CONFLICT (name) DO UPDATE SET
+                        claim = COALESCE(${table}.claim, excluded.claim),
+                        claimed_at = COALESCE(${table}.claimed_at, excluded.claimed_at)
+                    WHERE ${table}.sequence = 0
+                    RETURNING claim, claimed_at
+                `
+                : sql`
+                    UPDATE ${table}
+                    SET claim = COALESCE(claim, ${through}), claimed_at = COALESCE(claimed_at, ${now})
+                    WHERE name = ${slot} AND sequence = ${after}
+                    RETURNING claim, claimed_at
+                `,
+        );
+
+        return row === undefined ? undefined : LogClaim.read(row);
+    }
+
+    /** Read a consumer's claimed page, absent while it claims none. */
+    async claimed(slot: string): Promise<LogClaim | undefined> {
+        const [row] = await this.database.all(
+            sql`SELECT claim, claimed_at FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot} AND claim IS NOT NULL`,
+        );
+
+        return row === undefined ? undefined : LogClaim.read(row);
+    }
+
     /** Read the position of a consumer's slot, absent without one. */
     async slot(slot: string): Promise<number | undefined> {
         const [row] = await this.database.all(
@@ -652,7 +712,7 @@ export class Log {
         return row === undefined ? undefined : LogColumn.integer(row["sequence"]);
     }
 
-    /** Drop a consumer's slot, keeping no more changes for it. */
+    /** Drop a consumer's slot and its claim, keeping no more changes for it. */
     async drop(slot: string): Promise<void> {
         await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
     }

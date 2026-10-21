@@ -523,6 +523,50 @@ test.for(TEST_DIALECTS)(
 );
 
 test.for(TEST_DIALECTS)(
+    "claim a consumer's page once from where its slot stands at the first claim's time, claiming nothing behind a move, placing a slot claimed from the start, and end the claim on a move, an advance or a drop, on %s",
+    async (dialect) => {
+        const { database } = await open(dialect);
+        const expiresAt = Date.now() + 60_000;
+
+        // claim the page after 3 through 5 at 100, then claim again through 7 at 200
+        await database.log.move("rating", 0, 3, expiresAt);
+        const claimed = await database.log.claim("rating", 3, 5, 100, expiresAt);
+        const kept = await database.log.claim("rating", 3, 7, 200, expiresAt);
+
+        // move past the claimed page, then refuse a claim from the old place
+        await database.log.move("rating", 3, 5, expiresAt);
+        const moved = await database.log.claimed("rating");
+        const behind = await database.log.claim("rating", 3, 9, 300, expiresAt);
+
+        // claim again from the new place, end it by advancing, then claim a new slot from the log's start
+        const next = await database.log.claim("rating", 5, 9, 400, expiresAt);
+        await database.log.advance("rating", 5, expiresAt);
+        const advanced = await database.log.claimed("rating");
+        const fromStart = await database.log.claim("usage:a", 0, 4, 500, expiresAt);
+        await database.log.drop("rating");
+        expect({
+            claimed,
+            kept,
+            moved,
+            behind,
+            next,
+            advanced,
+            fromStart: [fromStart, await database.log.slot("usage:a")],
+            dropped: [await database.log.slot("rating"), await database.log.claimed("rating")],
+        }).toEqual({
+            claimed: { through: 5, claimedAt: 100 },
+            kept: { through: 5, claimedAt: 100 },
+            moved: undefined,
+            behind: undefined,
+            next: { through: 9, claimedAt: 400 },
+            advanced: undefined,
+            fromStart: [{ through: 4, claimedAt: 500 }, 0],
+            dropped: [undefined, undefined],
+        });
+    },
+);
+
+test.for(TEST_DIALECTS)(
     "place a consumer's slot at the log's start once, and list the slots of a prefix on %s",
     async (dialect) => {
         const { database } = await open(dialect);

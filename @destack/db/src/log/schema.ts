@@ -116,7 +116,10 @@ export function createEpoch(epoch: string, scope?: string, namespace?: string): 
         `CREATE TABLE IF NOT EXISTS ${name(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
-            expires_at BIGINT NOT NULL
+            expires_at BIGINT NOT NULL,
+            claim BIGINT,
+            claimed_at BIGINT,
+            CHECK ((claim IS NULL) = (claimed_at IS NULL))
         )`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_REPLICA)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1)
