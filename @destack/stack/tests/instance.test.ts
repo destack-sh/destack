@@ -1,3 +1,10 @@
+import {
+    defineObject,
+    field,
+    type Field,
+    type ObjectDefinition,
+    ObjectDescription,
+} from "@destack/object";
 import { PACKAGE_KIND_PACKAGE_ID } from "@destack/runtime";
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
@@ -7,9 +14,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { type DatabaseConnection, Snapshot, eq, Expression, DatabaseState } from "@destack/db";
+import {
+    type DatabaseConnection,
+    databaseProvider,
+    DatabaseState,
+    eq,
+    Expression,
+    type LogPosition,
+    Snapshot,
+} from "@destack/db";
 import { Digest, nth, Identifier, present, schema } from "@destack/schema";
-import { databaseProvider, type LogPosition } from "@destack/db";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import {
     BROWSER_SANDBOX,
@@ -29,7 +43,6 @@ import {
     principal,
 } from "@destack/access";
 import { space } from "@destack/account/object";
-import { defineObject, type Field, field, type ObjectDefinition } from "@destack/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import type { BuildReader } from "@destack/package/manifest";
 import * as object from "../src/object/index.ts";
@@ -113,7 +126,7 @@ function noteType(
         fields,
         shareable: {},
     });
-    const { name, definition } = note.describe();
+    const { name, definition } = ObjectDescription.of(note);
     const description = {
         name,
         package: { ...notesPackage, version },
@@ -874,6 +887,53 @@ test("deploy nothing of a build declaring its own database, and report why", asy
             lastTransitionAt: installed.conditions["ready"]?.lastTransitionAt,
         },
         applied: null,
+    });
+});
+
+test("deploy nothing of a build routing hooks without serving them, and report why", async () => {
+    // install notes routing hooks on its note type, built without stack's hooks workload
+    const fixture = await StackFixture.open();
+    const { database } = fixture;
+    const hooked: Declared = {
+        ...requesting({}),
+        description: {
+            api: { name: "notes", procedures: [] },
+            objects: {
+                notes: {
+                    type: { packageId: ids.package, type: "note" },
+                    hooks: { create: ["handle"] },
+                },
+            },
+            adapters: {},
+            views: [],
+            permissions: {},
+            capabilities: {},
+        },
+    };
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main, hooked]));
+    const { deployments } = await serveControllers(fixture);
+
+    // deploy it
+    await deployments.reconcile(notes.id);
+    const installed = nth(
+        await database
+            .select()
+            .from(object.installation.table)
+            .where(eq(object.installation.table.id, notes.id)),
+        0,
+    );
+    expect({
+        deployments: await database.select().from(object.deployment.table),
+        ready: installed.conditions["ready"],
+    }).toEqual({
+        deployments: [],
+        ready: {
+            status: "false",
+            reason: "NoHooks",
+            message: `${notesPackage.name} routes hooks, but its build serves none: declare @destack/stack`,
+            observedGeneration: installed.generation,
+            lastTransitionAt: installed.conditions["ready"]?.lastTransitionAt,
+        },
     });
 });
 

@@ -50,6 +50,7 @@ import {
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
+import { HOOK_WORKLOAD } from "../../client/hook.ts";
 
 /** The condition of an installation whose bound targets are each ready. */
 const BOUND = { status: "true", reason: "Bound", message: "every bound target is ready" } as const;
@@ -118,6 +119,7 @@ interface Refusal {
     /** The ready condition's reason. */
     readonly reason:
         | "NoRuntime"
+        | "NoHooks"
         | "UndeclaredCapability"
         | "UnentitledCapability"
         | "UninstalledDependency"
@@ -351,6 +353,19 @@ export class Application {
             const message = `workloads ${stranded.join(", ")} have no output on ${runtimes}`;
 
             return { reason: "NoRuntime", message };
+        }
+
+        // refuse a package routing hooks whose build serves none, as one not declaring stack builds
+        const isHooked = Object.values(description?.objects ?? {}).some(
+            (routed) => Object.keys(routed.hooks).length > 0,
+        );
+        const isServed = Object.values(build.manifest.outputs).some((output) =>
+            Object.hasOwn(output.workloads, HOOK_WORKLOAD),
+        );
+        if (isHooked && !isServed) {
+            const message = `${build.manifest.package.name} routes hooks, but its build serves none: declare @destack/stack`;
+
+            return { reason: "NoHooks", message };
         }
 
         // refuse allowing a capability or granting a directory the build does not declare
