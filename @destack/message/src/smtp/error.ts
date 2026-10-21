@@ -1,4 +1,4 @@
-import type { DomainError, CallErrorCode, CallErrorReport } from "@destack/error";
+import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 import type { Reply } from "./reply.ts";
 
 /** The call error code per SMTP failure: an envelope, a message, the relay or the machine. */
@@ -33,7 +33,7 @@ export class SmtpError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 }

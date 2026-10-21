@@ -7,7 +7,7 @@ import { TestDatabase } from "@destack/db/test";
 import { defineServer, ObjectStore } from "@destack/object/server";
 import { testEvents } from "@destack/object/test";
 import { Package } from "@destack/package";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
 import { onTestFinished, refusal } from "@destack/test";
 import vaultServer from "@destack/vault/server";

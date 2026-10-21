@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { Secret } from "@destack/vault";
 import { secret } from "@destack/vault/object";

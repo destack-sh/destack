@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
 

@@ -2,8 +2,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { and, eq } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { Identifier, schema } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { type ObjectReference, Scope, type Subject } from "@destack/sync";
+import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
 import { VAULT_PROVIDER } from "@destack/vault/declare";
 import { secret, vault } from "@destack/vault/object";
 

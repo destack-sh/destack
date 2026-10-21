@@ -2,7 +2,7 @@ import { type Select } from "@destack/db";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
 import { WebhookContent, WebhookDestination } from "../webhook/message.ts";

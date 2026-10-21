@@ -1,5 +1,5 @@
 import type { Deriver } from "@destack/identity";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { Caller } from "@destack/access";
 import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
 import {
@@ -11,7 +11,6 @@ import {
 } from "@destack/object";
 import { secret } from "@destack/vault/object";
 import { nth, Identifier, type JsonValue, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
 import {
     type Endpoint,
     endpoint,

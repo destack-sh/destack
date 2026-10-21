@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { MimeMessage, type Envelope } from "../mime/index.ts";
 import { AwsSigner } from "@destack/identity/aws";
-import type { Fetch } from "@destack/runtime";
+import type { Fetch } from "@destack/object";
 import { SesError, SesClient, type SesErrorCode } from "./index.ts";
 
 /** The credentials every client signs with. */

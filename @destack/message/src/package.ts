@@ -1,5 +1,5 @@
 import { client } from "@destack/account/object";
-import { definePackage } from "@destack/runtime";
+import { definePackage } from "@destack/object";
 import { defineMail } from "./email/kind.ts";
 import { endpoint, mail, message, messageAttempt, task } from "./object/index.ts";
 

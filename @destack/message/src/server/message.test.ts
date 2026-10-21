@@ -4,14 +4,20 @@ import { AccessFixture } from "@destack/access/test";
 import { call, JournalEntry, journal } from "@destack/object";
 import { testEvents } from "@destack/object/test";
 import { defineServer, ObjectStore } from "@destack/object/server";
-import { defineDatabase, type DatabaseConnection, eq, TABLE } from "@destack/db";
+import {
+    defineDatabase,
+    type DatabaseConnection,
+    eq,
+    TABLE,
+    type Controller,
+    ControlLoop,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Derivation } from "@destack/identity";
 import type {} from "@destack/package/import-meta";
 import { type Identifier, present, schema } from "@destack/schema";
-import { type Controller, ControlLoop } from "@destack/runtime/control";
-import { testCallKey } from "@destack/runtime/test";
-import { ObjectReference, Scope } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     GONE,
@@ -28,7 +34,6 @@ import { messageTables } from "../stack/index.ts";
 import type { MessageOptions } from "./message.ts";
 import messagePackage from "../package.ts";
 import { serveMessages } from "./serve.ts";
-import { RequestId } from "@destack/runtime/request";
 import { Clock } from "@destack/environment";
 
 /** The scope type the messages live in, as a space runs on a machine. */
