@@ -1,3 +1,4 @@
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { modulePlugin } from "@destack/package/bun";
@@ -23,7 +24,7 @@ async function start(): Promise<Miniflare> {
     const worker = new Miniflare({
         modules: true,
         script: await output.text(),
-        compatibilityDate: "2026-07-30",
+        compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { NOTES: { className: "Notes", useSQLite: true } },
     });
