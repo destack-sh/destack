@@ -2,17 +2,16 @@ import { setting } from "@destack/setting/object";
 import { expect, test } from "@destack/test";
 import { log, metric, span, visit } from "../src/object/index.ts";
 import { telemetryRetention } from "../src/setting/index.ts";
-import { TelemetryPolicy } from "../src/index.ts";
+import type { EventKind } from "@destack/event";
 import { ids, openSpace, START } from "./fixture/space.ts";
 
 /** The milliseconds in a day. */
 const DAY = 86_400_000;
 
-test("keep a space's telemetry and analytics as long as its settings say, and leave a machine's and other kinds to their own", async () => {
+test("keep a space's telemetry and analytics as long as its settings say, and a machine's as long as the settings' defaults", async () => {
     const space = await openSpace();
-    const policy = TelemetryPolicy.of(space.store.database);
-    const retention = async (kind: Parameters<typeof policy>[0], scope: string) =>
-        (await policy(kind, scope)).retention;
+    const retention = (kind: EventKind, scope: string) =>
+        kind.retention(scope, space.store.database);
     const defaults = {
         log: await retention(log.eventKind(), ids.space),
         visit: await retention(visit.eventKind(), ids.space),
@@ -31,7 +30,7 @@ test("keep a space's telemetry and analytics as long as its settings say, and le
         updatedAt: START,
     });
 
-    // read the defaults, the setting for spans and metric points, and a machine's log at its kind's own retention
+    // read the defaults, the setting for spans and metric points, and a machine's log at the setting's default
     expect({
         defaults,
         span: await retention(span.eventKind(), ids.space),

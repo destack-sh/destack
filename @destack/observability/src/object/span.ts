@@ -9,7 +9,9 @@ import {
     Instrumentation,
     PersonalAttributes,
 } from "../event/attribute.ts";
-import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
+import { EVENT_FLUSH } from "../event/policy.ts";
+import { SettingValue } from "@destack/setting/object";
+import { telemetryRetention } from "../setting/index.ts";
 
 /** A span's outcome, as OpenTelemetry's status codes name it. */
 export const SPAN_STATUSES = ["unset", "ok", "error"] as const;
@@ -52,8 +54,8 @@ export const span = defineObject(
         scope: [space, machine],
         storage: {
             kind: "events",
-            flush: TELEMETRY_FLUSH,
-            retention: TELEMETRY_RETENTION,
+            flush: EVENT_FLUSH,
+            retention: SettingValue.retention(telemetryRetention),
             delivery: "at-most-once",
             subject: "person",
         },

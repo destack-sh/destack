@@ -5,7 +5,9 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { AttributeKey, Instrumentation } from "../event/attribute.ts";
-import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
+import { EVENT_FLUSH } from "../event/policy.ts";
+import { SettingValue } from "@destack/setting/object";
+import { telemetryRetention } from "../setting/index.ts";
 
 /** The instruments a metric point aggregates. */
 export const INSTRUMENTS = ["sum", "gauge", "histogram"] as const;
@@ -32,8 +34,8 @@ export const metric = defineObject(
         scope: [space, machine],
         storage: {
             kind: "events",
-            flush: TELEMETRY_FLUSH,
-            retention: TELEMETRY_RETENTION,
+            flush: EVENT_FLUSH,
+            retention: SettingValue.retention(telemetryRetention),
             delivery: "at-most-once",
             distribution: "histogram",
         },

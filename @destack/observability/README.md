@@ -66,21 +66,21 @@ await client.silence.create({
 
 ## Server
 
-The package's server serves issues, alert rules, alerts and the `otlp` adapter, and `TelemetryPolicy` keeps each events type as long as the space's settings say.
+The package's server serves issues, alert rules, alerts and the `otlp` adapter, and each events type keeps its events as long as the space's retention setting says.
 
 ```ts
 import observabilityServer from "@destack/observability/server";
-import { TelemetryPolicy } from "@destack/observability";
 
-const events = new EventStore({
-    database,
-    kinds,
-    files,
-    personal,
-    policy: TelemetryPolicy.of(database),
-    clock,
-    report,
-});
+storage: { kind: "events", flush: EVENT_FLUSH, retention: SettingValue.retention(telemetryRetention) },
+```
+
+## Readings
+
+A `reading` records one increment of a meter a space used, with the SKU and payer it is billed at, and its `metering` reader hands each hour's readings to the machine billing them.
+
+```ts
+await store.mutate(machine, { id, calls: [reading.call("append", { ...reading.in(spaceId), items })] });
+controllers: [reading.consume("metering", async (page) => billUses(await Usage.of(page)))],
 ```
 
 ## Meters

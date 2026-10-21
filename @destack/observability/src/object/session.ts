@@ -5,7 +5,9 @@ import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { SESSION_STATUSES } from "@destack/telemetry/otlp";
 import { PersonalAttributes } from "../event/attribute.ts";
-import { TELEMETRY_FLUSH, TELEMETRY_RETENTION } from "../event/policy.ts";
+import { EVENT_FLUSH } from "../event/policy.ts";
+import { SettingValue } from "@destack/setting/object";
+import { telemetryRetention } from "../setting/index.ts";
 
 /** What a session keeps beside its keys. */
 export const SessionData = schema.object({
@@ -23,8 +25,8 @@ export const session = defineObject(
         scope: space,
         storage: {
             kind: "events",
-            flush: TELEMETRY_FLUSH,
-            retention: TELEMETRY_RETENTION,
+            flush: EVENT_FLUSH,
+            retention: SettingValue.retention(telemetryRetention),
             delivery: "at-most-once",
             subject: "person",
         },

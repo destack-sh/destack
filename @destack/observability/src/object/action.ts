@@ -4,7 +4,9 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { AttributeKey, PersonalAttributes } from "../event/attribute.ts";
-import { ANALYTICS_RETENTION, TELEMETRY_FLUSH } from "../event/policy.ts";
+import { EVENT_FLUSH } from "../event/policy.ts";
+import { SettingValue } from "@destack/setting/object";
+import { analyticsRetention } from "../setting/index.ts";
 
 /** What an action keeps beside its keys. */
 export const ActionData = schema.object({
@@ -20,8 +22,8 @@ export const action = defineObject(
         scope: space,
         storage: {
             kind: "events",
-            flush: TELEMETRY_FLUSH,
-            retention: ANALYTICS_RETENTION,
+            flush: EVENT_FLUSH,
+            retention: SettingValue.retention(analyticsRetention),
             delivery: "at-most-once",
             subject: "person",
         },

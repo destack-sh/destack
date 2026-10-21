@@ -1,3 +1,4 @@
+import type { ObjectType } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { STACKS } from "@destack/account/test";
 import { AccessContext, Caller, principal } from "@destack/access";
@@ -30,7 +31,6 @@ import { build, installation, installationRevision } from "@destack/stack/object
 import { buildIndexServers } from "@destack/stack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
-import { OBSERVABILITY_TYPES } from "../../src/event/index.ts";
 import {
     alert,
     alertRule,
@@ -42,7 +42,6 @@ import {
     RESPOND_CAPABILITY,
     silence,
 } from "../../src/object/index.ts";
-import { observabilityTables } from "../../src/stack/index.ts";
 import observabilityPackage from "../../src/package.ts";
 import { testServerContext } from "@destack/runtime/test";
 import observabilityServer from "../../src/server.ts";
@@ -101,6 +100,9 @@ export interface ObservedSpace {
     readonly fetch: (request: Request, caller: Subject) => Promise<Response | undefined>;
 }
 
+/** The types observability declares. */
+const OBSERVABILITY_OBJECTS: readonly ObjectType[] = Object.values(observabilityPackage.objects);
+
 /** Serve observability in a new space of a SQLite database, closed after the test. */
 export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpace> {
     // migrate the space's tables
@@ -108,8 +110,7 @@ export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpa
     const tables: readonly Table[] = [
         journal,
         ...call.tables,
-        ...observabilityTables,
-        ...[...OBSERVABILITY_TYPES, installation, installationRevision, build, user].flatMap(
+        ...[...OBSERVABILITY_OBJECTS, installation, installationRevision, build, user].flatMap(
             (object) => object.tables,
         ),
         account.table,
@@ -135,7 +136,9 @@ export async function openSpace(options: SpaceOptions = {}): Promise<ObservedSpa
     // keep the space's events and serve observability, notifications and comments as the space
     const events = await testEvents(
         database,
-        OBSERVABILITY_TYPES.map((object) => object.eventKind()),
+        OBSERVABILITY_OBJECTS.filter((object) => object.storage === "events").map((object) =>
+            object.eventKind(),
+        ),
         clock,
     );
     const failures: unknown[] = [];
