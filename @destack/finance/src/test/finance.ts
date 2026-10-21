@@ -22,10 +22,17 @@ import { LocaleTag } from "@destack/locale";
 import { notification } from "@destack/notification";
 import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
-import { EventView, type ObjectType, type ReaderPage, Health } from "@destack/object";
+import { EventView, type ObjectType, type ReaderPage } from "@destack/object";
+import {
+    Health,
+    implementPackage,
+    ObjectStore,
+    type PackageImplementation,
+    Stack,
+    Server,
+} from "@destack/object/server";
 import { packageObject, tag } from "@destack/forge/object";
 import { publishBuild, resolvedRelease } from "@destack/forge/test";
-import { defineServer, ObjectStore, type PackageServer, Stack, Server } from "@destack/object/server";
 import { Package, PackageId } from "@destack/package";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -188,7 +195,7 @@ export class FinanceFixture {
     private constructor(
         test: TestDatabase,
         events: EventStore,
-        index: readonly PackageServer[],
+        index: readonly PackageImplementation[],
         published: Map<string, BuildReader>,
         options: FinanceFixtureOptions,
     ) {
@@ -210,7 +217,7 @@ export class FinanceFixture {
         this.#served = definition.objects ?? [];
         this.store = new ObjectStore({
             servers: [
-                defineServer(financePackage, definition),
+                implementPackage(financePackage, definition),
                 notificationServer,
                 ...serversOf([packageObject, resolvedRelease, tag, entitlement]),
                 ...index,

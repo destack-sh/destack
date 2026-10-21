@@ -1,7 +1,7 @@
 import accountPackage from "@destack/account/package";
 import forgePackage from "@destack/forge/package";
 import { Registry } from "@destack/forge/client";
-import { defineServer } from "@destack/object/server";
+import { implementPackage } from "@destack/object/server";
 import { createClient } from "@destack/object/client";
 import { provider, tag } from "./declare/setting.ts";
 import financePackage from "./package.ts";
@@ -16,7 +16,7 @@ export * from "./server/index.ts";
 const ACCOUNT_ADDRESS = accountPackage.name;
 
 /** The finance package's server in a residency home: sellers, prices, subscriptions and usage. */
-export default defineServer(financePackage, (context) => {
+export default implementPackage(financePackage, (context) => {
     // charge buyers through the installation's provider, none for default products alone
     const home = context.space;
     const charging =

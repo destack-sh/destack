@@ -11,7 +11,7 @@ import type { Metering } from "./metering.ts";
 import { account, entitlementShape } from "@destack/account/object";
 import { CallError } from "@destack/object";
 import { Scope, RequestId } from "@destack/sync";
-import type { ServerDefinition } from "@destack/object/server";
+import type { ImplementationInput } from "@destack/object/server";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
 import { EntitlementController } from "./entitlement-controller.ts";
@@ -22,7 +22,7 @@ export function implementFinance(
     home: string,
     metering: Metering,
     charging: PaymentProvider | undefined,
-): ServerDefinition<typeof financePackage> {
+): ImplementationInput<typeof financePackage> {
     const billing = new Billing(charging, home);
 
     return {
