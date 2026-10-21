@@ -20,8 +20,7 @@ import { Identifier, schema } from "@destack/schema";
 import { Bearer, TokenVerifier } from "@destack/access/token";
 import { Identity } from "@destack/account/object";
 import { createLocalJWKSet } from "jose";
-import { CallError } from "@destack/object";
-import { refusal } from "@destack/object/server";
+import { CallError, refusal } from "@destack/object";
 
 /** The instruments capturing the renewals that fail outside any request. */
 const instruments = telemetry.scope(import.meta.destack.package);

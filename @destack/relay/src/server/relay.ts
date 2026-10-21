@@ -21,8 +21,7 @@ import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import type { TokenVerifier } from "@destack/access/token";
-import { CallError, PackageMount } from "@destack/object";
-import { refusal, reportError } from "@destack/object/server";
+import { CallError, PackageMount, refusal, reportError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import type { Call } from "@destack/sync";
 import {

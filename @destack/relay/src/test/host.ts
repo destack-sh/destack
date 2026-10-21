@@ -4,8 +4,8 @@ import { Caller } from "@destack/access";
 import { telemetry } from "@destack/telemetry";
 import type { Environment, Listener } from "@destack/environment";
 import { ResourceContext } from "@destack/resource/context";
-import { PackageMount } from "@destack/object";
-import { Health, reportError, Server } from "@destack/object/server";
+import { PackageMount, reportError } from "@destack/object";
+import { Health, Server } from "@destack/object/server";
 import {
     HibernationHost,
     FORWARDED_URL_HEADER,
