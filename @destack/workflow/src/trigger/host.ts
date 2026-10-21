@@ -22,10 +22,10 @@ import {
     type ObjectReconciliation,
     CallError,
     refuseInput,
+    refusal,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { Controller } from "@destack/db";
-import { refusal } from "@destack/object/server";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { ServerContext, WebhookHandler } from "@destack/object/workload";
 import { canonicalize, schema } from "@destack/schema";
