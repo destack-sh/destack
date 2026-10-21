@@ -1,5 +1,5 @@
 import { type CallInput, ListPage, type MethodContext } from "@destack/object";
-import type { ServerDefinition } from "@destack/object/server";
+import type { ImplementationInput } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
 import { CallError } from "@destack/object";
 import { Catalog, Localization, type LocaleTag } from "@destack/locale";
@@ -188,7 +188,7 @@ export class NotificationServer {
     }
 
     /** Define the package's server: its types, their delivery and summaries, and home follows. */
-    definition(): ServerDefinition<typeof notificationPackage> {
+    definition(): ImplementationInput<typeof notificationPackage> {
         return {
             objects: [
                 implementActivity(this),

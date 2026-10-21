@@ -12,7 +12,16 @@ import {
 import { AccessFixture } from "@destack/access/test";
 import { account, claim, client, key, user, space, Account } from "@destack/account/object";
 import { call, journal, ObjectType, relationship } from "@destack/object";
-import { type Database, type DatabaseConnection, defineDatabase, type Dialect, eq, Snapshot, Table, ControlLoop } from "@destack/db";
+import {
+    type Database,
+    type DatabaseConnection,
+    defineDatabase,
+    type Dialect,
+    eq,
+    Snapshot,
+    Table,
+    ControlLoop,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { LocaleTag } from "@destack/locale";
 import { Derivation } from "@destack/identity";
@@ -23,7 +32,7 @@ import { message } from "@destack/message";
 import { type MessageOptions, serveMessages } from "@destack/message/server";
 import messagePackage from "@destack/message/package";
 import { messageTables } from "@destack/message/stack";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { serversOf, testEvents } from "@destack/object/test";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -33,7 +42,16 @@ import type { Setting } from "@destack/setting";
 import { setting } from "@destack/setting/object";
 import { settingServer, type SettingOptions } from "@destack/setting/server";
 import { PackageHandle } from "@destack/object";
-import { RequestId, type Mutation, type Uplink, replicaPosition, replicaTables, Scope, ObjectReference, Subject } from "@destack/sync";
+import {
+    RequestId,
+    type Mutation,
+    type Uplink,
+    replicaPosition,
+    replicaTables,
+    Scope,
+    ObjectReference,
+    Subject,
+} from "@destack/sync";
 import { subjectContext, testCallKey, testServerContext } from "@destack/object/test";
 import type { ServerContext } from "@destack/object/workload";
 import { onTestFinished } from "@destack/test";
@@ -316,10 +334,11 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         });
         const store = new ObjectStore({
             servers: [
-                defineServer(app, { objects: options.objects }),
-                defineServer(notificationPackage, new NotificationServer(served).definition()).at(
-                    await NotificationFixture.installation(spaceId),
-                ),
+                implementPackage(app, { objects: options.objects }),
+                implementPackage(
+                    notificationPackage,
+                    new NotificationServer(served).definition(),
+                ).at(await NotificationFixture.installation(spaceId)),
                 settingServer(SETTINGS),
                 // read the installed builds' declarations from their index
                 ...(await buildIndexServers(test.database, builds)),
@@ -655,11 +674,11 @@ export class NotificationFixture<Name extends string> implements AsyncDisposable
         };
         const store = new ObjectStore({
             servers: [
-                defineServer(
+                implementPackage(
                     notificationPackage,
                     new NotificationServer(this.#options).definition(),
                 ).at(await NotificationFixture.installation(id)),
-                defineServer(
+                implementPackage(
                     messagePackage,
                     serveMessages({ providers: this.#providers, retry: RETRY, keys: this.#root }),
                 ),
