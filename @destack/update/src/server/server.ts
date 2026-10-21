@@ -1,4 +1,4 @@
-import { defineServer, type PackageServer } from "@destack/object/server";
+import { implementPackage, type PackageImplementation } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import updatePackage from "../package.ts";
 import {
@@ -16,10 +16,10 @@ export interface DistributionServerOptions {
 }
 
 /** Serve a machine's distribution in the machine's scope, staging and activating its releases. */
-export function distributionServer(options: DistributionServerOptions): PackageServer {
+export function distributionServer(options: DistributionServerOptions): PackageImplementation {
     const { machine, host } = options;
 
-    return defineServer(updatePackage, {
+    return implementPackage(updatePackage, {
         objects: [serveDistributions(host)],
         controllers:
             host === undefined ? [] : [(store) => new DistributionController(store, machine, host)],
