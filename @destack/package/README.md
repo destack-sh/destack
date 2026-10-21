@@ -1,6 +1,6 @@
 # @destack/package
 
-`destack.json` is a package's `package.json` companion with Deno's permissions as `sandbox`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, and `graph` keeps a build's symbols under SCIP monikers and relationships.
+`destack.json` is a package's `package.json` companion with Deno's permissions as `sandbox`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, `graph` keeps a build's modules and declarations under SCIP monikers, and `graph.Document` keeps one source file of the code index with its symbols and edges, as SCIP's `Document` does.
 
 ```ts
 // deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git
@@ -109,13 +109,19 @@ const module = await reader.module((await reader.graph()).modules["src/server.ts
 
 ## Stack frames
 
-`StackFrame.read` reads a stack trace's frames, and a build's `Symbolicator` maps them to their source and graph symbol, as an emitter does before export.
+`StackFrame.read` reads a stack trace's frames, a build's `Symbolicator` maps them through its source maps as an emitter does before export, and `StackFrame.attribute` resolves a frame to its symbol and declaration through the code index.
 
 ```ts
 import { StackFrame, Symbolicator } from "@destack/package/stack";
 
 const frames = await new Symbolicator(build).frames(StackFrame.read(error.stack ?? ""));
-// [{ function: "rename", file: "…/workload.js", path: "src/note.ts", line: 3, isInApp: true, moniker, declaration }]
+// [{ function: "rename", file: "…/workload.js", path: "src/note.ts", line: 3, isInApp: true }]
+const attributed = StackFrame.attribute(frame, {
+    code,
+    module,
+    lines: StackFrame.lineStarts(source),
+});
+// { …frame, moniker: "…/src/note.ts#Note.rename", declaration: { kind: "method", name: "rename", … } }
 ```
 
 ## Transforms

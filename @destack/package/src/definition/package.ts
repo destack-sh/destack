@@ -75,6 +75,14 @@ export const DependencyPackage = schema.object({
 /** A named dependency version. */
 export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
 
+/** An npm release as its package.json names it and the lockfile verifies it. */
+export const NpmPackage = DependencyPackage.extend({
+    /** The registry's Subresource Integrity expression, as the lockfile records it. */
+    integrity: schema.string().min(1),
+});
+/** An npm release as its package.json names it and the lockfile verifies it. */
+export type NpmPackage = schema.Infer<typeof NpmPackage>;
+
 /** The key of the declaring package on a declaration with taken properties, such as columns. */
 export const PACKAGE = Symbol.for("destack.package");
 

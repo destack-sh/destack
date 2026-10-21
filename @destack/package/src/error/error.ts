@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { type DomainError, type CallErrorCode, type CallErrorReport } from "@destack/error";
+import { type DomainError, type CallErrorCode, type Failure } from "@destack/error";
 import type { SandboxName } from "../definition/sandbox.ts";
 
 /** Invalid package definitions and distributed files. */
@@ -11,6 +11,7 @@ export const PackageErrorCode = schema.enum([
     "INVALID_DEPENDENCY",
     "INVALID_FILE",
     "INVALID_INSPECTION",
+    "INVALID_BUILD",
 ]);
 
 /** A machine-readable package failure code. */
@@ -25,6 +26,7 @@ const CALL_CODES: Readonly<Record<PackageErrorCode, CallErrorCode>> = {
     INVALID_DEPENDENCY: "BAD_REQUEST",
     INVALID_FILE: "BAD_REQUEST",
     INVALID_INSPECTION: "UNPROCESSABLE_CONTENT",
+    INVALID_BUILD: "BAD_REQUEST",
 };
 
 /** A package failure with its original cause. */
@@ -40,7 +42,7 @@ export class PackageError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 }
@@ -70,7 +72,7 @@ export class SandboxError extends Error implements DomainError {
     }
 
     /** Report an ability no host grants as a workload the host cannot process. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: "UNPROCESSABLE_CONTENT", message: this.message };
     }
 }

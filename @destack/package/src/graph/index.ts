@@ -4,3 +4,4 @@ export * from "./declaration.ts";
 export * from "./edge.ts";
 export * from "./member.ts";
 export * from "./module.ts";
+export * from "./document.ts";

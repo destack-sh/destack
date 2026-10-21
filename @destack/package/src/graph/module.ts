@@ -1,11 +1,10 @@
 import { Digest, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
 import { Declaration } from "./declaration.ts";
-import { Edge } from "./edge.ts";
+import { Edge, MODULE_EDGE_KINDS } from "./edge.ts";
 import { Moniker } from "./moniker.ts";
-import { Symbol } from "./symbol.ts";
 
-/** A module's graph file: its symbols, declarations and outgoing edges. */
+/** A module's graph file: its imports, exports, declarations and their edges. */
 export const Module = Object.assign(
     schema.object({
         /** The package-relative module path. */
@@ -25,12 +24,10 @@ export const Module = Object.assign(
                 isTypeOnly: schema.boolean(),
             }),
         ),
-        /** The symbols and their members, by moniker. */
-        symbols: schema.array(Symbol),
         /** The declarations, by moniker. */
         declarations: schema.array(Declaration),
-        /** The edges from the module, its symbols and declarations. */
-        edges: schema.array(Edge),
+        /** The edges from the module and its declarations, every declaration edge but covers. */
+        edges: schema.array(Edge.extend({ kind: schema.enum(MODULE_EDGE_KINDS) })),
     }),
     { file },
 );
@@ -47,17 +44,12 @@ export type Root = schema.Infer<typeof Root>;
 
 /** Encode a module as its graph file: the bytes and their digest, the file's content address. */
 async function file(module: Module): Promise<{ digest: Digest; bytes: Uint8Array<ArrayBuffer> }> {
-    // refuse a declaration at neither the module itself nor a symbol it defines
-    const defined = new Set(module.symbols.map((symbol) => symbol.moniker));
-    const isModule = (symbol: Moniker) =>
-        symbol === Moniker.of({ packageId: Moniker.packageId(symbol), module: module.path });
+    // refuse a declaration declared in another module
     const stray = module.declarations.find(
-        (declaration) => !defined.has(declaration.symbol) && !isModule(declaration.symbol),
+        (declaration) => Moniker.module(declaration.symbol) !== module.path,
     );
     if (stray !== undefined) {
-        throw new TypeError(
-            `${module.path} declares ${stray.moniker} at neither itself nor a symbol it defines`,
-        );
+        throw new TypeError(`${module.path} declares ${stray.moniker} in another module`);
     }
 
     // encode the module

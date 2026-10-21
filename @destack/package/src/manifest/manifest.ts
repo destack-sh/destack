@@ -1,5 +1,6 @@
 import { Commit, Digest, Instant, schema } from "@destack/schema";
-import { DeclarationName, Language, Package } from "../definition/index.ts";
+import { DeclarationName, Language, NpmPackage, Package } from "../definition/index.ts";
+import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
@@ -28,11 +29,11 @@ export const ManifestLists = schema.object({
 export type ManifestLists = schema.Infer<typeof ManifestLists>;
 
 /** The portable structure of a package build manifest. */
-export const PackageManifest = schema.object({
+const manifest = schema.object({
     /** The manifest format version, independent of the package version. */
     formatVersion: schema.literal(1),
-    /** The package being built. */
-    package: Package,
+    /** The package being built: a Destack package, or an npm release built as a unit. */
+    package: schema.union([Package, NpmPackage]),
     /** The package's source language. */
     language: Language,
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */
@@ -45,8 +46,22 @@ export const PackageManifest = schema.object({
     outputs: schema.record(DeclarationName, PackageOutput),
 });
 
+/** The portable structure of a package build manifest. */
+export const PackageManifest = Object.assign(manifest, {
+    /** Read the Destack package a build builds, refusing an npm unit's build. */
+    package(value: PackageManifest): Package {
+        // refuse an npm unit's build, which names no Destack package
+        if (!("id" in value.package)) {
+            const { name, version } = value.package;
+            throw new PackageError("INVALID_BUILD", `${name}@${version} is an npm unit's build`);
+        }
+
+        return value.package;
+    },
+});
+
 /** A package build description. */
-export type PackageManifest = schema.Infer<typeof PackageManifest>;
+export type PackageManifest = schema.Infer<typeof manifest>;
 
 /** An immutable package's retrieval endpoint and manifest digest. */
 export const PackageLocation = schema.object({

@@ -33,6 +33,8 @@ export interface TransformContext {
     readonly options: Readonly<Record<string, unknown>>;
     /** The build's content-addressed cache of derived files, absent where builds keep none. */
     readonly cache?: TransformCache;
+    /** The directory of each Destack dependency's build, by package name. */
+    readonly dependencies: Readonly<Record<string, string>>;
 }
 
 /** The build's content-addressed cache, keeping the files transforms derive under their keys. */
@@ -82,7 +84,9 @@ export interface Pass {
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     readonly plugins: () => Plugin[];
     /** Return the plugins of the dependency closure's extensions, transforming the modules. */
-    readonly transforms: (context: Omit<TransformContext, "directory">) => PluginOption[];
+    readonly transforms: (
+        context: Omit<TransformContext, "directory" | "dependencies">,
+    ) => PluginOption[];
     /** Return the plugin recording what one Vite environment compiles, into its output if any. */
     readonly record: (environment: string, output?: string) => Plugin;
     /** Map a generated file's source map source to its package path. */

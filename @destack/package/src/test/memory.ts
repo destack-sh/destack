@@ -85,13 +85,6 @@ export const MemoryBuild = {
                 digest: await Digest.of(source),
                 imports: [],
                 exports: names.map((name) => ({ name, symbol: symbol(name), isTypeOnly: false })),
-                symbols: names.map((name) => ({
-                    moniker: symbol(name),
-                    kind: "variable",
-                    source: { file: path, start: 0, end: source.length },
-                    signature: `export const ${name}`,
-                    isExported: true,
-                })),
                 declarations: values.map(({ module: _module, ...value }) =>
                     Declaration.at(symbol(value.name), Declared.parse(value)),
                 ),

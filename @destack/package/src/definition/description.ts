@@ -25,7 +25,7 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
 );
 
 /** A package's package.json, with its destack.json as its definition. */
-export const PackageJson = schema.object({
+const packageJson = schema.object({
     /** The stable package ID, current name, and version. */
     package: Package,
     /** Destack language, targets, workloads, and compute settings. */
@@ -51,4 +51,42 @@ export const PackageJson = schema.object({
 });
 
 /** A package's package.json, with its destack.json as its definition. */
-export type PackageJson = schema.Infer<typeof PackageJson>;
+export const PackageJson = Object.assign(packageJson, {
+    /** List the names a package requires at runtime: its dependencies, peers and optional ones. */
+    runtimeDependencies(requirements: RuntimeRequirements): string[] {
+        return Object.keys({
+            ...requirements.dependencies,
+            ...requirements.peerDependencies,
+            ...requirements.optionalDependencies,
+        });
+    },
+    /** Decide whether a package runs without a dependency, an optional one or optional peer. */
+    isOptional(
+        value: Pick<PackageJson, "dependencies" | "optionalDependencies" | "peerDependenciesMeta">,
+        name: string,
+    ): boolean {
+        // accept an optional dependency, which overrides a matching dependency
+        if (Object.hasOwn(value.optionalDependencies, name)) {
+            return true;
+        }
+
+        // accept an optional peer the package does not also require
+        const isRequired = Object.hasOwn(value.dependencies, name);
+        const isOptionalPeer = value.peerDependenciesMeta[name]?.optional === true;
+
+        return !isRequired && isOptionalPeer;
+    },
+});
+
+/** A package's package.json, with its destack.json as its definition. */
+export type PackageJson = schema.Infer<typeof packageJson>;
+
+/** The runtime dependency groups of a package.json, each absent when it declares none. */
+export interface RuntimeRequirements {
+    /** The required dependencies. */
+    readonly dependencies?: Readonly<Record<string, string>>;
+    /** The dependencies a dependent supplies. */
+    readonly peerDependencies?: Readonly<Record<string, string>>;
+    /** The optional dependencies. */
+    readonly optionalDependencies?: Readonly<Record<string, string>>;
+}

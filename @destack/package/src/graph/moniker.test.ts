@@ -18,3 +18,13 @@ test("read the package a moniker starts with, an identifier or an npm name with 
         "npm:plain",
     ]);
 });
+
+test("read the module path of a module, a symbol, a member and declarations at a module and at a symbol", () => {
+    const at = "package-01996ab0-0000-7000-8000-0000000000a1/src/note.ts";
+
+    expect(
+        [at, `${at}#Note`, `${at}#Note.rename`, `${at}:test:note`, `${at}#Note:object`].map(
+            (moniker) => Moniker.module(Moniker.parse(moniker)),
+        ),
+    ).toEqual(["src/note.ts", "src/note.ts", "src/note.ts", "src/note.ts", "src/note.ts"]);
+});

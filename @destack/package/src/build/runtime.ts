@@ -1,5 +1,56 @@
 import { isBuiltin } from "node:module";
+import { nth } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
+
+/** The workerd compatibility date Destack's Workers and workloads run at. */
+export const WORKERD_COMPATIBILITY_DATE = "2026-07-30";
+
+/** Workerd's Node modules then, per developers.cloudflare.com/workers/runtime-apis/nodejs. */
+const WORKERD_NODE_MODULES: ReadonlySet<string> = new Set([
+    "_stream_wrap",
+    "assert",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "console",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "domain",
+    "events",
+    "fs",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "sqlite",
+    "stream",
+    "string_decoder",
+    "test",
+    "timers",
+    "tls",
+    "trace_events",
+    "tty",
+    "url",
+    "util",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+]);
 
 /** Select standard package conditions for a runtime and build mode. */
 export function runtimeConditions(
@@ -26,7 +77,9 @@ export function isHostModule(specifier: string): boolean {
 export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
     return (
         (runtime === "bun" && isHostModule(specifier)) ||
-        (runtime === "workerd" && specifier === "node:async_hooks")
+        (runtime === "workerd" &&
+            isBuiltin(specifier) &&
+            WORKERD_NODE_MODULES.has(nth(specifier.replace(/^node:/u, "").split("/"), 0)))
     );
 }
 

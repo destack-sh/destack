@@ -4,7 +4,13 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
-        "./test": { "runtimes": ["bun"] }
+        "./test": { "runtimes": ["bun"] },
+        "./build": { "runtimes": ["bun"] },
+        "./locator": { "runtimes": ["bun"] },
+        "./bun": { "runtimes": ["bun"] },
+        "./bun/preload": { "runtimes": ["bun"] },
+        "./transform": { "runtimes": ["bun"] },
+        "./vite": { "runtimes": ["bun"] }
     },
     "stamps": {
         "definePackage": { "module": 1 },

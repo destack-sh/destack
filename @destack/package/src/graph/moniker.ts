@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 
 /** The pattern of a moniker: package and module path, then optional symbol, member and kind. */
 const MONIKER_PATTERN =
@@ -11,7 +11,7 @@ const monikerSchema = schema.string().regex(MONIKER_PATTERN);
 export type Moniker = schema.Infer<typeof monikerSchema>;
 
 /** A stable name of a module, symbol or declaration across builds. */
-export const Moniker = Object.assign(monikerSchema, { of, packageId });
+export const Moniker = Object.assign(monikerSchema, { of, packageId, module });
 
 /** The names a moniker of a module, symbol or member joins. */
 export interface MonikerName {
@@ -42,4 +42,11 @@ function packageId(moniker: Moniker): string {
     }
 
     return owner;
+}
+
+/** Read a moniker's package-relative module path, past any symbol, member or kind. */
+function module(moniker: Moniker): string {
+    const rest = moniker.slice(packageId(moniker).length + 1);
+
+    return nth(nth(rest.split("#"), 0).split(":"), 0);
 }

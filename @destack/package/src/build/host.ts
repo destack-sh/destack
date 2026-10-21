@@ -35,17 +35,34 @@ export class HostModules {
 
     /** Resolve a host module, refusing one the runtime lacks and the importing package keeps. */
     resolve(specifier: string, importer: string | undefined): HostResolution | undefined {
+        // refuse the host modules the runtime lacks before Vite emits browser stubs
+        const resolution = this.classify(specifier, importer);
+        if (resolution === "unavailable") {
+            const importedBy = importer === undefined ? "" : `, imported by ${importer}`;
+            throw new TypeError(
+                `host module is unavailable on ${this.runtime}: ${specifier}${importedBy}`,
+            );
+        }
+
+        return resolution;
+    }
+
+    /** Classify a host module: kept, replaced with nothing, or unavailable; nothing for others. */
+    classify(
+        specifier: string,
+        importer: string | undefined,
+    ): HostResolution | "unavailable" | undefined {
         // keep host modules the runtime supplies
         if (isRuntimeModule(specifier, this.runtime)) {
             return "external";
         }
-        // bundle the empty module for a host module the importing package replaces with nothing
+        // take the empty module for a host module the importing package replaces with nothing
         else if (this.#isReplaced(specifier, importer)) {
             return "empty";
         }
-        // refuse the other host modules before Vite emits browser stubs
+        // mark the other host modules unavailable
         else if (isHostModule(specifier)) {
-            throw new TypeError(`host module is unavailable on ${this.runtime}: ${specifier}`);
+            return "unavailable";
         }
 
         return undefined;

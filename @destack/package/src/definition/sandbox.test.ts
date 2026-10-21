@@ -14,17 +14,19 @@ test("merge sandboxes into every ability of each, uniting host and command lists
     });
     const syncing = Sandbox.parse({ fs: { access: "write" }, camera: {} });
 
-    expect([Sandbox.merge(), Sandbox.merge(base), Sandbox.merge(base, importing, syncing)]).toEqual([
-        {},
-        base,
-        {
-            process: {},
-            network: { connect: ["api.github.com", "gmail.googleapis.com"] },
-            run: { commands: ["git"] },
-            fs: { access: "write" },
-            camera: {},
-        },
-    ]);
+    expect([Sandbox.merge(), Sandbox.merge(base), Sandbox.merge(base, importing, syncing)]).toEqual(
+        [
+            {},
+            base,
+            {
+                process: {},
+                network: { connect: ["api.github.com", "gmail.googleapis.com"] },
+                run: { commands: ["git"] },
+                fs: { access: "write" },
+                camera: {},
+            },
+        ],
+    );
 });
 
 test("refuse a sandbox entry with fields beyond its ability's own", () => {

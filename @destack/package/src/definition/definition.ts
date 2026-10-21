@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { Language } from "./language.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
-import { PackageId } from "./package.ts";
+import { PackageId, PackageName } from "./package.ts";
 import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
 import { Sandbox } from "./sandbox.ts";
 import { PackageError } from "../error/index.ts";
@@ -59,6 +59,8 @@ const definition = schema.object({
     stamps: StampMap.exactOptional(),
     /** The extension building dependent packages, such as `./build#viewExtension`. */
     build: FunctionReference.exactOptional(),
+    /** The packages whose build extensions compile this package beyond its runtime dependencies. */
+    extensions: schema.array(PackageName).min(1).exactOptional(),
     /** How checking treats the package: the findings it accepts. */
     check: CheckSettings.exactOptional(),
     /** The settings of the workspace this package's directory roots. */

@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import * as graph from "../graph/index.ts";
+import { StackFrame } from "./frame.ts";
 import { Symbolicator } from "./symbolicate.ts";
 
 /** The note module's source: a class with a rename method, and a helper outside it. */
@@ -29,6 +30,31 @@ const module = graph.Module.parse({
     digest: "0000000000000000000000000000000000000000000000000000000000000000",
     imports: [],
     exports: [],
+    declarations: [
+        {
+            moniker: `${AT}#Note:object`,
+            symbol: `${AT}#Note`,
+            kind: "object",
+            kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",
+            name: "note",
+            description: {},
+        },
+        {
+            moniker: `${AT}#Note.rename:method`,
+            symbol: `${AT}#Note`,
+            kind: "method",
+            kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",
+            name: "rename",
+            description: {},
+        },
+    ],
+    edges: [],
+});
+
+/** The note module's code, as the code index keeps it. */
+const code = graph.Document.parse({
+    path: "src/note.ts",
+    digest: "0000000000000000000000000000000000000000000000000000000000000000",
     symbols: [
         {
             moniker: `${AT}#Note`,
@@ -52,24 +78,6 @@ const module = graph.Module.parse({
             isExported: false,
         },
     ],
-    declarations: [
-        {
-            moniker: `${AT}#Note:object`,
-            symbol: `${AT}#Note`,
-            kind: "object",
-            kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",
-            name: "note",
-            description: {},
-        },
-        {
-            moniker: `${AT}#Note.rename:method`,
-            symbol: `${AT}#Note`,
-            kind: "method",
-            kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",
-            name: "rename",
-            description: {},
-        },
-    ],
     edges: [],
 });
 
@@ -87,12 +95,12 @@ const build = {
     sourceMaps: async () => [
         { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },
     ],
-    graph: async () => ({ modules: { "src/note.ts": module.digest } }),
-    module: async () => module,
     load: async (path: string) => new TextEncoder().encode(path.endsWith(".map") ? MAP : SOURCE),
 };
 
 test("map frames to their sources and resolve in-app ones to their innermost symbol and the declaration it is or belongs to", async () => {
+    // map the frames through the build's source map, then attribute them through the module's code
+    const located = { code, module, lines: StackFrame.lineStarts(SOURCE) };
     const frames = await new Symbolicator(build).frames(
         [1, 2, 3].map((line) => ({
             function: "a",
@@ -107,8 +115,11 @@ test("map frames to their sources and resolve in-app ones to their innermost sym
     ]);
 
     // name the method's declaration, the helper without one, and leave the dependency's and an unmapped file's frames out of the app
+    const attributed = [...frames, ...elsewhere].map((frame) =>
+        StackFrame.attribute(frame, located),
+    );
     expect(
-        [...frames, ...elsewhere].map(({ path, line, column, isInApp, moniker, declaration }) => ({
+        attributed.map(({ path, line, column, isInApp, moniker, declaration }) => ({
             path,
             line,
             column,
@@ -150,4 +161,25 @@ test("map frames to their sources and resolve in-app ones to their innermost sym
             declaration: undefined,
         },
     ]);
+});
+
+test("leave a frame unattributed outside the module, past its lines, outside any symbol, or out of the app", () => {
+    // place frames in another module, past the last line, on the blank line between symbols, and in a dependency
+    const located = { code, module, lines: StackFrame.lineStarts(SOURCE) };
+    const frame = {
+        function: "a",
+        file: "workload.js",
+        line: 3,
+        column: 9,
+        isInApp: true,
+        path: "src/note.ts",
+    };
+    const frames = [
+        { ...frame, path: "src/other.ts" },
+        { ...frame, line: 40 },
+        { ...frame, line: 5, column: 2 },
+        { ...frame, isInApp: false },
+    ];
+
+    expect(frames.map((each) => StackFrame.attribute(each, located))).toEqual(frames);
 });

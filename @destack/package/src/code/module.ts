@@ -15,6 +15,8 @@ export const GlobalReference = schema.object({
     members: schema.array(schema.string().min(1)),
     /** Whether a computed property requires application execution to resolve. */
     dynamic: schema.boolean(),
+    /** When the reference runs: as the module evaluates, or once a function around it runs. */
+    evaluation: schema.enum(["module", "function"]),
     /** The source expression using the global. */
     source: SourceRange,
 });

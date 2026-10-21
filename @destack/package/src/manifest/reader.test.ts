@@ -20,7 +20,6 @@ async function module(path: string, source: Uint8Array<ArrayBuffer>): Promise<gr
         digest: await Digest.of(source),
         imports: [],
         exports: [],
-        symbols: [],
         declarations: [],
         edges: [],
     };
@@ -136,6 +135,7 @@ test("list the Destack releases a build resolved, leaving its npm dependencies o
         package: { name: "jose", version: "6.2.12" },
         registry: "https://registry.npmjs.org/",
         integrity: "sha512-fixture",
+        manifest: Digest.parse("b".repeat(64)),
     };
     const build = await MemoryBuild.of(app, [], {
         dependencies: { "@example/vault": vault, jose },

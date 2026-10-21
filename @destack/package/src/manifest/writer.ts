@@ -1,11 +1,18 @@
 import type { Commit, JsonValue } from "@destack/schema";
-import type { DependencyResolution, Package } from "../definition/index.ts";
+import type { DependencyResolution, NpmPackage, Package } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { Module, type Root } from "../graph/module.ts";
 import type { SourceMapReference } from "../source/map.ts";
 import type { PackageManifest } from "./manifest.ts";
 import { MANIFEST_PATH } from "./reader.ts";
+
+/** The path of each list a build's manifest references, inside the build. */
+const MANIFEST_LISTS = {
+    dependencies: "manifest/dependencies.json",
+    files: "manifest/files.json",
+    sourceMaps: "manifest/sourceMaps.json",
+} as const;
 
 /** The media types of a build's files by extension (IANA), octet streams otherwise. */
 const MEDIA_TYPES: Readonly<Record<string, string>> = {
@@ -25,8 +32,8 @@ export interface BuildStorage {
 
 /** What a build's manifest records beside its files. */
 export interface BuildContents {
-    /** The package being built. */
-    readonly package: Package;
+    /** The package being built: a Destack package, or an npm release built as a unit. */
+    readonly package: Package | NpmPackage;
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */
     readonly commit?: Commit;
     /** The named outputs, none when absent. */
@@ -112,14 +119,11 @@ export class BuildWriter {
         );
         const lists = {
             dependencies: await this.#writeJson(
-                "manifest/dependencies.json",
+                MANIFEST_LISTS.dependencies,
                 contents.dependencies ?? {},
             ),
-            files: await this.#writeJson("manifest/files.json", files),
-            sourceMaps: await this.#writeJson(
-                "manifest/sourceMaps.json",
-                contents.sourceMaps ?? [],
-            ),
+            files: await this.#writeJson(MANIFEST_LISTS.files, files),
+            sourceMaps: await this.#writeJson(MANIFEST_LISTS.sourceMaps, contents.sourceMaps ?? []),
             graph: await this.#writeJson("manifest/graph.json", root),
         };
 

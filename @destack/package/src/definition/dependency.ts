@@ -1,22 +1,30 @@
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { DependencyPackage, Package, PackageRelease } from "./package.ts";
 import { PackageFile } from "../file/file.ts";
 
-/** An immutable dependency release available from a registry. */
+/** An npm release the lockfile pins: its package, registry and integrity. */
+export const NpmRelease = schema.object({
+    /** The resolved package and release, including npm aliases. */
+    package: DependencyPackage,
+    /** The registry that provides the release. */
+    registry: schema.string().regex(/^https?:\/\/[^\s]+$/u),
+    /** The registry's Subresource Integrity expression. */
+    integrity: schema.string().min(1),
+});
+/** An npm release the lockfile pins. */
+export type NpmRelease = schema.Infer<typeof NpmRelease>;
+
+/** An immutable dependency release: a Destack build, or an npm release with its unit's build. */
 export const DependencyRelease = schema.union([
     PackageRelease.extend({
         /** The Destack registry format. */
         kind: schema.literal("destack"),
     }),
-    schema.object({
+    NpmRelease.extend({
         /** The npm registry format. */
         kind: schema.literal("npm"),
-        /** The resolved package and release, including npm aliases. */
-        package: DependencyPackage,
-        /** The registry that provides the release. */
-        registry: schema.string().regex(/^https?:\/\/[^\s]+$/u),
-        /** The registry's Subresource Integrity expression. */
-        integrity: schema.string().min(1),
+        /** The digest of its npm unit's build manifest: the release built for server runtimes. */
+        manifest: Digest,
     }),
 ]);
 
