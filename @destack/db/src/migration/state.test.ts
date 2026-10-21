@@ -1,6 +1,8 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { archive, item, list } from "../aggregate/test/fixture.ts";
+import { post, remark } from "../dependent/test/fixture.ts";
+import { TABLE } from "../table/index.ts";
 import { declareState } from "./state.ts";
 
 /** A package owning none of the fixture's tables. */
@@ -45,4 +47,19 @@ test("describe the aggregates of the described tables alone, a replica's too, re
             ["destack__db__aggregate_list", []],
         ],
     });
+});
+
+test("describe a replicated table's dependents only where the database has their table, refusing a local table's missing one", () => {
+    // replicate posts without their remarks, then beside them
+    const replicated = new Set([post[TABLE].sqlName]);
+    const alone = declareState([post], "sqlite", { replicated });
+    const beside = declareState([post, remark], "sqlite", { replicated });
+
+    // refuse local posts without their remarks
+    expect(() => declareState([post], "sqlite")).toThrow(
+        new TypeError("dependents of dependent_post reference undeclared table dependent_remark"),
+    );
+    expect(
+        [alone, beside].map((states) => states.map((state) => state.dependents?.length ?? 0)),
+    ).toEqual([[0], [1, 0]]);
 });

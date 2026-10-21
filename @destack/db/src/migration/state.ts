@@ -199,7 +199,8 @@ export function declareState(
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
         const predefined = describePredefined(table, dialect);
-        const dependents = isReplica ? [] : describeDependents(table, tables);
+        const isReplicated = replicated.has(definition.sqlName);
+        const dependents = isReplica ? [] : describeDependents(table, tables, isReplicated);
         const aggregated = aggregates.get(definition.sqlName);
 
         // leave a replicated table's uniqueness and references to its owning package
@@ -549,11 +550,19 @@ function describeAggregates(
     return aggregates;
 }
 
-/** Describe the rows referencing a table's rows. */
-function describeDependents(table: Table, tables: readonly Table[]): DependentDescription[] {
+/** Describe the rows referencing a table's rows that this database cascades. */
+function describeDependents(
+    table: Table,
+    tables: readonly Table[],
+    isReplicated: boolean,
+): DependentDescription[] {
+    // keep a replicated table's dependents this database has, its owner cascading the others
     const definition = table[TABLE];
+    const kept = definition.dependents.filter(
+        (dependent) => !isReplicated || tables.includes(dependent.from()),
+    );
 
-    return definition.dependents.map((dependent) => {
+    return kept.map((dependent) => {
         // require the dependent table and a single-column key
         const source = dependent.from();
         if (!tables.includes(source)) {
