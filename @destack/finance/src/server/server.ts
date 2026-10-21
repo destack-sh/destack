@@ -15,7 +15,8 @@ import type { ServerDefinition } from "@destack/object/server";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
 import { EntitlementController } from "./entitlement-controller.ts";
-import { UsageController } from "./usage-controller.ts";
+import { charge, usage } from "../object/index.ts";
+import { RequestId } from "@destack/runtime/request";
 
 /** Implement the finance package in a home: its types, the provider's webhook, its controllers. */
 export function implementFinance(
@@ -62,7 +63,24 @@ export function implementFinance(
 
         // rate the usage routed here and derive each account's entitlements
         controllers: [
-            (store) => new UsageController(store, home),
+            usage.consume("usage", async (page, { store, transaction, now }) => {
+                // rate the claimed page through the charges' method, moving the reader in the same commit
+                await store.mutate(
+                    store.serving(charge),
+                    {
+                        id: RequestId.create(now),
+                        calls: [
+                            charge.call("rate", {
+                                ...charge.in(home),
+                                accountId: account.identifier(page.key),
+                                after: page.after,
+                                through: page.through,
+                            }),
+                        ],
+                    },
+                    { transaction, scope: home },
+                );
+            }),
             (store) => new EntitlementController(store, home, metering),
         ],
     };

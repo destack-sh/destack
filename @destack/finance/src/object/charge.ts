@@ -10,9 +10,6 @@ import { price } from "./price.ts";
 import { seller } from "./seller.ts";
 import { Subscription, SubscriptionItem } from "./subscription.ts";
 
-/** How many uses one rating pass takes: enough for a busy account's pass to stay short. */
-export const PAGE_EVENTS = 500;
-
 /** What a charge is for, as FOCUS ChargeCategory has it: usage, or prepaid usage as credit. */
 export const CHARGE_CATEGORIES = ["Usage", "Credit"] as const;
 
@@ -131,13 +128,10 @@ export const charge = defineObject(
                 accountId: schema.identifier("account"),
                 /** The log sequence the account's usage stands rated up to. */
                 after: schema.number().int().nonnegative(),
+                /** The log sequence the claimed page of usage ends at. */
+                through: schema.number().int().nonnegative(),
             }),
-            output: schema.object({
-                /** The log sequence the rated page reaches. */
-                sequence: schema.number().int().nonnegative(),
-                /** The uses the page held. */
-                uses: schema.number().int().nonnegative(),
-            }),
+            output: schema.object({}),
         }),
         update: method.update("provide", {
             isInternal: true,

@@ -22,7 +22,7 @@ import { LocaleTag } from "@destack/locale";
 import { notification } from "@destack/notification";
 import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
-import { EventView, type ObjectType } from "@destack/object";
+import { EventView, type ObjectType, type ReaderPage } from "@destack/object";
 import { packageObject, tag } from "@destack/forge/object";
 import { publishBuild, resolvedRelease } from "@destack/forge/test";
 import { defineServer, ObjectStore, type PackageServer, Stack } from "@destack/object/server";
@@ -44,8 +44,8 @@ import { buildIndexServers } from "@destack/stack/test";
 import { homeDatabase } from "./home.ts";
 import { EntitlementController } from "../server/entitlement-controller.ts";
 import { Metering } from "../server/metering.ts";
-import { UsageController } from "../server/usage-controller.ts";
 import { createClient, type ClientOf } from "@destack/runtime/client";
+import type { Controller } from "@destack/runtime/control";
 import { Feature } from "../feature/index.ts";
 import { describeFeature, describeSku } from "../inspect/index.ts";
 import { describeMeter } from "@destack/observability/inspect";
@@ -178,7 +178,7 @@ export class FinanceFixture {
     /** The finance objects the store serves, with their handlers. */
     readonly #served: readonly ObjectType[];
     /** The rating of each account's usage, which the test runs where the control loop would. */
-    readonly #rating: UsageController;
+    readonly #rating: Controller;
     /** The telemetry recording the exceptions finance captures, refused at close unless taken. */
     readonly telemetry = TestTelemetry.register();
     /** The spaces and machines replicated below their payers so far. */
@@ -232,9 +232,18 @@ export class FinanceFixture {
             clock: this.clock,
         });
 
-        // rate usage and derive entitlements as the controllers do
-        this.#rating = new UsageController(this.store, HOME);
-        this.#entitlements = new EntitlementController(this.store, HOME, this.metering);
+        // run the rating and the entitlement derivation finance declares, where the control loop would
+        const controllers = present(definition.controllers, "finance's controllers").map(
+            (controller) => controller(this.store),
+        );
+        this.#rating = present(
+            controllers.find((each) => each.name === `${usage.name}/usage`),
+            "finance's usage rating",
+        );
+        this.#entitlements = present(
+            controllers.find((each) => each instanceof EntitlementController),
+            "finance's entitlement derivation",
+        );
 
         // answer clients authenticating by a person's name, leaving the controllers to the test
         this.http = Server.start({
@@ -293,7 +302,7 @@ export class FinanceFixture {
 
     /** Rate the next page of an account's usage and derive its entitlements, as the loop does. */
     async rate(scope: string): Promise<number | undefined> {
-        const rated = await this.#rating.reconcile(scope);
+        const rated = await this.#rating.reconcile(scope, reconciliation());
         await this.#entitlements.reconcile(scope);
 
         return rated;
@@ -308,7 +317,7 @@ export class FinanceFixture {
 
     /** Rate each payer a restarted usage controller lists until its pages run out. */
     async rateListed(): Promise<readonly string[]> {
-        const listed = await this.#rating.list();
+        const listed = await this.#rating.list(Snapshot.live(this.test.database));
         for (const payer of listed) {
             while ((await this.rate(payer)) === 0) {
                 continue;
@@ -316,6 +325,44 @@ export class FinanceFixture {
         }
 
         return listed;
+    }
+
+    /** Append a page of a space's readings as each payer's uses, as its machine does. */
+    async bill(owner: string, page: ReaderPage): Promise<void> {
+        // replicate the space below its account, then append each payer's uses as the account's machine
+        const ownerId = account.identifier(owner);
+        await this.#replicateSpace(ownerId, schema.identifier("space").parse(page.key));
+        const sender = principal.machine.reference(ownerId, SERVING_MACHINE);
+        const now = this.clock.now();
+        for (const { accountId, requestId, items } of await Usage.of(page)) {
+            await this.store.mutate(AccessContext.of(Caller.of(sender), now), {
+                id: requestId,
+                calls: [usage.call("append", { ...usage.in(accountId), items })],
+            });
+        }
+    }
+
+    /** Replicate a space below its payer once. */
+    async #replicateSpace(
+        payer: Identifier<"account">,
+        spaceId: Identifier<"space">,
+    ): Promise<void> {
+        if (this.#replicated.has(spaceId)) {
+            return;
+        }
+        this.#replicated.add(spaceId);
+        await this.test.database.insert(space.table).values({
+            id: spaceId,
+            scope: payer,
+            name: `space-${this.#replicated.size}`,
+            stack: STACKS.space,
+            createdAt: 0,
+            updatedAt: 0,
+        });
+        await new AccessFixture(this.test.database).replicateScope(
+            space.reference(payer, spaceId),
+            "own",
+        );
     }
 
     /** Replicate the spaces or machine of uses below their payer once, returning their sender. */
@@ -328,19 +375,7 @@ export class FinanceFixture {
         const access = new AccessFixture(this.test.database);
         if (machineId === null) {
             for (const use of uses) {
-                const spaceId = present(use.space, `the space of ${use.id}`);
-                if (!this.#replicated.has(spaceId)) {
-                    this.#replicated.add(spaceId);
-                    await this.test.database.insert(space.table).values({
-                        id: spaceId,
-                        scope: payer,
-                        name: `space-${this.#replicated.size}`,
-                        stack: STACKS.space,
-                        createdAt: 0,
-                        updatedAt: 0,
-                    });
-                    await access.replicateScope(space.reference(payer, spaceId), "own");
-                }
+                await this.#replicateSpace(payer, present(use.space, `the space of ${use.id}`));
             }
 
             return Subject.parse(principal.machine.reference(payer, SERVING_MACHINE));

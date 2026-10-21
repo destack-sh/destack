@@ -9,6 +9,7 @@ import type { CallInput } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
+    Usage,
     charge,
     price,
     Price,
@@ -18,6 +19,7 @@ import {
     subscription,
     type Subscription,
     subscriptionItem,
+    usage,
 } from "../src/object/index.ts";
 import { machines, spaces } from "../src/test/index.ts";
 import { Finance, ids, resolved, type Offer } from "./fixture/finance.ts";
@@ -35,6 +37,7 @@ import {
     uptime,
 } from "./fixture/storage.ts";
 import { RequestId } from "@destack/runtime/request";
+import { Event, EventTime } from "@destack/event";
 import { VirtualClock } from "@destack/environment/simulation";
 
 /** The start of the first billing period. */
@@ -373,10 +376,10 @@ test.each(TEST_DIALECTS)(
         await append(finance, { ...event, id: "2", value: 0, level: 0, time: END - 1 });
         const emptied = await read();
 
-        const capped = (usage: number, state: string) => ({
+        const capped = (used: number, state: string) => ({
             kind: "metered",
             limit: 2 * GB,
-            usage,
+            usage: used,
             resetAt: null,
             state,
         });
@@ -452,7 +455,7 @@ test.each(TEST_DIALECTS)(
         states.push(await read());
 
         // describe the limit as unlimited calls, and the state as the budget's
-        const usage = (count: number, state: string) => ({
+        const metered = (count: number, state: string) => ({
             kind: "metered",
             limit: null,
             usage: count,
@@ -460,10 +463,10 @@ test.each(TEST_DIALECTS)(
             state,
         });
         expect(states).toEqual([
-            usage(72, "near"),
-            usage(90, "over"),
-            usage(90, "near"),
-            usage(100, "blocked"),
+            metered(72, "near"),
+            metered(90, "over"),
+            metered(90, "near"),
+            metered(100, "blocked"),
         ]);
     },
 );
@@ -784,3 +787,149 @@ async function resources(finance: Finance) {
             : [[resolution.resource, resolution.limit, resolution.usage, resolution.state]],
     );
 }
+
+test.each(TEST_DIALECTS)(
+    "bill a page of a space's readings as one use per meter, SKU, installation and month, once when the page is billed again after the uses flush, on %s",
+    async (dialect) => {
+        // read 100 GB held an hour twice at the end of October and once in November, an hour before billing
+        const { finance } = await open(dialect, { clock: new VirtualClock(END + 2 * HOUR) });
+        const meter = DeclarationReference.key(disk.reference);
+        const sku = DeclarationReference.key(diskSku.reference);
+        const level = 100 * GB;
+        const read = (id: string, time: number, payerId: string) => ({
+            scope: spaces.notes,
+            id,
+            time: EventTime.of(time),
+            keys: { meter, installationId: null, sku, payerId, value: level * HOUR },
+            data: { level },
+        });
+        const page = {
+            key: spaces.notes,
+            claimedAt: END + 2 * HOUR,
+            events: [
+                read("1", END - 2 * HOUR, ids.buyer),
+                read("2", END - HOUR, ids.buyer),
+                read("3", END + HOUR, ids.buyer),
+            ],
+            after: 10,
+            through: 20,
+        };
+
+        // bill the page, flush the uses, then bill it again as a retry of the claimed page does
+        await finance.fixture.bill(ids.buyer, page);
+        await finance.fixture.flush(ids.buyer);
+        const hot = () => finance.test.database.select({ id: usage.table.id }).from(usage.table);
+        const flushed = await hot();
+        await finance.fixture.bill(ids.buyer, page);
+        const uses = async (payer: string) =>
+            (
+                await finance.fixture.events.query(
+                    usage.eventKind(),
+                    { scopes: [payer] },
+                    { order: "ascending" },
+                )
+            ).events.map(({ id, time, keys, data }) => ({ id, time, keys, data }));
+
+        // append October's two hours and November's one as their shares of each month, once each
+        const use = async (
+            from: number,
+            to: number,
+            hours: number,
+            month: number,
+            read: readonly string[],
+        ) => ({
+            id: await Event.identity(spaces.notes, [ids.buyer, meter, sku, null, month, ...read]),
+            time: EventTime.of(from),
+            keys: {
+                meter,
+                sku,
+                spaceId: spaces.notes,
+                machineId: null,
+                installationId: null,
+                quantity: (hours * level * HOUR) / (month === START ? 31 * DAY : 30 * DAY),
+                level,
+            },
+            data: { from, to },
+        });
+        expect({ flushed, retried: await hot(), uses: await uses(ids.buyer) }).toEqual({
+            flushed: [],
+            retried: [],
+            uses: [
+                await use(END - 2 * HOUR, END - HOUR, 2, START, ["1", "2"]),
+                await use(END + HOUR, END + HOUR, 1, END, ["3"]),
+            ],
+        });
+    },
+);
+
+test("fold a page of readings into each payer's uses, a counter's amount as read and a level as its share of the month", async () => {
+    // read 100 GB held an hour and 3 machine hours for the buyer, and 2 machine hours for another payer
+    const disked = DeclarationReference.key(disk.reference);
+    const up = DeclarationReference.key(uptime.reference);
+    const diskKey = DeclarationReference.key(diskSku.reference);
+    const machineKey = DeclarationReference.key(machineSku.reference);
+    const level = 100 * GB;
+    const read = (
+        id: string,
+        meter: string,
+        sku: string,
+        payerId: string,
+        value: number,
+        data: object,
+    ) => ({
+        scope: spaces.notes,
+        id,
+        time: EventTime.of(START + HOUR),
+        keys: { meter, installationId: null, sku, payerId, value },
+        data,
+    });
+    const folded = await Usage.of({
+        key: spaces.notes,
+        claimedAt: START + 2 * HOUR,
+        events: [
+            read("1", disked, diskKey, ids.buyer, level * HOUR, { level }),
+            read("2", up, machineKey, ids.buyer, 3, {}),
+            read("3", up, machineKey, ids.payer, 2, {}),
+        ],
+        after: 0,
+        through: 3,
+    });
+
+    // give each payer its own uses, keyed by the page's range
+    const use = async (
+        payer: string,
+        meter: string,
+        sku: string,
+        quantity: number,
+        isLevel: boolean,
+        read: string,
+    ) => ({
+        id: await Event.identity(spaces.notes, [payer, meter, sku, null, START, read]),
+        time: EventTime.of(START + HOUR),
+        meter,
+        sku,
+        spaceId: spaces.notes,
+        machineId: null,
+        installationId: null,
+        quantity,
+        level: isLevel ? level : null,
+        data: { from: START + HOUR, to: START + HOUR },
+    });
+    const request = (payer: string, read: string[]) =>
+        RequestId.derive(START + 2 * HOUR, JSON.stringify([payer, ...read]));
+    expect(folded).toEqual([
+        {
+            accountId: ids.buyer,
+            requestId: await request(ids.buyer, ["1", "2"]),
+            items: [
+                await use(ids.buyer, disked, diskKey, (level * HOUR) / (31 * DAY), true, "1"),
+                await use(ids.buyer, up, machineKey, 3, false, "2"),
+            ],
+        },
+        {
+            accountId: ids.payer,
+            requestId: await request(ids.payer, ["3"]),
+            items: [await use(ids.payer, up, machineKey, 2, false, "3")],
+        },
+    ]);
+});

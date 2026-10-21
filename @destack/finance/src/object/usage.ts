@@ -4,7 +4,7 @@ import { account, entitlement, machine, space } from "@destack/account/object";
 import { Table } from "@destack/db";
 import { argument, plural, select, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
-import { type EventKind, EventTime, type SERIES_FOLDS } from "@destack/event";
+import { Event, type EventKind, EventTime, type SERIES_FOLDS } from "@destack/event";
 import {
     type MethodContext,
     defineObject,
@@ -16,7 +16,10 @@ import type { Meter } from "@destack/observability/meter";
 import type { Identifier } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
 import { CallError, isCallError } from "@destack/runtime/error";
-import { schema } from "@destack/schema";
+import { RequestId } from "@destack/runtime/request";
+import { present, schema } from "@destack/schema";
+import type { ReaderPage } from "@destack/object";
+import { reading } from "@destack/observability/object";
 import { installation } from "@destack/stack/object";
 import type { ReleaseReader } from "../release/reader.ts";
 
@@ -143,6 +146,73 @@ export const usageLimit = defineNotification({
 
 /** The uses of resources finance rates. */
 export const Usage = {
+    /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
+    async of(page: ReaderPage) {
+        // read each reading with the keys and data its kind declares
+        const kind = reading.eventKind();
+        const spaceId = schema.identifier("space").parse(page.key);
+        const readings = page.events.map((event) => ({
+            id: event.id,
+            time: EventTime.milliseconds(event.time),
+            keys: kind.parseKeys(event.keys),
+            data: kind.parseData(event.data),
+        }));
+
+        // sum each payer's readings of a meter, SKU, installation and month
+        const totals = Map.groupBy(readings, ({ time, keys }) =>
+            JSON.stringify([
+                keys.payerId,
+                keys.meter,
+                keys.sku,
+                keys.installationId,
+                monthStart(time),
+            ]),
+        );
+        const uses = await Promise.all(
+            [...totals.values()].map(async (summed) => {
+                // span the readings' times, a level as its share of the month and an amount as read
+                const first = present(summed[0], "a use's first reading");
+                const last = present(summed.at(-1), "a use's last reading");
+                const { payerId, meter, sku, installationId } = first.keys;
+                const times = summed.map((each) => each.time);
+                const from = Math.min(...times);
+                const value = summed.reduce((total, each) => total + each.keys.value, 0);
+                const { level } = last.data;
+                const read = summed.map((each) => each.id).toSorted();
+                const contents = [payerId, meter, sku, installationId, monthStart(from), ...read];
+
+                return {
+                    accountId: payerId,
+                    read,
+                    item: {
+                        id: await Event.identity(spaceId, contents),
+                        time: EventTime.of(from),
+                        meter,
+                        sku,
+                        spaceId,
+                        machineId: null,
+                        installationId,
+                        quantity: level === undefined ? value : value / monthLength(from),
+                        level: level ?? null,
+                        data: { from, to: Math.max(...times) },
+                    },
+                };
+            }),
+        );
+
+        // gather each payer's uses in one request, keyed by its readings and timed by the claim, which a retry repeats
+        return Promise.all(
+            [...Map.groupBy(uses, (use) => use.accountId)].map(async ([accountId, held]) => ({
+                accountId,
+                requestId: await RequestId.derive(
+                    page.claimedAt,
+                    JSON.stringify([accountId, ...held.flatMap((use) => use.read).toSorted()]),
+                ),
+                items: held.map((use) => use.item),
+            })),
+        );
+    },
+
     /** Refuse a use its meter or SKU declaration rejects. */
     async require(used: Usage, releases: ReleaseReader): Promise<void> {
         // read the use's meter from its package's current release
@@ -245,3 +315,17 @@ export const Usage = {
         return error;
     },
 };
+
+/** Read the start of the UTC month a time falls in, in Unix milliseconds. */
+function monthStart(time: number): number {
+    const date = new Date(time);
+
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth());
+}
+
+/** Read the length of the UTC month a time falls in, in milliseconds. */
+function monthLength(time: number): number {
+    const date = new Date(time);
+
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1) - monthStart(time);
+}

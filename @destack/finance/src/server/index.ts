@@ -10,4 +10,3 @@ export * from "./entitlement-controller.ts";
 export * from "./charge.ts";
 export * from "./billing.ts";
 export * from "./metering.ts";
-export * from "./usage-controller.ts";
