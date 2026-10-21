@@ -1,4 +1,4 @@
-import type { CallErrorReport } from "@destack/error";
+import type { Failure } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { SandboxError, type SandboxErrorCode } from "./error.ts";
 
@@ -10,7 +10,7 @@ test("map every sandbox failure code to the call error its caller receives", () 
     );
 
     // receive each code's call error with the failure's message
-    const expected: Readonly<Record<SandboxErrorCode, CallErrorReport>> = {
+    const expected: Readonly<Record<SandboxErrorCode, Failure>> = {
         UNSUPPORTED: { code: "NOT_IMPLEMENTED", message: "failed" },
         START_FAILED: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
         STOP_FAILED: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
