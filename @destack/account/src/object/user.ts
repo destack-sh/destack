@@ -64,8 +64,6 @@ export const user = defineObject(
             read: union(relation("self"), relation("public")),
             // the person's private fields
             self: relation("self"),
-            // the person, their home, and through roles any machine
-            home: union(relation("self"), relation("home")),
             // the person's home, following replicas on their behalf
             follow: relation("home"),
             // the person's home, reading where the person receives notifications
@@ -116,11 +114,6 @@ export const user = defineObject(
         }),
         /** Read where the person receives notifications beyond an inbox, and in which language. */
         recipient: method.query({ permission: "recipient", output: Recipient }),
-        /** Read the home space of the person's personal account. */
-        home: method.query({
-            permission: "home",
-            output: schema.identifier("space"),
-        }),
         checkHandle: method.query({
             permission: "read",
             input: schema.object({

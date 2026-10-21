@@ -27,7 +27,6 @@ import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
 import { Residency, residency, ResidencyCode } from "../object/residency.ts";
 import { space } from "../object/space.ts";
-import { user } from "../object/user.ts";
 import { StackSource } from "../object/stack-source.ts";
 import { Claim, type ResultsOf } from "@destack/object";
 
@@ -53,9 +52,8 @@ const SERVER_ROLE = {
 const MACHINE_ROLE = {
     name: "machine",
     description:
-        "Read the homes of the people machines serve, the placements of spaces and the names they route, and start the identities of the spaces machines serve",
+        "Read the placements of spaces and the names they route, and start the identities of the spaces machines serve",
     permissions: [
-        user.permission("home"),
         placement.permission("read"),
         claim.permission("read"),
         identity.permission("start"),

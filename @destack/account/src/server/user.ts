@@ -28,7 +28,6 @@ export function implementUser(): typeof user {
             suggestHandle,
             checkHandle,
             invited,
-            home: (call) => Account.homeOf(call, call.target.id),
             recipient: async (call) => {
                 // read the person's guarded profile and unrevoked clients, which only account reveals
                 const { id } = call.target;

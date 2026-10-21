@@ -108,14 +108,6 @@ export const organisation = defineObject(
         }),
         update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
 
-        // offer seats through invitations
-        invitations: method.query({
-            permission: "manage",
-            output: schema.object({
-                /** The pending invitations to the organisation, oldest first. */
-                items: schema.array(Invitation.schema),
-            }),
-        }),
         // change invitations under the invitation's own access
         invite: method.mutation({
             permission: "manage",
@@ -135,12 +127,6 @@ export const organisation = defineObject(
             target: "id",
             input: InvitationInput,
             output: Relationship.schema,
-        }),
-        withdraw: method.mutation({
-            permission: "manage",
-            target: "id",
-            input: InvitationInput,
-            output: Invitation.schema,
         }),
     }),
 );

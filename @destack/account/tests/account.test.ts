@@ -345,7 +345,7 @@ test("create a person's home with their personal account at sign-up, placed on a
     const { machine } = await fixture.createSpace(owner);
 
     // read the home as a machine and find it placed on the residency's cloud machine
-    const read = await machine.client.user.home({ id: owner.id });
+    const read = (await machine.client.user.get({ id: owner.id })).homeId;
     const placed = await Snapshot.live(fixture.database)
         .read(placement.table)
         .findFirst({ where: { id: read } });

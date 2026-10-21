@@ -1,4 +1,4 @@
-import { INVITATION_PAGE, principal, type Relationship } from "@destack/access";
+import { principal, type Relationship } from "@destack/access";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
@@ -29,19 +29,6 @@ export function implementOrganisation(): typeof organisation {
                 handle: create,
             },
             update,
-            invitations: async (call) => {
-                // list the pending invitations as the caller
-                const page = await call.query(
-                    call.caller,
-                    invitation.call("list", {
-                        ...invitation.in(Scope.universe.id),
-                        object: call.reference(),
-                        limit: INVITATION_PAGE,
-                    }),
-                );
-
-                return { items: page.items };
-            },
             invite: async (call) => {
                 // invite as the caller to the seat's relation
                 const { relation, subject, purpose } = call.input;
@@ -57,18 +44,6 @@ export function implementOrganisation(): typeof organisation {
                 return invited;
             },
             accept,
-            withdraw: async (call) => {
-                // withdraw as the caller
-                const [withdrawn] = await call.mutate(call.caller, [
-                    invitation.call("delete", {
-                        ...invitation.in(Scope.universe.id),
-                        object: call.reference(),
-                        invitationId: call.input.invitationId,
-                    }),
-                ]);
-
-                return withdrawn;
-            },
         },
     });
 }
