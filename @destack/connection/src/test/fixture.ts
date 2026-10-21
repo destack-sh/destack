@@ -16,8 +16,20 @@ import {
     ControlLoop,
 } from "@destack/db";
 import { TestDatabase, reconcileOnce } from "@destack/db/test";
-import { defineObject, type ObjectType, Health, Egress, PackageHandle, PackageMount } from "@destack/object";
-import { defineServer, ObjectStore, Server, RequestContext } from "@destack/object/server";
+import {
+    defineObject,
+    type ObjectType,
+    Egress,
+    PackageHandle,
+    PackageMount,
+} from "@destack/object";
+import {
+    Health,
+    implementPackage,
+    ObjectStore,
+    Server,
+    RequestContext,
+} from "@destack/object/server";
 import { callTables, testEvents, TestBearer, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { Identifier, present, schema } from "@destack/schema";
@@ -476,7 +488,7 @@ export class ConnectionFixture {
             clock: Clock.system,
             principal: ConnectionFixture.#installation(scope),
             servers: [
-                defineServer(connectionPackage, {
+                implementPackage(connectionPackage, {
                     objects: [
                         implementConnection(tokens),
                         authorizationRequest,
@@ -484,13 +496,13 @@ export class ConnectionFixture {
                     ],
                     ...(home === undefined ? {} : { follows: [integrationFollow] }),
                 }),
-                defineServer(vaultPackage, {
+                implementPackage(vaultPackage, {
                     objects: [implementVault(), implementSecret(), implementSecretVersion()],
                 }),
                 ...(options.issuer === undefined
                     ? []
                     : [
-                          defineServer(ConnectionFixture.#issuing(options.issuer), {
+                          implementPackage(ConnectionFixture.#issuing(options.issuer), {
                               objects: [options.issuer],
                           }),
                       ]),
