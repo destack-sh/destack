@@ -7,6 +7,9 @@
         "./browser": {
             "runtimes": ["browser"]
         },
+        "./better-auth": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
