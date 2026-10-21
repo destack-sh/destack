@@ -54,3 +54,18 @@ export const keybindings = defineSetting(
     },
     { package: notes },
 );
+
+/** How many days a space keeps its notes' history. */
+export const history = defineSetting(
+    {
+        name: "notes.history",
+        title: "History",
+        description: "How many days a space keeps its notes' history.",
+        schema: schema.number().int().min(1),
+        default: 30,
+        scope: "space",
+        overrides: [],
+        apply: "immediate",
+    },
+    { package: notes },
+);

@@ -7,7 +7,7 @@ import type { ClientOptions } from "@destack/runtime/client";
 import type { Setting } from "../setting/setting.ts";
 import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
-import { type Identifier, schema, Version } from "@destack/schema";
+import { type Duration, type Identifier, schema, Version } from "@destack/schema";
 import { PackageId, DeclarationName } from "@destack/package";
 import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
@@ -83,6 +83,21 @@ export interface SettingPlacement {
 
 /** Reads of the setting values placed in a database. */
 export const SettingValue = {
+    /** Read a setting of days as a retention per scope, its default where it does not apply. */
+    retention(
+        declared: Setting<schema.Schema<number>>,
+    ): (scope: string, database: DatabaseConnection) => Promise<Duration> {
+        return async (scope, database) => {
+            // resolve the value in a scope of the setting's scope type, and take the default in any other
+            const isApplied = schema.identifier(declared.definition.scope).safeParse(scope).success;
+            const days = isApplied
+                ? await SettingValue.resolve(Snapshot.live(database), declared, { scope })
+                : declared.definition.default;
+
+            return { days };
+        };
+    },
+
     /** Resolve a setting for a selection from the values placed along its scope's chain. */
     async resolve<Value extends schema.Schema>(
         reader: Pick<Snapshot, "read">,
