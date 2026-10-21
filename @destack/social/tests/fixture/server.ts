@@ -5,7 +5,16 @@ import { type Call, Scope, type TrackerMessage, type Uplink, RequestId } from "@
 import { AccessFixture } from "@destack/access/test";
 import { account, space, user } from "@destack/account/object";
 import { STACKS } from "@destack/account/test";
-import { and, type DatabaseConnection, type Dialect, eq, isNull, defineDatabase, Table, channelHub } from "@destack/db";
+import {
+    and,
+    type DatabaseConnection,
+    type Dialect,
+    eq,
+    isNull,
+    defineDatabase,
+    Table,
+    channelHub,
+} from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectType } from "@destack/object";
 import { announcement, notification } from "@destack/notification";
@@ -13,7 +22,7 @@ import notificationServer from "@destack/notification/server";
 import { NotificationFixture } from "@destack/notification/test";
 import { build, installation, installationRevision } from "@destack/stack/object";
 import { buildIndexServers } from "@destack/stack/test";
-import { defineServer, EphemeralStorage, ObjectStore } from "@destack/object/server";
+import { implementPackage, EphemeralStorage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/object";
 import { callTables, testEvents } from "@destack/object/test";
 import { nth, type Identifier, present, schema } from "@destack/schema";
@@ -80,7 +89,7 @@ const articles = PackageHandle.of(article.package, {
 
 /** The servers a space composes: the articles, social and notifications. */
 const servers = [
-    defineServer(articles, { objects: ARTICLE_TYPES }),
+    implementPackage(articles, { objects: ARTICLE_TYPES }),
     socialServer,
     notificationServer,
 ];
