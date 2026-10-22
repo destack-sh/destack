@@ -168,6 +168,33 @@ test("convert for workerd what its conditions reach, replacing what a `browser` 
     });
 });
 
+test("convert a package for workerd past the tsconfig it publishes, which extends a development dependency, as khroma's does", async () => {
+    // install a package whose index re-exports a module, publishing a tsconfig of an absent package
+    const { root, pins } = await writeStore({
+        colors: {
+            manifest: { type: "module", exports: "./dist/index.js" },
+            files: {
+                "tsconfig.json": '{ "extends": "tsex/tsconfig.json" }\n',
+                "dist/index.js": 'export * from "./methods/index.js";\n',
+                "dist/methods/index.js": "export const lighten = (value) => value + 1;\n",
+            },
+        },
+    });
+    await using store = await LocalPackageStore.temporary();
+    const installation = new NpmInstallation(pins, store, CONTEXT);
+    const built = await installation.store(
+        await installation.open(copy(root, "colors")),
+        convertHere,
+    );
+
+    // run workerd's converted modules through the re-export
+    await place(store, built.manifest, "colors", "workerd", join(root, "placed"));
+    const module = Exports.parse(
+        await import(join(root, "placed", "node_modules", "colors", "dist", "index.js")),
+    );
+    expect(call(module["lighten"], 1)).toBe(2);
+});
+
 test("fail an absent optional dependency's require when it runs, and an absent optional peer's import once imported", async () => {
     // install a package falling back without its optional dependency, and a loader of an optional peer nobody installs
     const { root, pins } = await writeStore({

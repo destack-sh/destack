@@ -48,6 +48,7 @@ import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { BuildError, isMissing } from "../error/index.ts";
+import { isAuthored, relativePath } from "../source/dependency.ts";
 import { ProgramImports } from "../cache/scan.ts";
 import type { PackageBuildOptions, ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
@@ -382,11 +383,12 @@ export class CompilerWorker implements AsyncDisposable {
         }
     }
 
-    /** Open the package with an output's entries and its kind's extra modules as roots. */
+    /** Open the package with an output's entries, its kind's extra modules and its declarations. */
     #project(
         options: RequestedBuild,
         output: PlannedOutput,
         roots: "package" | "entries",
+        declarations: readonly string[],
     ): Promise<PackageSource> {
         return this.open({
             roots,
@@ -396,10 +398,30 @@ export class CompilerWorker implements AsyncDisposable {
                 : { configuration: options.configuration }),
             runtime: output.options.runtime,
             ...(output.options.entries === undefined ? {} : { entries: output.options.entries }),
-            files: output.files,
+            files: roots === "entries" ? [...output.files, ...declarations] : output.files,
             ...(options.versions === undefined ? {} : { versions: options.versions }),
             tree: options.tree,
         });
+    }
+
+    /** List the package's ambient declaration files, which every entry-rooted program reads. */
+    async #declarations(options: RequestedBuild): Promise<string[]> {
+        // read the authored configuration's root files, none without one
+        const typescript = await this.#switch(options.directory);
+        const configured = await typescript
+            .configure(options.configuration ?? "tsconfig.json")
+            .catch((error: unknown) => {
+                if (!isMissing(error)) {
+                    throw error;
+                }
+            });
+
+        // keep its own declaration files
+        const directory = await realpath(options.directory);
+
+        return (configured?.files ?? [])
+            .filter((file) => file.endsWith(".d.ts") && isAuthored(directory, file))
+            .map((file) => relativePath(directory, file));
     }
 
     /** Key each distinct program's modules once, collecting each output's module keys. */
@@ -413,11 +435,13 @@ export class CompilerWorker implements AsyncDisposable {
         const projects = new Map<string, { project: PackageSource; entries: string[] }>();
         const compiled = new Map<string, string[]>();
         const primary = CompilerWorker.#primary(planned);
+        const declarations = await this.#declarations(options);
         for (const [name, output] of planned) {
             const project = await this.#project(
                 options,
                 output,
                 name === primary ? "package" : "entries",
+                declarations,
             );
             const entries = await Promise.all(project.entries.map((entry) => realpath(entry)));
             projects.set(name, { project, entries });
@@ -502,12 +526,14 @@ export class CompilerWorker implements AsyncDisposable {
             ([left], [right]) => Number(right === primary) - Number(left === primary),
         );
         const projects = new Map<string, PackageSource>();
+        const declarations = await this.#declarations(options);
         let source: Package | undefined;
         for (const [name, output] of ordered) {
             const project = await this.#project(
                 options,
                 output,
                 name === primary ? "package" : "entries",
+                declarations,
             );
             const identity = project.packageJson.package;
             if (source !== undefined && !isSamePackage(source, identity)) {

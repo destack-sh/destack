@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { NpmRelease } from "@destack/package";
 import { onTestFinished } from "@destack/test";
 import { NpmConversion } from "../../compile/conversion.ts";
@@ -32,6 +32,7 @@ export async function writeStore(
             JSON.stringify({ name, version: "1.0.0", ...stored.manifest }),
         );
         for (const [path, text] of Object.entries(stored.files)) {
+            await mkdir(dirname(join(directory, path)), { recursive: true });
             await writeFile(join(directory, path), text);
         }
         for (const link of stored.links ?? []) {

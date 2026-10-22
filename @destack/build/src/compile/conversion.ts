@@ -355,6 +355,8 @@ export class NpmConversion {
         const bundle = await rolldown({
             input: modules.map((path) => join(root, path)),
             cwd: root,
+            // read no tsconfig a package publishes, whose extends name absent development packages
+            tsconfig: false,
             platform: "node",
             logLevel: "silent",
             resolve: {

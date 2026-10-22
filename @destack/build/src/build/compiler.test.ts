@@ -520,6 +520,52 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
     expect(await countObjects(store)).toBe(stored);
 });
 
+test("check every output's entries with the package's ambient declarations", async () => {
+    // write a package for Bun and browsers whose entry uses a type its ambient declarations declare
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-ambient-")));
+    onTestFinished(() => rm(directory, { recursive: true }));
+    const files: Record<string, string> = {
+        "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+        "destack.json": JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-000000000010",
+            language: "typescript",
+            runtimes: ["bun", "browser"],
+        }),
+        "package.json": JSON.stringify({
+            name: "@example/greeting",
+            version: "2026.9.0",
+            type: "module",
+            exports: { ".": "./src/index.ts" },
+        }),
+        "tsconfig.json": JSON.stringify({
+            compilerOptions: { strict: true, module: "Preserve", moduleResolution: "Bundler" },
+            include: ["src"],
+        }),
+        "src/greeting.d.ts":
+            "/** A greeting a page shows. */\ninterface Greeting {\n    readonly text: string;\n}\n",
+        "src/index.ts":
+            "/** Read a greeting's text. */\nexport const read = (greeting: Greeting): string => greeting.text;\n",
+    };
+    for (const [path, text] of Object.entries(files)) {
+        await mkdir(join(directory, path, ".."), { recursive: true });
+        await writeFile(join(directory, path), text);
+    }
+
+    // build both outputs, the browser's program rooted at its entries
+    await using store = await LocalPackageStore.temporary();
+    await using builder = await Compiler.start(directory, { store });
+    await using built = await builder.build({
+        directory,
+        dependencies: {},
+        outputs: {
+            server: { kind: "module", runtime: "bun" },
+            browser: { kind: "module", runtime: "browser" },
+        },
+    });
+    expect(Object.keys(built.manifest.outputs).toSorted()).toEqual(["browser", "server"]);
+});
+
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {
     const path = manifest.outputs[output]?.exports["."];
